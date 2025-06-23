@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { auth } from '../firebase/config';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
 function LoginPage() {
   const [email, setEmail] = useState('');
@@ -9,18 +12,43 @@ function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setErro('');
     try {
-      await signInWithEmailAndPassword(auth, email, senha);
-      window.location.href = "/dashboard"; // redireciona após login
+      const userCredential = await signInWithEmailAndPassword(auth, email, senha);
+      const user = userCredential.user;
+
+      // Consulta no Firestore para verificar se está ativo
+      const userDocRef = doc(db, "users", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+
+        if (userData.ativo) {
+          // Usuário ativo: redireciona
+          window.location.href = "/dashboard";
+        } else {
+          // Usuário inativo: desloga e avisa
+          await signOut(auth);
+          setErro("Seu cadastro ainda está aguardando ativação pelo responsável.");
+        }
+      } else {
+        // Documento não existe, erro
+        await signOut(auth);
+        setErro("Usuário não encontrado no sistema.");
+      }
     } catch (error) {
+      console.error(error);
       setErro("Email ou senha inválidos.");
     }
   };
 
+  // ... resto do código permanece igual
+
   return (
     <div className="flex justify-center items-center h-screen bg-gray-100">
       <form onSubmit={handleLogin} className="bg-white p-8 rounded shadow-md w-full max-w-sm">
-        <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center">Login SIGESC</h2>
         <input
           type="email"
           placeholder="Email"
@@ -44,6 +72,11 @@ function LoginPage() {
         >
           Entrar
         </button>
+
+        <p className="text-sm text-center mt-4">
+          Ainda não tem conta? <Link to="/cadastro" className="text-blue-600 underline">Cadastre-se</Link>
+        </p>
+
       </form>
     </div>
   );
