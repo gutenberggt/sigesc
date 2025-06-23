@@ -76,7 +76,9 @@ function LoginPage() {
         <p className="text-sm text-center mt-4">
           Ainda não tem conta? <Link to="/cadastro" className="text-blue-600 underline">Cadastre-se</Link>
         </p>
-
+		<p className="text-sm text-center mt-2">
+		  <a href="/recuperar-senha" className="text-blue-600 underline">Esqueceu sua senha?</a>
+		</p>
       </form>
     </div>
   );
