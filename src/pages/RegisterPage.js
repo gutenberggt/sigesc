@@ -1,105 +1,118 @@
-import React, { useState } from "react";
-import { auth, db } from "../firebase/config";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from 'react';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '../firebase/config';
+import { doc, setDoc } from 'firebase/firestore';
+import { Link } from 'react-router-dom';
 
 function RegisterPage() {
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [nome, setNome] = useState("");
-  const [telefone, setTelefone] = useState("");
-  const [erro, setErro] = useState("");
-  const [sucesso, setSucesso] = useState("");
-  const navigate = useNavigate();
+  const [nome, setNome] = useState('');
+  const [telefone, setTelefone] = useState('');
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [erro, setErro] = useState('');
+  const [sucesso, setSucesso] = useState('');
 
-  const handleRegister = async (e) => {
+  const handleCadastro = async (e) => {
     e.preventDefault();
-    setErro("");
-    setSucesso("");
+    setErro('');
+    setSucesso('');
     try {
-      // Criar usuário no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
       const user = userCredential.user;
 
-      // Criar documento no Firestore na coleção 'users'
-      await setDoc(doc(db, "users", user.uid), {
+      await setDoc(doc(db, 'users', user.uid), {
         nome,
-        email,
         telefone,
-        perfil: null,      // perfil será definido depois pelo admin/secretário
-        ativo: false,      // usuário começa inativo
-        escolas: [],       // vazio inicialmente
-        criadoEm: serverTimestamp(),
+        email,
+        ativo: false,
+        perfil: 'aluno',
       });
 
-      setSucesso("Cadastro realizado com sucesso! Aguarde a ativação pelo responsável.");
-      
-      // Opcional: limpar campos
-      setEmail("");
-      setSenha("");
-      setNome("");
-      setTelefone("");
-
-      // Redirecionar para login após 3 segundos
-      setTimeout(() => {
-        navigate("/");
-      }, 3000);
+      setSucesso('Cadastro realizado com sucesso! Aguarde a ativação do seu acesso.');
     } catch (error) {
       console.error(error);
-      setErro("Erro ao cadastrar. Verifique os dados e tente novamente.");
+      setErro('Erro ao realizar cadastro. Verifique os dados.');
     }
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-100">
-      <form onSubmit={handleRegister} className="bg-white p-8 rounded shadow-md w-full max-w-sm">
-        <h2 className="text-2xl font-bold mb-6 text-center">Cadastro</h2>
+    <div className="min-h-screen flex flex-col md:flex-row bg-white">
+      <div className="md:w-1/2 hidden md:flex flex-col justify-center items-center p-6 relative">
+        <div className="absolute top-4 left-4">
+          <div className="flex items-center gap-2">
+            <img src="/sigesc_log.png" alt="SIGESC Logotipo" className="h-10" />
+            <span className="text-2xl font-bold text-gray-800">SIGESC</span>
+          </div>
+          <p className="text-sm text-gray-600 mt-1">
+            Sistema Integrado de Gestão Escolar
+          </p>
+        </div>
+        <img
+          src="/login-ilustracao.png"
+          alt="Ilustração"
+          className="w-4/5 max-w-md mt-10"
+        />
+      </div>
 
-        <input
-          type="text"
-          placeholder="Nome completo"
-          className="w-full p-2 mb-4 border rounded"
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
-          required
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          className="w-full p-2 mb-4 border rounded"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="tel"
-          placeholder="Telefone"
-          className="w-full p-2 mb-4 border rounded"
-          value={telefone}
-          onChange={(e) => setTelefone(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Senha"
-          className="w-full p-2 mb-4 border rounded"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-          required
-          minLength={6}
-        />
+      <div className="w-full md:w-1/2 flex justify-center items-center px-6 py-12">
+        <div className="bg-white shadow-lg rounded-xl p-8 w-full max-w-md">
+          <div className="text-center mb-6 mt-4">
+            <img src="/brasao_floresta.png" alt="Brasão" className="mx-auto h-16 mb-2" />
+            <p className="text-base font-semibold text-gray-800">
+              Prefeitura Municipal de Floresta do Araguaia
+            </p>
+            <p className="text-sm text-gray-700">Secretaria Municipal de Educação</p>
+          </div>
+          <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Crie sua conta</h2>
 
-        {erro && <p className="text-red-600 text-sm mb-4">{erro}</p>}
-        {sucesso && <p className="text-green-600 text-sm mb-4">{sucesso}</p>}
+          <form onSubmit={handleCadastro}>
+            <input
+              type="text"
+              placeholder="Nome completo"
+              className="w-full p-3 mb-4 border border-gray-300 rounded-lg"
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              required
+            />
+            <input
+              type="tel"
+              placeholder="Telefone"
+              className="w-full p-3 mb-4 border border-gray-300 rounded-lg"
+              value={telefone}
+              onChange={(e) => setTelefone(e.target.value)}
+              required
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              className="w-full p-3 mb-4 border border-gray-300 rounded-lg"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Senha"
+              className="w-full p-3 mb-4 border border-gray-300 rounded-lg"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              required
+            />
+            {sucesso && <p className="text-green-600 text-sm mb-4">{sucesso}</p>}
+            {erro && <p className="text-red-600 text-sm mb-4">{erro}</p>}
+            <button
+              type="submit"
+              className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition duration-200"
+            >
+              Cadastrar
+            </button>
+          </form>
 
-        <button
-          type="submit"
-          className="w-full bg-green-600 text-white p-2 rounded hover:bg-green-700"
-        >
-          Cadastrar
-        </button>
-      </form>
+          <p className="text-sm text-center mt-4">
+            Já tem conta? <Link to="/" className="text-blue-600 underline">Entrar</Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

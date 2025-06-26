@@ -17,7 +17,6 @@ function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, senha);
       const user = userCredential.user;
 
-      // Consulta no Firestore para verificar se está ativo
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
@@ -25,15 +24,12 @@ function LoginPage() {
         const userData = userDocSnap.data();
 
         if (userData.ativo) {
-          // Usuário ativo: redireciona
           window.location.href = "/dashboard";
         } else {
-          // Usuário inativo: desloga e avisa
           await signOut(auth);
           setErro("Seu cadastro ainda está aguardando ativação pelo responsável.");
         }
       } else {
-        // Documento não existe, erro
         await signOut(auth);
         setErro("Usuário não encontrado no sistema.");
       }
@@ -43,43 +39,78 @@ function LoginPage() {
     }
   };
 
-  // ... resto do código permanece igual
-
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-100">
-      <form onSubmit={handleLogin} className="bg-white p-8 rounded shadow-md w-full max-w-sm">
-        <h2 className="text-2xl font-bold mb-6 text-center">Login SIGESC</h2>
-        <input
-          type="email"
-          placeholder="Email"
-          className="w-full p-2 mb-4 border rounded"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
+    <div className="min-h-screen flex flex-col md:flex-row bg-white">
+      {/* Lado esquerdo com imagem e logo */}
+      <div className="md:w-1/2 hidden md:flex flex-col justify-center items-center p-6 relative">
+        <div className="absolute top-4 left-4">
+          <div className="flex items-center gap-2">
+            <img src="/sigesc_log.png" alt="SIGESC Logotipo" className="h-10" />
+            <span className="text-2xl font-bold text-gray-800">SIGESC</span>
+          </div>
+          <p className="text-sm text-gray-600 mt-1">
+            Sistema Integrado de Gestão Escolar
+          </p>
+        </div>
+        <img
+          src="/login-ilustracao.png"
+          alt="Login Ilustração"
+          className="w-4/5 max-w-md mt-10"
         />
-        <input
-          type="password"
-          placeholder="Senha"
-          className="w-full p-2 mb-4 border rounded"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-          required
-        />
-        {erro && <p className="text-red-600 text-sm mb-4">{erro}</p>}
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-        >
-          Entrar
-        </button>
+      </div>
 
-        <p className="text-sm text-center mt-4">
-          Ainda não tem conta? <Link to="/cadastro" className="text-blue-600 underline">Cadastre-se</Link>
-        </p>
-		<p className="text-sm text-center mt-2">
-		  <a href="/recuperar-senha" className="text-blue-600 underline">Esqueceu sua senha?</a>
-		</p>
-      </form>
+      {/* Lado direito com o formulário */}
+      <div className="w-full md:w-1/2 flex justify-center items-center px-6 py-12">
+        <div className="bg-white shadow-lg rounded-xl p-8 w-full max-w-md">
+		{/* Brasão e textos institucionais */}
+        <div className="text-center mb-6 mt-4">
+          <img src="/brasao_floresta.png" alt="Brasão de Floresta" className="mx-auto h-16 mb-2" />
+          <p className="text-base font-semibold text-gray-800">
+            Prefeitura Municipal de Floresta do Araguaia
+          </p>
+          <p className="text-sm text-gray-700">Secretaria Municipal de Educação</p>
+        </div>
+          <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Acesse sua conta</h2>
+
+          <form onSubmit={handleLogin}>
+            <input
+              type="email"
+              placeholder="Email"
+              className="w-full p-3 mb-4 border border-gray-300 rounded-lg"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Senha"
+              className="w-full p-3 mb-4 border border-gray-300 rounded-lg"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              required
+            />
+            {erro && <p className="text-red-600 text-sm mb-4">{erro}</p>}
+            <button
+              type="submit"
+              className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition duration-200"
+            >
+              Entrar
+            </button>
+          </form>
+
+          <p className="text-sm text-center mt-4">
+            Ainda não tem conta?{" "}
+            <Link to="/cadastro" className="text-blue-600 underline">
+              Cadastre-se
+            </Link>
+          </p>
+          <p className="text-sm text-center mt-2">
+            <Link to="/recuperar-senha" className="text-blue-600 underline">
+              Esqueceu sua senha?
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
