@@ -13,7 +13,7 @@ function ProfilePage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [userName, setUserName] = useState('');
-  // Removido: const [userEmail, setUserEmail] = useState(''); (não usado após atribuição)
+  // REMOVIDO: const [userEmail, setUserEmail] = useState(''); (não é mais necessário, valor vem direto de userData)
   const [userPhone, setUserPhone] = useState('');
   const [userCpf, setUserCpf] = useState('');
 
@@ -27,7 +27,7 @@ function ProfilePage() {
   useEffect(() => {
     if (!loading && userData) {
       setUserName(userData.nome || '');
-      // Removido: setUserEmail(userData.email || '');
+      // REMOVIDO: setUserEmail(userData.email || '');
       setUserPhone(userData.telefone || '');
       setUserCpf(userData.cpf || '');
     }
@@ -250,7 +250,7 @@ function ProfilePage() {
                     type="email"
                     id="editEmail"
                     className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                    value={userEmail}
+                    value={userData.email || ''} // CORREÇÃO AQUI: usa userData.email
                     disabled={true}
                   />
                 </div>
