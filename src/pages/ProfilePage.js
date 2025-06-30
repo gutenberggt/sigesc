@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+// Removido: updateProfile (não usado)
+// Removido 'auth' do import pois não é usado diretamente
+import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'; 
 import { doc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase/config';
-import Footer from '../components/Footer';
+import { db } from '../firebase/config'; // 'auth' também não é usado aqui, apenas 'db'
 
 function ProfilePage() {
   const { user, userData, loading, setUserData } = useUser();
@@ -12,7 +13,7 @@ function ProfilePage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [userName, setUserName] = useState('');
-  const [userEmail, setUserEmail] = useState('');
+  // Removido: const [userEmail, setUserEmail] = useState(''); (não usado após atribuição)
   const [userPhone, setUserPhone] = useState('');
   const [userCpf, setUserCpf] = useState('');
 
@@ -26,7 +27,7 @@ function ProfilePage() {
   useEffect(() => {
     if (!loading && userData) {
       setUserName(userData.nome || '');
-      setUserEmail(userData.email || '');
+      // Removido: setUserEmail(userData.email || '');
       setUserPhone(userData.telefone || '');
       setUserCpf(userData.cpf || '');
     }
@@ -39,7 +40,7 @@ function ProfilePage() {
     }
   }, [loading, user, navigate]);
 
-  // Funções de formatação CPF/Telefone
+  // Funções de formatação CPF/Telefone (mantidas)
   const formatCPF = (value) => {
     value = value.replace(/\D/g, '');
     if (value.length > 11) value = value.substring(0, 11);
@@ -152,7 +153,7 @@ function ProfilePage() {
   };
 
   const handleGoBack = () => {
-    navigate(-1); // Volta para a página anterior
+    navigate(-1);
   };
 
   if (loading) {
@@ -198,7 +199,7 @@ function ProfilePage() {
               <label htmlFor="photo-upload" className="absolute bottom-0 right-0 bg-blue-500 rounded-full p-1 cursor-pointer hover:bg-blue-600 transition">
                 <input id="photo-upload" type="file" accept="image/*" className="hidden" /* onChange={handlePhotoUpload} - futura função */ />
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-white">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175-.16.023-.32.046-.48.069-.07.01-.14.02-.21.033a.75.75 0 0 0-.25.127A.75.75 0 0 0 3 8.375V18.75c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V8.375c0-.131-.052-.25-.13-.348a.749.749 0 0 0-.21-.033 49.36 49.36 0 0 1-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.106-.17c-.573-.916-1.547-1.48-2.614-1.48 0 0-1.036 0-1.036 0Zm-3.13 5.845a.75.75 0 0 1 0-1.5h.008a.75.75 0 0 1 0 1.5H3.697ZM9.54 9a.75.75 0 0 0-1.5 0v1.25c0 .414.336.75.75.75h.75a.75.75 0 0 0 0-1.5h-.008V9Zm2.25-1.5a.75.75 0 0 0-1.5 0v.75a.75.75 0 0 0 1.5 0V7.5ZM13.5 9a.75.75 0 0 0-1.5 0v.75a.75.75 0 0 0 1.5 0V9Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175-.16.023-.32.046-.48.069-.07.01-.14.02-.21.033a.75.75 0 0 0-.25.127A.75.75 0 0 0 3 8.375V18.75c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V8.375c0-.131-.052-.25-.13-.348a.749.749 0 0 0-.21-.033 49.36 49.36 0 0 1-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.106-.17c-.573-.916-1.547-1.48-2.614-1.48 0 0-1.036 0-1.036 0Zm-3.13 5.845a.75.75 0 0 1 0-1.5h.008a.75.75 0 0 1 0 1.5H3.697ZM9.54 9a.75.75 0 0 0-1.5 0v1.25c0 .414.336.75.75.75h.75a.75.75 0 0 0 0-1.5h-.008V9ZM13.5 9a.75.75 0 0 0-1.5 0v.75a.75.75 0 0 0 1.5 0V9Z" />
                 </svg>
               </label>
             </div>
@@ -222,7 +223,7 @@ function ProfilePage() {
                   Editar Informações
                 </button>
                 <button
-                  onClick={handleGoBack} // Botão Voltar
+                  onClick={handleGoBack}
                   className="w-full bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 transition"
                 >
                   Voltar
@@ -241,6 +242,16 @@ function ProfilePage() {
                     value={userName}
                     onChange={(e) => setUserName(e.target.value.toUpperCase())}
                     required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="editEmail" className="block text-sm font-medium text-gray-700">E-mail</label>
+                  <input
+                    type="email"
+                    id="editEmail"
+                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+                    value={userEmail}
+                    disabled={true}
                   />
                 </div>
                 <div>
@@ -333,7 +344,6 @@ function ProfilePage() {
           </form>
         </div>
       </div>
-	  <Footer /> {/* NOVO: Insere o rodapé aqui */}
     </div>
   );
 }

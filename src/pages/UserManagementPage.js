@@ -5,7 +5,6 @@ import { doc, setDoc, getDocs, collection, query, updateDoc, deleteDoc } from 'f
 import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import Footer from '../components/Footer'; // NOVO: Importe o componente Footer
 
 function UserManagementPage() {
   const { userData, loading } = useUser();
@@ -232,7 +231,7 @@ function UserManagementPage() {
         console.log(result.data.message);
         setSuccessMessage('Usuário excluído com sucesso (via Cloud Function)!');
         setUsers(users.filter(user => user.id !== userId));
-        resetForm(); // Limpa o formulário após excluir
+        resetForm();
       } catch (error) {
         console.error("Erro ao excluir usuário:", error);
         setErrorMessage("Erro ao excluir usuário: " + error.message);
@@ -267,8 +266,7 @@ function UserManagementPage() {
         {successMessage && <p className="text-green-600 text-sm mb-4 text-center">{successMessage}</p>}
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Nome completo e Sobrenome na mesma linha (md:col-span-2 para ocupar a largura total no mobile) */}
-          <div className="md:col-span-1"> {/* Nome */}
+          <div className="md:col-span-1">
             <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nome <span className="text-red-500">*</span></label>
             <input
               type="text"
@@ -280,7 +278,7 @@ function UserManagementPage() {
               required
             />
           </div>
-          <div className="md:col-span-1"> {/* Sobrenome */}
+          <div className="md:col-span-1">
             <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">Sobrenome</label>
             <input
               type="text"
@@ -291,7 +289,6 @@ function UserManagementPage() {
               onChange={(e) => setLastName(e.target.value.toUpperCase())}
             />
           </div>
-          {/* E-mail */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">E-mail <span className="text-red-500">*</span></label>
             <input
@@ -305,7 +302,6 @@ function UserManagementPage() {
               disabled={!!editingUser}
             />
           </div>
-          {/* Nome de Usuário */}
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700">Nome de Usuário</label>
             <input
@@ -317,7 +313,6 @@ function UserManagementPage() {
               onChange={(e) => setUsername(e.target.value)}
             />
           </div>
-          {/* CPF */}
           <div>
             <label htmlFor="cpf" className="block text-sm font-medium text-gray-700">CPF</label>
             <input
@@ -330,7 +325,6 @@ function UserManagementPage() {
               maxLength="14"
             />
           </div>
-          {/* Celular */}
           <div>
             <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">Celular</label>
             <input
@@ -448,7 +442,6 @@ function UserManagementPage() {
                 Cancelar Edição
               </button>
             )}
-            {/* NOVO BOTÃO: Excluir Usuário */}
             {editingUser && (
               <button
                 type="button"
@@ -510,7 +503,6 @@ function UserManagementPage() {
           </div>
         )}
       </div>
-	  <Footer /> {/* NOVO: Insere o rodapé aqui */}
     </div>
   );
 }
