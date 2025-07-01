@@ -224,6 +224,9 @@ function UserManagementPage() {
     setSuccessMessage('');
   };
 
+  // A função handleDelete foi removida da interface do usuário.
+  // No entanto, é importante mantê-la ou refatorá-la se houver outro lugar onde ela possa ser chamada.
+  // Por enquanto, vou manter a declaração dela aqui, mas o botão foi removido.
   const handleDelete = async (userId) => {
     if (window.confirm('Tem certeza que deseja excluir este usuário permanentemente? Esta ação não pode ser desfeita e removerá também a conta de autenticação!')) {
       try {
@@ -442,15 +445,8 @@ function UserManagementPage() {
                 Cancelar Edição
               </button>
             )}
-            {editingUser && (
-              <button
-                type="button"
-                onClick={() => handleDelete(editingUser.id)}
-                className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
-              >
-                Excluir Usuário
-              </button>
-            )}
+            {/* REMOVIDO: Botão Excluir Usuário */}
+            {/* O botão de excluir usuário foi removido da interface */}
             <button
               type="submit"
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
