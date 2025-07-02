@@ -5,7 +5,8 @@ import RecuperarSenhaPage from './pages/RecuperarSenhaPage';
 import DashboardPage from './pages/DashboardPage'; // Componente de Layout para rotas aninhadas
 import UserManagementPage from './pages/UserManagementPage';
 import ProfilePage from './pages/ProfilePage';
-import WelcomePage from './pages/WelcomePage'; // NOVO: Importe o componente de boas-vindas
+import WelcomePage from './pages/WelcomePage';
+import SchoolManagementPage from './pages/SchoolManagementPage'; // MODIFICAÇÃO: Importe a nova página SchoolManagementPage
 import { UserProvider } from './context/UserContext';
 
 function App() {
@@ -27,7 +28,7 @@ function App() {
             <Route path="cadastro-interno" element={<RegisterPage />} /> {/* Adicione esta rota aninhada para o RegisterPage dentro do Dashboard */}
             
             {/* Adicionar rotas para os submenus da Escola aqui, ex: */}
-            <Route path="escola/escola" element={<div>Página de Escolas</div>} />
+            <Route path="escola/escola" element={<SchoolManagementPage />} /> {/* MODIFICAÇÃO: Use SchoolManagementPage aqui */}
             <Route path="escola/cursos" element={<div>Página de Cursos</div>} />
             <Route path="escola/series" element={<div>Página de Séries</div>} />
             <Route path="escola/componentes-curriculares" element={<div>Página de Componentes Curriculares</div>} />
