@@ -101,14 +101,13 @@ function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50"> {/* Fundo levemente cinza */}
-      {/* NOVO CONTAINER para a ilustração e o formulário, que serão flex-row */}
-      {/* Adicionado flex-grow para ocupar o espaço disponível e items-center para centralização vertical */}
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <div className="flex flex-grow flex-col md:flex-row items-center justify-center py-6 md:py-0">
-        {/* Lado esquerdo com imagem e logo */}
-        {/* Adicionado um padding extra (pr-12) para espaçamento entre a imagem e o formulário em telas maiores */}
-        <div className="md:w-1/2 hidden md:flex flex-col justify-center items-center p-6 md:pr-12 relative">
-          <div className="absolute top-6 left-6"> {/* Ajustado top/left para maior espaçamento */}
+        {/* Lado esquerdo com logo e ilustração */}
+        {/* Adicionado flex-col e justify-between para posicionar logo no topo e ilustração centralizada */}
+        <div className="md:w-1/2 hidden md:flex flex-col justify-between items-center p-6 md:pr-12">
+          {/* Container para o Logo SIGESC - Posicionado no topo e alinhado à esquerda */}
+          <div className="w-full pl-6 pt-6 flex-shrink-0"> {/* pl-6 e pt-6 para padding do topo/esquerda */}
             <div className="flex items-center gap-2">
               <img src="/sigesc_log.png" alt="SIGESC Logotipo" className="h-10" />
               <span className="text-2xl font-bold text-gray-800">SIGESC</span>
@@ -117,17 +116,20 @@ function RegisterPage() {
               Sistema Integrado de Gestão Escolar
             </p>
           </div>
-          <img
-            src="/login-ilustracao.png"
-            alt="Ilustração"
-            className="w-4/5 max-w-md" // Removido mt-10 para centralização
-          />
+          
+          {/* Ilustração - Agora centralizada e maior */}
+          <div className="flex-grow flex items-center justify-center p-6"> {/* Garante que a imagem cresça e se centralize */}
+            <img
+              src="/login-ilustracao.png"
+              alt="Ilustração"
+              className="w-full max-w-lg" // w-full para preencher o div, max-w-lg para limitar o tamanho
+            />
+          </div>
         </div>
 
         {/* Lado direito com o formulário */}
-        {/* Removido w-full md:w-1/2 do container principal do formulário para permitir flex-grow e centralização */}
-        <div className="flex justify-center items-center px-6 py-12 md:w-1/2 lg:w-2/5"> {/* Ajustado largura para responsividade */}
-          <div className="bg-white shadow-lg rounded-xl p-8 w-full max-w-lg"> {/* Aumentado max-w-md para max-w-lg para um formulário um pouco mais largo */}
+        <div className="flex justify-center items-center px-6 py-12 md:w-1/2 lg:w-2/5">
+          <div className="bg-white shadow-lg rounded-xl p-8 w-full max-w-lg">
             {/* Brasão e textos institucionais */}
             <div className="text-center mb-6 mt-4">
               <img src="/brasao_floresta.png" alt="Brasão" className="mx-auto h-16 mb-2" />
@@ -150,10 +152,9 @@ function RegisterPage() {
               />
 
               {/* Container flexível para Seleção de Perfil e CPF */}
-              {/* Adicionado flex-col md:flex-row para melhor responsividade */}
               <div className="flex flex-col md:flex-row gap-4 mb-4">
                 <select
-                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg" // w-full para mobile, w-1/2 para md e acima
+                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg"
                   value={perfilSelecionado}
                   onChange={(e) => setPerfilSelecionado(e.target.value)}
                   required
@@ -170,7 +171,7 @@ function RegisterPage() {
                 <input
                   type="text"
                   placeholder="CPF"
-                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg" // w-full para mobile, w-1/2 para md e acima
+                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg"
                   value={formatCPF(cpf)}
                   onChange={(e) => setCpf(e.target.value)}
                   maxLength="14"
@@ -199,13 +200,12 @@ function RegisterPage() {
               />
 
               {/* Container flexível para Senha e Confirmar Senha */}
-              {/* Adicionado flex-col md:flex-row para melhor responsividade */}
               <div className="flex flex-col md:flex-row gap-4 mb-4">
                 {/* Campo Senha */}
                 <input
                   type="password"
                   placeholder="Senha"
-                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg" // w-full para mobile, w-1/2 para md e acima
+                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg"
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
                   required
@@ -214,7 +214,7 @@ function RegisterPage() {
                 <input
                   type="password"
                   placeholder="Confirme a senha"
-                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg" // w-full para mobile, w-1/2 para md e acima
+                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg"
                   value={confirmarSenha}
                   onChange={(e) => setConfirmarSenha(e.target.value)}
                   required
