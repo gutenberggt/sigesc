@@ -120,7 +120,7 @@ function RegisterPage() {
           <img
             src="/login-ilustracao.png"
             alt="Ilustração"
-            className="w-4/5 max-w-md" {/* Removido mt-10 para centralização */}
+            className="w-4/5 max-w-md" // Removido mt-10 para centralização
           />
         </div>
 
@@ -150,9 +150,10 @@ function RegisterPage() {
               />
 
               {/* Container flexível para Seleção de Perfil e CPF */}
-              <div className="flex flex-col md:flex-row gap-4 mb-4"> {/* Adicionado flex-col md:flex-row para melhor responsividade */}
+              {/* Adicionado flex-col md:flex-row para melhor responsividade */}
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
                 <select
-                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg" {/* w-full para mobile, w-1/2 para md e acima */}
+                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg" // w-full para mobile, w-1/2 para md e acima
                   value={perfilSelecionado}
                   onChange={(e) => setPerfilSelecionado(e.target.value)}
                   required
@@ -169,7 +170,7 @@ function RegisterPage() {
                 <input
                   type="text"
                   placeholder="CPF"
-                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg" {/* w-full para mobile, w-1/2 para md e acima */}
+                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg" // w-full para mobile, w-1/2 para md e acima
                   value={formatCPF(cpf)}
                   onChange={(e) => setCpf(e.target.value)}
                   maxLength="14"
@@ -198,12 +199,13 @@ function RegisterPage() {
               />
 
               {/* Container flexível para Senha e Confirmar Senha */}
-              <div className="flex flex-col md:flex-row gap-4 mb-4"> {/* Adicionado flex-col md:flex-row para melhor responsividade */}
+              {/* Adicionado flex-col md:flex-row para melhor responsividade */}
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
                 {/* Campo Senha */}
                 <input
                   type="password"
                   placeholder="Senha"
-                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg" {/* w-full para mobile, w-1/2 para md e acima */}
+                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg" // w-full para mobile, w-1/2 para md e acima
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
                   required
@@ -212,7 +214,7 @@ function RegisterPage() {
                 <input
                   type="password"
                   placeholder="Confirme a senha"
-                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg" {/* w-full para mobile, w-1/2 para md e acima */}
+                  className="w-full md:w-1/2 p-3 border border-gray-300 rounded-lg" // w-full para mobile, w-1/2 para md e acima
                   value={confirmarSenha}
                   onChange={(e) => setConfirmarSenha(e.target.value)}
                   required
