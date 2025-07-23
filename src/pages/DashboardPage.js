@@ -2,14 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { useUser } from '../context/UserContext';
-import { Link, useNavigate, Outlet } from 'react-router-dom';
-import Footer from '../components/Footer'; // NOVO: Importe o componente Footer
+import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
+import Footer from '../components/Footer'; 
+import { FaHome, FaUsers, FaUserCircle, FaSignOutAlt, FaBars, FaTimes, FaSchool, FaBookOpen, FaGraduationCap, FaChalkboardTeacher } from 'react-icons/fa'; 
 
 function DashboardPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState(null);
   const { userData, loading } = useUser(); 
   const navigate = useNavigate();
+  const location = useLocation(); 
+
+  const [sidebarOpen, setSidebarOpen] = useState(false); 
 
   console.log('Loading state in Dashboard:', loading);
   console.log('User Data in Dashboard:', userData);
@@ -23,6 +27,10 @@ function DashboardPage() {
     setIsMenuOpen(!isMenuOpen);
   };
 
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
   const toggleSubmenu = (menuName) => {
     setOpenSubmenu(openSubmenu === menuName ? null : menuName);
   };
@@ -32,6 +40,20 @@ function DashboardPage() {
       navigate("/");
     }
   }, [loading, userData, navigate]);
+
+  const getPageTitle = () => {
+    const path = location.pathname;
+    if (path === '/dashboard') return 'Visão Geral';
+    if (path === '/dashboard/meu-perfil') return 'Meu Perfil';
+    if (path === '/dashboard/gerenciar-usuarios') return 'Gerenciar Usuários';
+    if (path === '/dashboard/escola/escola') return 'Gerenciar Escolas';
+    if (path === '/dashboard/escola/cursos') return 'Níveis de Ensino';
+    if (path === '/dashboard/escola/series') return 'Séries / Anos / Etapas';
+    if (path === '/dashboard/escola/componentes-curriculares') return 'Componentes Curriculares';
+    if (path === '/dashboard/escola/turmas') return 'Gerenciar Turmas';
+    if (path === '/dashboard/escola/alunos') return 'Gerenciar Alunos';
+    return 'Dashboard';
+  };
 
 
   if (loading) {
@@ -44,8 +66,8 @@ function DashboardPage() {
 
   if (!userData) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-red-100 text-red-700">
-          <p>Erro: Dados do usuário não disponíveis. Redirecionando...</p>
+        <div className="min-h-screen flex items-center justify-center bg-red-100 font-bold">
+          <p>Acesso Negado: Você não tem permissão para acessar esta página.</p>
         </div>
       );
   }
@@ -54,8 +76,8 @@ function DashboardPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Header (mantido o mesmo) */}
-      <header className="bg-blue-600 text-white p-4 shadow">
+      {/* Header Fixo */}
+      <header className="bg-blue-600 text-white p-4 shadow-md fixed top-0 left-0 right-0 z-40"> 
         <div className="container mx-auto flex justify-between items-center relative">
           <div className="flex items-center gap-3">
             <img src="/sigesc_log.png" alt="Logo SIGESC" className="h-8" />
@@ -65,85 +87,67 @@ function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm font-medium">{userRoleDisplay}</span>
-            <button onClick={toggleMenu} className="focus:outline-none">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="w-6 h-6"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-                />
-              </svg>
+            <span className="text-sm font-medium hidden md:block">{userRoleDisplay}</span> 
+            {/* Botão de menu para mobile */}
+            <button onClick={toggleMenu} className="focus:outline-none md:hidden"> 
+              {isMenuOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
             </button>
-
-            
-			{isMenuOpen && (
-			  <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-				{/* ANTES: <a href="/meu-perfil" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Meu Perfil</a> */}
-				<Link // <-- MUDANÇA AQUI
-				  to="meu-perfil" // <-- MUDANÇA AQUI (caminho relativo à rota pai /dashboard)
-				  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-				  onClick={() => setIsMenuOpen(false)} // Fechar o menu ao clicar
-				>
-				  Meu Perfil
-				</Link>
-				<button
-				  onClick={handleLogout}
-				  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-				>
-				  Sair
-				</button>
-			  </div>
-			)}
-
-			
+            {/* Menu dropdown para desktop (e mobile quando aberto) */}
+            <div className={`absolute top-full right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 ${isMenuOpen ? 'block' : 'hidden'} md:static md:block md:w-auto md:bg-transparent md:shadow-none md:p-0 md:flex md:items-center md:gap-x-4`}> {/* MUDANÇA AQUI: Adicionado md:flex md:items-center md:gap-x-4 */}
+              <Link
+                to="/dashboard/meu-perfil"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 md:text-white md:hover:bg-blue-700 md:inline-block" // MUDANÇA AQUI: md:inline-block
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Meu Perfil
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 md:text-white md:hover:bg-blue-700 md:inline-block md:w-auto" // MUDANÇA AQUI: md:inline-block md:w-auto
+              >
+                Sair
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Conteúdo principal com barra lateral */}
-      <div className="flex flex-grow">
-        {/* Barra Lateral (mantida a mesma) */}
-        <aside className="w-64 bg-blue-700 text-white flex-shrink-0 p-4">
-          <nav>
+      <div className="flex flex-grow pt-16 md:pl-64"> 
+        {/* Sidebar fixa */}
+        <aside className={`w-64 bg-blue-700 text-white flex-shrink-0 p-4 fixed inset-y-0 left-0 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-200 ease-in-out z-30 pt-16`}> 
+          {/* Botão para fechar sidebar em mobile */}
+          <button onClick={toggleSidebar} className="md:hidden absolute top-4 right-4 text-gray-400 hover:text-white focus:outline-none">
+            <FaTimes size={20} />
+          </button>
+          <nav className="mt-4"> 
             <ul>
               {/* Início */}
               <li className="mb-2">
-                <Link to="/dashboard" className="flex items-center p-2 rounded hover:bg-blue-600 font-semibold">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12m-4.5 9V17.25a2.25 2.25 0 0 0-2.25-2.25H9.75a2.25 2.25 0 0 0-2.25 2.25V21mwa-4.5-9v-3.375c0-.621.504-1.125 1.125-1.125h1.5c.621 0 1.125.504 1.125 1.125V21" />
-                  </svg>
-                  Início
+                <Link to="/dashboard" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname === '/dashboard' ? 'bg-blue-600' : ''}`}>
+                  <FaHome className="w-5 h-5 mr-2" />
+                  <span>Início</span>
                 </Link>
               </li>
 
               {/* Gerenciar Usuários */}
-              <li className="mb-2">
-                <Link to="/dashboard/gerenciar-usuarios" className="flex items-center p-2 rounded hover:bg-blue-600 font-semibold">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                  </svg>
-                  Gerenciar Usuários
-                </Link>
-              </li>
+              {userData && userData.funcao && userData.funcao.toLowerCase() === 'administrador' && (
+                <li className="mb-2">
+                  <Link to="/dashboard/gerenciar-usuarios" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname === '/dashboard/gerenciar-usuarios' ? 'bg-blue-600' : ''}`}>
+                    <FaUsers className="w-5 h-5 mr-2" />
+                    <span>Gerenciar Usuários</span>
+                  </Link>
+                </li>
+              )}
               
-              {/* Escola e submenus (mantidos os mesmos) */}
+              {/* Escola e submenus */}
               <li className="mb-2">
                 <button
                   onClick={() => toggleSubmenu('escola')}
-                  className="w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center"
+                  className={`w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center ${openSubmenu === 'escola' || location.pathname.startsWith('/dashboard/escola') ? 'bg-blue-600' : ''}`}
                 >
                   <div className="flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15C20.221 3 21 3.779 21 4.5v15c0 .721-.779 1.5-1.5 1.5h-15C3.779 21 3 20.221 3 19.5v-15C3 3.779 3.779 3 4.5 3Z" />
-                    </svg>
+                    <FaSchool className="w-5 h-5 mr-2" />
                     <span>Escola</span>
                   </div>
                   <svg
@@ -160,59 +164,52 @@ function DashboardPage() {
                 {openSubmenu === 'escola' && (
                   <ul className="ml-4 mt-1">
                     <li>
-                      <Link to="escola/escola" className="flex items-center p-2 rounded hover:bg-blue-600 text-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15C20.221 3 21 3.779 21 4.5v15c0 .721-.779 1.5-1.5 1.5h-15C3.779 21 3 20.221 3 19.5v-15C3 3.779 3.779 3 4.5 3Z" />
-                        </svg>
+                      <Link to="/dashboard/escola/escola" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/escola' ? 'bg-blue-600' : ''}`}>
+                        <FaSchool className="w-4 h-4 mr-2" />
                         Escola
                       </Link>
                     </li>
                     <li>
-                      <Link to="escola/cursos" className="flex items-center p-2 rounded hover:bg-blue-600 text-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.098 1.52A1.5 1.5 0 0 1 5.602 0h12.796c.732 0 1.29.624 1.503 1.25L23 10c.345 1.056-.47 2-1.5 2H2.5c-1.03 0-1.845-.944-1.5-2L4.098 1.52ZM14.25 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm-3.5 0a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm-3.5 0a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Z" />
-                        </svg>
+                      <Link to="/dashboard/escola/cursos" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/cursos' ? 'bg-blue-600' : ''}`}>
+                        <FaGraduationCap className="w-4 h-4 mr-2" /> 
                         Níveis de Ensino
                       </Link>
                     </li>
                     <li>
-                      <Link to="escola/series" className="flex items-center p-2 rounded hover:bg-blue-600 text-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75 2.25 12l4.179 2.25m0-4.5 4.5 2.25L6.429 16.5m0-4.5H19.5" />
-                        </svg>
-                        Séries/Anos
+                      <Link to="/dashboard/escola/series" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/series' ? 'bg-blue-600' : ''}`}>
+                        <FaChalkboardTeacher className="w-4 h-4 mr-2" /> 
+                        Séries / Anos / Etapas
                       </Link>
                     </li>
                     <li>
-                      <Link to="escola/componentes-curriculares" className="flex items-center p-2 rounded hover:bg-blue-600 text-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.079 0-2.157.068-3.224.262.3.097.6.197.9.297V21.41l5.97-5.97a.75.75 0 0 1 .53-.22h.001c.026 0 .052-.002.079-.002a.75.75 0 0 1 .53.22L18 21.41V4.77c-.9-.18-1.8-.27-2.7-.27-.901 0-1.802.09-2.703.27-1.079-.194-2.157-.262-3.224-.262Z" />
-                        </svg>
+                      <Link to="/dashboard/escola/componentes-curriculares" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/componentes-curriculares' ? 'bg-blue-600' : ''}`}>
+                        <FaBookOpen className="w-4 h-4 mr-2" /> 
                         Componentes Curriculares
                       </Link>
                     </li>
-                    
                     <li>
-                      <Link to="escola/alunos" className="flex items-center p-2 rounded hover:bg-blue-600 text-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.75V6.75A2.25 2.25 0 0 0 15.75 4.5H12a2.25 2.25 0 0 0-2.25 2.25v12A2.25 2.25 0 0 0 12 21.75h3.75m-3.75-9h6.375M12 10.5h.375M12 16.5h.375M2.25 10.5h8.572c.305 0 .572.235.572.534v8.075c0 .299-.267.534-.572.534H2.25A.263.263 0 0 1 2 19.075V10.704c0-.299.267-.534.572-.534Z" />
-                        </svg>
-                        Alunos
+                      <Link to="/dashboard/escola/turmas" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/turmas' ? 'bg-blue-600' : ''}`}>
+                        <FaUsers className="w-4 h-4 mr-2" /> 
+                        Turmas
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/dashboard/escola/alunos" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/alunos' ? 'bg-blue-600' : ''}`}>
+                        <FaUserCircle className="w-4 h-4 mr-2" /> 
+                        Gerenciar Alunos
                       </Link>
                     </li>
                   </ul>
                 )}
               </li>
-              {/* Adicione outros menus principais aqui, se houver */}
             </ul>
           </nav>
         </aside>
 
-        {/* Conteúdo principal da página */}
-        <main className="flex-grow container mx-auto p-6 flex flex-col min-h-screen"> {/* Adicionado flex flex-col min-h-screen para o rodapé */}
-          <Outlet /> {/* ESTE É ONDE AS ROTAS ANINHADAS SERÃO RENDERIZADAS */}
-          <div className="flex-grow"></div> {/* Empurra o rodapé para baixo */}
-          <Footer /> {/* NOVO: Insere o rodapé aqui */}
+        {/* Main content */}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6"> 
+          <Outlet />
+          <Footer />
         </main>
       </div>
     </div>
