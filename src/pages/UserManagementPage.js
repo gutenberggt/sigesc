@@ -103,8 +103,6 @@ function UserManagementPage() {
           const userSnapshot = await getDocs(usersCol);
           const userList = userSnapshot.docs.map(doc => ({
             id: doc.id,
-            // Certifique-se de que os dados do usuário no Firestore tenham 'nomeCompleto', 'telefone' etc.
-            // ou ajuste aqui para mapear os campos existentes.
             ...doc.data()
           }));
           setUsers(userList);
@@ -292,6 +290,9 @@ function UserManagementPage() {
           type="text"
           placeholder="Buscar usuário por nome, CPF ou e-mail..."
           className="w-full p-2 border border-gray-300 rounded-md mb-6"
+          // Não tem estado ou onChange para este input de busca.
+          // Para funcionar, você precisaria adicionar:
+          // value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
         />
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -339,54 +340,59 @@ function UserManagementPage() {
             />
           </div>
 
-          {/* Celular */}
-          <div>
-            <label htmlFor="celular" className="block text-sm font-medium text-gray-700">Celular <span className="text-red-500">*</span></label>
-            <input
-              type="tel"
-              id="celular"
-              placeholder="(00)90000-0000"
-              className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-              value={formatCelular(celular)}
-              onChange={(e) => setCelular(e.target.value)}
-              maxLength="15"
-              required
-            />
-          </div>
+          {/* NOVO CONTAINER PARA CELULAR, FUNÇÃO E STATUS (MESMA LINHA) */}
+          {/* Adiciona display flex e gap para espaçamento entre os 3 campos */}
+          <div className="md:col-span-2 flex flex-col md:flex-row gap-4">
+            {/* Celular */}
+            <div className="w-full md:w-1/3"> {/* w-full em mobile, 1/3 em md e acima */}
+              <label htmlFor="celular" className="block text-sm font-medium text-gray-700">Celular <span className="text-red-500">*</span></label>
+              <input
+                type="tel"
+                id="celular"
+                placeholder="(00)90000-0000"
+                className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+                value={formatCelular(celular)} // Alterado para formatCelular
+                onChange={(e) => setCelular(e.target.value)}
+                maxLength="15"
+                required
+              />
+            </div>
 
-          {/* Função */}
-          <div>
-            <label htmlFor="funcao" className="block text-sm font-medium text-gray-700">Função <span className="text-red-500">*</span></label>
-            <select
-              id="funcao"
-              className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-              value={funcao}
-              onChange={(e) => setFuncao(e.target.value)}
-              required
-            >
-              <option value="aluno">Aluno</option>
-              <option value="professor">Professor</option>
-              <option value="secretario">Secretário</option>
-              <option value="coordenador">Coordenador</option>
-              <option value="diretor">Diretor</option>
-              <option value="administrador">Administrador</option>
-            </select>
+            {/* Função */}
+            <div className="w-full md:w-1/3"> {/* w-full em mobile, 1/3 em md e acima */}
+              <label htmlFor="funcao" className="block text-sm font-medium text-gray-700">Função <span className="text-red-500">*</span></label>
+              <select
+                id="funcao"
+                className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+                value={funcao}
+                onChange={(e) => setFuncao(e.target.value)}
+                required
+              >
+                <option value="aluno">Aluno</option>
+                <option value="professor">Professor</option>
+                <option value="secretario">Secretário</option>
+                <option value="coordenador">Coordenador</option>
+                <option value="diretor">Diretor</option>
+                <option value="administrador">Administrador</option>
+              </select>
+            </div>
+
+            {/* Status */}
+            <div className="w-full md:w-1/3"> {/* w-full em mobile, 1/3 em md e acima */}
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700">Status <span className="text-red-500">*</span></label>
+              <select
+                id="status"
+                className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                required
+              >
+                <option value="ativo">Ativo</option>
+                <option value="inativo">Inativo</option>
+              </select>
+            </div>
           </div>
-          
-          {/* Status */}
-          <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700">Status <span className="text-red-500">*</span></label>
-            <select
-              id="status"
-              className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              required
-            >
-              <option value="ativo">Ativo</option>
-              <option value="inativo">Inativo</option>
-            </select>
-          </div>
+          {/* FIM DO NOVO CONTAINER PARA CELULAR, FUNÇÃO E STATUS */}
 
           {/* Senha e Confirmar Senha (apenas para novo cadastro) */}
           {!editingUser && (
@@ -424,13 +430,13 @@ function UserManagementPage() {
               <p>Para alterar a senha do usuário, preencha os campos abaixo. Isso utilizará uma Cloud Function.</p>
               <div className="flex gap-4 mt-2">
                 <div className="w-1/2">
-                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">Nova Senha</label> {/* Removido "(Administrador)" */}
+                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">Nova Senha</label>
                   <input
                     type="password"
                     id="newPassword"
                     placeholder="Nova senha"
                     className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                    value={senha} // Usando o estado 'senha' para a nova senha
+                    value={senha}
                     onChange={(e) => setSenha(e.target.value)}
                   />
                 </div>
@@ -441,7 +447,7 @@ function UserManagementPage() {
                     id="confirmNewPassword"
                     placeholder="Confirme nova senha"
                     className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                    value={confirmarSenha} // Usando o estado 'confirmarSenha'
+                    value={confirmarSenha}
                     onChange={(e) => setConfirmarSenha(e.target.value)}
                   />
                 </div>
@@ -481,13 +487,13 @@ function UserManagementPage() {
         {/* Tabela de Usuários Existentes */}
         <h3 className="text-xl font-bold mb-4 text-gray-800 text-center">Lista de Usuários</h3>
         {users.length === 0 ? (
-          <p className="text-center text-gray-600">Nenhum usuário cadastrado ainda.</p>
+          <p className="text-center text-gray-600">Nenhum usuário cadastrado ou encontrado.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white border border-gray-300 rounded-md">
               <thead>
                 <tr className="bg-gray-200 text-gray-700 uppercase text-sm leading-normal">
-                  <th className="py-3 px-6 text-left">Nome Completo</th> {/* Ajustado */}
+                  <th className="py-3 px-6 text-left">Nome Completo</th>
                   <th className="py-3 px-6 text-left">E-mail</th>
                   <th className="py-3 px-6 text-left">Função</th>
                   <th className="py-3 px-6 text-left">Status</th>
@@ -497,7 +503,7 @@ function UserManagementPage() {
               <tbody className="text-gray-600 text-sm font-light">
                 {users.map((user) => (
                   <tr key={user.id} className="border-b border-gray-200 hover:bg-gray-100">
-                    <td className="py-3 px-6 text-left whitespace-nowrap">{user.nomeCompleto}</td> {/* Ajustado para nomeCompleto */}
+                    <td className="py-3 px-6 text-left whitespace-nowrap">{user.nomeCompleto}</td>
                     <td className="py-3 px-6 text-left">{user.email}</td>
                     <td className="py-3 px-6 text-left">{user.funcao ? user.funcao.charAt(0).toUpperCase() + user.funcao.slice(1) : 'N/A'}</td>
                     <td className="py-3 px-6 text-left">
@@ -510,7 +516,6 @@ function UserManagementPage() {
                         <button onClick={() => handleEdit(user)} className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full text-xs">
                           Editar
                         </button>
-                        {/* Botão Excluir (Mantido, mas lembre-se que usa Cloud Function) */}
                         <button onClick={() => handleDelete(user.id)} className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full text-xs">
                           Excluir
                         </button>
