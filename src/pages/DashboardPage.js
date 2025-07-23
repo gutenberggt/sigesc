@@ -83,22 +83,27 @@ function DashboardPage() {
               </svg>
             </button>
 
-            {isMenuOpen && (
-              <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                <a
-                  href="/meu-perfil"
-                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Meu Perfil
-                </a>
-                <button
-                  onClick={handleLogout}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  Sair
-                </button>
-              </div>
-            )}
+            
+			{isMenuOpen && (
+			  <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+				{/* ANTES: <a href="/meu-perfil" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Meu Perfil</a> */}
+				<Link // <-- MUDANÇA AQUI
+				  to="meu-perfil" // <-- MUDANÇA AQUI (caminho relativo à rota pai /dashboard)
+				  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+				  onClick={() => setIsMenuOpen(false)} // Fechar o menu ao clicar
+				>
+				  Meu Perfil
+				</Link>
+				<button
+				  onClick={handleLogout}
+				  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+				>
+				  Sair
+				</button>
+			  </div>
+			)}
+
+			
           </div>
         </div>
       </header>
@@ -167,7 +172,7 @@ function DashboardPage() {
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4.098 1.52A1.5 1.5 0 0 1 5.602 0h12.796c.732 0 1.29.624 1.503 1.25L23 10c.345 1.056-.47 2-1.5 2H2.5c-1.03 0-1.845-.944-1.5-2L4.098 1.52ZM14.25 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm-3.5 0a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm-3.5 0a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Z" />
                         </svg>
-                        Cursos
+                        Níveis de Ensino
                       </Link>
                     </li>
                     <li>
@@ -175,7 +180,7 @@ function DashboardPage() {
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75 2.25 12l4.179 2.25m0-4.5 4.5 2.25L6.429 16.5m0-4.5H19.5" />
                         </svg>
-                        Séries
+                        Séries/Anos
                       </Link>
                     </li>
                     <li>
@@ -186,14 +191,7 @@ function DashboardPage() {
                         Componentes Curriculares
                       </Link>
                     </li>
-                    <li>
-                      <Link to="escola/turmas" className="flex items-center p-2 rounded hover:bg-blue-600 text-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.75V6.75A2.25 2.25 0 0 0 15.75 4.5H12a2.25 2.25 0 0 0-2.25 2.25v12A2.25 2.25 0 0 0 12 21.75h3.75m-3.75-9h6.375M12 10.5h.375M12 16.5h.375M2.25 10.5h8.572c.305 0 .572.235.572.534v8.075c0 .299-.267.534-.572.534H2.25A.263.263 0 0 1 2 19.075V10.704c0-.299.267-.534.572-.534Z" />
-                        </svg>
-                        Turmas
-                      </Link>
-                    </li>
+                    
                     <li>
                       <Link to="escola/alunos" className="flex items-center p-2 rounded hover:bg-blue-600 text-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
