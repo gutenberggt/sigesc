@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useUser } from '../context/UserContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom'; // Importe Link aqui!
 
 // Importar os dados dos níveis de ensino e séries/anos/etapas
 import { niveisDeEnsinoList } from './NiveisDeEnsinoPage';
@@ -175,7 +175,8 @@ function SchoolManagementPage() {
   // Efeito para carregar escolas existentes (apenas para admins)
   useEffect(() => {
     if (!loading) {
-      if (!userData || (userData.funcao && userData.funcao.toLowerCase() !== 'administrador')) {
+      // Permissões: Administrador e Secretário podem gerenciar escolas
+      if (!userData || !(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario'))) {
         navigate('/dashboard');
         return;
       }
@@ -183,7 +184,36 @@ function SchoolManagementPage() {
       const fetchSchools = async () => {
         try {
           const schoolsCol = collection(db, 'schools');
-          const schoolSnapshot = await getDocs(schoolsCol);
+          let schoolQuery = schoolsCol;
+
+          // Se for Secretário, filtra as escolas que ele está associado
+          if (userData.funcao.toLowerCase() === 'secretario') {
+            const userSchoolsIds = userData.escolasIds || (userData.escolaId ? [userData.escolaId] : []);
+            if (userSchoolsIds.length === 0) {
+              setErrorMessage("Secretário não associado a nenhuma escola.");
+              setSchools([]); // Limpa a lista se não houver escolas associadas
+              return;
+            }
+            // Não é possível usar 'where(id, in, array)' no getDocs diretamente sem passar a query.
+            // A forma mais direta para buscar por vários IDs seria fazer N requisições ou usar 'where(documentId(), in, ...)'
+            // Para simplificar e mostrar apenas as escolas dele, é necessário uma query
+            // Exemplo de como buscar escolas específicas (se IDs são documentos do Firebase)
+            // if (userSchoolsIds.length > 0) {
+            //   schoolQuery = query(schoolsCol, where(documentId(), 'in', userSchoolsIds));
+            // }
+            // Para este cenário, se o ID da escola não for o ID do documento, teríamos que buscar todas
+            // e filtrar no cliente, ou refatorar o schoolId como ID do documento.
+            // Por enquanto, vamos buscar todas e filtrar para o Secretário (menos eficiente, mas funcional)
+             const allSchoolsSnapshot = await getDocs(schoolsCol);
+             const filteredSchoolList = allSchoolsSnapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(school => userSchoolsIds.includes(school.id)); // Filtra localmente
+             setSchools(filteredSchoolList);
+             return;
+          }
+
+          // Para Administrador ou se não for Secretário (pega todas)
+          const schoolSnapshot = await getDocs(schoolQuery);
           const schoolList = schoolSnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
@@ -197,6 +227,7 @@ function SchoolManagementPage() {
       fetchSchools();
     }
   }, [loading, userData, navigate]);
+
 
   // Função para lidar com o cadastro/edição de escola
   const handleSubmit = async (e) => {
@@ -287,13 +318,14 @@ function SchoolManagementPage() {
       } else {
         await addDoc(collection(db, 'schools'), schoolData);
         setSuccessMessage('Escola cadastrada com sucesso!');
+        // Recarrega a lista após o cadastro para ver a nova escola
         const schoolsCol = collection(db, 'schools');
-        const studentSnapshot = await getDocs(schoolsCol);
-        const studentList = studentSnapshot.docs.map(doc => ({
+        const schoolSnapshot = await getDocs(schoolsCol);
+        const schoolList = schoolSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
-        setSchools(studentList);
+        setSchools(schoolList);
       }
       resetForm();
     } catch (error) {
@@ -350,7 +382,7 @@ function SchoolManagementPage() {
     }
   };
 
-  // Verificação de permissão (apenas admins podem acessar)
+  // Verificação de permissão (apenas admins e secretários podem acessar esta página)
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen text-gray-700">
@@ -359,7 +391,8 @@ function SchoolManagementPage() {
     );
   }
 
-  if (!userData || (userData.funcao && userData.funcao.toLowerCase() !== 'administrador')) {
+  // Redireciona se não for admin ou secretário
+  if (!userData || !(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario'))) {
     return (
       <div className="flex justify-center items-center h-screen text-red-600 font-bold">
         Acesso Negado: Você não tem permissão para acessar esta página.
@@ -802,6 +835,13 @@ function SchoolManagementPage() {
                         <button onClick={() => handleDelete(school.id)} className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full text-xs">
                           Excluir
                         </button>
+                        {/* NOVO BOTÃO: Gerenciar Turmas */}
+                        <Link
+                          to={`/dashboard/escola/turmas/${school.id}`} // Link para a TurmasPage, passando o ID da escola
+                          className="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded-full text-xs"
+                        >
+                          Turmas
+                        </Link>
                       </div>
                     </td>
                   </tr>
