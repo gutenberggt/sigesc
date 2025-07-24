@@ -10,8 +10,8 @@ import SchoolManagementPage from './pages/SchoolManagementPage';
 import NiveisDeEnsinoPage from './pages/NiveisDeEnsinoPage';
 import SeriesAnosEtapasPage from './pages/SeriesAnosEtapasPage';
 import ComponentesCurricularesPage from './pages/ComponentesCurricularesPage';
-import StudentManagementPage from './pages/StudentManagementPage';
-import TurmasPage from './pages/TurmasPage'; // Adicionei esta importação
+import PessoaManagementPage from './pages/PessoaManagementPage';
+import TurmasPage from './pages/TurmasPage'; 
 import { UserProvider } from './context/UserContext';
 
 function App() {
@@ -38,11 +38,8 @@ function App() {
             <Route path="escola/cursos" element={<NiveisDeEnsinoPage />} />
             <Route path="escola/series" element={<SeriesAnosEtapasPage />} />
             <Route path="escola/componentes-curriculares" element={<ComponentesCurricularesPage />} />
-            <Route path="escola/alunos" element={<StudentManagementPage />} />
-            <Route path="escola/turmas" element={<div>Página de Turmas</div>} /> {/* Esta linha estava duplicada/genérica, mantendo para referência do problema se não foi removida antes */}
-
-            {/* NOVA ROTA PARA GERENCIAR TURMAS COM PARAMETRO SCHOOL_ID */}
-            {/* Esta é a rota que adicionamos e precisa estar corretamente aninhada */}
+            <Route path="escola/pessoas" element={<PessoaManagementPage />} />
+            <Route path="escola/turmas" element={<div>Página de Turmas</div>} /> 
             <Route path="escola/turmas/:schoolId" element={<TurmasPage />} />
 
           </Route> {/* Esta é a tag de fechamento para a Rota Pai /dashboard */}
