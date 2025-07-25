@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { useUser } from '../context/UserContext';
-import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom'; // Adicionado useLocation
+import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import Footer from '../components/Footer';
-import { FaHome, FaUsers, FaUserCircle, FaSignOutAlt, FaBars, FaTimes, FaSchool, FaBookOpen, FaGraduationCap, FaChalkboardTeacher } from 'react-icons/fa'; // Importado ícones
+import { FaHome, FaUsers, FaUserCircle, FaSignOutAlt, FaBars, FaTimes, FaSchool, FaBookOpen, FaGraduationCap, FaChalkboardTeacher, FaUserGraduate } from 'react-icons/fa';
 
 function DashboardPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -47,13 +47,13 @@ function DashboardPage() {
         if (isMenuOpen) { // Só adiciona o listener se o menu estiver aberto
             document.addEventListener("mousedown", handleClickOutside);
         }
-    }, 100); // Pequeno atraso
+    }, 100);
 
     return () => {
       clearTimeout(timer);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isMenuOpen, menuRef]); // Depende do estado do menu e da ref
+  }, [isMenuOpen, menuRef]);
 
 
   useEffect(() => {
@@ -72,16 +72,17 @@ function DashboardPage() {
     if (path === '/dashboard/escola/cursos') return 'Níveis de Ensino';
     if (path === '/dashboard/escola/series') return 'Séries / Anos / Etapas';
     if (path === '/dashboard/escola/componentes-curriculares') return 'Componentes Curriculares';
-    if (path === '/dashboard/escola/turmas') return 'Gerenciar Turmas';
-    if (path === '/dashboard/escola/pessoas') return 'Gerenciar Pessoas'; // Adicionado
+    if (path.startsWith('/dashboard/escola/turmas')) return 'Gerenciar Turmas'; // Ajustado para rotas com :schoolId
+    if (path === '/dashboard/escola/pessoas') return 'Gerenciar Pessoas';
+    if (path === '/dashboard/escola/matriculas') return 'Matrícula de Aluno'; // Adicionado
     return 'Dashboard';
   };
 
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p className="text-gray-700">Carregando painel...</p>
+      <div className="flex justify-center items-center h-screen text-gray-700">
+        Carregando painel...
       </div>
     );
   }
@@ -119,7 +120,7 @@ function DashboardPage() {
             <h2 className="text-lg font-bold md:hidden">{getPageTitle()}</h2>
             
             {/* Menu dropdown do usuário (Meu Perfil, Sair) */}
-            <button onClick={toggleMenu} className="focus:outline-none ml-auto"> {/* ml-auto para empurrar para a direita */}
+            <button onClick={toggleMenu} className="focus:outline-none ml-auto">
               <FaUserCircle size={24} />
             </button>
             {isMenuOpen && (
@@ -176,7 +177,7 @@ function DashboardPage() {
               {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
                 <li className="mb-2">
                   <Link to="/dashboard/escola/pessoas" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname === '/dashboard/escola/pessoas' ? 'bg-blue-600' : ''}`}>
-                    <FaUsers className="w-5 h-5 mr-2" /> {/* Reusando ícone, ou use FaUserCircle */}
+                    <FaUserCircle className="w-5 h-5 mr-2" />
                     <span>Gerenciar Pessoas</span>
                   </Link>
                 </li>
@@ -235,14 +236,15 @@ function DashboardPage() {
                                 <span>Componentes Curriculares</span>
                               </Link>
                             </li>
-                            {/* O link para Turmas terá um :schoolId, então ele não pode ser um link direto estático aqui.
-                            Será acessado de SchoolManagementPage ou de uma lista de turmas global */}
-                            {/* <li>
-                              <Link to="/dashboard/escola/turmas" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/turmas' ? 'bg-blue-600' : ''}`}>
-                                <FaUsers className="w-4 h-4 mr-2" />
-                                <span>Turmas</span>
-                              </Link>
-                            </li> */}
+                            {/* NOVO ITEM DE MENU: MATRÍCULA DE ALUNO */}
+                            {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
+                                <li>
+                                    <Link to="/dashboard/escola/matriculas" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/matriculas' ? 'bg-blue-600' : ''}`}>
+                                        <FaUserGraduate className="w-4 h-4 mr-2" />
+                                        <span>Matrícula de Aluno</span>
+                                    </Link>
+                                </li>
+                            )}
                         </>
                     )}
                   </ul>
@@ -259,7 +261,6 @@ function DashboardPage() {
         )}
 
         {/* Conteúdo principal da página - ONDE AS ROTAS ANINHADAS SERÃO RENDERIZADAS */}
-        {/* Adicionado padding-left em telas maiores para evitar sobreposição da sidebar */}
         <main className="flex-grow overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
           <Outlet /> {/* ESTE É ONDE AS ROTAS ANINHADAS SERÃO RENDERIZADAS */}
         </main>

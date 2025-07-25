@@ -10,8 +10,11 @@ import SchoolManagementPage from './pages/SchoolManagementPage';
 import NiveisDeEnsinoPage from './pages/NiveisDeEnsinoPage';
 import SeriesAnosEtapasPage from './pages/SeriesAnosEtapasPage';
 import ComponentesCurricularesPage from './pages/ComponentesCurricularesPage';
-import PessoaManagementPage from './pages/PessoaManagementPage';
-import TurmasPage from './pages/TurmasPage'; 
+// Todas as importações de páginas devem ser exportações DEFAULT de seus arquivos
+import PessoaManagementPage from './pages/PessoaManagementPage'; // Renomeado de StudentManagementPage
+import TurmasPage from './pages/TurmasPage';
+import MatriculaAlunoPage from './pages/MatriculaAlunoPage'; // Nova página
+
 import { UserProvider } from './context/UserContext';
 
 function App() {
@@ -22,9 +25,8 @@ function App() {
           <Route path="/" element={<LoginPage />} />
           <Route path="/cadastro" element={<RegisterPage />} />
           <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
-
+          
           {/* Rota Pai para o DashboardPage como layout */}
-          {/* Todas as rotas aninhadas devem estar DENTRO DESTA TAG <Route> */}
           <Route path="/dashboard" element={<DashboardPage />}>
             {/* Rota aninhada padrão para /dashboard (mostra a WelcomePage) */}
             <Route index element={<WelcomePage />} />
@@ -32,18 +34,20 @@ function App() {
             <Route path="gerenciar-usuarios" element={<UserManagementPage />} />
             <Route path="meu-perfil" element={<ProfilePage />} />
             <Route path="cadastro-interno" element={<RegisterPage />} />
-
+            
             {/* Rotas aninhadas para os submenus da Escola */}
             <Route path="escola/escola" element={<SchoolManagementPage />} />
             <Route path="escola/cursos" element={<NiveisDeEnsinoPage />} />
             <Route path="escola/series" element={<SeriesAnosEtapasPage />} />
             <Route path="escola/componentes-curriculares" element={<ComponentesCurricularesPage />} />
-            <Route path="escola/pessoas" element={<PessoaManagementPage />} />
-            <Route path="escola/turmas" element={<div>Página de Turmas</div>} /> 
-            <Route path="escola/turmas/:schoolId" element={<TurmasPage />} />
+            
+            {/* Rotas para Gerenciamento de Pessoas, Turmas e Matrícula */}
+            <Route path="escola/pessoas" element={<PessoaManagementPage />} /> {/* Gerenciar Pessoas */}
+            <Route path="escola/turmas/:schoolId" element={<TurmasPage />} /> {/* Gerenciar Turmas por Escola ID */}
+            <Route path="escola/matriculas" element={<MatriculaAlunoPage />} /> {/* Matrícula de Aluno */}
 
-          </Route> {/* Esta é a tag de fechamento para a Rota Pai /dashboard */}
-
+          </Route>
+                    
         </Routes>
       </UserProvider>
     </Router>
