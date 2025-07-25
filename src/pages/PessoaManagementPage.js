@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { db, auth } from '../firebase/config'; // Importe 'auth'
+import { db, auth } from '../firebase/config';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy, setDoc, getDoc } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth'; // Importe para criar usuário Auth
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -485,7 +485,7 @@ function PessoaManagementPage() {
       try {
         // Obter o documento da pessoa para pegar o userId (UID do Auth)
         const pessoaDocRef = doc(db, 'pessoas', pessoaId);
-        const pessoaDocSnap = await getDoc(pessoaDocRef); // Use getDoc aqui
+        const pessoaDocSnap = await getDoc(pessoaDocRef);
         let userIdToDelete = null;
 
         if (pessoaDocSnap.exists()) {
@@ -534,7 +534,7 @@ function PessoaManagementPage() {
 
   return (
     <div className="flex-grow p-6">
-      <div className="bg-white p-8 rounded-lg shadow-md">
+      <div className="bg-white p-8 rounded-lg shadow-md max-w-lg mx-auto md:max-w-4xl"> {/* Ajustado max-w para responsividade */}
         <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">
           {editingPessoa ? 'Editar Pessoa' : 'Cadastrar Nova Pessoa'}
         </h2>
@@ -543,7 +543,7 @@ function PessoaManagementPage() {
         {successMessage && <p className="text-green-600 text-sm mb-4 text-center">{successMessage}</p>}
 
         {/* Campo de Busca com Sugestões */}
-        <div className="relative mb-4">
+        <div className="relative mb-4 max-w-full mx-auto"> {/* Ajustado max-w-full e mx-auto para responsividade */}
           <input
             type="text"
             placeholder="Buscar pessoa por nome ou CPF..."
@@ -559,9 +559,9 @@ function PessoaManagementPage() {
                   key={person.id}
                   className="p-2 cursor-pointer hover:bg-gray-200 flex justify-between items-center"
                   onClick={() => {
-                    handleEdit(person); // Preenche o formulário com os dados da pessoa
-                    setSearchTerm(''); // Limpa o campo de busca
-                    setPersonSearchSuggestions([]); // Esconde as sugestões
+                    handleEdit(person);
+                    setSearchTerm('');
+                    setPersonSearchSuggestions([]);
                   }}
                 >
                   <span>{person.nomeCompleto}</span>
@@ -575,24 +575,24 @@ function PessoaManagementPage() {
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4"> {/* Removido max-w-lg mx-auto daqui */}
           {/* 🧍 Dados Pessoais */}
           <div className="md:col-span-2">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Dados Pessoais</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
+              <div className="col-span-full md:col-span-1"> {/* Adicionado col-span-full */}
                 <label htmlFor="cpf" className="block text-sm font-medium text-gray-700">CPF <span className="text-red-500">*</span></label>
                 <input type="text" id="cpf" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={formatCPF(cpf)} onChange={(e) => setCpf(e.target.value)} maxLength="14" required autoComplete="off" />
               </div>
-              <div className="col-span-3">
+              <div className="col-span-full md:col-span-3"> {/* Adicionado col-span-full */}
                 <label htmlFor="nomeCompleto" className="block text-sm font-medium text-gray-700">Nome completo <span className="text-red-500">*</span></label>
                 <input type="text" id="nomeCompleto" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={nomeCompleto} onChange={(e) => setNomeCompleto(e.target.value.toUpperCase())} required autoComplete="off" />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="nomeSocialAfetivo" className="block text-sm font-medium text-gray-700">Nome social e/ou afetivo</label>
                 <input type="text" id="nomeSocialAfetivo" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={nomeSocialAfetivo} onChange={(e) => setNomeSocialAfetivo(e.target.value.toUpperCase())} autoComplete="off" />
               </div>
-              <div>
+              <div className="col-span-full md:col-span-1"> {/* Adicionado col-span-full */}
                 <label htmlFor="sexo" className="block text-sm font-medium text-gray-700">Sexo <span className="text-red-500">*</span></label>
                 <select id="sexo" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={sexo} onChange={(e) => setSexo(e.target.value)} required autoComplete="off">
                   <option value="Nao Informado">Não Informado</option>
@@ -601,7 +601,7 @@ function PessoaManagementPage() {
                   <option value="Outro">Outro</option>
                 </select>
               </div>
-              <div>
+              <div className="col-span-full md:col-span-1"> {/* Adicionado col-span-full */}
                 <label htmlFor="estadoCivil" className="block text-sm font-medium text-gray-700">Estado civil <span className="text-red-500">*</span></label>
                 <select id="estadoCivil" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={estadoCivil} onChange={(e) => setEstadoCivil(e.target.value)} required autoComplete="off">
                   <option value="Solteiro(a)">Solteiro(a)</option>
@@ -610,15 +610,15 @@ function PessoaManagementPage() {
                   <option value="Viúvo(a)">Viúvo(a)</option>
                 </select>
               </div>
-              <div>
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="dataNascimento" className="block text-sm font-medium text-gray-700">Data de nascimento <span className="text-red-500">*</span></label>
                 <input type="date" id="dataNascimento" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} required autoComplete="off" />
               </div>
-              <div>
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="nacionalidade" className="block text-sm font-medium text-gray-700">Nacionalidade <span className="text-red-500">*</span></label>
                 <input type="text" id="nacionalidade" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={nacionalidade} onChange={(e) => setNacionalidade(e.target.value.toUpperCase())} required autoComplete="off" />
               </div>
-              <div>
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="raca" className="block text-sm font-medium text-gray-700">Raça <span className="text-red-500">*</span></label>
                 <select id="raca" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={raca} onChange={(e) => setRaca(e.target.value)} required autoComplete="off">
                   <option value="Nao Declarada">Não Declarada</option>
@@ -629,23 +629,23 @@ function PessoaManagementPage() {
                   <option value="Indígena">Indígena</option>
                 </select>
               </div>
-              <div>
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="povoIndigena" className="block text-sm font-medium text-gray-700">Povo Indígena</label>
                 <input type="text" id="povoIndigena" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={povoIndigena} onChange={(e) => setPovoIndigena(e.target.value.toUpperCase())} autoComplete="off" />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="religiao" className="block text-sm font-medium text-gray-700">Religião</label>
                 <input type="text" id="religiao" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={religiao} onChange={(e) => setReligiao(e.target.value.toUpperCase())} autoComplete="off" />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="naturalidadeCidade" className="block text-sm font-medium text-gray-700">Naturalidade (Cidade) <span className="text-red-500">*</span></label>
                 <input type="text" id="naturalidadeCidade" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={naturalidadeCidade} onChange={(e) => setNaturalidadeCidade(e.target.value.toUpperCase())} required autoComplete="off" />
               </div>
-              <div>
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="naturalidadeEstado" className="block text-sm font-medium text-gray-700">Naturalidade (Estado) <span className="text-red-500">*</span></label>
                 <input type="text" id="naturalidadeEstado" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={naturalidadeEstado} onChange={(e) => setNaturalidadeEstado(e.target.value.toUpperCase())} required autoComplete="off" />
               </div>
-              <div>
+              <div className="col-span-full md:col-span-4"> {/* Adicionado col-span-full */}
                 <label htmlFor="falecido" className="block text-sm font-medium text-gray-700">Falecido?</label>
                 <select id="falecido" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={falecido} onChange={(e) => setFalecido(e.target.value)} autoComplete="off">
                   <option value="nao">Não</option>
@@ -660,15 +660,15 @@ function PessoaManagementPage() {
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Informações Familiares</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {/* Seção Mãe */}
-              <div className="col-span-3">
+              <div className="col-span-full md:col-span-3"> {/* Adicionado col-span-full */}
                 <label htmlFor="pessoaMae" className="block text-sm font-medium text-gray-700">Pessoa Mãe (Nome Completo) <span className="text-red-500">*</span></label>
                 <input type="text" id="pessoaMae" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={pessoaMae} onChange={(e) => setPessoaMae(e.target.value.toUpperCase())} required autoComplete="off" />
               </div>
-              <div className="col-span-1">
+              <div className="col-span-full md:col-span-1"> {/* Adicionado col-span-full */}
                 <label htmlFor="telefoneMae" className="block text-sm font-medium text-gray-700">Telefone</label>
                 <input type="tel" id="telefoneMae" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={formatTelefone(telefoneMae)} onChange={(e) => setTelefoneMae(e.target.value)} maxLength="15" autoComplete="off" />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="escolaridadeMae" className="block text-sm font-medium text-gray-700">Escolaridade da Mãe</label>
                 <select id="escolaridadeMae" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={escolaridadeMae} onChange={(e) => setEscolaridadeMae(e.target.value)} autoComplete="off">
                   {escolaridadeOptions.map(option => (
@@ -676,21 +676,21 @@ function PessoaManagementPage() {
                   ))}
                 </select>
               </div>
-              <div className="col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="profissaoMae" className="block text-sm font-medium text-gray-700">Profissão da Mãe</label>
                 <input type="text" id="profissaoMae" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={profissaoMae} onChange={(e) => setProfissaoMae(e.target.value.toUpperCase())} autoComplete="off" />
               </div>
 
               {/* Seção Pai */}
-              <div className="col-span-3">
+              <div className="col-span-full md:col-span-3"> {/* Adicionado col-span-full */}
                 <label htmlFor="pessoaPai" className="block text-sm font-medium text-gray-700">Pessoa Pai (Nome Completo)</label>
                 <input type="text" id="pessoaPai" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={pessoaPai} onChange={(e) => setPessoaPai(e.target.value.toUpperCase())} autoComplete="off" />
               </div>
-              <div className="col-span-1">
+              <div className="col-span-full md:col-span-1"> {/* Adicionado col-span-full */}
                 <label htmlFor="telefonePai" className="block text-sm font-medium text-gray-700">Telefone</label>
                 <input type="tel" id="telefonePai" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={formatTelefone(telefonePai)} onChange={(e) => setTelefonePai(e.target.value)} maxLength="15" autoComplete="off" />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="escolaridadePai" className="block text-sm font-medium text-gray-700">Escolaridade do Pai</label>
                 <select id="escolaridadePai" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={escolaridadePai} onChange={(e) => setEscolaridadePai(e.target.value)} autoComplete="off">
                   {escolaridadeOptions.map(option => (
@@ -698,7 +698,7 @@ function PessoaManagementPage() {
                   ))}
                 </select>
               </div>
-              <div className="col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="profissaoPai" className="block text-sm font-medium text-gray-700">Profissão do Pai</label>
                 <input type="text" id="profissaoPai" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={profissaoPai} onChange={(e) => setProfissaoPai(e.target.value.toUpperCase())} autoComplete="off" />
               </div>
@@ -709,74 +709,74 @@ function PessoaManagementPage() {
           <div className="md:col-span-2">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Documentação</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="rgNumero" className="block text-sm font-medium text-gray-700">RG (Número)</label>
                 <input type="text" id="rgNumero" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={formatRG(rgNumero)} onChange={(e) => setRgNumero(e.target.value)} maxLength="15" autoComplete="off" />
               </div>
-              <div>
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="rgDataEmissao" className="block text-sm font-medium text-gray-700">RG (Data de Emissão)</label>
                 <input type="date" id="rgDataEmissao" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={rgDataEmissao} onChange={(e) => setRgDataEmissao(e.target.value)} autoComplete="off" />
               </div>
-              <div>
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="rgOrgaoEmissor" className="block text-sm font-medium text-gray-700">RG (Órgão Emissor)</label>
                 <input type="text" id="rgOrgaoEmissor" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={rgOrgaoEmissor} onChange={(e) => setRgOrgaoEmissor(e.target.value.toUpperCase())} autoComplete="off" />
               </div>
-              <div>
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="rgEstado" className="block text-sm font-medium text-gray-700">RG (Estado)</label>
                 <input type="text" id="rgEstado" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={rgEstado} onChange={(e) => setRgEstado(e.target.value.toUpperCase())} autoComplete="off" />
               </div>
-              <div>
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="nisPisPasep" className="block text-sm font-medium text-gray-700">NIS (PIS/PASEP)</label>
                 <input type="text" id="nisPisPasep" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={formatNIS(nisPisPasep)} onChange={(e) => setNisPisPasep(e.target.value)} maxLength="11" autoComplete="off" />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="carteiraSUS" className="block text-sm font-medium text-gray-700">Carteira do SUS</label>
                 <input type="text" id="carteiraSUS" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={formatCarteiraSUS(carteiraSUS)} onChange={(e) => setCarteiraSUS(e.target.value)} maxLength="15" autoComplete="off" />
               </div>
               {/* Certidão */}
-              <div className="col-span-4 grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
+              <div className="col-span-full md:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-4"> {/* Adicionado col-span-full */}
+                <div className="col-span-full md:col-span-1"> {/* Adicionado col-span-full */}
                   <label htmlFor="certidaoTipo" className="block text-sm font-medium text-gray-700">Tipo de certidão civil <span className="text-red-500">*</span></label>
                   <select id="certidaoTipo" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={certidaoTipo} onChange={(e) => setCertidaoTipo(e.target.value)} required autoComplete="off">
                     <option value="Nascimento">Nascimento</option>
                     <option value="Casamento">Casamento</option>
                   </select>
                 </div>
-                <div className="col-span-3">
+                <div className="col-span-full md:col-span-3"> {/* Adicionado col-span-full */}
                   <label htmlFor="certidaoNumero" className="block text-sm font-medium text-gray-700">Certidão (Número)</label>
                   <input type="text" id="certidaoNumero" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={certidaoNumero} onChange={(e) => setCertidaoNumero(e.target.value)} autoComplete="off" />
                 </div>
-                <div>
+                <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                   <label htmlFor="certidaoDataEmissao" className="block text-sm font-medium text-gray-700">Certidão (Data Emissão)</label>
                   <input type="date" id="certidaoDataEmissao" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={certidaoDataEmissao} onChange={(e) => setCertidaoDataEmissao(e.target.value)} autoComplete="off" />
                 </div>
-                <div className="col-span-3">
+                <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                   <label htmlFor="certidaoCartorio" className="block text-sm font-medium text-gray-700">Certidão (Cartório)</label>
                   <input type="text" id="certidaoCartorio" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={certidaoCartorio} onChange={(e) => setCertidaoCartorio(e.target.value.toUpperCase())} autoComplete="off" />
                 </div>
                 {/* Certidão (Cidade) */}
-                <div className="col-span-3">
+                <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                   <label htmlFor="certidaoCidade" className="block text-sm font-medium text-gray-700">Certidão (Cidade)</label>
                   <input type="text" id="certidaoCidade" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={certidaoCidade} onChange={(e) => setCertidaoCidade(e.target.value.toUpperCase())} autoComplete="off" />
                 </div>
                 {/* Campo original Certidão (Estado) */}
-                <div>
+                <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                   <label htmlFor="certidaoEstado" className="block text-sm font-medium text-gray-700">Certidão (Estado)</label>
                   <input type="text" id="certidaoEstado" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={certidaoEstado} onChange={(e) => setCertidaoEstado(e.target.value.toUpperCase())} autoComplete="off" />
                 </div>
               </div>
 
               {/* Passaporte */}
-              <div className="col-span-4 grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="col-span-2">
+              <div className="col-span-full md:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-4"> {/* Adicionado col-span-full */}
+                <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                   <label htmlFor="passaporteNumero" className="block text-sm font-medium text-gray-700">Passaporte (Número)</label>
                   <input type="text" id="passaporteNumero" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={passaporteNumero} onChange={(e) => setPassaporteNumero(e.target.value.toUpperCase())} autoComplete="off" />
                 </div>
-                <div>
+                <div className="col-span-full md:col-span-1"> {/* Adicionado col-span-full */}
                   <label htmlFor="passaporteDataEmissao" className="block text-sm font-medium text-gray-700">Passaporte (Data Emissão)</label>
                   <input type="date" id="passaporteDataEmissao" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={passaporteDataEmissao} onChange={(e) => setPassaporteDataEmissao(e.target.value)} autoComplete="off" />
                 </div>
-                <div>
+                <div className="col-span-full md:col-span-1"> {/* Adicionado col-span-full */}
                   <label htmlFor="passaportePaisEmissor" className="block text-sm font-medium text-gray-700">Passaporte (País Emissor)</label>
                   <input type="text" id="passaportePaisEmissor" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={passaportePaisEmissor} onChange={(e) => setPassaportePaisEmissor(e.target.value.toUpperCase())} autoComplete="off" />
                 </div>
@@ -788,42 +788,42 @@ function PessoaManagementPage() {
           <div className="md:col-span-2">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Endereço</h3>
             <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
-              <div className="col-span-full md:col-span-4">
+              <div className="col-span-full md:col-span-4"> {/* Adicionado col-span-full */}
                 <label htmlFor="cep" className="block text-sm font-medium text-gray-700">CEP</label>
                 <input type="text" id="cep" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={formatCEP(cep)} onChange={(e) => setCep(e.target.value)} maxLength="9" autoComplete="off" />
               </div>
-              <div className="col-span-full md:col-span-4">
+              <div className="col-span-full md:col-span-4"> {/* Adicionado col-span-full */}
                 <label htmlFor="rua" className="block text-sm font-medium text-gray-700">Rua</label>
                 <input type="text" id="rua" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={rua} onChange={(e) => setRua(e.target.value.toUpperCase())} autoComplete="off" />
               </div>
-              <div className="col-span-full md:col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="numero" className="block text-sm font-medium text-gray-700">Número</label>
                 <input type="text" id="numero" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={enderecoNumero} onChange={(e) => setEnderecoNumero(e.target.value)} autoComplete="off" />
               </div>
-              <div className="col-span-full md:col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="complemento" className="block text-sm font-medium text-gray-700">Complemento</label>
                 <input type="text" id="complemento" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={enderecoComplemento} onChange={(e) => setEnderecoComplemento(e.target.value.toUpperCase())} autoComplete="off" />
               </div>
-              <div className="col-span-full md:col-span-4">
+              <div className="col-span-full md:col-span-4"> {/* Adicionado col-span-full */}
                 <label htmlFor="bairro" className="block text-sm font-medium text-gray-700">Bairro</label>
                 <input type="text" id="bairro" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={enderecoBairro} onChange={(e) => setEnderecoBairro(e.target.value.toUpperCase())} autoComplete="off" />
               </div>
-              <div className="col-span-full md:col-span-4">
+              <div className="col-span-full md:col-span-4"> {/* Adicionado col-span-full */}
                 <label htmlFor="municipioResidencia" className="block text-sm font-medium text-gray-700">Município <span className="text-red-500">*</span></label>
                 <input type="text" id="municipioResidencia" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={municipioResidencia} onChange={(e) => setMunicipioResidencia(e.target.value.toUpperCase())} required autoComplete="off" />
               </div>
-              <div className="col-span-full md:col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="paisResidencia" className="block text-sm font-medium text-gray-700">País <span className="text-red-500">*</span></label>
                 <input type="text" id="paisResidencia" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={paisResidencia} onChange={(e) => setPaisResidencia(e.target.value.toUpperCase())} required autoComplete="off" />
               </div>
-              <div className="col-span-full md:col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* Adicionado col-span-full */}
                 <label htmlFor="zonaResidencia" className="block text-sm font-medium text-gray-700">Zona de residência</label>
                 <select id="zonaResidencia" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={zonaResidencia} onChange={(e) => setZonaResidencia(e.target.value)} autoComplete="off">
                   <option value="urbana">Urbana</option>
                   <option value="rural">Rural</option>
                 </select>
               </div>
-              <div className="col-span-full md:col-span-8">
+              <div className="col-span-full md:col-span-8"> {/* Adicionado col-span-full */}
                 <label htmlFor="localizacaoDiferenciada" className="block text-sm font-medium text-gray-700">Localização diferenciada (se aplicável)</label>
                 <select
                   id="localizacaoDiferenciada"
@@ -848,7 +848,7 @@ function PessoaManagementPage() {
                 </select>
               </div>
               {/* Ponto de Referência */}
-              <div className="col-span-full">
+              <div className="col-span-full"> {/* Adicionado col-span-full */}
                 <label htmlFor="pontoReferencia" className="block text-sm font-medium text-gray-700">Ponto de Referência</label>
                 <input type="text" id="pontoReferencia" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={pontoReferencia} onChange={(e) => setPontoReferencia(e.target.value.toUpperCase())} autoComplete="off" />
               </div>
@@ -859,20 +859,20 @@ function PessoaManagementPage() {
           <div className="md:col-span-2">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Contato</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              <div className="col-span-full md:col-span-1"> {/* Adicionado col-span-full */}
                 <label htmlFor="telefoneResidencial" className="block text-sm font-medium text-gray-700">Telefone residencial</label>
                 <input type="tel" id="telefoneResidencial" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={formatTelefone(telefoneResidencial)} onChange={(e) => setTelefoneResidencial(e.target.value)} maxLength="15" autoComplete="off" />
               </div>
-              <div>
+              <div className="col-span-full md:col-span-1"> {/* Adicionado col-span-full */}
                 <label htmlFor="celular" className="block text-sm font-medium text-gray-700">Celular</label>
                 <input type="tel" id="celular" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={formatTelefone(celular)} onChange={(e) => setCelular(e.target.value)} maxLength="15" autoComplete="off" />
               </div>
-              <div>
+              <div className="col-span-full md:col-span-1"> {/* Adicionado col-span-full */}
                 <label htmlFor="telefoneAdicional" className="block text-sm font-medium text-gray-700">Telefone adicional</label>
                 <input type="tel" id="telefoneAdicional" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={formatTelefone(telefoneAdicional)} onChange={(e) => setTelefoneAdicional(e.target.value)} maxLength="15" autoComplete="off" />
               </div>
               {/* CAMPO E-MAIL MOVIDO E AJUSTADO */}
-              <div>
+              <div className="col-span-full md:col-span-1"> {/* Adicionado col-span-full */}
                 <label htmlFor="emailContato" className="block text-sm font-medium text-gray-700">E-mail <span className="text-red-500">*</span></label>
                 <input type="email" id="emailContato" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={emailContato} onChange={(e) => setEmailContato(e.target.value)} required autoComplete="off" />
               </div>
@@ -903,7 +903,7 @@ function PessoaManagementPage() {
 
         {/* Tabela de Pessoas Existentes */}
         <h3 className="text-xl font-bold mb-4 text-gray-800 text-center">Lista de Pessoas</h3>
-        {filteredPessoas.length === 0 ? (
+        {pessoas.length === 0 ? (
           <p className="text-center text-gray-600">Nenhuma pessoa cadastrada ou encontrada.</p>
         ) : (
           <div className="overflow-x-auto">

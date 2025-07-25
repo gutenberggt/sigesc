@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useUser } from '../context/UserContext';
-import { useNavigate, Link } from 'react-router-dom'; // Importe Link aqui!
+import { useNavigate, Link } from 'react-router-dom';
 
 // Importar os dados dos níveis de ensino e séries/anos/etapas
 import { niveisDeEnsinoList } from './NiveisDeEnsinoPage';
@@ -19,7 +19,7 @@ function SchoolManagementPage() {
   const [nomeEscola, setNomeEscola] = useState('');
   const [sigla, setSigla] = useState('');
   const [tipoEscola, setTipoEscola] = useState('Sede');
-  const [escolaPolo, setEscolaPolo] = useState(''); // Estado para o nome da Escola Polo
+  const [escolaPolo, setEscolaPolo] = useState('');
   const [codigoINEP, setCodigoINEP] = useState('');
   const [situacaoFuncionamento, setSituacaoFuncionamento] = useState('Em atividade');
   const [dependenciaAdm, setDependenciaAdm] = useState('Municipal');
@@ -27,12 +27,14 @@ function SchoolManagementPage() {
   const [regulamentacaoAutorizacao, setRegulamentacaoAutorizacao] = useState('');
 
   // Estados do Endereço e Localização
+  // Estados do Endereço e Localização
   const [rua, setRua] = useState('');
   const [numero, setNumero] = useState('');
   const [complemento, setComplemento] = useState('');
   const [bairro, setBairro] = useState('');
   const [municipio, setMunicipio] = useState('');
   const [cep, setCep] = useState('');
+  const [paisResidencia, setPaisResidencia] = useState(''); // ADICIONE ESTA LINHA
   const [zonaLocalizacao, setZonaLocalizacao] = useState('urbana');
   const [localizacaoDiferenciada, setLocalizacaoDiferenciada] = useState('');
 
@@ -41,7 +43,7 @@ function SchoolManagementPage() {
   const [emailInstitucional, setEmailInstitucional] = useState('');
   const [siteRedeSocial, setSiteRedeSocial] = useState('');
 
-  // Estados da Gestão Escolar - AGORA UM ARRAY DE OBJETOS
+  // Estados da Gestão Escolar
   const [gestores, setGestores] = useState([{ inep: '', nome: '', cargo: 'Selecione' }]);
 
   // Estados para Níveis de Ensino e Anos/Séries
@@ -139,7 +141,7 @@ function SchoolManagementPage() {
     setNomeEscola('');
     setSigla('');
     setTipoEscola('Sede');
-    setEscolaPolo(''); // Resetar também a escola polo
+    setEscolaPolo('');
     setCodigoINEP('');
     setSituacaoFuncionamento('Em atividade');
     setDependenciaAdm('Municipal');
@@ -152,6 +154,7 @@ function SchoolManagementPage() {
     setBairro('');
     setMunicipio('');
     setCep('');
+	setPaisResidencia('');
     setZonaLocalizacao('urbana');
     setLocalizacaoDiferenciada('');
 
@@ -191,25 +194,15 @@ function SchoolManagementPage() {
             const userSchoolsIds = userData.escolasIds || (userData.escolaId ? [userData.escolaId] : []);
             if (userSchoolsIds.length === 0) {
               setErrorMessage("Secretário não associado a nenhuma escola.");
-              setSchools([]); // Limpa a lista se não houver escolas associadas
+              setSchools([]);
               return;
             }
-            // Não é possível usar 'where(id, in, array)' no getDocs diretamente sem passar a query.
-            // A forma mais direta para buscar por vários IDs seria fazer N requisições ou usar 'where(documentId(), in, ...)'
-            // Para simplificar e mostrar apenas as escolas dele, é necessário uma query
-            // Exemplo de como buscar escolas específicas (se IDs são documentos do Firebase)
-            // if (userSchoolsIds.length > 0) {
-            //   schoolQuery = query(schoolsCol, where(documentId(), 'in', userSchoolsIds));
-            // }
-            // Para este cenário, se o ID da escola não for o ID do documento, teríamos que buscar todas
-            // e filtrar no cliente, ou refatorar o schoolId como ID do documento.
-            // Por enquanto, vamos buscar todas e filtrar para o Secretário (menos eficiente, mas funcional)
-             const allSchoolsSnapshot = await getDocs(schoolsCol);
-             const filteredSchoolList = allSchoolsSnapshot.docs
-                .map(doc => ({ id: doc.id, ...doc.data() }))
-                .filter(school => userSchoolsIds.includes(school.id)); // Filtra localmente
-             setSchools(filteredSchoolList);
-             return;
+            const allSchoolsSnapshot = await getDocs(schoolsCol);
+            const filteredSchoolList = allSchoolsSnapshot.docs
+               .map(doc => ({ id: doc.id, ...doc.data() }))
+               .filter(school => userSchoolsIds.includes(school.id));
+            setSchools(filteredSchoolList);
+            return;
           }
 
           // Para Administrador ou se não for Secretário (pega todas)
@@ -235,7 +228,7 @@ function SchoolManagementPage() {
     setErrorMessage('');
     setSuccessMessage('');
 
-    // Validações básicas (adicione mais conforme necessário)
+    // Validações básicas
     if (!nomeEscola || !codigoINEP || !municipio || !emailInstitucional) {
       setErrorMessage('Nome da escola, Código INEP, Município e E-mail institucional são campos obrigatórios.');
       return;
@@ -256,7 +249,6 @@ function SchoolManagementPage() {
       setErrorMessage('Por favor, selecione o Tipo de Escola (Sede ou Anexa).');
       return;
     }
-    // NOVO: Validação para Escola Polo se for Anexa
     if (tipoEscola === 'Anexa' && !escolaPolo) {
       setErrorMessage('O nome da Escola Polo é obrigatório para escolas do tipo "Anexa".');
       return;
@@ -281,7 +273,7 @@ function SchoolManagementPage() {
       nomeEscola,
       sigla,
       tipoEscola,
-      escolaPolo: tipoEscola === 'Anexa' ? escolaPolo : '', // Salva escolaPolo apenas se for Anexa, caso contrário, salva vazio
+      escolaPolo: tipoEscola === 'Anexa' ? escolaPolo : '',
       codigoINEP,
       situacaoFuncionamento,
       dependenciaAdm,
@@ -318,7 +310,6 @@ function SchoolManagementPage() {
       } else {
         await addDoc(collection(db, 'schools'), schoolData);
         setSuccessMessage('Escola cadastrada com sucesso!');
-        // Recarrega a lista após o cadastro para ver a nova escola
         const schoolsCol = collection(db, 'schools');
         const schoolSnapshot = await getDocs(schoolsCol);
         const schoolList = schoolSnapshot.docs.map(doc => ({
@@ -340,7 +331,7 @@ function SchoolManagementPage() {
     setNomeEscola(school.nomeEscola || '');
     setSigla(school.sigla || '');
     setTipoEscola(school.tipoEscola || 'Sede');
-    setEscolaPolo(school.escolaPolo || ''); // Popula o campo escolaPolo
+    setEscolaPolo(school.escolaPolo || '');
     setCodigoINEP(school.codigoINEP || '');
     setSituacaoFuncionamento(school.situacaoFuncionamento || 'Em atividade');
     setDependenciaAdm(school.dependenciaAdm || 'Municipal');
@@ -353,6 +344,7 @@ function SchoolManagementPage() {
     setBairro(school.bairro || '');
     setMunicipio(school.municipio || '');
     setCep(school.cep || '');
+	setPaisResidencia(school.paisResidencia || '');
     setZonaLocalizacao(school.zonaLocalizacao || 'urbana');
     setLocalizacaoDiferenciada(school.localizacaoDiferenciada || '');
 
@@ -401,8 +393,10 @@ function SchoolManagementPage() {
   }
 
   return (
-    <div className="flex-grow p-6">
-      <div className="bg-white p-8 rounded-lg shadow-md">
+    // Removido flex-grow p-6 que pode estar conflitando com o layout do DashboardPage
+    <div className="w-full">
+      {/* Container principal do formulário, centralizado e com largura limitada */}
+      <div className="bg-white p-8 rounded-lg shadow-md mx-auto my-6 max-w-lg md:max-w-4xl"> {/* Adicionado mx-auto my-6 max-w-lg md:max-w-4xl */}
 
         <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">
           {editingSchool ? 'Editar Escola' : 'Cadastrar Nova Escola'}
@@ -411,22 +405,24 @@ function SchoolManagementPage() {
         {errorMessage && <p className="text-red-600 text-sm mb-4 text-center">{errorMessage}</p>}
         {successMessage && <p className="text-green-600 text-sm mb-4 text-center">{successMessage}</p>}
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Formulário Principal - agora dentro de um div que limita largura e centraliza */}
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4"> {/* Removido max-w-lg mx-auto daqui, colocado no container pai */}
           {/* 🏫 Dados Gerais */}
           <div className="md:col-span-2">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Dados Gerais</h3>
+            {/* grid-cols-1 para mobile (padrão) e md:grid-cols-8 para desktop */}
               <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
-                <div className="col-span-6">
+                <div className="col-span-full md:col-span-6"> {/* col-span-full para mobile, 6/8 em desktop */}
                 <label htmlFor="nomeEscola" className="block text-sm font-medium text-gray-700">Nome da Escola <span className="text-red-500">*</span></label>
-                <input type="text" id="nomeEscola" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={nomeEscola} onChange={(e) => setNomeEscola(e.target.value)} required />
+                <input type="text" id="nomeEscola" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={nomeEscola} onChange={(e) => setNomeEscola(e.target.value)} required autoComplete="off" />
               </div>
-              <div className="col-span-1">
+              <div className="col-span-full md:col-span-1"> {/* col-span-full para mobile, 1/8 em desktop */}
                 <label htmlFor="sigla" className="block text-sm font-medium text-gray-700">Sigla</label>
-                <input type="text" id="sigla" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={sigla} onChange={(e) => setSigla(e.target.value)} />
+                <input type="text" id="sigla" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={sigla} onChange={(e) => setSigla(e.target.value)} autoComplete="off" />
               </div>
-              <div className="col-span-1">
+              <div className="col-span-full md:col-span-1"> {/* col-span-full para mobile, 1/8 em desktop */}
                 <label htmlFor="tipoEscola" className="block text-sm font-medium text-gray-700">Tipo</label>
-                <select id="tipoEscola" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={tipoEscola} onChange={(e) => setTipoEscola(e.target.value)}>
+                <select id="tipoEscola" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={tipoEscola} onChange={(e) => setTipoEscola(e.target.value)} autoComplete="off">
                   <option value="Sede">Sede</option>
                   <option value="Anexa">Anexa</option>
                 </select>
@@ -434,7 +430,7 @@ function SchoolManagementPage() {
 
               {/* NOVO: Campo Escola Polo visível apenas se tipoEscola for 'Anexa' */}
               {tipoEscola === 'Anexa' && (
-                <div className="md:col-span-8"> {/* Usando md:col-span-8 para ocupar a linha toda */}
+                <div className="col-span-full md:col-span-8"> {/* Largura total */}
                   <label htmlFor="escolaPolo" className="block text-sm font-medium text-gray-700">Nome da Escola Polo <span className="text-red-500">*</span></label>
                   <input
                     type="text"
@@ -442,19 +438,20 @@ function SchoolManagementPage() {
                     className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
                     value={escolaPolo}
                     onChange={(e) => setEscolaPolo(e.target.value)}
-                    required // Campo obrigatório quando visível
+                    required
+                    autoComplete="off"
                   />
                 </div>
               )}
 
-              <div>
+              <div className="col-span-full md:col-span-2"> {/* 2/8 em desktop, largura total em mobile */}
                 <label htmlFor="codigoINEP" className="block text-sm font-medium text-gray-700">Código INEP <span className="text-red-500">*</span></label>
-                <input type="text" id="codigoINEP" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={codigoINEP} onChange={(e) => setCodigoINEP(e.target.value)} required />
+                <input type="text" id="codigoINEP" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={codigoINEP} onChange={(e) => setCodigoINEP(e.target.value)} required autoComplete="off" />
               </div>
               {/* Select: Situação de funcionamento */}
-              <div className="col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* 2/8 em desktop, largura total em mobile */}
                 <label htmlFor="situacao" className="block text-sm font-medium text-gray-700">Situação</label>
-              <select id="situacaoFuncionamento" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={situacaoFuncionamento} onChange={(e) => setSituacaoFuncionamento(e.target.value)}>
+              <select id="situacaoFuncionamento" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={situacaoFuncionamento} onChange={(e) => setSituacaoFuncionamento(e.target.value)} autoComplete="off">
                   <option value="Escolha">Escolha</option>
                   <option value="Em atividade">Em atividade</option>
                   <option value="Paralisada">Paralisada</option>
@@ -462,9 +459,9 @@ function SchoolManagementPage() {
                 </select>
               </div>
               {/* Select: Dependência administrativa */}
-              <div className="col-span-2">
+              <div className="col-span-full md:col-span-2"> {/* 2/8 em desktop, largura total em mobile */}
                 <label htmlFor="dependenciaAdm" className="block text-sm font-medium text-gray-700">Dependência administrativa</label>
-              <select id="dependenciaAdm" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={dependenciaAdm} onChange={(e) => setDependenciaAdm(e.target.value)}>
+              <select id="dependenciaAdm" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={dependenciaAdm} onChange={(e) => setDependenciaAdm(e.target.value)} autoComplete="off">
                   <option value="Selecione">Selecione</option>
                   <option value="Municipal">Municipal</option>
                   <option value="Estadual">Estadual</option>
@@ -472,156 +469,111 @@ function SchoolManagementPage() {
                 </select>
               </div>
               {/* Select: Órgão vinculado */}
-              <div className="col-span-3">
+              <div className="col-span-full md:col-span-2"> {/* Ajustado para 2/8 em desktop para balancear, largura total em mobile */}
                 <label htmlFor="orgaoVinculado" className="block text-sm font-medium text-gray-700">Órgão vinculado</label>
-                <select id="orgaoVinculado" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={orgaoVinculado} onChange={(e) => setOrgaoVinculado(e.target.value)}>
+                <select id="orgaoVinculado" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={orgaoVinculado} onChange={(e) => setOrgaoVinculado(e.target.value)} autoComplete="off">
                   <option value="Escolha">Escolha</option>
                   <option value="Secretaria Municipal de Educação">Secretaria Municipal de Educação</option>
                   <option value="Secretaria Estadual de Educação">Secretaria Estadual de Educação</option>
                 </select>
               </div>
               {/* Campo "Regulamentação/autorização" ocupando a largura total */}
-              <div className="md:col-span-8">
+              <div className="col-span-full md:col-span-8">
                 <label htmlFor="regulamentacaoAutorizacao" className="block text-sm font-medium text-gray-700">Regulamentação/autorização</label>
-                <input type="text" id="regulamentacaoAutorizacao" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={regulamentacaoAutorizacao} onChange={(e) => setRegulamentacaoAutorizacao(e.target.value)} />
+                <input type="text" id="regulamentacaoAutorizacao" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={regulamentacaoAutorizacao} onChange={(e) => setRegulamentacaoAutorizacao(e.target.value)} autoComplete="off" />
               </div>
             </div>
           </div>
 
           {/* 📍 Endereço e Localização */}
-<div className="md:col-span-2">
-  <h3 className="text-lg font-semibold text-gray-700 mb-2">Endereço e Localização</h3>
-  <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
-
-    {/* Rua (linha inteira) */}
-    <div className="col-span-7">
-      <label htmlFor="rua" className="block text-sm font-medium text-gray-700">Rua</label>
-      <input
-        type="text"
-        id="rua"
-        className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-        value={rua}
-        onChange={(e) => setRua(e.target.value)}
-      />
-    </div>
-
-    {/* Número (1/8), Complemento (3/8), Bairro (4/8) */}
-    <div className="col-span-1">
-      <label htmlFor="numero" className="block text-sm font-medium text-gray-700">Número</label>
-      <input
-        type="text"
-        id="numero"
-        className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-        value={numero}
-        onChange={(e) => setNumero(e.target.value)}
-      />
-    </div>
-
-    <div className="col-span-4">
-      <label htmlFor="complemento" className="block text-sm font-medium text-gray-700">Complemento</label>
-      <input
-        type="text"
-        id="complemento"
-        className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-        value={complemento}
-        onChange={(e) => setComplemento(e.target.value)}
-      />
-    </div>
-
-    <div className="col-span-4">
-      <label htmlFor="bairro" className="block text-sm font-medium text-gray-700">Bairro</label>
-      <input
-        type="text"
-        id="bairro"
-        className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-        value={bairro}
-        onChange={(e) => setBairro(e.target.value)}
-      />
-    </div>
-
-    {/* Município (4/8), CEP (2/8), Zona (2/8) */}
-    <div className="col-span-4">
-      <label htmlFor="municipio" className="block text-sm font-medium text-gray-700">
-        Município <span className="text-red-500">*</span>
-      </label>
-      <input
-        type="text"
-        id="municipio"
-        className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-        value={municipio}
-        onChange={(e) => setMunicipio(e.target.value)}
-        required
-      />
-    </div>
-
-    <div className="col-span-2">
-      <label htmlFor="cep" className="block text-sm font-medium text-gray-700">CEP</label>
-      <input
-        type="text"
-        id="cep"
-        className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-        value={formatCEP(cep)}
-        onChange={(e) => setCep(e.target.value)}
-        maxLength="9"
-      />
-    </div>
-
-    <div className="col-span-2">
-      <label htmlFor="zonaLocalizacao" className="block text-sm font-medium text-gray-700">Zona de localização</label>
-      <select
-        id="zonaLocalizacao"
-        className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-        value={zonaLocalizacao}
-        onChange={(e) => setZonaLocalizacao(e.target.value)}
-      >
-        <option value="urbana">Urbana</option>
-        <option value="rural">Rural</option>
-      </select>
-    </div>
-
-    {/* Localização diferenciada (linha inteira) */}
-    <div className="col-span-8">
-      <label htmlFor="localizacaoDiferenciada" className="block text-sm font-medium text-gray-700">Localização diferenciada (se aplicável)</label>
-      <select
-        id="localizacaoDiferenciada"
-        className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-        value={localizacaoDiferenciada}
-        onChange={(e) => setLocalizacaoDiferenciada(e.target.value)}
-      >
-        <option value="">Selecione</option>
-        <option value="Não está em área de localização diferenciada">Não está em área de localização diferenciada</option>
-        <option value="Área rural">Área rural</option>
-        <option value="Área indígena">Área indígena</option>
-        <option value="Área de assentamento">Área de assentamento</option>
-        <option value="Área quilombola">Área quilombola</option>
-        <option value="Área ribeirinha">Área ribeirinha</option>
-        <option value="Área de comunidade tradicional">Área de comunidade tradicional</option>
-        <option value="Área de difícil acesso">Área de difícil acesso</option>
-        <option value="Área de fronteira">Área de fronteira</option>
-        <option value="Área urbana periférica">Área urbana periférica</option>
-        <option value="Área de zona de conflito">Área de zona de conflito</option>
-        <option value="Área de vulnerabilidade social">Área de vulnerabilidade social</option>
-      </select>
-    </div>
-  </div>
-</div>
-
+          <div className="md:col-span-2">
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Endereço e Localização</h3>
+            {/* Grid de 1 para mobile, 8 para desktop */}
+            <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
+              <div className="col-span-full md:col-span-4">
+                <label htmlFor="cep" className="block text-sm font-medium text-gray-700">CEP</label>
+                <input type="text" id="cep" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={formatCEP(cep)} onChange={(e) => setCep(e.target.value)} maxLength="9" autoComplete="off" />
+              </div>
+              <div className="col-span-full md:col-span-4">
+                <label htmlFor="rua" className="block text-sm font-medium text-gray-700">Rua</label>
+                <input type="text" id="rua" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={rua} onChange={(e) => setRua(e.target.value.toUpperCase())} autoComplete="off" />
+              </div>
+              <div className="col-span-full md:col-span-2">
+                <label htmlFor="numero" className="block text-sm font-medium text-gray-700">Número</label>
+                <input type="text" id="numero" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={numero} onChange={(e) => setNumero(e.target.value)} autoComplete="off" />
+              </div>
+              <div className="col-span-full md:col-span-2">
+                <label htmlFor="complemento" className="block text-sm font-medium text-gray-700">Complemento</label>
+                <input type="text" id="complemento" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={complemento} onChange={(e) => setComplemento(e.target.value.toUpperCase())} autoComplete="off" />
+              </div>
+              <div className="col-span-full md:col-span-4">
+                <label htmlFor="bairro" className="block text-sm font-medium text-gray-700">Bairro</label>
+                <input type="text" id="bairro" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={bairro} onChange={(e) => setBairro(e.target.value.toUpperCase())} autoComplete="off" />
+              </div>
+              <div className="col-span-full md:col-span-4">
+                <label htmlFor="municipio" className="block text-sm font-medium text-gray-700">Município <span className="text-red-500">*</span></label>
+                <input type="text" id="municipio" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={municipio} onChange={(e) => setMunicipio(e.target.value.toUpperCase())} required autoComplete="off" />
+              </div>
+              <div className="col-span-full md:col-span-2">
+                <label htmlFor="paisResidencia" className="block text-sm font-medium text-gray-700">País <span className="text-red-500">*</span></label>
+                <input type="text" id="paisResidencia" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={paisResidencia} onChange={(e) => setPaisResidencia(e.target.value.toUpperCase())} required autoComplete="off" />
+              </div>
+              <div className="col-span-full md:col-span-2">
+                <label htmlFor="zonaLocalizacao" className="block text-sm font-medium text-gray-700">Zona de localização</label>
+                <select
+                  id="zonaLocalizacao"
+                  className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+                  value={zonaLocalizacao}
+                  onChange={(e) => setZonaLocalizacao(e.target.value)}
+                  autoComplete="off"
+                >
+                  <option value="urbana">Urbana</option>
+                  <option value="rural">Rural</option>
+                </select>
+              </div>
+              <div className="col-span-full md:col-span-8">
+                <label htmlFor="localizacaoDiferenciada" className="block text-sm font-medium text-gray-700">Localização diferenciada (se aplicável)</label>
+                <select
+                  id="localizacaoDiferenciada"
+                  className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+                  value={localizacaoDiferenciada}
+                  onChange={(e) => setLocalizacaoDiferenciada(e.target.value)}
+                  autoComplete="off"
+                >
+                  <option value="">Selecione</option>
+                  <option value="Não está em área de localização diferenciada">Não está em área de localização diferenciada</option>
+                  <option value="Área rural">Área rural</option>
+                  <option value="Área indígena">Área indígena</option>
+                  <option value="Área de assentamento">Área de assentamento</option>
+                  <option value="Área quilombola">Área quilombola</option>
+                  <option value="Área ribeirinha">Área ribeirinha</option>
+                  <option value="Área de comunidade tradicional">Área de comunidade tradicional</option>
+                  <option value="Área de difícil acesso">Área de difícil acesso</option>
+                  <option value="Área de fronteira">Área de fronteira</option>
+                  <option value="Área urbana periférica">Área urbana periférica</option>
+                  <option value="Área de zona de conflito">Área de zona de conflito</option>
+                  <option value="Área de vulnerabilidade social">Área de vulnerabilidade social</option>
+                </select>
+              </div>
+            </div>
+          </div>
 
           {/* ☎️ Contato */}
           <div className="md:col-span-2">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Contato</h3>
+            {/* Grid de 1 para mobile, 2 para desktop */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              <div className="col-span-full md:col-span-1">
                 <label htmlFor="telefoneContato" className="block text-sm font-medium text-gray-700">Telefone fixo e/ou celular</label>
-                <input type="tel" id="telefoneContato" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={formatTelefone(telefoneContato)} onChange={(e) => setTelefoneContato(e.target.value)} maxLength="15" />
+                <input type="tel" id="telefoneContato" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={formatTelefone(telefoneContato)} onChange={(e) => setTelefoneContato(e.target.value)} maxLength="15" autoComplete="off" />
               </div>
-              <div>
+              <div className="col-span-full md:col-span-1">
                 <label htmlFor="emailInstitucional" className="block text-sm font-medium text-gray-700">E-mail institucional <span className="text-red-500">*</span></label>
-                <input type="email" id="emailInstitucional" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={emailInstitucional} onChange={(e) => setEmailInstitucional(e.target.value)} required />
+                <input type="email" id="emailInstitucional" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={emailInstitucional} onChange={(e) => setEmailInstitucional(e.target.value)} required autoComplete="off" />
               </div>
-              <div className="md:col-span-2">
+              <div className="col-span-full md:col-span-2">
                 <label htmlFor="siteRedeSocial" className="block text-sm font-medium text-gray-700">Site, blog ou rede social (se houver)</label>
-                <input type="url" id="siteRedeSocial" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={siteRedeSocial} onChange={(e) => setSiteRedeSocial(e.target.value)} />
+                <input type="url" id="siteRedeSocial" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={siteRedeSocial} onChange={(e) => setSiteRedeSocial(e.target.value)} autoComplete="off" />
               </div>
             </div>
           </div>
@@ -632,17 +584,17 @@ function SchoolManagementPage() {
             {/* Iterar sobre os gestores */}
             {gestores.map((gestor, index) => (
               <div key={index} className="grid grid-cols-1 md:grid-cols-8 gap-4 mb-4 items-end">
-                <div className="col-span-1">
+                <div className="col-span-full md:col-span-1">
                   <label htmlFor={`gestor-inep-${index}`} className="block text-sm font-medium text-gray-700">INEP</label>
-                  <input type="text" id={`gestor-inep-${index}`} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={gestor.inep} onChange={(e) => handleGestorChange(index, 'inep', e.target.value)} />
+                  <input type="text" id={`gestor-inep-${index}`} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={gestor.inep} onChange={(e) => handleGestorChange(index, 'inep', e.target.value)} autoComplete="off" />
                 </div>
-                <div className="col-span-5">
+                <div className="col-span-full md:col-span-5">
                   <label htmlFor={`gestor-nome-${index}`} className="block text-sm font-medium text-gray-700">Nome do(a) gestor(a)</label>
-                  <input type="text" id={`gestor-nome-${index}`} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={gestor.nome} onChange={(e) => handleGestorChange(index, 'nome', e.target.value)} />
+                  <input type="text" id={`gestor-nome-${index}`} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={gestor.nome} onChange={(e) => handleGestorChange(index, 'nome', e.target.value)} autoComplete="off" />
                 </div>
-                <div className="col-span-1">
+                <div className="col-span-full md:col-span-1">
                   <label htmlFor={`gestor-cargo-${index}`} className="block text-sm font-medium text-gray-700">Cargo</label>
-                  <select id={`gestor-cargo-${index}`} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={gestor.cargo} onChange={(e) => handleGestorChange(index, 'cargo', e.target.value)}>
+                  <select id={`gestor-cargo-${index}`} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={gestor.cargo} onChange={(e) => handleGestorChange(index, 'cargo', e.target.value)} autoComplete="off">
                     <option value="Selecione">Selecione</option>
                     <option value="Diretor(a)">Diretor(a)</option>
                     <option value="Coordenador(a)">Coordenador(a)</option>
@@ -677,7 +629,7 @@ function SchoolManagementPage() {
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Oferta de Ensino</h3>
             <div className="grid grid-cols-1 gap-4">
               {/* Níveis de Ensino Ofertados */}
-              <div>
+              <div className="col-span-full md:col-span-1">
                 <label htmlFor="niveisEnsino" className="block text-sm font-medium text-gray-700">Níveis de ensino ofertados <span className="text-red-500">*</span></label>
                 <div className="flex items-center space-x-2 mt-1">
                   <select
@@ -685,6 +637,7 @@ function SchoolManagementPage() {
                     className="block w-full p-2 border border-gray-300 rounded-md"
                     value={currentNivelEnsino}
                     onChange={(e) => setCurrentNivelEnsino(e.target.value)}
+                    autoComplete="off"
                   >
                     <option value="">Selecione um nível</option>
                     {niveisDeEnsinoList.map((nivel, index) => (
@@ -724,7 +677,7 @@ function SchoolManagementPage() {
               </div>
 
               {/* Anos/Séries Atendidas */}
-              <div>
+              <div className="col-span-full md:col-span-1">
                 <label htmlFor="anosSeriesAtendidas" className="block text-sm font-medium text-gray-700">Anos/séries atendidas <span className="text-red-500">*</span></label>
                 <div className="flex items-center space-x-2 mt-1">
                   <select
@@ -733,6 +686,7 @@ function SchoolManagementPage() {
                     value={currentAnoSerie}
                     onChange={(e) => setCurrentAnoSerie(e.target.value)}
                     disabled={selectedNiveisEnsino.length === 0}
+                    autoComplete="off"
                   >
                     <option value="">Selecione um ano/série</option>
                     {availableAnosSeries.length > 0 ? (
@@ -775,9 +729,9 @@ function SchoolManagementPage() {
                   </ul>
                 )}
               </div>
-              <div className="md:col-span-2">
+              <div className="col-span-full md:col-span-2">
                 <label htmlFor="anosLetivosFuncionamento" className="block text-sm font-medium text-gray-700">Anos letivos em funcionamento</label>
-                <input type="text" id="anosLetivosFuncionamento" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" placeholder="Ex: 2023, 2024" value={''} onChange={() => {}} />
+                <input type="text" id="anosLetivosFuncionamento" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" placeholder="Ex: 2023, 2024" value={''} onChange={() => {}} autoComplete="off" />
               </div>
             </div>
           </div>
@@ -837,7 +791,7 @@ function SchoolManagementPage() {
                         </button>
                         {/* NOVO BOTÃO: Gerenciar Turmas */}
                         <Link
-                          to={`/dashboard/escola/turmas/${school.id}`} // Link para a TurmasPage, passando o ID da escola
+                          to={`/dashboard/escola/turmas/${school.id}`}
                           className="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded-full text-xs"
                         >
                           Turmas
