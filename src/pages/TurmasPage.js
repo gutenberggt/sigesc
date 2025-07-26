@@ -160,8 +160,8 @@ function TurmasPage() {
     const turmaData = {
       ...turmaModel,
       nomeTurma: nomeTurma.toUpperCase(),
-      nivelEnsino,
-      anoSerie,
+      nivelEnsino: nivelEnsino.toUpperCase(),
+      anoSerie: anoSerie.toUpperCase(),
       turno,
       anoLetivo,
       professoresIds: professoresIds || [],
@@ -209,8 +209,8 @@ function TurmasPage() {
   const handleEdit = (turmaToEdit) => {
     setEditingTurma(turmaToEdit);
     setNomeTurma(turmaToEdit.nomeTurma || '');
-    setNivelEnsino(turmaToEdit.nivelEnsino || '');
-    setAnoSerie(turmaToEdit.anoSerie || '');
+    setNivelEnsino(turmaToEdit.nivelEnsino.toUpperCase() || '');
+    setAnoSerie(turmaToEdit.anoSerie.toUpperCase() || '');
     setTurno(turmaToEdit.turno || 'Manhã');
     setAnoLetivo(turmaToEdit.anoLetivo || new Date().getFullYear().toString());
     setProfessoresIds(turmaToEdit.professoresIds || []);

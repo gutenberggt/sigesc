@@ -4,17 +4,17 @@ import { auth } from '../firebase/config';
 import { useUser } from '../context/UserContext';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import Footer from '../components/Footer';
-import { FaHome, FaUsers, FaUserCircle, FaSignOutAlt, FaBars, FaTimes, FaSchool, FaBookOpen, FaGraduationCap, FaChalkboardTeacher, FaUserGraduate } from 'react-icons/fa';
+// Importe FaSearch para o ícone de busca
+import { FaHome, FaUsers, FaUserCircle, FaSignOutAlt, FaBars, FaTimes, FaSchool, FaBookOpen, FaGraduationCap, FaChalkboardTeacher, FaUserGraduate, FaSearch } from 'react-icons/fa';
 
 function DashboardPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState(null);
   const { userData, loading } = useUser();
   const navigate = useNavigate();
-  const menuRef = useRef(null); // Ref para o menu dropdown do usuário
-  const location = useLocation(); // Hook para obter a rota atual para destaque de menu
+  const menuRef = useRef(null);
+  const location = useLocation();
 
-  // Estado para controlar a abertura/fechamento da sidebar em telas menores
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -26,7 +26,7 @@ function DashboardPage() {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  const toggleSidebar = () => { // Função para o botão de menu mobile que abre a sidebar
+  const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
@@ -34,17 +34,14 @@ function DashboardPage() {
     setOpenSubmenu(openSubmenu === menuName ? null : menuName);
   };
 
-  // Fecha o menu dropdown do usuário se clicar fora
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsMenuOpen(false);
       }
     }
-    // Adicionado um pequeno atraso para evitar que o clique no botão de toggle do menu
-    // feche o menu imediatamente (devido à propagação do evento)
     const timer = setTimeout(() => {
-        if (isMenuOpen) { // Só adiciona o listener se o menu estiver aberto
+        if (isMenuOpen) {
             document.addEventListener("mousedown", handleClickOutside);
         }
     }, 100);
@@ -62,19 +59,19 @@ function DashboardPage() {
     }
   }, [loading, userData, navigate]);
 
-  // Função para determinar o título da página baseado na rota atual
   const getPageTitle = () => {
     const path = location.pathname;
     if (path === '/dashboard') return 'Visão Geral';
     if (path === '/dashboard/meu-perfil') return 'Meu Perfil';
     if (path === '/dashboard/gerenciar-usuarios') return 'Gerenciar Usuários';
     if (path === '/dashboard/escola/escola') return 'Gerenciar Escolas';
+    if (path === '/dashboard/escola/matriculas') return 'Matrícula de Aluno';
+    if (path === '/dashboard/escola/busca-aluno') return 'Busca de Aluno'; // Adicionado
     if (path === '/dashboard/escola/cursos') return 'Níveis de Ensino';
     if (path === '/dashboard/escola/series') return 'Séries / Anos / Etapas';
     if (path === '/dashboard/escola/componentes-curriculares') return 'Componentes Curriculares';
-    if (path.startsWith('/dashboard/escola/turmas')) return 'Gerenciar Turmas'; // Ajustado para rotas com :schoolId
+    if (path.startsWith('/dashboard/escola/turmas')) return 'Gerenciar Turmas';
     if (path === '/dashboard/escola/pessoas') return 'Gerenciar Pessoas';
-    if (path === '/dashboard/escola/matriculas') return 'Matrícula de Aluno'; // Adicionado
     return 'Dashboard';
   };
 
@@ -82,12 +79,11 @@ function DashboardPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen text-gray-700">
-        Carregando painel...
+        <p className="text-gray-700">Carregando painel...</p>
       </div>
     );
   }
 
-  // Redirecionamento se userData for nulo após o carregamento
   if (!userData) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-red-100 text-red-700">
@@ -104,7 +100,6 @@ function DashboardPage() {
       <header className="bg-blue-600 text-white p-4 shadow-md fixed top-0 left-0 right-0 z-40">
         <div className="container mx-auto flex justify-between items-center relative">
           <div className="flex items-center gap-3">
-            {/* Botão para abrir sidebar em mobile */}
             <button onClick={toggleSidebar} className="focus:outline-none md:hidden mr-3">
               {sidebarOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
             </button>
@@ -116,10 +111,8 @@ function DashboardPage() {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm font-medium hidden md:block">{userRoleDisplay}</span>
-            {/* Título da página atual para mobile/telas pequenas */}
             <h2 className="text-lg font-bold md:hidden">{getPageTitle()}</h2>
             
-            {/* Menu dropdown do usuário (Meu Perfil, Sair) */}
             <button onClick={toggleMenu} className="focus:outline-none ml-auto">
               <FaUserCircle size={24} />
             </button>
@@ -144,12 +137,10 @@ function DashboardPage() {
         </div>
       </header>
 
-      {/* Conteúdo principal com barra lateral - Adicionado pt-16 para o header fixo */}
-      {/* Adicionado md:pl-64 para o padding da sidebar fixa */}
+      {/* Conteúdo principal com barra lateral */}
       <div className="flex flex-grow pt-16 md:pl-64">
         {/* Sidebar fixa */}
         <aside className={`w-64 bg-blue-700 text-white flex-shrink-0 p-4 fixed inset-y-0 left-0 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-200 ease-in-out z-30 pt-16`}>
-          {/* Botão para fechar sidebar em mobile */}
           <button onClick={toggleSidebar} className="md:hidden absolute top-4 right-4 text-gray-400 hover:text-white focus:outline-none">
             <FaTimes size={20} />
           </button>
@@ -215,8 +206,29 @@ function DashboardPage() {
                           </Link>
                         </li>
                     )}
+                    
+                    {/* NOVO ITEM DE MENU: MATRÍCULA DE ALUNO */}
+                    {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
+                        <li>
+                            <Link to="/dashboard/escola/matriculas" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/matriculas' ? 'bg-blue-600' : ''}`}>
+                                <FaUserGraduate className="w-4 h-4 mr-2" />
+                                <span>Matrícula de Aluno</span>
+                            </Link>
+                        </li>
+                    )}
+
+                    {/* NOVO ITEM DE MENU: BUSCA DE ALUNO */}
+                    {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario' || userData.funcao.toLowerCase() === 'diretor' || userData.funcao.toLowerCase() === 'coordenador' || userData.funcao.toLowerCase() === 'professor')) && (
+                        <li>
+                            <Link to="/dashboard/escola/busca-aluno" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/busca-aluno' ? 'bg-blue-600' : ''}`}>
+                                <FaSearch className="w-4 h-4 mr-2" />
+                                <span>Busca de Aluno</span>
+                            </Link>
+                        </li>
+                    )}
+
                     {/* Itens de Níveis, Séries, Componentes - Visível para Admin, Secretário, Diretor, Coordenador, Professor */}
-                    {(userData.funcao && (userData.funcao.toLowerCase() !== 'aluno')) && ( // Quase todos, exceto aluno
+                    {(userData.funcao && (userData.funcao.toLowerCase() !== 'aluno')) && (
                         <>
                             <li>
                               <Link to="/dashboard/escola/cursos" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/cursos' ? 'bg-blue-600' : ''}`}>
@@ -236,21 +248,11 @@ function DashboardPage() {
                                 <span>Componentes Curriculares</span>
                               </Link>
                             </li>
-                            {/* NOVO ITEM DE MENU: MATRÍCULA DE ALUNO */}
-                            {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
-                                <li>
-                                    <Link to="/dashboard/escola/matriculas" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/matriculas' ? 'bg-blue-600' : ''}`}>
-                                        <FaUserGraduate className="w-4 h-4 mr-2" />
-                                        <span>Matrícula de Aluno</span>
-                                    </Link>
-                                </li>
-                            )}
                         </>
                     )}
                   </ul>
                 )}
               </li>
-              {/* Adicione outros menus principais aqui, se houver */}
             </ul>
           </nav>
         </aside>
@@ -262,11 +264,11 @@ function DashboardPage() {
 
         {/* Conteúdo principal da página - ONDE AS ROTAS ANINHADAS SERÃO RENDERIZADAS */}
         <main className="flex-grow overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-          <Outlet /> {/* ESTE É ONDE AS ROTAS ANINHADAS SERÃO RENDERIZADAS */}
+          <Outlet />
         </main>
       </div>
 
-      {/* Footer GLOBAL - fora do main, no nível do div principal (irmão do header e do container flex-grow) */}
+      {/* Footer GLOBAL */}
       <Footer />
     </div>
   );

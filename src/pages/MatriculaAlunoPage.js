@@ -7,6 +7,10 @@ import { useNavigate } from 'react-router-dom';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { matriculaModel } from '../firebase/dataModels';
 
+// Importar os dados de níveis de ensino e séries/anos/etapas
+import { niveisDeEnsinoList } from './NiveisDeEnsinoPage';
+import { seriesAnosEtapasData } from './SeriesAnosEtapasPage'; 
+
 function MatriculaAlunoPage() {
   const { userData, loading } = useUser();
   const navigate = useNavigate();
@@ -54,7 +58,7 @@ function MatriculaAlunoPage() {
   const [responsavelLegalNome, setResponsavelLegalNome] = useState('');
   const [responsavelLegalParentesco, setResponsavelLegalParentesco] = useState('');
 
-  // --- CAMPOS DE DOCUMENTAÇÃO (usados para nova pessoa ou para exibir dados de pessoa existente) ---
+  // --- CAMPOS DE DOCUMENTAÇÃO (parte de Pessoa, mas alguns podem ser reexibidos/obrigatórios na matrícula) ---
   const [rgNumero, setRgNumero] = useState('');
   const [rgDataEmissao, setRgDataEmissao] = useState('');
   const [rgOrgaoEmissor, setRgOrgaoEmissor] = useState('');
@@ -71,7 +75,7 @@ function MatriculaAlunoPage() {
   const [passaportePaisEmissor, setPassaportePaisEmissor] = useState('');
   const [passaporteDataEmissao, setPassaporteDataEmissao] = useState('');
 
-  // --- CAMPOS DE ENDEREÇO (usados para nova pessoa ou para exibir dados de pessoa existente) ---
+  // --- CAMPOS DE ENDEREÇO ---
   const [cep, setCep] = useState('');
   const [rua, setRua] = useState('');
   const [enderecoNumero, setEnderecoNumero] = useState('');
@@ -83,13 +87,28 @@ function MatriculaAlunoPage() {
   const [localizacaoDiferenciada, setLocalizacaoDiferenciada] = useState('');
   const [pontoReferencia, setPontoReferencia] = useState('');
 
-  // --- CAMPOS DE CONTATO (usados para nova pessoa ou para exibir dados de pessoa existente) ---
+  // --- CAMPOS DE CONTATO ---
   const [telefoneResidencial, setTelefoneResidencial] = useState('');
   const [celular, setCelular] = useState('');
   const [telefoneAdicional, setTelefoneAdicional] = useState('');
   const [emailContato, setEmailContato] = useState('');
 
-  // --- Campos para Pessoas Autorizadas a Buscar o Aluno ---
+  // --- CAMPOS DE MATRÍCULA (NOVOS) ---
+  const [matriculaEscolaId, setMatriculaEscolaId] = useState('');
+  const [matriculaNivelEnsino, setMatriculaNivelEnsino] = useState('');
+  const [matriculaAnoSerie, setMatriculaAnoSerie] = useState('');
+  const [matriculaTurmaId, setMatriculaTurmaId] = useState('');
+  const [dataMatricula, setDataMatricula] = useState(new Date().toISOString().split('T')[0]);
+  const [matriculaDependencia, setMatriculaDependencia] = useState('nao');
+
+  // --- ESTADOS PARA POPULAR DROPDOWNS ---
+  const [availableSchools, setAvailableSchools] = useState([]);
+  const [availableNiveisEnsino, setAvailableNiveisEnsino] = useState([]);
+  const [availableAnosSeries, setAvailableAnosSeries] = useState([]);
+  const [availableTurmas, setAvailableTurmas] = useState([]);
+  const [schoolAnosSeriesData, setSchoolAnosSeriesData] = useState([]);
+
+  // --- Pessoas Autorizadas a Buscar o Aluno ---
   const [pessoasAutorizadas, setPessoasAutorizadas] = useState([]);
   const [currentPessoaAutorizadaNome, setCurrentPessoaAutorizadaNome] = useState('');
   const [currentPessoaAutorizadaParentesco, setCurrentPessoaAutorizadaParentesco] = useState('');
@@ -101,9 +120,9 @@ function MatriculaAlunoPage() {
   const [emancipado, setEmancipado] = useState('nao');
 
   // --- Transporte Escolar ---
-  const [utilizaTransporte, setUtilizaTransporte] = useState('nao'); // ESTADO FALTANDO
-  const [veiculoTransporte, setVeiculoTransporte] = useState(''); // ESTADO FALTANDO
-  const [rotaTransporte, setRotaTransporte] = useState(''); // ESTADO FALTANDO
+  const [utilizaTransporte, setUtilizaTransporte] = useState('nao');
+  const [veiculoTransporte, setVeiculoTransporte] = useState('');
+  const [rotaTransporte, setRotaTransporte] = useState('');
 
   // --- Documentação (Uploads) de Matrícula ---
   const [documentosDiversos, setDocumentosDiversos] = useState([]);
@@ -116,7 +135,7 @@ function MatriculaAlunoPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Opções para Escolaridade (mantidas)
+  // Opções para Escolaridade
   const escolaridadeOptions = [
     "Não Informado", "Não alfabetizada", "Ensino Fundamental Incompleto",
     "Ensino Fundamental Completo", "Ensino Médio Incompleto", "Ensino Médio Completo",
@@ -147,7 +166,7 @@ function MatriculaAlunoPage() {
     return value.substring(0, 9);
   };
 
-  // Validação de CPF (reutilizada de PessoaManagementPage)
+  // Validação de CPF
   const validateCPF = (rawCpf) => {
     let cpfCleaned = rawCpf.replace(/\D/g, '');
     if (cpfCleaned.length !== 11) return false;
@@ -181,6 +200,14 @@ function MatriculaAlunoPage() {
     setFotoURL('');
     setAnoLetivo(new Date().getFullYear().toString());
     setSituacaoMatricula('ATIVA');
+
+    // Limpeza dos novos campos de Matrícula
+    setMatriculaEscolaId('');
+    setMatriculaNivelEnsino('');
+    setMatriculaAnoSerie('');
+    setMatriculaTurmaId('');
+    setDataMatricula(new Date().toISOString().split('T')[0]);
+    setMatriculaDependencia('nao');
 
     setPessoasAutorizadas([]);
     setCurrentPessoaAutorizadaNome('');
@@ -269,15 +296,124 @@ function MatriculaAlunoPage() {
   };
 
 
-  // Efeito para verificar permissões de acesso à página
+  // Efeito para verificar permissões de acesso à página e carregar escolas
   useEffect(() => {
     if (!loading) {
-      // Apenas Administrador e Secretário podem acessar esta página
       if (!userData || !(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario'))) {
         navigate('/dashboard');
+        return;
       }
+
+      const fetchSchools = async () => {
+        try {
+          const schoolsCol = collection(db, 'schools');
+          const schoolsSnapshot = await getDocs(schoolsCol);
+          let schoolsList = schoolsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+          if (userData.funcao.toLowerCase() === 'secretario') {
+            const userSchoolsIds = userData.escolasIds || (userData.escolaId ? [userData.escolaId] : []);
+            schoolsList = schoolsList.filter(school => userSchoolsIds.includes(school.id));
+          }
+          setAvailableSchools(schoolsList);
+        } catch (error) {
+          console.error("Erro ao buscar escolas:", error);
+          setErrorMessage("Erro ao carregar lista de escolas para o dropdown.");
+        }
+      };
+      fetchSchools();
     }
   }, [loading, userData, navigate]);
+
+
+  // Efeito para carregar Níveis de Ensino e Anos/Séries da Escola selecionada
+  // schoolAnosSeriesData está declarada apenas uma vez agora no topo
+  useEffect(() => {
+    if (matriculaEscolaId) {
+      const fetchSchoolNiveisAnos = async () => {
+        try {
+          const schoolDocRef = doc(db, 'schools', matriculaEscolaId);
+          const schoolDocSnap = await getDoc(schoolDocRef);
+          if (schoolDocSnap.exists()) {
+            const data = schoolDocSnap.data();
+            setAvailableNiveisEnsino(data.niveisEnsino || []);
+            setSchoolAnosSeriesData(data.anosSeriesAtendidas || []);
+          } else {
+            setAvailableNiveisEnsino([]);
+            setSchoolAnosSeriesData([]);
+            setErrorMessage("Escola selecionada não encontrada para buscar níveis/anos.");
+          }
+        } catch (error) {
+          console.error("Erro ao buscar níveis/anos da escola:", error);
+          setErrorMessage("Erro ao carregar níveis/anos da escola.");
+        }
+      };
+      fetchSchoolNiveisAnos();
+    } else {
+      setAvailableNiveisEnsino([]);
+      setSchoolAnosSeriesData([]);
+    }
+  }, [matriculaEscolaId]);
+
+  // Efeito para filtrar Ano/Série/Etapa com base no Nível de Ensino selecionado E nas séries da escola
+  useEffect(() => {
+    const newAvailableAnosSeriesSet = new Set();
+    if (matriculaNivelEnsino && schoolAnosSeriesData.length > 0) {
+      const mappedNivel = {
+        "Educação Infantil": "Educação Infantil",
+        "Ensino Fundamental - Anos Iniciais": "Ensino Fundamental - Anos Iniciais",
+        "Ensino Fundamental - Anos Finais": "Ensino Fundamental - Anos Finais",
+        "Educação de Jovens e Adultos - EJA - Anos Iniciais": "Educação de Jovens e Adultos - EJA",
+        "Educação de Jovens e Adultos - EJA - Anos Finais": "Educação de Jovens e Adultos - EJA",
+      }[matriculaNivelEnsino] || matriculaNivelEnsino;
+
+      if (seriesAnosEtapasData[mappedNivel]) {
+        seriesAnosEtapasData[mappedNivel].forEach(item => {
+          if (schoolAnosSeriesData.includes(item)) {
+            newAvailableAnosSeriesSet.add(item);
+          }
+        });
+      }
+    }
+    setAvailableAnosSeries(Array.from(newAvailableAnosSeriesSet));
+    if (matriculaAnoSerie && !Array.from(newAvailableAnosSeriesSet).includes(matriculaAnoSerie)) {
+      setMatriculaAnoSerie('');
+    }
+  }, [matriculaNivelEnsino, schoolAnosSeriesData, matriculaAnoSerie]);
+
+
+  // Efeito para buscar turmas com base na Escola, Nível e Ano/Série selecionados
+  useEffect(() => {
+    if (matriculaEscolaId && matriculaNivelEnsino && matriculaAnoSerie) {
+      const fetchTurmas = async () => {
+        try {
+          const turmasCol = collection(db, 'turmas');
+          const q = query(
+            turmasCol,
+            where('schoolId', '==', matriculaEscolaId),
+            // CORRIGIDO: Convertendo para maiúsculas aqui para corresponder aos dados do Firestore
+            where('nivelEnsino', '==', matriculaNivelEnsino.toUpperCase()),
+            where('anoSerie', '==', matriculaAnoSerie.toUpperCase()),
+            orderBy('nomeTurma')
+          );
+          const querySnapshot = await getDocs(q);
+          const turmasList = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            nomeTurma: doc.data().nomeTurma,
+          }));
+          setAvailableTurmas(turmasList);
+        } catch (error) {
+          console.error("Erro ao buscar turmas:", error);
+          setAvailableTurmas([]);
+        }
+      };
+      fetchTurmas();
+    } else {
+      setAvailableTurmas([]);
+    }
+    if (matriculaTurmaId && !availableTurmas.some(t => t.id === matriculaTurmaId)) {
+      setMatriculaTurmaId('');
+    }
+  }, [matriculaEscolaId, matriculaNivelEnsino, matriculaAnoSerie, matriculaTurmaId, availableTurmas]);
 
 
   // Efeito para buscar sugestões de Pessoa (por nome ou CPF)
@@ -288,7 +424,6 @@ function MatriculaAlunoPage() {
           const searchLower = searchPessoaTerm.toLowerCase();
           const pessoasCol = collection(db, 'pessoas');
           
-          // Busca por nomeCompleto
           const qName = query(
             pessoasCol,
             where('nomeCompleto', '>=', searchLower.toUpperCase()),
@@ -303,7 +438,6 @@ function MatriculaAlunoPage() {
             cpf: doc.data().cpf,
           }));
 
-          // Se a busca não for apenas numérica (CPF), também busca por e-mail ou outros campos
           if (isNaN(searchPessoaTerm.replace(/\D/g, ''))) {
               const qEmail = query(
                   pessoasCol,
@@ -325,7 +459,6 @@ function MatriculaAlunoPage() {
               });
           }
 
-          // Filtra por CPF exato se for numérico
           if (!isNaN(searchPessoaTerm.replace(/\D/g, '')) && searchPessoaTerm.replace(/\D/g, '').length >= 6) {
               const qCpf = query(
                   pessoasCol,
@@ -401,7 +534,6 @@ function MatriculaAlunoPage() {
         setResponsavelLegalNome(data.responsavelLegalNome || data.pessoaMae || '');
         setResponsavelLegalParentesco(data.responsavelLegalParentesco || 'Mãe');
 
-        // Contato (se necessário)
         setEmailContato(data.emailContato || '');
 
         // Preenche campos de endereço com base na pessoa
@@ -473,7 +605,7 @@ function MatriculaAlunoPage() {
     setPessoasAutorizadas(updated);
   };
 
-  // Função para upload de foto (PLACEHOLDER REAL, precisa de Cloud Functions para uso seguro em prod)
+  // Função para upload de foto
   const handlePhotoUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -507,7 +639,6 @@ function MatriculaAlunoPage() {
     setSuccessMessage('');
 
     // Validações básicas da matrícula e pessoa
-    // Campos de Pessoa Management para Nova Pessoa
     if (!selectedPessoaId) { // Se não selecionou pessoa existente, valida os campos da pessoa
         if (!nomeCompleto || !cpf || !dataNascimento || !emailContato || !municipioResidencia || !sexo || !estadoCivil || !nacionalidade || !raca || !pessoaMae || !responsavelLegalNome) {
             setErrorMessage('Todos os campos obrigatórios em Dados Pessoais, Informações Familiares e Contato são necessários para cadastrar uma nova pessoa.');
@@ -520,11 +651,11 @@ function MatriculaAlunoPage() {
     }
     
     // Validações específicas da matrícula
-    if (!codigoINEP) {
-        setErrorMessage('Código INEP é obrigatório para a matrícula.');
+    if (!codigoINEP || !matriculaEscolaId || !matriculaNivelEnsino || !matriculaAnoSerie || !matriculaTurmaId || !dataMatricula || !responsavelLegalNome) {
+        setErrorMessage('Os campos Código INEP, Escola, Nível de Ensino, Ano/Série, Turma, Data da Matrícula e Responsável Legal são obrigatórios.');
         return;
     }
-    if (!codigoAluno && !selectedPessoaId) { // Código do aluno apenas para nova matrícula sem pessoa existente
+    if (!codigoAluno && !selectedPessoaId) {
         setErrorMessage('Código do Aluno é obrigatório para nova matrícula sem vinculação a pessoa existente.');
         return;
     }
@@ -592,7 +723,6 @@ function MatriculaAlunoPage() {
         setSuccessMessage('Pessoa cadastrada e usuário criado automaticamente! Senha: ' + password);
 
       } else {
-        // Se a pessoa já existe e seus dados foram editados através deste formulário
         const pessoaDocRef = doc(db, 'pessoas', currentPessoaId);
         const updatedPessoaData = {
             cpf: cpf.replace(/\D/g, ''), nomeCompleto: nomeCompleto.toUpperCase(), nomeSocialAfetivo: nomeSocialAfetivo.toUpperCase(),
@@ -615,7 +745,7 @@ function MatriculaAlunoPage() {
             telefoneResidencial: telefoneResidencial.replace(/\D/g, ''), celular: celular.replace(/\D/g, ''), telefoneAdicional: telefoneAdicional.replace(/\D/g, ''),
             ultimaAtualizacao: new Date(),
         };
-        await updateDoc(pessoaDocRef, updatedPessoaData);
+        await updateDoc(doc(db, 'pessoas', currentPessoaId), updatedPessoaData);
         setSuccessMessage('Dados da pessoa atualizados!');
       }
 
@@ -642,7 +772,14 @@ function MatriculaAlunoPage() {
         emancipado: emancipado === 'sim',
         observacoes: observacoes,
         
-        dataMatricula: new Date(),
+        // Novos campos de matrícula
+        escolaId: matriculaEscolaId,
+        nivelEnsino: matriculaNivelEnsino,
+        anoSerie: matriculaAnoSerie,
+        turmaId: matriculaTurmaId,
+        dataMatricula,
+        matriculaDependencia: matriculaDependencia === 'sim',
+        
         ultimaAtualizacao: new Date(),
       };
 
@@ -883,7 +1020,7 @@ function MatriculaAlunoPage() {
             </div>
           </div>
 
-          {/* 🪪 Documentação */}
+         /* 🪪 Documentação */
           <div className="md:col-span-2">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Documentação</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1134,6 +1271,65 @@ function MatriculaAlunoPage() {
               <div className="col-span-full md:col-span-1">
                 <label htmlFor="rotaTransporte" className="block text-sm font-medium text-gray-700">Rota</label>
                 <input type="text" id="rotaTransporte" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={rotaTransporte} onChange={(e) => setRotaTransporte(e.target.value.toUpperCase())} disabled={utilizaTransporte === 'nao'} autoComplete="off" />
+              </div>
+            </div>
+          </div>
+
+          {/* NOVO: Seção de Dados da Matrícula Escolar */}
+          <div className="md:col-span-2 border p-4 rounded-lg bg-gray-50 mt-4">
+            <h3 className="text-lg font-semibold text-gray-700 mb-4">Dados da Matrícula Escolar</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Escola */}
+              <div className="col-span-full md:col-span-2">
+                <label htmlFor="matriculaEscola" className="block text-sm font-medium text-gray-700">Escola <span className="text-red-500">*</span></label>
+                <select id="matriculaEscola" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaEscolaId} onChange={(e) => setMatriculaEscolaId(e.target.value)} required autoComplete="off">
+                  <option value="">Selecione a Escola</option>
+                  {availableSchools.map(school => (
+                    <option key={school.id} value={school.id}>{school.nomeEscola}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Nível de Ensino */}
+              <div className="col-span-full md:col-span-1">
+                <label htmlFor="matriculaNivelEnsino" className="block text-sm font-medium text-gray-700">Nível de Ensino <span className="text-red-500">*</span></label>
+                <select id="matriculaNivelEnsino" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaNivelEnsino} onChange={(e) => setMatriculaNivelEnsino(e.target.value)} required disabled={!matriculaEscolaId} autoComplete="off">
+                  <option value="">Selecione o Nível</option>
+                  {availableNiveisEnsino.map((nivel, index) => (
+                    <option key={index} value={nivel}>{nivel}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Série/Ano */}
+              <div className="col-span-full md:col-span-1">
+                <label htmlFor="matriculaAnoSerie" className="block text-sm font-medium text-gray-700">Série/Ano <span className="text-red-500">*</span></label>
+                <select id="matriculaAnoSerie" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaAnoSerie} onChange={(e) => setMatriculaAnoSerie(e.target.value)} required disabled={!matriculaNivelEnsino} autoComplete="off">
+                  <option value="">Selecione a Série/Ano</option>
+                  {availableAnosSeries.map((ano, index) => (
+                    <option key={index} value={ano}>{ano}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Turma */}
+              <div className="col-span-full md:col-span-2">
+                <label htmlFor="matriculaTurma" className="block text-sm font-medium text-gray-700">Turma <span className="text-red-500">*</span></label>
+                <select id="matriculaTurma" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaTurmaId} onChange={(e) => setMatriculaTurmaId(e.target.value)} required disabled={!matriculaAnoSerie} autoComplete="off">
+                  <option value="">Selecione a Turma</option>
+                  {availableTurmas.map(turma => (
+                    <option key={turma.id} value={turma.id}>{turma.nomeTurma}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Data da Matrícula */}
+              <div className="col-span-full md:col-span-1">
+                <label htmlFor="dataMatricula" className="block text-sm font-medium text-gray-700">Data da Matrícula <span className="text-red-500">*</span></label>
+                <input type="date" id="dataMatricula" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={dataMatricula} onChange={(e) => setDataMatricula(e.target.value)} required autoComplete="off" />
+              </div>
+              {/* Matrícula de Dependência */}
+              <div className="col-span-full md:col-span-1">
+                <label htmlFor="matriculaDependencia" className="block text-sm font-medium text-gray-700">Matrícula de Dependência?</label>
+                <select id="matriculaDependencia" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaDependencia} onChange={(e) => setMatriculaDependencia(e.target.value)} autoComplete="off">
+                  <option value="nao">Não</option> <option value="sim">Sim</option>
+                </select>
               </div>
             </div>
           </div>
