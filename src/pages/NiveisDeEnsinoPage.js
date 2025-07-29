@@ -1,14 +1,15 @@
+
 import React from 'react';
 
 // NOVO: Lista de níveis de ensino exportada
 export const niveisDeEnsinoList = [
-  "Educação Infantil",
-  "Ensino Fundamental - Anos Iniciais",
-  "Ensino Fundamental - Anos Finais",
-  "Educação de Jovens e Adultos - EJA - Anos Iniciais",
-  "Educação de Jovens e Adultos - EJA - Anos Finais",
-  "Formação Complementar",
-  "Atendimento Educacional Especializado - AEE"
+  "EDUCAÇÃO INFANTIL",
+  "ENSINO FUNDAMENTAL - ANOS INICIAIS",
+  "ENSINO FUNDAMENTAL - ANOS FINAIS",
+  "EDUCAÇÃO DE JOVENS E ADULTOS - EJA - ANOS INICIAIS",
+  "EDUCAÇÃO DE JOVENS E ADULTOS - EJA - ANOS FINAIS",
+  "FORMAÇÃO COMPLEMENTAR",
+  "ATENDIMENTO EDUCACIONAL ESPECIALIZADO - AEE"
 ];
 
 function NiveisDeEnsinoPage() {

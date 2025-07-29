@@ -1,33 +1,35 @@
+
 import React from 'react';
 
 // NOVO: Estrutura de séries/anos/etapas exportada
 export const seriesAnosEtapasData = {
-  "Educação Infantil": [
-    "Berçário I",
-    "Berçário II",
-    "Maternal I",
-    "Maternal II",
-    "Pré I",
-    "Pré II"
+ "EDUCAÇÃO INFANTIL": [
+    "BERÇÁRIO I",
+    "BERÇÁRIO II",
+    "MATERNAL I",
+    "MATERNAL II",
+    "PRÉ I",
+    "PRÉ II"
   ],
-  "Ensino Fundamental - Anos Iniciais": [
-    "1º Ano",
-    "2º Ano",
-    "3º Ano",
-    "4º Ano",
-    "5º Ano"
+  "ENSINO FUNDAMENTAL - ANOS INICIAIS": [
+    "1º ANO",
+    "2º ANO",
+    "3º ANO",
+    "4º ANO",
+    "5º ANO"
   ],
-  "Ensino Fundamental - Anos Finais": [
-    "6º Ano",
-    "7º Ano",
-    "8º Ano",
-    "9º Ano"
+  "ENSINO FUNDAMENTAL - ANOS FINAIS": [
+    "6º ANO",
+    "7º ANO",
+    "8º ANO",
+    "9º ANO"
   ],
-  "Educação de Jovens e Adultos - EJA": [
-    "1ª Etapa",
-    "2ª Etapa",
-    "3ª Etapa",
-    "4ª Etapa"
+  "EDUCAÇÃO DE JOVENS E ADULTOS - EJA": [
+    "1ª ETAPA",
+    "2ª ETAPA",
+    "3ª ETAPA",
+    "4ª ETAPA"
+
   ]
 };
 

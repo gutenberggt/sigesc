@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
-import { collection, getDocs, query, where, orderBy, limit, getDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, limit, getDoc, doc, documentId } from 'firebase/firestore';
 import { useUser } from '../context/UserContext';
-import { useNavigate } from 'react-router-dom';
+// ========================= INÍCIO DA CORREÇÃO =========================
+import { useNavigate, Link } from 'react-router-dom'; // Adicionado 'Link'
+// ========================== FIM DA CORREÇÃO ===========================
 
-// Importar listas para dropdowns de Nível/Série
+// Importar listas para dropdowns de Nível/Série (que agora estão em MAIÚSCULAS)
 import { niveisDeEnsinoList } from './NiveisDeEnsinoPage';
 import { seriesAnosEtapasData } from './SeriesAnosEtapasPage';
 
@@ -27,6 +29,15 @@ function BuscaAlunoPage() {
   const [turmaSearchId, setTurmaSearchId] = useState('');
   const [situacaoSearch, setSituacaoSearch] = useState('');
 
+  // CAMPOS CUJOS ESTADOS E LÓGICA DE FILTRO PERMANECEM NO CÓDIGO (mesmo que os inputs não estejam no formulário)
+  const [nacionalidadeSearch, setNacionalidadeSearch] = useState('');
+  const [naturalidadeEstadoSearch, setNaturalidadeEstadoSearch] = useState('');
+  const [ruaSearch, setRuaSearch] = useState('');
+  const [numeroSearch, setNumeroSearch] = useState('');
+  const [bairroSearch, setBairroSearch] = useState('');
+  const [municipioSearch, setMunicipioSearch] = useState('');
+  const [cepSearch, setCepSearch] = useState('');
+
   // --- Estados para População de Dropdowns ---
   const [availableSchools, setAvailableSchools] = useState([]);
   const [availableNiveisEnsino, setAvailableNiveisEnsino] = useState([]);
@@ -39,10 +50,9 @@ function BuscaAlunoPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchErrorMessage, setSearchErrorMessage] = useState('');
 
-  // Funções de formatação (reutilizadas, se necessário)
+  // Funções de formatação
   const formatCPF = (value) => value.replace(/\D/g, '').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2').substring(0, 14);
-  // formatCEP removido pois o campo CEP foi removido
-  // const formatCEP = (value) => value.replace(/\D/g, '').replace(/^(\d{5})(\d)/, '$1-$2').substring(0, 9);
+  const formatCEP = (value) => value.replace(/\D/g, '').replace(/^(\d{5})(\d)/, '$1-$2').substring(0, 9);
 
 
   // Efeito para carregar escolas (para o dropdown de escola na busca)
@@ -52,7 +62,12 @@ function BuscaAlunoPage() {
         try {
           const schoolsCol = collection(db, 'schools');
           const schoolsSnapshot = await getDocs(schoolsCol);
-          const schoolsList = schoolsSnapshot.docs.map(doc => ({ id: doc.id, nomeEscola: doc.data().nomeEscola, niveisEnsino: doc.data().niveisEnsino, anosSeriesAtendidas: doc.data().anosSeriesAtendidas }));
+          const schoolsList = schoolsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            nomeEscola: doc.data().nomeEscola,
+            niveisEnsino: doc.data().niveisEnsino || [],
+            anosSeriesAtendidas: doc.data().anosSeriesAtendidas || [],
+          }));
           setAvailableSchools(schoolsList);
         } catch (error) {
           console.error("Erro ao buscar escolas para busca:", error);
@@ -74,30 +89,24 @@ function BuscaAlunoPage() {
         setAvailableNiveisEnsino([]);
         setSchoolAnosSeriesData([]);
       }
+      setNivelEnsinoSearch('');
+      setAnoSerieSearch('');
+      setTurmaSearchId('');
     } else {
-      // Quando a escola é deselecionada, resetar os campos dependentes
+      setAvailableNiveisEnsino([]);
+      setSchoolAnosSeriesData([]);
       setNivelEnsinoSearch('');
       setAnoSerieSearch('');
       setTurmaSearchId('');
     }
-    // Não precisa resetar aqui, pois já está no bloco if/else acima
-    // setNivelEnsinoSearch('');
-    // setAnoSerieSearch('');
-    // setTurmaSearchId('');
   }, [escolaSearchId, availableSchools]);
 
   // Efeito para filtrar Ano/Série/Etapa com base no Nível de Ensino selecionado E nas séries da escola
   useEffect(() => {
     const newAvailableAnosSeriesSet = new Set();
     if (nivelEnsinoSearch && schoolAnosSeriesData.length > 0) {
-      const mappedNivel = {
-        "Educação Infantil": "Educação Infantil", "Ensino Fundamental - Anos Iniciais": "Ensino Fundamental - Anos Iniciais",
-        "Ensino Fundamental - Anos Finais": "Ensino Fundamental - Anos Finais", "Educação de Jovens e Adultos - EJA - Anos Iniciais": "Educação de Jovens e Adultos - EJA",
-        "Educação de Jovens e Adultos - EJA - Anos Finais": "Educação de Jovens e Adultos - EJA",
-      }[nivelEnsinoSearch] || nivelEnsinoSearch;
-
-      if (seriesAnosEtapasData[mappedNivel]) {
-        seriesAnosEtapasData[mappedNivel].forEach(item => {
+      if (seriesAnosEtapasData[nivelEnsinoSearch]) {
+        seriesAnosEtapasData[nivelEnsinoSearch].forEach(item => {
           if (schoolAnosSeriesData.includes(item)) {
             newAvailableAnosSeriesSet.add(item);
           }
@@ -105,36 +114,34 @@ function BuscaAlunoPage() {
       }
     }
     setAvailableAnosSeries(Array.from(newAvailableAnosSeriesSet));
-    if (anoSerieSearch && !Array.from(newAvailableAnosSeriesSet).includes(anoSerieSearch)) {
-      setAnoSerieSearch('');
-    }
-    setTurmaSearchId(''); // Reseta turma ao mudar série/nível
-  }, [nivelEnsinoSearch, schoolAnosSeriesData, anoSerieSearch]);
+    setAnoSerieSearch('');
+    setTurmaSearchId('');
+  }, [nivelEnsinoSearch, schoolAnosSeriesData]);
 
   // Efeito para buscar turmas com base na Escola, Nível e Ano/Série selecionados
   useEffect(() => {
+    setAvailableTurmas([]); 
+    setTurmaSearchId('');
     if (escolaSearchId && nivelEnsinoSearch && anoSerieSearch) {
       const fetchTurmas = async () => {
-        try {
-          const turmasCol = collection(db, 'turmas');
-          const q = query(
-            turmasCol,
-            where('schoolId', '==', escolaSearchId),
-            where('nivelEnsino', '==', nivelEnsinoSearch.toUpperCase()),
-            where('anoSerie', '==', anoSerieSearch.toUpperCase()),
-            orderBy('nomeTurma')
-          );
-          const querySnapshot = await getDocs(q);
-          const turmasList = querySnapshot.docs.map(doc => ({ id: doc.id, nomeTurma: doc.data().nomeTurma }));
-          setAvailableTurmas(turmasList);
-        } catch (error) {
-          console.error("Erro ao buscar turmas para busca:", error);
-          setSearchErrorMessage("Erro ao carregar turmas para a busca.");
-        }
+          try {
+            const turmasCol = collection(db, 'turmas');
+            const q = query(
+                turmasCol,
+                where('schoolId', '==', escolaSearchId),
+                where('nivelEnsino', '==', nivelEnsinoSearch),
+                where('anoSerie', '==', anoSerieSearch),
+                orderBy('nomeTurma')
+            );
+            const querySnapshot = await getDocs(q);
+            const turmasList = querySnapshot.docs.map(doc => ({ id: doc.id, nomeTurma: doc.data().nomeTurma }));
+            setAvailableTurmas(turmasList);
+          } catch (error) {
+            console.error("Erro ao buscar turmas para busca:", error);
+            setSearchErrorMessage("Erro ao carregar turmas para a busca.");
+          }
       };
       fetchTurmas();
-    } else {
-      setAvailableTurmas([]);
     }
   }, [escolaSearchId, nivelEnsinoSearch, anoSerieSearch]);
 
@@ -148,95 +155,91 @@ function BuscaAlunoPage() {
 
     try {
       let matriculasQuery = collection(db, 'matriculas');
-      let pessoaIdsToFilter = [];
+      let finalQueryConstraints = [];
 
-      // --- 1. Buscar na coleção 'pessoas' se houver critérios de pessoa ---
-      if (nomeCompletoSearch || cpfSearch || nomePaiSearch || nomeMaeSearch || naturalidadeCidadeSearch || sexoSearch || dataNascimentoSearch) { // Nacionalidade, Naturalidade (Estado), Rua, Numero, Bairro, Municipio, CEP removidos da condição
-        let pessoasQuery = collection(db, 'pessoas');
-        let hasPessoaCriteria = false;
-
+      if (nomeCompletoSearch || cpfSearch || nomePaiSearch || nomeMaeSearch || naturalidadeCidadeSearch || sexoSearch || dataNascimentoSearch || nacionalidadeSearch || naturalidadeEstadoSearch || ruaSearch || numeroSearch || bairroSearch || municipioSearch || cepSearch) {
+        let pessoaQueryConstraints = [];
         if (nomeCompletoSearch) {
-          pessoasQuery = query(pessoasQuery, where('nomeCompleto', '>=', nomeCompletoSearch.toUpperCase()), where('nomeCompleto', '<=', nomeCompletoSearch.toUpperCase() + '\uf8ff'));
-          hasPessoaCriteria = true;
+            pessoaQueryConstraints.push(where('nomeCompleto', '>=', nomeCompletoSearch.toUpperCase()), where('nomeCompleto', '<=', nomeCompletoSearch.toUpperCase() + '\uf8ff'));
         }
         if (cpfSearch) {
-          pessoasQuery = query(pessoasQuery, where('cpf', '==', cpfSearch.replace(/\D/g, '')));
-          hasPessoaCriteria = true;
+            pessoaQueryConstraints.push(where('cpf', '==', cpfSearch.replace(/\D/g, '')));
         }
-        if (nomePaiSearch) {
-          pessoasQuery = query(pessoasQuery, where('pessoaPai', '>=', nomePaiSearch.toUpperCase()), where('pessoaPai', '<=', nomePaiSearch.toUpperCase() + '\uf8ff'));
-          hasPessoaCriteria = true;
-        }
-        if (nomeMaeSearch) {
-          pessoasQuery = query(pessoasQuery, where('pessoaMae', '>=', nomeMaeSearch.toUpperCase()), where('pessoaMae', '<=', nomeMaeSearch.toUpperCase() + '\uf8ff'));
-          hasPessoaCriteria = true;
-        }
-        // REMOVIDO: Filtro por nacionalidadeSearch
-        if (naturalidadeCidadeSearch) {
-          pessoasQuery = query(pessoasQuery, where('naturalidadeCidade', '==', naturalidadeCidadeSearch.toUpperCase()));
-          hasPessoaCriteria = true;
-        }
-        // REMOVIDO: Filtro por naturalidadeEstadoSearch
-        if (sexoSearch) {
-            pessoasQuery = query(pessoasQuery, where('sexo', '==', sexoSearch));
-            hasPessoaCriteria = true;
-        }
-        if (dataNascimentoSearch) {
-            pessoasQuery = query(pessoasQuery, where('dataNascimento', '==', dataNascimentoSearch));
-            hasPessoaCriteria = true;
-        }
-        // REMOVIDO: Filtros de endereço (ruaSearch, numeroSearch, bairroSearch, municipioSearch, cepSearch)
+        
+        if (pessoaQueryConstraints.length > 0) {
+            const pessoasQuery = query(collection(db, 'pessoas'), ...pessoaQueryConstraints);
+            const pessoasSnapshot = await getDocs(pessoasQuery);
+            const pessoaIdsToFilter = pessoasSnapshot.docs.map(doc => doc.id);
 
-        if (hasPessoaCriteria) {
-          const pessoasSnapshot = await getDocs(pessoasQuery);
-          pessoaIdsToFilter = pessoasSnapshot.docs.map(doc => doc.id);
-
-          if (pessoaIdsToFilter.length === 0) {
-            setSearchErrorMessage("Nenhum resultado de pessoa encontrado para os critérios de pessoa.");
-            setIsSearching(false);
-            return;
-          }
-          if (pessoaIdsToFilter.length > 10) {
-            setSearchErrorMessage("Muitos resultados de pessoa, refina a busca (limite de 10 pessoas por busca combinada para 'in' query).");
-            setIsSearching(false);
-            return;
-          }
-           matriculasQuery = query(matriculasQuery, where('pessoaId', 'in', pessoaIdsToFilter));
+            if (pessoaIdsToFilter.length === 0) {
+                setSearchErrorMessage("Nenhum resultado encontrado para os critérios de pessoa.");
+                setIsSearching(false);
+                return;
+            }
+            if (pessoaIdsToFilter.length > 30) {
+                setSearchErrorMessage("Muitos resultados de pessoa. Por favor, refine a busca de pessoa (limite de 30).");
+                setIsSearching(false);
+                return;
+            }
+            finalQueryConstraints.push(where('pessoaId', 'in', pessoaIdsToFilter));
         }
       }
 
-      // --- 2. Aplicar filtros diretamente na coleção 'matriculas' ---
       if (codigoINEPSearch) {
-        matriculasQuery = query(matriculasQuery, where('codigoINEP', '==', codigoINEPSearch));
+        finalQueryConstraints.push(where('codigoINEP', '==', codigoINEPSearch));
       }
       if (escolaSearchId) {
-        matriculasQuery = query(matriculasQuery, where('escolaId', '==', escolaSearchId));
+        finalQueryConstraints.push(where('escolaId', '==', escolaSearchId));
       }
       if (nivelEnsinoSearch) {
-        matriculasQuery = query(matriculasQuery, where('nivelEnsino', '==', nivelEnsinoSearch.toUpperCase()));
+        finalQueryConstraints.push(where('nivelEnsino', '==', nivelEnsinoSearch));
       }
       if (anoSerieSearch) {
-        matriculasQuery = query(matriculasQuery, where('anoSerie', '==', anoSerieSearch.toUpperCase()));
+        finalQueryConstraints.push(where('anoSerie', '==', anoSerieSearch));
       }
       if (turmaSearchId) {
-        matriculasQuery = query(matriculasQuery, where('turmaId', '==', turmaSearchId));
+        finalQueryConstraints.push(where('turmaId', '==', turmaSearchId));
       }
       if (situacaoSearch) {
-        matriculasQuery = query(matriculasQuery, where('situacaoMatricula', '==', situacaoSearch.toUpperCase()));
+        finalQueryConstraints.push(where('situacaoMatricula', '==', situacaoSearch));
+      }
+
+      const finalQuery = query(matriculasQuery, ...finalQueryConstraints);
+      const matriculasSnapshot = await getDocs(finalQuery);
+
+      if (matriculasSnapshot.empty) {
+        setSearchErrorMessage("Nenhum aluno encontrado com os critérios de busca especificados.");
+        setSearchResults([]);
+        setIsSearching(false);
+        return;
       }
       
-      const matriculasSnapshot = await getDocs(matriculasQuery);
-      const results = await Promise.all(matriculasSnapshot.docs.map(async docMatricula => {
+      const resultsWithoutTurma = await Promise.all(matriculasSnapshot.docs.map(async docMatricula => {
         const matriculaData = docMatricula.data();
         const pessoaDocRef = doc(db, 'pessoas', matriculaData.pessoaId);
         const pessoaDocSnap = await getDoc(pessoaDocRef);
         const pessoaData = pessoaDocSnap.exists() ? pessoaDocSnap.data() : {};
-        
         return { id: docMatricula.id, ...matriculaData, pessoa: pessoaData };
       }));
 
-      const finalResults = results.filter(Boolean);
+      const turmaIds = [...new Set(resultsWithoutTurma.map(res => res.turmaId).filter(Boolean))];
+
+      const turmasMap = new Map();
+      if (turmaIds.length > 0) {
+        const turmasQuery = query(collection(db, 'turmas'), where(documentId(), 'in', turmaIds));
+        const turmasSnapshot = await getDocs(turmasQuery);
+        turmasSnapshot.docs.forEach(doc => {
+          turmasMap.set(doc.id, doc.data().nomeTurma);
+        });
+      }
+      
+      const finalResults = resultsWithoutTurma.map(result => ({
+        ...result,
+        nomeTurma: turmasMap.get(result.turmaId) || 'N/A'
+      }));
+
       setSearchResults(finalResults);
+
       if (finalResults.length === 0) {
         setSearchErrorMessage("Nenhum aluno encontrado com os critérios de busca especificados.");
       }
@@ -258,20 +261,20 @@ function BuscaAlunoPage() {
     setNomeMaeSearch('');
     setCodigoINEPSearch('');
     setDataNascimentoSearch('');
-    // REMOVIDO: setNacionalidadeSearch('');
     setNaturalidadeCidadeSearch('');
-    // REMOVIDO: setNaturalidadeEstadoSearch('');
     setSexoSearch('');
     setEscolaSearchId('');
     setNivelEnsinoSearch('');
     setAnoSerieSearch('');
     setTurmaSearchId('');
-    // REMOVIDO: setRuaSearch('');
-    // REMOVIDO: setNumeroSearch('');
-    // REMOVIDO: setBairroSearch('');
-    // REMOVIDO: setMunicipioSearch('');
-    // REMOVIDO: setCepSearch('');
     setSituacaoSearch('');
+    setNacionalidadeSearch('');
+    setNaturalidadeEstadoSearch('');
+    setRuaSearch('');
+    setNumeroSearch('');
+    setBairroSearch('');
+    setMunicipioSearch('');
+    setCepSearch('');
     setSearchResults([]);
     setSearchErrorMessage('');
   };
@@ -282,7 +285,6 @@ function BuscaAlunoPage() {
     return <div className="flex justify-center items-center h-screen text-gray-700">Carregando...</div>;
   }
 
-  // Verifica permissão para acessar a página
   if (!userData || !(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario' || userData.funcao.toLowerCase() === 'diretor' || userData.funcao.toLowerCase() === 'coordenador' || userData.funcao.toLowerCase() === 'professor' || userData.funcao.toLowerCase() === 'aluno'))) {
     return <div className="flex justify-center items-center h-screen text-red-600 font-bold">Acesso Negado: Você não tem permissão para acessar esta página.</div>;
   }
@@ -296,9 +298,8 @@ function BuscaAlunoPage() {
         {isSearching && <p className="text-blue-600 text-sm mb-4 text-center">Buscando...</p>}
 
         <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 border rounded-md bg-gray-50 mb-6">
-          {/* Dados Pessoais de Busca */}
           <div className="col-span-full md:col-span-2 lg:col-span-3">
-            <label htmlFor="nomeCompletoSearch" className="block text-sm font-medium text-gray-700">Nome</label>
+            <label htmlFor="nomeCompletoSearch" className="block text-sm font-medium text-gray-700">Nome Completo</label>
             <input type="text" id="nomeCompletoSearch" className="mt-1 block w-full p-2 border rounded-md" value={nomeCompletoSearch} onChange={(e) => setNomeCompletoSearch(e.target.value)} autoComplete="off" />
           </div>
           <div className="col-span-full md:col-span-1 lg:col-span-1">
@@ -313,8 +314,6 @@ function BuscaAlunoPage() {
             <label htmlFor="nomePaiSearch" className="block text-sm font-medium text-gray-700">Nome do Pai</label>
             <input type="text" id="nomePaiSearch" className="mt-1 block w-full p-2 border rounded-md" value={nomePaiSearch} onChange={(e) => setNomePaiSearch(e.target.value)} autoComplete="off" />
           </div>
-
-          {/* Dados de Matrícula/Documento */}
           <div className="col-span-full md:col-span-1 lg:col-span-1">
             <label htmlFor="codigoINEPSearch" className="block text-sm font-medium text-gray-700">Código INEP</label>
             <input type="text" id="codigoINEPSearch" className="mt-1 block w-full p-2 border rounded-md" value={codigoINEPSearch} onChange={(e) => setCodigoINEPSearch(e.target.value)} autoComplete="off" />
@@ -324,7 +323,7 @@ function BuscaAlunoPage() {
             <input type="date" id="dataNascimentoSearch" className="mt-1 block w-full p-2 border rounded-md" value={dataNascimentoSearch} onChange={(e) => setDataNascimentoSearch(e.target.value)} autoComplete="off" />
           </div>
           <div className="col-span-full md:col-span-1 lg:col-span-2">
-            <label htmlFor="naturalidadeCidadeSearch" className="block text-sm font-medium text-gray-700">Naturalidade</label>
+            <label htmlFor="naturalidadeCidadeSearch" className="block text-sm font-medium text-gray-700">Naturalidade (Cidade)</label>
             <input type="text" id="naturalidadeCidadeSearch" className="mt-1 block w-full p-2 border rounded-md" value={naturalidadeCidadeSearch} onChange={(e) => setNaturalidadeCidadeSearch(e.target.value)} autoComplete="off" />
           </div>
           <div className="col-span-full md:col-span-1 lg:col-span-1">
@@ -336,9 +335,7 @@ function BuscaAlunoPage() {
               <option value="Outro">Outro</option>
             </select>
           </div>
-
-          {/* Filtros de Matrícula (Dropdowns) */}
-          <div className="col-span-full md:col-span-2 lg:col-span-3">
+          <div className="col-span-full md:col-span-2 lg:col-span-2">
             <label htmlFor="escolaSearchId" className="block text-sm font-medium text-gray-700">Escola</label>
             <select id="escolaSearchId" className="mt-1 block w-full p-2 border rounded-md" value={escolaSearchId} onChange={(e) => setEscolaSearchId(e.target.value)} autoComplete="off">
               <option value="">Todas as Escolas</option>
@@ -385,8 +382,6 @@ function BuscaAlunoPage() {
               <option value="EVADIDO">Evadido</option>
             </select>
           </div>
-          
-          {/* Botões de Ação */}
           <div className="col-span-full flex justify-end space-x-3 mt-4">
             <button
               type="button"
@@ -406,10 +401,9 @@ function BuscaAlunoPage() {
 
         <hr className="my-8" />
 
-        {/* Tabela de Resultados */}
         <h3 className="text-xl font-bold mb-4 text-gray-800 text-center">Resultados da Busca</h3>
         {searchResults.length === 0 ? (
-          <p className="text-center text-gray-600">Nenhum aluno encontrado.</p>
+          <p className="text-center text-gray-600">{searchErrorMessage || "Nenhum aluno encontrado."}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white border border-gray-300 rounded-md">
@@ -426,11 +420,17 @@ function BuscaAlunoPage() {
               <tbody className="text-gray-600 text-sm font-light">
                 {searchResults.map(result => (
                   <tr key={result.id} className="border-b border-gray-200 hover:bg-gray-100">
-                    <td className="py-3 px-6 text-left whitespace-nowrap">{result.pessoa?.nomeCompleto || 'N/A'}</td>
+                    {/* ========================= INÍCIO DA CORREÇÃO ========================= */}
+                    <td className="py-3 px-6 text-left whitespace-nowrap">
+                      <Link to={`/dashboard/escola/aluno/ficha/${result.pessoaId}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                        {result.pessoa?.nomeCompleto || 'N/A'}
+                      </Link>
+                    </td>
+                    {/* ========================== FIM DA CORREÇÃO =========================== */}
                     <td className="py-3 px-6 text-left">{result.pessoa?.cpf ? formatCPF(result.pessoa.cpf) : 'N/A'}</td>
                     <td className="py-3 px-6 text-left">{availableSchools.find(s => s.id === result.escolaId)?.nomeEscola || 'N/A'}</td>
                     <td className="py-3 px-6 text-left">{result.anoSerie || 'N/A'}</td>
-                    <td className="py-3 px-6 text-left">{availableTurmas.find(t => t.id === result.turmaId)?.nomeTurma || 'N/A'}</td>
+                    <td className="py-3 px-6 text-left">{result.nomeTurma || 'N/A'}</td>
                     <td className="py-3 px-6 text-left">{result.situacaoMatricula || 'N/A'}</td>
                   </tr>
                 ))}

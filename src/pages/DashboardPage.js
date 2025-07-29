@@ -4,7 +4,6 @@ import { auth } from '../firebase/config';
 import { useUser } from '../context/UserContext';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import Footer from '../components/Footer';
-// Importe FaSearch para o ícone de busca
 import { FaHome, FaUsers, FaUserCircle, FaSignOutAlt, FaBars, FaTimes, FaSchool, FaBookOpen, FaGraduationCap, FaChalkboardTeacher, FaUserGraduate, FaSearch } from 'react-icons/fa';
 
 function DashboardPage() {
@@ -66,7 +65,10 @@ function DashboardPage() {
     if (path === '/dashboard/gerenciar-usuarios') return 'Gerenciar Usuários';
     if (path === '/dashboard/escola/escola') return 'Gerenciar Escolas';
     if (path === '/dashboard/escola/matriculas') return 'Matrícula de Aluno';
-    if (path === '/dashboard/escola/busca-aluno') return 'Busca de Aluno'; // Adicionado
+    if (path === '/dashboard/escola/busca-aluno') return 'Busca de Aluno';
+    if (path.startsWith('/dashboard/escola/aluno/ficha')) return 'Ficha do Aluno';
+    if (path.startsWith('/dashboard/escola/aluno/editar')) return 'Editar Aluno';
+    if (path.startsWith('/dashboard/escola/aluno/nova-matricula')) return 'Nova Matrícula';
     if (path === '/dashboard/escola/cursos') return 'Níveis de Ensino';
     if (path === '/dashboard/escola/series') return 'Séries / Anos / Etapas';
     if (path === '/dashboard/escola/componentes-curriculares') return 'Componentes Curriculares';
@@ -92,10 +94,15 @@ function DashboardPage() {
       );
   }
 
-  const userRoleDisplay = userData && userData.funcao ? userData.funcao.toUpperCase() : 'N/A';
+  // ========================= INÍCIO DA CORREÇÃO =========================
+  // Combina o nome do usuário e a função para exibição no cabeçalho
+  const userDisplay = userData 
+    ? `${userData.nomeCompleto || 'Usuário'} - ${userData.funcao ? userData.funcao.toUpperCase() : 'N/A'}`
+    : 'N/A';
+  // ========================== FIM DA CORREÇÃO ===========================
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header Fixo */}
       <header className="bg-blue-600 text-white p-4 shadow-md fixed top-0 left-0 right-0 z-40">
         <div className="container mx-auto flex justify-between items-center relative">
@@ -110,7 +117,10 @@ function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm font-medium hidden md:block">{userRoleDisplay}</span>
+            {/* ========================= INÍCIO DA CORREÇÃO ========================= */}
+            {/* Exibe a nova variável com nome e função */}
+            <span className="text-sm font-medium hidden md:block">{userDisplay}</span>
+            {/* ========================== FIM DA CORREÇÃO =========================== */}
             <h2 className="text-lg font-bold md:hidden">{getPageTitle()}</h2>
             
             <button onClick={toggleMenu} className="focus:outline-none ml-auto">
@@ -137,10 +147,9 @@ function DashboardPage() {
         </div>
       </header>
 
-      {/* Conteúdo principal com barra lateral */}
-      <div className="flex flex-grow pt-16 md:pl-64">
+      <div className="flex pt-16 h-screen">
         {/* Sidebar fixa */}
-        <aside className={`w-64 bg-blue-700 text-white flex-shrink-0 p-4 fixed inset-y-0 left-0 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-200 ease-in-out z-30 pt-16`}>
+        <aside className={`w-64 bg-blue-700 text-white flex-shrink-0 p-4 fixed md:relative inset-y-0 left-0 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-200 ease-in-out z-30 pt-16 md:pt-4`}>
           <button onClick={toggleSidebar} className="md:hidden absolute top-4 right-4 text-gray-400 hover:text-white focus:outline-none">
             <FaTimes size={20} />
           </button>
@@ -154,7 +163,7 @@ function DashboardPage() {
                 </Link>
               </li>
 
-              {/* Gerenciar Usuários - Visível apenas para Administrador/Secretário */}
+              {/* Gerenciar Usuários */}
               {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
                  <li className="mb-2">
                    <Link to="/dashboard/gerenciar-usuarios" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname === '/dashboard/gerenciar-usuarios' ? 'bg-blue-600' : ''}`}>
@@ -164,7 +173,7 @@ function DashboardPage() {
                  </li>
               )}
               
-              {/* Gerenciar Pessoas - Visível apenas para Administrador/Secretário */}
+              {/* Gerenciar Pessoas */}
               {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
                 <li className="mb-2">
                   <Link to="/dashboard/escola/pessoas" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname === '/dashboard/escola/pessoas' ? 'bg-blue-600' : ''}`}>
@@ -197,7 +206,6 @@ function DashboardPage() {
                 </button>
                 {openSubmenu === 'escola' && (
                   <ul className="ml-4 mt-1">
-                    {/* Item de Gerenciar Escolas - Visível apenas para Admin/Secretário */}
                     {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
                         <li>
                           <Link to="/dashboard/escola/escola" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/escola' ? 'bg-blue-600' : ''}`}>
@@ -207,7 +215,6 @@ function DashboardPage() {
                         </li>
                     )}
                     
-                    {/* NOVO ITEM DE MENU: MATRÍCULA DE ALUNO */}
                     {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
                         <li>
                             <Link to="/dashboard/escola/matriculas" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/matriculas' ? 'bg-blue-600' : ''}`}>
@@ -217,7 +224,6 @@ function DashboardPage() {
                         </li>
                     )}
 
-                    {/* NOVO ITEM DE MENU: BUSCA DE ALUNO */}
                     {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario' || userData.funcao.toLowerCase() === 'diretor' || userData.funcao.toLowerCase() === 'coordenador' || userData.funcao.toLowerCase() === 'professor')) && (
                         <li>
                             <Link to="/dashboard/escola/busca-aluno" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/busca-aluno' ? 'bg-blue-600' : ''}`}>
@@ -226,8 +232,7 @@ function DashboardPage() {
                             </Link>
                         </li>
                     )}
-
-                    {/* Itens de Níveis, Séries, Componentes - Visível para Admin, Secretário, Diretor, Coordenador, Professor */}
+                    
                     {(userData.funcao && (userData.funcao.toLowerCase() !== 'aluno')) && (
                         <>
                             <li>
@@ -262,14 +267,20 @@ function DashboardPage() {
           <div onClick={toggleSidebar} className="fixed inset-0 bg-black opacity-50 z-20 md:hidden"></div>
         )}
 
-        {/* Conteúdo principal da página - ONDE AS ROTAS ANINHADAS SERÃO RENDERIZADAS */}
-        <main className="flex-grow overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-          <Outlet />
-        </main>
+        {/* Container do Conteúdo Principal */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Conteúdo rolável */}
+          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+            <div className="pb-16">
+              <Outlet />
+            </div>
+          </main>
+          
+          <div className="w-full">
+             <Footer />
+          </div>
+        </div>
       </div>
-
-      {/* Footer GLOBAL */}
-      <Footer />
     </div>
   );
 }

@@ -16,6 +16,13 @@ import TurmasPage from './pages/TurmasPage';
 import MatriculaAlunoPage from './pages/MatriculaAlunoPage';
 import BuscaAlunoPage from './pages/BuscaAlunoPage'; // NOVO: Importar a página de Busca de Aluno
 
+// ======================= INÍCIO DA CORREÇÃO =======================
+// 1. IMPORTAR AS NOVAS PÁGINAS
+import FichaAlunoPage from './pages/FichaAlunoPage';
+import EditarAlunoPage from './pages/EditarAlunoPage';
+import NovaMatriculaAlunoPage from './pages/NovaMatriculaAlunoPage';
+// ======================== FIM DA CORREÇÃO =========================
+
 import { UserProvider } from './context/UserContext';
 
 function App() {
@@ -36,13 +43,20 @@ function App() {
             
             {/* Rotas para os submenus da Escola */}
             <Route path="escola/escola" element={<SchoolManagementPage />} /> 
-			<Route path="escola/matriculas" element={<MatriculaAlunoPage />} /> {/* Nova rota */}
-			<Route path="escola/busca-aluno" element={<BuscaAlunoPage />} /> {/* NOVA ROTA PARA BUSCA DE ALUNO */}
-			<Route path="escola/cursos" element={<NiveisDeEnsinoPage />} />
-			<Route path="escola/series" element={<SeriesAnosEtapasPage />} />
-			<Route path="escola/componentes-curriculares" element={<ComponentesCurricularesPage />} />
-			<Route path="escola/pessoas" element={<PessoaManagementPage />} /> {/* Rota para Gerenciar Pessoas */}
+			      <Route path="escola/matriculas" element={<MatriculaAlunoPage />} /> {/* Nova rota */}
+			      <Route path="escola/busca-aluno" element={<BuscaAlunoPage />} /> {/* NOVA ROTA PARA BUSCA DE ALUNO */}
+			      <Route path="escola/cursos" element={<NiveisDeEnsinoPage />} />
+			      <Route path="escola/series" element={<SeriesAnosEtapasPage />} />
+			      <Route path="escola/componentes-curriculares" element={<ComponentesCurricularesPage />} />
+			      <Route path="escola/pessoas" element={<PessoaManagementPage />} /> {/* Rota para Gerenciar Pessoas */}
             <Route path="escola/turmas/:schoolId" element={<TurmasPage />} /> {/* Rota para Gerenciar Turmas */}
+
+            {/* ======================= INÍCIO DA CORREÇÃO ======================= */}
+            {/* 2. ADICIONAR AS NOVAS ROTAS PARA FICHA, EDIÇÃO E NOVA MATRÍCULA */}
+            <Route path="escola/aluno/ficha/:alunoId" element={<FichaAlunoPage />} />
+            <Route path="escola/aluno/editar/:alunoId" element={<EditarAlunoPage />} />
+            <Route path="escola/aluno/nova-matricula/:alunoId" element={<NovaMatriculaAlunoPage />} />
+            {/* ======================== FIM DA CORREÇÃO ========================= */}
 
           </Route>
                     

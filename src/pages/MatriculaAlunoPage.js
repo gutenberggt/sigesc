@@ -326,48 +326,38 @@ function MatriculaAlunoPage() {
 
 
   // Efeito para carregar Níveis de Ensino e Anos/Séries da Escola selecionada
-  // schoolAnosSeriesData está declarada apenas uma vez agora no topo
   useEffect(() => {
     if (matriculaEscolaId) {
-      const fetchSchoolNiveisAnos = async () => {
-        try {
-          const schoolDocRef = doc(db, 'schools', matriculaEscolaId);
-          const schoolDocSnap = await getDoc(schoolDocRef);
-          if (schoolDocSnap.exists()) {
-            const data = schoolDocSnap.data();
-            setAvailableNiveisEnsino(data.niveisEnsino || []);
-            setSchoolAnosSeriesData(data.anosSeriesAtendidas || []);
-          } else {
-            setAvailableNiveisEnsino([]);
-            setSchoolAnosSeriesData([]);
-            setErrorMessage("Escola selecionada não encontrada para buscar níveis/anos.");
-          }
-        } catch (error) {
-          console.error("Erro ao buscar níveis/anos da escola:", error);
-          setErrorMessage("Erro ao carregar níveis/anos da escola.");
-        }
-      };
-      fetchSchoolNiveisAnos();
+      const selectedSchool = availableSchools.find(s => s.id === matriculaEscolaId);
+      if (selectedSchool) {
+        setAvailableNiveisEnsino(selectedSchool.niveisEnsino || []);
+        setSchoolAnosSeriesData(selectedSchool.anosSeriesAtendidas || []);
+      } else {
+        setAvailableNiveisEnsino([]);
+        setSchoolAnosSeriesData([]);
+      }
     } else {
       setAvailableNiveisEnsino([]);
       setSchoolAnosSeriesData([]);
     }
-  }, [matriculaEscolaId]);
+    // Reseta os campos dependentes quando a escola muda
+    setMatriculaNivelEnsino('');
+    setMatriculaAnoSerie('');
+    setMatriculaTurmaId('');
+  }, [matriculaEscolaId, availableSchools]);
 
+  
   // Efeito para filtrar Ano/Série/Etapa com base no Nível de Ensino selecionado E nas séries da escola
   useEffect(() => {
     const newAvailableAnosSeriesSet = new Set();
     if (matriculaNivelEnsino && schoolAnosSeriesData.length > 0) {
-      const mappedNivel = {
-        "Educação Infantil": "Educação Infantil",
-        "Ensino Fundamental - Anos Iniciais": "Ensino Fundamental - Anos Iniciais",
-        "Ensino Fundamental - Anos Finais": "Ensino Fundamental - Anos Finais",
-        "Educação de Jovens e Adultos - EJA - Anos Iniciais": "Educação de Jovens e Adultos - EJA",
-        "Educação de Jovens e Adultos - EJA - Anos Finais": "Educação de Jovens e Adultos - EJA",
-      }[matriculaNivelEnsino] || matriculaNivelEnsino;
-
-      if (seriesAnosEtapasData[mappedNivel]) {
-        seriesAnosEtapasData[mappedNivel].forEach(item => {
+      // O mapeamento de nomes foi removido.
+      // A variável 'matriculaNivelEnsino' já está em MAIÚSCULAS e corresponde
+      // diretamente às chaves do objeto 'seriesAnosEtapasData'.
+      if (seriesAnosEtapasData[matriculaNivelEnsino]) {
+        seriesAnosEtapasData[matriculaNivelEnsino].forEach(item => {
+          // 'item' (ex: "1º ANO") e 'schoolAnosSeriesData' (ex: ["1º ANO"])
+          // ambos estão em MAIÚSCULAS, então a comparação funciona.
           if (schoolAnosSeriesData.includes(item)) {
             newAvailableAnosSeriesSet.add(item);
           }
@@ -375,10 +365,12 @@ function MatriculaAlunoPage() {
       }
     }
     setAvailableAnosSeries(Array.from(newAvailableAnosSeriesSet));
-    if (matriculaAnoSerie && !Array.from(newAvailableAnosSeriesSet).includes(matriculaAnoSerie)) {
-      setMatriculaAnoSerie('');
-    }
-  }, [matriculaNivelEnsino, schoolAnosSeriesData, matriculaAnoSerie]);
+    
+    // Reseta os campos dependentes se o nível mudar
+    setMatriculaAnoSerie('');
+    setMatriculaTurmaId('');
+    
+  }, [matriculaNivelEnsino, schoolAnosSeriesData]);
 
 
   // Efeito para buscar turmas com base na Escola, Nível e Ano/Série selecionados
@@ -390,9 +382,8 @@ function MatriculaAlunoPage() {
           const q = query(
             turmasCol,
             where('schoolId', '==', matriculaEscolaId),
-            // CORRIGIDO: Convertendo para maiúsculas aqui para corresponder aos dados do Firestore
-            where('nivelEnsino', '==', matriculaNivelEnsino.toUpperCase()),
-            where('anoSerie', '==', matriculaAnoSerie.toUpperCase()),
+            where('nivelEnsino', '==', matriculaNivelEnsino), // Já é MAIÚSCULO
+            where('anoSerie', '==', matriculaAnoSerie),     // Já é MAIÚSCULO
             orderBy('nomeTurma')
           );
           const querySnapshot = await getDocs(q);
@@ -410,10 +401,9 @@ function MatriculaAlunoPage() {
     } else {
       setAvailableTurmas([]);
     }
-    if (matriculaTurmaId && !availableTurmas.some(t => t.id === matriculaTurmaId)) {
-      setMatriculaTurmaId('');
-    }
-  }, [matriculaEscolaId, matriculaNivelEnsino, matriculaAnoSerie, matriculaTurmaId, availableTurmas]);
+    // Reseta a turma se os filtros mudarem
+    setMatriculaTurmaId('');
+  }, [matriculaEscolaId, matriculaNivelEnsino, matriculaAnoSerie]);
 
 
   // Efeito para buscar sugestões de Pessoa (por nome ou CPF)
@@ -650,11 +640,13 @@ function MatriculaAlunoPage() {
         }
     }
     
+    // ========================= INÍCIO DA CORREÇÃO LÓGICA =========================
     // Validações específicas da matrícula
-    if (!codigoINEP || !matriculaEscolaId || !matriculaNivelEnsino || !matriculaAnoSerie || !matriculaTurmaId || !dataMatricula || !responsavelLegalNome) {
-        setErrorMessage('Os campos Código INEP, Escola, Nível de Ensino, Ano/Série, Turma, Data da Matrícula e Responsável Legal são obrigatórios.');
+    if (!matriculaEscolaId || !matriculaNivelEnsino || !matriculaAnoSerie || !matriculaTurmaId || !dataMatricula || !responsavelLegalNome) { // !codigoINEP foi removido
+        setErrorMessage('Os campos Escola, Nível de Ensino, Ano/Série, Turma, Data da Matrícula e Responsável Legal são obrigatórios.'); // "Código INEP" foi removido da mensagem
         return;
     }
+    // ========================== FIM DA CORREÇÃO LÓGICA ===========================
     if (!codigoAluno && !selectedPessoaId) {
         setErrorMessage('Código do Aluno é obrigatório para nova matrícula sem vinculação a pessoa existente.');
         return;
@@ -832,14 +824,16 @@ function MatriculaAlunoPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="col-span-full md:col-span-1">
                 <label htmlFor="codigoAluno" className="block text-sm font-medium text-gray-700">Código do Aluno</label>
-                <input type="text" id="codigoAluno" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={codigoAluno} onChange={(e) => setCodigoAluno(e.target.value)} placeholder="Gerado automaticamente" disabled={!!selectedPessoaId} autoComplete="off" />
+                <input type="text" id="codigoAluno" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={codigoAluno} onChange={(e) => setCodigoAluno(e.target.value)} placeholder="Deixe sempre em branco!" disabled={!!selectedPessoaId} autoComplete="off" />
               </div>
               <div className="col-span-full md:col-span-1">
-                <label htmlFor="codigoINEP" className="block text-sm font-medium text-gray-700">Código INEP <span className="text-red-500">*</span></label>
-                <input type="text" id="codigoINEP" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={codigoINEP} onChange={(e) => setCodigoINEP(e.target.value)} required autoComplete="off" />
+                <label htmlFor="codigoINEP" className="block text-sm font-medium text-gray-700">Código INEP</label>
+                {/* ========================= INÍCIO DA CORREÇÃO LÓGICA ========================= */}
+                <input type="text" id="codigoINEP" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={codigoINEP} onChange={(e) => setCodigoINEP(e.target.value)} autoComplete="off" />
+                {/* ========================== FIM DA CORREÇÃO LÓGICA =========================== */}
               </div>
               <div className="col-span-full md:col-span-2">
-                <label htmlFor="codigoSistemaEstadual" className="block text-sm font-medium text-gray-700">Código do sistema/rede estadual</label>
+                <label htmlFor="codigoSistemaEstadual" className="block text-sm font-medium text-gray-700">Código da institução (quando houver)</label>
                 <input type="text" id="codigoSistemaEstadual" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={codigoSistemaEstadual} onChange={(e) => setCodigoSistemaEstadual(e.target.value)} autoComplete="off" />
               </div>
 
@@ -922,7 +916,7 @@ function MatriculaAlunoPage() {
               <div className="col-span-full md:col-span-1">
                 <label htmlFor="sexoPessoa" className="block text-sm font-medium text-gray-700">Sexo <span className="text-red-500">*</span></label>
                 <select id="sexoPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.sexo || sexo} onChange={(e) => setSexo(e.target.value)} required disabled={!!selectedPessoaId} autoComplete="off">
-                  <option value="Nao Informado">Não Informado</option> <option value="Masculino">Masculino</option> <option value="Feminino">Feminino</option> <option value="Outro">Outro</option>
+					{/*<option value="Nao Informado">Não Informado</option>*/} <option value="Masculino">Masculino</option> <option value="Feminino">Feminino</option> {/*<option value="Outro">Outro</option>*/}
                 </select>
               </div>
               <div className="col-span-full md:col-span-1">
@@ -939,13 +933,13 @@ function MatriculaAlunoPage() {
                 <label htmlFor="nacionalidadePessoa" className="block text-sm font-medium text-gray-700">Nacionalidade <span className="text-red-500">*</span></label>
                 <input type="text" id="nacionalidadePessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.nacionalidade || nacionalidade} onChange={(e) => setNacionalidade(e.target.value.toUpperCase())} required disabled={!!selectedPessoaId} autoComplete="off" />
               </div>
-              <div className="col-span-full md:col-span-2">
+              <div className="col-span-full md:col-span-1">
                 <label htmlFor="racaPessoa" className="block text-sm font-medium text-gray-700">Raça <span className="text-red-500">*</span></label>
                 <select id="racaPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.raca || raca} onChange={(e) => setRaca(e.target.value)} required disabled={!!selectedPessoaId} autoComplete="off">
                   <option value="Nao Declarada">Não Declarada</option> <option value="Branca">Branca</option> <option value="Preta">Preta</option> <option value="Parda">Parda</option> <option value="Amarela">Amarela</option> <option value="Indígena">Indígena</option>
                 </select>
               </div>
-              <div className="col-span-full md:col-span-2">
+              <div className="col-span-full md:col-span-1">
                 <label htmlFor="povoIndigenaPessoa" className="block text-sm font-medium text-gray-700">Povo Indígena</label>
                 <input type="text" id="povoIndigenaPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.povoIndigena || povoIndigena} onChange={(e) => setPovoIndigena(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} autoComplete="off" />
               </div>
@@ -957,11 +951,11 @@ function MatriculaAlunoPage() {
                 <label htmlFor="naturalidadeCidadePessoa" className="block text-sm font-medium text-gray-700">Naturalidade (Cidade) <span className="text-red-500">*</span></label>
                 <input type="text" id="naturalidadeCidadePessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.naturalidadeCidade || naturalidadeCidade} onChange={(e) => setNaturalidadeCidade(e.target.value.toUpperCase())} required disabled={!!selectedPessoaId} autoComplete="off" />
               </div>
-              <div className="col-span-full md:col-span-2">
-                <label htmlFor="naturalidadeEstadoPessoa" className="block text-sm font-medium text-gray-700">Naturalidade (Estado) <span className="text-red-500">*</span></label>
+              <div className="col-span-full md:col-span-1">
+                <label htmlFor="naturalidadeEstadoPessoa" className="block text-sm font-medium text-gray-700">Naturalidade (UF) <span className="text-red-500">*</span></label>
                 <input type="text" id="naturalidadeEstadoPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.naturalidadeEstado || naturalidadeEstado} onChange={(e) => setNaturalidadeEstado(e.target.value.toUpperCase())} required disabled={!!selectedPessoaId} autoComplete="off" />
               </div>
-              <div className="col-span-full md:col-span-4">
+              <div className="col-span-full md:col-span-1">
                 <label htmlFor="falecidoPessoa" className="block text-sm font-medium text-gray-700">Falecido?</label>
                 <select id="falecidoPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.falecido ? 'sim' : 'nao'} onChange={(e) => setFalecido(e.target.value)} disabled={!!selectedPessoaId} autoComplete="off">
                   <option value="nao">Não</option> <option value="sim">Sim</option>
@@ -972,7 +966,7 @@ function MatriculaAlunoPage() {
 
           {/* 👨‍👩‍👧‍👦 Informações Familiares */}
           <div className="md:col-span-2">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Informações Familiares</h3>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">👨‍👩‍👧‍ Informações Familiares</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {/* Seção Mãe */}
               <div className="col-span-full md:col-span-3">
@@ -1020,9 +1014,9 @@ function MatriculaAlunoPage() {
             </div>
           </div>
 
-         /* 🪪 Documentação */
+         {/*🪪 Documentação*/}
           <div className="md:col-span-2">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Documentação</h3>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">🪪 Documentação</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="col-span-full md:col-span-2">
                 <label htmlFor="rgNumero" className="block text-sm font-medium text-gray-700">RG (Número)</label>
@@ -1051,21 +1045,21 @@ function MatriculaAlunoPage() {
               {/* Certidão */}
               <div className="col-span-full md:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="col-span-full md:col-span-1">
-                  <label htmlFor="certidaoTipo" className="block text-sm font-medium text-gray-700">Tipo de certidão civil <span className="text-red-500">*</span></label>
+                  <label htmlFor="certidaoTipo" className="block text-sm font-medium text-gray-700">Certidão civil <span className="text-red-500">*</span></label>
                   <select id="certidaoTipo" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.certidaoTipo || certidaoTipo} onChange={(e) => setCertidaoTipo(e.target.value)} required disabled={!!selectedPessoaId} autoComplete="off">
                     <option value="Nascimento">Nascimento</option> <option value="Casamento">Casamento</option>
                   </select>
                 </div>
                 <div className="col-span-full md:col-span-3">
-                  <label htmlFor="certidaoNumero" className="block text-sm font-medium text-gray-700">Certidão (Número)</label>
+                  <label htmlFor="certidaoNumero" className="block text-sm font-medium text-gray-700">Número</label>
                   <input type="text" id="certidaoNumero" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.certidaoNumero || certidaoNumero} onChange={(e) => setCertidaoNumero(e.target.value)} disabled={!!selectedPessoaId} autoComplete="off" />
                 </div>
-                <div className="col-span-full md:col-span-2">
-                  <label htmlFor="certidaoDataEmissao" className="block text-sm font-medium text-gray-700">Certidão (Data Emissão)</label>
+                <div className="col-span-full md:col-span-1">
+                  <label htmlFor="certidaoDataEmissao" className="block text-sm font-medium text-gray-700">Data Emissão</label>
                   <input type="date" id="certidaoDataEmissao" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.certidaoDataEmissao || certidaoDataEmissao} onChange={(e) => setCertidaoDataEmissao(e.target.value)} disabled={!!selectedPessoaId} autoComplete="off" />
                 </div>
-                <div className="col-span-full md:col-span-2">
-                  <label htmlFor="certidaoCartorio" className="block text-sm font-medium text-gray-700">Certidão (Cartório)</label>
+                <div className="col-span-full md:col-span-3">
+                  <label htmlFor="certidaoCartorio" className="block text-sm font-medium text-gray-700">Cartório</label>
                   <input type="text" id="certidaoCartorio" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.certidaoCartorio || certidaoCartorio} onChange={(e) => setCertidaoCartorio(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} autoComplete="off" />
                 </div>
                 <div className="col-span-full md:col-span-2">
@@ -1085,11 +1079,11 @@ function MatriculaAlunoPage() {
                   <input type="text" id="passaporteNumero" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.passaporteNumero || passaporteNumero} onChange={(e) => setPassaporteNumero(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} autoComplete="off" />
                 </div>
                 <div className="col-span-full md:col-span-1">
-                  <label htmlFor="passaporteDataEmissao" className="block text-sm font-medium text-gray-700">Passaporte (Data Emissão)</label>
+                  <label htmlFor="passaporteDataEmissao" className="block text-sm font-medium text-gray-700">Data Emissão</label>
                   <input type="date" id="passaporteDataEmissao" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.passaporteDataEmissao || passaporteDataEmissao} onChange={(e) => setPassaporteDataEmissao(e.target.value)} disabled={!!selectedPessoaId} autoComplete="off" />
                 </div>
                 <div className="col-span-full md:col-span-1">
-                  <label htmlFor="passaportePaisEmissor" className="block text-sm font-medium text-gray-700">Passaporte (País Emissor)</label>
+                  <label htmlFor="passaportePaisEmissor" className="block text-sm font-medium text-gray-700">País Emissor</label>
                   <input type="text" id="passaportePaisEmissor" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.passaportePaisEmissor || passaportePaisEmissor} onChange={(e) => setPassaportePaisEmissor(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} autoComplete="off" />
                 </div>
               </div>
@@ -1098,13 +1092,13 @@ function MatriculaAlunoPage() {
 
           {/* 🏠 Endereço */}
           <div className="md:col-span-2">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Endereço</h3>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">🏠 Endereço</h3>
             <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
-              <div className="col-span-full md:col-span-4">
+              <div className="col-span-full md:col-span-2">
                 <label htmlFor="cep" className="block text-sm font-medium text-gray-700">CEP</label>
                 <input type="text" id="cep" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.cep || formatCEP(cep)} onChange={(e) => setCep(e.target.value)} maxLength="9" disabled={!!selectedPessoaId} autoComplete="off" />
               </div>
-              <div className="col-span-full md:col-span-4">
+              <div className="col-span-full md:col-span-6">
                 <label htmlFor="rua" className="block text-sm font-medium text-gray-700">Rua</label>
                 <input type="text" id="rua" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.enderecoLogradouro || rua} onChange={(e) => setRua(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} autoComplete="off" />
               </div>
@@ -1131,7 +1125,7 @@ function MatriculaAlunoPage() {
               <div className="col-span-full md:col-span-2">
                 <label htmlFor="zonaResidencia" className="block text-sm font-medium text-gray-700">Zona de residência</label>
                 <select id="zonaResidencia" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.zonaResidencia || zonaResidencia} onChange={(e) => setZonaResidencia(e.target.value)} disabled={!!selectedPessoaId} autoComplete="off">
-                  <option value="urbana">Urbana</option> <option value="rural">Rural</option>
+                  <option value="urbana">Urbana</option> <option value="urbana">Suburbana</option> <option value="rural">Rural</option>
                 </select>
               </div>
               <div className="col-span-full md:col-span-8">
@@ -1156,7 +1150,7 @@ function MatriculaAlunoPage() {
 
           {/* 📞 Contato */}
           <div className="md:col-span-2">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Contato</h3>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">📞 Contato</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="col-span-full md:col-span-1">
                 <label htmlFor="telefoneResidencial" className="block text-sm font-medium text-gray-700">Telefone residencial</label>
@@ -1212,7 +1206,7 @@ function MatriculaAlunoPage() {
                         className="text-red-500 hover:text-red-700 p-1 rounded-full"
                         title="Remover Autorizado"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w.3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
@@ -1257,18 +1251,18 @@ function MatriculaAlunoPage() {
           {/* Seção 5: Transporte Escolar */}
           <div className="md:col-span-2">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Transporte Escolar</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
               <div className="col-span-full md:col-span-1">
-                <label htmlFor="utilizaTransporte" className="block text-sm font-medium text-gray-700">Utiliza Transporte?</label>
+                <label htmlFor="utilizaTransporte" className="block text-sm font-medium text-gray-700">Utiliza?</label>
                 <select id="utilizaTransporte" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={utilizaTransporte} onChange={(e) => setUtilizaTransporte(e.target.value)} autoComplete="off">
                   <option value="nao">Não</option> <option value="sim">Sim</option>
                 </select>
               </div>
-              <div className="col-span-full md:col-span-1">
+              <div className="col-span-full md:col-span-2">
                 <label htmlFor="veiculoTransporte" className="block text-sm font-medium text-gray-700">Veículo Utilizado</label>
                 <input type="text" id="veiculoTransporte" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={veiculoTransporte} onChange={(e) => setVeiculoTransporte(e.target.value.toUpperCase())} disabled={utilizaTransporte === 'nao'} autoComplete="off" />
               </div>
-              <div className="col-span-full md:col-span-1">
+              <div className="col-span-full md:col-span-4">
                 <label htmlFor="rotaTransporte" className="block text-sm font-medium text-gray-700">Rota</label>
                 <input type="text" id="rotaTransporte" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={rotaTransporte} onChange={(e) => setRotaTransporte(e.target.value.toUpperCase())} disabled={utilizaTransporte === 'nao'} autoComplete="off" />
               </div>
@@ -1280,7 +1274,7 @@ function MatriculaAlunoPage() {
             <h3 className="text-lg font-semibold text-gray-700 mb-4">Dados da Matrícula Escolar</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Escola */}
-              <div className="col-span-full md:col-span-2">
+              <div className="col-span-full md:col-span-4">
                 <label htmlFor="matriculaEscola" className="block text-sm font-medium text-gray-700">Escola <span className="text-red-500">*</span></label>
                 <select id="matriculaEscola" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaEscolaId} onChange={(e) => setMatriculaEscolaId(e.target.value)} required autoComplete="off">
                   <option value="">Selecione a Escola</option>
@@ -1290,10 +1284,10 @@ function MatriculaAlunoPage() {
                 </select>
               </div>
               {/* Nível de Ensino */}
-              <div className="col-span-full md:col-span-1">
+              <div className="col-span-full md:col-span-4">
                 <label htmlFor="matriculaNivelEnsino" className="block text-sm font-medium text-gray-700">Nível de Ensino <span className="text-red-500">*</span></label>
                 <select id="matriculaNivelEnsino" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaNivelEnsino} onChange={(e) => setMatriculaNivelEnsino(e.target.value)} required disabled={!matriculaEscolaId} autoComplete="off">
-                  <option value="">Selecione o Nível</option>
+                  <option value="">Selecione o Nível de Ensino</option>
                   {availableNiveisEnsino.map((nivel, index) => (
                     <option key={index} value={nivel}>{nivel}</option>
                   ))}
@@ -1303,17 +1297,17 @@ function MatriculaAlunoPage() {
               <div className="col-span-full md:col-span-1">
                 <label htmlFor="matriculaAnoSerie" className="block text-sm font-medium text-gray-700">Série/Ano <span className="text-red-500">*</span></label>
                 <select id="matriculaAnoSerie" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaAnoSerie} onChange={(e) => setMatriculaAnoSerie(e.target.value)} required disabled={!matriculaNivelEnsino} autoComplete="off">
-                  <option value="">Selecione a Série/Ano</option>
+                  <option value="">Selecione</option>
                   {availableAnosSeries.map((ano, index) => (
                     <option key={index} value={ano}>{ano}</option>
                   ))}
                 </select>
               </div>
               {/* Turma */}
-              <div className="col-span-full md:col-span-2">
+              <div className="col-span-full md:col-span-1">
                 <label htmlFor="matriculaTurma" className="block text-sm font-medium text-gray-700">Turma <span className="text-red-500">*</span></label>
                 <select id="matriculaTurma" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaTurmaId} onChange={(e) => setMatriculaTurmaId(e.target.value)} required disabled={!matriculaAnoSerie} autoComplete="off">
-                  <option value="">Selecione a Turma</option>
+                  <option value="">Selecione</option>
                   {availableTurmas.map(turma => (
                     <option key={turma.id} value={turma.id}>{turma.nomeTurma}</option>
                   ))}
@@ -1326,7 +1320,7 @@ function MatriculaAlunoPage() {
               </div>
               {/* Matrícula de Dependência */}
               <div className="col-span-full md:col-span-1">
-                <label htmlFor="matriculaDependencia" className="block text-sm font-medium text-gray-700">Matrícula de Dependência?</label>
+                <label htmlFor="matriculaDependencia" className="block text-sm font-medium text-gray-700">Dependência?</label>
                 <select id="matriculaDependencia" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaDependencia} onChange={(e) => setMatriculaDependencia(e.target.value)} autoComplete="off">
                   <option value="nao">Não</option> <option value="sim">Sim</option>
                 </select>

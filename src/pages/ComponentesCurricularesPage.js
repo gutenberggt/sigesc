@@ -1,7 +1,10 @@
 import React from 'react';
 
-// Dados dos componentes curriculares
-const componentesCurricularesData = {
+// ========================= INÍCIO DA CORREÇÃO =========================
+// CORREÇÃO: Adicionada a palavra-chave "export" para que esta constante 
+// possa ser importada em outros arquivos, como o NovaMatriculaAlunoPage.js.
+export const componentesCurricularesData = {
+// ========================== FIM DA CORREÇÃO ===========================
   "Educação Infantil - 0 a 5 Anos": [
     { nome: "Carga Horaria: 160" }
   ],
