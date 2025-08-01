@@ -30,7 +30,13 @@ function DashboardPage() {
   };
 
   const toggleSubmenu = (menuName) => {
-    setOpenSubmenu(openSubmenu === menuName ? null : menuName);
+    setOpenSubmenu(prev => {
+        if (prev && prev.startsWith(menuName.split('/')[0])) {
+            if (prev === menuName) return null;
+            return menuName;
+        }
+        return menuName;
+    });
   };
 
   useEffect(() => {
@@ -74,6 +80,12 @@ function DashboardPage() {
     if (path === '/dashboard/escola/componentes-curriculares') return 'Componentes Curriculares';
     if (path.startsWith('/dashboard/escola/turmas')) return 'Gerenciar Turmas';
     if (path === '/dashboard/escola/pessoas') return 'Gerenciar Pessoas';
+    if (path.startsWith('/dashboard/escola/servidores/cadastro')) return 'Cadastrar Servidor';
+    if (path.startsWith('/dashboard/escola/servidores/busca')) return 'Buscar Servidor';
+    if (path.startsWith('/dashboard/escola/servidor/ficha')) return 'Ficha do Servidor';
+    if (path.startsWith('/dashboard/diario/frequencia')) return 'Lançar Frequência';
+    if (path.startsWith('/dashboard/diario/conteudos')) return 'Lançar Conteúdos';
+    if (path.startsWith('/dashboard/diario/notas')) return 'Lançar Notas';
     return 'Dashboard';
   };
 
@@ -94,16 +106,12 @@ function DashboardPage() {
       );
   }
 
-  // ========================= INÍCIO DA CORREÇÃO =========================
-  // Combina o nome do usuário e a função para exibição no cabeçalho
   const userDisplay = userData 
     ? `${userData.nomeCompleto || 'Usuário'} - ${userData.funcao ? userData.funcao.toUpperCase() : 'N/A'}`
     : 'N/A';
-  // ========================== FIM DA CORREÇÃO ===========================
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header Fixo */}
       <header className="bg-blue-600 text-white p-4 shadow-md fixed top-0 left-0 right-0 z-40">
         <div className="container mx-auto flex justify-between items-center relative">
           <div className="flex items-center gap-3">
@@ -117,10 +125,7 @@ function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            {/* ========================= INÍCIO DA CORREÇÃO ========================= */}
-            {/* Exibe a nova variável com nome e função */}
             <span className="text-sm font-medium hidden md:block">{userDisplay}</span>
-            {/* ========================== FIM DA CORREÇÃO =========================== */}
             <h2 className="text-lg font-bold md:hidden">{getPageTitle()}</h2>
             
             <button onClick={toggleMenu} className="focus:outline-none ml-auto">
@@ -148,14 +153,12 @@ function DashboardPage() {
       </header>
 
       <div className="flex pt-16 h-screen">
-        {/* Sidebar fixa */}
         <aside className={`w-64 bg-blue-700 text-white flex-shrink-0 p-4 fixed md:relative inset-y-0 left-0 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-200 ease-in-out z-30 pt-16 md:pt-4`}>
           <button onClick={toggleSidebar} className="md:hidden absolute top-4 right-4 text-gray-400 hover:text-white focus:outline-none">
             <FaTimes size={20} />
           </button>
           <nav className="mt-4">
             <ul>
-              {/* Início */}
               <li className="mb-2">
                 <Link to="/dashboard" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname === '/dashboard' ? 'bg-blue-600' : ''}`}>
                   <FaHome className="w-5 h-5 mr-2" />
@@ -163,27 +166,33 @@ function DashboardPage() {
                 </Link>
               </li>
 
-              {/* Gerenciar Usuários */}
-              {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
-                 <li className="mb-2">
-                   <Link to="/dashboard/gerenciar-usuarios" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname === '/dashboard/gerenciar-usuarios' ? 'bg-blue-600' : ''}`}>
-                     <FaUsers className="w-5 h-5 mr-2" />
-                     <span>Gerenciar Usuários</span>
-                   </Link>
-                 </li>
-              )}
-              
-              {/* Gerenciar Pessoas */}
-              {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
+			      {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
                 <li className="mb-2">
                   <Link to="/dashboard/escola/pessoas" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname === '/dashboard/escola/pessoas' ? 'bg-blue-600' : ''}`}>
                     <FaUserCircle className="w-5 h-5 mr-2" />
-                    <span>Gerenciar Pessoas</span>
+                    <span>Pessoas</span>
                   </Link>
                 </li>
               )}
+			  
+				    {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
+				      <li className="mb-2">
+					      <Link to="/dashboard/escola/servidores/busca" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname.startsWith('/dashboard/escola/servidor') ? 'bg-blue-600' : ''}`}>
+					        <FaChalkboardTeacher className="w-5 h-5 mr-2" />
+					        <span>Servidores</span>
+					      </Link>
+				      </li>
+				    )}
 
-              {/* Escola e submenus */}
+              {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
+                   <li className="mb-2">
+                     <Link to="/dashboard/gerenciar-usuarios" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname === '/dashboard/gerenciar-usuarios' ? 'bg-blue-600' : ''}`}>
+                       <FaUsers className="w-5 h-5 mr-2" />
+                       <span>Usuários</span>
+                     </Link>
+                   </li>
+              )}
+              
               <li className="mb-2">
                 <button
                   onClick={() => toggleSubmenu('escola')}
@@ -193,14 +202,7 @@ function DashboardPage() {
                     <FaSchool className="w-5 h-5 mr-2" />
                     <span>Escola</span>
                   </div>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                    className={`w-4 h-4 transform transition-transform ${openSubmenu === 'escola' ? 'rotate-90' : ''}`}
-                  >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 transform transition-transform ${openSubmenu === 'escola' ? 'rotate-90' : ''}`}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                   </svg>
                 </button>
@@ -214,7 +216,6 @@ function DashboardPage() {
                           </Link>
                         </li>
                     )}
-                    
                     {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
                         <li>
                             <Link to="/dashboard/escola/matriculas" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/matriculas' ? 'bg-blue-600' : ''}`}>
@@ -223,7 +224,6 @@ function DashboardPage() {
                             </Link>
                         </li>
                     )}
-
                     {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario' || userData.funcao.toLowerCase() === 'diretor' || userData.funcao.toLowerCase() === 'coordenador' || userData.funcao.toLowerCase() === 'professor')) && (
                         <li>
                             <Link to="/dashboard/escola/busca-aluno" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/busca-aluno' ? 'bg-blue-600' : ''}`}>
@@ -232,7 +232,6 @@ function DashboardPage() {
                             </Link>
                         </li>
                     )}
-                    
                     {(userData.funcao && (userData.funcao.toLowerCase() !== 'aluno')) && (
                         <>
                             <li>
@@ -258,18 +257,62 @@ function DashboardPage() {
                   </ul>
                 )}
               </li>
+              
+              {/* NOVO MENU: DIÁRIO */}
+              {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario' || userData.funcao.toLowerCase() === 'professor')) && (
+              <li className="mb-2">
+                  <button onClick={() => toggleSubmenu('diario')} className={`w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center ${openSubmenu?.startsWith('diario') ? 'bg-blue-600' : ''}`}>
+                      <div className="flex items-center"><FaBookOpen className="w-5 h-5 mr-2" /><span>Diário</span></div>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 transform transition-transform ${openSubmenu?.startsWith('diario') ? 'rotate-90' : ''}`}><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                  </button>
+                  {openSubmenu?.startsWith('diario') && (
+                  <ul className="ml-4 mt-1 border-l-2 border-blue-500">
+                      
+                      {/* ======================= INÍCIO DA CORREÇÃO ======================= */}
+                      {/* ALTERAÇÃO: O submenu agora é um link direto */}
+                      <li>
+                          <Link to="/dashboard/diario/frequencia" className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">
+                            Frequência
+                          </Link>
+                      </li>
+                      {/* ======================== FIM DA CORREÇÃO ========================= */}
+                      
+                      <li>
+                          <button onClick={() => toggleSubmenu('diario/conteudos')} className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">Conteúdos</button>
+                          {openSubmenu === 'diario/conteudos' && (
+                              <ul className="ml-4">
+                                  <li><Link to="/dashboard/diario/conteudos1" className="block p-2 rounded hover:bg-blue-600 text-xs">1º Bimestre</Link></li>
+                                  <li><Link to="/dashboard/diario/conteudos2" className="block p-2 rounded hover:bg-blue-600 text-xs">2º Bimestre</Link></li>
+                                  <li><Link to="/dashboard/diario/conteudos3" className="block p-2 rounded hover:bg-blue-600 text-xs">3º Bimestre</Link></li>
+                                  <li><Link to="/dashboard/diario/conteudos4" className="block p-2 rounded hover:bg-blue-600 text-xs">4º Bimestre</Link></li>
+                              </ul>
+                          )}
+                      </li>
+                      <li>
+                          <button onClick={() => toggleSubmenu('diario/notas')} className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">Notas</button>
+                          {openSubmenu === 'diario/notas' && (
+                              <ul className="ml-4">
+                                  <li><Link to="/dashboard/diario/notas1" className="block p-2 rounded hover:bg-blue-600 text-xs">1º Bimestre</Link></li>
+                                  <li><Link to="/dashboard/diario/notas2" className="block p-2 rounded hover:bg-blue-600 text-xs">2º Bimestre</Link></li>
+                                  <li><Link to="/dashboard/diario/notasr1" className="block p-2 rounded hover:bg-blue-600 text-xs">Rec. 1</Link></li>
+                                  <li><Link to="/dashboard/diario/notasgeral1" className="block p-2 rounded hover:bg-blue-600 text-xs">1º Semestre</Link></li>
+                                  <li><Link to="/dashboard/diario/notas3" className="block p-2 rounded hover:bg-blue-600 text-xs">3º Bimestre</Link></li>
+                                  <li><Link to="/dashboard/diario/notas4" className="block p-2 rounded hover:bg-blue-600 text-xs">4º Bimestre</Link></li>
+                                  <li><Link to="/dashboard/diario/notasr2" className="block p-2 rounded hover:bg-blue-600 text-xs">Rec. 2</Link></li>
+                                  <li><Link to="/dashboard/diario/notasgeral2" className="block p-2 rounded hover:bg-blue-600 text-xs">2º Semestre</Link></li>
+                                  <li><Link to="/dashboard/diario/notasfinal" className="block p-2 rounded hover:bg-blue-600 text-xs">Final</Link></li>
+                              </ul>
+                          )}
+                      </li>
+                  </ul>
+                  )}
+              </li>
+              )}
             </ul>
           </nav>
         </aside>
 
-        {/* Overlay para fechar sidebar em mobile */}
-        {sidebarOpen && (
-          <div onClick={toggleSidebar} className="fixed inset-0 bg-black opacity-50 z-20 md:hidden"></div>
-        )}
-
-        {/* Container do Conteúdo Principal */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Conteúdo rolável */}
           <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
             <div className="pb-16">
               <Outlet />
