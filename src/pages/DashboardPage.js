@@ -4,7 +4,8 @@ import { auth } from '../firebase/config';
 import { useUser } from '../context/UserContext';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import Footer from '../components/Footer';
-import { FaHome, FaUsers, FaUserCircle, FaSignOutAlt, FaBars, FaTimes, FaSchool, FaBookOpen, FaGraduationCap, FaChalkboardTeacher, FaUserGraduate, FaSearch } from 'react-icons/fa';
+// ADIÇÃO: Novo ícone importado
+import { FaHome, FaUsers, FaUserCircle, FaSignOutAlt, FaBars, FaTimes, FaSchool, FaBookOpen, FaGraduationCap, FaChalkboardTeacher, FaUserGraduate, FaSearch, FaCogs } from 'react-icons/fa';
 
 function DashboardPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -166,32 +167,52 @@ function DashboardPage() {
                 </Link>
               </li>
 
-			      {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
+              {/* ======================= INÍCIO DA ALTERAÇÃO ======================= */}
+              {/* NOVO MENU: ADMINISTRATIVO */}
+              {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
                 <li className="mb-2">
-                  <Link to="/dashboard/escola/pessoas" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname === '/dashboard/escola/pessoas' ? 'bg-blue-600' : ''}`}>
-                    <FaUserCircle className="w-5 h-5 mr-2" />
-                    <span>Pessoas</span>
-                  </Link>
+                  <button
+                    onClick={() => toggleSubmenu('administrativo')}
+                    className={`w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center ${openSubmenu === 'administrativo' ? 'bg-blue-600' : ''}`}
+                  >
+                    <div className="flex items-center">
+                      <FaCogs className="w-5 h-5 mr-2" />
+                      <span>Administrativo</span>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 transform transition-transform ${openSubmenu === 'administrativo' ? 'rotate-90' : ''}`}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </button>
+                  {openSubmenu === 'administrativo' && (
+                    <ul className="ml-4 mt-1">
+                      {/* Gerenciar Pessoas */}
+                      <li>
+                        <Link to="/dashboard/escola/pessoas" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/escola/pessoas' ? 'bg-blue-600' : ''}`}>
+                          <FaUserCircle className="w-4 h-4 mr-2" />
+                          <span>Pessoas</span>
+                        </Link>
+                      </li>
+                      {/* Gerenciar Servidores */}
+                      <li>
+                        <Link to="/dashboard/escola/servidores/busca" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname.startsWith('/dashboard/escola/servidor') ? 'bg-blue-600' : ''}`}>
+                          <FaChalkboardTeacher className="w-4 h-4 mr-2" />
+                          <span>Servidores</span>
+                        </Link>
+                      </li>
+                      {/* Gerenciar Usuários */}
+                      <li>
+                        <Link to="/dashboard/gerenciar-usuarios" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname === '/dashboard/gerenciar-usuarios' ? 'bg-blue-600' : ''}`}>
+                          <FaUsers className="w-4 h-4 mr-2" />
+                          <span>Usuários</span>
+                        </Link>
+                      </li>
+                    </ul>
+                  )}
                 </li>
               )}
-			  
-				    {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
-				      <li className="mb-2">
-					      <Link to="/dashboard/escola/servidores/busca" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname.startsWith('/dashboard/escola/servidor') ? 'bg-blue-600' : ''}`}>
-					        <FaChalkboardTeacher className="w-5 h-5 mr-2" />
-					        <span>Servidores</span>
-					      </Link>
-				      </li>
-				    )}
-
-              {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
-                   <li className="mb-2">
-                     <Link to="/dashboard/gerenciar-usuarios" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname === '/dashboard/gerenciar-usuarios' ? 'bg-blue-600' : ''}`}>
-                       <FaUsers className="w-5 h-5 mr-2" />
-                       <span>Usuários</span>
-                     </Link>
-                   </li>
-              )}
+              {/* ======================== FIM DA ALTERAÇÃO ========================= */}
+              
+              {/* Menus "Pessoas", "Servidores" e "Usuários" foram removidos daqui */}
               
               <li className="mb-2">
                 <button
@@ -258,7 +279,6 @@ function DashboardPage() {
                 )}
               </li>
               
-              {/* NOVO MENU: DIÁRIO */}
               {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario' || userData.funcao.toLowerCase() === 'professor')) && (
               <li className="mb-2">
                   <button onClick={() => toggleSubmenu('diario')} className={`w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center ${openSubmenu?.startsWith('diario') ? 'bg-blue-600' : ''}`}>
@@ -267,16 +287,11 @@ function DashboardPage() {
                   </button>
                   {openSubmenu?.startsWith('diario') && (
                   <ul className="ml-4 mt-1 border-l-2 border-blue-500">
-                      
-                      {/* ======================= INÍCIO DA CORREÇÃO ======================= */}
-                      {/* ALTERAÇÃO: O submenu agora é um link direto */}
                       <li>
                           <Link to="/dashboard/diario/frequencia" className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">
                             Frequência
                           </Link>
                       </li>
-                      {/* ======================== FIM DA CORREÇÃO ========================= */}
-                      
                       <li>
                           <button onClick={() => toggleSubmenu('diario/conteudos')} className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">Conteúdos</button>
                           {openSubmenu === 'diario/conteudos' && (

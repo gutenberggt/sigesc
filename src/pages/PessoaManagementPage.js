@@ -912,8 +912,7 @@ function PessoaManagementPage() {
                 <tr className="bg-gray-200 text-gray-700 uppercase text-sm leading-normal">
                   <th className="py-3 px-6 text-left">Nome</th>
                   <th className="py-3 px-6 text-left">CPF</th>
-                  <th className="py-3 px-6 text-left">Celular</th>
-                  <th className="py-3 px-6 text-left">Email</th>
+                  
                   <th className="py-3 px-6 text-center">Ações</th>
                 </tr>
               </thead>
@@ -922,8 +921,7 @@ function PessoaManagementPage() {
                   <tr key={pessoa.id} className="border-b border-gray-200 hover:bg-gray-100">
                     <td className="py-3 px-6 text-left whitespace-nowrap">{pessoa.nomeCompleto}</td>
                     <td className="py-3 px-6 text-left">{formatCPF(pessoa.cpf || '')}</td>
-                    <td className="py-3 px-6 text-left">{formatTelefone(pessoa.celular || pessoa.telefoneResidencial || '')}</td>
-                    <td className="py-3 px-6 text-left">{pessoa.emailContato}</td>
+                    
                     <td className="py-3 px-6 text-center">
                       <div className="flex item-center justify-center space-x-2">
                         <button onClick={() => handleEdit(pessoa)} className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full text-xs">
