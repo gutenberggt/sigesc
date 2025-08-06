@@ -25,11 +25,8 @@ import BimestresPage from "./pages/bimestresPage";
 import EventosPage from "./pages/eventosPage";
 import AdicionarEventosPage from './pages/adicionarEventosPage';
 import HorarioPage from "./pages/horarioPage";
-
-// ======================= INÍCIO DAS ADIÇÕES =======================
-// 1. IMPORTAR A NOVA PÁGINA DE LISTA DE HORÁRIOS
 import ListaHorarioPage from "./pages/listaHorarioPage";
-// ======================== FIM DAS ADIÇÕES =========================
+import EditarServidorPage from "./pages/EditarServidorPage";
 
 import { UserProvider } from './context/UserContext';
 
@@ -63,6 +60,10 @@ function App() {
             <Route path="escola/servidores/cadastro" element={<CadastroServidorPage />} />
             <Route path="escola/servidores/busca" element={<BuscaServidorPage />} />
             <Route path="escola/servidor/ficha/:servidorId" element={<FichaServidorPage />} />
+            
+            {/* ======================= INÍCIO DA ADIÇÃO ======================= */}
+            <Route path="escola/servidor/editar/:servidorId" element={<EditarServidorPage />} />
+            {/* ======================== FIM DA ADIÇÃO ========================= */}
 
             {/* Rotas do Calendário */}
             <Route path="calendario/calendario" element={<CalendarioPage />} />
@@ -70,12 +71,8 @@ function App() {
             <Route path="calendario/eventos" element={<EventosPage />} /> 
 			      <Route path="calendario/adicionar-evento" element={<AdicionarEventosPage />} />
             <Route path="calendario/editar-evento/:eventoId" element={<AdicionarEventosPage />} />
-            
-            {/* ======================= INÍCIO DAS ADIÇÕES ======================= */}
-            {/* 2. ADICIONAR AS NOVAS ROTAS PARA HORÁRIOS */}
             <Route path="calendario/horario" element={<ListaHorarioPage />} />
             <Route path="calendario/horario/:turmaId" element={<HorarioPage />} />
-            {/* ======================== FIM DAS ADIÇÕES ========================= */}
             
           </Route>
         </Routes>

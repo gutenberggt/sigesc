@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { collection, getDocs, query, where, documentId } from 'firebase/firestore';
-import { Link } from 'react-router-dom';
+// ======================= INÍCIO DA ALTERAÇÃO =======================
+import { Link, useNavigate } from 'react-router-dom';
+// ======================== FIM DA ALTERAÇÃO =========================
 import { niveisDeEnsinoList } from './NiveisDeEnsinoPage';
 import { seriesAnosEtapasData } from './SeriesAnosEtapasPage';
 
 function BuscaServidorPage() {
+  // ======================= INÍCIO DA ALTERAÇÃO =======================
+  const navigate = useNavigate();
+  // ======================== FIM DA ALTERAÇÃO =========================
   const [schools, setSchools] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -150,14 +155,19 @@ function BuscaServidorPage() {
     setSearchResults([]);
   };
 
+  // ======================= INÍCIO DA ADIÇÃO =======================
+  // FUNÇÃO PARA REDIRECIONAR PARA A PÁGINA DE CADASTRO
+  const handleAddNew = () => {
+    navigate('/dashboard/escola/servidores/cadastro');
+  };
+  // ======================== FIM DA ADIÇÃO =========================
+
   return (
     <div className="p-6">
       <div className="bg-white p-8 rounded-lg shadow-md max-w-6xl mx-auto">
         <h2 className="text-2xl font-bold mb-6 text-gray-800">Busca de Servidores</h2>
         
-        {/* ======================= INÍCIO DA ALTERAÇÃO DE LAYOUT ======================= */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-          {/* Linha 1 de Filtros */}
           <input type="text" value={nomeServidor} onChange={(e) => setNomeServidor(e.target.value)} placeholder="Nome do servidor" className="p-2 border rounded md:col-span-2" />
           <select value={escolaId} onChange={(e) => setEscolaId(e.target.value)} className="p-2 border rounded md:col-span-2">
               <option value="">Todas as escolas</option>
@@ -165,37 +175,29 @@ function BuscaServidorPage() {
           </select>
           <input type="text" value={anoLetivo} onChange={(e) => setAnoLetivo(e.target.value)} placeholder="Ano letivo" className="p-2 border rounded" />
           
-          {/* Linha 2 de Filtros (agora com layout ajustado) */}
-          <div className="md:col-span-5 grid grid-cols-1 md:grid-cols-8 gap-4">
-            <div className="md:col-span-8 lg:col-span-2">
-              <select value={funcao} onChange={(e) => setFuncao(e.target.value)} className="p-2 border rounded w-full">
-                <option value="">Todas as funções</option>
-                <option value="Professor(a)">Professor(a)</option>
-                <option value="Coordenador(a)">Coordenador(a)</option>
-                <option value="Diretor(a)">Diretor(a)</option>
-                <option value="Secretário(a)">Secretário(a)</option>
-              </select>
-            </div>
-            <div className="md:col-span-8 lg:col-span-6">
-              <select value={nivelEnsino} onChange={(e) => setNivelEnsino(e.target.value)} className="p-2 border rounded w-full">
-                <option value="">Todos os níveis de ensino</option>
-                {niveisDeEnsinoList.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
-            <div className="md:col-span-4 lg:col-span-4">
-              <select value={serieAno} onChange={(e) => setSerieAno(e.target.value)} className="p-2 border rounded w-full" disabled={!nivelEnsino}>
-                <option value="">Todas as séries/anos</option>
-                {availableSeries.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="md:col-span-4 lg:col-span-4">
-              <select value={turmaId} onChange={(e) => setTurmaId(e.target.value)} className="p-2 border rounded w-full" disabled={!escolaId || !nivelEnsino}>
-                <option value="">Todas as turmas</option>
-                {availableTurmas.map(t => <option key={t.id} value={t.id}>{t.nomeTurma}</option>)}
-              </select>
-            </div>
+          <div className="md:col-span-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <select value={funcao} onChange={(e) => setFuncao(e.target.value)} className="p-2 border rounded">
+              <option value="">Todas as funções</option>
+              <option value="Professor(a)">Professor(a)</option>
+              <option value="Coordenador(a)">Coordenador(a)</option>
+              <option value="Diretor(a)">Diretor(a)</option>
+              <option value="Secretário(a)">Secretário(a)</option>
+            </select>
+            <select value={nivelEnsino} onChange={(e) => setNivelEnsino(e.target.value)} className="p-2 border rounded">
+              <option value="">Todos os níveis de ensino</option>
+              {niveisDeEnsinoList.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <select value={serieAno} onChange={(e) => setSerieAno(e.target.value)} className="p-2 border rounded" disabled={!nivelEnsino}>
+              <option value="">Todas as séries/anos</option>
+              {availableSeries.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={turmaId} onChange={(e) => setTurmaId(e.target.value)} className="p-2 border rounded" disabled={!escolaId || !nivelEnsino}>
+              <option value="">Todas as turmas</option>
+              {availableTurmas.map(t => <option key={t.id} value={t.id}>{t.nomeTurma}</option>)}
+            </select>
           </div>
           
+          {/* ======================= INÍCIO DA ALTERAÇÃO ======================= */}
           <div className="md:col-span-5 flex justify-end space-x-2">
             <button onClick={handleClearSearch} type="button" className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition">
               Limpar Busca
@@ -203,9 +205,12 @@ function BuscaServidorPage() {
             <button onClick={handleSearch} disabled={isSearching} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition">
               {isSearching ? 'Buscando...' : 'Buscar'}
             </button>
+            <button onClick={handleAddNew} type="button" className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition">
+              Novo
+            </button>
           </div>
+          {/* ======================== FIM DA ALTERAÇÃO ========================= */}
         </div>
-        {/* ======================== FIM DA ALTERAÇÃO DE LAYOUT ========================= */}
 
         <div className="overflow-x-auto">
             <table className="min-w-full bg-white">

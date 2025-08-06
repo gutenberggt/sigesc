@@ -170,8 +170,8 @@ function FichaServidorPage() {
         </div>
 
         <div className="flex justify-end space-x-2 mt-6">
-            <button className="bg-blue-600 text-white py-2 px-4 rounded">Editar</button>
-            <button className="bg-purple-600 text-white py-2 px-4 rounded">Vincular professor a turmas</button>
+            <button onClick={() => navigate(`/dashboard/escola/servidor/editar/${servidorId}`)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition">Editar Servidor</button>
+            
         </div>
       </div>
     </div>

@@ -24,11 +24,20 @@ export const seriesAnosEtapasData = {
     "8º ANO",
     "9º ANO"
   ],
-  "EDUCAÇÃO DE JOVENS E ADULTOS - EJA": [
+  "EDUCAÇÃO DE JOVENS E ADULTOS - EJA - ANOS INICIAIS": [
     "1ª ETAPA",
-    "2ª ETAPA",
+    "2ª ETAPA"
+  ],
+  "EDUCAÇÃO DE JOVENS E ADULTOS - EJA - ANOS FINAIS": [
     "3ª ETAPA",
     "4ª ETAPA"
+  ],
+  "FORMAÇÃO COMPLEMENTAR": [
+    "NÃO SERIADA"
+],
+  "ATENDIMENTO EDUCACIONAL ESPECIALIZADO - AEE": [
+    "NÃO SERIADA"	
+
 
   ]
 };

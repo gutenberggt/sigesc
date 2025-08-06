@@ -179,7 +179,7 @@ function FrequenciaPage() {
         <h2 className="text-2xl font-bold mb-6 text-gray-800">Lançamento de Frequência</h2>
 
         {/* FILTROS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 border rounded-md bg-gray-50">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 border rounded-md bg-gray-50">
           <select value={selectedSchoolId} onChange={(e) => setSelectedSchoolId(e.target.value)} className="p-2 border rounded-md">
             <option value="">Selecione a Escola</option>
             {availableSchools.map(s => <option key={s.id} value={s.id}>{s.nomeEscola}</option>)}
@@ -189,7 +189,7 @@ function FrequenciaPage() {
             {availableTurmas.map(t => <option key={t.id} value={t.id}>{t.nomeTurma}</option>)}
           </select>
           <select value={selectedComponente} onChange={(e) => setSelectedComponente(e.target.value)} className="p-2 border rounded-md" disabled={!selectedTurmaId}>
-            <option value="">Selecione o Componente</option>
+            <option value="">Selecione o Componente Curricular</option>
             <option value="Língua Portuguesa">Língua Portuguesa</option>
             <option value="Matemática">Matemática</option>
           </select>
