@@ -6,6 +6,24 @@ import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 pdfMake.vfs = pdfFonts.vfs;
 
+
+
+function formatDatePorExtenso(dataStr) {
+  if (!dataStr) return '';
+  const [ano, mes, dia] = dataStr.split('-').map(n => parseInt(n, 10));
+  const meses = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  return `${dia} de ${meses[mes - 1]} de ${ano}`;
+}
+
+function formatLocalDate(date) {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+
 let brasaoCache = null;
 const CACHE_VALIDITY = 7 * 24 * 60 * 60 * 1000;
 
@@ -130,7 +148,7 @@ function RelatorioFrequenciaPage() {
         // Dias letivos
         const diasLetivos = [];
         for (let d = new Date(dataInicio); d <= dataFim; d.setDate(d.getDate() + 1)) {
-          const dataFormatada = d.toISOString().split('T')[0];
+          const dataFormatada = formatLocalDate(d);
           if (feriados.has(dataFormatada)) continue;
           const diaSemana = d.getDay();
           if (diaSemana === 0 || diaSemana === 6) continue;
@@ -219,9 +237,9 @@ function RelatorioFrequenciaPage() {
           margin: [0,0,0,1]
         };
 
-        const nomeColWidth = 180;
-        const diaColWidth = 11;
-        const maxDiasPorTabela = 40;
+        const nomeColWidth = 170;
+        const diaColWidth = 10;
+        const maxDiasPorTabela = 43;
 
         // Pré-calcular totais
         const totaisAlunos = alunosDaTurma.map(aluno => {
@@ -236,7 +254,7 @@ function RelatorioFrequenciaPage() {
             });
           });
           const freqPercent = totalAulas > 0
-            ? (((totalAulas - faltas) / totalAulas) * 100).toFixed(1) + '%'
+            ? Math.round(((totalAulas - faltas) / totalAulas) * 100) + '%'
             : '';
           return { id: aluno.id, faltas, freqPercent };
         });
@@ -252,8 +270,8 @@ function RelatorioFrequenciaPage() {
             })
           ];
           if (incluirTotais) {
-            headerRow.push({ text: 'FALTAS', style: 'tableHeader', alignment: 'center' });
-            headerRow.push({ text: 'FREQ.', style: 'tableHeader', alignment: 'center' });
+            headerRow.push({ text: 'FTS', style: 'tableHeader', alignment: 'center' });
+            headerRow.push({ text: '%FRQ', style: 'tableHeader', alignment: 'center' });
           }
           const body = [headerRow];
           for (let i = 0; i < alunosDaTurma.length; i++) {
@@ -301,6 +319,10 @@ function RelatorioFrequenciaPage() {
         const tabelasFrequencia = [];
         for (let i = 0; i < diasLetivos.length; i += maxDiasPorTabela) {
           const subset = diasLetivos.slice(i, i + maxDiasPorTabela);
+          // Preencher até 43 colunas com espaços em branco
+          while (subset.length < maxDiasPorTabela) {
+            subset.push({ data: null, aulas: [] });
+          }
           const incluirTotais = (i + maxDiasPorTabela) >= diasLetivos.length;
           tabelasFrequencia.push(criarTabelaFrequencia(subset, incluirTotais));
         }
@@ -310,13 +332,21 @@ function RelatorioFrequenciaPage() {
 
         const docDefinition = {
           pageOrientation: 'landscape',
-          pageMargins: [40, 40, 40, 40],
+          pageMargins: [30, 40, 30, 30],
           footer: (currentPage, pageCount) => ({
             text: `Página ${currentPage} de ${pageCount}`,
             alignment: 'center',
             style: 'footer'
           }),
-          content: [cabecalho, ...tabelasFrequencia],
+          content: [cabecalho, ...tabelasFrequencia,
+          {
+            columns: [
+              { width: '40%', text: `Floresta do Araguaia, ${formatDatePorExtenso(diasLetivos[diasLetivos.length - 1].data)}`, alignment: 'left', fontSize: 10 },
+              { width: '30%', text: "______________________________\nProfessor(a)", alignment: 'center', fontSize: 10 },
+              { width: '30%', text: "______________________________\nCoordenador(a)", alignment: 'center', fontSize: 10 }
+            ],
+            margin: [0, 30, 0, 0]
+          }],
           styles: {
             header: { fontSize: 16, bold: true },
             subheader: { fontSize: 11 },
