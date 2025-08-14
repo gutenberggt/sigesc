@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { collection, getDocs, query, where, documentId } from 'firebase/firestore';
 import { Link, useNavigate } from 'react-router-dom';
-import { niveisDeEnsinoList } from './NiveisDeEnsinoPage';
-import { seriesAnosEtapasData } from './SeriesAnosEtapasPage';
+
+// ======================= INÍCIO DA CORREÇÃO =======================
+import { niveisDeEnsinoList, seriesAnosEtapasData } from '../data/ensinoConstants';
+// ======================== FIM DA CORREÇÃO =========================
 
 function ListaHorarioPage() {
   const navigate = useNavigate();
@@ -39,18 +41,23 @@ function ListaHorarioPage() {
         const horariosList = horariosSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
         if (horariosList.length > 0) {
-          const turmasIds = horariosList.map(h => h.turmaId);
-          const turmasQuery = query(collection(db, 'turmas'), where(documentId(), 'in', turmasIds));
-          const turmasSnapshot = await getDocs(turmasQuery);
-          const turmasMap = new Map();
-          turmasSnapshot.docs.forEach(doc => turmasMap.set(doc.id, doc.data()));
+          const turmasIds = horariosList.map(h => h.turmaId).filter(Boolean);
+          if (turmasIds.length > 0) {
+            const turmasQuery = query(collection(db, 'turmas'), where(documentId(), 'in', turmasIds));
+            const turmasSnapshot = await getDocs(turmasQuery);
+            const turmasMap = new Map();
+            turmasSnapshot.docs.forEach(doc => turmasMap.set(doc.id, doc.data()));
 
-          const enrichedHorarios = horariosList.map(h => ({
-            ...h,
-            turma: turmasMap.get(h.turmaId)
-          }));
-          setHorarios(enrichedHorarios);
-          setFilteredHorarios(enrichedHorarios);
+            const enrichedHorarios = horariosList.map(h => ({
+              ...h,
+              turma: turmasMap.get(h.turmaId)
+            }));
+            setHorarios(enrichedHorarios);
+            setFilteredHorarios(enrichedHorarios);
+          } else {
+            setHorarios(horariosList);
+            setFilteredHorarios(horariosList);
+          }
         }
       } catch (error) {
         console.error("Erro ao buscar dados:", error);
@@ -119,7 +126,7 @@ function ListaHorarioPage() {
   useEffect(() => {
     let result = horarios;
     if (selectedSchool) {
-      result = result.filter(h => h.schoolId === selectedSchool);
+      result = result.filter(h => h.turma?.schoolId === selectedSchool);
     }
     if (selectedNivel) {
       result = result.filter(h => h.turma?.nivelEnsino === selectedNivel);
@@ -179,8 +186,6 @@ function ListaHorarioPage() {
         <hr className="my-8" />
         <h3 className="text-xl font-bold mb-4 text-gray-800">Horários Cadastrados</h3>
         
-        {/* ======================= INÍCIO DA ADIÇÃO ======================= */}
-        {/* SEÇÃO DE FILTROS REINSERIDA */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 border rounded-md bg-gray-50">
           <select value={selectedSchool} onChange={e => setSelectedSchool(e.target.value)} className="p-2 border rounded-md">
             <option value="">Filtrar por Escola</option>
@@ -204,7 +209,6 @@ function ListaHorarioPage() {
             </button>
           </div>
         </div>
-        {/* ======================== FIM DA ADIÇÃO ========================= */}
 
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white">

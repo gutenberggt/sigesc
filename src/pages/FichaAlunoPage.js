@@ -111,11 +111,13 @@ function FichaAlunoPage() {
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExportClick = () => { setIsExporting(true); };
+  
   useEffect(() => {
     if (isExporting) {
       const exportPDF = async () => {
         const element = printRef.current;
-        const canvas = await html2canvas(element, { scale: 2 });
+        const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -129,7 +131,7 @@ function FichaAlunoPage() {
         pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledImgHeight);
         heightLeft -= pageHeight;
         while (heightLeft > 0) {
-          position = -pageHeight + position;
+          position = position - pageHeight;
           pdf.addPage();
           pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledImgHeight);
           heightLeft -= pageHeight;
@@ -150,6 +152,7 @@ function FichaAlunoPage() {
 
         if (!alunoDocSnap.exists()) {
           setError('Aluno não encontrado.');
+          setLoading(false); // Adicionado para parar o carregamento em caso de erro
           return;
         }
         setAluno({ id: alunoDocSnap.id, ...alunoDocSnap.data() });
@@ -224,10 +227,12 @@ function FichaAlunoPage() {
                         <div className="text-left text-xs sm:text-base">
                             <h4 className="font-bold text-lg">Prefeitura Municipal de Floresta do Araguaia</h4>
                             <p className="text-md">Secretaria Municipal de Educação</p>
-                            <p className="font-semibold text-md">{escolaPrincipal?.nomeEscola || 'Nome da Escola'}</p>
+                            {/* ======================= INÍCIO DA CORREÇÃO ======================= */}
+                            <p className="font-semibold text-md">{escolaPrincipal?.nomeEscola || 'Escola não informada'}</p>
                             <p className="text-sm text-gray-600">
-                                {`${escolaPrincipal?.rua || ''}, ${escolaPrincipal?.numero || ''} - ${escolaPrincipal?.bairro || ''}, ${escolaPrincipal?.municipio || ''} - CEP: ${escolaPrincipal?.cep || ''}`}
+                                {`${escolaPrincipal?.rua || 'Rua não informada'}, ${escolaPrincipal?.numero || 'S/N'} - ${escolaPrincipal?.bairro || 'Bairro não informado'}, ${escolaPrincipal?.municipio || 'Município não informado'} - ${escolaPrincipal?.uf || 'UF'} - CEP: ${escolaPrincipal?.cep || 'CEP não informado'}`}
                             </p>
+                            {/* ======================== FIM DA CORREÇÃO ========================= */}
                         </div>
                         <img src="/brasao_floresta.png" alt="Brasão de Floresta do Araguaia" className="w-20 h-20 sm:w-24 sm:h-24 object-contain" />
                     </div>
@@ -343,7 +348,7 @@ function FichaAlunoPage() {
                         <hr className="border-t border-gray-800" />
                         <p className="mt-2 text-sm">Assinatura do Responsável pelo Aluno</p>
                     </div>
-                    <div className="w-2/5">
+                    <div className="w-2/f">
                         <hr className="border-t border-gray-800" />
                         <p className="mt-2 text-sm">Responsável pela Matrícula</p>
                     </div>

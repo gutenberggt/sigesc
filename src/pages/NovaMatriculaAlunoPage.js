@@ -1,14 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase/config';
-import { doc, getDoc, collection, getDocs, addDoc, query, where, orderBy } from 'firebase/firestore';
-import { seriesAnosEtapasData } from './SeriesAnosEtapasPage';
-
-// ========================= INÍCIO DA CORREÇÃO =========================
-// 1. IMPORTAR OS DADOS REAIS DOS COMPONENTES
-import { componentesCurricularesData } from './ComponentesCurricularesPage';
-// ========================== FIM DA CORREÇÃO ===========================
-
+import { doc, getDoc, collection, getDocs, addDoc, query, where } from 'firebase/firestore';
+import { seriesAnosEtapasData } from '../data/ensinoConstants';
 
 function NovaMatriculaAlunoPage() {
   const { alunoId } = useParams();
@@ -31,18 +25,14 @@ function NovaMatriculaAlunoPage() {
   const [availableNiveis, setAvailableNiveis] = useState([]);
   const [availableSeries, setAvailableSeries] = useState([]);
   const [availableTurmas, setAvailableTurmas] = useState([]);
-  
-  // ========================= INÍCIO DA CORREÇÃO =========================
-  // 2. NOVO ESTADO PARA A LISTA DINÂMICA DE COMPONENTES
-  const [availableComponentes, setAvailableComponentes] = useState([]);
-  // ========================== FIM DA CORREÇÃO ===========================
+  const [allComponentes, setAllComponentes] = useState([]);
 
   // Estados de Controle
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // Busca inicial do nome do aluno e das escolas (sem alterações)
+  // Busca inicial do nome do aluno, escolas e todos os componentes
   useEffect(() => {
     const fetchData = async () => {
         try {
@@ -50,13 +40,15 @@ function NovaMatriculaAlunoPage() {
             const alunoDocSnap = await getDoc(alunoDocRef);
             if (alunoDocSnap.exists()) {
                 setAlunoNome(alunoDocSnap.data().nomeCompleto);
-            } else {
-                setError('Aluno não encontrado.');
-            }
+            } else { setError('Aluno não encontrado.'); }
 
             const schoolsSnapshot = await getDocs(collection(db, 'schools'));
             const schoolsList = schoolsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setAvailableSchools(schoolsList);
+
+            const componentesSnapshot = await getDocs(collection(db, 'componentes'));
+            setAllComponentes(componentesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
         } catch (err) {
             console.error(err);
             setError('Falha ao carregar dados iniciais.');
@@ -72,12 +64,8 @@ function NovaMatriculaAlunoPage() {
     if (escolaId) {
       const selectedSchool = availableSchools.find(s => s.id === escolaId);
       setAvailableNiveis(selectedSchool ? selectedSchool.niveisEnsino : []);
-    } else {
-      setAvailableNiveis([]);
-    }
+    } else { setAvailableNiveis([]); }
     setNivelEnsino('');
-    setAnoSerie('');
-    setTurmaId('');
   }, [escolaId, availableSchools]);
 
   useEffect(() => {
@@ -86,56 +74,33 @@ function NovaMatriculaAlunoPage() {
         const schoolSeries = school ? school.anosSeriesAtendidas : [];
         const seriesForLevel = seriesAnosEtapasData[nivelEnsino] || [];
         setAvailableSeries(seriesForLevel.filter(serie => schoolSeries.includes(serie)));
-    } else {
-        setAvailableSeries([]);
-    }
+    } else { setAvailableSeries([]); }
     setAnoSerie('');
-    setTurmaId('');
   }, [nivelEnsino, escolaId, availableSchools]);
 
   useEffect(() => {
     if (anoSerie) {
         const fetchTurmas = async () => {
-            const turmasQuery = query(
-                collection(db, 'turmas'),
-                where('schoolId', '==', escolaId),
-                where('nivelEnsino', '==', nivelEnsino),
-                where('anoSerie', '==', anoSerie)
-            );
+            const turmasQuery = query(collection(db, 'turmas'), where('schoolId', '==', escolaId), where('nivelEnsino', '==', nivelEnsino), where('anoSerie', '==', anoSerie));
             const turmasSnapshot = await getDocs(turmasQuery);
             setAvailableTurmas(turmasSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()})));
         };
         fetchTurmas();
-    } else {
-        setAvailableTurmas([]);
-    }
+    } else { setAvailableTurmas([]); }
     setTurmaId('');
   }, [anoSerie, nivelEnsino, escolaId]);
+  
+  const componentesExcluidos = [
+    "Recreação, Esporte e Lazer", "Arte e Cultura", "Tecnologia e Informática",
+    "Acompanhamento Pedagógico de Língua Portuguesa", "Acompanhamento Pedagógico de Matemática"
+  ];
 
-  // ========================= INÍCIO DA CORREÇÃO =========================
-  // 3. NOVA LÓGICA PARA ATUALIZAR OS COMPONENTES DISPONÍVEIS
-  useEffect(() => {
-    if (anoSerie) {
-      // Converte o ano/série (ex: "1º ANO") para o formato da chave no arquivo de dados (ex: "1º Ano")
-      // Esta função simples assume que apenas a palavra "ANO" precisa ser ajustada.
-      // Pode ser necessário ajustar se houver outros formatos como "ETAPA".
-      const formatKey = (key) => {
-        return key.replace(/(\d+º?)\s(ANO|ETAPA)/, (match, p1, p2) => {
-          return `${p1} ${p2.charAt(0).toUpperCase() + p2.slice(1).toLowerCase()}`;
-        });
-      };
-      
-      const formattedAnoSerie = formatKey(anoSerie);
-      
-      const componentes = componentesCurricularesData[formattedAnoSerie] || [];
-      setAvailableComponentes(componentes.map(c => c.nome)); // Pegamos apenas os nomes
-    } else {
-      setAvailableComponentes([]);
-    }
-    // Limpa a seleção de dependência se a série mudar
-    setComponentesDependencia([]);
-  }, [anoSerie]);
-  // ========================== FIM DA CORREÇÃO ===========================
+  // ========================= AJUSTE: ORDENAÇÃO ALFABÉTICA =========================
+  const availableComponentesParaSerie = allComponentes
+    .filter(comp => comp.serieAno === anoSerie)
+    .filter(comp => !componentesExcluidos.includes(comp.nome))
+    .sort((a, b) => a.nome.localeCompare(b.nome)); // Adicionada ordenação aqui
+  // ===============================================================================
 
   const handleSalvar = async (e) => {
     e.preventDefault();
@@ -153,20 +118,13 @@ function NovaMatriculaAlunoPage() {
 
     try {
         const novaMatriculaData = {
-            pessoaId: alunoId,
-            anoLetivo,
-            escolaId,
-            nivelEnsino,
-            anoSerie,
-            turmaId,
-            dataMatricula,
-            observacoes,
+            pessoaId: alunoId, anoLetivo, escolaId, nivelEnsino,
+            anoSerie, turmaId, dataMatricula, observacoes,
             matriculaDependencia: isDependencia,
             componentesDependencia: isDependencia ? componentesDependencia : [],
             situacaoMatricula: 'ATIVA',
             ultimaAtualizacao: new Date()
         };
-
         await addDoc(collection(db, 'matriculas'), novaMatriculaData);
         alert('Nova matrícula cadastrada com sucesso!');
         navigate(`/dashboard/escola/aluno/ficha/${alunoId}`);
@@ -180,15 +138,13 @@ function NovaMatriculaAlunoPage() {
 
   const handleComponentesChange = (e) => {
     const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+    if (selectedOptions.length > 3) {
+      alert("Você pode selecionar no máximo 3 componentes para dependência.");
+      return; 
+    }
     setComponentesDependencia(selectedOptions);
   };
   
-  const resetForm = () => {
-    // ...outros resets
-    setIsDependencia(false);
-    setComponentesDependencia([]);
-  };
-
   if (loading) return <div className="p-6 text-center">Carregando...</div>;
 
   return (
@@ -202,7 +158,6 @@ function NovaMatriculaAlunoPage() {
             </div>
 
             <form onSubmit={handleSalvar} className="space-y-4">
-                {/* Campos do formulário permanecem os mesmos até a checkbox */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Ano Letivo *</label>
                     <input type="text" value={anoLetivo} onChange={(e) => setAnoLetivo(e.target.value)} className="mt-1 block w-full p-2 border rounded-md" required />
@@ -248,12 +203,10 @@ function NovaMatriculaAlunoPage() {
                     <label htmlFor="dependencia" className="ml-2 block text-sm text-gray-900">Matrícula de dependência?</label>
                 </div>
 
-                {/* ========================= INÍCIO DA CORREÇÃO ========================= */}
-                {/* 4. CAMPO CONDICIONAL AGORA USA A LISTA DINÂMICA */}
                 {isDependencia && (
                     <div className="p-4 bg-yellow-50 border-l-4 border-yellow-400">
                         <label htmlFor="componentesDependencia" className="block text-sm font-medium text-gray-700 mb-1">
-                            Componentes Curriculares em Dependência *
+                            Componentes Curriculares em Dependência (máx. 3) *
                         </label>
                         <p className="text-xs text-gray-500 mb-2">Segure Ctrl (ou Cmd em Mac) para selecionar mais de um.</p>
                         <select
@@ -263,11 +216,11 @@ function NovaMatriculaAlunoPage() {
                             onChange={handleComponentesChange}
                             className="block w-full p-2 border rounded-md h-32"
                             required
-                            disabled={availableComponentes.length === 0}
+                            disabled={availableComponentesParaSerie.length === 0}
                         >
-                            {availableComponentes.length > 0 ? (
-                                availableComponentes.map(comp => (
-                                    <option key={comp} value={comp}>{comp}</option>
+                            {availableComponentesParaSerie.length > 0 ? (
+                                availableComponentesParaSerie.map(comp => (
+                                    <option key={comp.id} value={comp.nome}>{comp.nome}</option>
                                 ))
                             ) : (
                                 <option disabled>Selecione uma Série/Ano para ver os componentes</option>
@@ -275,7 +228,6 @@ function NovaMatriculaAlunoPage() {
                         </select>
                     </div>
                 )}
-                {/* ========================== FIM DA CORREÇÃO =========================== */}
 
                 {error && <p className="text-red-600 text-sm text-center">{error}</p>}
 

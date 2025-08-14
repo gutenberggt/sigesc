@@ -6,10 +6,7 @@ import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { matriculaModel } from '../firebase/dataModels';
-
-// Importar os dados de níveis de ensino e séries/anos/etapas
-import { niveisDeEnsinoList } from './NiveisDeEnsinoPage';
-import { seriesAnosEtapasData } from './SeriesAnosEtapasPage'; 
+import { niveisDeEnsinoList, seriesAnosEtapasData } from '../data/ensinoConstants';
 
 function MatriculaAlunoPage() {
   const { userData, loading } = useUser();
@@ -31,7 +28,7 @@ function MatriculaAlunoPage() {
   const [anoLetivo, setAnoLetivo] = useState(new Date().getFullYear().toString());
   const [situacaoMatricula, setSituacaoMatricula] = useState('ATIVA');
 
-  // --- CAMPOS DE DADOS PESSOAIS (usados para nova pessoa ou para exibir dados de pessoa existente) ---
+  // --- CAMPOS DE DADOS PESSOAIS ---
   const [cpf, setCpf] = useState('');
   const [nomeCompleto, setNomeCompleto] = useState('');
   const [nomeSocialAfetivo, setNomeSocialAfetivo] = useState('');
@@ -46,7 +43,7 @@ function MatriculaAlunoPage() {
   const [naturalidadeEstado, setNaturalidadeEstado] = useState('');
   const [falecido, setFalecido] = useState('nao');
 
-  // --- CAMPOS DE INFORMAÇÕES FAMILIARES (usados para nova pessoa ou para exibir dados de pessoa existente) ---
+  // --- CAMPOS DE INFORMAÇÕES FAMILIARES ---
   const [pessoaPai, setPessoaPai] = useState('');
   const [telefonePai, setTelefonePai] = useState('');
   const [escolaridadePai, setEscolaridadePai] = useState('Nao Informado');
@@ -58,7 +55,7 @@ function MatriculaAlunoPage() {
   const [responsavelLegalNome, setResponsavelLegalNome] = useState('');
   const [responsavelLegalParentesco, setResponsavelLegalParentesco] = useState('');
 
-  // --- CAMPOS DE DOCUMENTAÇÃO (parte de Pessoa, mas alguns podem ser reexibidos/obrigatórios na matrícula) ---
+  // --- CAMPOS DE DOCUMENTAÇÃO ---
   const [rgNumero, setRgNumero] = useState('');
   const [rgDataEmissao, setRgDataEmissao] = useState('');
   const [rgOrgaoEmissor, setRgOrgaoEmissor] = useState('');
@@ -93,13 +90,17 @@ function MatriculaAlunoPage() {
   const [telefoneAdicional, setTelefoneAdicional] = useState('');
   const [emailContato, setEmailContato] = useState('');
 
-  // --- CAMPOS DE MATRÍCULA (NOVOS) ---
+  // --- CAMPOS DE MATRÍCULA ---
   const [matriculaEscolaId, setMatriculaEscolaId] = useState('');
   const [matriculaNivelEnsino, setMatriculaNivelEnsino] = useState('');
   const [matriculaAnoSerie, setMatriculaAnoSerie] = useState('');
   const [matriculaTurmaId, setMatriculaTurmaId] = useState('');
   const [dataMatricula, setDataMatricula] = useState(new Date().toISOString().split('T')[0]);
+  
+  // NOVA ADIÇÃO: Estados para a funcionalidade de dependência
   const [matriculaDependencia, setMatriculaDependencia] = useState('nao');
+  const [componentesDependencia, setComponentesDependencia] = useState([]);
+  const [allComponentes, setAllComponentes] = useState([]);
 
   // --- ESTADOS PARA POPULAR DROPDOWNS ---
   const [availableSchools, setAvailableSchools] = useState([]);
@@ -131,533 +132,179 @@ function MatriculaAlunoPage() {
   // --- Observações da Matrícula ---
   const [observacoes, setObservacoes] = useState('');
 
-
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Opções para Escolaridade
-  const escolaridadeOptions = [
-    "Não Informado", "Não alfabetizada", "Ensino Fundamental Incompleto",
-    "Ensino Fundamental Completo", "Ensino Médio Incompleto", "Ensino Médio Completo",
-    "Ensino Superior Incompleto", "Ensino Superior Completo",
-  ];
-
-  // Funções de formatação CPF (reutilizadas de PessoaManagementPage)
-  const formatCPF = (value) => {
-    value = value.replace(/\D/g, '');
-    value = value.replace(/(\d{3})(\d)/, '$1.$2');
-    value = value.replace(/(\d{3})(\d)/, '$1.$2');
-    value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-    return value.substring(0, 14);
-  };
+  const escolaridadeOptions = [ "Não Informado", "Não alfabetizada", "Ensino Fundamental Incompleto", "Ensino Fundamental Completo", "Ensino Médio Incompleto", "Ensino Médio Completo", "Ensino Superior Incompleto", "Ensino Superior Completo", ];
+  const formatCPF = (value) => { value = value.replace(/\D/g, ''); value = value.replace(/(\d{3})(\d)/, '$1.$2'); value = value.replace(/(\d{3})(\d)/, '$1.$2'); value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2'); return value.substring(0, 14); };
   const formatRG = (value) => value.replace(/\D/g, '').substring(0, 15);
   const formatNIS = (value) => value.replace(/\D/g, '').substring(0, 11);
   const formatCarteiraSUS = (value) => value.replace(/\D/g, '').substring(0, 15);
-  const formatTelefone = (value) => {
-    value = value.replace(/\D/g, '');
-    if (value.length > 11) value = value.substring(0, 11);
-    value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
-    value = value.replace(/(\d)(\d{4})$/, '$1-$2');
-    return value;
-  };
-  const formatCEP = (value) => {
-    value = value.replace(/\D/g, '');
-    value = value.replace(/^(\d{5})(\d)/, '$1-$2');
-    return value.substring(0, 9);
-  };
+  const formatTelefone = (value) => { value = value.replace(/\D/g, ''); if (value.length > 11) value = value.substring(0, 11); value = value.replace(/^(\d{2})(\d)/g, '($1) $2'); value = value.replace(/(\d)(\d{4})$/, '$1-$2'); return value; };
+  const formatCEP = (value) => { value = value.replace(/\D/g, ''); value = value.replace(/^(\d{5})(\d)/, '$1-$2'); return value.substring(0, 9); };
+  const validateCPF = (rawCpf) => { let cpfCleaned = rawCpf.replace(/\D/g, ''); if (cpfCleaned.length !== 11 || /^(\d)\1{10}$/.test(cpfCleaned)) return false; let sum = 0, remainder; for (let i = 1; i <= 9; i++) sum += parseInt(cpfCleaned.substring(i - 1, i)) * (11 - i); remainder = (sum * 10) % 11; if (remainder === 10 || remainder === 11) remainder = 0; if (remainder !== parseInt(cpfCleaned.substring(9, 10))) return false; sum = 0; for (let i = 1; i <= 10; i++) sum += parseInt(cpfCleaned.substring(i - 1, i)) * (12 - i); remainder = (sum * 10) % 11; if (remainder === 10 || remainder === 11) remainder = 0; if (remainder !== parseInt(cpfCleaned.substring(10, 11))) return false; return true; };
 
-  // Validação de CPF
-  const validateCPF = (rawCpf) => {
-    let cpfCleaned = rawCpf.replace(/\D/g, '');
-    if (cpfCleaned.length !== 11) return false;
-    if (/^(\d)\1{10}$/.test(cpfCleaned)) return false;
-    let sum = 0;
-    let remainder;
-    for (let i = 1; i <= 9; i++) { sum = sum + parseInt(cpfCleaned.substring(i - 1, i)) * (11 - i); }
-    remainder = (sum * 10) % 11;
-    if ((remainder === 10) || (remainder === 11)) remainder = 0;
-    if (remainder !== parseInt(cpfCleaned.substring(9, 10))) return false;
-    sum = 0;
-    for (let i = 1; i <= 10; i++) { sum = sum + parseInt(cpfCleaned.substring(i - 1, i)) * (12 - i); }
-    remainder = (sum * 10) % 11;
-    if ((remainder === 10) || (remainder === 11)) remainder = 0;
-    if (remainder !== parseInt(cpfCleaned.substring(10, 11))) return false;
-    return true;
-  };
-
-
-  // Limpa o formulário
   const resetForm = () => {
-    setSearchPessoaTerm('');
-    setPessoaSuggestions([]);
-    setSelectedPessoaId(null);
-    setSelectedPessoaData(null);
-
-    setCodigoAluno('');
-    setCodigoINEP('');
-    setCodigoSistemaEstadual('');
-    setFotoUpload(null);
-    setFotoURL('');
-    setAnoLetivo(new Date().getFullYear().toString());
-    setSituacaoMatricula('ATIVA');
-
-    // Limpeza dos novos campos de Matrícula
-    setMatriculaEscolaId('');
-    setMatriculaNivelEnsino('');
-    setMatriculaAnoSerie('');
-    setMatriculaTurmaId('');
-    setDataMatricula(new Date().toISOString().split('T')[0]);
-    setMatriculaDependencia('nao');
-
-    setPessoasAutorizadas([]);
-    setCurrentPessoaAutorizadaNome('');
-    setCurrentPessoaAutorizadaParentesco('');
-
-    setResponsavelLegalNome('');
-    setResponsavelLegalParentesco('');
-
-    setReligiao('');
-    setBeneficiosSociais('');
-    setDeficienciasTranstornos('');
-    setAlfabetizado('sim');
-    setEmancipado('nao');
-
-    // Limpeza de estados de Transporte Escolar
-    setUtilizaTransporte('nao');
-    setVeiculoTransporte('');
-    setRotaTransporte('');
-
-    setDocumentosDiversos([]);
-    setLaudoMedico(null);
-    setObservacoes('');
-
-    // Campos de Dados Pessoais (se não houver pessoa selecionada)
-    setCpf('');
-    setNomeCompleto('');
-    setNomeSocialAfetivo('');
-    setSexo('Nao Informado');
-    setEstadoCivil('Solteiro(a)');
-    setDataNascimento('');
-    setNacionalidade('');
-    setRaca('Nao Declarada');
-    setPovoIndigena('');
-    setReligiao('');
-    setNaturalidadeCidade('');
-    setNaturalidadeEstado('');
-    setFalecido('nao');
-
-    // Campos de Informações Familiares
-    setPessoaPai('');
-    setTelefonePai('');
-    setEscolaridadePai('Nao Informado');
-    setProfissaoPai('');
-    setPessoaMae('');
-    setTelefoneMae('');
-    setEscolaridadeMae('Nao Informado');
-    setProfissaoMae('');
-
-    // Campos de Documentação (apenas os gerenciados aqui, não os de PessoaManagementPage)
-    setRgNumero('');
-    setRgDataEmissao('');
-    setRgOrgaoEmissor('');
-    setRgEstado('');
-    setNisPisPasep('');
-    setCarteiraSUS('');
-    setCertidaoTipo('Nascimento');
-    setCertidaoEstado('');
-    setCertidaoCartorio('');
-    setCertidaoDataEmissao('');
-    setCertidaoNumero('');
-    setCertidaoCidade('');
-    setPassaporteNumero('');
-    setPassaportePaisEmissor('');
-    setPassaporteDataEmissao('');
-
-    // Campos de Endereço (não gerenciados aqui, mas limpos se for nova pessoa)
-    setCep('');
-    setRua('');
-    setEnderecoNumero('');
-    setEnderecoComplemento('');
-    setEnderecoBairro('');
-    setMunicipioResidencia('');
-    setPaisResidencia('BRASIL');
-    setZonaResidencia('urbana');
-    setLocalizacaoDiferenciada('');
-    setPontoReferencia('');
-
-    // Campos de Contato (não gerenciados aqui, mas limpos se for nova pessoa)
-    setTelefoneResidencial('');
-    setCelular('');
-    setTelefoneAdicional('');
-    setEmailContato('');
-
-    setErrorMessage('');
-    setSuccessMessage('');
+    setSearchPessoaTerm(''); setPessoaSuggestions([]); setSelectedPessoaId(null); setSelectedPessoaData(null);
+    setCodigoAluno(''); setCodigoINEP(''); setCodigoSistemaEstadual(''); setFotoUpload(null); setFotoURL('');
+    setAnoLetivo(new Date().getFullYear().toString()); setSituacaoMatricula('ATIVA'); setMatriculaEscolaId('');
+    setMatriculaNivelEnsino(''); setMatriculaAnoSerie(''); setMatriculaTurmaId('');
+    setDataMatricula(new Date().toISOString().split('T')[0]); setMatriculaDependencia('nao'); setComponentesDependencia([]);
+    setPessoasAutorizadas([]); setCurrentPessoaAutorizadaNome(''); setCurrentPessoaAutorizadaParentesco('');
+    setResponsavelLegalNome(''); setResponsavelLegalParentesco(''); setBeneficiosSociais('');
+    setDeficienciasTranstornos(''); setAlfabetizado('sim'); setEmancipado('nao'); setUtilizaTransporte('nao');
+    setVeiculoTransporte(''); setRotaTransporte(''); setDocumentosDiversos([]); setLaudoMedico(null); setObservacoes('');
+    setCpf(''); setNomeCompleto(''); setNomeSocialAfetivo(''); setSexo('Nao Informado'); setEstadoCivil('Solteiro(a)');
+    setDataNascimento(''); setNacionalidade(''); setRaca('Nao Declarada'); setPovoIndigena(''); setReligiao('');
+    setNaturalidadeCidade(''); setNaturalidadeEstado(''); setFalecido('nao'); setPessoaPai(''); setTelefonePai('');
+    setEscolaridadePai('Nao Informado'); setProfissaoPai(''); setPessoaMae(''); setTelefoneMae('');
+    setEscolaridadeMae('Nao Informado'); setProfissaoMae(''); setRgNumero(''); setRgDataEmissao('');
+    setRgOrgaoEmissor(''); setRgEstado(''); setNisPisPasep(''); setCarteiraSUS(''); setCertidaoTipo('Nascimento');
+    setCertidaoEstado(''); setCertidaoCartorio(''); setCertidaoDataEmissao(''); setCertidaoNumero('');
+    setCertidaoCidade(''); setPassaporteNumero(''); setPassaportePaisEmissor(''); setPassaporteDataEmissao('');
+    setCep(''); setRua(''); setEnderecoNumero(''); setEnderecoComplemento(''); setEnderecoBairro('');
+    setMunicipioResidencia(''); setPaisResidencia('BRASIL'); setZonaResidencia('urbana');
+    setLocalizacaoDiferenciada(''); setPontoReferencia(''); setTelefoneResidencial(''); setCelular('');
+    setTelefoneAdicional(''); setEmailContato(''); setErrorMessage(''); setSuccessMessage('');
   };
 
-
-  // Efeito para verificar permissões de acesso à página e carregar escolas
   useEffect(() => {
     if (!loading) {
-      if (!userData || !(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario'))) {
-        navigate('/dashboard');
-        return;
-      }
-
-      const fetchSchools = async () => {
+      if (!userData || !(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario'))) { navigate('/dashboard'); return; }
+      const fetchData = async () => {
         try {
           const schoolsCol = collection(db, 'schools');
           const schoolsSnapshot = await getDocs(schoolsCol);
           let schoolsList = schoolsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
           if (userData.funcao.toLowerCase() === 'secretario') {
             const userSchoolsIds = userData.escolasIds || (userData.escolaId ? [userData.escolaId] : []);
             schoolsList = schoolsList.filter(school => userSchoolsIds.includes(school.id));
           }
           setAvailableSchools(schoolsList);
-        } catch (error) {
-          console.error("Erro ao buscar escolas:", error);
-          setErrorMessage("Erro ao carregar lista de escolas para o dropdown.");
-        }
+          
+          // NOVA ADIÇÃO: Busca de componentes
+          const componentesSnapshot = await getDocs(collection(db, 'componentes'));
+          setAllComponentes(componentesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+        } catch (error) { console.error("Erro ao buscar dados iniciais:", error); setErrorMessage("Erro ao carregar dados da página."); }
       };
-      fetchSchools();
+      fetchData();
     }
   }, [loading, userData, navigate]);
 
-
-  // Efeito para carregar Níveis de Ensino e Anos/Séries da Escola selecionada
   useEffect(() => {
     if (matriculaEscolaId) {
       const selectedSchool = availableSchools.find(s => s.id === matriculaEscolaId);
-      if (selectedSchool) {
-        setAvailableNiveisEnsino(selectedSchool.niveisEnsino || []);
-        setSchoolAnosSeriesData(selectedSchool.anosSeriesAtendidas || []);
-      } else {
-        setAvailableNiveisEnsino([]);
-        setSchoolAnosSeriesData([]);
-      }
-    } else {
-      setAvailableNiveisEnsino([]);
-      setSchoolAnosSeriesData([]);
-    }
-    // Reseta os campos dependentes quando a escola muda
-    setMatriculaNivelEnsino('');
-    setMatriculaAnoSerie('');
-    setMatriculaTurmaId('');
+      if (selectedSchool) { setAvailableNiveisEnsino(selectedSchool.niveisEnsino || []); setSchoolAnosSeriesData(selectedSchool.anosSeriesAtendidas || []); } else { setAvailableNiveisEnsino([]); setSchoolAnosSeriesData([]); }
+    } else { setAvailableNiveisEnsino([]); setSchoolAnosSeriesData([]); }
+    setMatriculaNivelEnsino(''); setMatriculaAnoSerie(''); setMatriculaTurmaId('');
   }, [matriculaEscolaId, availableSchools]);
 
-  
-  // Efeito para filtrar Ano/Série/Etapa com base no Nível de Ensino selecionado E nas séries da escola
   useEffect(() => {
     const newAvailableAnosSeriesSet = new Set();
     if (matriculaNivelEnsino && schoolAnosSeriesData.length > 0) {
-      // O mapeamento de nomes foi removido.
-      // A variável 'matriculaNivelEnsino' já está em MAIÚSCULAS e corresponde
-      // diretamente às chaves do objeto 'seriesAnosEtapasData'.
       if (seriesAnosEtapasData[matriculaNivelEnsino]) {
-        seriesAnosEtapasData[matriculaNivelEnsino].forEach(item => {
-          // 'item' (ex: "1º ANO") e 'schoolAnosSeriesData' (ex: ["1º ANO"])
-          // ambos estão em MAIÚSCULAS, então a comparação funciona.
-          if (schoolAnosSeriesData.includes(item)) {
-            newAvailableAnosSeriesSet.add(item);
-          }
-        });
+        seriesAnosEtapasData[matriculaNivelEnsino].forEach(item => { if (schoolAnosSeriesData.includes(item)) { newAvailableAnosSeriesSet.add(item); } });
       }
     }
     setAvailableAnosSeries(Array.from(newAvailableAnosSeriesSet));
-    
-    // Reseta os campos dependentes se o nível mudar
-    setMatriculaAnoSerie('');
-    setMatriculaTurmaId('');
-    
+    setMatriculaAnoSerie(''); setMatriculaTurmaId('');
   }, [matriculaNivelEnsino, schoolAnosSeriesData]);
 
-
-  // Efeito para buscar turmas com base na Escola, Nível e Ano/Série selecionados
   useEffect(() => {
     if (matriculaEscolaId && matriculaNivelEnsino && matriculaAnoSerie) {
       const fetchTurmas = async () => {
         try {
           const turmasCol = collection(db, 'turmas');
-          const q = query(
-            turmasCol,
-            where('schoolId', '==', matriculaEscolaId),
-            where('nivelEnsino', '==', matriculaNivelEnsino), // Já é MAIÚSCULO
-            where('anoSerie', '==', matriculaAnoSerie),     // Já é MAIÚSCULO
-            orderBy('nomeTurma')
-          );
+          const q = query(turmasCol, where('schoolId', '==', matriculaEscolaId), where('nivelEnsino', '==', matriculaNivelEnsino), where('anoSerie', '==', matriculaAnoSerie), orderBy('nomeTurma'));
           const querySnapshot = await getDocs(q);
-          const turmasList = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            nomeTurma: doc.data().nomeTurma,
-          }));
+          const turmasList = querySnapshot.docs.map(doc => ({ id: doc.id, nomeTurma: doc.data().nomeTurma, }));
           setAvailableTurmas(turmasList);
-        } catch (error) {
-          console.error("Erro ao buscar turmas:", error);
-          setAvailableTurmas([]);
-        }
+        } catch (error) { console.error("Erro ao buscar turmas:", error); setAvailableTurmas([]); }
       };
       fetchTurmas();
-    } else {
-      setAvailableTurmas([]);
-    }
-    // Reseta a turma se os filtros mudarem
+    } else { setAvailableTurmas([]); }
     setMatriculaTurmaId('');
   }, [matriculaEscolaId, matriculaNivelEnsino, matriculaAnoSerie]);
 
-
-  // Efeito para buscar sugestões de Pessoa (por nome ou CPF)
   useEffect(() => {
     if (searchPessoaTerm.length >= 3) {
       const fetchSuggestions = async () => {
         try {
           const searchLower = searchPessoaTerm.toLowerCase();
           const pessoasCol = collection(db, 'pessoas');
-          
-          const qName = query(
-            pessoasCol,
-            where('nomeCompleto', '>=', searchLower.toUpperCase()),
-            where('nomeCompleto', '<=', searchLower.toUpperCase() + '\uf8ff'),
-            orderBy('nomeCompleto'),
-            limit(10)
-          );
+          const qName = query(pessoasCol, where('nomeCompleto', '>=', searchLower.toUpperCase()), where('nomeCompleto', '<=', searchLower.toUpperCase() + '\uf8ff'), orderBy('nomeCompleto'), limit(10));
           const nameSnapshot = await getDocs(qName);
-          let suggestions = nameSnapshot.docs.map(doc => ({
-            id: doc.id,
-            nomeCompleto: doc.data().nomeCompleto,
-            cpf: doc.data().cpf,
-          }));
-
+          let suggestions = nameSnapshot.docs.map(doc => ({ id: doc.id, nomeCompleto: doc.data().nomeCompleto, cpf: doc.data().cpf, }));
           if (isNaN(searchPessoaTerm.replace(/\D/g, ''))) {
-              const qEmail = query(
-                  pessoasCol,
-                  where('emailContato', '>=', searchLower),
-                  where('emailContato', '<=', searchLower + '\uf8ff'),
-                  orderBy('emailContato'),
-                  limit(10)
-              );
-              const emailSnapshot = await getDocs(qEmail);
-              emailSnapshot.docs.forEach(doc => {
-                  if (!suggestions.some(s => s.id === doc.id)) {
-                      suggestions.push({
-                          id: doc.id,
-                          nomeCompleto: doc.data().nomeCompleto,
-                          emailContato: doc.data().emailContato,
-                          cpf: doc.data().cpf,
-                      });
-                  }
-              });
+            const qEmail = query(pessoasCol, where('emailContato', '>=', searchLower), where('emailContato', '<=', searchLower + '\uf8ff'), orderBy('emailContato'), limit(10));
+            const emailSnapshot = await getDocs(qEmail);
+            emailSnapshot.docs.forEach(doc => { if (!suggestions.some(s => s.id === doc.id)) { suggestions.push({ id: doc.id, nomeCompleto: doc.data().nomeCompleto, emailContato: doc.data().emailContato, cpf: doc.data().cpf, }); } });
           }
-
           if (!isNaN(searchPessoaTerm.replace(/\D/g, '')) && searchPessoaTerm.replace(/\D/g, '').length >= 6) {
-              const qCpf = query(
-                  pessoasCol,
-                  where('cpf', '==', searchPessoaTerm.replace(/\D/g, '')),
-                  limit(1)
-              );
-              const cpfSnapshot = await getDocs(qCpf);
-              cpfSnapshot.docs.forEach(doc => {
-                  if (!suggestions.some(s => s.id === doc.id)) {
-                      suggestions.push({
-                          id: doc.id,
-                          nomeCompleto: doc.data().nomeCompleto,
-                          emailContato: doc.data().emailContato,
-                          cpf: doc.data().cpf,
-                      });
-                  }
-              });
+            const qCpf = query(pessoasCol, where('cpf', '==', searchPessoaTerm.replace(/\D/g, '')), limit(1));
+            const cpfSnapshot = await getDocs(qCpf);
+            cpfSnapshot.docs.forEach(doc => { if (!suggestions.some(s => s.id === doc.id)) { suggestions.push({ id: doc.id, nomeCompleto: doc.data().nomeCompleto, emailContato: doc.data().emailContato, cpf: doc.data().cpf, }); } });
           }
-
           suggestions.sort((a, b) => a.nomeCompleto.localeCompare(b.nomeCompleto));
-
           setPessoaSuggestions(suggestions);
-        } catch (error) {
-          console.error("Erro ao buscar sugestões de pessoas:", error);
-          setPessoaSuggestions([]);
-        }
+        } catch (error) { console.error("Erro ao buscar sugestões de pessoas:", error); setPessoaSuggestions([]); }
       };
-      const handler = setTimeout(() => {
-        fetchSuggestions();
-      }, 300);
+      const handler = setTimeout(() => { fetchSuggestions(); }, 300);
       return () => clearTimeout(handler);
-    } else {
-      setPessoaSuggestions([]);
-    }
+    } else { setPessoaSuggestions([]); }
   }, [searchPessoaTerm]);
 
-  // Função para selecionar uma pessoa da lista de sugestões
   const handleSelectPessoa = async (pessoa) => {
-    setSelectedPessoaId(pessoa.id);
-    setSearchPessoaTerm(pessoa.nomeCompleto);
-    setPessoaSuggestions([]);
-
+    setSelectedPessoaId(pessoa.id); setSearchPessoaTerm(pessoa.nomeCompleto); setPessoaSuggestions([]);
     try {
       const pessoaDocRef = doc(db, 'pessoas', pessoa.id);
       const pessoaDocSnap = await getDoc(pessoaDocRef);
       if (pessoaDocSnap.exists()) {
-        const data = pessoaDocSnap.data();
-        setSelectedPessoaData(data);
-
-        // Pré-preenche os campos de Dados Pessoais e Informações Familiares
-        setCpf(data.cpf || '');
-        setNomeCompleto(data.nomeCompleto || '');
-        setNomeSocialAfetivo(data.nomeSocialAfetivo || '');
-        setSexo(data.sexo || 'Nao Informado');
-        setEstadoCivil(data.estadoCivil || 'Solteiro(a)');
-        setDataNascimento(data.dataNascimento || '');
-        setNacionalidade(data.nacionalidade || '');
-        setRaca(data.raca || 'Nao Declarada');
-        setPovoIndigena(data.povoIndigena || '');
-        setReligiao(data.religiao || '');
-        setNaturalidadeCidade(data.naturalidadeCidade || '');
-        setNaturalidadeEstado(data.naturalidadeEstado || '');
-        setFalecido(data.falecido ? 'sim' : 'nao');
-
-        setPessoaPai(data.pessoaPai || '');
-        setTelefonePai(data.telefonePai || '');
-        setEscolaridadePai(data.escolaridadePai || 'Nao Informado');
-        setProfissaoPai(data.profissaoPai || '');
-        setPessoaMae(data.pessoaMae || '');
-        setTelefoneMae(data.telefoneMae || '');
-        setEscolaridadeMae(data.escolaridadeMae || 'Nao Informado');
-        setProfissaoMae(data.profissaoMae || '');
-        setResponsavelLegalNome(data.responsavelLegalNome || data.pessoaMae || '');
-        setResponsavelLegalParentesco(data.responsavelLegalParentesco || 'Mãe');
-
-        setEmailContato(data.emailContato || '');
-
-        // Preenche campos de endereço com base na pessoa
-        setCep(data.cep || '');
-        setRua(data.enderecoLogradouro || '');
-        setEnderecoNumero(data.enderecoNumero || '');
-        setEnderecoComplemento(data.enderecoComplemento || '');
-        setEnderecoBairro(data.enderecoBairro || '');
-        setMunicipioResidencia(data.municipioResidencia || '');
-        setPaisResidencia(data.paisResidencia || 'BRASIL');
-        setZonaResidencia(data.zonaResidencia || 'urbana');
-        setLocalizacaoDiferenciada(data.localizacaoDiferenciada || '');
-        setPontoReferencia(data.pontoReferencia || '');
-
-        // Preenche campos de documentação com base na pessoa
-        setRgNumero(data.rgNumero || '');
-        setRgDataEmissao(data.rgDataEmissao || '');
-        setRgOrgaoEmissor(data.rgOrgaoEmissor || '');
-        setRgEstado(data.rgEstado || '');
-        setNisPisPasep(data.nisPisPasep || '');
-        setCarteiraSUS(data.carteiraSUS || '');
-        setCertidaoTipo(data.certidaoTipo || 'Nascimento');
-        setCertidaoEstado(data.certidaoEstado || '');
-        setCertidaoCartorio(data.certidaoCartorio || '');
-        setCertidaoDataEmissao(data.certidaoDataEmissao || '');
-        setCertidaoNumero(data.certidaoNumero || '');
-        setCertidaoCidade(data.certidaoCidade || '');
-        setPassaporteNumero(data.passaporteNumero || '');
-        setPassaportePaisEmissor(data.passaportePaisEmissor || '');
-        setPassaporteDataEmissao(data.passaporteDataEmissao || '');
-
-        setErrorMessage('');
+        const data = pessoaDocSnap.data(); setSelectedPessoaData(data);
+        setCpf(data.cpf || ''); setNomeCompleto(data.nomeCompleto || ''); setNomeSocialAfetivo(data.nomeSocialAfetivo || ''); setSexo(data.sexo || 'Nao Informado'); setEstadoCivil(data.estadoCivil || 'Solteiro(a)'); setDataNascimento(data.dataNascimento || ''); setNacionalidade(data.nacionalidade || ''); setRaca(data.raca || 'Nao Declarada'); setPovoIndigena(data.povoIndigena || ''); setReligiao(data.religiao || ''); setNaturalidadeCidade(data.naturalidadeCidade || ''); setNaturalidadeEstado(data.naturalidadeEstado || ''); setFalecido(data.falecido ? 'sim' : 'nao'); setPessoaPai(data.pessoaPai || ''); setTelefonePai(data.telefonePai || ''); setEscolaridadePai(data.escolaridadePai || 'Nao Informado'); setProfissaoPai(data.profissaoPai || ''); setPessoaMae(data.pessoaMae || ''); setTelefoneMae(data.telefoneMae || ''); setEscolaridadeMae(data.escolaridadeMae || 'Nao Informado'); setProfissaoMae(data.profissaoMae || ''); setResponsavelLegalNome(data.responsavelLegalNome || data.pessoaMae || ''); setResponsavelLegalParentesco(data.responsavelLegalParentesco || 'Mãe'); setEmailContato(data.emailContato || ''); setCep(data.cep || ''); setRua(data.enderecoLogradouro || ''); setEnderecoNumero(data.enderecoNumero || ''); setEnderecoComplemento(data.enderecoComplemento || ''); setEnderecoBairro(data.enderecoBairro || ''); setMunicipioResidencia(data.municipioResidencia || ''); setPaisResidencia(data.paisResidencia || 'BRASIL'); setZonaResidencia(data.zonaResidencia || 'urbana'); setLocalizacaoDiferenciada(data.localizacaoDiferenciada || ''); setPontoReferencia(data.pontoReferencia || ''); setRgNumero(data.rgNumero || ''); setRgDataEmissao(data.rgDataEmissao || ''); setRgOrgaoEmissor(data.rgOrgaoEmissor || ''); setRgEstado(data.rgEstado || ''); setNisPisPasep(data.nisPisPasep || ''); setCarteiraSUS(data.carteiraSUS || ''); setCertidaoTipo(data.certidaoTipo || 'Nascimento'); setCertidaoEstado(data.certidaoEstado || ''); setCertidaoCartorio(data.certidaoCartorio || ''); setCertidaoDataEmissao(data.certidaoDataEmissao || ''); setCertidaoNumero(data.certidaoNumero || ''); setCertidaoCidade(data.certidaoCidade || ''); setPassaporteNumero(data.passaporteNumero || ''); setPassaportePaisEmissor(data.passaportePaisEmissor || ''); setPassaporteDataEmissao(data.passaporteDataEmissao || ''); setErrorMessage('');
       }
-    } catch (error) {
-      console.error("Erro ao buscar dados da pessoa selecionada:", error);
-      setErrorMessage("Erro ao carregar dados da pessoa selecionada.");
-    }
+    } catch (error) { console.error("Erro ao buscar dados da pessoa selecionada:", error); setErrorMessage("Erro ao carregar dados da pessoa selecionada."); }
   };
 
-  // Funções para Pessoas Autorizadas a Buscar
   const handleAddPessoaAutorizada = () => {
-    if (!currentPessoaAutorizadaNome || !currentPessoaAutorizadaParentesco) {
-      setErrorMessage("Preencha Nome e Parentesco para a pessoa autorizada.");
-      return;
-    }
-    const isDuplicate = pessoasAutorizadas.some(p =>
-      p.nome === currentPessoaAutorizadaNome && p.parentesco === currentPessoaAutorizadaParentesco
-    );
-
-    if (isDuplicate) {
-      setErrorMessage("Esta pessoa já foi adicionada como autorizada.");
-      return;
-    }
-
-    const newPessoaAutorizada = {
-      nome: currentPessoaAutorizadaNome.toUpperCase(),
-      parentesco: currentPessoaAutorizadaParentesco.toUpperCase(),
-    };
-
+    if (!currentPessoaAutorizadaNome || !currentPessoaAutorizadaParentesco) { setErrorMessage("Preencha Nome e Parentesco para a pessoa autorizada."); return; }
+    const isDuplicate = pessoasAutorizadas.some(p => p.nome === currentPessoaAutorizadaNome && p.parentesco === currentPessoaAutorizadaParentesco);
+    if (isDuplicate) { setErrorMessage("Esta pessoa já foi adicionada como autorizada."); return; }
+    const newPessoaAutorizada = { nome: currentPessoaAutorizadaNome.toUpperCase(), parentesco: currentPessoaAutorizadaParentesco.toUpperCase(), };
     setPessoasAutorizadas([...pessoasAutorizadas, newPessoaAutorizada]);
-    setCurrentPessoaAutorizadaNome('');
-    setCurrentPessoaAutorizadaParentesco('');
-    setErrorMessage('');
+    setCurrentPessoaAutorizadaNome(''); setCurrentPessoaAutorizadaParentesco(''); setErrorMessage('');
   };
 
-  const handleRemovePessoaAutorizada = (index) => {
-    const updated = [...pessoasAutorizadas];
-    updated.splice(index, 1);
-    setPessoasAutorizadas(updated);
-  };
-
-  // Função para upload de foto
+  const handleRemovePessoaAutorizada = (index) => { const updated = [...pessoasAutorizadas]; updated.splice(index, 1); setPessoasAutorizadas(updated); };
   const handlePhotoUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) { // 2MB
-        setErrorMessage("O tamanho da imagem não pode exceder 2MB.");
-        return;
-    }
+    if (file.size > 2 * 1024 * 1024) { setErrorMessage("O tamanho da imagem não pode exceder 2MB."); return; }
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-    if (!allowedTypes.includes(file.type)) {
-        setErrorMessage("Formato de imagem não permitido. Use JPEG, JPG, PNG ou GIF.");
-        return;
-    }
-
+    if (!allowedTypes.includes(file.type)) { setErrorMessage("Formato de imagem não permitido. Use JPEG, JPG, PNG ou GIF."); return; }
     setFotoUpload(file);
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setFotoURL(reader.result); // Define URL para pré-visualização
-    };
+    reader.onloadend = () => { setFotoURL(reader.result); };
     reader.readAsDataURL(file);
-
-    setSuccessMessage("Foto selecionada. O upload ocorrerá ao cadastrar/salvar.");
-    setErrorMessage('');
+    setSuccessMessage("Foto selecionada. O upload ocorrerá ao cadastrar/salvar."); setErrorMessage('');
   };
 
-
-  // Função para lidar com o cadastro/edição de matrícula
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
-
-    // Validações básicas da matrícula e pessoa
-    if (!selectedPessoaId) { // Se não selecionou pessoa existente, valida os campos da pessoa
-        if (!nomeCompleto || !cpf || !dataNascimento || !emailContato || !municipioResidencia || !sexo || !estadoCivil || !nacionalidade || !raca || !pessoaMae || !responsavelLegalNome) {
-            setErrorMessage('Todos os campos obrigatórios em Dados Pessoais, Informações Familiares e Contato são necessários para cadastrar uma nova pessoa.');
-            return;
-        }
-        if (!validateCPF(cpf.replace(/\D/g, ''))) {
-            setErrorMessage('CPF inválido.');
-            return;
-        }
-    }
+    setErrorMessage(''); setSuccessMessage('');
+    if (!selectedPessoaId) { if (!nomeCompleto || !cpf || !dataNascimento || !emailContato || !municipioResidencia || !sexo || !estadoCivil || !nacionalidade || !raca || !pessoaMae || !responsavelLegalNome) { setErrorMessage('Todos os campos obrigatórios em Dados Pessoais, Informações Familiares e Contato são necessários para cadastrar uma nova pessoa.'); return; } if (!validateCPF(cpf.replace(/\D/g, ''))) { setErrorMessage('CPF inválido.'); return; } }
+    if (!matriculaEscolaId || !matriculaNivelEnsino || !matriculaAnoSerie || !matriculaTurmaId || !dataMatricula || !responsavelLegalNome) { setErrorMessage('Os campos Escola, Nível de Ensino, Ano/Série, Turma, Data da Matrícula e Responsável Legal são obrigatórios.'); return; }
+    if (!codigoAluno && !selectedPessoaId) { setErrorMessage('Código do Aluno é obrigatório para nova matrícula sem vinculação a pessoa existente.'); return; }
     
-    // ========================= INÍCIO DA CORREÇÃO LÓGICA =========================
-    // Validações específicas da matrícula
-    if (!matriculaEscolaId || !matriculaNivelEnsino || !matriculaAnoSerie || !matriculaTurmaId || !dataMatricula || !responsavelLegalNome) { // !codigoINEP foi removido
-        setErrorMessage('Os campos Escola, Nível de Ensino, Ano/Série, Turma, Data da Matrícula e Responsável Legal são obrigatórios.'); // "Código INEP" foi removido da mensagem
-        return;
-    }
-    // ========================== FIM DA CORREÇÃO LÓGICA ===========================
-    if (!codigoAluno && !selectedPessoaId) {
-        setErrorMessage('Código do Aluno é obrigatório para nova matrícula sem vinculação a pessoa existente.');
+    // NOVA ADIÇÃO: Validação de dependência
+    if (matriculaDependencia === 'sim' && componentesDependencia.length === 0) {
+        setErrorMessage('Para matrícula de dependência, ao menos um componente deve ser selecionado.');
         return;
     }
 
-
-    let currentPessoaId = selectedPessoaId;
-    let finalFotoURL = fotoURL;
-
+    let currentPessoaId = selectedPessoaId; let finalFotoURL = fotoURL;
     try {
-      // 1. UPLOAD DA FOTO (se houver uma nova)
       if (fotoUpload) {
         const fileName = `${currentPessoaId || 'nova_pessoa'}_${Date.now()}_${fotoUpload.name}`;
         const storageRef = ref(storage, `fotos_matriculas/${fileName}`);
@@ -666,355 +313,111 @@ function MatriculaAlunoPage() {
         setFotoURL(finalFotoURL);
         setSuccessMessage("Foto enviada para o Storage.");
       }
-
-      // 2. CADASTRAR/ATUALIZAR PESSOA (se for uma nova pessoa)
       if (!selectedPessoaId) {
         const password = cpf.replace(/\D/g, '').substring(0, 6);
-        if (password.length < 6) {
-            setErrorMessage('CPF muito curto para gerar senha automática (mínimo 6 dígitos).');
-            return;
-        }
+        if (password.length < 6) { setErrorMessage('CPF muito curto para gerar senha automática (mínimo 6 dígitos).'); return; }
         const userCredential = await createUserWithEmailAndPassword(auth, emailContato, password);
         const userAuthId = userCredential.user.uid;
-
         const novaPessoaData = {
-            cpf: cpf.replace(/\D/g, ''), nomeCompleto: nomeCompleto.toUpperCase(), nomeSocialAfetivo: nomeSocialAfetivo.toUpperCase(),
-            sexo, estadoCivil, dataNascimento, nacionalidade: nacionalidade.toUpperCase(), raca,
-            povoIndigena: povoIndigena.toUpperCase(), religiao: religiao.toUpperCase(),
-            naturalidadeCidade: naturalidadeCidade.toUpperCase(), naturalidadeEstado: naturalidadeEstado.toUpperCase(),
-            falecido: falecido === 'sim', pessoaPai: pessoaPai.toUpperCase(),
-            telefonePai: telefonePai.replace(/\D/g, ''), escolaridadePai, profissaoPai: profissaoPai.toUpperCase(),
-            pessoaMae: pessoaMae.toUpperCase(),
-            telefoneMae: telefoneMae.replace(/\D/g, ''), escolaridadeMae, profissaoMae: profissaoMae.toUpperCase(),
-            emailContato,
-            rgNumero: rgNumero.replace(/\D/g, ''), rgDataEmissao, rgOrgaoEmissor: rgOrgaoEmissor.toUpperCase(), rgEstado: rgEstado.toUpperCase(),
-            nisPisPasep: nisPisPasep.replace(/\D/g, ''), carteiraSUS: carteiraSUS.replace(/\D/g, ''),
-            certidaoTipo, certidaoEstado: certidaoEstado.toUpperCase(), certidaoCartorio: certidaoCartorio.toUpperCase(),
-            certidaoDataEmissao, certidaoNumero: certidaoNumero.replace(/\D/g, ''), certidaoCidade: certidaoCidade.toUpperCase(),
-            passaporteNumero: passaporteNumero.toUpperCase(), passaportePaisEmissor: passaportePaisEmissor.toUpperCase(), passaporteDataEmissao,
-            cep: cep.replace(/\D/g, ''), enderecoLogradouro: rua.toUpperCase(), enderecoNumero, enderecoComplemento: enderecoComplemento.toUpperCase(),
-            enderecoBairro: enderecoBairro.toUpperCase(), municipioResidencia: municipioResidencia.toUpperCase(), paisResidencia: paisResidencia.toUpperCase(),
-            zonaResidencia, localizacaoDiferenciada, pontoReferencia: pontoReferencia.toUpperCase(),
-            telefoneResidencial: telefoneResidencial.replace(/\D/g, ''), celular: celular.replace(/\D/g, ''), telefoneAdicional: telefoneAdicional.replace(/\D/g, ''),
-            userId: userAuthId,
-            dataCadastro: new Date(), ultimaAtualizacao: new Date(),
+            cpf: cpf.replace(/\D/g, ''), nomeCompleto: nomeCompleto.toUpperCase(), nomeSocialAfetivo: nomeSocialAfetivo.toUpperCase(), sexo, estadoCivil, dataNascimento, nacionalidade: nacionalidade.toUpperCase(), raca, povoIndigena: povoIndigena.toUpperCase(), religiao: religiao.toUpperCase(), naturalidadeCidade: naturalidadeCidade.toUpperCase(), naturalidadeEstado: naturalidadeEstado.toUpperCase(), falecido: falecido === 'sim', pessoaPai: pessoaPai.toUpperCase(), telefonePai: telefonePai.replace(/\D/g, ''), escolaridadePai, profissaoPai: profissaoPai.toUpperCase(), pessoaMae: pessoaMae.toUpperCase(), telefoneMae: telefoneMae.replace(/\D/g, ''), escolaridadeMae, profissaoMae: profissaoMae.toUpperCase(), emailContato, rgNumero: rgNumero.replace(/\D/g, ''), rgDataEmissao, rgOrgaoEmissor: rgOrgaoEmissor.toUpperCase(), rgEstado: rgEstado.toUpperCase(), nisPisPasep: nisPisPasep.replace(/\D/g, ''), carteiraSUS: carteiraSUS.replace(/\D/g, ''), certidaoTipo, certidaoEstado: certidaoEstado.toUpperCase(), certidaoCartorio: certidaoCartorio.toUpperCase(), certidaoDataEmissao, certidaoNumero: certidaoNumero.replace(/\D/g, ''), certidaoCidade: certidaoCidade.toUpperCase(), passaporteNumero: passaporteNumero.toUpperCase(), passaportePaisEmissor: passaportePaisEmissor.toUpperCase(), passaporteDataEmissao, cep: cep.replace(/\D/g, ''), enderecoLogradouro: rua.toUpperCase(), enderecoNumero, enderecoComplemento: enderecoComplemento.toUpperCase(), enderecoBairro: enderecoBairro.toUpperCase(), municipioResidencia: municipioResidencia.toUpperCase(), paisResidencia: paisResidencia.toUpperCase(), zonaResidencia, localizacaoDiferenciada, pontoReferencia: pontoReferencia.toUpperCase(), telefoneResidencial: telefoneResidencial.replace(/\D/g, ''), celular: celular.replace(/\D/g, ''), telefoneAdicional: telefoneAdicional.replace(/\D/g, ''), userId: userAuthId, dataCadastro: new Date(), ultimaAtualizacao: new Date(),
         };
         const docRef = await addDoc(collection(db, 'pessoas'), novaPessoaData);
         currentPessoaId = docRef.id;
-
-        await setDoc(doc(db, 'users', userAuthId), {
-            nomeCompleto: nomeCompleto.toUpperCase(),
-            email: emailContato,
-            funcao: 'aluno',
-            ativo: false,
-            permissoes: [],
-            criadoEm: new Date(),
-            ultimaAtualizacao: new Date(),
-            pessoaId: currentPessoaId,
-        });
+        await setDoc(doc(db, 'users', userAuthId), { nomeCompleto: nomeCompleto.toUpperCase(), email: emailContato, funcao: 'aluno', ativo: false, permissoes: [], criadoEm: new Date(), ultimaAtualizacao: new Date(), pessoaId: currentPessoaId, });
         setSuccessMessage('Pessoa cadastrada e usuário criado automaticamente! Senha: ' + password);
-
       } else {
-        const pessoaDocRef = doc(db, 'pessoas', currentPessoaId);
         const updatedPessoaData = {
-            cpf: cpf.replace(/\D/g, ''), nomeCompleto: nomeCompleto.toUpperCase(), nomeSocialAfetivo: nomeSocialAfetivo.toUpperCase(),
-            sexo, estadoCivil, dataNascimento, nacionalidade: nacionalidade.toUpperCase(), raca,
-            povoIndigena: povoIndigena.toUpperCase(), religiao: religiao.toUpperCase(),
-            naturalidadeCidade: naturalidadeCidade.toUpperCase(), naturalidadeEstado: naturalidadeEstado.toUpperCase(),
-            falecido: falecido === 'sim', pessoaPai: pessoaPai.toUpperCase(),
-            telefonePai: telefonePai.replace(/\D/g, ''), escolaridadePai, profissaoPai: profissaoPai.toUpperCase(),
-            pessoaMae: pessoaMae.toUpperCase(),
-            telefoneMae: telefoneMae.replace(/\D/g, ''), escolaridadeMae, profissaoMae: profissaoMae.toUpperCase(),
-            emailContato,
-            rgNumero: rgNumero.replace(/\D/g, ''), rgDataEmissao, rgOrgaoEmissor: rgOrgaoEmissor.toUpperCase(), rgEstado: rgEstado.toUpperCase(),
-            nisPisPasep: nisPisPasep.replace(/\D/g, ''), carteiraSUS: carteiraSUS.replace(/\D/g, ''),
-            certidaoTipo, certidaoEstado: certidaoEstado.toUpperCase(), certidaoCartorio: certidaoCartorio.toUpperCase(),
-            certidaoDataEmissao, certidaoNumero: certidaoNumero.replace(/\D/g, ''), certidaoCidade: certidaoCidade.toUpperCase(),
-            passaporteNumero: passaporteNumero.toUpperCase(), passaportePaisEmissor: passaportePaisEmissor.toUpperCase(), passaporteDataEmissao,
-            cep: cep.replace(/\D/g, ''), enderecoLogradouro: rua.toUpperCase(), enderecoNumero, enderecoComplemento: enderecoComplemento.toUpperCase(),
-            enderecoBairro: enderecoBairro.toUpperCase(), municipioResidencia: municipioResidencia.toUpperCase(), paisResidencia: paisResidencia.toUpperCase(),
-            zonaResidencia, localizacaoDiferenciada, pontoReferencia: pontoReferencia.toUpperCase(),
-            telefoneResidencial: telefoneResidencial.replace(/\D/g, ''), celular: celular.replace(/\D/g, ''), telefoneAdicional: telefoneAdicional.replace(/\D/g, ''),
-            ultimaAtualizacao: new Date(),
+            cpf: cpf.replace(/\D/g, ''), nomeCompleto: nomeCompleto.toUpperCase(), nomeSocialAfetivo: nomeSocialAfetivo.toUpperCase(), sexo, estadoCivil, dataNascimento, nacionalidade: nacionalidade.toUpperCase(), raca, povoIndigena: povoIndigena.toUpperCase(), religiao: religiao.toUpperCase(), naturalidadeCidade: naturalidadeCidade.toUpperCase(), naturalidadeEstado: naturalidadeEstado.toUpperCase(), falecido: falecido === 'sim', pessoaPai: pessoaPai.toUpperCase(), telefonePai: telefonePai.replace(/\D/g, ''), escolaridadePai, profissaoPai: profissaoPai.toUpperCase(), pessoaMae: pessoaMae.toUpperCase(), telefoneMae: telefoneMae.replace(/\D/g, ''), escolaridadeMae, profissaoMae: profissaoMae.toUpperCase(), emailContato, rgNumero: rgNumero.replace(/\D/g, ''), rgDataEmissao, rgOrgaoEmissor: rgOrgaoEmissor.toUpperCase(), rgEstado: rgEstado.toUpperCase(), nisPisPasep: nisPisPasep.replace(/\D/g, ''), carteiraSUS: carteiraSUS.replace(/\D/g, ''), certidaoTipo, certidaoEstado: certidaoEstado.toUpperCase(), certidaoCartorio: certidaoCartorio.toUpperCase(), certidaoDataEmissao, certidaoNumero: certidaoNumero.replace(/\D/g, ''), certidaoCidade: certidaoCidade.toUpperCase(), passaporteNumero: passaporteNumero.toUpperCase(), passaportePaisEmissor: passaportePaisEmissor.toUpperCase(), passaporteDataEmissao, cep: cep.replace(/\D/g, ''), enderecoLogradouro: rua.toUpperCase(), enderecoNumero, enderecoComplemento: enderecoComplemento.toUpperCase(), enderecoBairro: enderecoBairro.toUpperCase(), municipioResidencia: municipioResidencia.toUpperCase(), paisResidencia: paisResidencia.toUpperCase(), zonaResidencia, localizacaoDiferenciada, pontoReferencia: pontoReferencia.toUpperCase(), telefoneResidencial: telefoneResidencial.replace(/\D/g, ''), celular: celular.replace(/\D/g, ''), telefoneAdicional: telefoneAdicional.replace(/\D/g, ''), ultimaAtualizacao: new Date(),
         };
         await updateDoc(doc(db, 'pessoas', currentPessoaId), updatedPessoaData);
         setSuccessMessage('Dados da pessoa atualizados!');
       }
-
-      // 3. CADASTRAR/ATUALIZAR MATRÍCULA
       const matriculaData = {
-        ...matriculaModel,
-        pessoaId: currentPessoaId,
-        codigoAluno: codigoAluno || `ALU-${Date.now().toString().slice(-6)}`,
-        codigoINEP,
-        codigoSistemaEstadual,
-        fotoURL: finalFotoURL,
-        anoLetivo,
-        situacaoMatricula,
-        pessoasAutorizadasBuscar: pessoasAutorizadas,
-        utilizaTransporte: utilizaTransporte === 'sim',
-        veiculoTransporte: veiculoTransporte.toUpperCase(),
-        rotaTransporte: rotaTransporte.toUpperCase(),
-        responsavelLegalNome: responsavelLegalNome.toUpperCase(),
-        responsavelLegalParentesco: responsavelLegalParentesco.toUpperCase(),
-        religiao: religiao.toUpperCase(),
-        beneficiosSociais: beneficiosSociais.toUpperCase(),
-        deficienciasTranstornos: deficienciasTranstornos.toUpperCase(),
-        alfabetizado: alfabetizado === 'sim',
-        emancipado: emancipado === 'sim',
-        observacoes: observacoes,
-        
-        // Novos campos de matrícula
-        escolaId: matriculaEscolaId,
-        nivelEnsino: matriculaNivelEnsino,
-        anoSerie: matriculaAnoSerie,
-        turmaId: matriculaTurmaId,
-        dataMatricula,
-        matriculaDependencia: matriculaDependencia === 'sim',
-        
-        ultimaAtualizacao: new Date(),
+        ...matriculaModel, pessoaId: currentPessoaId, codigoAluno: codigoAluno || `ALU-${Date.now().toString().slice(-6)}`, codigoINEP, codigoSistemaEstadual, fotoURL: finalFotoURL, anoLetivo, situacaoMatricula, pessoasAutorizadasBuscar: pessoasAutorizadas, utilizaTransporte: utilizaTransporte === 'sim', veiculoTransporte: veiculoTransporte.toUpperCase(), rotaTransporte: rotaTransporte.toUpperCase(), responsavelLegalNome: responsavelLegalNome.toUpperCase(), responsavelLegalParentesco: responsavelLegalParentesco.toUpperCase(), religiao: religiao.toUpperCase(), beneficiosSociais: beneficiosSociais.toUpperCase(), deficienciasTranstornos: deficienciasTranstornos.toUpperCase(), alfabetizado: alfabetizado === 'sim', emancipado: emancipado === 'sim', observacoes: observacoes, escolaId: matriculaEscolaId, nivelEnsino: matriculaNivelEnsino, anoSerie: matriculaAnoSerie, turmaId: matriculaTurmaId, dataMatricula, matriculaDependencia: matriculaDependencia === 'sim', componentesDependencia: matriculaDependencia === 'sim' ? componentesDependencia : [], ultimaAtualizacao: new Date(),
       };
-
       await addDoc(collection(db, 'matriculas'), matriculaData);
       setSuccessMessage('Matrícula realizada com sucesso!');
       resetForm();
-
     } catch (error) {
       console.error("Erro ao realizar matrícula:", error);
       let msg = "Erro ao realizar matrícula: " + error.message;
-      if (error.code === 'auth/email-already-in-use') {
-        msg = 'O e-mail da pessoa já está em uso para outra conta de usuário.';
-      } else if (error.code === 'auth/weak-password') {
-        msg = 'Senha automática fraca. CPF da pessoa precisa ter no mínimo 6 dígitos para gerar a senha.';
-      }
+      if (error.code === 'auth/email-already-in-use') { msg = 'O e-mail da pessoa já está em uso para outra conta de usuário.'; }
+      else if (error.code === 'auth/weak-password') { msg = 'Senha automática fraca. CPF da pessoa precisa ter no mínimo 6 dígitos para gerar a senha.'; }
       setErrorMessage(msg);
     }
   };
 
-  // Verificação de permissão
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen text-gray-700">
-        Carregando permissões...
-      </div>
-    );
-  }
+  // NOVA ADIÇÃO: Lógica para os componentes de dependência
+  const componentesExcluidos = [ "Recreação, Esporte e Lazer", "Arte e Cultura", "Tecnologia e Informática", "Acompanhamento Pedagógico de Língua Portuguesa", "Acompanhamento Pedagógico de Matemática" ];
+  const availableComponentesParaSerie = allComponentes.filter(comp => comp.serieAno === matriculaAnoSerie).filter(comp => !componentesExcluidos.includes(comp.nome)).sort((a, b) => a.nome.localeCompare(b.nome));
+  const handleComponentesChange = (e) => {
+    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+    if (selectedOptions.length > 3) {
+      alert("Você pode selecionar no máximo 3 componentes para dependência.");
+      return; 
+    }
+    setComponentesDependencia(selectedOptions);
+  };
 
-  if (!userData || !(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario'))) {
-    return (
-      <div className="flex justify-center items-center h-screen text-red-600 font-bold">
-        Acesso Negado: Você não tem permissão para acessar esta página.
-      </div>
-    );
-  }
+  if (loading) { return <div className="flex justify-center items-center h-screen text-gray-700">Carregando permissões...</div>; }
+  if (!userData || !(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario'))) { return <div className="flex justify-center items-center h-screen text-red-600 font-bold">Acesso Negado: Você não tem permissão para acessar esta página.</div>; }
 
   return (
     <div className="flex-grow p-6">
       <div className="bg-white p-8 rounded-lg shadow-md max-w-2xl mx-auto">
         <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">Matrícula de Aluno</h2>
-
         {errorMessage && <p className="text-red-600 text-sm mb-4 text-center">{errorMessage}</p>}
         {successMessage && <p className="text-green-600 text-sm mb-4 text-center">{successMessage}</p>}
-
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          {/* Seção 1: Identificação do Aluno */}
           <div className="md:col-span-2">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Identificação do Aluno</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="codigoAluno" className="block text-sm font-medium text-gray-700">Código do Aluno</label>
-                <input type="text" id="codigoAluno" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={codigoAluno} onChange={(e) => setCodigoAluno(e.target.value)} placeholder="Deixe sempre em branco!" disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="codigoINEP" className="block text-sm font-medium text-gray-700">Código INEP</label>
-                {/* ========================= INÍCIO DA CORREÇÃO LÓGICA ========================= */}
-                <input type="text" id="codigoINEP" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={codigoINEP} onChange={(e) => setCodigoINEP(e.target.value)} autoComplete="off" />
-                {/* ========================== FIM DA CORREÇÃO LÓGICA =========================== */}
-              </div>
-              <div className="col-span-full md:col-span-2">
-                <label htmlFor="codigoSistemaEstadual" className="block text-sm font-medium text-gray-700">Código da institução (quando houver)</label>
-                <input type="text" id="codigoSistemaEstadual" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={codigoSistemaEstadual} onChange={(e) => setCodigoSistemaEstadual(e.target.value)} autoComplete="off" />
-              </div>
-
-              {/* Upload de Foto */}
-              <div className="col-span-full md:col-span-2">
-                <label htmlFor="fotoUpload" className="block text-sm font-medium text-gray-700">Upload de Foto (máx. 2MB)</label>
-                <input
-                  type="file"
-                  id="fotoUpload"
-                  className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  accept="image/jpeg,image/jpg,image/png,image/gif"
-                  onChange={handlePhotoUpload}
-                />
-                {fotoURL && (
-                  <div className="mt-2">
-                    <img src={fotoURL} alt="Pré-visualização da Foto" className="max-h-32 max-w-32 object-cover rounded-md" />
-                    <p className="text-xs text-gray-500 mt-1">Foto selecionada para upload.</p>
-                  </div>
-                )}
-              </div>
+              <div className="col-span-full md:col-span-1"><label htmlFor="codigoAluno" className="block text-sm font-medium text-gray-700">Código do Aluno</label><input type="text" id="codigoAluno" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={codigoAluno} onChange={(e) => setCodigoAluno(e.target.value)} placeholder="Deixe sempre em branco!" disabled={!!selectedPessoaId} autoComplete="off" /></div>
+              <div className="col-span-full md:col-span-1"><label htmlFor="codigoINEP" className="block text-sm font-medium text-gray-700">Código INEP</label><input type="text" id="codigoINEP" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={codigoINEP} onChange={(e) => setCodigoINEP(e.target.value)} autoComplete="off" /></div>
+              <div className="col-span-full md:col-span-2"><label htmlFor="codigoSistemaEstadual" className="block text-sm font-medium text-gray-700">Código da institução (quando houver)</label><input type="text" id="codigoSistemaEstadual" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={codigoSistemaEstadual} onChange={(e) => setCodigoSistemaEstadual(e.target.value)} autoComplete="off" /></div>
+              <div className="col-span-full md:col-span-2"><label htmlFor="fotoUpload" className="block text-sm font-medium text-gray-700">Upload de Foto (máx. 2MB)</label><input type="file" id="fotoUpload" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" accept="image/jpeg,image/jpg,image/png,image/gif" onChange={handlePhotoUpload} />{fotoURL && (<div className="mt-2"><img src={fotoURL} alt="Pré-visualização da Foto" className="max-h-32 max-w-32 object-cover rounded-md" /><p className="text-xs text-gray-500 mt-1">Foto selecionada para upload.</p></div>)}</div>
             </div>
           </div>
-
-          {/* Busca Inicial de Pessoa / Dados Pessoais */}
           <div className="md:col-span-2 border p-4 rounded-lg bg-gray-50 mt-4">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Dados Pessoais</h3>
-            {/* Campo de Busca de Pessoa */}
             <div className="relative mb-4">
-                <label htmlFor="searchPessoa" className="block text-sm font-medium text-gray-700">
-                    Buscar Pessoa Cadastrada (Nome ou CPF)
-                    {!selectedPessoaId && <span className="text-red-500 ml-1">*</span>}
-                </label>
-                <input
-                    type="text"
-                    id="searchPessoa"
-                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
-                    value={searchPessoaTerm}
-                    onChange={(e) => {
-                        setSearchPessoaTerm(e.target.value);
-                        setSelectedPessoaId(null);
-                        setSelectedPessoaData(null);
-                        if (e.target.value.length < 3) setPessoaSuggestions([]);
-                    }}
-                    placeholder="Digite nome ou CPF (mín. 3 caracteres)"
-                    autoComplete="off"
-                />
-                {searchPessoaTerm.length >= 3 && pessoaSuggestions.length > 0 && (
-                    <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
-                        {pessoaSuggestions.map(pessoa => (
-                            <li
-                                key={pessoa.id}
-                                className="p-2 cursor-pointer hover:bg-gray-200 flex justify-between items-center"
-                                onClick={() => handleSelectPessoa(pessoa)}
-                            >
-                                <span>{pessoa.nomeCompleto}</span>
-                                <span className="text-xs text-gray-500">{pessoa.cpf ? formatCPF(pessoa.cpf) : ''}</span>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-                {searchPessoaTerm.length >= 3 && pessoaSuggestions.length === 0 && (
-                    <p className="text-sm text-gray-500 mt-1">Nenhuma pessoa encontrada. Preencha os campos abaixo para cadastrar uma nova pessoa.</p>
-                )}
+              <label htmlFor="searchPessoa" className="block text-sm font-medium text-gray-700">Buscar Pessoa Cadastrada (Nome ou CPF){!selectedPessoaId && <span className="text-red-500 ml-1">*</span>}</label>
+              <input type="text" id="searchPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={searchPessoaTerm} onChange={(e) => { setSearchPessoaTerm(e.target.value); setSelectedPessoaId(null); setSelectedPessoaData(null); if (e.target.value.length < 3) setPessoaSuggestions([]); }} placeholder="Digite nome ou CPF (mín. 3 caracteres)" autoComplete="off" />
+              {searchPessoaTerm.length >= 3 && pessoaSuggestions.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">{pessoaSuggestions.map(pessoa => (<li key={pessoa.id} className="p-2 cursor-pointer hover:bg-gray-200 flex justify-between items-center" onClick={() => handleSelectPessoa(pessoa)}><span>{pessoa.nomeCompleto}</span><span className="text-xs text-gray-500">{pessoa.cpf ? formatCPF(pessoa.cpf) : ''}</span></li>))}</ul>)}
+              {searchPessoaTerm.length >= 3 && pessoaSuggestions.length === 0 && (<p className="text-sm text-gray-500 mt-1">Nenhuma pessoa encontrada. Preencha os campos abaixo para cadastrar uma nova pessoa.</p>)}
             </div>
-
-            {/* Campos de Dados Pessoais (Editáveis se Nova Pessoa, Read-only/Pre-filled se Existente) */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="cpfPessoa" className="block text-sm font-medium text-gray-700">CPF <span className="text-red-500">*</span></label>
-                <input type="text" id="cpfPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.cpf || cpf} onChange={(e) => setCpf(e.target.value)} maxLength="14" required disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-3">
-                <label htmlFor="nomeCompletoPessoa" className="block text-sm font-medium text-gray-700">Nome completo <span className="text-red-500">*</span></label>
-                <input type="text" id="nomeCompletoPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.nomeCompleto || nomeCompleto} onChange={(e) => setNomeCompleto(e.target.value.toUpperCase())} required disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-2">
-                <label htmlFor="nomeSocialAfetivoPessoa" className="block text-sm font-medium text-gray-700">Nome social e/ou afetivo</label>
-                <input type="text" id="nomeSocialAfetivoPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.nomeSocialAfetivo || nomeSocialAfetivo} onChange={(e) => setNomeSocialAfetivo(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="sexoPessoa" className="block text-sm font-medium text-gray-700">Sexo <span className="text-red-500">*</span></label>
-                <select id="sexoPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.sexo || sexo} onChange={(e) => setSexo(e.target.value)} required disabled={!!selectedPessoaId} autoComplete="off">
-					{/*<option value="Nao Informado">Não Informado</option>*/} <option value="Masculino">Masculino</option> <option value="Feminino">Feminino</option> {/*<option value="Outro">Outro</option>*/}
-                </select>
-              </div>
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="estadoCivilPessoa" className="block text-sm font-medium text-gray-700">Estado civil <span className="text-red-500">*</span></label>
-                <select id="estadoCivilPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.estadoCivil || estadoCivil} onChange={(e) => setEstadoCivil(e.target.value)} required disabled={!!selectedPessoaId} autoComplete="off">
-                  <option value="Solteiro(a)">Solteiro(a)</option> <option value="Casado(a)">Casado(a)</option> <option value="Divorciado(a)">Divorciado(a)</option> <option value="Viúvo(a)">Viúvo(a)</option>
-                </select>
-              </div>
-              <div className="col-span-full md:col-span-2">
-                <label htmlFor="dataNascimentoPessoa" className="block text-sm font-medium text-gray-700">Data de nascimento <span className="text-red-500">*</span></label>
-                <input type="date" id="dataNascimentoPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.dataNascimento || dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} required disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-2">
-                <label htmlFor="nacionalidadePessoa" className="block text-sm font-medium text-gray-700">Nacionalidade <span className="text-red-500">*</span></label>
-                <input type="text" id="nacionalidadePessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.nacionalidade || nacionalidade} onChange={(e) => setNacionalidade(e.target.value.toUpperCase())} required disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="racaPessoa" className="block text-sm font-medium text-gray-700">Raça <span className="text-red-500">*</span></label>
-                <select id="racaPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.raca || raca} onChange={(e) => setRaca(e.target.value)} required disabled={!!selectedPessoaId} autoComplete="off">
-                  <option value="Nao Declarada">Não Declarada</option> <option value="Branca">Branca</option> <option value="Preta">Preta</option> <option value="Parda">Parda</option> <option value="Amarela">Amarela</option> <option value="Indígena">Indígena</option>
-                </select>
-              </div>
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="povoIndigenaPessoa" className="block text-sm font-medium text-gray-700">Povo Indígena</label>
-                <input type="text" id="povoIndigenaPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.povoIndigena || povoIndigena} onChange={(e) => setPovoIndigena(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-2">
-                <label htmlFor="religiaoPessoa" className="block text-sm font-medium text-gray-700">Religião</label>
-                <input type="text" id="religiaoPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.religiao || religiao} onChange={(e) => setReligiao(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-2">
-                <label htmlFor="naturalidadeCidadePessoa" className="block text-sm font-medium text-gray-700">Naturalidade (Cidade) <span className="text-red-500">*</span></label>
-                <input type="text" id="naturalidadeCidadePessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.naturalidadeCidade || naturalidadeCidade} onChange={(e) => setNaturalidadeCidade(e.target.value.toUpperCase())} required disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="naturalidadeEstadoPessoa" className="block text-sm font-medium text-gray-700">Naturalidade (UF) <span className="text-red-500">*</span></label>
-                <input type="text" id="naturalidadeEstadoPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.naturalidadeEstado || naturalidadeEstado} onChange={(e) => setNaturalidadeEstado(e.target.value.toUpperCase())} required disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="falecidoPessoa" className="block text-sm font-medium text-gray-700">Falecido?</label>
-                <select id="falecidoPessoa" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.falecido ? 'sim' : 'nao'} onChange={(e) => setFalecido(e.target.value)} disabled={!!selectedPessoaId} autoComplete="off">
-                  <option value="nao">Não</option> <option value="sim">Sim</option>
-                </select>
-              </div>
+                <div className="col-span-full md:col-span-1"><label className="block text-sm font-medium text-gray-700">CPF <span className="text-red-500">*</span></label><input type="text" className="mt-1 block w-full p-2 border rounded-md" value={cpf} onChange={(e) => setCpf(e.target.value)} maxLength="14" required disabled={!!selectedPessoaId}/></div>
+                <div className="col-span-full md:col-span-3"><label className="block text-sm font-medium text-gray-700">Nome completo <span className="text-red-500">*</span></label><input type="text" className="mt-1 block w-full p-2 border rounded-md uppercase" value={nomeCompleto} onChange={(e) => setNomeCompleto(e.target.value.toUpperCase())} required disabled={!!selectedPessoaId}/></div>
+                <div className="col-span-full md:col-span-2"><label className="block text-sm font-medium text-gray-700">Nome social e/ou afetivo</label><input type="text" className="mt-1 block w-full p-2 border rounded-md uppercase" value={nomeSocialAfetivo} onChange={(e) => setNomeSocialAfetivo(e.target.value.toUpperCase())} disabled={!!selectedPessoaId}/></div>
+                <div className="col-span-full md:col-span-1"><label className="block text-sm font-medium text-gray-700">Sexo <span className="text-red-500">*</span></label><select className="mt-1 block w-full p-2 border rounded-md" value={sexo} onChange={(e) => setSexo(e.target.value)} required disabled={!!selectedPessoaId}><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option></select></div>
+                <div className="col-span-full md:col-span-1"><label className="block text-sm font-medium text-gray-700">Estado civil <span className="text-red-500">*</span></label><select className="mt-1 block w-full p-2 border rounded-md" value={estadoCivil} onChange={(e) => setEstadoCivil(e.target.value)} required disabled={!!selectedPessoaId}><option value="Solteiro(a)">Solteiro(a)</option><option value="Casado(a)">Casado(a)</option><option value="Divorciado(a)">Divorciado(a)</option><option value="Viúvo(a)">Viúvo(a)</option></select></div>
+                <div className="col-span-full md:col-span-2"><label className="block text-sm font-medium text-gray-700">Data de nascimento <span className="text-red-500">*</span></label><input type="date" className="mt-1 block w-full p-2 border rounded-md" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} required disabled={!!selectedPessoaId}/></div>
+                <div className="col-span-full md:col-span-2"><label className="block text-sm font-medium text-gray-700">Nacionalidade <span className="text-red-500">*</span></label><input type="text" className="mt-1 block w-full p-2 border rounded-md uppercase" value={nacionalidade} onChange={(e) => setNacionalidade(e.target.value.toUpperCase())} required disabled={!!selectedPessoaId}/></div>
+                <div className="col-span-full md:col-span-1"><label className="block text-sm font-medium text-gray-700">Raça <span className="text-red-500">*</span></label><select className="mt-1 block w-full p-2 border rounded-md" value={raca} onChange={(e) => setRaca(e.target.value)} required disabled={!!selectedPessoaId}><option value="Nao Declarada">Não Declarada</option><option value="Branca">Branca</option><option value="Preta">Preta</option><option value="Parda">Parda</option><option value="Amarela">Amarela</option><option value="Indígena">Indígena</option></select></div>
+                <div className="col-span-full md:col-span-1"><label className="block text-sm font-medium text-gray-700">Povo Indígena</label><input type="text" className="mt-1 block w-full p-2 border rounded-md uppercase" value={povoIndigena} onChange={(e) => setPovoIndigena(e.target.value.toUpperCase())} disabled={!!selectedPessoaId}/></div>
+                <div className="col-span-full md:col-span-2"><label className="block text-sm font-medium text-gray-700">Religião</label><input type="text" className="mt-1 block w-full p-2 border rounded-md uppercase" value={religiao} onChange={(e) => setReligiao(e.target.value.toUpperCase())} disabled={!!selectedPessoaId}/></div>
+                <div className="col-span-full md:col-span-2"><label className="block text-sm font-medium text-gray-700">Naturalidade (Cidade) <span className="text-red-500">*</span></label><input type="text" className="mt-1 block w-full p-2 border rounded-md uppercase" value={naturalidadeCidade} onChange={(e) => setNaturalidadeCidade(e.target.value.toUpperCase())} required disabled={!!selectedPessoaId}/></div>
+                <div className="col-span-full md:col-span-1"><label className="block text-sm font-medium text-gray-700">Naturalidade (UF) <span className="text-red-500">*</span></label><input type="text" className="mt-1 block w-full p-2 border rounded-md uppercase" value={naturalidadeEstado} onChange={(e) => setNaturalidadeEstado(e.target.value.toUpperCase())} required disabled={!!selectedPessoaId}/></div>
+                <div className="col-span-full md:col-span-1"><label className="block text-sm font-medium text-gray-700">Falecido?</label><select className="mt-1 block w-full p-2 border rounded-md" value={falecido} onChange={(e) => setFalecido(e.target.value)} disabled={!!selectedPessoaId}><option value="nao">Não</option><option value="sim">Sim</option></select></div>
             </div>
           </div>
 
-          {/* 👨‍👩‍👧‍👦 Informações Familiares */}
-          <div className="md:col-span-2">
+         <div className="md:col-span-2">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">👨‍👩‍👧‍ Informações Familiares</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* Seção Mãe */}
-              <div className="col-span-full md:col-span-3">
-                <label htmlFor="pessoaMae" className="block text-sm font-medium text-gray-700">Pessoa Mãe (Nome Completo) <span className="text-red-500">*</span></label>
-                <input type="text" id="pessoaMae" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.pessoaMae || pessoaMae} onChange={(e) => setPessoaMae(e.target.value.toUpperCase())} required disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="telefoneMae" className="block text-sm font-medium text-gray-700">Telefone</label>
-                <input type="tel" id="telefoneMae" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.telefoneMae || formatTelefone(telefoneMae)} onChange={(e) => setTelefoneMae(e.target.value)} maxLength="15" disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-2">
-                <label htmlFor="escolaridadeMae" className="block text-sm font-medium text-gray-700">Escolaridade da Mãe</label>
-                <select id="escolaridadeMae" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.escolaridadeMae || escolaridadeMae} onChange={(e) => setEscolaridadeMae(e.target.value)} disabled={!!selectedPessoaId} autoComplete="off">
-                  {escolaridadeOptions.map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-span-full md:col-span-2">
-                <label htmlFor="profissaoMae" className="block text-sm font-medium text-gray-700">Profissão da Mãe</label>
-                <input type="text" id="profissaoMae" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.profissaoMae || profissaoMae} onChange={(e) => setProfissaoMae(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-
-              {/* Seção Pai */}
-              <div className="col-span-full md:col-span-3">
-                <label htmlFor="pessoaPai" className="block text-sm font-medium text-gray-700">Pessoa Pai (Nome Completo)</label>
-                <input type="text" id="pessoaPai" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.pessoaPai || pessoaPai} onChange={(e) => setPessoaPai(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="telefonePai" className="block text-sm font-medium text-gray-700">Telefone</label>
-                <input type="tel" id="telefonePai" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.telefonePai || formatTelefone(telefonePai)} onChange={(e) => setTelefonePai(e.target.value)} maxLength="15" disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
-              <div className="col-span-full md:col-span-2">
-                <label htmlFor="escolaridadePai" className="block text-sm font-medium text-gray-700">Escolaridade do Pai</label>
-                <select id="escolaridadePai" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={selectedPessoaData?.escolaridadePai || escolaridadePai} onChange={(e) => setEscolaridadePai(e.target.value)} disabled={!!selectedPessoaId} autoComplete="off">
-                  {escolaridadeOptions.map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-span-full md:col-span-2">
-                <label htmlFor="profissaoPai" className="block text-sm font-medium text-gray-700">Profissão do Pai</label>
-                <input type="text" id="profissaoPai" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={selectedPessoaData?.profissaoPai || profissaoPai} onChange={(e) => setProfissaoPai(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} autoComplete="off" />
-              </div>
+              <div className="col-span-full md:col-span-3"><label className="block text-sm font-medium">Pessoa Mãe (Nome Completo) <span className="text-red-500">*</span></label><input type="text" value={pessoaMae} onChange={(e) => setPessoaMae(e.target.value.toUpperCase())} required disabled={!!selectedPessoaId} className="mt-1 w-full p-2 border rounded"/></div>
+              <div className="col-span-full md:col-span-1"><label className="block text-sm font-medium">Telefone</label><input type="tel" value={telefoneMae} onChange={(e) => setTelefoneMae(e.target.value)} maxLength="15" disabled={!!selectedPessoaId} className="mt-1 w-full p-2 border rounded"/></div>
+              <div className="col-span-full md:col-span-2"><label className="block text-sm font-medium">Escolaridade da Mãe</label><select value={escolaridadeMae} onChange={(e) => setEscolaridadeMae(e.target.value)} disabled={!!selectedPessoaId} className="mt-1 w-full p-2 border rounded">{escolaridadeOptions.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+              <div className="col-span-full md:col-span-2"><label className="block text-sm font-medium">Profissão da Mãe</label><input type="text" value={profissaoMae} onChange={(e) => setProfissaoMae(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} className="mt-1 w-full p-2 border rounded"/></div>
+              <div className="col-span-full md:col-span-3"><label className="block text-sm font-medium">Pessoa Pai (Nome Completo)</label><input type="text" value={pessoaPai} onChange={(e) => setPessoaPai(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} className="mt-1 w-full p-2 border rounded"/></div>
+              <div className="col-span-full md:col-span-1"><label className="block text-sm font-medium">Telefone</label><input type="tel" value={telefonePai} onChange={(e) => setTelefonePai(e.target.value)} maxLength="15" disabled={!!selectedPessoaId} className="mt-1 w-full p-2 border rounded"/></div>
+              <div className="col-span-full md:col-span-2"><label className="block text-sm font-medium">Escolaridade do Pai</label><select value={escolaridadePai} onChange={(e) => setEscolaridadePai(e.target.value)} disabled={!!selectedPessoaId} className="mt-1 w-full p-2 border rounded">{escolaridadeOptions.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+              <div className="col-span-full md:col-span-2"><label className="block text-sm font-medium">Profissão do Pai</label><input type="text" value={profissaoPai} onChange={(e) => setProfissaoPai(e.target.value.toUpperCase())} disabled={!!selectedPessoaId} className="mt-1 w-full p-2 border rounded"/></div>
             </div>
           </div>
-
-         {/*🪪 Documentação*/}
+          
+          {/*🪪 Documentação*/}
           <div className="md:col-span-2">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">🪪 Documentação</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1269,66 +672,29 @@ function MatriculaAlunoPage() {
             </div>
           </div>
 
-          {/* NOVO: Seção de Dados da Matrícula Escolar */}
           <div className="md:col-span-2 border p-4 rounded-lg bg-gray-50 mt-4">
             <h3 className="text-lg font-semibold text-gray-700 mb-4">Dados da Matrícula Escolar</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Escola */}
-              <div className="col-span-full md:col-span-4">
-                <label htmlFor="matriculaEscola" className="block text-sm font-medium text-gray-700">Escola <span className="text-red-500">*</span></label>
-                <select id="matriculaEscola" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaEscolaId} onChange={(e) => setMatriculaEscolaId(e.target.value)} required autoComplete="off">
-                  <option value="">Selecione a Escola</option>
-                  {availableSchools.map(school => (
-                    <option key={school.id} value={school.id}>{school.nomeEscola}</option>
-                  ))}
-                </select>
-              </div>
-              {/* Nível de Ensino */}
-              <div className="col-span-full md:col-span-4">
-                <label htmlFor="matriculaNivelEnsino" className="block text-sm font-medium text-gray-700">Nível de Ensino <span className="text-red-500">*</span></label>
-                <select id="matriculaNivelEnsino" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaNivelEnsino} onChange={(e) => setMatriculaNivelEnsino(e.target.value)} required disabled={!matriculaEscolaId} autoComplete="off">
-                  <option value="">Selecione o Nível de Ensino</option>
-                  {availableNiveisEnsino.map((nivel, index) => (
-                    <option key={index} value={nivel}>{nivel}</option>
-                  ))}
-                </select>
-              </div>
-              {/* Série/Ano */}
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="matriculaAnoSerie" className="block text-sm font-medium text-gray-700">Série/Ano <span className="text-red-500">*</span></label>
-                <select id="matriculaAnoSerie" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaAnoSerie} onChange={(e) => setMatriculaAnoSerie(e.target.value)} required disabled={!matriculaNivelEnsino} autoComplete="off">
-                  <option value="">Selecione</option>
-                  {availableAnosSeries.map((ano, index) => (
-                    <option key={index} value={ano}>{ano}</option>
-                  ))}
-                </select>
-              </div>
-              {/* Turma */}
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="matriculaTurma" className="block text-sm font-medium text-gray-700">Turma <span className="text-red-500">*</span></label>
-                <select id="matriculaTurma" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaTurmaId} onChange={(e) => setMatriculaTurmaId(e.target.value)} required disabled={!matriculaAnoSerie} autoComplete="off">
-                  <option value="">Selecione</option>
-                  {availableTurmas.map(turma => (
-                    <option key={turma.id} value={turma.id}>{turma.nomeTurma}</option>
-                  ))}
-                </select>
-              </div>
-              {/* Data da Matrícula */}
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="dataMatricula" className="block text-sm font-medium text-gray-700">Data da Matrícula <span className="text-red-500">*</span></label>
-                <input type="date" id="dataMatricula" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={dataMatricula} onChange={(e) => setDataMatricula(e.target.value)} required autoComplete="off" />
-              </div>
-              {/* Matrícula de Dependência */}
-              <div className="col-span-full md:col-span-1">
-                <label htmlFor="matriculaDependencia" className="block text-sm font-medium text-gray-700">Dependência?</label>
-                <select id="matriculaDependencia" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={matriculaDependencia} onChange={(e) => setMatriculaDependencia(e.target.value)} autoComplete="off">
-                  <option value="nao">Não</option> <option value="sim">Sim</option>
-                </select>
-              </div>
+              <div className="col-span-full"><label className="block text-sm font-medium text-gray-700">Escola <span className="text-red-500">*</span></label><select className="mt-1 block w-full p-2 border rounded-md" value={matriculaEscolaId} onChange={(e) => setMatriculaEscolaId(e.target.value)} required><option value="">Selecione a Escola</option>{availableSchools.map(school=><option key={school.id} value={school.id}>{school.nomeEscola}</option>)}</select></div>
+              <div className="col-span-full"><label className="block text-sm font-medium text-gray-700">Nível de Ensino <span className="text-red-500">*</span></label><select className="mt-1 block w-full p-2 border rounded-md" value={matriculaNivelEnsino} onChange={(e) => setMatriculaNivelEnsino(e.target.value)} required disabled={!matriculaEscolaId}><option value="">Selecione o Nível</option>{availableNiveisEnsino.map(n=><option key={n} value={n}>{n}</option>)}</select></div>
+              <div className="col-span-full md:col-span-1"><label className="block text-sm font-medium text-gray-700">Série/Ano <span className="text-red-500">*</span></label><select className="mt-1 block w-full p-2 border rounded-md" value={matriculaAnoSerie} onChange={(e) => setMatriculaAnoSerie(e.target.value)} required disabled={!matriculaNivelEnsino}><option value="">Selecione</option>{availableAnosSeries.map(a=><option key={a} value={a}>{a}</option>)}</select></div>
+              <div className="col-span-full md:col-span-1"><label className="block text-sm font-medium text-gray-700">Turma <span className="text-red-500">*</span></label><select className="mt-1 block w-full p-2 border rounded-md" value={matriculaTurmaId} onChange={(e) => setMatriculaTurmaId(e.target.value)} required disabled={!matriculaAnoSerie}><option value="">Selecione</option>{availableTurmas.map(t=><option key={t.id} value={t.id}>{t.nomeTurma}</option>)}</select></div>
+              <div className="col-span-full md:col-span-1"><label className="block text-sm font-medium text-gray-700">Data da Matrícula <span className="text-red-500">*</span></label><input type="date" className="mt-1 block w-full p-2 border rounded-md" value={dataMatricula} onChange={(e) => setDataMatricula(e.target.value)} required/></div>
+              <div className="col-span-full md:col-span-1"><label className="block text-sm font-medium text-gray-700">Dependência?</label><select className="mt-1 block w-full p-2 border rounded-md" value={matriculaDependencia} onChange={(e) => setMatriculaDependencia(e.target.value)}><option value="nao">Não</option><option value="sim">Sim</option></select></div>
+
+              {/* NOVA ADIÇÃO: Campo condicional para componentes de dependência */}
+              {matriculaDependencia === 'sim' && (
+                <div className="col-span-full p-4 bg-yellow-50 border-l-4 border-yellow-400">
+                  <label htmlFor="componentesDependencia" className="block text-sm font-medium text-gray-700 mb-1">Componentes Curriculares em Dependência (máx. 3) *</label>
+                  <p className="text-xs text-gray-500 mb-2">Segure Ctrl (ou Cmd em Mac) para selecionar mais de um.</p>
+                  <select id="componentesDependencia" multiple={true} value={componentesDependencia} onChange={handleComponentesChange} className="block w-full p-2 border rounded-md h-32" required disabled={availableComponentesParaSerie.length === 0}>
+                    {availableComponentesParaSerie.length > 0 ? (availableComponentesParaSerie.map(comp => (<option key={comp.id} value={comp.nome}>{comp.nome}</option>))) : (<option disabled>Selecione uma Série/Ano para ver os componentes</option>)}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
-
-
+          
           {/* Seção 7: Documentação (Uploads) */}
           <div className="md:col-span-2">
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Documentação (Uploads)</h3>

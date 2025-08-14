@@ -4,7 +4,9 @@ import { auth } from '../firebase/config';
 import { useUser } from '../context/UserContext';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import Footer from '../components/Footer';
-import { FaHome, FaUsers, FaUserCircle, FaSignOutAlt, FaBars, FaTimes, FaSchool, FaBookOpen, FaGraduationCap, FaChalkboardTeacher, FaUserGraduate, FaSearch, FaCogs, FaCalendarAlt } from 'react-icons/fa';
+// ======================= INÍCIO DA CORREÇÃO =======================
+import { FaHome, FaUsers, FaUserCircle, FaSignOutAlt, FaBars, FaTimes, FaSchool, FaBookOpen, FaChartBar, FaCalendarAlt, FaCogs } from 'react-icons/fa'; // Adicionado FaChartBar
+// ======================== FIM DA CORREÇÃO =========================
 
 function DashboardPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -21,28 +23,12 @@ function DashboardPage() {
     navigate("/");
   };
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
-
-  const toggleSubmenu = (menuName) => {
-    setOpenSubmenu(prev => {
-        if (prev && prev.startsWith(menuName.split('/')[0])) {
-            if (prev === menuName) return null;
-            return menuName;
-        }
-        return menuName;
-    });
-  };
+  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const toggleSubmenu = (menuName) => setOpenSubmenu(prev => (prev === menuName ? null : menuName));
 
   useEffect(() => {
-    const timerId = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+    const timerId = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timerId);
   }, []);
 
@@ -52,18 +38,9 @@ function DashboardPage() {
         setIsMenuOpen(false);
       }
     }
-    const timer = setTimeout(() => {
-        if (isMenuOpen) {
-            document.addEventListener("mousedown", handleClickOutside);
-        }
-    }, 100);
-
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isMenuOpen, menuRef]);
-
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuRef]);
 
   useEffect(() => {
     if (!loading && !userData) {
@@ -99,27 +76,13 @@ function DashboardPage() {
     if (path.startsWith('/dashboard/calendario/horario')) return 'Horário de Aulas';
     return 'Dashboard';
   };
-
-
+  
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen text-gray-700">
-        <p className="text-gray-700">Carregando painel...</p>
-      </div>
-    );
+    return <div className="text-center p-6">Carregando painel...</div>;
   }
-
   if (!userData) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-red-100 text-red-700">
-          <p>Acesso Negado: Dados do usuário não disponíveis. Redirecionando...</p>
-        </div>
-      );
+    return <div className="text-center p-6 text-red-600">Acesso Negado.</div>;
   }
-
-  const userDisplay = userData 
-    ? `${userData.nomeCompleto || 'Usuário'} - ${userData.funcao ? userData.funcao.toUpperCase() : 'N/A'}`
-    : 'N/A';
 
   const formattedDate = currentTime.toLocaleDateString('pt-BR');
   const formattedTime = currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -130,7 +93,7 @@ function DashboardPage() {
         <div className="container mx-auto flex justify-between items-center relative">
           <div className="flex items-center gap-3">
             <button onClick={toggleSidebar} className="focus:outline-none md:hidden mr-3">
-              {sidebarOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
+              <FaBars size={24} />
             </button>
             <img src="/sigesc_log.png" alt="Logo SIGESC" className="h-8" />
             <div>
@@ -138,34 +101,22 @@ function DashboardPage() {
               <p className="text-xs text-blue-200">Sistema Integrado de Gestão Escolar</p>
             </div>
             <div className="ml-6 hidden md:block border-l border-blue-500 pl-6">
-                <span className="text-sm font-bold tracking-wider text-white">
-                    AVISO
-                </span>
-                <p className="text-xs text-blue-200">
-                    Hoje é {formattedDate}   {formattedTime}
-                </p>
+                <span className="text-sm font-bold tracking-wider">AVISO</span>
+                <p className="text-xs text-blue-200">Hoje é {formattedDate} {formattedTime}</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            
             <div className="text-right hidden md:block">
                 <p className="text-sm font-medium">{userData.funcao ? userData.funcao.toUpperCase() : 'N/A'}</p>
                 <p className="text-xs text-blue-200">{userData.nomeCompleto || 'Usuário'}</p>
             </div>
-            
-            <h2 className="text-lg font-bold md:hidden">{getPageTitle()}</h2>
-            
             <button onClick={toggleMenu} className="focus:outline-none ml-auto">
               <FaUserCircle size={24} />
             </button>
             {isMenuOpen && (
               <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50" ref={menuRef}>
-                <Link to="/dashboard/meu-perfil" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setIsMenuOpen(false)}>
-                  Meu Perfil
-                </Link>
-                <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                  Sair
-                </button>
+                <Link to="/dashboard/meu-perfil" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setIsMenuOpen(false)}>Meu Perfil</Link>
+                <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Sair</button>
               </div>
             )}
           </div>
@@ -174,19 +125,16 @@ function DashboardPage() {
 
       <div className="flex flex-1 overflow-hidden">
         <aside className={`w-64 bg-blue-700 text-white flex-shrink-0 p-4 fixed md:relative inset-y-0 left-0 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-200 ease-in-out z-30 pt-16 md:pt-4`}>
-          <button onClick={toggleSidebar} className="md:hidden absolute top-4 right-4 text-gray-400 hover:text-white focus:outline-none">
-            <FaTimes size={20} />
-          </button>
           <nav className="mt-4">
             <ul>
               <li className="mb-2">
-                <Link to="/dashboard" className={`flex items-center p-2 rounded hover:bg-blue-600 font-semibold ${location.pathname === '/dashboard' ? 'bg-blue-600' : ''}`}>
-                  <FaHome className="w-5 h-5 mr-2" />
-                  <span>Início</span>
+                <Link to="/dashboard" className="flex items-center p-2 rounded hover:bg-blue-600 font-semibold">
+                  <FaHome className="w-5 h-5 mr-2" /><span>Início</span>
                 </Link>
               </li>
-
-              <li className="mb-2">
+              
+              {/* Menus Administrativo, Calendário, Escola e Diário ... */}
+               <li className="mb-2">
                 <button onClick={() => toggleSubmenu('administrativo')} className={`w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center ${openSubmenu === 'administrativo' ? 'bg-blue-600' : ''}`}>
                   <div className="flex items-center">
                     <FaCogs className="w-5 h-5 mr-2" />
@@ -320,41 +268,55 @@ function DashboardPage() {
 			  {/*--- Início do Menu Diário ---*/}
               
 			  {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario' || userData.funcao.toLowerCase() === 'professor')) && (
-  <li className="mb-2">
-    <button onClick={() => toggleSubmenu('diario')} className={`w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center ${openSubmenu?.startsWith('diario') ? 'bg-blue-600' : ''}`}>
-      <div className="flex items-center">
-        <FaBookOpen className="w-5 h-5 mr-2" />
-        <span>Diário</span>
-      </div>
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 transform transition-transform ${openSubmenu?.startsWith('diario') ? 'rotate-90' : ''}`}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-      </svg>
-    </button>
-    {openSubmenu?.startsWith('diario') && (
-      <ul className="ml-4 mt-1 border-l-2 border-blue-500">
-        <li>
-          <Link to="/dashboard/diario/frequencia" className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">
-            Frequência
-          </Link>
-        </li>
-        <li>
-          <Link to="/dashboard/diario/conteudos" className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">
-            Conteúdos
-          </Link>
-        </li>
-        <li>
-          <Link to="/dashboard/diario/notas" className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">
-            Notas
-          </Link>
-        </li>
-      </ul>
-    )}
-  </li>
-)}
-
+                <li className="mb-2">
+                    <button onClick={() => toggleSubmenu('diario')} className={`w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center ${openSubmenu?.startsWith('diario') ? 'bg-blue-600' : ''}`}>
+                    <div className="flex items-center">
+                        <FaBookOpen className="w-5 h-5 mr-2" />
+                        <span>Diário</span>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 transform transition-transform ${openSubmenu?.startsWith('diario') ? 'rotate-90' : ''}`}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                    </button>
+                    {openSubmenu?.startsWith('diario') && (
+                    <ul className="ml-4 mt-1 border-l-2 border-blue-500">
+                        <li>
+                        <Link to="/dashboard/diario/frequencia" className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">
+                            Frequência
+                        </Link>
+                        </li>
+                    </ul>
+                    )}
+                </li>
+                )}
 			  
 			  {/*--- Fim do Menu Diário ---*/}
-			  
+
+              {/* Novo Menu de Relatórios */}
+            {/* ======================= INÍCIO DA MUDANÇA ======================= */}
+              {/* Novo Menu de Relatórios */}
+              {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
+                <li className="mb-2">
+                  <button onClick={() => toggleSubmenu('relatorios')} className={`w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center ${openSubmenu === 'relatorios' ? 'bg-blue-600' : ''}`}>
+                    <div className="flex items-center">
+                      <FaChartBar className="w-5 h-5 mr-2" />
+                      <span>Relatórios</span>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 transform transition-transform ${openSubmenu === 'relatorios' ? 'rotate-90' : ''}`}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </button>
+                  {openSubmenu === 'relatorios' && (
+                    <ul className="ml-4 mt-1 border-l-2 border-blue-500">
+                      <li>
+                        <Link to="/dashboard/relatorios" className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex items-center">
+                          Gerar Relatório
+                        </Link>
+                      </li>
+                    </ul>
+                  )}
+                </li>
+              )}
             </ul>
           </nav>
         </aside>
@@ -363,10 +325,7 @@ function DashboardPage() {
           <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
             <Outlet />
           </main>
-          
-          <div className="w-full">
-             <Footer />
-          </div>
+          <Footer />
         </div>
       </div>
     </div>

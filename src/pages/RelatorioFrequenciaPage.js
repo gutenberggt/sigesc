@@ -1,0 +1,354 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { db } from '../firebase/config';
+import { doc, getDoc, collection, query, where, getDocs, documentId } from 'firebase/firestore';
+import pdfMake from 'pdfmake/build/pdfmake';
+import pdfFonts from 'pdfmake/build/vfs_fonts';
+pdfMake.vfs = pdfFonts.vfs;
+
+let brasaoCache = null;
+const CACHE_VALIDITY = 7 * 24 * 60 * 60 * 1000;
+
+async function getBase64FromUrlCached(url) {
+  if (brasaoCache) return brasaoCache;
+  const storedData = localStorage.getItem("brasaoFlorestaCache");
+  if (storedData) {
+    try {
+      const parsed = JSON.parse(storedData);
+      if (parsed.base64 && parsed.timestamp && (Date.now() - parsed.timestamp) < CACHE_VALIDITY) {
+        brasaoCache = parsed.base64;
+        return parsed.base64;
+      }
+    } catch {}
+  }
+  const res = await fetch(url, { cache: "no-store" });
+  const blob = await res.blob();
+  const dataUrl = await new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+  brasaoCache = dataUrl;
+  localStorage.setItem("brasaoFlorestaCache", JSON.stringify({
+    base64: dataUrl,
+    timestamp: Date.now()
+  }));
+  return dataUrl;
+}
+
+function RelatorioFrequenciaPage() {
+  const { schoolId, turmaId, year, period, componente } = useParams();
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const generateReport = async () => {
+      try {
+        const brasaoFlorestaBase64 = await getBase64FromUrlCached(
+          "https://sigesc-omega.vercel.app/brasao_floresta.png"
+        );
+
+        const [
+          schoolDoc,
+          turmaDoc,
+          matriculasSnap,
+          eventosSnap,
+          horarioSnap,
+          periodDoc,
+          servidoresSnap
+        ] = await Promise.all([
+          getDoc(doc(db, 'schools', schoolId)),
+          getDoc(doc(db, 'turmas', turmaId)),
+          getDocs(query(collection(db, 'matriculas'),
+            where('turmaId', '==', turmaId),
+            where('anoLetivo', '==', year.toString())
+          )),
+          getDocs(query(collection(db, 'eventos'),
+            where('anoLetivo', '==', year.toString())
+          )),
+          getDoc(doc(db, 'horarios', turmaId)),
+          /^\d+$/.test(period) ? null : getDoc(doc(db, 'bimestres', period)),
+          getDocs(collection(db, 'servidores'))
+        ]);
+
+        if (!schoolDoc.exists() || !turmaDoc.exists()) {
+          throw new Error("Escola ou Turma não encontrada.");
+        }
+
+        const schoolData = schoolDoc.data();
+        const turmaData = { id: turmaDoc.id, ...turmaDoc.data() };
+
+        // Encontrar professor(a)
+        let professorNome = '';
+        servidoresSnap.forEach(doc => {
+          const servidor = doc.data();
+          if (!Array.isArray(servidor.alocacoes)) return;
+          const alocacao = servidor.alocacoes.find(a =>
+            a.anoLetivo === year.toString() &&
+            a.turmaId === turmaId &&
+            a.ativo === true &&
+            a.funcoes?.some(f =>
+              componente === 'DIARIO' || f.componentesCurriculares?.includes(componente)
+            )
+          );
+          if (alocacao) {
+            professorNome = servidor.nomeCompleto || '';
+          }
+        });
+
+        // Período
+        let dataInicio, dataFim, periodoLabel;
+        if (/^\d+$/.test(period)) {
+          const month = parseInt(period, 10);
+          dataInicio = new Date(year, month - 1, 1);
+          dataFim = new Date(year, month, 0);
+          const monthName = dataInicio.toLocaleString('pt-BR', { month: 'long' });
+          periodoLabel = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+        } else {
+          if (!periodDoc.exists()) throw new Error("Bimestre não encontrado.");
+          const bimestreData = periodDoc.data();
+          const [sy, sm, sd] = bimestreData.dataInicio.split('-').map(Number);
+          const [ey, em, ed] = bimestreData.dataFim.split('-').map(Number);
+          dataInicio = new Date(sy, sm - 1, sd);
+          dataFim = new Date(ey, em - 1, ed);
+          periodoLabel = bimestreData.nome;
+        }
+
+        // Feriados
+        const feriados = new Set();
+        eventosSnap.forEach(d => {
+          const evento = d.data();
+          if (evento.tipo?.toUpperCase().includes('FERIADO')) {
+            feriados.add(evento.data);
+          }
+        });
+
+        // Horário
+        const horarioData = horarioSnap.exists() ? horarioSnap.data().horario || {} : {};
+
+        // Dias letivos
+        const diasLetivos = [];
+        for (let d = new Date(dataInicio); d <= dataFim; d.setDate(d.getDate() + 1)) {
+          const dataFormatada = d.toISOString().split('T')[0];
+          if (feriados.has(dataFormatada)) continue;
+          const diaSemana = d.getDay();
+          if (diaSemana === 0 || diaSemana === 6) continue;
+          const weekDayName = ["domingo","segunda","terca","quarta","quinta","sexta","sabado"][diaSemana];
+          const aulasDia = horarioData[weekDayName] || [];
+          const aulasFiltradas = aulasDia
+            .map((aula, idx) => ({ id: `aula${idx+1}`, nome: aula }))
+            .filter(a => a.nome)
+            .filter(a => componente === 'DIARIO' || a.nome.startsWith(componente));
+          if (aulasFiltradas.length > 0) {
+            diasLetivos.push({ data: dataFormatada, aulas: aulasFiltradas });
+          }
+        }
+
+        // Alunos e frequências
+        const studentIds = matriculasSnap.docs.map(d => d.data().pessoaId);
+        const [alunosSnap, frequenciaSnap] = await Promise.all([
+          studentIds.length > 0
+            ? getDocs(query(collection(db, 'pessoas'), where(documentId(), 'in', studentIds)))
+            : Promise.resolve({ docs: [] }),
+          getDocs(query(collection(db, 'frequencias'), where('turmaId', '==', turmaId)))
+        ]);
+
+        const alunosDaTurma = alunosSnap.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .sort((a, b) => a.nomeCompleto.localeCompare(b.nomeCompleto));
+
+        const frequenciaData = {};
+        frequenciaSnap.forEach(doc => {
+          const f = doc.data();
+          if (!frequenciaData[f.alunoId]) frequenciaData[f.alunoId] = {};
+          if (!frequenciaData[f.alunoId][f.data]) frequenciaData[f.alunoId][f.data] = {};
+          frequenciaData[f.alunoId][f.data][f.aulaId] = f.status;
+        });
+
+        // Cabeçalho
+        const cabecalho = {
+          table: {
+            widths: [60, '*', '*'],
+            body: [
+              [
+                { image: brasaoFlorestaBase64, width: 40, rowSpan: 2 },
+                {
+                  stack: [
+                    { text: 'PREFEITURA MUNICIPAL DE FLORESTA DO ARAGUAIA', style: 'subheader', alignment: 'left' },
+                    { text: 'SECRETARIA MUNICIPAL DE EDUCAÇÃO', style: 'subheader', alignment: 'left' },
+                    {
+                      table: { widths: ['70%','30%'], body: [[
+                        { text: `ESCOLA: ${schoolData.nomeEscola?.toUpperCase() || ''}`, style: 'infoText' },
+                        { text: `ANO LETIVO: ${year}`, style: 'infoText' }
+                      ]] },
+                      layout: 'noBorders', margin: [0,4,0,0]
+                    },
+                    {
+                      table: { widths: ['100%'], body: [[
+                        { text: `COMPONENTE: ${componente==='DIARIO' ? 'GERAL' : (componente||'').toUpperCase()}`, style: 'infoText' }
+                      ]] },
+                      layout: 'noBorders', margin: [0,2,0,0]
+                    }
+                  ]
+                },
+                {
+                  stack: [
+                    { text: 'REGISTRO DE FREQUÊNCIA', style: 'header', alignment: 'right' },
+                    { text: 'Legenda: P - Presente, F - Falta, J - Falta Justificada', fontSize: 9, alignment: 'right' },
+                    {
+                      table: { widths: ['50%','50%'], body: [[
+                        { text: `TURMA: ${turmaData.nomeTurma || ''}`, style: 'infoText' },
+                        { text: `PERÍODO: ${periodoLabel?.toUpperCase() || ''}`, style: 'infoText' }
+                      ]] },
+                      layout: 'noBorders', margin: [0,4,0,0]
+                    },
+                    {
+                      table: { widths: ['100%'], body: [[
+                        { text: `PROFESSOR(A): ${professorNome || ''}`, style: 'infoText' }
+                      ]] },
+                      layout: 'noBorders', margin: [0,2,0,0]
+                    }
+                  ]
+                }
+              ],
+              [{}, {}, {}]
+            ]
+          },
+          layout: 'noBorders',
+          margin: [0,0,0,1]
+        };
+
+        const nomeColWidth = 180;
+        const diaColWidth = 11;
+        const maxDiasPorTabela = 40;
+
+        // Pré-calcular totais
+        const totaisAlunos = alunosDaTurma.map(aluno => {
+          let faltas = 0;
+          let totalAulas = 0;
+          diasLetivos.forEach(dia => {
+            if (!dia.data) return;
+            dia.aulas.forEach(aula => {
+              const status = frequenciaData[aluno.id]?.[dia.data]?.[aula.id] || 'P';
+              totalAulas++;
+              if (status === 'F') faltas++;
+            });
+          });
+          const freqPercent = totalAulas > 0
+            ? (((totalAulas - faltas) / totalAulas) * 100).toFixed(1) + '%'
+            : '';
+          return { id: aluno.id, faltas, freqPercent };
+        });
+
+        function criarTabelaFrequencia(diasSubset, incluirTotais) {
+          const headerRow = [
+            { text: 'Nº', style: 'tableHeader' },
+            { text: 'NOME', style: 'tableHeader', alignment: 'left', width: nomeColWidth },
+            ...diasSubset.map(d => {
+              if (!d.data) return { text: '', style: 'tableHeader' };
+              const [, m, day] = d.data.split('-');
+              return { text: `${day}\n${m}`, style: 'tableHeader', alignment: 'center' };
+            })
+          ];
+          if (incluirTotais) {
+            headerRow.push({ text: 'FALTAS', style: 'tableHeader', alignment: 'center' });
+            headerRow.push({ text: 'FREQ.', style: 'tableHeader', alignment: 'center' });
+          }
+          const body = [headerRow];
+          for (let i = 0; i < alunosDaTurma.length; i++) {
+            const aluno = alunosDaTurma[i];
+            const totais = totaisAlunos.find(t => t.id === aluno.id);
+            const row = [
+              (i + 1).toString(),
+              { text: aluno.nomeCompleto.padEnd(40, ' '), alignment: 'left', noWrap: true, width: nomeColWidth }
+            ];
+            for (let j = 0; j < diasSubset.length; j++) {
+              const dia = diasSubset[j];
+              if (!dia.data) {
+                row.push('');
+                continue;
+              }
+              const presencas = dia.aulas.map(aula => {
+                const status = frequenciaData[aluno.id]?.[dia.data]?.[aula.id] || 'P';
+                return status;
+              }).join('');
+              row.push({ text: presencas, alignment: 'center' });
+            }
+            if (incluirTotais) {
+              row.push({ text: totais.faltas.toString(), bold: true, alignment: 'center' });
+              row.push({ text: totais.freqPercent, alignment: 'center' });
+            }
+            body.push(row);
+          }
+          const widths = ['auto', nomeColWidth, ...Array(diasSubset.length).fill(diaColWidth)];
+          if (incluirTotais) widths.push('auto', 'auto');
+          return {
+            style: 'tableExample',
+            table: { headerRows: 1, widths, body },
+            layout: {
+              paddingLeft: (i) => (i >= 2 && i < (diasSubset.length + 2)) ? 1 : 4,
+              paddingRight: (i) => (i >= 2 && i < (diasSubset.length + 2)) ? 1 : 4,
+              paddingTop: () => 1,
+              paddingBottom: () => 1,
+              hLineWidth: () => 0.5,
+              vLineWidth: () => 0.5
+            },
+            pageBreak: 'after'
+          };
+        }
+
+        const tabelasFrequencia = [];
+        for (let i = 0; i < diasLetivos.length; i += maxDiasPorTabela) {
+          const subset = diasLetivos.slice(i, i + maxDiasPorTabela);
+          const incluirTotais = (i + maxDiasPorTabela) >= diasLetivos.length;
+          tabelasFrequencia.push(criarTabelaFrequencia(subset, incluirTotais));
+        }
+        if (tabelasFrequencia.length > 0) {
+          tabelasFrequencia[tabelasFrequencia.length - 1].pageBreak = undefined;
+        }
+
+        const docDefinition = {
+          pageOrientation: 'landscape',
+          pageMargins: [40, 40, 40, 40],
+          footer: (currentPage, pageCount) => ({
+            text: `Página ${currentPage} de ${pageCount}`,
+            alignment: 'center',
+            style: 'footer'
+          }),
+          content: [cabecalho, ...tabelasFrequencia],
+          styles: {
+            header: { fontSize: 16, bold: true },
+            subheader: { fontSize: 11 },
+            infoText: { bold: true, fontSize: 9 },
+            tableExample: { margin: [0, 5, 0, 15], fontSize: 8, alignment: 'center' },
+            tableHeader: { bold: true, fontSize: 7, color: 'black' },
+            footer: { fontSize: 8 }
+          }
+        };
+
+        pdfMake.createPdf(docDefinition).download(`relatorio_frequencia_${turmaData.nomeTurma}.pdf`);
+        setIsLoading(false);
+        setTimeout(() => window.close(), 5000);
+
+      } catch (err) {
+        console.error("Erro ao gerar relatório:", err);
+        setError(err.message);
+        setIsLoading(false);
+      }
+    };
+    generateReport();
+  }, [schoolId, turmaId, year, period, componente, navigate]);
+
+  if (isLoading) return <div className="p-6 text-center">Gerando relatório... Por favor, aguarde.</div>;
+  if (error) return <div className="p-6 text-center text-red-600"><strong>Erro ao gerar relatório:</strong> {error}</div>;
+
+  return (
+    <div className="p-6 text-center text-green-600">
+      Seu relatório foi gerado. O download deve começar em breve. <br />
+      <span className="text-sm text-gray-500">Esta aba será fechada em 5 segundos.</span>
+    </div>
+  );
+}
+
+export default RelatorioFrequenciaPage;

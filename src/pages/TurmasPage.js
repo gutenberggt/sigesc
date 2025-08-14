@@ -4,9 +4,9 @@ import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, g
 import { useUser } from '../context/UserContext';
 import { useNavigate, useParams } from 'react-router-dom';
 
-// Importar os dados de níveis de ensino e séries/anos/etapas (ainda necessários para mapeamento de séries)
-import { niveisDeEnsinoList } from './NiveisDeEnsinoPage';
-import { seriesAnosEtapasData } from './SeriesAnosEtapasPage';
+// ======================= INÍCIO DA CORREÇÃO =======================
+import { niveisDeEnsinoList, seriesAnosEtapasData } from '../data/ensinoConstants';
+// ======================== FIM DA CORREÇÃO =========================
 import { turmaModel } from '../firebase/dataModels';
 
 function TurmasPage() {
@@ -19,11 +19,10 @@ function TurmasPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const [schoolName, setSchoolName] = useState('');
-  // --- NOVOS ESTADOS PARA NÍVEIS E ANOS/SÉRIES DA ESCOLA ---
-  const [schoolNiveisEnsino, setSchoolNiveisEnsino] = useState([]); // Níveis da escola específica
-  const [schoolAnosSeries, setSchoolAnosSeries] = useState([]); // Anos/Séries da escola específica
+  const [schoolNiveisEnsino, setSchoolNiveisEnsino] = useState([]);
+  const [schoolAnosSeries, setSchoolAnosSeries] = useState([]);
 
-  // --- Estados do Formulário de Turma ---
+  // Estados do Formulário de Turma
   const [nomeTurma, setNomeTurma] = useState('');
   const [nivelEnsino, setNivelEnsino] = useState('');
   const [anoSerie, setAnoSerie] = useState('');
@@ -33,26 +32,16 @@ function TurmasPage() {
   const [limiteVagas, setLimiteVagas] = useState('');
   const [salaAula, setSalaAula] = useState('');
 
-  const [availableAnosSeries, setAvailableAnosSeries] = useState([]); // Para opções dinâmicas de ano/série (agora filtradas duplamente)
+  const [availableAnosSeries, setAvailableAnosSeries] = useState([]);
 
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Efeito para atualizar anos/séries disponíveis com base no nível de ensino selecionado E nos anos/séries da escola
   useEffect(() => {
     const newAvailableAnosSeries = new Set();
     if (nivelEnsino) {
-      const mappedNivel = {
-        "Educação Infantil": "Educação Infantil",
-        "Ensino Fundamental - Anos Iniciais": "Ensino Fundamental - Anos Iniciais",
-        "Ensino Fundamental - Anos Finais": "Ensino Fundamental - Anos Finais",
-        "Educação de Jovens e Adultos - EJA - Anos Iniciais": "Educação de Jovens e Adultos - EJA",
-        "Educação de Jovens e Adultos - EJA - Anos Finais": "Educação de Jovens e Adultos - EJA",
-      }[nivelEnsino] || nivelEnsino;
-
-      if (seriesAnosEtapasData[mappedNivel]) {
-        seriesAnosEtapasData[mappedNivel].forEach(item => {
-          // AQUI: Filtra pelos anos/séries que a escola ATENDE
+      if (seriesAnosEtapasData[nivelEnsino]) {
+        seriesAnosEtapasData[nivelEnsino].forEach(item => {
           if (schoolAnosSeries.includes(item)) {
               newAvailableAnosSeries.add(item);
           }
@@ -63,10 +52,9 @@ function TurmasPage() {
     if (anoSerie && !Array.from(newAvailableAnosSeries).includes(anoSerie)) {
       setAnoSerie('');
     }
-  }, [nivelEnsino, anoSerie, schoolAnosSeries]); // Adicionado schoolAnosSeries como dependência
+  }, [nivelEnsino, anoSerie, schoolAnosSeries]);
 
 
-  // Limpa o formulário (mantido)
   const resetForm = () => {
     setNomeTurma('');
     setNivelEnsino('');
@@ -81,22 +69,18 @@ function TurmasPage() {
     setEditingTurma(null);
   };
 
-  // Filtra turmas para a busca (mantido)
   const filteredTurmas = turmas.filter(turma =>
     (turma.nomeTurma && turma.nomeTurma.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (turma.anoSerie && turma.anoSerie.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (turma.nivelEnsino && turma.nivelEnsino.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Efeito para carregar turmas existentes da escola, o nome da escola E os níveis/anos da escola
   useEffect(() => {
     if (!loading && schoolId) {
-      // Verifica permissões (mantido)
       if (!userData || !(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario'))) {
         navigate('/dashboard');
         return;
       }
-      // Se for secretário, verifica associação com a escola (mantido)
       if (userData.funcao.toLowerCase() === 'secretario') {
          const userSchools = userData.escolasIds || (userData.escolaId ? [userData.escolaId] : []);
          if (!userSchools.includes(schoolId)) {
@@ -108,13 +92,12 @@ function TurmasPage() {
 
       const fetchData = async () => {
         try {
-          // 1. Buscar o nome da escola E seus níveis/anos/séries ofertados
           const schoolDocRef = doc(db, 'schools', schoolId);
           const schoolDocSnap = await getDoc(schoolDocRef);
           if (schoolDocSnap.exists()) {
             setSchoolName(schoolDocSnap.data().nomeEscola);
-            setSchoolNiveisEnsino(schoolDocSnap.data().niveisEnsino || []); // Carrega os níveis da escola
-            setSchoolAnosSeries(schoolDocSnap.data().anosSeriesAtendidas || []); // Carrega os anos/séries da escola
+            setSchoolNiveisEnsino(schoolDocSnap.data().niveisEnsino || []);
+            setSchoolAnosSeries(schoolDocSnap.data().anosSeriesAtendidas || []);
           } else {
             setErrorMessage("Erro: Escola não encontrada.");
             setSchoolName('Escola Desconhecida');
@@ -122,7 +105,6 @@ function TurmasPage() {
             setSchoolAnosSeries([]);
           }
 
-          // 2. Buscar as turmas vinculadas ao schoolId (mantido)
           const turmasColRef = collection(db, 'turmas');
           const q = query(turmasColRef, where('schoolId', '==', schoolId));
           const turmaSnapshot = await getDocs(q);
@@ -140,13 +122,11 @@ function TurmasPage() {
     }
   }, [loading, userData, navigate, schoolId]);
 
-  // Função para lidar com o cadastro/edição de turma (mantido)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
 
-    // Validações básicas (mantido)
     if (!nomeTurma || !nivelEnsino || !anoSerie || !turno || !anoLetivo) {
       setErrorMessage('Todos os campos obrigatórios devem ser preenchidos.');
       return;
@@ -156,12 +136,11 @@ function TurmasPage() {
       return;
     }
 
-    // Cria o objeto de dados da turma (mantido)
     const turmaData = {
       ...turmaModel,
       nomeTurma: nomeTurma.toUpperCase(),
-      nivelEnsino: nivelEnsino.toUpperCase(),
-      anoSerie: anoSerie.toUpperCase(),
+      nivelEnsino: nivelEnsino, // Mantém o case original do constant
+      anoSerie: anoSerie, // Mantém o case original do constant
       turno,
       anoLetivo,
       professoresIds: professoresIds || [],
@@ -172,7 +151,6 @@ function TurmasPage() {
 
     try {
       if (editingTurma) {
-        // MODO EDIÇÃO (mantido)
         const turmaDocRef = doc(db, 'turmas', editingTurma.id);
         await updateDoc(turmaDocRef, {
           ...turmaData,
@@ -181,22 +159,14 @@ function TurmasPage() {
         setSuccessMessage('Turma atualizada com sucesso!');
         setTurmas(turmas.map(t => t.id === editingTurma.id ? { ...t, ...turmaData } : t));
       } else {
-        // MODO CADASTRO DE NOVA TURMA (mantido)
         const newTurmaData = {
           ...turmaData,
           dataCriacao: new Date(),
           ultimaAtualizacao: new Date(),
         };
-        await addDoc(collection(db, 'turmas'), newTurmaData);
+        const docRef = await addDoc(collection(db, 'turmas'), newTurmaData);
         setSuccessMessage('Turma cadastrada com sucesso!');
-        const turmasColRef = collection(db, 'turmas');
-        const q = query(turmasColRef, where('schoolId', '==', schoolId));
-        const turmaSnapshot = await getDocs(q);
-        const updatedTurmaList = turmaSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setTurmas(updatedTurmaList);
+        setTurmas([...turmas, { id: docRef.id, ...newTurmaData }]);
       }
       resetForm();
     } catch (error) {
@@ -205,12 +175,11 @@ function TurmasPage() {
     }
   };
 
-  // Funções para a tabela: handleEdit (mantido)
   const handleEdit = (turmaToEdit) => {
     setEditingTurma(turmaToEdit);
     setNomeTurma(turmaToEdit.nomeTurma || '');
-    setNivelEnsino(turmaToEdit.nivelEnsino.toUpperCase() || '');
-    setAnoSerie(turmaToEdit.anoSerie.toUpperCase() || '');
+    setNivelEnsino(turmaToEdit.nivelEnsino || '');
+    setAnoSerie(turmaToEdit.anoSerie || '');
     setTurno(turmaToEdit.turno || 'Manhã');
     setAnoLetivo(turmaToEdit.anoLetivo || new Date().getFullYear().toString());
     setProfessoresIds(turmaToEdit.professoresIds || []);
@@ -220,7 +189,6 @@ function TurmasPage() {
     setSuccessMessage('');
   };
 
-  // Função handleDelete (mantido)
   const handleDelete = async (turmaId) => {
     if (window.confirm('Tem certeza que deseja excluir esta turma? Esta ação não pode ser desfeita!')) {
       try {
@@ -234,70 +202,45 @@ function TurmasPage() {
     }
   };
 
-  // Verificação de permissão (mantido)
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen text-gray-700">
-        Carregando permissões...
+        Carregando...
       </div>
     );
   }
-
-  if (!userData || !(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario'))) {
-    return (
-      <div className="flex justify-center items-center h-screen text-red-600 font-bold">
-        Acesso Negado: Você não tem permissão para acessar esta página.
-      </div>
-    );
-  }
-
-  if (userData.funcao.toLowerCase() === 'secretario') {
-    const userSchools = userData.escolasIds || (userData.escolaId ? [userData.escolaId] : []);
-    if (!userSchools.includes(schoolId)) {
-        return (
-            <div className="flex justify-center items-center h-screen text-red-600 font-bold">
-                Acesso Negado: Você não está associado à escola selecionada.
-            </div>
-        );
-    }
-  }
-
 
   return (
     <div className="flex-grow p-6">
       <div className="bg-white p-8 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">
-          {editingTurma ? 'EDITAR TURMA' : 'CADASTRAR NOVA TURMA'} {schoolName && `NA ${schoolName}`}
+          {editingTurma ? 'EDITAR TURMA' : 'CADASTRAR NOVA TURMA'} {schoolName && `NA ESCOLA ${schoolName.toUpperCase()}`}
         </h2>
 
         {errorMessage && <p className="text-red-600 text-sm mb-4 text-center">{errorMessage}</p>}
         {successMessage && <p className="text-green-600 text-sm mb-4 text-center">{successMessage}</p>}
 
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Nome da Turma (mantido) */}
           <div>
             <label htmlFor="nomeTurma" className="block text-sm font-medium text-gray-700">Nome da Turma <span className="text-red-500">*</span></label>
             <input type="text" id="nomeTurma" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={nomeTurma} onChange={(e) => setNomeTurma(e.target.value.toUpperCase())} required autoComplete="off" />
           </div>
 
-          {/* Ano Letivo (mantido) */}
           <div>
             <label htmlFor="anoLetivo" className="block text-sm font-medium text-gray-700">Ano Letivo <span className="text-red-500">*</span></label>
             <input type="text" id="anoLetivo" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={anoLetivo} onChange={(e) => setAnoLetivo(e.target.value)} required autoComplete="off" />
           </div>
 
-          {/* Nível de Ensino - AGORA FILTRADO PELOS NÍVEIS DA ESCOLA */}
           <div>
             <label htmlFor="nivelEnsino" className="block text-sm font-medium text-gray-700">Nível de Ensino <span className="text-red-500">*</span></label>
             <select id="nivelEnsino" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={nivelEnsino} onChange={(e) => setNivelEnsino(e.target.value)} required autoComplete="off">
               <option value="">Selecione um Nível</option>
-              {schoolNiveisEnsino.map((nivel, index) => ( // Usando schoolNiveisEnsino
+              {schoolNiveisEnsino.map((nivel, index) => (
                 <option key={index} value={nivel}>{nivel}</option>
               ))}
             </select>
           </div>
 
-          {/* Ano/Série/Etapa - AGORA FILTRADO PELOS ANOS/SÉRIES DA ESCOLA E NÍVEL SELECIONADO */}
           <div>
             <label htmlFor="anoSerie" className="block text-sm font-medium text-gray-700">Ano/Série/Etapa <span className="text-red-500">*</span></label>
             <select id="anoSerie" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={anoSerie} onChange={(e) => setAnoSerie(e.target.value)} required disabled={!nivelEnsino} autoComplete="off">
@@ -312,7 +255,6 @@ function TurmasPage() {
             </select>
           </div>
 
-          {/* Turno (mantido) */}
           <div>
             <label htmlFor="turno" className="block text-sm font-medium text-gray-700">Turno <span className="text-red-500">*</span></label>
             <select id="turno" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={turno} onChange={(e) => setTurno(e.target.value)} required autoComplete="off">
@@ -323,19 +265,16 @@ function TurmasPage() {
             </select>
           </div>
 
-          {/* Limite de Vagas (Opcional) (mantido) */}
           <div>
             <label htmlFor="limiteVagas" className="block text-sm font-medium text-gray-700">Limite de Vagas</label>
             <input type="number" id="limiteVagas" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={limiteVagas} onChange={(e) => setLimiteVagas(e.target.value)} min="1" autoComplete="off" />
           </div>
 
-          {/* Sala de Aula (Opcional) (mantido) */}
           <div className="md:col-span-2">
             <label htmlFor="salaAula" className="block text-sm font-medium text-gray-700">Sala de Aula</label>
             <input type="text" id="salaAula" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={salaAula} onChange={(e) => setSalaAula(e.target.value.toUpperCase())} autoComplete="off" />
           </div>
 
-          {/* Botões de Ação (mantido) */}
           <div className="md:col-span-2 flex justify-end space-x-3 mt-4">
             {editingTurma && (
               <button
@@ -357,12 +296,8 @@ function TurmasPage() {
 
         <hr className="my-8" />
 
-        {/* Tabela de Turmas Existentes (mantido) */}
         <h3 className="text-xl font-bold mb-4 text-gray-800 text-center">Lista de Turmas</h3>
-        {filteredTurmas.length === 0 ? (
-          <p className="text-center text-gray-600">Nenhuma turma cadastrada ou encontrada para esta escola.</p>
-        ) : (
-          <div className="overflow-x-auto">
+        <div className="overflow-x-auto">
             <table className="min-w-full bg-white border border-gray-300 rounded-md">
               <thead>
                 <tr className="bg-gray-200 text-gray-700 uppercase text-sm leading-normal">
@@ -396,8 +331,7 @@ function TurmasPage() {
                 ))}
               </tbody>
             </table>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

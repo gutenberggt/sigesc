@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { collection, getDocs, query, where, documentId } from 'firebase/firestore';
-// ======================= INÍCIO DA ALTERAÇÃO =======================
 import { Link, useNavigate } from 'react-router-dom';
-// ======================== FIM DA ALTERAÇÃO =========================
-import { niveisDeEnsinoList } from './NiveisDeEnsinoPage';
-import { seriesAnosEtapasData } from './SeriesAnosEtapasPage';
+
+// ======================= INÍCIO DA CORREÇÃO =======================
+// Importando os dados do arquivo centralizado
+import { niveisDeEnsinoList, seriesAnosEtapasData } from '../data/ensinoConstants';
+// ======================== FIM DA CORREÇÃO =========================
 
 function BuscaServidorPage() {
-  // ======================= INÍCIO DA ALTERAÇÃO =======================
   const navigate = useNavigate();
-  // ======================== FIM DA ALTERAÇÃO =========================
   const [schools, setSchools] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -83,6 +82,7 @@ function BuscaServidorPage() {
         pessoaIds = pessoasSnapshot.docs.map(doc => doc.id);
         if (pessoaIds.length === 0) {
           setIsSearching(false);
+          setSearchResults([]);
           return;
         }
       }
@@ -125,16 +125,22 @@ function BuscaServidorPage() {
 
       if (filteredList.length > 0) {
         const finalPessoaIds = [...new Set(filteredList.map(s => s.pessoaId))];
-        const pessoasQuery = query(collection(db, 'pessoas'), where(documentId(), 'in', finalPessoaIds));
-        const pessoasSnapshot = await getDocs(pessoasQuery);
-        const pessoasMap = new Map();
-        pessoasSnapshot.docs.forEach(doc => pessoasMap.set(doc.id, doc.data()));
+        if (finalPessoaIds.length > 0) {
+            const pessoasQuery = query(collection(db, 'pessoas'), where(documentId(), 'in', finalPessoaIds));
+            const pessoasSnapshot = await getDocs(pessoasQuery);
+            const pessoasMap = new Map();
+            pessoasSnapshot.docs.forEach(doc => pessoasMap.set(doc.id, doc.data()));
 
-        const results = filteredList.map(servidor => ({
-          ...servidor,
-          pessoa: pessoasMap.get(servidor.pessoaId)
-        }));
-        setSearchResults(results);
+            const results = filteredList.map(servidor => ({
+              ...servidor,
+              pessoa: pessoasMap.get(servidor.pessoaId)
+            })).filter(s => s.pessoa); // Garante que apenas servidores com pessoa correspondente sejam incluídos
+            setSearchResults(results);
+        } else {
+            setSearchResults([]);
+        }
+      } else {
+        setSearchResults([]);
       }
 
     } catch (err) {
@@ -155,12 +161,9 @@ function BuscaServidorPage() {
     setSearchResults([]);
   };
 
-  // ======================= INÍCIO DA ADIÇÃO =======================
-  // FUNÇÃO PARA REDIRECIONAR PARA A PÁGINA DE CADASTRO
   const handleAddNew = () => {
     navigate('/dashboard/escola/servidores/cadastro');
   };
-  // ======================== FIM DA ADIÇÃO =========================
 
   return (
     <div className="p-6">
@@ -197,7 +200,6 @@ function BuscaServidorPage() {
             </select>
           </div>
           
-          {/* ======================= INÍCIO DA ALTERAÇÃO ======================= */}
           <div className="md:col-span-5 flex justify-end space-x-2">
             <button onClick={handleClearSearch} type="button" className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition">
               Limpar Busca
@@ -209,7 +211,6 @@ function BuscaServidorPage() {
               Novo
             </button>
           </div>
-          {/* ======================== FIM DA ALTERAÇÃO ========================= */}
         </div>
 
         <div className="overflow-x-auto">
