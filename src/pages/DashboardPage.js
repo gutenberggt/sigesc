@@ -4,9 +4,7 @@ import { auth } from '../firebase/config';
 import { useUser } from '../context/UserContext';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import Footer from '../components/Footer';
-// ======================= INÍCIO DA CORREÇÃO =======================
-import { FaHome, FaUsers, FaUserCircle, FaSignOutAlt, FaBars, FaTimes, FaSchool, FaBookOpen, FaChartBar, FaCalendarAlt, FaCogs } from 'react-icons/fa'; // Adicionado FaChartBar
-// ======================== FIM DA CORREÇÃO =========================
+import { FaHome, FaUserCircle, FaBars, FaSchool, FaBookOpen, FaChartBar, FaCalendarAlt, FaCogs } from 'react-icons/fa';
 
 function DashboardPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -48,35 +46,10 @@ function DashboardPage() {
     }
   }, [loading, userData, navigate]);
 
-  const getPageTitle = () => {
-    const path = location.pathname;
-    if (path === '/dashboard') return 'Visão Geral';
-    if (path === '/dashboard/meu-perfil') return 'Meu Perfil';
-    if (path === '/dashboard/gerenciar-usuarios') return 'Gerenciar Usuários';
-    if (path === '/dashboard/escola/escola') return 'Gerenciar Escolas';
-    if (path === '/dashboard/escola/matriculas') return 'Matrícula de Aluno';
-    if (path === '/dashboard/escola/busca-aluno') return 'Busca de Aluno';
-    if (path.startsWith('/dashboard/escola/aluno/ficha')) return 'Ficha do Aluno';
-    if (path.startsWith('/dashboard/escola/aluno/editar')) return 'Editar Aluno';
-    if (path.startsWith('/dashboard/escola/aluno/nova-matricula')) return 'Nova Matrícula';
-    if (path === '/dashboard/escola/cursos') return 'Níveis de Ensino';
-    if (path === '/dashboard/escola/series') return 'Séries / Anos / Etapas';
-    if (path === '/dashboard/escola/componentes-curriculares') return 'Componentes Curriculares';
-    if (path.startsWith('/dashboard/escola/turmas')) return 'Gerenciar Turmas';
-    if (path === '/dashboard/escola/pessoas') return 'Gerenciar Pessoas';
-    if (path.startsWith('/dashboard/escola/servidores/cadastro')) return 'Cadastrar Servidor';
-    if (path.startsWith('/dashboard/escola/servidores/busca')) return 'Buscar Servidor';
-    if (path.startsWith('/dashboard/escola/servidor/ficha')) return 'Ficha do Servidor';
-    if (path.startsWith('/dashboard/diario/frequencia')) return 'Lançar Frequência';
-    if (path.startsWith('/dashboard/diario/conteudos')) return 'Lançar Conteúdos';
-    if (path.startsWith('/dashboard/diario/notas')) return 'Lançar Notas';
-    if (path.startsWith('/dashboard/calendario/calendario')) return 'Calendário Letivo';
-    if (path.startsWith('/dashboard/calendario/bimestres')) return 'Bimestres';
-    if (path.startsWith('/dashboard/calendario/eventos')) return 'Eventos';
-    if (path.startsWith('/dashboard/calendario/horario')) return 'Horário de Aulas';
-    return 'Dashboard';
-  };
-  
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
   if (loading) {
     return <div className="text-center p-6">Carregando painel...</div>;
   }
@@ -84,7 +57,12 @@ function DashboardPage() {
     return <div className="text-center p-6 text-red-600">Acesso Negado.</div>;
   }
 
-  const formattedDate = currentTime.toLocaleDateString('pt-BR');
+  const formattedDate = currentTime.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
   const formattedTime = currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -100,19 +78,36 @@ function DashboardPage() {
               <h1 className="text-xl font-semibold">SIGESC</h1>
               <p className="text-xs text-blue-200">Sistema Integrado de Gestão Escolar</p>
             </div>
-            <div className="ml-6 hidden md:block border-l border-blue-500 pl-6">
-                <span className="text-sm font-bold tracking-wider">AVISO</span>
-                <p className="text-xs text-blue-200">Hoje é {formattedDate} {formattedTime}</p>
+
+            {/* Relógio, aviso e data no formato desejado */}
+            <div className="ml-6 hidden md:flex items-center border-l border-blue-500 pl-6">
+              <span className="text-2xl font-bold mr-3">{formattedTime}</span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-xs font-bold uppercase">AVISO: Estamos em fases de teste.</span>
+                <span className="text-xs text-blue-200">Hoje é {formattedDate}</span>
+              </div>
             </div>
           </div>
+
           <div className="flex items-center gap-4">
             <div className="text-right hidden md:block">
-                <p className="text-sm font-medium">{userData.funcao ? userData.funcao.toUpperCase() : 'N/A'}</p>
-                <p className="text-xs text-blue-200">{userData.nomeCompleto || 'Usuário'}</p>
+              <p className="text-sm font-medium">{userData.funcao ? userData.funcao.toUpperCase() : 'N/A'}</p>
+              <p className="text-xs text-blue-200">{userData.nomeCompleto || 'Usuário'}</p>
             </div>
+
+            {/* Foto do usuário ou ícone padrão */}
             <button onClick={toggleMenu} className="focus:outline-none ml-auto">
-              <FaUserCircle size={24} />
+              {userData.photoURL ? (
+                <img
+                  src={userData.photoURL}
+                  alt="Foto do usuário"
+                  className="w-8 h-8 rounded-full object-cover border-2 border-white"
+                />
+              ) : (
+                <FaUserCircle size={24} />
+              )}
             </button>
+
             {isMenuOpen && (
               <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50" ref={menuRef}>
                 <Link to="/dashboard/meu-perfil" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setIsMenuOpen(false)}>Meu Perfil</Link>
@@ -132,9 +127,9 @@ function DashboardPage() {
                   <FaHome className="w-5 h-5 mr-2" /><span>Início</span>
                 </Link>
               </li>
-              
-              {/* Menus Administrativo, Calendário, Escola e Diário ... */}
-               <li className="mb-2">
+
+              {/* Administrativo */}
+              <li className="mb-2">
                 <button onClick={() => toggleSubmenu('administrativo')} className={`w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center ${openSubmenu === 'administrativo' ? 'bg-blue-600' : ''}`}>
                   <div className="flex items-center">
                     <FaCogs className="w-5 h-5 mr-2" />
@@ -150,8 +145,8 @@ function DashboardPage() {
                       <Link to="/dashboard/escola/pessoas" className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">
                         Pessoas
                       </Link>
-                    </li>		
-					<li>
+                    </li>
+                    <li>
                       <Link to="/dashboard/escola/servidores/busca" className={`flex items-center p-2 rounded hover:bg-blue-600 text-sm ${location.pathname.startsWith('/dashboard/escola/servidor') ? 'bg-blue-600' : ''}`}>
                         Servidores
                       </Link>
@@ -163,8 +158,9 @@ function DashboardPage() {
                     </li>
                   </ul>
                 )}
-              </li>              
-              
+              </li>
+
+              {/* Calendário */}
               {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
                 <li className="mb-2">
                   <button
@@ -205,7 +201,8 @@ function DashboardPage() {
                   )}
                 </li>
               )}
-                            
+
+              {/* Escola */}
               <li className="mb-2">
                 <button
                   onClick={() => toggleSubmenu('escola')}
@@ -264,37 +261,43 @@ function DashboardPage() {
                   </ul>
                 )}
               </li>
-              
-			  {/*--- Início do Menu Diário ---*/}
-              
-			  {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario' || userData.funcao.toLowerCase() === 'professor')) && (
-                <li className="mb-2">
-                    <button onClick={() => toggleSubmenu('diario')} className={`w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center ${openSubmenu?.startsWith('diario') ? 'bg-blue-600' : ''}`}>
-                    <div className="flex items-center">
-                        <FaBookOpen className="w-5 h-5 mr-2" />
-                        <span>Diário</span>
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 transform transition-transform ${openSubmenu?.startsWith('diario') ? 'rotate-90' : ''}`}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                    </svg>
-                    </button>
-                    {openSubmenu?.startsWith('diario') && (
-                    <ul className="ml-4 mt-1 border-l-2 border-blue-500">
-                        <li>
-                        <Link to="/dashboard/diario/frequencia" className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">
-                            Frequência
-                        </Link>
-                        </li>
-                    </ul>
-                    )}
-                </li>
-                )}
-			  
-			  {/*--- Fim do Menu Diário ---*/}
 
-              {/* Novo Menu de Relatórios */}
-            {/* ======================= INÍCIO DA MUDANÇA ======================= */}
-              {/* Novo Menu de Relatórios */}
+              {/* Diário */}
+              {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario' || userData.funcao.toLowerCase() === 'professor')) && (
+                <li className="mb-2">
+                  <button onClick={() => toggleSubmenu('diario')} className={`w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center ${openSubmenu?.startsWith('diario') ? 'bg-blue-600' : ''}`}>
+                    <div className="flex items-center">
+                      <FaBookOpen className="w-5 h-5 mr-2" />
+                      <span>Diário</span>
+                    </div>
+                    {/* Correção do path duplicado */}
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 transform transition-transform ${openSubmenu?.startsWith('diario') ? 'rotate-90' : ''}`}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </button>
+                  {openSubmenu?.startsWith('diario') && (
+                    <ul className="ml-4 mt-1 border-l-2 border-blue-500">
+                      <li>
+                        <Link to="/dashboard/diario/frequencia" className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">
+                          Frequência
+                        </Link>
+                      </li>
+                      <li>
+                        <Link to="/dashboard/diario/conteudos" className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">
+                          Conteúdos
+                        </Link>
+                      </li>
+                      <li>
+                        <Link to="/dashboard/diario/notas" className="w-full text-left p-2 rounded hover:bg-blue-600 text-sm font-semibold flex justify-between items-center">
+                          Notas
+                        </Link>
+                      </li>
+                    </ul>
+                  )}
+                </li>
+              )}
+
+              {/* Relatórios */}
               {(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario')) && (
                 <li className="mb-2">
                   <button onClick={() => toggleSubmenu('relatorios')} className={`w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center ${openSubmenu === 'relatorios' ? 'bg-blue-600' : ''}`}>
@@ -303,7 +306,7 @@ function DashboardPage() {
                       <span>Relatórios</span>
                     </div>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 transform transition-transform ${openSubmenu === 'relatorios' ? 'rotate-90' : ''}`}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                     </svg>
                   </button>
                   {openSubmenu === 'relatorios' && (
@@ -333,3 +336,4 @@ function DashboardPage() {
 }
 
 export default DashboardPage;
+

@@ -48,6 +48,9 @@ const ColoredDateCellWrapper = ({ children, value, events }) => {
           border: isToday ? '2px solid green' : 'none',
           borderRadius: isToday ? '50%' : '0',
           boxSizing: 'border-box',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center', // <-- centraliza número no dia
         }}
       >
         {children}
@@ -136,7 +139,8 @@ function CalendarioPage() {
   }, [selectedYear]);
 
   useEffect(() => {
-    const newDate = new Date(selectedYear, 0, 1);
+    const newDate = new Date();
+    newDate.setFullYear(parseInt(selectedYear, 10));
     setNavigateDate(newDate);
   }, [selectedYear]);
 
@@ -148,95 +152,92 @@ function CalendarioPage() {
       backgroundColor = '#f59e0b';
     }
     
-	const style = {
-	  backgroundColor,
-	  borderRadius: '5px',
-	  opacity: 0.8,
-	  color: 'white',
-	  border: '0px',
-	  display: 'block',
-	  cursor: 'pointer'
-	};
-	return {
-	  style: style,
-	  title: event.title // <-- Isso habilita o tooltip padrão do browser
-	};
-	};
+    const style = {
+      backgroundColor,
+      borderRadius: '5px',
+      opacity: 0.8,
+      color: 'white',
+      border: '0px',
+      display: 'block',
+      cursor: 'pointer'
+    };
+    return {
+      style: style,
+      title: event.title // <-- Isso habilita o tooltip padrão do browser
+    };
+  };
 
   const messages = {
-      allDay: 'Dia Inteiro',
-      previous: 'Anterior',
-      next: 'Próximo',
-      today: 'Hoje',
-      month: 'Mês',
-      week: 'Semana',
-      day: 'Dia',
-      agenda: 'Agenda',
-      date: 'Data',
-      time: 'Hora',
-      event: 'Evento',
-      noEventsInRange: 'Não há eventos neste período.',
-      showMore: total => `+ Ver mais (${total})`
+    allDay: 'Dia Inteiro',
+    previous: 'Anterior',
+    next: 'Próximo',
+    today: 'Hoje',
+    month: 'Mês',
+    week: 'Semana',
+    day: 'Dia',
+    agenda: 'Agenda',
+    date: 'Data',
+    time: 'Hora',
+    event: 'Evento',
+    noEventsInRange: 'Não há eventos neste período.',
+    showMore: total => `+ Ver mais (${total})`
   };
 
   return (
     <div className="p-6">
-      {/* ======================= INÍCIO DA ALTERAÇÃO ======================= */}
       <div className="bg-white p-8 rounded-lg shadow-md max-w-7xl mx-auto flex flex-col min-h-[85vh]">
-      {/* ======================== FIM DA ALTERAÇÃO ========================= */}
         <h2 className="text-2xl font-bold mb-4 text-gray-800 flex-shrink-0">Calendário Acadêmico</h2>
 
         <div className="flex flex-wrap justify-between items-center mb-4 flex-shrink-0">
-            <div className="mb-4 md:mb-0">
-                <label htmlFor="year-select" className="mr-2 font-semibold">Ano Letivo:</label>
-                <select
-                    id="year-select"
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(e.target.value)}
-                    className="p-2 border rounded-md"
-                >
-                    {years.map(year => (<option key={year} value={year}>{year}</option>))}
-                </select>
-            </div>
+          <div className="mb-4 md:mb-0">
+            <label htmlFor="year-select" className="mr-2 font-semibold">Ano Letivo:</label>
+            <select
+              id="year-select"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="p-2 border rounded-md"
+            >
+              {years.map(year => (<option key={year} value={year}>{year}</option>))}
+            </select>
+          </div>
 
-            <div className="flex space-x-1 border p-1 rounded-md bg-gray-100">
-                <button onClick={() => setView('year')} className={`px-3 py-1 text-sm rounded ${view === 'year' ? 'bg-blue-600 text-white' : 'bg-transparent'}`}>Ano</button>
-                <button onClick={() => setView('month')} className={`px-3 py-1 text-sm rounded ${view === 'month' ? 'bg-blue-600 text-white' : 'bg-transparent'}`}>Mês</button>
-                <button onClick={() => setView('week')} className={`px-3 py-1 text-sm rounded ${view === 'week' ? 'bg-blue-600 text-white' : 'bg-transparent'}`}>Semana</button>
-                <button onClick={() => setView('day')} className={`px-3 py-1 text-sm rounded ${view === 'day' ? 'bg-blue-600 text-white' : 'bg-transparent'}`}>Dia</button>
-            </div>
+          <div className="flex space-x-1 border p-1 rounded-md bg-gray-100">
+            <button onClick={() => setView('year')} className={`px-3 py-1 text-sm rounded ${view === 'year' ? 'bg-blue-600 text-white' : 'bg-transparent'}`}>Ano</button>
+            <button onClick={() => setView('month')} className={`px-3 py-1 text-sm rounded ${view === 'month' ? 'bg-blue-600 text-white' : 'bg-transparent'}`}>Mês</button>
+            <button onClick={() => setView('week')} className={`px-3 py-1 text-sm rounded ${view === 'week' ? 'bg-blue-600 text-white' : 'bg-transparent'}`}>Semana</button>
+            <button onClick={() => setView('day')} className={`px-3 py-1 text-sm rounded ${view === 'day' ? 'bg-blue-600 text-white' : 'bg-transparent'}`}>Dia</button>
+            <button onClick={() => setView('agenda')} className={`px-3 py-1 text-sm rounded ${view === 'agenda' ? 'bg-blue-600 text-white' : 'bg-transparent'}`}>Agenda</button>
+          </div>
         </div>
 
         {error && <p className="text-red-500 text-center mb-4 flex-shrink-0">{error}</p>}
 
-        {/* ======================= INÍCIO DA ALTERAÇÃO ======================= */}
         <div className="flex-grow">
-        {/* ======================== FIM DA ALTERAÇÃO ========================= */}
-            {loading ? (
-                <p>Carregando calendário...</p>
-            ) : (
-                <>
-                    {view === 'year' ? (
-                        <YearView year={parseInt(selectedYear, 10)} events={events} eventPropGetter={eventStyleGetter} />
-                    ) : (
-                        <Calendar
-						  key={selectedYear}
-						  date={navigateDate}
-						  onNavigate={date => setNavigateDate(date)}
-						  localizer={localizer}
-						  events={events}
-						  startAccessor="start"
-						  endAccessor="end"
-						  style={{ height: '600px' }} // <-- Altura adequada aqui
-						  eventPropGetter={eventStyleGetter}
-						  messages={messages}
-						  view={view}
-						  onView={setView}
-						/>
-
-                    )}
-                </>
-            )}
+          {loading ? (
+            <p>Carregando calendário...</p>
+          ) : (
+            <>
+              {view === 'year' ? (
+                <YearView year={parseInt(selectedYear, 10)} events={events} eventPropGetter={eventStyleGetter} />
+              ) : (
+                <Calendar
+                  key={selectedYear + view}
+                  date={navigateDate}
+                  defaultDate={navigateDate} // <-- garante início no dia/mês/semana atual
+                  onNavigate={date => setNavigateDate(date)}
+                  localizer={localizer}
+                  events={events}
+                  startAccessor="start"
+                  endAccessor="end"
+                  style={{ height: '600px' }}
+                  eventPropGetter={eventStyleGetter}
+                  messages={messages}
+                  view={view}
+                  onView={setView}
+                />
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
