@@ -303,7 +303,7 @@ function DashboardPage() {
                   <button onClick={() => toggleSubmenu('relatorios')} className={`w-full text-left p-2 rounded hover:bg-blue-600 font-semibold flex justify-between items-center ${openSubmenu === 'relatorios' ? 'bg-blue-600' : ''}`}>
                     <div className="flex items-center">
                       <FaChartBar className="w-5 h-5 mr-2" />
-                      <span>Relatórios</span>
+                      <span>Relatórios e Declarações</span>
                     </div>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 transform transition-transform ${openSubmenu === 'relatorios' ? 'rotate-90' : ''}`}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />

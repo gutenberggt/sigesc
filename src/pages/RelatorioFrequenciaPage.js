@@ -6,12 +6,12 @@ import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 pdfMake.vfs = pdfFonts.vfs;
 
-
-
 function formatDatePorExtenso(dataStr) {
   if (!dataStr) return '';
   const [ano, mes, dia] = dataStr.split('-').map(n => parseInt(n, 10));
-  const meses = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  const meses = ["janeiro","fevereiro","março","abril","maio","junho","agosto","setembro","outubro","novembro","dezembro"];
+  // corrigindo "junho","julho"
+  meses[5] = "junho"; meses.splice(6, 0, "julho");
   return `${dia} de ${meses[mes - 1]} de ${ano}`;
 }
 
@@ -23,6 +23,14 @@ function formatLocalDate(date) {
   return `${year}-${month}-${day}`;
 }
 
+// normalizador para comparar strings ignorando acentos/caixa
+function normalize(str) {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
 
 let brasaoCache = null;
 const CACHE_VALIDITY = 7 * 24 * 60 * 60 * 1000;
@@ -97,25 +105,72 @@ function RelatorioFrequenciaPage() {
         const schoolData = schoolDoc.data();
         const turmaData = { id: turmaDoc.id, ...turmaDoc.data() };
 
-        // Encontrar professor(a)
-        let professorNome = '';
-        servidoresSnap.forEach(doc => {
-          const servidor = doc.data();
-          if (!Array.isArray(servidor.alocacoes)) return;
-          const alocacao = servidor.alocacoes.find(a =>
-            a.anoLetivo === year.toString() &&
-            a.turmaId === turmaId &&
-            a.ativo === true &&
-            a.funcoes?.some(f =>
-              componente === 'DIARIO' || f.componentesCurriculares?.includes(componente)
-            )
-          );
-          if (alocacao) {
-            professorNome = servidor.nomeCompleto || '';
-          }
-        });
+        // === Encontrar professor(a) responsável pelo componente/turma ===
+        let professorNome = 'Não Localizado';
+        let professorPessoaId = null;
 
-        // Período
+        const compParam = componente || '';
+        const compNorm = normalize(compParam);
+
+        // Percorre servidores ativos e suas alocações
+        outerLoop:
+        for (const servidorDoc of servidoresSnap.docs) {
+          const servidor = servidorDoc.data();
+
+          // servidor.ativo é top-level no doc (conforme amostra enviada)
+          if (servidor?.ativo === false) continue;
+
+          const alocacoes = Array.isArray(servidor?.alocacoes) ? servidor.alocacoes : [];
+          for (const alocacao of alocacoes) {
+            // Em alguns casos anoLetivo pode ser number; iguala como string
+            if (String(alocacao?.anoLetivo) !== year.toString()) continue;
+
+            const funcoes = Array.isArray(alocacao?.funcoes) ? alocacao.funcoes : [];
+            for (const funcao of funcoes) {
+              if (funcao?.funcao !== 'Professor(a)') continue;
+              if (funcao?.turmaId !== turmaId) continue;
+
+              // Se houver schoolId (em funcao ou alocacao), valida também
+              if (schoolId) {
+                const schoolInFunc = funcao?.schoolId;
+                const schoolInAloc = alocacao?.schoolId;
+                if ((schoolInFunc && schoolInFunc !== schoolId) || (schoolInAloc && schoolInAloc !== schoolId)) {
+                  continue;
+                }
+              }
+
+              // Componente: se "DIARIO", aceita o primeiro professor da turma; caso contrário, verifica componente
+              if (compParam === 'DIARIO') {
+                professorPessoaId = servidor?.pessoaId || null;
+                break outerLoop;
+              } else {
+                const comps = Array.isArray(funcao?.componentesCurriculares) ? funcao.componentesCurriculares : [];
+                const match = comps.some(c => normalize(c) === compNorm);
+                if (match) {
+                  professorPessoaId = servidor?.pessoaId || null;
+                  break outerLoop;
+                }
+              }
+            }
+          }
+        }
+
+        if (professorPessoaId) {
+          try {
+            const pessoaDoc = await getDoc(doc(db, 'pessoas', professorPessoaId));
+            if (pessoaDoc.exists()) {
+              const pessoaData = pessoaDoc.data();
+              professorNome = pessoaData?.nomeCompleto || 'Nome não cadastrado';
+            } else {
+              professorNome = 'Pessoa não encontrada';
+            }
+          } catch (e) {
+            console.error('Erro ao buscar pessoa do professor:', e);
+            professorNome = 'Erro ao localizar nome';
+          }
+        }
+
+        // === Período ===
         let dataInicio, dataFim, periodoLabel;
         if (/^\d+$/.test(period)) {
           const month = parseInt(period, 10);
@@ -124,7 +179,7 @@ function RelatorioFrequenciaPage() {
           const monthName = dataInicio.toLocaleString('pt-BR', { month: 'long' });
           periodoLabel = monthName.charAt(0).toUpperCase() + monthName.slice(1);
         } else {
-          if (!periodDoc.exists()) throw new Error("Bimestre não encontrado.");
+          if (!periodDoc?.exists()) throw new Error("Bimestre não encontrado.");
           const bimestreData = periodDoc.data();
           const [sy, sm, sd] = bimestreData.dataInicio.split('-').map(Number);
           const [ey, em, ed] = bimestreData.dataFim.split('-').map(Number);
@@ -133,7 +188,7 @@ function RelatorioFrequenciaPage() {
           periodoLabel = bimestreData.nome;
         }
 
-        // Feriados
+        // === Feriados ===
         const feriados = new Set();
         eventosSnap.forEach(d => {
           const evento = d.data();
@@ -142,28 +197,47 @@ function RelatorioFrequenciaPage() {
           }
         });
 
-        // Horário
+        // === Horário ===
         const horarioData = horarioSnap.exists() ? horarioSnap.data().horario || {} : {};
 
-        // Dias letivos
-        const diasLetivos = [];
-        for (let d = new Date(dataInicio); d <= dataFim; d.setDate(d.getDate() + 1)) {
-          const dataFormatada = formatLocalDate(d);
-          if (feriados.has(dataFormatada)) continue;
-          const diaSemana = d.getDay();
-          if (diaSemana === 0 || diaSemana === 6) continue;
-          const weekDayName = ["domingo","segunda","terca","quarta","quinta","sexta","sabado"][diaSemana];
-          const aulasDia = horarioData[weekDayName] || [];
-          const aulasFiltradas = aulasDia
-            .map((aula, idx) => ({ id: `aula${idx+1}`, nome: aula }))
-            .filter(a => a.nome)
-            .filter(a => componente === 'DIARIO' || a.nome.startsWith(componente));
-          if (aulasFiltradas.length > 0) {
-            diasLetivos.push({ data: dataFormatada, aulas: aulasFiltradas });
-          }
-        }
+        // === Dias letivos ===
+		const diasLetivos = [];
+		const isAnosFinais = (
+		  turmaData.nivelEnsino === "ENSINO FUNDAMENTAL - ANOS FINAIS" ||
+		  turmaData.nivelEnsino === "EDUCAÇÃO DE JOVENS E ADULTOS - EJA - ANOS FINAIS"
+		);
 
-        // Alunos e frequências
+		for (let d = new Date(dataInicio); d <= dataFim; d.setDate(d.getDate() + 1)) {
+		  const dataFormatada = formatLocalDate(d);
+		  if (feriados.has(dataFormatada)) continue;
+
+		  const diaSemana = d.getDay();
+		  if (diaSemana === 0 || diaSemana === 6) continue;
+
+		  if (!isAnosFinais) {
+			// 👉 Novo critério: para turmas que NÃO são dos anos finais,
+			// gera apenas uma "aula" por dia
+			diasLetivos.push({
+			  data: dataFormatada,
+			  aulas: [{ id: "aulaUnica", nome: "Frequência do Dia" }]
+			});
+		  } else {
+			// Turmas dos anos finais → usa horário normalmente
+			const weekDayName = ["domingo","segunda","terca","quarta","quinta","sexta","sabado"][diaSemana];
+			const aulasDia = horarioData[weekDayName] || [];
+			const aulasFiltradas = aulasDia
+			  .map((aula, idx) => ({ id: `aula${idx+1}`, nome: aula }))
+			  .filter(a => a.nome)
+			  .filter(a => componente === 'DIARIO' || a.nome.startsWith(componente));
+			if (aulasFiltradas.length > 0) {
+			  diasLetivos.push({ data: dataFormatada, aulas: aulasFiltradas });
+			}
+		  }
+		}
+
+        
+
+        // === Alunos e frequências ===
         const studentIds = matriculasSnap.docs.map(d => d.data().pessoaId);
         const [alunosSnap, frequenciaSnap] = await Promise.all([
           studentIds.length > 0
@@ -184,7 +258,7 @@ function RelatorioFrequenciaPage() {
           frequenciaData[f.alunoId][f.data][f.aulaId] = f.status;
         });
 
-        // Cabeçalho
+        // === Cabeçalho ===
         const cabecalho = {
           table: {
             widths: [60, '*', '*'],
@@ -213,7 +287,7 @@ function RelatorioFrequenciaPage() {
                 {
                   stack: [
                     { text: 'REGISTRO DE FREQUÊNCIA', style: 'header', alignment: 'right' },
-                    { text: 'Legenda: P - Presente, F - Falta, J - Falta Justificada', fontSize: 9, alignment: 'right' },
+                    { text: 'Legenda: P - Presente, F - Falta, J - Falta Justificada', fontSize: 8, alignment: 'right' },
                     {
                       table: { widths: ['50%','50%'], body: [[
                         { text: `TURMA: ${turmaData.nomeTurma || ''}`, style: 'infoText' },
@@ -241,7 +315,7 @@ function RelatorioFrequenciaPage() {
         const diaColWidth = 10;
         const maxDiasPorTabela = 43;
 
-        // Pré-calcular totais
+        // === Pré-calcular totais ===
         const totaisAlunos = alunosDaTurma.map(aluno => {
           let faltas = 0;
           let totalAulas = 0;
@@ -319,7 +393,6 @@ function RelatorioFrequenciaPage() {
         const tabelasFrequencia = [];
         for (let i = 0; i < diasLetivos.length; i += maxDiasPorTabela) {
           const subset = diasLetivos.slice(i, i + maxDiasPorTabela);
-          // Preencher até 43 colunas com espaços em branco
           while (subset.length < maxDiasPorTabela) {
             subset.push({ data: null, aulas: [] });
           }
@@ -341,9 +414,9 @@ function RelatorioFrequenciaPage() {
           content: [cabecalho, ...tabelasFrequencia,
           {
             columns: [
-              { width: '40%', text: `Floresta do Araguaia, ${formatDatePorExtenso(diasLetivos[diasLetivos.length - 1].data)}`, alignment: 'left', fontSize: 10 },
-              { width: '30%', text: "______________________________\nProfessor(a)", alignment: 'center', fontSize: 10 },
-              { width: '30%', text: "______________________________\nCoordenador(a)", alignment: 'center', fontSize: 10 }
+              { width: '40%', text: `Floresta do Araguaia, ${formatDatePorExtenso(diasLetivos[diasLetivos.length - 1]?.data)}`, alignment: 'left', fontSize: 10 },
+              { width: '30%', text: "_____________________________________________\nProfessor(a)", alignment: 'center', fontSize: 10 },
+              { width: '30%', text: "_____________________________________________\nCoordenador(a)", alignment: 'center', fontSize: 10 }
             ],
             margin: [0, 30, 0, 0]
           }],

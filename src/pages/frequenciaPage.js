@@ -189,7 +189,6 @@ function FrequenciaPage() {
       return newState;
     });
   };
-
   const loadDiarioData = useCallback(async () => {
     if (!filters.selectedTurmaId || !filters.selectedPeriod || (showComponenteFilter && !filters.selectedComponente)) {
       setAlunosDaTurma([]); setDiasLetivos([]); setFrequenciaData({}); setOriginalFrequenciaData({}); return;
@@ -239,17 +238,31 @@ function FrequenciaPage() {
       const dias = [];
       for (let d = new Date(dataInicio); d <= dataFim; d.setDate(d.getDate() + 1)) {
         const dataFormatada = d.toISOString().split('T')[0];
-        if (feriados.has(dataFormatada)) { continue; }
+        if (feriados.has(dataFormatada)) continue;
+
         const diaDaSemana = d.getDay();
         if (diaDaSemana === 0 || diaDaSemana === 6) continue;
-        const weekDayName = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"][diaDaSemana];
 
-        if (horarioData[weekDayName] && horarioData[weekDayName].length > 0) {
-          const aulasDoDia = horarioData[weekDayName]
-            .map((aula, index) => ({ id: `aula${index + 1}`, nome: aula }))
-            .filter(aula => aula.nome)
-            .filter(aula => !showComponenteFilter || aula.nome.startsWith(filters.selectedComponente));
-          if (aulasDoDia.length > 0) { dias.push({ data: dataFormatada, aulas: aulasDoDia, bloqueado: false }); }
+        // Critério novo:
+        if (!showComponenteFilter) {
+          // Turmas que NÃO são dos anos finais → apenas 1 frequência por dia
+          dias.push({
+            data: dataFormatada,
+            aulas: [{ id: "aulaUnica", nome: "Frequência do Dia" }],
+            bloqueado: false
+          });
+        } else {
+          // Turmas dos anos finais → usar o horário normal
+          const weekDayName = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"][diaDaSemana];
+          if (horarioData[weekDayName] && horarioData[weekDayName].length > 0) {
+            const aulasDoDia = horarioData[weekDayName]
+              .map((aula, index) => ({ id: `aula${index + 1}`, nome: aula }))
+              .filter(aula => aula.nome)
+              .filter(aula => !showComponenteFilter || aula.nome.startsWith(filters.selectedComponente));
+            if (aulasDoDia.length > 0) {
+              dias.push({ data: dataFormatada, aulas: aulasDoDia, bloqueado: false });
+            }
+          }
         }
       }
       setDiasLetivos(dias);

@@ -30,6 +30,7 @@ import EditarServidorPage from "./pages/EditarServidorPage";
 import FrequenciaPage from "./pages/frequenciaPage";
 import RelatorioFrequenciaPage from "./pages/RelatorioFrequenciaPage";
 import RelatoriosPage from "./pages/RelatoriosPage";
+import RegistroConteudosPage from './pages/RegistroConteudosPage';
 
 import { UserProvider } from './context/UserContext';
 
@@ -77,6 +78,7 @@ function App() {
             <Route path="calendario/horario/:turmaId" element={<HorarioPage />} />
             
             <Route path="diario/frequencia" element={<FrequenciaPage />} />
+			<Route path="diario/conteudos" element={<RegistroConteudosPage />} />
 
             <Route path="relatorios" element={<RelatoriosPage />} />
             
