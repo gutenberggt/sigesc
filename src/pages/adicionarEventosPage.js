@@ -1,5 +1,3 @@
-// src/pages/adicionarEventosPage.js
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase/config';
 import { doc, getDoc, setDoc, addDoc, collection } from 'firebase/firestore';
@@ -7,12 +5,17 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 function AdicionarEventosPage() {
   const navigate = useNavigate();
-  const { eventoId } = useParams(); // Para o modo de edição
+  const { eventoId } = useParams();
   const isEditing = Boolean(eventoId);
 
   // Estados do formulário
   const [anoLetivo, setAnoLetivo] = useState(new Date().getFullYear().toString());
-  const [data, setData] = useState('');
+  // ======================= INÍCIO DA MUDANÇA =======================
+  const [dataInicial, setDataInicial] = useState(''); // Renomeado de 'data'
+  const [dataFinal, setDataFinal] = useState('');   // Novo campo
+  const [horario, setHorario] = useState('');       // Novo campo
+  const [local, setLocal] = useState('');           // Novo campo
+  // ======================== FIM DA MUDANÇA =========================
   const [descricao, setDescricao] = useState('');
   const [tipo, setTipo] = useState('FERIADO NACIONAL');
   
@@ -20,7 +23,6 @@ function AdicionarEventosPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Se estiver editando, busca os dados do evento
   const fetchEvento = useCallback(async () => {
     if (isEditing) {
       const docRef = doc(db, 'eventos', eventoId);
@@ -28,7 +30,12 @@ function AdicionarEventosPage() {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setAnoLetivo(data.anoLetivo);
-        setData(data.data);
+        // ======================= INÍCIO DA MUDANÇA =======================
+        setDataInicial(data.data || ''); // Carrega o campo antigo 'data' para 'dataInicial'
+        setDataFinal(data.dataFinal || '');
+        setHorario(data.horario || '');
+        setLocal(data.local || '');
+        // ======================== FIM DA MUDANÇA =========================
         setDescricao(data.descricao);
         setTipo(data.tipo);
       } else {
@@ -43,22 +50,26 @@ function AdicionarEventosPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!anoLetivo || !data || !descricao || !tipo) {
-      setError("Todos os campos são obrigatórios.");
+    if (!anoLetivo || !dataInicial || !descricao || !tipo) {
+      setError("Ano Letivo, Data Inicial, Descrição e Tipo são obrigatórios.");
       return;
     }
     setIsSubmitting(true);
 
     const eventoData = {
       anoLetivo,
-      data,
+      // ======================= INÍCIO DA MUDANÇA =======================
+      data: dataInicial, // O campo no Firestore continuará a ser 'data'
+      dataFinal: dataFinal || null,
+      horario: horario || null,
+      local: local.toUpperCase() || null,
+      // ======================== FIM DA MUDANÇA =========================
       descricao: descricao.toUpperCase(),
       tipo,
     };
 
     try {
       if (isEditing) {
-        // Usamos setDoc com o ID existente para atualizar
         await setDoc(doc(db, 'eventos', eventoId), eventoData);
         setSuccess("Evento atualizado com sucesso!");
       } else {
@@ -89,10 +100,28 @@ function AdicionarEventosPage() {
             <label htmlFor="anoLetivo" className="block text-sm font-medium text-gray-700">Ano Letivo</label>
             <input type="number" id="anoLetivo" value={anoLetivo} onChange={(e) => setAnoLetivo(e.target.value)} className="mt-1 block w-full p-2 border rounded-md" />
           </div>
-          <div>
-            <label htmlFor="data" className="block text-sm font-medium text-gray-700">Data</label>
-            <input type="date" id="data" value={data} onChange={(e) => setData(e.target.value)} className="mt-1 block w-full p-2 border rounded-md" />
+          {/* ======================= INÍCIO DA MUDANÇA ======================= */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="dataInicial" className="block text-sm font-medium text-gray-700">Data Inicial</label>
+              <input type="date" id="dataInicial" value={dataInicial} onChange={(e) => setDataInicial(e.target.value)} className="mt-1 block w-full p-2 border rounded-md" />
+            </div>
+            <div>
+              <label htmlFor="dataFinal" className="block text-sm font-medium text-gray-700">Data Final (Opcional)</label>
+              <input type="date" id="dataFinal" value={dataFinal} onChange={(e) => setDataFinal(e.target.value)} className="mt-1 block w-full p-2 border rounded-md" />
+            </div>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label htmlFor="horario" className="block text-sm font-medium text-gray-700">Horário (Opcional)</label>
+                <input type="time" id="horario" value={horario} onChange={(e) => setHorario(e.target.value)} className="mt-1 block w-full p-2 border rounded-md" />
+            </div>
+            <div>
+                <label htmlFor="local" className="block text-sm font-medium text-gray-700">Local (Opcional)</label>
+                <input type="text" id="local" value={local} onChange={(e) => setLocal(e.target.value)} className="mt-1 block w-full p-2 border rounded-md" />
+            </div>
+          </div>
+          {/* ======================== FIM DA MUDANÇA ========================= */}
           <div>
             <label htmlFor="descricao" className="block text-sm font-medium text-gray-700">Descrição</label>
             <input type="text" id="descricao" value={descricao} onChange={(e) => setDescricao(e.target.value)} className="mt-1 block w-full p-2 border rounded-md" />

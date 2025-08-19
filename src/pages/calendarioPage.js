@@ -22,11 +22,11 @@ const ColoredDateCellWrapper = ({ children, value, events }) => {
   if (event) {
     tooltip = event.title;
     if (event.resource?.type?.includes('FERIADO')) {
-      backgroundColor = '#ef4444';
+      backgroundColor = '#ef4444'; // Vermelho para feriado
     } else if (event.resource?.type === 'RECESSO') {
-      backgroundColor = '#f59e0b';
+      backgroundColor = '#f59e0b'; // Laranja para recesso
     } else {
-      backgroundColor = '#3498db';
+      backgroundColor = '#3498db'; // Azul para outros eventos
     }
   }
 
@@ -50,7 +50,7 @@ const ColoredDateCellWrapper = ({ children, value, events }) => {
           boxSizing: 'border-box',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center', // <-- centraliza número no dia
+          justifyContent: 'center',
         }}
       >
         {children}
@@ -59,7 +59,7 @@ const ColoredDateCellWrapper = ({ children, value, events }) => {
   );
 };
 
-const YearView = ({ year, events, eventPropGetter }) => {
+const YearView = ({ year, events }) => {
   const months = Array.from({ length: 12 }, (_, i) => i);
 
   return (
@@ -116,14 +116,42 @@ function CalendarioPage() {
         const allEvents = [];
         const eventosQuery = query(collection(db, 'eventos'), where('anoLetivo', '==', selectedYear));
         const eventosSnapshot = await getDocs(eventosQuery);
+        
         eventosSnapshot.forEach(doc => {
-          const data = doc.data();
+          const eventoData = doc.data();
+          
+          const startDateString = eventoData.data;
+          const endDateString = eventoData.dataFinal || eventoData.data;
+
+          let startDate, endDate;
+          let isAllDay = true;
+
+          // ======================= INÍCIO DA ALTERAÇÃO =======================
+          // Verifica se o evento tem um horário específico
+          if (eventoData.horario) {
+            isAllDay = false;
+            // Cria a data de início com o horário
+            startDate = new Date(`${startDateString}T${eventoData.horario}`);
+            // Por padrão, eventos com horário duram 1 hora, mas pode ser ajustado
+            endDate = new Date(startDate.getTime() + 60 * 60 * 1000); 
+          } else {
+            // Se não tem horário, é um evento de dia inteiro
+            startDate = new Date(startDateString + 'T00:00:00');
+            endDate = new Date(endDateString + 'T23:59:59');
+          }
+
+          let eventTitle = eventoData.descricao;
+          if (eventoData.local) {
+            eventTitle += ` @ ${eventoData.local}`;
+          }
+          // ======================== FIM DA ALTERAÇÃO =========================
+
           allEvents.push({
-            title: data.descricao,
-            start: new Date(`${data.data}T00:00:00`),
-            end: new Date(`${data.data}T23:59:59`),
-            allDay: true,
-            resource: { type: data.tipo },
+            title: eventTitle,
+            start: startDate,
+            end: endDate,
+            allDay: isAllDay,
+            resource: { type: eventoData.tipo },
           });
         });
 
@@ -144,7 +172,7 @@ function CalendarioPage() {
     setNavigateDate(newDate);
   }, [selectedYear]);
 
-  const eventStyleGetter = (event) => {
+  const eventStyleGetter = (event, start, end, isSelected) => {
     let backgroundColor = '#3498db';
     if (event.resource?.type?.includes('FERIADO')) {
       backgroundColor = '#ef4444';
@@ -159,12 +187,14 @@ function CalendarioPage() {
       color: 'white',
       border: '0px',
       display: 'block',
-      cursor: 'pointer'
+      cursor: 'pointer',
+      // ======================= INÍCIO DA ALTERAÇÃO =======================
+      // Permite que a altura do evento se ajuste ao conteúdo na visão de Dia
+      height: view === 'day' ? 'auto' : 'initial',
+      whiteSpace: 'normal' // Permite a quebra de linha
+      // ======================== FIM DA ALTERAÇÃO =========================
     };
-    return {
-      style: style,
-      title: event.title // <-- Isso habilita o tooltip padrão do browser
-    };
+    return { style };
   };
 
   const messages = {
@@ -191,12 +221,7 @@ function CalendarioPage() {
         <div className="flex flex-wrap justify-between items-center mb-4 flex-shrink-0">
           <div className="mb-4 md:mb-0">
             <label htmlFor="year-select" className="mr-2 font-semibold">Ano Letivo:</label>
-            <select
-              id="year-select"
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="p-2 border rounded-md"
-            >
+            <select id="year-select" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="p-2 border rounded-md">
               {years.map(year => (<option key={year} value={year}>{year}</option>))}
             </select>
           </div>
@@ -218,12 +243,12 @@ function CalendarioPage() {
           ) : (
             <>
               {view === 'year' ? (
-                <YearView year={parseInt(selectedYear, 10)} events={events} eventPropGetter={eventStyleGetter} />
+                <YearView year={parseInt(selectedYear, 10)} events={events} />
               ) : (
                 <Calendar
                   key={selectedYear + view}
                   date={navigateDate}
-                  defaultDate={navigateDate} // <-- garante início no dia/mês/semana atual
+                  defaultDate={navigateDate}
                   onNavigate={date => setNavigateDate(date)}
                   localizer={localizer}
                   events={events}
@@ -234,6 +259,11 @@ function CalendarioPage() {
                   messages={messages}
                   view={view}
                   onView={setView}
+                  // ======================= INÍCIO DA ALTERAÇÃO =======================
+                  // Define os horários de início e fim da grade diária
+                  min={moment().startOf('day').add(7, 'hours').toDate()}
+                  max={moment().startOf('day').add(22, 'hours').toDate()}
+                  // ======================== FIM DA ALTERAÇÃO =========================
                 />
               )}
             </>
