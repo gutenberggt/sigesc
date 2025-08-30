@@ -31,63 +31,63 @@ import FrequenciaPage from "./pages/frequenciaPage";
 import RelatorioFrequenciaPage from "./pages/RelatorioFrequenciaPage";
 import RelatoriosPage from "./pages/RelatoriosPage";
 import RegistroConteudosPage from './pages/RegistroConteudosPage';
-
+import NotasPage from './pages/NotasPage'; // ✅ NOVO IMPORT
 import { UserProvider } from './context/UserContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
   return (
     <Router>
-      <UserProvider>
-        <Routes>
-          <Route path="/" element={<LoginPage />} />
-          <Route path="/cadastro" element={<RegisterPage />} /> 
-          <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
-          
-          <Route path="/dashboard" element={<DashboardPage />}>
-            <Route index element={<WelcomePage />} /> 
-            <Route path="gerenciar-usuarios" element={<UserManagementPage />} />
-            <Route path="meu-perfil" element={<ProfilePage />} />
-            <Route path="cadastro-interno" element={<RegisterPage />} /> 
+      <ThemeProvider>
+        <UserProvider>
+          <Routes>
+            <Route path="/" element={<LoginPage />} />
+            <Route path="/cadastro" element={<RegisterPage />} /> 
+            <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
             
-            <Route path="escola/pessoas" element={<PessoaManagementPage />} />
-            <Route path="escola/escola" element={<SchoolManagementPage />} />
-            <Route path="escola/matriculas" element={<MatriculaAlunoPage />} />
-            <Route path="escola/cursos" element={<NiveisDeEnsinoPage />} />
-            <Route path="escola/series" element={<SeriesAnosEtapasPage />} />
-            <Route path="escola/componentes-curriculares" element={<ComponentesCurricularesPage />} />
-            <Route path="escola/turmas/:schoolId" element={<TurmasPage />} />
-            
-            <Route path="escola/busca-aluno" element={<BuscaAlunoPage />} />
-            <Route path="escola/aluno/ficha/:alunoId" element={<FichaAlunoPage />} />
-            <Route path="escola/aluno/nova-matricula/:alunoId" element={<NovaMatriculaAlunoPage />} />
-            <Route path="escola/aluno/editar/:alunoId" element={<EditarAlunoPage />} />
+            <Route path="/dashboard" element={<DashboardPage />}>
+              <Route index element={<WelcomePage />} /> 
+              <Route path="gerenciar-usuarios" element={<UserManagementPage />} />
+              <Route path="meu-perfil" element={<ProfilePage />} />
+              <Route path="cadastro-interno" element={<RegisterPage />} /> 
+              
+              <Route path="escola/pessoas" element={<PessoaManagementPage />} />
+              <Route path="escola/escola" element={<SchoolManagementPage />} />
+              <Route path="escola/matriculas" element={<MatriculaAlunoPage />} />
+              <Route path="escola/cursos" element={<NiveisDeEnsinoPage />} />
+              <Route path="escola/series" element={<SeriesAnosEtapasPage />} />
+              <Route path="escola/componentes-curriculares" element={<ComponentesCurricularesPage />} />
+              <Route path="escola/turmas/:schoolId" element={<TurmasPage />} />
+              
+              <Route path="escola/busca-aluno" element={<BuscaAlunoPage />} />
+              <Route path="escola/aluno/ficha/:alunoId" element={<FichaAlunoPage />} />
+              <Route path="escola/aluno/nova-matricula/:alunoId" element={<NovaMatriculaAlunoPage />} />
+              <Route path="escola/aluno/editar/:alunoId" element={<EditarAlunoPage />} />
 
-            {/* ======================= INÍCIO DA CORREÇÃO ======================= */}
-            <Route path="escola/servidores/cadastro" element={<CadastroServidorPage />} />
-            {/* ======================== FIM DA CORREÇÃO ========================= */}
-            <Route path="escola/servidores/busca" element={<BuscaServidorPage />} />
-            <Route path="escola/servidor/ficha/:servidorId" element={<FichaServidorPage />} />
-            <Route path="escola/servidor/editar/:servidorId" element={<EditarServidorPage />} />
+              <Route path="escola/servidores/cadastro" element={<CadastroServidorPage />} />
+              <Route path="escola/servidores/busca" element={<BuscaServidorPage />} />
+              <Route path="escola/servidor/ficha/:servidorId" element={<FichaServidorPage />} />
+              <Route path="escola/servidor/editar/:servidorId" element={<EditarServidorPage />} />
 
-            <Route path="calendario/calendario" element={<CalendarioPage />} />
-            <Route path="calendario/bimestres" element={<BimestresPage />} />
-            <Route path="calendario/eventos" element={<EventosPage />} /> 
-			      <Route path="calendario/adicionar-evento" element={<AdicionarEventosPage />} />
-            <Route path="calendario/editar-evento/:eventoId" element={<AdicionarEventosPage />} />
-            <Route path="calendario/horario" element={<ListaHorarioPage />} />
-            <Route path="calendario/horario/:turmaId" element={<HorarioPage />} />
-            
-            <Route path="diario/frequencia" element={<FrequenciaPage />} />
-			<Route path="diario/conteudos" element={<RegistroConteudosPage />} />
+              <Route path="calendario/calendario" element={<CalendarioPage />} />
+              <Route path="calendario/bimestres" element={<BimestresPage />} />
+              <Route path="calendario/eventos" element={<EventosPage />} /> 
+              <Route path="calendario/adicionar-evento" element={<AdicionarEventosPage />} />
+              <Route path="calendario/editar-evento/:eventoId" element={<AdicionarEventosPage />} />
+              <Route path="calendario/horario" element={<ListaHorarioPage />} />
+              <Route path="calendario/horario/:turmaId" element={<HorarioPage />} />
+              
+              <Route path="diario/frequencia" element={<FrequenciaPage />} />
+              <Route path="diario/conteudos" element={<RegistroConteudosPage />} />
+              <Route path="diario/notas" element={<NotasPage />} /> {/* ✅ NOVA ROTA */}
 
-            <Route path="relatorios" element={<RelatoriosPage />} />
-            
-          </Route>
+              <Route path="relatorios" element={<RelatoriosPage />} />
+            </Route>
 
-          <Route path="/relatorio/frequencia/:schoolId/:turmaId/:year/:period/:componente" element={<RelatorioFrequenciaPage />} />
-          
-        </Routes>
-      </UserProvider>
+            <Route path="/relatorio/frequencia/:schoolId/:turmaId/:year/:period/:componente" element={<RelatorioFrequenciaPage />} />
+          </Routes>
+        </UserProvider>
+      </ThemeProvider>
     </Router>
   );
 }
