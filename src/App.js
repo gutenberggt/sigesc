@@ -2,11 +2,11 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import RecuperarSenhaPage from './pages/RecuperarSenhaPage';
-import DashboardPage from './pages/DashboardPage'; 
+import DashboardPage from './pages/DashboardPage';
 import UserManagementPage from './pages/UserManagementPage';
 import ProfilePage from './pages/ProfilePage';
 import WelcomePage from './pages/WelcomePage';
-import SchoolManagementPage from './pages/SchoolManagementPage'; 
+import SchoolManagementPage from './pages/SchoolManagementPage';
 import NiveisDeEnsinoPage from './pages/NiveisDeEnsinoPage';
 import SeriesAnosEtapasPage from './pages/SeriesAnosEtapasPage';
 import ComponentesCurricularesPage from './pages/ComponentesCurricularesPage';
@@ -31,7 +31,8 @@ import FrequenciaPage from "./pages/frequenciaPage";
 import RelatorioFrequenciaPage from "./pages/RelatorioFrequenciaPage";
 import RelatoriosPage from "./pages/RelatoriosPage";
 import RegistroConteudosPage from './pages/RegistroConteudosPage';
-import NotasPage from './pages/NotasPage'; // ✅ NOVO IMPORT
+import LancamentoNotasPage from './pages/LancamentoNotasPage'; 
+
 import { UserProvider } from './context/UserContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -42,15 +43,14 @@ function App() {
         <UserProvider>
           <Routes>
             <Route path="/" element={<LoginPage />} />
-            <Route path="/cadastro" element={<RegisterPage />} /> 
+            <Route path="/cadastro" element={<RegisterPage />} />
             <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
-            
+
             <Route path="/dashboard" element={<DashboardPage />}>
-              <Route index element={<WelcomePage />} /> 
+              <Route index element={<WelcomePage />} />
               <Route path="gerenciar-usuarios" element={<UserManagementPage />} />
               <Route path="meu-perfil" element={<ProfilePage />} />
-              <Route path="cadastro-interno" element={<RegisterPage />} /> 
-              
+              <Route path="cadastro-interno" element={<RegisterPage />} />
               <Route path="escola/pessoas" element={<PessoaManagementPage />} />
               <Route path="escola/escola" element={<SchoolManagementPage />} />
               <Route path="escola/matriculas" element={<MatriculaAlunoPage />} />
@@ -58,12 +58,10 @@ function App() {
               <Route path="escola/series" element={<SeriesAnosEtapasPage />} />
               <Route path="escola/componentes-curriculares" element={<ComponentesCurricularesPage />} />
               <Route path="escola/turmas/:schoolId" element={<TurmasPage />} />
-              
               <Route path="escola/busca-aluno" element={<BuscaAlunoPage />} />
               <Route path="escola/aluno/ficha/:alunoId" element={<FichaAlunoPage />} />
               <Route path="escola/aluno/nova-matricula/:alunoId" element={<NovaMatriculaAlunoPage />} />
               <Route path="escola/aluno/editar/:alunoId" element={<EditarAlunoPage />} />
-
               <Route path="escola/servidores/cadastro" element={<CadastroServidorPage />} />
               <Route path="escola/servidores/busca" element={<BuscaServidorPage />} />
               <Route path="escola/servidor/ficha/:servidorId" element={<FichaServidorPage />} />
@@ -71,20 +69,23 @@ function App() {
 
               <Route path="calendario/calendario" element={<CalendarioPage />} />
               <Route path="calendario/bimestres" element={<BimestresPage />} />
-              <Route path="calendario/eventos" element={<EventosPage />} /> 
+              <Route path="calendario/eventos" element={<EventosPage />} />
               <Route path="calendario/adicionar-evento" element={<AdicionarEventosPage />} />
               <Route path="calendario/editar-evento/:eventoId" element={<AdicionarEventosPage />} />
               <Route path="calendario/horario" element={<ListaHorarioPage />} />
               <Route path="calendario/horario/:turmaId" element={<HorarioPage />} />
-              
+
               <Route path="diario/frequencia" element={<FrequenciaPage />} />
               <Route path="diario/conteudos" element={<RegistroConteudosPage />} />
-              <Route path="diario/notas" element={<NotasPage />} /> {/* ✅ NOVA ROTA */}
+              <Route path="diario/notas" element={<LancamentoNotasPage />} /> 
 
               <Route path="relatorios" element={<RelatoriosPage />} />
             </Route>
 
-            <Route path="/relatorio/frequencia/:schoolId/:turmaId/:year/:period/:componente" element={<RelatorioFrequenciaPage />} />
+            <Route
+              path="/relatorio/frequencia/:schoolId/:turmaId/:year/:period/:componente"
+              element={<RelatorioFrequenciaPage />}
+            />
           </Routes>
         </UserProvider>
       </ThemeProvider>

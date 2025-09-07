@@ -1,340 +1,319 @@
-import React, { useState, useEffect } from 'react';
-import { db } from '../firebase/config';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, getDoc } from 'firebase/firestore';
-import { useUser } from '../context/UserContext';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useEffect, useState } from "react"
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  getDocs,
+} from "firebase/firestore"
+import { db } from "../firebase/config"
+import { componentesData } from "../pages/ComponentesPage"
 
-// ======================= INÍCIO DA CORREÇÃO =======================
-import { niveisDeEnsinoList, seriesAnosEtapasData } from '../data/ensinoConstants';
-// ======================== FIM DA CORREÇÃO =========================
-import { turmaModel } from '../firebase/dataModels';
+export default function TurmasPage() {
+  const [turmas, setTurmas] = useState([])
+  const [nomeTurma, setNomeTurma] = useState("")
+  const [nivelEnsino, setNivelEnsino] = useState("")
+  const [anoSerie, setAnoSerie] = useState("")
+  const [turno, setTurno] = useState("")
+  const [anoLetivo, setAnoLetivo] = useState("")
+  const [professoresIds, setProfessoresIds] = useState([])
+  const [limiteVagas, setLimiteVagas] = useState("")
+  const [salaAula, setSalaAula] = useState("")
+  const [componentesSelecionados, setComponentesSelecionados] = useState([])
 
-function TurmasPage() {
-  const { userData, loading } = useUser();
-  const navigate = useNavigate();
-  const { schoolId } = useParams();
+  const [editingTurma, setEditingTurma] = useState(null)
+  const [isSaving, setIsSaving] = useState(false)
 
-  const [turmas, setTurmas] = useState([]);
-  const [editingTurma, setEditingTurma] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const [schoolName, setSchoolName] = useState('');
-  const [schoolNiveisEnsino, setSchoolNiveisEnsino] = useState([]);
-  const [schoolAnosSeries, setSchoolAnosSeries] = useState([]);
-
-  // Estados do Formulário de Turma
-  const [nomeTurma, setNomeTurma] = useState('');
-  const [nivelEnsino, setNivelEnsino] = useState('');
-  const [anoSerie, setAnoSerie] = useState('');
-  const [turno, setTurno] = useState('Manhã');
-  const [anoLetivo, setAnoLetivo] = useState(new Date().getFullYear().toString());
-  const [professoresIds, setProfessoresIds] = useState([]);
-  const [limiteVagas, setLimiteVagas] = useState('');
-  const [salaAula, setSalaAula] = useState('');
-
-  const [availableAnosSeries, setAvailableAnosSeries] = useState([]);
-
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-
+  // 🔎 Buscar turmas no Firestore
   useEffect(() => {
-    const newAvailableAnosSeries = new Set();
-    if (nivelEnsino) {
-      if (seriesAnosEtapasData[nivelEnsino]) {
-        seriesAnosEtapasData[nivelEnsino].forEach(item => {
-          if (schoolAnosSeries.includes(item)) {
-              newAvailableAnosSeries.add(item);
-          }
-        });
-      }
+    const fetchTurmas = async () => {
+      const querySnapshot = await getDocs(collection(db, "turmas"))
+      const lista = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+      setTurmas(lista)
     }
-    setAvailableAnosSeries(Array.from(newAvailableAnosSeries));
-    if (anoSerie && !Array.from(newAvailableAnosSeries).includes(anoSerie)) {
-      setAnoSerie('');
-    }
-  }, [nivelEnsino, anoSerie, schoolAnosSeries]);
+    fetchTurmas()
+  }, [])
 
+  // ✅ Alternar seleção de componentes
+  const toggleComponente = (nome) => {
+    setComponentesSelecionados((prev) =>
+      prev.includes(nome)
+        ? prev.filter((c) => c !== nome)
+        : [...prev, nome]
+    )
+  }
 
-  const resetForm = () => {
-    setNomeTurma('');
-    setNivelEnsino('');
-    setAnoSerie('');
-    setTurno('Manhã');
-    setAnoLetivo(new Date().getFullYear().toString());
-    setProfessoresIds([]);
-    setLimiteVagas('');
-    setSalaAula('');
-    setErrorMessage('');
-    setSuccessMessage('');
-    setEditingTurma(null);
-  };
-
-  const filteredTurmas = turmas.filter(turma =>
-    (turma.nomeTurma && turma.nomeTurma.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (turma.anoSerie && turma.anoSerie.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (turma.nivelEnsino && turma.nivelEnsino.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
-  useEffect(() => {
-    if (!loading && schoolId) {
-      if (!userData || !(userData.funcao && (userData.funcao.toLowerCase() === 'administrador' || userData.funcao.toLowerCase() === 'secretario'))) {
-        navigate('/dashboard');
-        return;
-      }
-      if (userData.funcao.toLowerCase() === 'secretario') {
-         const userSchools = userData.escolasIds || (userData.escolaId ? [userData.escolaId] : []);
-         if (!userSchools.includes(schoolId)) {
-           setErrorMessage("Acesso negado: Você não está associado a esta escola.");
-           setTurmas([]);
-           return;
-         }
-      }
-
-      const fetchData = async () => {
-        try {
-          const schoolDocRef = doc(db, 'schools', schoolId);
-          const schoolDocSnap = await getDoc(schoolDocRef);
-          if (schoolDocSnap.exists()) {
-            setSchoolName(schoolDocSnap.data().nomeEscola);
-            setSchoolNiveisEnsino(schoolDocSnap.data().niveisEnsino || []);
-            setSchoolAnosSeries(schoolDocSnap.data().anosSeriesAtendidas || []);
-          } else {
-            setErrorMessage("Erro: Escola não encontrada.");
-            setSchoolName('Escola Desconhecida');
-            setSchoolNiveisEnsino([]);
-            setSchoolAnosSeries([]);
-          }
-
-          const turmasColRef = collection(db, 'turmas');
-          const q = query(turmasColRef, where('schoolId', '==', schoolId));
-          const turmaSnapshot = await getDocs(q);
-          const turmaList = turmaSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          setTurmas(turmaList);
-        } catch (error) {
-          console.error("Erro ao buscar dados da página de turmas:", error);
-          setErrorMessage("Erro ao carregar dados da página de turmas.");
-        }
-      };
-      fetchData();
-    }
-  }, [loading, userData, navigate, schoolId]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
-
+  // 💾 Salvar turma
+  const handleSave = async () => {
     if (!nomeTurma || !nivelEnsino || !anoSerie || !turno || !anoLetivo) {
-      setErrorMessage('Todos os campos obrigatórios devem ser preenchidos.');
-      return;
-    }
-    if (!schoolId) {
-      setErrorMessage('ID da escola não fornecido. Não é possível cadastrar a turma.');
-      return;
+      alert("Preencha todos os campos obrigatórios.")
+      return
     }
 
-    const turmaData = {
-      ...turmaModel,
-      nomeTurma: nomeTurma.toUpperCase(),
-      nivelEnsino: nivelEnsino, // Mantém o case original do constant
-      anoSerie: anoSerie, // Mantém o case original do constant
-      turno,
-      anoLetivo,
-      professoresIds: professoresIds || [],
-      limiteVagas: limiteVagas ? parseInt(limiteVagas, 10) : null,
-      salaAula: salaAula.toUpperCase(),
-      schoolId,
-    };
+    setIsSaving(true)
 
     try {
+      const componentesDaSerie = componentesData[anoSerie] || []
+
+      const turmaData = {
+        nomeTurma,
+        nivelEnsino,
+        anoSerie,
+        turno,
+        anoLetivo,
+        professoresIds,
+        limiteVagas,
+        salaAula,
+        componentes: componentesDaSerie.filter((c) =>
+          componentesSelecionados.includes(c.nome)
+        ),
+      }
+
       if (editingTurma) {
-        const turmaDocRef = doc(db, 'turmas', editingTurma.id);
-        await updateDoc(turmaDocRef, {
-          ...turmaData,
-          ultimaAtualizacao: new Date(),
-        });
-        setSuccessMessage('Turma atualizada com sucesso!');
-        setTurmas(turmas.map(t => t.id === editingTurma.id ? { ...t, ...turmaData } : t));
+        const docRef = doc(db, "turmas", editingTurma.id)
+        await updateDoc(docRef, turmaData)
+        setTurmas(
+          turmas.map((t) =>
+            t.id === editingTurma.id ? { ...t, ...turmaData } : t
+          )
+        )
       } else {
-        const newTurmaData = {
-          ...turmaData,
-          dataCriacao: new Date(),
-          ultimaAtualizacao: new Date(),
-        };
-        const docRef = await addDoc(collection(db, 'turmas'), newTurmaData);
-        setSuccessMessage('Turma cadastrada com sucesso!');
-        setTurmas([...turmas, { id: docRef.id, ...newTurmaData }]);
+        const docRef = await addDoc(collection(db, "turmas"), turmaData)
+        setTurmas([...turmas, { id: docRef.id, ...turmaData }])
       }
-      resetForm();
-    } catch (error) {
-      console.error("Erro ao gerenciar turma:", error);
-      setErrorMessage("Erro ao salvar dados da turma: " + error.message);
+
+      resetForm()
+    } catch (err) {
+      console.error("Erro ao salvar turma:", err)
+      alert("Não foi possível salvar a turma.")
+    } finally {
+      setIsSaving(false)
     }
-  };
+  }
 
-  const handleEdit = (turmaToEdit) => {
-    setEditingTurma(turmaToEdit);
-    setNomeTurma(turmaToEdit.nomeTurma || '');
-    setNivelEnsino(turmaToEdit.nivelEnsino || '');
-    setAnoSerie(turmaToEdit.anoSerie || '');
-    setTurno(turmaToEdit.turno || 'Manhã');
-    setAnoLetivo(turmaToEdit.anoLetivo || new Date().getFullYear().toString());
-    setProfessoresIds(turmaToEdit.professoresIds || []);
-    setLimiteVagas(turmaToEdit.limiteVagas || '');
-    setSalaAula(turmaToEdit.salaAula || '');
-    setErrorMessage('');
-    setSuccessMessage('');
-  };
-
-  const handleDelete = async (turmaId) => {
-    if (window.confirm('Tem certeza que deseja excluir esta turma? Esta ação não pode ser desfeita!')) {
-      try {
-        await deleteDoc(doc(db, 'turmas', turmaId));
-        setSuccessMessage('Turma excluída com sucesso!');
-        setTurmas(turmas.filter(turma => turma.id !== turmaId));
-      } catch (error) {
-        console.error("Erro ao excluir turma:", error);
-        setErrorMessage("Erro ao excluir turma: " + error.message);
-      }
+  // 🗑️ Excluir turma
+  const handleDelete = async (id) => {
+    if (!window.confirm("Tem certeza que deseja excluir esta turma?")) return
+    try {
+      await deleteDoc(doc(db, "turmas", id))
+      setTurmas(turmas.filter((t) => t.id !== id))
+    } catch (err) {
+      console.error("Erro ao excluir turma:", err)
+      alert("Não foi possível excluir a turma.")
     }
-  };
+  }
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen text-gray-700">
-        Carregando...
-      </div>
-    );
+  // ✏️ Editar turma
+  const handleEdit = (turma) => {
+    setEditingTurma(turma)
+    setNomeTurma(turma.nomeTurma)
+    setNivelEnsino(turma.nivelEnsino)
+    setAnoSerie(turma.anoSerie)
+    setTurno(turma.turno)
+    setAnoLetivo(turma.anoLetivo)
+    setProfessoresIds(turma.professoresIds || [])
+    setLimiteVagas(turma.limiteVagas || "")
+    setSalaAula(turma.salaAula || "")
+    setComponentesSelecionados(
+      (turma.componentes || []).map((c) => c.nome)
+    )
+  }
+
+  // 🔄 Resetar form
+  const resetForm = () => {
+    setEditingTurma(null)
+    setNomeTurma("")
+    setNivelEnsino("")
+    setAnoSerie("")
+    setTurno("")
+    setAnoLetivo("")
+    setProfessoresIds([])
+    setLimiteVagas("")
+    setSalaAula("")
+    setComponentesSelecionados([])
   }
 
   return (
-    <div className="flex-grow p-6">
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">
-          {editingTurma ? 'EDITAR TURMA' : 'CADASTRAR NOVA TURMA'} {schoolName && `NA ESCOLA ${schoolName.toUpperCase()}`}
-        </h2>
+    <div className="p-6">
+      <h1 className="text-xl font-bold mb-4">Gerenciar Turmas</h1>
 
-        {errorMessage && <p className="text-red-600 text-sm mb-4 text-center">{errorMessage}</p>}
-        {successMessage && <p className="text-green-600 text-sm mb-4 text-center">{successMessage}</p>}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div>
+          <label className="block font-medium mb-1">Nome da Turma</label>
+          <input
+            value={nomeTurma}
+            onChange={(e) => setNomeTurma(e.target.value)}
+            className="w-full border p-2 rounded"
+          />
+        </div>
 
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="nomeTurma" className="block text-sm font-medium text-gray-700">Nome da Turma <span className="text-red-500">*</span></label>
-            <input type="text" id="nomeTurma" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={nomeTurma} onChange={(e) => setNomeTurma(e.target.value.toUpperCase())} required autoComplete="off" />
-          </div>
+        <div>
+          <label className="block font-medium mb-1">Nível de Ensino</label>
+          <select
+            value={nivelEnsino}
+            onChange={(e) => setNivelEnsino(e.target.value)}
+            className="w-full border p-2 rounded"
+          >
+            <option value="">Selecione</option>
+            <option value="ENSINO FUNDAMENTAL - ANOS INICIAIS">
+              Ensino Fundamental - Anos Iniciais
+            </option>
+            <option value="ENSINO FUNDAMENTAL - ANOS FINAIS">
+              Ensino Fundamental - Anos Finais
+            </option>
+            <option value="ENSINO MÉDIO">Ensino Médio</option>
+            <option value="EDUCAÇÃO INFANTIL">Educação Infantil</option>
+            <option value="EJA">Educação de Jovens e Adultos</option>
+          </select>
+        </div>
 
-          <div>
-            <label htmlFor="anoLetivo" className="block text-sm font-medium text-gray-700">Ano Letivo <span className="text-red-500">*</span></label>
-            <input type="text" id="anoLetivo" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={anoLetivo} onChange={(e) => setAnoLetivo(e.target.value)} required autoComplete="off" />
-          </div>
+        <div>
+          <label className="block font-medium mb-1">Ano/Série</label>
+          <select
+            value={anoSerie}
+            onChange={(e) => {
+              setAnoSerie(e.target.value)
+              setComponentesSelecionados([])
+            }}
+            className="w-full border p-2 rounded"
+          >
+            <option value="">Selecione</option>
+            {Object.keys(componentesData).map((serie) => (
+              <option key={serie} value={serie}>
+                {serie}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div>
-            <label htmlFor="nivelEnsino" className="block text-sm font-medium text-gray-700">Nível de Ensino <span className="text-red-500">*</span></label>
-            <select id="nivelEnsino" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={nivelEnsino} onChange={(e) => setNivelEnsino(e.target.value)} required autoComplete="off">
-              <option value="">Selecione um Nível</option>
-              {schoolNiveisEnsino.map((nivel, index) => (
-                <option key={index} value={nivel}>{nivel}</option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <label className="block font-medium mb-1">Turno</label>
+          <select
+            value={turno}
+            onChange={(e) => setTurno(e.target.value)}
+            className="w-full border p-2 rounded"
+          >
+            <option value="">Selecione</option>
+            <option value="MATUTINO">Matutino</option>
+            <option value="VESPERTINO">Vespertino</option>
+            <option value="NOTURNO">Noturno</option>
+          </select>
+        </div>
 
-          <div>
-            <label htmlFor="anoSerie" className="block text-sm font-medium text-gray-700">Ano/Série/Etapa <span className="text-red-500">*</span></label>
-            <select id="anoSerie" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={anoSerie} onChange={(e) => setAnoSerie(e.target.value)} required disabled={!nivelEnsino} autoComplete="off">
-              <option value="">Selecione um Ano/Série</option>
-              {availableAnosSeries.length > 0 ? (
-                availableAnosSeries.map((item, index) => (
-                  <option key={index} value={item}>{item}</option>
-                ))
-              ) : (
-                <option value="" disabled>Selecione um Nível de Ensino primeiro</option>
-              )}
-            </select>
-          </div>
+        <div>
+          <label className="block font-medium mb-1">Ano Letivo</label>
+          <input
+            value={anoLetivo}
+            onChange={(e) => setAnoLetivo(e.target.value)}
+            className="w-full border p-2 rounded"
+          />
+        </div>
 
-          <div>
-            <label htmlFor="turno" className="block text-sm font-medium text-gray-700">Turno <span className="text-red-500">*</span></label>
-            <select id="turno" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={turno} onChange={(e) => setTurno(e.target.value)} required autoComplete="off">
-              <option value="Manhã">Manhã</option>
-              <option value="Tarde">Tarde</option>
-              <option value="Noite">Noite</option>
-              <option value="Integral">Integral</option>
-            </select>
-          </div>
+        <div>
+          <label className="block font-medium mb-1">Sala de Aula</label>
+          <input
+            value={salaAula}
+            onChange={(e) => setSalaAula(e.target.value)}
+            className="w-full border p-2 rounded"
+          />
+        </div>
 
-          <div>
-            <label htmlFor="limiteVagas" className="block text-sm font-medium text-gray-700">Limite de Vagas</label>
-            <input type="number" id="limiteVagas" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" value={limiteVagas} onChange={(e) => setLimiteVagas(e.target.value)} min="1" autoComplete="off" />
-          </div>
-
-          <div className="md:col-span-2">
-            <label htmlFor="salaAula" className="block text-sm font-medium text-gray-700">Sala de Aula</label>
-            <input type="text" id="salaAula" className="mt-1 block w-full p-2 border border-gray-300 rounded-md uppercase" value={salaAula} onChange={(e) => setSalaAula(e.target.value.toUpperCase())} autoComplete="off" />
-          </div>
-
-          <div className="md:col-span-2 flex justify-end space-x-3 mt-4">
-            {editingTurma && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded"
-              >
-                Cancelar Edição
-              </button>
-            )}
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            >
-              {editingTurma ? 'Salvar Alterações' : 'Cadastrar Turma'}
-            </button>
-          </div>
-        </form>
-
-        <hr className="my-8" />
-
-        <h3 className="text-xl font-bold mb-4 text-gray-800 text-center">Lista de Turmas</h3>
-        <div className="overflow-x-auto">
-            <table className="min-w-full bg-white border border-gray-300 rounded-md">
-              <thead>
-                <tr className="bg-gray-200 text-gray-700 uppercase text-sm leading-normal">
-                  <th className="py-3 px-6 text-left">Nome da Turma</th>
-                  <th className="py-3 px-6 text-left">Nível de Ensino</th>
-                  <th className="py-3 px-6 text-left">Ano/Série</th>
-                  <th className="py-3 px-6 text-left">Turno</th>
-                  <th className="py-3 px-6 text-left">Ano Letivo</th>
-                  <th className="py-3 px-6 text-center">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="text-gray-600 text-sm font-light">
-                {filteredTurmas.map((turma) => (
-                  <tr key={turma.id} className="border-b border-gray-200 hover:bg-gray-100">
-                    <td className="py-3 px-6 text-left whitespace-nowrap">{turma.nomeTurma}</td>
-                    <td className="py-3 px-6 text-left">{turma.nivelEnsino}</td>
-                    <td className="py-3 px-6 text-left">{turma.anoSerie}</td>
-                    <td className="py-3 px-6 text-left">{turma.turno}</td>
-                    <td className="py-3 px-6 text-left">{turma.anoLetivo}</td>
-                    <td className="py-3 px-6 text-center">
-                      <div className="flex item-center justify-center space-x-2">
-                        <button onClick={() => handleEdit(turma)} className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full text-xs">
-                          Editar
-                        </button>
-                        <button onClick={() => handleDelete(turma.id)} className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full text-xs">
-                          Excluir
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div>
+          <label className="block font-medium mb-1">Limite de Vagas</label>
+          <input
+            type="number"
+            value={limiteVagas}
+            onChange={(e) => setLimiteVagas(e.target.value)}
+            className="w-full border p-2 rounded"
+          />
         </div>
       </div>
-    </div>
-  );
-}
 
-export default TurmasPage;
+      {/* ✅ Seleção de componentes curriculares */}
+      {anoSerie && (
+        <div className="mb-6">
+          <label className="block font-medium mb-2">
+            Componentes Curriculares ({anoSerie})
+          </label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {(componentesData[anoSerie] || []).map((comp) => (
+              <label key={comp.nome} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={componentesSelecionados.includes(comp.nome)}
+                  onChange={() => toggleComponente(comp.nome)}
+                />
+                {comp.nome}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+        >
+          {isSaving ? "Salvando..." : editingTurma ? "Atualizar" : "Adicionar"}
+        </button>
+        {editingTurma && (
+          <button
+            onClick={resetForm}
+            className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
+          >
+            Cancelar
+          </button>
+        )}
+      </div>
+
+      {/* Lista de turmas */}
+      <table className="w-full border">
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="border p-2">Nome</th>
+            <th className="border p-2">Nível</th>
+            <th className="border p-2">Ano/Série</th>
+            <th className="border p-2">Turno</th>
+            <th className="border p-2">Ano Letivo</th>
+            <th className="border p-2">Componentes</th>
+            <th className="border p-2">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {turmas.map((turma) => (
+            <tr key={turma.id}>
+              <td className="border p-2">{turma.nomeTurma}</td>
+              <td className="border p-2">{turma.nivelEnsino}</td>
+              <td className="border p-2">{turma.anoSerie}</td>
+              <td className="border p-2">{turma.turno}</td>
+              <td className="border p-2">{turma.anoLetivo}</td>
+              <td className="border p-2">
+                {(turma.componentes || []).map((c) => c.nome).join(", ")}
+              </td>
+              <td className="border p-2 flex gap-2">
+                <button
+                  onClick={() => handleEdit(turma)}
+                  className="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => handleDelete(turma.id)}
+                  className="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
+                >
+                  Excluir
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}

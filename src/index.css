@@ -1,4 +1,31 @@
-@import 'react-big-calendar/lib/css/react-big-calendar.css';
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+
+/* Tailwind directives */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Estilos globais */
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply font-sans bg-gray-50 text-gray-900 antialiased;
+}
+
+/* Scrollbar minimalista (opcional) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: theme("colors.gray.300");
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: theme("colors.gray.400");
+}
