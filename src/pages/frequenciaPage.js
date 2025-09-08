@@ -12,7 +12,6 @@ import {
   doc,
 } from "firebase/firestore";
 import { useUser } from "../context/UserContext";
-import { useNavigate } from "react-router-dom";
 
 const FrequenciaCell = ({ status, onClick, isSaving }) => {
   const statusMap = {
@@ -45,7 +44,7 @@ const formatDate = (dateString) => {
 
 function FrequenciaPage() {
   const { userData } = useUser();
-  const navigate = useNavigate();
+  //const navigate = useNavigate();
 
   const initialFilters = {
     selectedSchoolId: "",

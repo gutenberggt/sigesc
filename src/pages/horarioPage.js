@@ -18,7 +18,7 @@ function HorarioPage() {
   const { turmaId } = useParams();
 
   const [turma, setTurma] = useState(null);
-  const [escola, setEscola] = useState(null);
+  //const [escola, setEscola] = useState(null);
   const [componentesDisponiveis, setComponentesDisponiveis] = useState([]);
   const [numeroDeAulas, setNumeroDeAulas] = useState(5);
   const [scheduleRows, setScheduleRows] = useState([]);
@@ -117,12 +117,12 @@ function HorarioPage() {
         console.warn(
           "Nenhum professor encontrado no documento da turma. Usando busca de fallback na coleção 'servidores'."
         );
-        const servidoresQuery = query(
-          collection(db, "servidores"),
-          where("alocacoes", "array-contains-any", [
-            { funcoes: [{ turmaId: turmaId }] },
-          ])
-        );
+        //const servidoresQuery = query(
+          //collection(db, "servidores"),
+          //where("alocacoes", "array-contains-any", [
+           //{ funcoes: [{ turmaId: turmaId }] },
+          //])
+        //);
         // A consulta acima é complexa. A forma mais garantida é filtrar no cliente.
         const todosServidoresSnap = await getDocs(collection(db, "servidores"));
 
