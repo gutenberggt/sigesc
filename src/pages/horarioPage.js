@@ -6,8 +6,6 @@ import {
   setDoc,
   collection,
   getDocs,
-  query,
-  where,
 } from "firebase/firestore";
 import { useNavigate, useParams } from "react-router-dom";
 import CustomDropdown from "../components/CustomDropdown";
@@ -18,7 +16,7 @@ function HorarioPage() {
   const { turmaId } = useParams();
 
   const [turma, setTurma] = useState(null);
-  //const [escola, setEscola] = useState(null);
+  const [escola, setEscola] = useState(null);
   const [componentesDisponiveis, setComponentesDisponiveis] = useState([]);
   const [numeroDeAulas, setNumeroDeAulas] = useState(5);
   const [scheduleRows, setScheduleRows] = useState([]);
