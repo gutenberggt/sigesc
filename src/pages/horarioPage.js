@@ -16,7 +16,7 @@ function HorarioPage() {
   const { turmaId } = useParams();
 
   const [turma, setTurma] = useState(null);
-  const [escola, setEscola] = useState(null);
+  const [, setEscola] = useState(null);
   const [componentesDisponiveis, setComponentesDisponiveis] = useState([]);
   const [numeroDeAulas, setNumeroDeAulas] = useState(5);
   const [scheduleRows, setScheduleRows] = useState([]);
