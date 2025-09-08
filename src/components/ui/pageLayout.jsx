@@ -1,5 +1,5 @@
-import React from "react"
-import { PageHeader } from "./pageHeader"
+import React from "react";
+import { PageHeader } from "./pageHeader";
 
 export function PageLayout({ title, subtitle, actions, tabs, children }) {
   return (
@@ -12,5 +12,5 @@ export function PageLayout({ title, subtitle, actions, tabs, children }) {
         <div className="mt-4">{children}</div>
       )}
     </div>
-  )
+  );
 }

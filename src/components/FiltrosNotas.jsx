@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo } from "react";
 
 export default function FiltrosNotas({
   filters,
@@ -9,26 +9,26 @@ export default function FiltrosNotas({
 }) {
   // 🔄 Limpa o componente curricular quando troca de turma ou escola
   useEffect(() => {
-    setFilters((prev) => ({ ...prev, selectedComponenteId: "" }))
-  }, [filters.selectedTurmaId, filters.selectedSchoolId, setFilters])
+    setFilters((prev) => ({ ...prev, selectedComponenteId: "" }));
+  }, [filters.selectedTurmaId, filters.selectedSchoolId, setFilters]);
 
   // 📌 Gerar anos letivos dinamicamente das turmas/escolas
   const anosLetivos = useMemo(() => {
-    const anos = new Set()
+    const anos = new Set();
     turmas.forEach((t) => {
-      if (t.anoLetivo) anos.add(String(t.anoLetivo))
-    })
-    return Array.from(anos).sort((a, b) => b.localeCompare(a))
-  }, [turmas])
+      if (t.anoLetivo) anos.add(String(t.anoLetivo));
+    });
+    return Array.from(anos).sort((a, b) => b.localeCompare(a));
+  }, [turmas]);
 
   // 📌 Mostrar seletor de componente apenas para Anos Finais / EJA Finais
-  const nivel = (selectedTurma?.nivelEnsino || "").toUpperCase()
+  const nivel = (selectedTurma?.nivelEnsino || "").toUpperCase();
   const showComponenteFilter =
     nivel === "ENSINO FUNDAMENTAL - ANOS FINAIS" ||
-    nivel === "EDUCAÇÃO DE JOVENS E ADULTOS - EJA - ANOS FINAIS"
+    nivel === "EDUCAÇÃO DE JOVENS E ADULTOS - EJA - ANOS FINAIS";
 
   // 📌 Recupera componentes da turma selecionada
-  const componentes = selectedTurma?.componentes || []
+  const componentes = selectedTurma?.componentes || [];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -128,5 +128,5 @@ export default function FiltrosNotas({
         </div>
       )}
     </div>
-  )
+  );
 }

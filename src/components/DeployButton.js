@@ -1,23 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 function DeployButton() {
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState("");
 
   const handleDeploy = async () => {
-    setStatus('Enviando...');
+    setStatus("Enviando...");
     try {
-      const response = await fetch('https://api.vercel.com/v1/integrations/deploy/prj_nwSamZ9QyVv6OsCvsJy6FU9jInKQ/gJEE8NvGDd', {
-        method: 'POST',
-      });
+      const response = await fetch(
+        "https://api.vercel.com/v1/integrations/deploy/prj_nwSamZ9QyVv6OsCvsJy6FU9jInKQ/gJEE8NvGDd",
+        {
+          method: "POST",
+        }
+      );
 
       if (response.ok) {
-        setStatus('✅ Deploy iniciado com sucesso!');
+        setStatus("✅ Deploy iniciado com sucesso!");
       } else {
-        setStatus('❌ Erro ao iniciar deploy.');
+        setStatus("❌ Erro ao iniciar deploy.");
       }
     } catch (error) {
       console.error(error);
-      setStatus('❌ Erro ao conectar com o Vercel.');
+      setStatus("❌ Erro ao conectar com o Vercel.");
     }
   };
 

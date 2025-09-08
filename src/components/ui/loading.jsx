@@ -1,11 +1,11 @@
-import React from "react"
+import React from "react";
 
 export function LoadingSpinner({ size = "md", text }) {
   const sizes = {
     sm: "h-4 w-4",
     md: "h-6 w-6",
     lg: "h-10 w-10",
-  }
+  };
 
   return (
     <div className="flex items-center gap-2">
@@ -31,5 +31,5 @@ export function LoadingSpinner({ size = "md", text }) {
       </svg>
       {text && <span className="text-sm text-secondary-700">{text}</span>}
     </div>
-  )
+  );
 }

@@ -1,15 +1,24 @@
-import { calcularTotais } from '../utils/calculoNotas';
+import { calcularTotais } from "../utils/calculoNotas";
 
 export default function RelatorioRisco({ alunos, notas }) {
-  const alunosEmRisco = alunos.filter(aluno => {
+  const alunosEmRisco = alunos.filter((aluno) => {
     const pessoaId = aluno.pessoaId || aluno.id;
     const row = notas[pessoaId] || {};
-    const { media } = calcularTotais(row.b1, row.b2, row.r1, row.b3, row.b4, row.r2);
+    const { media } = calcularTotais(
+      row.b1,
+      row.b2,
+      row.r1,
+      row.b3,
+      row.b4,
+      row.r2
+    );
 
-    const semNotas = Object.values(row).every(v => v === '' || v === undefined);
+    const semNotas = Object.values(row).every(
+      (v) => v === "" || v === undefined
+    );
     if (semNotas) return false;
 
-    return typeof media === 'number' && media < 5;
+    return typeof media === "number" && media < 5;
   });
 
   const alunosOrdenados = [...alunosEmRisco].sort(
@@ -18,8 +27,10 @@ export default function RelatorioRisco({ alunos, notas }) {
 
   const percentual =
     alunos.length > 0
-      ? ((alunosEmRisco.length / alunos.length) * 100).toFixed(1).replace('.', ',')
-      : '0,0';
+      ? ((alunosEmRisco.length / alunos.length) * 100)
+          .toFixed(1)
+          .replace(".", ",")
+      : "0,0";
 
   return (
     <div className="mt-4">
@@ -31,18 +42,25 @@ export default function RelatorioRisco({ alunos, notas }) {
         {alunosOrdenados.map((aluno, index) => {
           const pessoaId = aluno.pessoaId || aluno.id;
           const row = notas[pessoaId] || {};
-          const { media } = calcularTotais(row.b1, row.b2, row.r1, row.b3, row.b4, row.r2);
+          const { media } = calcularTotais(
+            row.b1,
+            row.b2,
+            row.r1,
+            row.b3,
+            row.b4,
+            row.r2
+          );
 
           const numero =
-            aluno.numeroChamada && typeof aluno.numeroChamada === 'number'
+            aluno.numeroChamada && typeof aluno.numeroChamada === "number"
               ? aluno.numeroChamada
               : index + 1;
 
-          const nomeSeguro = String(aluno.nomeCompleto || aluno.nome || '—');
+          const nomeSeguro = String(aluno.nomeCompleto || aluno.nome || "—");
           const mediaFormatada =
-            typeof media === 'number'
-              ? media.toFixed(1).replace('.', ',')
-              : '—';
+            typeof media === "number"
+              ? media.toFixed(1).replace(".", ",")
+              : "—";
 
           return (
             <li key={pessoaId} className="text-red-600">

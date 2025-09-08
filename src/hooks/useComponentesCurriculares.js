@@ -1,10 +1,20 @@
-import { useEffect, useState } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from "react";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  getDoc,
+} from "firebase/firestore";
+import { db } from "../firebase/config";
 
-
-export function useComponentesCurriculares(filters, showComponenteFilter, funcao, userData) {
+export function useComponentesCurriculares(
+  filters,
+  showComponenteFilter,
+  funcao,
+  userData
+) {
   const [componentes, setComponentes] = useState([]);
 
   useEffect(() => {
@@ -17,7 +27,7 @@ export function useComponentesCurriculares(filters, showComponenteFilter, funcao
 
     const buscarComponentes = async () => {
       try {
-        const turmaRef = doc(db, 'turmas', selectedTurmaId);
+        const turmaRef = doc(db, "turmas", selectedTurmaId);
         const turmaSnap = await getDoc(turmaRef);
         const turma = turmaSnap.exists() ? turmaSnap.data() : null;
 
@@ -26,29 +36,31 @@ export function useComponentesCurriculares(filters, showComponenteFilter, funcao
           return;
         }
 
-        const ref = collection(db, 'componentes');
+        const ref = collection(db, "componentes");
         const q = query(
           ref,
-          where('nivelEnsino', '==', turma.nivelEnsino),
-          where('serieAno', '==', turma.anoSerie)
+          where("nivelEnsino", "==", turma.nivelEnsino),
+          where("serieAno", "==", turma.anoSerie)
         );
 
         const snapshot = await getDocs(q);
-        const lista = snapshot.docs.map(doc => ({
+        const lista = snapshot.docs.map((doc) => ({
           id: doc.id,
-          ...doc.data()
+          ...doc.data(),
         }));
 
         if (showComponenteFilter && selectedComponenteId) {
           const filtrado = lista.filter(
-            comp => comp.id === selectedComponenteId || comp.codigo === selectedComponenteId
+            (comp) =>
+              comp.id === selectedComponenteId ||
+              comp.codigo === selectedComponenteId
           );
           setComponentes(filtrado);
         } else {
           setComponentes(lista);
         }
       } catch (error) {
-        console.error('Erro ao buscar componentes curriculares:', error);
+        console.error("Erro ao buscar componentes curriculares:", error);
         setComponentes([]);
       }
     };

@@ -1,5 +1,5 @@
-import React from "react"
-import { LoadingSpinner } from "./loading"
+import React from "react";
+import { LoadingSpinner } from "./loading";
 
 export function LoadingOverlay({ text = "Carregando..." }) {
   return (
@@ -9,5 +9,5 @@ export function LoadingOverlay({ text = "Carregando..." }) {
         <p className="text-secondary-700">{text}</p>
       </div>
     </div>
-  )
+  );
 }

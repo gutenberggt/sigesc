@@ -1,37 +1,45 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { auth } from '../firebase/config'; //
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore'; //
-import { db } from '../firebase/config'; //
-import { useUser } from '../context/UserContext';
-import Footer from '../components/Footer'; //
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { auth } from "../firebase/config"; //
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore"; //
+import { db } from "../firebase/config"; //
+import { useUser } from "../context/UserContext";
+import Footer from "../components/Footer"; //
 
 function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  const [erro, setErro] = useState('');
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
   const { setUserData } = useUser();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setErro('');
+    setErro("");
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, senha); //
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        senha
+      ); //
       const user = userCredential.user;
 
       const userDocRef = doc(db, "users", user.uid); //
       const userDocSnap = await getDoc(userDocRef); //
 
-      if (userDocSnap.exists()) { //
+      if (userDocSnap.exists()) {
+        //
         const fetchedUserData = userDocSnap.data(); //
 
-        if (fetchedUserData.ativo) { //
+        if (fetchedUserData.ativo) {
+          //
           setUserData(fetchedUserData);
           window.location.href = "/dashboard"; //
         } else {
           await signOut(auth); //
-          setErro("Seu cadastro ainda está aguardando ativação pelo responsável."); //
+          setErro(
+            "Seu cadastro ainda está aguardando ativação pelo responsável."
+          ); //
         }
       } else {
         await signOut(auth); //
@@ -52,8 +60,16 @@ function LoginPage() {
         <div className="md:w-1/2 hidden md:flex flex-col justify-center items-center p-6 relative">
           <div className="absolute top-4 left-4">
             <div className="flex items-center gap-2">
-              <img src="/sigesc_log.png" alt="SIGESC Logotipo" className="h-10" /> {/* */}
-              <span className="text-2xl font-bold text-gray-800">SIGESC</span> {/* */}
+              <img
+                src="/sigesc_log.png"
+                alt="SIGESC Logotipo"
+                className="h-10"
+              />{" "}
+              {/* */}
+              <span className="text-2xl font-bold text-gray-800">
+                SIGESC
+              </span>{" "}
+              {/* */}
             </div>
             <p className="text-sm text-gray-600 mt-1">
               Sistema Integrado de Gestão Escolar
@@ -71,13 +87,21 @@ function LoginPage() {
           <div className="bg-white shadow-lg rounded-xl p-8 w-full max-w-md">
             {/* Brasão e textos institucionais */}
             <div className="text-center mb-6 mt-4">
-              <img src="/brasao_floresta.png" alt="Brasão de Floresta" className="mx-auto h-16 mb-2" />
+              <img
+                src="/brasao_floresta.png"
+                alt="Brasão de Floresta"
+                className="mx-auto h-16 mb-2"
+              />
               <p className="text-base font-semibold text-gray-800">
                 Prefeitura Municipal de Floresta do Araguaia
               </p>
-              <p className="text-sm text-gray-700">Secretaria Municipal de Educação</p>
+              <p className="text-sm text-gray-700">
+                Secretaria Municipal de Educação
+              </p>
             </div>
-            <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Acesse sua conta</h2>
+            <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
+              Acesse sua conta
+            </h2>
 
             <form onSubmit={handleLogin}>
               <input
@@ -118,8 +142,10 @@ function LoginPage() {
             </p>
           </div>
         </div>
-      </div> {/* Fim do NOVO CONTAINER para a ilustração e o formulário */}
-      <Footer /> {/* O rodapé agora está fora do flex-row e será empurrado para baixo */}
+      </div>{" "}
+      {/* Fim do NOVO CONTAINER para a ilustração e o formulário */}
+      <Footer />{" "}
+      {/* O rodapé agora está fora do flex-row e será empurrado para baixo */}
     </div>
   );
 }

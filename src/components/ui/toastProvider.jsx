@@ -1,5 +1,5 @@
-import React from "react"
-import { Toaster } from "react-hot-toast"
+import React from "react";
+import { Toaster } from "react-hot-toast";
 
 export function ToastProvider() {
   return (
@@ -57,5 +57,5 @@ export function ToastProvider() {
         },
       }}
     />
-  )
+  );
 }

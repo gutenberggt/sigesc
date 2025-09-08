@@ -271,6 +271,27 @@ export default function TurmasPage() {
           </button>
         )}
       </div>
+	  
+	  {/* ✅ Seleção de componentes curriculares */}
+      {anoSerie && (
+        <div className="mb-6">
+          <label className="block font-medium mb-2">
+            Componentes Curriculares ({anoSerie})
+          </label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {(componentesData[anoSerie] || []).map((comp) => (
+              <label key={comp.nome} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={componentesSelecionados.includes(comp.nome)}
+                  onChange={() => toggleComponente(comp.nome)}
+                />
+                {comp.nome}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Lista de turmas */}
       <table className="w-full border">

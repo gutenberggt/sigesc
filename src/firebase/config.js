@@ -12,10 +12,9 @@ const firebaseConfig = {
   projectId: "sigesc-on",
   storageBucket: "sigesc-on.firebasestorage.app",
   messagingSenderId: "176313429752",
-  appId: "1:176313429752:web:3de9c206c4bd53f7d5d50d"
+  appId: "1:176313429752:web:3de9c206c4bd53f7d5d50d",
 };
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-
