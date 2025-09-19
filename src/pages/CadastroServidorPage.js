@@ -1,500 +1,243 @@
 import React, { useState, useEffect } from "react";
+import { collection, addDoc, getDocs } from "firebase/firestore";
 import { db } from "../firebase/config";
-import { collection, getDocs, query, where, addDoc } from "firebase/firestore";
-import { useNavigate } from "react-router-dom";
+import Layout from "../components/Layout";
+import Loading from "../components/ui/loading";
 
-function CadastroServidorPage() {
-  const navigate = useNavigate();
+const CadastroServidorPage = () => {
+  const [servidor, setServidor] = useState({
+    nome: "",
+    cpf: "",
+    email: "",
+    telefone: "",
+    escolaId: "",
+    anoLetivo: "",
+    funcoes: [],
+  });
 
-  // Estados da Página
-  const [personSearchTerm, setPersonSearchTerm] = useState("");
-  const [personSuggestions, setPersonSuggestions] = useState([]);
-  const [selectedPerson, setSelectedPerson] = useState(null);
   const [availableSchools, setAvailableSchools] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  // Estados para a lista de alocações do servidor
-  const [alocacoes, setAlocacoes] = useState([]);
-
-  // Estados para o formulário de UMA alocação que está sendo criada
-  const [currentEscolaId, setCurrentEscolaId] = useState("");
-  const [currentAnoLetivo, setCurrentAnoLetivo] = useState(
-    new Date().getFullYear().toString()
-  );
   const [currentFuncoes, setCurrentFuncoes] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // Estados para o formulário de UMA função que está sendo criada
-  const [currentFuncao, setCurrentFuncao] = useState("");
-  const [currentTurmaId, setCurrentTurmaId] = useState("");
-
-  const [selectedComponentes, setSelectedComponentes] = useState([]);
-  const [allComponentes, setAllComponentes] = useState([]);
-  const [componentesParaAdicionar, setComponentesParaAdicionar] = useState([]);
-  const [componentesParaRemover, setComponentesParaRemover] = useState([]);
-  const [availableTurmas, setAvailableTurmas] = useState([]);
-
-  // Busca escolas e todos os componentes curriculares uma vez
+  // 🔹 Carregar escolas do Firestore
   useEffect(() => {
-    const fetchInitialData = async () => {
-      const schoolsSnapshot = await getDocs(collection(db, "schools"));
-      setAvailableSchools(
-        schoolsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      );
-
-      const componentesSnapshot = await getDocs(collection(db, "componentes"));
-      setAllComponentes(
-        componentesSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      );
+    const fetchSchools = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "escolas"));
+        const schoolsData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setAvailableSchools(schoolsData);
+      } catch (err) {
+        console.error("Erro ao buscar escolas:", err);
+      }
     };
-    fetchInitialData();
+
+    fetchSchools();
   }, []);
 
-  // Busca sugestões de pessoas
-  useEffect(() => {
-    if (personSearchTerm.length < 3) {
-      setPersonSuggestions([]);
-      return;
-    }
-    const fetchSuggestions = async () => {
-      const q = query(
-        collection(db, "pessoas"),
-        where("nomeCompleto", ">=", personSearchTerm.toUpperCase()),
-        where("nomeCompleto", "<=", personSearchTerm.toUpperCase() + "\uf8ff")
-      );
-      const snapshot = await getDocs(q);
-      setPersonSuggestions(
-        snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      );
-    };
-    const handler = setTimeout(() => fetchSuggestions(), 500);
-    return () => clearTimeout(handler);
-  }, [personSearchTerm]);
-
-  // Atualiza Turmas disponíveis com base na escola
-  useEffect(() => {
-    const fetchTurmas = async () => {
-      if (currentEscolaId) {
-        const q = query(
-          collection(db, "turmas"),
-          where("schoolId", "==", currentEscolaId)
-        );
-        const snapshot = await getDocs(q);
-        setAvailableTurmas(
-          snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-        );
-      } else {
-        setAvailableTurmas([]);
-      }
-    };
-    fetchTurmas();
-    setCurrentTurmaId("");
-  }, [currentEscolaId]);
-
-  // ======================= INÍCIO DAS MUDANÇAS =======================
-  // Filtra os componentes disponíveis com base na série/ano da turma e na condição de escola integral
-  const availableComponentesParaTurma = allComponentes
-    .filter((comp) => {
-      const turma = availableTurmas.find((t) => t.id === currentTurmaId);
-      if (!turma) return false; // Se não há turma, não mostra componentes
-
-      const isCorrectSerie = comp.serieAno === turma.anoSerie;
-      if (!isCorrectSerie) return false;
-
-      // Condição da escola integral
-      const escolaSelecionada = availableSchools.find(
-        (s) => s.id === currentEscolaId
-      );
-      const isIntegral = escolaSelecionada?.integral === "Sim";
-
-      const componentesIntegrais = [
-        "Recreação, Esporte e Lazer",
-        "Arte e Cultura",
-        "Tecnologia e Informática",
-        "Acompanhamento Pedagógico de Língua Portuguesa",
-        "Acompanhamento Pedagógico de Matemática",
-      ];
-
-      // Se o componente for de tempo integral, só mostra se a escola for integral
-      if (componentesIntegrais.includes(comp.nome) && !isIntegral) {
-        return false;
-      }
-
-      return true; // Se passou em todas as verificações, mostra o componente
-    })
-    .sort((a, b) => a.nome.localeCompare(b.nome)); // Melhoria: Ordena alfabeticamente
-  // ======================== FIM DAS MUDANÇAS =========================
-
-  const componentesNaoSelecionados = availableComponentesParaTurma.filter(
-    (comp) => !selectedComponentes.some((sel) => sel.id === comp.id)
-  );
-
-  const componentesSelecionadosInfo = selectedComponentes
-    .map((sel) => allComponentes.find((comp) => comp.id === sel.id))
-    .filter(Boolean);
-
-  const handleSelectPerson = (person) => {
-    setSelectedPerson(person);
-    setPersonSearchTerm(person.nomeCompleto);
-    setPersonSuggestions([]);
+  // 🔹 Atualizar servidor dinamicamente
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setServidor((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
-  const handleAdicionarComponentes = () => {
-    const novosComponentes = [...selectedComponentes];
-    componentesParaAdicionar.forEach((idToAdd) => {
-      if (!novosComponentes.some((c) => c.id === idToAdd)) {
-        const comp = allComponentes.find((c) => c.id === idToAdd);
-        if (comp) novosComponentes.push({ id: comp.id, nome: comp.nome });
-      }
-    });
-    setSelectedComponentes(
-      novosComponentes.sort((a, b) => a.nome.localeCompare(b.nome))
-    ); // Ordena a lista de selecionados também
-    setComponentesParaAdicionar([]);
+  // 🔹 Adicionar função
+  const addFuncao = () => {
+    if (servidor.funcoes.includes("")) return;
+    setServidor((prev) => ({
+      ...prev,
+      funcoes: [...prev.funcoes, ""],
+    }));
   };
 
-  const handleRemoverComponentes = () => {
-    const componentesSelecionadosAtualizados = selectedComponentes.filter(
-      (c) => !componentesParaRemover.includes(c.id)
-    );
-    setSelectedComponentes(componentesSelecionadosAtualizados);
-    setComponentesParaRemover([]);
+  // 🔹 Alterar função
+  const handleFuncaoChange = (index, value) => {
+    const novasFuncoes = [...servidor.funcoes];
+    novasFuncoes[index] = value;
+    setServidor((prev) => ({
+      ...prev,
+      funcoes: novasFuncoes,
+    }));
   };
 
-  const handleAddFuncao = () => {
-    if (!currentFuncao) {
-      setError("A Função é obrigatória.");
-      return;
-    }
-    const newFuncao = {
-      funcao: currentFuncao,
-      turmaId: currentFuncao === "Professor(a)" ? currentTurmaId : null,
-      turmaNome:
-        currentFuncao === "Professor(a)"
-          ? availableTurmas.find((t) => t.id === currentTurmaId)?.nomeTurma
-          : null,
-      componentesCurriculares:
-        currentFuncao === "Professor(a)"
-          ? componentesSelecionadosInfo.map((c) => c.nome)
-          : [],
-    };
-    setCurrentFuncoes([...currentFuncoes, newFuncao]);
-    setCurrentFuncao("");
-    setCurrentTurmaId("");
-    setSelectedComponentes([]);
-    setError("");
-  };
-
-  const handleAddAlocacao = () => {
-    if (!currentEscolaId || !currentAnoLetivo || currentFuncoes.length === 0) {
-      setError(
-        "Para adicionar uma alocação, preencha Escola, Ano Letivo e adicione pelo menos uma função."
-      );
-      return;
-    }
-    const newAlocacao = {
-      schoolId: currentEscolaId,
-      escolaNome: availableSchools.find((s) => s.id === currentEscolaId)
-        ?.nomeEscola,
-      anoLetivo: currentAnoLetivo,
-      funcoes: currentFuncoes,
-    };
-    setAlocacoes([...alocacoes, newAlocacao]);
-    setCurrentEscolaId("");
-    setCurrentAnoLetivo(new Date().getFullYear().toString());
-    setCurrentFuncoes([]);
-    setError("");
-  };
-
-  const handleSave = async () => {
-    if (!selectedPerson || alocacoes.length === 0) {
-      setError(
-        "Selecione uma Pessoa e adicione ao menos uma Alocação completa para salvar."
-      );
-      return;
-    }
-    setIsSubmitting(true);
+  // 🔹 Salvar no Firestore
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
     try {
-      const servidorData = {
-        pessoaId: selectedPerson.id,
-        ativo: true,
-        alocacoes: alocacoes.map(({ escolaNome, ...rest }) => rest),
-        dataCriacao: new Date(),
+      const newServidor = {
+        ...servidor,
+        createdAt: new Date(),
       };
-      await addDoc(collection(db, "servidores"), servidorData);
-      setSuccess("Servidor cadastrado com sucesso!");
-      setSelectedPerson(null);
-      setPersonSearchTerm("");
-      setAlocacoes([]);
+
+      await addDoc(collection(db, "servidores"), newServidor);
+
+      setServidor({
+        nome: "",
+        cpf: "",
+        email: "",
+        telefone: "",
+        escolaId: "",
+        anoLetivo: "",
+        funcoes: [],
+      });
+
+      alert("Servidor cadastrado com sucesso!");
     } catch (err) {
-      console.error(err);
-      setError("Erro ao salvar o servidor.");
+      console.error("Erro ao cadastrar servidor:", err);
+      alert("Erro ao cadastrar servidor.");
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="p-6">
-      <div className="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">
-          Cadastro de Servidor
-        </h2>
+    <Layout>
+      <div className="p-6 bg-white shadow-md rounded-lg">
+        <h1 className="text-2xl font-bold mb-4">Cadastro de Servidor</h1>
 
-        <div className="mb-4 relative">
-          <label className="block text-sm font-medium text-gray-700">
-            Pessoa *
-          </label>
-          <input
-            type="text"
-            value={personSearchTerm}
-            onChange={(e) => setPersonSearchTerm(e.target.value)}
-            placeholder="Digite o nome para procurar..."
-            className="mt-1 block w-full p-2 border rounded-md"
-            disabled={!!selectedPerson}
-          />
-          {personSuggestions.length > 0 && !selectedPerson && (
-            <ul className="absolute z-10 w-full bg-white border rounded-md shadow-lg">
-              {personSuggestions.map((p) => (
-                <li
-                  key={p.id}
-                  onClick={() => handleSelectPerson(p)}
-                  className="p-2 cursor-pointer hover:bg-gray-100"
-                >
-                  {p.nomeCompleto} - CPF: {p.cpf}
-                </li>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Nome */}
+          <div>
+            <label htmlFor="nome" className="block font-medium">
+              Nome
+            </label>
+            <input
+              id="nome"
+              type="text"
+              name="nome"
+              value={servidor.nome}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+              required
+            />
+          </div>
+
+          {/* CPF */}
+          <div>
+            <label htmlFor="cpf" className="block font-medium">
+              CPF
+            </label>
+            <input
+              id="cpf"
+              type="text"
+              name="cpf"
+              value={servidor.cpf}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+              required
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label htmlFor="email" className="block font-medium">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              name="email"
+              value={servidor.email}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+              required
+            />
+          </div>
+
+          {/* Telefone */}
+          <div>
+            <label htmlFor="telefone" className="block font-medium">
+              Telefone
+            </label>
+            <input
+              id="telefone"
+              type="text"
+              name="telefone"
+              value={servidor.telefone}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+            />
+          </div>
+
+          {/* Escola */}
+          <div>
+            <label htmlFor="escolaId" className="block font-medium">
+              Escola
+            </label>
+            <select
+              id="escolaId"
+              name="escolaId"
+              value={servidor.escolaId}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+              required
+            >
+              <option value="">Selecione uma escola</option>
+              {availableSchools.map((escola) => (
+                <option key={escola.id} value={escola.id}>
+                  {escola.nomeEscola}
+                </option>
               ))}
-            </ul>
-          )}
-        </div>
+            </select>
+          </div>
 
-        <div className="p-4 border-2 border-dashed rounded-md bg-gray-50 mb-6">
-          <h3 className="text-xl font-semibold mb-4">Adicionar Alocação</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Escola *
-              </label>
-              <select
-                value={currentEscolaId}
-                onChange={(e) => setCurrentEscolaId(e.target.value)}
-                className="mt-1 block w-full p-2 border rounded-md bg-white"
-              >
-                <option value="">Selecione uma escola</option>
-                {availableSchools.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nomeEscola}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Ano Letivo *
-              </label>
+          {/* Ano Letivo */}
+          <div>
+            <label htmlFor="anoLetivo" className="block font-medium">
+              Ano Letivo
+            </label>
+            <input
+              id="anoLetivo"
+              type="text"
+              name="anoLetivo"
+              value={servidor.anoLetivo}
+              onChange={handleChange}
+              className="w-full border rounded p-2"
+            />
+          </div>
+
+          {/* Funções */}
+          <div>
+            <label className="block font-medium">Funções</label>
+            {servidor.funcoes.map((funcao, index) => (
               <input
+                key={index}
                 type="text"
-                value={currentAnoLetivo}
-                onChange={(e) => setCurrentAnoLetivo(e.target.value)}
-                className="mt-1 block w-full p-2 border rounded-md bg-white"
+                value={funcao}
+                onChange={(e) => handleFuncaoChange(index, e.target.value)}
+                className="w-full border rounded p-2 mb-2"
               />
-            </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addFuncao}
+              className="px-3 py-1 bg-blue-600 text-white rounded"
+            >
+              Adicionar Função
+            </button>
           </div>
 
-          <div className="p-4 border rounded-md bg-white mb-4">
-            <h4 className="text-lg font-semibold mb-2 text-gray-600">
-              Adicionar Funções à Alocação
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Função *
-                </label>
-                <select
-                  value={currentFuncao}
-                  onChange={(e) => setCurrentFuncao(e.target.value)}
-                  className="mt-1 block w-full p-2 border rounded-md bg-white"
-                >
-                  <option value="">Selecione a função</option>
-                  <option value="Professor(a)">Professor(a)</option>
-                  <option value="Coordenador(a)">Coordenador(a)</option>
-                  <option value="Diretor(a)">Diretor(a)</option>
-                  <option value="Secretário(a)">Secretário(a)</option>
-                </select>
-              </div>
-            </div>
-
-            {currentFuncao === "Professor(a)" && (
-              <>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Turma
-                  </label>
-                  <select
-                    value={currentTurmaId}
-                    onChange={(e) => setCurrentTurmaId(e.target.value)}
-                    className="mt-1 block w-full p-2 border rounded-md bg-white"
-                    disabled={availableTurmas.length === 0}
-                  >
-                    <option value="">Selecione uma turma</option>
-                    {availableTurmas.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.nomeTurma} ({t.anoSerie})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Componentes Curriculares
-                  </label>
-                  <div className="flex items-center space-x-2">
-                    <select
-                      multiple
-                      value={componentesParaAdicionar}
-                      onChange={(e) =>
-                        setComponentesParaAdicionar(
-                          Array.from(
-                            e.target.selectedOptions,
-                            (option) => option.value
-                          )
-                        )
-                      }
-                      className="w-full p-2 border rounded-md h-32 bg-white"
-                      disabled={!currentTurmaId}
-                    >
-                      {componentesNaoSelecionados.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.nome}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex flex-col space-y-2">
-                      <button
-                        type="button"
-                        onClick={handleAdicionarComponentes}
-                        className="p-2 bg-gray-200 rounded hover:bg-gray-300"
-                      >
-                        Adicionar &gt;&gt;
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleRemoverComponentes}
-                        className="p-2 bg-gray-200 rounded hover:bg-gray-300"
-                      >
-                        &lt;&lt; Remover
-                      </button>
-                    </div>
-                    <select
-                      multiple
-                      value={componentesParaRemover}
-                      onChange={(e) =>
-                        setComponentesParaRemover(
-                          Array.from(
-                            e.target.selectedOptions,
-                            (option) => option.value
-                          )
-                        )
-                      }
-                      className="w-full p-2 border rounded-md h-32 bg-gray-100 overflow-y-auto"
-                    >
-                      {componentesSelecionadosInfo.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </>
-            )}
-            <div className="text-right">
-              <button
-                type="button"
-                onClick={handleAddFuncao}
-                className="mt-4 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-              >
-                + Adicionar Função
-              </button>
-            </div>
-            {currentFuncoes.length > 0 && (
-              <div className="mt-4">
-                <h4 className="text-md font-semibold text-gray-600">
-                  Funções adicionadas nesta alocação:
-                </h4>
-                {currentFuncoes.map((f, i) => (
-                  <p key={i} className="text-sm p-1 bg-blue-100 rounded">
-                    - {f.funcao} {f.turmaNome ? `(${f.turmaNome})` : ""}
-                  </p>
-                ))}
-              </div>
-            )}
+          {/* Botão de enviar */}
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              {loading ? "Salvando..." : "Cadastrar Servidor"}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handleAddAlocacao}
-            className="bg-green-500 text-white font-bold py-2 px-4 rounded w-full"
-          >
-            Confirmar e Adicionar Alocação
-          </button>
-        </div>
-
-        <div>
-          <h3 className="text-xl font-semibold mb-2">
-            Resumo das Alocações do Servidor:
-          </h3>
-          {selectedPerson && (
-            <p className="mb-2 font-bold text-lg text-blue-700">
-              {selectedPerson.nomeCompleto}
-            </p>
-          )}
-          {alocacoes.map((aloc, i) => (
-            <div key={i} className="p-3 border rounded-md mb-2 bg-gray-100">
-              <p className="font-bold">
-                {aloc.escolaNome} - {aloc.anoLetivo}
-              </p>
-              <ul className="list-disc list-inside ml-4 text-sm">
-                {aloc.funcoes.map((f, j) => (
-                  <li key={j}>
-                    <span className="font-semibold">{f.funcao}</span>
-                    {f.turmaNome && ` na turma ${f.turmaNome}`}
-                    {f.componentesCurriculares?.length > 0 &&
-                      ` - Comp: ${f.componentesCurriculares.join(", ")}`}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        {error && (
-          <p className="text-red-500 text-center font-semibold">{error}</p>
-        )}
-        {success && (
-          <p className="text-green-500 text-center font-semibold">{success}</p>
-        )}
-
-        <div className="flex justify-end space-x-4 mt-6">
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard")}
-            className="bg-gray-300 text-gray-800 py-2 px-4 rounded"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSubmitting}
-            className="bg-green-600 text-white font-bold py-2 px-4 rounded"
-          >
-            {isSubmitting ? "Salvando..." : "Salvar Servidor"}
-          </button>
-        </div>
+        </form>
       </div>
-    </div>
+    </Layout>
   );
-}
+};
 
 export default CadastroServidorPage;

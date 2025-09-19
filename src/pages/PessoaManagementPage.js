@@ -523,11 +523,9 @@ function PessoaManagementPage() {
               {/* ======================= INÍCIO DA ALTERAÇÃO ======================= */}
               {/* O onClick agora chama a nova função handleSelectSuggestion */}
               {personSearchSuggestions.map((pessoa) => (
-                <li
-                  key={pessoa.id}
-                  className="p-2 cursor-pointer hover:bg-gray-200"
-                  onClick={() => handleSelectSuggestion(pessoa)}
-                >
+                <li><button className="p-2 cursor-pointer hover:bg-gray-200 w-full text-left" onClick={ () => handleSelectSuggestion(pessoa) } type="button">
+                  {pessoa.nomeCompleto} - {formatCPF(pessoa.cpf)}
+                </button>
                   {pessoa.nomeCompleto} - {formatCPF(pessoa.cpf)}
                 </li>
               ))}

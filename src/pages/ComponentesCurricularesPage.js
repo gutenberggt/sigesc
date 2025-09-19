@@ -1,278 +1,167 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
+import { collection, getDocs, addDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  query,
-  orderBy,
-} from "firebase/firestore";
-import { useUser } from "../context/UserContext";
-import {
-  niveisDeEnsinoList,
-  seriesAnosEtapasData,
-} from "../data/ensinoConstants";
-import { componentesData } from "./ComponentesPage";
+import Layout from "../components/Layout";
+import Loading from "../components/ui/loading";
 
-export default function ComponentesCurricularesPage() {
-  const { userData, loading: userLoading } = useUser();
+const ComponentesCurricularesPage = () => {
   const [componentes, setComponentes] = useState([]);
-  const [editingComponente, setEditingComponente] = useState(null);
-  const [selectedNivel, setSelectedNivel] = useState("");
-  const [selectedSerie, setSelectedSerie] = useState("");
-  const [selectedComponente, setSelectedComponente] = useState("");
-  const [cargaHoraria, setCargaHoraria] = useState("");
-  const [sigla, setSigla] = useState("");
-  const [areaConhecimento, setAreaConhecimento] = useState("");
-  const [availableSeries, setAvailableSeries] = useState([]);
-  const [availableComponentes, setAvailableComponentes] = useState([]);
-  const [filtroTexto, setFiltroTexto] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [seriesAnosEtapasData, setSeriesAnosEtapasData] = useState([]);
+  const [novoComponente, setNovoComponente] = useState({
+    nome: "",
+    serieAnoEtapaId: "",
+  });
+  const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const isAdministrador = userData?.funcao?.toLowerCase() === "administrador";
 
+  // 🔹 Buscar componentes e séries/anos
   useEffect(() => {
-    if (selectedNivel) {
-      setAvailableSeries(seriesAnosEtapasData[selectedNivel] || []);
-    } else {
-      setAvailableSeries([]);
-    }
-    setSelectedSerie("");
-  }, [selectedNivel]);
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const compSnapshot = await getDocs(collection(db, "componentes"));
+        const comps = compSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
-  useEffect(() => {
-    if (selectedSerie) {
-      setAvailableComponentes(componentesData[selectedSerie] || []);
-    } else {
-      setAvailableComponentes([]);
-    }
-    setSelectedComponente("");
-  }, [selectedSerie]);
+        const seriesSnapshot = await getDocs(
+          collection(db, "seriesAnosEtapas")
+        );
+        const seriesData = seriesSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
-  useEffect(() => {
-    if (selectedComponente) {
-      const componenteInfo = availableComponentes.find(
-        (c) => c.nome === selectedComponente
-      );
-      setCargaHoraria(componenteInfo?.cargaHoraria || "");
-      setSigla(componenteInfo?.sigla || "");
-    } else {
-      setCargaHoraria("");
-      setSigla("");
-    }
-  }, [selectedComponente, availableComponentes]);
+        setComponentes(comps);
+        setSeriesAnosEtapasData(seriesData);
+      } catch (err) {
+        console.error("Erro ao carregar dados:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const fetchComponentes = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const q = query(
-        collection(db, "componentes"),
-        orderBy("serieAno"),
-        orderBy("nome")
-      );
-      const querySnapshot = await getDocs(q);
-      const componentesList = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setComponentes(componentesList);
-    } catch (err) {
-      console.error("Erro ao buscar componentes:", err);
-      setError("Não foi possível carregar os componentes.");
-    } finally {
-      setIsLoading(false);
-    }
+    fetchData();
   }, []);
 
-  useEffect(() => {
-    fetchComponentes();
-  }, [fetchComponentes]);
-
-  const resetForm = () => {
-    setEditingComponente(null);
-    setSelectedNivel("");
-    setSelectedSerie("");
-    setSelectedComponente("");
-    setCargaHoraria("");
-    setSigla("");
-    setAreaConhecimento("");
-    setError("");
-    setSuccess("");
+  // 🔹 Atualizar input do formulário
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setNovoComponente((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
+  // 🔹 Salvar componente
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedNivel || !selectedSerie || !selectedComponente) {
-      setError("Todos os campos de seleção são obrigatórios.");
+    if (!novoComponente.nome || !novoComponente.serieAnoEtapaId) {
+      alert("Preencha todos os campos!");
       return;
     }
 
     setIsSubmitting(true);
-    setError("");
-    setSuccess("");
-
-    const componenteData = {
-      nivelEnsino: selectedNivel,
-      serieAno: selectedSerie,
-      nome: selectedComponente,
-      sigla: sigla.toUpperCase(),
-      cargaHoraria: Number(cargaHoraria) || 0,
-      areaConhecimento,
-    };
-
     try {
-      if (editingComponente) {
-        const docRef = doc(db, "componentes", editingComponente.id);
-        await updateDoc(docRef, componenteData);
-        setSuccess("Componente atualizado com sucesso!");
-      } else {
-        await addDoc(collection(db, "componentes"), componenteData);
-        setSuccess("Componente cadastrado com sucesso!");
-      }
-      resetForm();
-      fetchComponentes();
+      const newComp = {
+        ...novoComponente,
+        createdAt: new Date(),
+      };
+      const docRef = await addDoc(collection(db, "componentes"), newComp);
+
+      setComponentes((prev) => [
+        ...prev,
+        { id: docRef.id, ...newComp },
+      ]);
+
+      setNovoComponente({ nome: "", serieAnoEtapaId: "" });
+      alert("Componente curricular cadastrado com sucesso!");
     } catch (err) {
-      setError("Ocorreu um erro ao salvar o componente.");
-      console.error(err);
+      console.error("Erro ao cadastrar componente:", err);
+      alert("Erro ao cadastrar.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleEdit = (componente) => {
-    setEditingComponente(componente);
-    setSelectedNivel(componente.nivelEnsino);
-    setSelectedSerie(componente.serieAno);
-    setSelectedComponente(componente.nome);
-    setCargaHoraria(componente.cargaHoraria || "");
-    setSigla(componente.sigla || "");
-    setAreaConhecimento(componente.areaConhecimento || "");
-    window.scrollTo(0, 0);
-  };
-
-  const handleDelete = async (id) => {
-    if (
-      window.confirm(
-        "Tem certeza que deseja excluir este componente curricular?"
-      )
-    ) {
-      try {
-        await deleteDoc(doc(db, "componentes", id));
-        setSuccess("Componente excluído com sucesso!");
-        fetchComponentes();
-      } catch (err) {
-        setError("Ocorreu um erro ao excluir o componente.");
-      }
-    }
-  };
-
-  const componentesFiltrados = componentes.filter((comp) =>
-    comp.nome.toLowerCase().includes(filtroTexto.toLowerCase())
-  );
-
-  const agrupados = componentesFiltrados.reduce((acc, comp) => {
-    const chave = `${comp.nivelEnsino} - ${comp.serieAno}`;
-    if (!acc[chave]) acc[chave] = [];
-    acc[chave].push(comp);
-    return acc;
-  }, {});
-
-  if (userLoading || isLoading)
-    return <div className="p-6 text-center">Carregando...</div>;
-
   return (
-    <div className="p-6">
-      <div className="bg-white p-8 rounded-lg shadow-md max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">
-          Gestão de Componentes Curriculares
-        </h2>
+    <Layout>
+      <div className="p-6 bg-white rounded shadow-md">
+        <h1 className="text-2xl font-bold mb-4">
+          Componentes Curriculares
+        </h1>
 
-        {error && (
-          <p className="text-red-500 bg-red-100 p-3 rounded-md text-center mb-4">
-            {error}
-          </p>
+        {loading ? (
+          <Loading />
+        ) : (
+          <>
+            {/* Formulário */}
+            <form onSubmit={handleSubmit} className="space-y-4 mb-6">
+              <div>
+                <label htmlFor="nome" className="block font-medium">
+                  Nome do Componente
+                </label>
+                <input
+                  id="nome"
+                  type="text"
+                  name="nome"
+                  value={novoComponente.nome}
+                  onChange={handleChange}
+                  className="w-full border rounded p-2"
+                  required
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="serieAnoEtapaId"
+                  className="block font-medium"
+                >
+                  Série/Ano/Etapa
+                </label>
+                <select
+                  id="serieAnoEtapaId"
+                  name="serieAnoEtapaId"
+                  value={novoComponente.serieAnoEtapaId}
+                  onChange={handleChange}
+                  className="w-full border rounded p-2"
+                  required
+                >
+                  <option value="">Selecione</option>
+                  {seriesAnosEtapasData.map((serie) => (
+                    <option key={serie.id} value={serie.id}>
+                      {serie.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                {isSubmitting ? "Salvando..." : "Cadastrar"}
+              </button>
+            </form>
+
+            {/* Lista */}
+            <ul className="divide-y divide-gray-200">
+              {componentes.map((comp) => (
+                <li key={comp.id} className="py-2">
+                  {comp.nome} -{" "}
+                  <span className="text-gray-500">
+                    {comp.serieAnoEtapaId}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
-        {success && (
-          <p className="text-green-500 bg-green-100 p-3 rounded-md text-center mb-4">
-            {success}
-          </p>
-        )}
-
-        {isAdministrador && (
-          <form
-            onSubmit={handleSubmit}
-            className="mb-8 p-4 border rounded-md bg-gray-50 space-y-4"
-          >
-            {/* Campos do formulário */}
-            {/* ... (como já corrigido anteriormente) */}
-            {/* Campo de carga horária, sigla, área de conhecimento e botão de envio */}
-          </form>
-        )}
-
-        <input
-          type="text"
-          placeholder="Buscar componente..."
-          value={filtroTexto}
-          onChange={(e) => setFiltroTexto(e.target.value)}
-          className="mb-4 p-2 border rounded w-full"
-        />
-
-        <table className="min-w-full border-collapse bg-white shadow-sm rounded-md">
-          <thead className="bg-gray-100 text-gray-700 text-sm">
-            <tr>
-              <th className="p-2 text-left">Nome</th>
-              <th className="p-2 text-left">Sigla</th>
-              <th className="p-2 text-left">Série</th>
-              <th className="p-2 text-left">Nível</th>
-              <th className="p-2 text-left">Carga Horária</th>
-              <th className="p-2 text-left">Área</th>
-              <th className="p-2 text-center">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(agrupados).map(([grupo, comps]) => (
-              <React.Fragment key={grupo}>
-                <tr className="bg-blue-50 font-bold">
-                  <td colSpan={7} className="py-2 px-6">
-                    {grupo}
-                  </td>
-                </tr>
-                {comps.map((comp) => (
-                  <tr key={comp.id} className="border-b hover:bg-gray-50">
-                    <td className="py-2 px-4">{comp.nome}</td>
-                    <td className="py-2 px-4">{comp.sigla}</td>
-                    <td className="py-2 px-4">{comp.serieAno}</td>
-                    <td className="py-2 px-4">{comp.nivelEnsino}</td>
-                    <td className="py-2 px-4">{comp.cargaHoraria}h</td>
-                    <td className="py-2 px-4">
-                      {comp.areaConhecimento || "—"}
-                    </td>
-                    <td className="py-2 px-4 text-center">
-                      <button
-                        onClick={() => handleEdit(comp)}
-                        className="text-blue-600 hover:text-blue-800 mr-3"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => handleDelete(comp.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        🗑️
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
       </div>
-    </div>
+    </Layout>
   );
-}
+};
+
+export default ComponentesCurricularesPage;

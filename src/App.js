@@ -31,7 +31,7 @@ import FrequenciaPage from "./pages/frequenciaPage";
 import RelatorioFrequenciaPage from "./pages/RelatorioFrequenciaPage";
 import RelatoriosPage from "./pages/RelatoriosPage";
 import RegistroConteudosPage from "./pages/RegistroConteudosPage";
-import LancamentoNotasPage from "./pages/LancamentoNotasPage";
+import LancamentoNotasPage from "./pages/LancamentoNotasPage.jsx";
 
 import { UserProvider } from "./context/UserContext";
 import { ThemeProvider } from "./context/ThemeContext";

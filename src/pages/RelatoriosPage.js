@@ -12,8 +12,6 @@ import {
 import { useNavigate } from "react-router-dom";
 
 function RelatoriosPage() {
-  const navigate = useNavigate();
-
   // Estados dos Filtros
   const [reportType, setReportType] = useState("frequencia"); // Padrão para o primeiro relatório
   const [availableSchools, setAvailableSchools] = useState([]);

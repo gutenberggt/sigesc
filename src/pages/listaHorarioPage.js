@@ -190,11 +190,11 @@ function ListaHorarioPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <div className="md:col-span-1">
               <label
-  htmlFor="escola-select"
-  className="block text-sm font-medium"
->
-  Escola
-</label>
+                htmlFor="escola-select"
+                className="block text-sm font-medium"
+              >
+                Escola
+              </label>
               <select
                 id="escola-select"
                 value={escolaParaNovoHorario}
@@ -211,11 +211,11 @@ function ListaHorarioPage() {
             </div>
             <div className="md:col-span-1">
               <label
-  htmlFor="turma-select"
-  className="block text-sm font-medium"
->
-  Turma
-</label>
+                htmlFor="turma-select"
+                className="block text-sm font-medium"
+              >
+                Turma
+              </label>
               <select
                 id="turma-select"
                 value={turmaParaNovoHorario}

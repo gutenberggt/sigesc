@@ -13,7 +13,14 @@ export const menus = [
     label: "Início",
     icon: FaHome,
     to: "/dashboard",
-    roles: ["administrador", "secretario", "professor", "diretor", "coordenador", "aluno"],
+    roles: [
+      "administrador",
+      "secretario",
+      "professor",
+      "diretor",
+      "coordenador",
+      "aluno",
+    ],
   },
   {
     key: "administrativo",
@@ -42,14 +49,58 @@ export const menus = [
     key: "escola",
     label: "Escola",
     icon: FaSchool,
-    roles: ["administrador", "secretario", "diretor", "coordenador", "professor"],
+    roles: [
+      "administrador",
+      "secretario",
+      "diretor",
+      "coordenador",
+      "professor",
+    ],
     children: [
-      { label: "Escola", to: "/dashboard/escola/escola", roles: ["administrador", "secretario"] },
-      { label: "Matrícula de Aluno", to: "/dashboard/escola/matriculas", roles: ["administrador", "secretario"] },
+      {
+        label: "Escola",
+        to: "/dashboard/escola/escola",
+        roles: ["administrador", "secretario"],
+      },
+      {
+        label: "Matrícula de Aluno",
+        to: "/dashboard/escola/matriculas",
+        roles: ["administrador", "secretario"],
+      },
       { label: "Busca de Aluno", to: "/dashboard/escola/busca-aluno" },
-      { label: "Níveis de Ensino", to: "/dashboard/escola/cursos", roles: ["administrador", "secretario", "diretor", "coordenador", "professor"] },
-      { label: "Séries/Anos/Etapas", to: "/dashboard/escola/series", roles: ["administrador", "secretario", "diretor", "coordenador", "professor"] },
-      { label: "Componentes Curriculares", to: "/dashboard/escola/componentes-curriculares", roles: ["administrador", "secretario", "diretor", "coordenador", "professor"] },
+      {
+        label: "Níveis de Ensino",
+        to: "/dashboard/escola/cursos",
+        roles: [
+          "administrador",
+          "secretario",
+          "diretor",
+          "coordenador",
+          "professor",
+        ],
+      },
+      {
+        label: "Séries/Anos/Etapas",
+        to: "/dashboard/escola/series",
+        roles: [
+          "administrador",
+          "secretario",
+          "diretor",
+          "coordenador",
+          "professor",
+        ],
+      },
+      {
+        label: "Componentes Curriculares",
+        to: "/dashboard/escola/componentes-curriculares",
+        roles: [
+          "administrador",
+          "secretario",
+          "diretor",
+          "coordenador",
+          "professor",
+        ],
+      },
     ],
   },
   {
@@ -68,8 +119,6 @@ export const menus = [
     label: "Relatórios e Declarações",
     icon: FaChartBar,
     roles: ["administrador", "secretario"],
-    children: [
-      { label: "Gerar Relatório", to: "/dashboard/relatorios" },
-    ],
+    children: [{ label: "Gerar Relatório", to: "/dashboard/relatorios" }],
   },
 ];

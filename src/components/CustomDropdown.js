@@ -1,78 +1,160 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
-function CustomDropdown({ options, value, onChange, placeholder }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
+/**
+ * Dropdown acessível com suporte a teclado.
+ *
+ * Props:
+ * - options: Array<{ id?: string|number, subject?: string, teacher?: string, label?: string }>
+ * - selectedOption: objeto da lista ou null
+ * - onSelect: (option) => void
+ * - placeholder: string
+ * - disabled: boolean
+ */
+export default function CustomDropdown({
+  options = [],
+  selectedOption = null,
+  onSelect,
+  placeholder = "Selecione...",
+  disabled = false,
+}) {
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(-1);
+  const btnRef = useRef(null);
+  const listRef = useRef(null);
 
-  const handleSelect = (optionValue) => {
-    onChange(optionValue);
-    setIsOpen(false);
-  };
+  const items = useMemo(
+    () =>
+      options.map((opt) => ({
+        ...opt,
+        _label:
+          opt.label ??
+          [opt.subject, opt.teacher].filter(Boolean).join(" – ") ??
+          String(opt),
+      })),
+    [options]
+  );
 
-  const selectedOption = options.find((opt) => opt.value === value);
-
-  // Efeito para fechar o dropdown ao clicar fora dele
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
+    if (!open) setHighlight(-1);
+  }, [open]);
+
+  // fecha ao clicar fora
+  useEffect(() => {
+    function handleDocClick(e) {
+      if (
+        btnRef.current &&
+        !btnRef.current.contains(e.target) &&
+        listRef.current &&
+        !listRef.current.contains(e.target)
+      ) {
+        setOpen(false);
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+    }
+    if (open) document.addEventListener("mousedown", handleDocClick);
+    return () => document.removeEventListener("mousedown", handleDocClick);
+  }, [open]);
+
+  function handleKeyDown(e) {
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        setOpen(true);
+        setHighlight(0);
+      }
+      return;
+    }
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+      btnRef.current?.focus();
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlight((h) => Math.min(items.length - 1, h + 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlight((h) => Math.max(0, h - 1));
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      const opt = items[highlight];
+      if (opt) {
+        onSelect?.(opt);
+        setOpen(false);
+        btnRef.current?.focus();
+      }
+    }
+  }
+
+  const selectedLabel =
+    selectedOption &&
+    ([selectedOption.subject, selectedOption.teacher].filter(Boolean).join(" – ") ||
+      selectedOption.label);
 
   return (
-    <div className="relative w-full" ref={dropdownRef}>
+    <div className="relative inline-block w-full">
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-2 border border-gray-300 rounded-md bg-white text-left h-full flex items-center"
+        ref={btnRef}
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="w-full border rounded px-3 py-2 bg-white text-left flex items-center justify-between"
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={handleKeyDown}
       >
-        {selectedOption ? (
-          <div>
-            <strong className="block text-sm leading-tight">
-              {selectedOption.subject}
-            </strong>
-            <span className="text-xs text-gray-500 leading-tight">
-              {selectedOption.teacher}
-            </span>
-          </div>
-        ) : (
-          <span className="text-gray-500">{placeholder}</span>
-        )}
+        <span className={selectedLabel ? "" : "text-gray-500"}>
+          {selectedLabel || placeholder}
+        </span>
+        <svg aria-hidden="true" viewBox="0 0 20 20" className="h-5 w-5 shrink-0">
+          <path d="M5.5 7.5l4.5 4.5 4.5-4.5" stroke="currentColor" fill="none" />
+        </svg>
       </button>
 
-      {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-          {/* Opção para limpar a seleção */}
-          <div
-            onClick={() => handleSelect("")}
-            className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-          >
-            {placeholder}
-          </div>
-          {/* Mapeia as opções recebidas */}
-          {options.map((option) => (
-            <div
-              key={option.value}
-              onClick={() => handleSelect(option.value)}
-              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-            >
-              <strong className="block text-sm leading-tight">
-                {option.subject}
-              </strong>
-              <span className="text-xs text-gray-500 leading-tight">
-                {option.teacher}
-              </span>
-            </div>
-          ))}
-        </div>
+      {open && (
+        <ul
+          ref={listRef}
+          role="listbox"
+          tabIndex={-1}
+          aria-activedescendant={
+            highlight >= 0 && items[highlight]
+              ? `opt-${items[highlight].id ?? highlight}`
+              : undefined
+          }
+          className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-white shadow-lg focus:outline-none"
+          onKeyDown={handleKeyDown}
+        >
+          {items.length === 0 && (
+            <li className="px-3 py-2 text-sm text-gray-500">Sem opções</li>
+          )}
+          {items.map((opt, idx) => {
+            const id = `opt-${opt.id ?? idx}`;
+            const isActive = idx === highlight;
+            const isSelected =
+              selectedOption &&
+              (selectedOption.id ?? selectedOption) === (opt.id ?? opt);
+            return (
+              <li key={id} id={id} role="option" aria-selected={isSelected}>
+                <button
+                  type="button"
+                  className={`w-full text-left px-3 py-2 ${
+                    isActive ? "bg-gray-100" : ""
+                  }`}
+                  onMouseEnter={() => setHighlight(idx)}
+                  onClick={() => {
+                    onSelect?.(opt);
+                    setOpen(false);
+                    btnRef.current?.focus();
+                  }}
+                >
+                  {opt._label}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );
 }
-
-export default CustomDropdown;

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase/config";
-import FiltrosNotas from "../components/FiltrosNotas";
-import TabelaNotasIniciais from "../components/TabelaNotasIniciais";
-import TabelaNotasFinais from "../components/TabelaNotasFinais";
+import FiltrosNotas from "../components/FiltrosNotas.jsx";
+import TabelaNotasIniciais from "../components/TabelaNotasIniciais.jsx";
+import TabelaNotasFinais from "../components/TabelaNotasFinais.jsx";
 
 export default function LancamentoNotasPage() {
   const [schools, setSchools] = useState([]);

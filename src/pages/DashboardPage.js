@@ -13,7 +13,7 @@ import { useAuthGuard } from "../hooks/useAuthGuard";
 import { useToast } from "../hooks/useToast";
 
 // ✅ Sidebar modular
-import Sidebar from "../components/Sidebar/Sidebar";
+import Sidebar from "../components/Sidebar/Sidebar.jsx";
 
 function DashboardPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

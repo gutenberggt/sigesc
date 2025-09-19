@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState } from "react";
 import {
   collection,
   addDoc,
@@ -6,58 +6,56 @@ import {
   deleteDoc,
   doc,
   getDocs,
-} from "firebase/firestore"
-import { db } from "../firebase/config"
-import { componentesData } from "../pages/ComponentesPage"
+} from "firebase/firestore";
+import { db } from "../firebase/config";
+import { componentesData } from "../pages/ComponentesPage";
 
 export default function TurmasPage() {
-  const [turmas, setTurmas] = useState([])
-  const [nomeTurma, setNomeTurma] = useState("")
-  const [nivelEnsino, setNivelEnsino] = useState("")
-  const [anoSerie, setAnoSerie] = useState("")
-  const [turno, setTurno] = useState("")
-  const [anoLetivo, setAnoLetivo] = useState("")
-  const [professoresIds, setProfessoresIds] = useState([])
-  const [limiteVagas, setLimiteVagas] = useState("")
-  const [salaAula, setSalaAula] = useState("")
-  const [componentesSelecionados, setComponentesSelecionados] = useState([])
+  const [turmas, setTurmas] = useState([]);
+  const [nomeTurma, setNomeTurma] = useState("");
+  const [nivelEnsino, setNivelEnsino] = useState("");
+  const [anoSerie, setAnoSerie] = useState("");
+  const [turno, setTurno] = useState("");
+  const [anoLetivo, setAnoLetivo] = useState("");
+  const [professoresIds, setProfessoresIds] = useState([]);
+  const [limiteVagas, setLimiteVagas] = useState("");
+  const [salaAula, setSalaAula] = useState("");
+  const [componentesSelecionados, setComponentesSelecionados] = useState([]);
 
-  const [editingTurma, setEditingTurma] = useState(null)
-  const [isSaving, setIsSaving] = useState(false)
+  const [editingTurma, setEditingTurma] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // 🔎 Buscar turmas no Firestore
   useEffect(() => {
     const fetchTurmas = async () => {
-      const querySnapshot = await getDocs(collection(db, "turmas"))
+      const querySnapshot = await getDocs(collection(db, "turmas"));
       const lista = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }))
-      setTurmas(lista)
-    }
-    fetchTurmas()
-  }, [])
+      }));
+      setTurmas(lista);
+    };
+    fetchTurmas();
+  }, []);
 
   // ✅ Alternar seleção de componentes
   const toggleComponente = (nome) => {
     setComponentesSelecionados((prev) =>
-      prev.includes(nome)
-        ? prev.filter((c) => c !== nome)
-        : [...prev, nome]
-    )
-  }
+      prev.includes(nome) ? prev.filter((c) => c !== nome) : [...prev, nome]
+    );
+  };
 
   // 💾 Salvar turma
   const handleSave = async () => {
     if (!nomeTurma || !nivelEnsino || !anoSerie || !turno || !anoLetivo) {
-      alert("Preencha todos os campos obrigatórios.")
-      return
+      alert("Preencha todos os campos obrigatórios.");
+      return;
     }
 
-    setIsSaving(true)
+    setIsSaving(true);
 
     try {
-      const componentesDaSerie = componentesData[anoSerie] || []
+      const componentesDaSerie = componentesData[anoSerie] || [];
 
       const turmaData = {
         nomeTurma,
@@ -71,71 +69,69 @@ export default function TurmasPage() {
         componentes: componentesDaSerie.filter((c) =>
           componentesSelecionados.includes(c.nome)
         ),
-      }
+      };
 
       if (editingTurma) {
-        const docRef = doc(db, "turmas", editingTurma.id)
-        await updateDoc(docRef, turmaData)
+        const docRef = doc(db, "turmas", editingTurma.id);
+        await updateDoc(docRef, turmaData);
         setTurmas(
           turmas.map((t) =>
             t.id === editingTurma.id ? { ...t, ...turmaData } : t
           )
-        )
+        );
       } else {
-        const docRef = await addDoc(collection(db, "turmas"), turmaData)
-        setTurmas([...turmas, { id: docRef.id, ...turmaData }])
+        const docRef = await addDoc(collection(db, "turmas"), turmaData);
+        setTurmas([...turmas, { id: docRef.id, ...turmaData }]);
       }
 
-      resetForm()
+      resetForm();
     } catch (err) {
-      console.error("Erro ao salvar turma:", err)
-      alert("Não foi possível salvar a turma.")
+      console.error("Erro ao salvar turma:", err);
+      alert("Não foi possível salvar a turma.");
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   // 🗑️ Excluir turma
   const handleDelete = async (id) => {
-    if (!window.confirm("Tem certeza que deseja excluir esta turma?")) return
+    if (!window.confirm("Tem certeza que deseja excluir esta turma?")) return;
     try {
-      await deleteDoc(doc(db, "turmas", id))
-      setTurmas(turmas.filter((t) => t.id !== id))
+      await deleteDoc(doc(db, "turmas", id));
+      setTurmas(turmas.filter((t) => t.id !== id));
     } catch (err) {
-      console.error("Erro ao excluir turma:", err)
-      alert("Não foi possível excluir a turma.")
+      console.error("Erro ao excluir turma:", err);
+      alert("Não foi possível excluir a turma.");
     }
-  }
+  };
 
   // ✏️ Editar turma
   const handleEdit = (turma) => {
-    setEditingTurma(turma)
-    setNomeTurma(turma.nomeTurma)
-    setNivelEnsino(turma.nivelEnsino)
-    setAnoSerie(turma.anoSerie)
-    setTurno(turma.turno)
-    setAnoLetivo(turma.anoLetivo)
-    setProfessoresIds(turma.professoresIds || [])
-    setLimiteVagas(turma.limiteVagas || "")
-    setSalaAula(turma.salaAula || "")
-    setComponentesSelecionados(
-      (turma.componentes || []).map((c) => c.nome)
-    )
-  }
+    setEditingTurma(turma);
+    setNomeTurma(turma.nomeTurma);
+    setNivelEnsino(turma.nivelEnsino);
+    setAnoSerie(turma.anoSerie);
+    setTurno(turma.turno);
+    setAnoLetivo(turma.anoLetivo);
+    setProfessoresIds(turma.professoresIds || []);
+    setLimiteVagas(turma.limiteVagas || "");
+    setSalaAula(turma.salaAula || "");
+    setComponentesSelecionados((turma.componentes || []).map((c) => c.nome));
+  };
 
   // 🔄 Resetar form
   const resetForm = () => {
-    setEditingTurma(null)
-    setNomeTurma("")
-    setNivelEnsino("")
-    setAnoSerie("")
-    setTurno("")
-    setAnoLetivo("")
-    setProfessoresIds([])
-    setLimiteVagas("")
-    setSalaAula("")
-    setComponentesSelecionados([])
-  }
+    setEditingTurma(null);
+    setNomeTurma("");
+    setNivelEnsino("");
+    setAnoSerie("");
+    setTurno("");
+    setAnoLetivo("");
+    setProfessoresIds([]);
+    setLimiteVagas("");
+    setSalaAula("");
+    setComponentesSelecionados([]);
+  };
 
   return (
     <div className="p-6">
@@ -176,8 +172,8 @@ export default function TurmasPage() {
           <select
             value={anoSerie}
             onChange={(e) => {
-              setAnoSerie(e.target.value)
-              setComponentesSelecionados([])
+              setAnoSerie(e.target.value);
+              setComponentesSelecionados([]);
             }}
             className="w-full border p-2 rounded"
           >
@@ -271,8 +267,8 @@ export default function TurmasPage() {
           </button>
         )}
       </div>
-	  
-	  {/* ✅ Seleção de componentes curriculares */}
+
+      {/* ✅ Seleção de componentes curriculares */}
       {anoSerie && (
         <div className="mb-6">
           <label className="block font-medium mb-2">
@@ -336,5 +332,5 @@ export default function TurmasPage() {
         </tbody>
       </table>
     </div>
-  )
+  );
 }

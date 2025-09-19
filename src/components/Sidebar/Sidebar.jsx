@@ -1,14 +1,12 @@
 import React from "react";
-import SidebarMenu from "./SidebarMenu";
+import SidebarMenu from "./SidebarMenu.jsx";
 import { menus } from "./menuConfig";
 
 function Sidebar({ userRole, openSubmenu, toggleSubmenu, sidebarOpen }) {
   // normaliza role pra minúsculo
   const role = userRole?.toLowerCase();
 
-  const filteredMenus = menus.filter((menu) =>
-    menu.roles.includes(role)
-  );
+  const filteredMenus = menus.filter((menu) => menu.roles.includes(role));
 
   return (
     <aside

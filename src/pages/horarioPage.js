@@ -1,12 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { db } from "../firebase/config";
-import {
-  doc,
-  getDoc,
-  setDoc,
-  collection,
-  getDocs,
-} from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
 import { useNavigate, useParams } from "react-router-dom";
 import CustomDropdown from "../components/CustomDropdown";
 import { FaPlusCircle } from "react-icons/fa";
@@ -116,10 +110,10 @@ function HorarioPage() {
           "Nenhum professor encontrado no documento da turma. Usando busca de fallback na coleção 'servidores'."
         );
         //const servidoresQuery = query(
-          //collection(db, "servidores"),
-          //where("alocacoes", "array-contains-any", [
-           //{ funcoes: [{ turmaId: turmaId }] },
-          //])
+        //collection(db, "servidores"),
+        //where("alocacoes", "array-contains-any", [
+        //{ funcoes: [{ turmaId: turmaId }] },
+        //])
         //);
         // A consulta acima é complexa. A forma mais garantida é filtrar no cliente.
         const todosServidoresSnap = await getDocs(collection(db, "servidores"));
