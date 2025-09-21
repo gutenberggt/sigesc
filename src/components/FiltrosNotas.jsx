@@ -1,7 +1,11 @@
 import React from "react";
 import "./FiltrosNotas.css";
 
-export default function FiltrosNotas({ filters, setFilters, anosLetivos }) {
+export default function FiltrosNotas({
+  filters,
+  setFilters,
+  anosLetivos = [],
+}) {
   return (
     <div className="filtros-container">
       <div className="filtro-item">
