@@ -10,7 +10,7 @@ import {
 import { db } from "../firebase/config";
 import { useUser } from "../context/UserContext";
 import Layout from "../components/Layout";
-import { toast } from "react-toastify";
+import { toast } from "react-hot-toast"; // CORREÇÃO: Alterado de 'react-toastify' para 'react-hot-toast'
 
 const NovaMatriculaAlunoPage = () => {
   const { currentEscolaId, currentAnoLetivo } = useUser();

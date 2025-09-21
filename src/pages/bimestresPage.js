@@ -11,11 +11,9 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { useUser } from "../context/UserContext";
-import { useNavigate } from "react-router-dom";
 
 function BimestresPage() {
   const { userData, loading: userLoading } = useUser();
-  const navigate = useNavigate();
 
   const [bimestres, setBimestres] = useState([]);
   const [editingBimestre, setEditingBimestre] = useState(null);
@@ -34,10 +32,7 @@ function BimestresPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // ======================= INÍCIO DA MUDANÇA =======================
-  // Variável para simplificar a verificação de permissão
   const isAdministrador = userData?.funcao?.toLowerCase() === "administrador";
-  // ======================== FIM DA MUDANÇA =========================
 
   const fetchBimestres = useCallback(async () => {
     setIsLoading(true);
@@ -62,8 +57,6 @@ function BimestresPage() {
   }, []);
 
   useEffect(() => {
-    // A página agora pode ser acessada por outros perfis para visualização,
-    // mas a busca de dados continua sendo feita por qualquer um que acesse.
     if (!userLoading) {
       fetchBimestres();
     }
@@ -183,8 +176,6 @@ function BimestresPage() {
           </p>
         )}
 
-        {/* ======================= INÍCIO DA MUDANÇA ======================= */}
-        {/* O formulário de adição/edição agora só é exibido para administradores */}
         {isAdministrador && (
           <form
             onSubmit={handleSubmit}
@@ -311,7 +302,6 @@ function BimestresPage() {
             </div>
           </form>
         )}
-        {/* ======================== FIM DA MUDANÇA ========================= */}
 
         <hr className="my-8" />
         <h3 className="text-xl font-bold mb-4 text-gray-800">
@@ -326,12 +316,9 @@ function BimestresPage() {
                 <th className="py-3 px-6 text-left">Início</th>
                 <th className="py-3 px-6 text-left">Fim</th>
                 <th className="py-3 px-6 text-left">Situação</th>
-                {/* ======================= INÍCIO DA MUDANÇA ======================= */}
-                {/* A coluna "Ações" só é renderizada se o usuário for administrador */}
                 {isAdministrador && (
                   <th className="py-3 px-6 text-center">Ações</th>
                 )}
-                {/* ======================== FIM DA MUDANÇA ========================= */}
               </tr>
             </thead>
             <tbody className="text-gray-700">
@@ -347,13 +334,15 @@ function BimestresPage() {
                   </td>
                   <td className="py-3 px-6">
                     <span
-                      className={`py-1 px-3 rounded-full text-xs ${bimestre.situacao === "ABERTO" ? "bg-green-200 text-green-700" : "bg-red-200 text-red-700"}`}
+                      className={`py-1 px-3 rounded-full text-xs ${
+                        bimestre.situacao === "ABERTO"
+                          ? "bg-green-200 text-green-700"
+                          : "bg-red-200 text-red-700"
+                      }`}
                     >
                       {bimestre.situacao}
                     </span>
                   </td>
-                  {/* ======================= INÍCIO DA MUDANÇA ======================= */}
-                  {/* A célula de ações com os botões só é renderizada se o usuário for administrador */}
                   {isAdministrador && (
                     <td className="py-3 px-6 text-center">
                       <button
@@ -370,7 +359,6 @@ function BimestresPage() {
                       </button>
                     </td>
                   )}
-                  {/* ======================== FIM DA MUDANÇA ========================= */}
                 </tr>
               ))}
             </tbody>

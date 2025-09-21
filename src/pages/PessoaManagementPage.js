@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { db, auth } from "../firebase/config";
+import { db } from "../firebase/config"; // CORREÇÃO: 'auth' removido
 import {
   collection,
   addDoc,
@@ -10,10 +10,8 @@ import {
   query,
   where,
   orderBy,
-  setDoc,
-  getDoc,
-} from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+} from "firebase/firestore"; // CORREÇÃO: 'setDoc' e 'getDoc' removidos
+// CORREÇÃO: 'createUserWithEmailAndPassword' removido
 import { useUser } from "../context/UserContext";
 import { useNavigate } from "react-router-dom";
 
@@ -483,13 +481,11 @@ function PessoaManagementPage() {
     return <div className="p-6 text-center text-red-500">Acesso Negado.</div>;
   }
 
-  // ======================= INÍCIO DA ADIÇÃO =======================
-  // NOVA FUNÇÃO PARA LIDAR COM A SELEÇÃO DA SUGESTÃO
   const handleSelectSuggestion = (pessoa) => {
-    handleEdit(pessoa); // Reutiliza a sua função de edição que já preenche todos os campos
-    setSearchTerm(""); // Limpa o termo de busca para esconder a lista de sugestões
+    handleEdit(pessoa);
+    setSearchTerm("");
+    setPersonSearchSuggestions([]);
   };
-  // ======================== FIM DA ADIÇÃO =========================
 
   return (
     <div className="flex-grow p-6">
@@ -520,16 +516,17 @@ function PessoaManagementPage() {
           />
           {searchTerm.length >= 3 && personSearchSuggestions.length > 0 && (
             <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
-              {/* ======================= INÍCIO DA ALTERAÇÃO ======================= */}
-              {/* O onClick agora chama a nova função handleSelectSuggestion */}
               {personSearchSuggestions.map((pessoa) => (
-                <li><button className="p-2 cursor-pointer hover:bg-gray-200 w-full text-left" onClick={ () => handleSelectSuggestion(pessoa) } type="button">
-                  {pessoa.nomeCompleto} - {formatCPF(pessoa.cpf)}
-                </button>
-                  {pessoa.nomeCompleto} - {formatCPF(pessoa.cpf)}
+                <li key={pessoa.id}>
+                  <button
+                    className="p-2 cursor-pointer hover:bg-gray-200 w-full text-left"
+                    onClick={() => handleSelectSuggestion(pessoa)}
+                    type="button"
+                  >
+                    {pessoa.nomeCompleto} - {formatCPF(pessoa.cpf)}
+                  </button>
                 </li>
               ))}
-              {/* ======================== FIM DA ALTERAÇÃO ========================= */}
             </ul>
           )}
         </div>
@@ -581,9 +578,9 @@ function PessoaManagementPage() {
                 />
               </div>
               <div className="col-span-full md:col-span-1">
-                <label className="block text-sm font-medium text-gray-700">
+                <p className="block text-sm font-medium text-gray-700">
                   Status do Usuário
-                </label>
+                </p>
                 <div
                   className={`mt-1 flex items-center justify-center w-full h-10 p-2 border rounded-md text-center font-bold text-sm transition-colors ${userStatus === "CADASTRADO" ? "bg-red-100 text-red-800 border-red-300" : userStatus === "CADASTRAR" ? "bg-green-100 text-green-800 border-green-300" : "bg-gray-100"}`}
                 >
@@ -623,9 +620,9 @@ function PessoaManagementPage() {
                   required
                   autoComplete="off"
                 >
-                  <option value="Nao Informado">Não Informado</option>{" "}
-                  <option value="Masculino">Masculino</option>{" "}
-                  <option value="Feminino">Feminino</option>{" "}
+                  <option value="Nao Informado">Não Informado</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Feminino">Feminino</option>
                   <option value="Outro">Outro</option>
                 </select>
               </div>
@@ -644,9 +641,9 @@ function PessoaManagementPage() {
                   required
                   autoComplete="off"
                 >
-                  <option value="Solteiro(a)">Solteiro(a)</option>{" "}
-                  <option value="Casado(a)">Casado(a)</option>{" "}
-                  <option value="Divorciado(a)">Divorciado(a)</option>{" "}
+                  <option value="Solteiro(a)">Solteiro(a)</option>
+                  <option value="Casado(a)">Casado(a)</option>
+                  <option value="Divorciado(a)">Divorciado(a)</option>
                   <option value="Viúvo(a)">Viúvo(a)</option>
                 </select>
               </div>
@@ -701,11 +698,11 @@ function PessoaManagementPage() {
                   required
                   autoComplete="off"
                 >
-                  <option value="Nao Declarada">Não Declarada</option>{" "}
-                  <option value="Branca">Branca</option>{" "}
-                  <option value="Preta">Preta</option>{" "}
-                  <option value="Parda">Parda</option>{" "}
-                  <option value="Amarela">Amarela</option>{" "}
+                  <option value="Nao Declarada">Não Declarada</option>
+                  <option value="Branca">Branca</option>
+                  <option value="Preta">Preta</option>
+                  <option value="Parda">Parda</option>
+                  <option value="Amarela">Amarela</option>
                   <option value="Indígena">Indígena</option>
                 </select>
               </div>
@@ -795,7 +792,7 @@ function PessoaManagementPage() {
                   onChange={(e) => setFalecido(e.target.value)}
                   autoComplete="off"
                 >
-                  <option value="nao">Não</option>{" "}
+                  <option value="nao">Não</option>
                   <option value="sim">Sim</option>
                 </select>
               </div>
@@ -811,7 +808,7 @@ function PessoaManagementPage() {
                   htmlFor="pessoaMae"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Pessoa Mãe (Nome Completo){" "}
+                  Pessoa Mãe (Nome Completo)
                   <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1076,7 +1073,7 @@ function PessoaManagementPage() {
                     required
                     autoComplete="off"
                   >
-                    <option value="Nascimento">Nascimento</option>{" "}
+                    <option value="Nascimento">Nascimento</option>
                     <option value="Casamento">Casamento</option>
                   </select>
                 </div>
@@ -1365,7 +1362,7 @@ function PessoaManagementPage() {
                   onChange={(e) => setZonaResidencia(e.target.value)}
                   autoComplete="off"
                 >
-                  <option value="urbana">Urbana</option>{" "}
+                  <option value="urbana">Urbana</option>
                   <option value="rural">Rural</option>
                 </select>
               </div>
@@ -1383,30 +1380,30 @@ function PessoaManagementPage() {
                   onChange={(e) => setLocalizacaoDiferenciada(e.target.value)}
                   autoComplete="off"
                 >
-                  <option value="">Selecione</option>{" "}
+                  <option value="">Selecione</option>
                   <option value="Não está em área de localização diferenciada">
                     Não está em área de localização diferenciada
-                  </option>{" "}
-                  <option value="Área rural">Área rural</option>{" "}
-                  <option value="Área indígena">Área indígena</option>{" "}
+                  </option>
+                  <option value="Área rural">Área rural</option>
+                  <option value="Área indígena">Área indígena</option>
                   <option value="Área de assentamento">
                     Área de assentamento
-                  </option>{" "}
-                  <option value="Área quilombola">Área quilombola</option>{" "}
-                  <option value="Área ribeirinha">Área ribeirinha</option>{" "}
+                  </option>
+                  <option value="Área quilombola">Área quilombola</option>
+                  <option value="Área ribeirinha">Área ribeirinha</option>
                   <option value="Área de comunidade tradicional">
                     Área de comunidade tradicional
-                  </option>{" "}
+                  </option>
                   <option value="Área de difícil acesso">
                     Área de difícil acesso
-                  </option>{" "}
-                  <option value="Área de fronteira">Área de fronteira</option>{" "}
+                  </option>
+                  <option value="Área de fronteira">Área de fronteira</option>
                   <option value="Área urbana periférica">
                     Área urbana periférica
-                  </option>{" "}
+                  </option>
                   <option value="Área de zona de conflito">
                     Área de zona de conflito
-                  </option>{" "}
+                  </option>
                   <option value="Área de vulnerabilidade social">
                     Área de vulnerabilidade social
                   </option>

@@ -239,6 +239,8 @@ function ProfilePage() {
               className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 cursor-pointer shadow"
               title="Trocar foto"
             >
+              {/* CORREÇÃO: Adicionado texto acessível para o leitor de tela */}
+              <span className="sr-only">Trocar foto de perfil</span>
               <input
                 id="photo-upload"
                 type="file"

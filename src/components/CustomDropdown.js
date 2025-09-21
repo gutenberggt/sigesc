@@ -87,9 +87,12 @@ export default function CustomDropdown({
     }
   }
 
+  // CORREÇÃO: Quebra de linha aplicada conforme solicitado pelo Prettier.
   const selectedLabel =
     selectedOption &&
-    ([selectedOption.subject, selectedOption.teacher].filter(Boolean).join(" – ") ||
+    ([selectedOption.subject, selectedOption.teacher]
+      .filter(Boolean)
+      .join(" – ") ||
       selectedOption.label);
 
   return (
@@ -107,8 +110,18 @@ export default function CustomDropdown({
         <span className={selectedLabel ? "" : "text-gray-500"}>
           {selectedLabel || placeholder}
         </span>
-        <svg aria-hidden="true" viewBox="0 0 20 20" className="h-5 w-5 shrink-0">
-          <path d="M5.5 7.5l4.5 4.5 4.5-4.5" stroke="currentColor" fill="none" />
+        {/* CORREÇÃO: Atributos do SVG quebrados em várias linhas. */}
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 20 20"
+          className="h-5 w-5 shrink-0"
+        >
+          {/* CORREÇÃO: Atributos do <path> quebrados em várias linhas. */}
+          <path
+            d="M5.5 7.5l4.5 4.5 4.5-4.5"
+            stroke="currentColor"
+            fill="none"
+          />
         </svg>
       </button>
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { collection, addDoc, getDocs } from "firebase/firestore";
 import { db } from "../firebase/config";
 import Layout from "../components/Layout";
-import Loading from "../components/ui/loading";
+// CORREÇÃO: A importação do 'Loading' foi removida pois não era utilizada.
 
 const CadastroServidorPage = () => {
   const [servidor, setServidor] = useState({
@@ -16,7 +16,7 @@ const CadastroServidorPage = () => {
   });
 
   const [availableSchools, setAvailableSchools] = useState([]);
-  const [currentFuncoes, setCurrentFuncoes] = useState([]);
+  // CORREÇÃO: O estado 'currentFuncoes' foi removido pois não era utilizado.
   const [loading, setLoading] = useState(false);
 
   // 🔹 Carregar escolas do Firestore
@@ -204,7 +204,10 @@ const CadastroServidorPage = () => {
 
           {/* Funções */}
           <div>
-            <label className="block font-medium">Funções</label>
+            {/* CORREÇÃO: 'label' associado ao botão de adicionar. */}
+            <label htmlFor="add-funcao-btn" className="block font-medium">
+              Funções
+            </label>
             {servidor.funcoes.map((funcao, index) => (
               <input
                 key={index}
@@ -212,10 +215,12 @@ const CadastroServidorPage = () => {
                 value={funcao}
                 onChange={(e) => handleFuncaoChange(index, e.target.value)}
                 className="w-full border rounded p-2 mb-2"
+                aria-label={`Função ${index + 1}`} // Adicionado para melhor acessibilidade
               />
             ))}
 
             <button
+              id="add-funcao-btn" // CORREÇÃO: ID adicionado para associação com o label.
               type="button"
               onClick={addFuncao}
               className="px-3 py-1 bg-blue-600 text-white rounded"

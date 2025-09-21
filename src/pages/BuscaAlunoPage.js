@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../firebase/config";
 import Layout from "../components/Layout";
-import Loading from "../components/ui/loading";
+import { LoadingSpinner as Loading } from "../components/ui/loading.jsx";
 
 const BuscaAlunoPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -46,7 +46,6 @@ const BuscaAlunoPage = () => {
     <Layout>
       <div className="p-6 bg-white rounded-lg shadow-md">
         <h1 className="text-2xl font-bold mb-4">Buscar Aluno</h1>
-
         <input
           type="text"
           placeholder="Digite o nome do aluno..."
@@ -54,9 +53,7 @@ const BuscaAlunoPage = () => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-
         {loading && <Loading />} {/* ✅ indicador de carregamento */}
-
         {!loading && alunos.length > 0 && (
           <ul className="divide-y divide-gray-200">
             {alunos.map((aluno) => (
@@ -67,7 +64,6 @@ const BuscaAlunoPage = () => {
             ))}
           </ul>
         )}
-
         {!loading && searchTerm && alunos.length === 0 && (
           <p className="text-gray-500">Nenhum aluno encontrado.</p>
         )}

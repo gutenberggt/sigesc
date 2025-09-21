@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { collection, getDocs, addDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 import Layout from "../components/Layout";
-import Loading from "../components/ui/loading";
+import { LoadingSpinner as Loading } from "../components/ui/loading.jsx";
 
 const ComponentesCurricularesPage = () => {
   const [componentes, setComponentes] = useState([]);
@@ -70,10 +70,7 @@ const ComponentesCurricularesPage = () => {
       };
       const docRef = await addDoc(collection(db, "componentes"), newComp);
 
-      setComponentes((prev) => [
-        ...prev,
-        { id: docRef.id, ...newComp },
-      ]);
+      setComponentes((prev) => [...prev, { id: docRef.id, ...newComp }]);
 
       setNovoComponente({ nome: "", serieAnoEtapaId: "" });
       alert("Componente curricular cadastrado com sucesso!");
@@ -88,9 +85,7 @@ const ComponentesCurricularesPage = () => {
   return (
     <Layout>
       <div className="p-6 bg-white rounded shadow-md">
-        <h1 className="text-2xl font-bold mb-4">
-          Componentes Curriculares
-        </h1>
+        <h1 className="text-2xl font-bold mb-4">Componentes Curriculares</h1>
 
         {loading ? (
           <Loading />
@@ -114,10 +109,7 @@ const ComponentesCurricularesPage = () => {
               </div>
 
               <div>
-                <label
-                  htmlFor="serieAnoEtapaId"
-                  className="block font-medium"
-                >
+                <label htmlFor="serieAnoEtapaId" className="block font-medium">
                   Série/Ano/Etapa
                 </label>
                 <select
@@ -151,9 +143,7 @@ const ComponentesCurricularesPage = () => {
               {componentes.map((comp) => (
                 <li key={comp.id} className="py-2">
                   {comp.nome} -{" "}
-                  <span className="text-gray-500">
-                    {comp.serieAnoEtapaId}
-                  </span>
+                  <span className="text-gray-500">{comp.serieAnoEtapaId}</span>
                 </li>
               ))}
             </ul>

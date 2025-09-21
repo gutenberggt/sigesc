@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 import Layout from "../components/Layout";
-import Loading from "../components/ui/loading";
+import { LoadingSpinner as Loading } from "../components/ui/loading.jsx";
 
 const EditarAlunoPage = () => {
   const { alunoId } = useParams();

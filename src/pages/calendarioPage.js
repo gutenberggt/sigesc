@@ -131,16 +131,11 @@ function CalendarioPage() {
           let startDate, endDate;
           let isAllDay = true;
 
-          // ======================= INÍCIO DA ALTERAÇÃO =======================
-          // Verifica se o evento tem um horário específico
           if (eventoData.horario) {
             isAllDay = false;
-            // Cria a data de início com o horário
             startDate = new Date(`${startDateString}T${eventoData.horario}`);
-            // Por padrão, eventos com horário duram 1 hora, mas pode ser ajustado
             endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
           } else {
-            // Se não tem horário, é um evento de dia inteiro
             startDate = new Date(startDateString + "T00:00:00");
             endDate = new Date(endDateString + "T23:59:59");
           }
@@ -149,7 +144,6 @@ function CalendarioPage() {
           if (eventoData.local) {
             eventTitle += ` @ ${eventoData.local}`;
           }
-          // ======================== FIM DA ALTERAÇÃO =========================
 
           allEvents.push({
             title: eventTitle,
@@ -177,7 +171,7 @@ function CalendarioPage() {
     setNavigateDate(newDate);
   }, [selectedYear]);
 
-  const eventStyleGetter = (event, start, end, isSelected) => {
+  const eventStyleGetter = (event) => {
     let backgroundColor = "#3498db";
     if (event.resource?.type?.includes("FERIADO")) {
       backgroundColor = "#ef4444";
@@ -193,11 +187,8 @@ function CalendarioPage() {
       border: "0px",
       display: "block",
       cursor: "pointer",
-      // ======================= INÍCIO DA ALTERAÇÃO =======================
-      // Permite que a altura do evento se ajuste ao conteúdo na visão de Dia
       height: view === "day" ? "auto" : "initial",
-      whiteSpace: "normal", // Permite a quebra de linha
-      // ======================== FIM DA ALTERAÇÃO =========================
+      whiteSpace: "normal",
     };
     return { style };
   };
@@ -304,11 +295,8 @@ function CalendarioPage() {
                   messages={messages}
                   view={view}
                   onView={setView}
-                  // ======================= INÍCIO DA ALTERAÇÃO =======================
-                  // Define os horários de início e fim da grade diária
                   min={moment().startOf("day").add(7, "hours").toDate()}
                   max={moment().startOf("day").add(22, "hours").toDate()}
-                  // ======================== FIM DA ALTERAÇÃO =========================
                 />
               )}
             </>

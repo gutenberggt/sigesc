@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react"; // CORREÇÃO: 'useCallback' removido daqui
 import { useParams, useNavigate } from "react-router-dom";
 import { db } from "../firebase/config";
 import {

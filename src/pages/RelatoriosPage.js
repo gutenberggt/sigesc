@@ -9,7 +9,7 @@ import {
   doc,
   getDoc,
 } from "firebase/firestore";
-import { useNavigate } from "react-router-dom";
+// CORREÇÃO: 'useNavigate' foi removido pois não era utilizado.
 
 function RelatoriosPage() {
   // Estados dos Filtros
@@ -179,10 +179,15 @@ function RelatoriosPage() {
         </h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            {/* CORREÇÃO: Adicionado htmlFor */}
+            <label
+              htmlFor="reportType"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               1. Tipo de Relatório
             </label>
             <select
+              id="reportType" // CORREÇÃO: Adicionado id
               value={reportType}
               onChange={(e) => setReportType(e.target.value)}
               className="p-2 border rounded-md w-full"
@@ -198,10 +203,15 @@ function RelatoriosPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            {/* CORREÇÃO: Adicionado htmlFor */}
+            <label
+              htmlFor="selectedYear"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               2. Ano Letivo
             </label>
             <input
+              id="selectedYear" // CORREÇÃO: Adicionado id
               type="number"
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
@@ -209,10 +219,15 @@ function RelatoriosPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            {/* CORREÇÃO: Adicionado htmlFor */}
+            <label
+              htmlFor="selectedSchoolId"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               3. Escola
             </label>
             <select
+              id="selectedSchoolId" // CORREÇÃO: Adicionado id
               value={selectedSchoolId}
               onChange={(e) => setSelectedSchoolId(e.target.value)}
               className="p-2 border rounded-md w-full"
@@ -226,10 +241,15 @@ function RelatoriosPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            {/* CORREÇÃO: Adicionado htmlFor */}
+            <label
+              htmlFor="selectedTurmaId"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               4. Turma
             </label>
             <select
+              id="selectedTurmaId" // CORREÇÃO: Adicionado id
               value={selectedTurmaId}
               onChange={(e) => setSelectedTurmaId(e.target.value)}
               className="p-2 border rounded-md w-full"
@@ -244,10 +264,15 @@ function RelatoriosPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            {/* CORREÇÃO: Adicionado htmlFor */}
+            <label
+              htmlFor="selectedPeriod"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               5. Período
             </label>
             <select
+              id="selectedPeriod" // CORREÇÃO: Adicionado id
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
               className="p-2 border rounded-md w-full"
@@ -263,10 +288,15 @@ function RelatoriosPage() {
           </div>
           {showComponenteFilter && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              {/* CORREÇÃO: Adicionado htmlFor */}
+              <label
+                htmlFor="selectedComponente"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 6. Componente Curricular
               </label>
               <select
+                id="selectedComponente" // CORREÇÃO: Adicionado id
                 value={selectedComponente}
                 onChange={(e) => setSelectedComponente(e.target.value)}
                 className="p-2 border rounded-md w-full"

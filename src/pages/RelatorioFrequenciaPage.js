@@ -68,7 +68,10 @@ async function getBase64FromUrlCached(url) {
         brasaoCache = parsed.base64;
         return parsed.base64;
       }
-    } catch {}
+    } catch (e) {
+      // CORREÇÃO: Adicionado comentário para justificar o bloco vazio.
+      // O erro pode ser ignorado, pois o fallback buscará a imagem novamente.
+    }
   }
   const res = await fetch(url, { cache: "no-store" });
   const blob = await res.blob();
@@ -96,6 +99,107 @@ function RelatorioFrequenciaPage() {
 
   useEffect(() => {
     const generateReport = async () => {
+      // CORREÇÃO: A função 'criarTabelaFrequencia' foi movida para este escopo,
+      // fora do bloco try...catch.
+      function criarTabelaFrequencia(
+        diasSubset,
+        incluirTotais,
+        totaisAlunos,
+        alunosDaTurma,
+        frequenciaData
+      ) {
+        const nomeColWidth = 170;
+        const diaColWidth = 10;
+
+        const headerRow = [
+          { text: "Nº", style: "tableHeader" },
+          {
+            text: "NOME",
+            style: "tableHeader",
+            alignment: "left",
+            width: nomeColWidth,
+          },
+          ...diasSubset.map((d) => {
+            if (!d.data) return { text: "", style: "tableHeader" };
+            const [, m, day] = d.data.split("-");
+            return {
+              text: `${day}\n${m}`,
+              style: "tableHeader",
+              alignment: "center",
+            };
+          }),
+        ];
+        if (incluirTotais) {
+          headerRow.push({
+            text: "FTS",
+            style: "tableHeader",
+            alignment: "center",
+          });
+          headerRow.push({
+            text: "%FRQ",
+            style: "tableHeader",
+            alignment: "center",
+          });
+        }
+        const body = [headerRow];
+        for (let i = 0; i < alunosDaTurma.length; i++) {
+          const aluno = alunosDaTurma[i];
+          const totais = totaisAlunos.find((t) => t.id === aluno.id);
+          const row = [
+            (i + 1).toString(),
+            {
+              text: aluno.nomeCompleto.padEnd(40, " "),
+              alignment: "left",
+              noWrap: true,
+              width: nomeColWidth,
+            },
+          ];
+          for (let j = 0; j < diasSubset.length; j++) {
+            const dia = diasSubset[j];
+            if (!dia.data) {
+              row.push("");
+              continue;
+            }
+            const presencas = dia.aulas
+              .map((aula) => {
+                const status =
+                  frequenciaData[aluno.id]?.[dia.data]?.[aula.id] || "";
+                return status;
+              })
+              .join("");
+            row.push({ text: presencas, alignment: "center" });
+          }
+          if (incluirTotais) {
+            row.push({
+              text: totais.faltas.toString(),
+              bold: true,
+              alignment: "center",
+            });
+            row.push({ text: totais.freqPercent, alignment: "center" });
+          }
+          body.push(row);
+        }
+        const widths = [
+          "auto",
+          nomeColWidth,
+          ...Array(diasSubset.length).fill(diaColWidth),
+        ];
+        if (incluirTotais) widths.push("auto", "auto");
+        return {
+          style: "tableExample",
+          table: { headerRows: 1, widths, body },
+          layout: {
+            paddingLeft: (i) => (i >= 2 && i < diasSubset.length + 2 ? 1 : 4),
+            paddingRight: (i) => (i >= 2 && i < diasSubset.length + 2 ? 1 : 4),
+            paddingTop: () => 1,
+            paddingBottom: () => 1,
+            hLineWidth: () => 0.5,
+            vLineWidth: () => 0.5,
+          },
+          pageBreak: "after",
+        };
+      }
+
       try {
         const brasaoFlorestaBase64 = await getBase64FromUrlCached(
           "https://sigesc-omega.vercel.app/brasao_floresta.png"
@@ -415,8 +519,6 @@ function RelatorioFrequenciaPage() {
           margin: [0, 0, 0, 1],
         };
 
-        const nomeColWidth = 170;
-        const diaColWidth = 10;
         const maxDiasPorTabela = 43;
 
         const totaisAlunos = alunosDaTurma.map((aluno) => {
@@ -440,97 +542,6 @@ function RelatorioFrequenciaPage() {
           return { id: aluno.id, faltas, freqPercent };
         });
 
-        function criarTabelaFrequencia(diasSubset, incluirTotais) {
-          const headerRow = [
-            { text: "Nº", style: "tableHeader" },
-            {
-              text: "NOME",
-              style: "tableHeader",
-              alignment: "left",
-              width: nomeColWidth,
-            },
-            ...diasSubset.map((d) => {
-              if (!d.data) return { text: "", style: "tableHeader" };
-              const [, m, day] = d.data.split("-");
-              return {
-                text: `${day}\n${m}`,
-                style: "tableHeader",
-                alignment: "center",
-              };
-            }),
-          ];
-          if (incluirTotais) {
-            headerRow.push({
-              text: "FTS",
-              style: "tableHeader",
-              alignment: "center",
-            });
-            headerRow.push({
-              text: "%FRQ",
-              style: "tableHeader",
-              alignment: "center",
-            });
-          }
-          const body = [headerRow];
-          for (let i = 0; i < alunosDaTurma.length; i++) {
-            const aluno = alunosDaTurma[i];
-            const totais = totaisAlunos.find((t) => t.id === aluno.id);
-            const row = [
-              (i + 1).toString(),
-              {
-                text: aluno.nomeCompleto.padEnd(40, " "),
-                alignment: "left",
-                noWrap: true,
-                width: nomeColWidth,
-              },
-            ];
-            for (let j = 0; j < diasSubset.length; j++) {
-              const dia = diasSubset[j];
-              if (!dia.data) {
-                row.push("");
-                continue;
-              }
-              const presencas = dia.aulas
-                .map((aula) => {
-                  const status =
-                    frequenciaData[aluno.id]?.[dia.data]?.[aula.id] || "";
-                  return status;
-                })
-                .join("");
-              row.push({ text: presencas, alignment: "center" });
-            }
-            if (incluirTotais) {
-              row.push({
-                text: totais.faltas.toString(),
-                bold: true,
-                alignment: "center",
-              });
-              row.push({ text: totais.freqPercent, alignment: "center" });
-            }
-            body.push(row);
-          }
-          const widths = [
-            "auto",
-            nomeColWidth,
-            ...Array(diasSubset.length).fill(diaColWidth),
-          ];
-          if (incluirTotais) widths.push("auto", "auto");
-          return {
-            style: "tableExample",
-            table: { headerRows: 1, widths, body },
-            layout: {
-              paddingLeft: (i) => (i >= 2 && i < diasSubset.length + 2 ? 1 : 4),
-              paddingRight: (i) =>
-                i >= 2 && i < diasSubset.length + 2 ? 1 : 4,
-              paddingTop: () => 1,
-              paddingBottom: () => 1,
-              hLineWidth: () => 0.5,
-              vLineWidth: () => 0.5,
-            },
-            pageBreak: "after",
-          };
-        }
-
         const tabelasFrequencia = [];
         for (let i = 0; i < diasLetivos.length; i += maxDiasPorTabela) {
           const subset = diasLetivos.slice(i, i + maxDiasPorTabela);
@@ -538,13 +549,19 @@ function RelatorioFrequenciaPage() {
             subset.push({ data: null, aulas: [] });
           }
           const incluirTotais = i + maxDiasPorTabela >= diasLetivos.length;
-          tabelasFrequencia.push(criarTabelaFrequencia(subset, incluirTotais));
+          tabelasFrequencia.push(
+            criarTabelaFrequencia(
+              subset,
+              incluirTotais,
+              totaisAlunos,
+              alunosDaTurma,
+              frequenciaData
+            )
+          );
         }
         if (tabelasFrequencia.length > 0) {
           tabelasFrequencia[tabelasFrequencia.length - 1].pageBreak = undefined;
         }
-
-        // ... (todo o código acima permanece igual)
 
         const docDefinition = {
           pageOrientation: "landscape",

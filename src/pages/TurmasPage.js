@@ -139,8 +139,12 @@ export default function TurmasPage() {
 
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div>
-          <label className="block font-medium mb-1">Nome da Turma</label>
+          {/* CORREÇÃO: Adicionado htmlFor */}
+          <label htmlFor="nomeTurma" className="block font-medium mb-1">
+            Nome da Turma
+          </label>
           <input
+            id="nomeTurma" // CORREÇÃO: Adicionado id
             value={nomeTurma}
             onChange={(e) => setNomeTurma(e.target.value)}
             className="w-full border p-2 rounded"
@@ -148,8 +152,12 @@ export default function TurmasPage() {
         </div>
 
         <div>
-          <label className="block font-medium mb-1">Nível de Ensino</label>
+          {/* CORREÇÃO: Adicionado htmlFor */}
+          <label htmlFor="nivelEnsino" className="block font-medium mb-1">
+            Nível de Ensino
+          </label>
           <select
+            id="nivelEnsino" // CORREÇÃO: Adicionado id
             value={nivelEnsino}
             onChange={(e) => setNivelEnsino(e.target.value)}
             className="w-full border p-2 rounded"
@@ -168,8 +176,12 @@ export default function TurmasPage() {
         </div>
 
         <div>
-          <label className="block font-medium mb-1">Ano/Série</label>
+          {/* CORREÇÃO: Adicionado htmlFor */}
+          <label htmlFor="anoSerie" className="block font-medium mb-1">
+            Ano/Série
+          </label>
           <select
+            id="anoSerie" // CORREÇÃO: Adicionado id
             value={anoSerie}
             onChange={(e) => {
               setAnoSerie(e.target.value);
@@ -187,8 +199,12 @@ export default function TurmasPage() {
         </div>
 
         <div>
-          <label className="block font-medium mb-1">Turno</label>
+          {/* CORREÇÃO: Adicionado htmlFor */}
+          <label htmlFor="turno" className="block font-medium mb-1">
+            Turno
+          </label>
           <select
+            id="turno" // CORREÇÃO: Adicionado id
             value={turno}
             onChange={(e) => setTurno(e.target.value)}
             className="w-full border p-2 rounded"
@@ -201,8 +217,12 @@ export default function TurmasPage() {
         </div>
 
         <div>
-          <label className="block font-medium mb-1">Ano Letivo</label>
+          {/* CORREÇÃO: Adicionado htmlFor */}
+          <label htmlFor="anoLetivo" className="block font-medium mb-1">
+            Ano Letivo
+          </label>
           <input
+            id="anoLetivo" // CORREÇÃO: Adicionado id
             value={anoLetivo}
             onChange={(e) => setAnoLetivo(e.target.value)}
             className="w-full border p-2 rounded"
@@ -210,8 +230,12 @@ export default function TurmasPage() {
         </div>
 
         <div>
-          <label className="block font-medium mb-1">Sala de Aula</label>
+          {/* CORREÇÃO: Adicionado htmlFor */}
+          <label htmlFor="salaAula" className="block font-medium mb-1">
+            Sala de Aula
+          </label>
           <input
+            id="salaAula" // CORREÇÃO: Adicionado id
             value={salaAula}
             onChange={(e) => setSalaAula(e.target.value)}
             className="w-full border p-2 rounded"
@@ -219,8 +243,12 @@ export default function TurmasPage() {
         </div>
 
         <div>
-          <label className="block font-medium mb-1">Limite de Vagas</label>
+          {/* CORREÇÃO: Adicionado htmlFor */}
+          <label htmlFor="limiteVagas" className="block font-medium mb-1">
+            Limite de Vagas
+          </label>
           <input
+            id="limiteVagas" // CORREÇÃO: Adicionado id
             type="number"
             value={limiteVagas}
             onChange={(e) => setLimiteVagas(e.target.value)}
@@ -267,27 +295,6 @@ export default function TurmasPage() {
           </button>
         )}
       </div>
-
-      {/* ✅ Seleção de componentes curriculares */}
-      {anoSerie && (
-        <div className="mb-6">
-          <label className="block font-medium mb-2">
-            Componentes Curriculares ({anoSerie})
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {(componentesData[anoSerie] || []).map((comp) => (
-              <label key={comp.nome} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={componentesSelecionados.includes(comp.nome)}
-                  onChange={() => toggleComponente(comp.nome)}
-                />
-                {comp.nome}
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Lista de turmas */}
       <table className="w-full border">

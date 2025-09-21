@@ -387,10 +387,15 @@ function RegistroConteudosPage() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-10 gap-4 mb-6 p-4 border rounded-md bg-gray-50">
           <div className="md:col-span-5">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            {/* CORREÇÃO: Adicionado htmlFor */}
+            <label
+              htmlFor="escola-select"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Escola
             </label>
             <select
+              id="escola-select" // CORREÇÃO: Adicionado id
               value={selectedSchoolId}
               onChange={(e) => setSelectedSchoolId(e.target.value)}
               className="p-2 border rounded-md w-full"
@@ -404,10 +409,15 @@ function RegistroConteudosPage() {
             </select>
           </div>
           <div className="md:col-span-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            {/* CORREÇÃO: Adicionado htmlFor */}
+            <label
+              htmlFor="turma-select"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Turma
             </label>
             <select
+              id="turma-select" // CORREÇÃO: Adicionado id
               value={selectedTurmaId}
               onChange={(e) => setSelectedTurmaId(e.target.value)}
               className="p-2 border rounded-md w-full"
@@ -422,10 +432,15 @@ function RegistroConteudosPage() {
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            {/* CORREÇÃO: Adicionado htmlFor */}
+            <label
+              htmlFor="ano-input"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Ano Letivo
             </label>
             <input
+              id="ano-input" // CORREÇÃO: Adicionado id
               type="number"
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
@@ -433,10 +448,15 @@ function RegistroConteudosPage() {
             />
           </div>
           <div className="md:col-span-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            {/* CORREÇÃO: Adicionado htmlFor */}
+            <label
+              htmlFor="periodo-select"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Período
             </label>
             <select
+              id="periodo-select" // CORREÇÃO: Adicionado id
               value={selectedPeriod ? selectedPeriod.value : ""}
               onChange={(e) => {
                 const v = e.target.value;
@@ -457,10 +477,15 @@ function RegistroConteudosPage() {
           </div>
           {showComponenteFilter && (
             <div className="md:col-span-7">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              {/* CORREÇÃO: Adicionado htmlFor */}
+              <label
+                htmlFor="componente-select"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Componente Curricular
               </label>
               <select
+                id="componente-select" // CORREÇÃO: Adicionado id
                 value={selectedComponente}
                 onChange={(e) => setSelectedComponente(e.target.value)}
                 className="p-2 border rounded-md w-full"
@@ -500,10 +525,15 @@ function RegistroConteudosPage() {
                   </p>
                 </div>
                 <div className="md:col-span-5">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  {/* CORREÇÃO: Adicionado htmlFor */}
+                  <label
+                    htmlFor={`objetos-${data}`}
+                    className="block text-sm font-semibold text-gray-700 mb-1"
+                  >
                     Objetos de Conhecimento
                   </label>
                   <textarea
+                    id={`objetos-${data}`} // CORREÇÃO: Adicionado id único
                     value={conteudosData[data]?.objetos || ""}
                     onChange={(e) =>
                       handleConteudoChange(data, "objetos", e.target.value)
@@ -513,10 +543,15 @@ function RegistroConteudosPage() {
                   />
                 </div>
                 <div className="md:col-span-6">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  {/* CORREÇÃO: Adicionado htmlFor */}
+                  <label
+                    htmlFor={`atividades-${data}`}
+                    className="block text-sm font-semibold text-gray-700 mb-1"
+                  >
                     Atividades Realizadas
                   </label>
                   <textarea
+                    id={`atividades-${data}`} // CORREÇÃO: Adicionado id único
                     value={conteudosData[data]?.atividades || ""}
                     onChange={(e) =>
                       handleConteudoChange(data, "atividades", e.target.value)

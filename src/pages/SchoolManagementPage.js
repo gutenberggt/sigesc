@@ -456,7 +456,7 @@ function SchoolManagementPage() {
               </div>
               <div className="col-span-full md:col-span-2">
                 <label
-                  htmlFor="situacao"
+                  htmlFor="situacaoFuncionamento"
                   className="block text-sm font-medium text-gray-700"
                 >
                   Situação
@@ -765,8 +765,10 @@ function SchoolManagementPage() {
                 className="grid grid-cols-1 md:grid-cols-8 gap-4 mb-4 items-end"
               >
                 <div className="col-span-full md:col-span-1">
-                  <label>INEP</label>
+                  {/* CORREÇÃO: Adicionado htmlFor */}
+                  <label htmlFor={`gestor-inep-${index}`}>INEP</label>
                   <input
+                    id={`gestor-inep-${index}`} // CORREÇÃO: Adicionado id
                     type="text"
                     value={gestor.inep}
                     onChange={(e) =>
@@ -776,8 +778,10 @@ function SchoolManagementPage() {
                   />
                 </div>
                 <div className="col-span-full md:col-span-4">
-                  <label>Nome</label>
+                  {/* CORREÇÃO: Adicionado htmlFor */}
+                  <label htmlFor={`gestor-nome-${index}`}>Nome</label>
                   <input
+                    id={`gestor-nome-${index}`} // CORREÇÃO: Adicionado id
                     type="text"
                     value={gestor.nome}
                     onChange={(e) =>
@@ -791,8 +795,10 @@ function SchoolManagementPage() {
                   />
                 </div>
                 <div className="col-span-full md:col-span-2">
-                  <label>Cargo</label>
+                  {/* CORREÇÃO: Adicionado htmlFor */}
+                  <label htmlFor={`gestor-cargo-${index}`}>Cargo</label>
                   <select
+                    id={`gestor-cargo-${index}`} // CORREÇÃO: Adicionado id
                     value={gestor.cargo}
                     onChange={(e) =>
                       handleGestorChange(index, "cargo", e.target.value)
@@ -831,11 +837,13 @@ function SchoolManagementPage() {
               🎓 Oferta de Ensino
             </h3>
             <div>
-              <label>
+              {/* CORREÇÃO: Adicionado htmlFor */}
+              <label htmlFor="currentNivelEnsino">
                 Níveis de ensino <span className="text-red-500">*</span>
               </label>
               <div className="flex">
                 <select
+                  id="currentNivelEnsino" // CORREÇÃO: Adicionado id
                   value={currentNivelEnsino}
                   onChange={(e) => setCurrentNivelEnsino(e.target.value)}
                   className="w-full p-2 border rounded-l"
@@ -873,11 +881,13 @@ function SchoolManagementPage() {
               </div>
             </div>
             <div className="mt-4">
-              <label>
+              {/* CORREÇÃO: Adicionado htmlFor */}
+              <label htmlFor="currentAnoSerie">
                 Anos/séries atendidas <span className="text-red-500">*</span>
               </label>
               <div className="flex">
                 <select
+                  id="currentAnoSerie" // CORREÇÃO: Adicionado id
                   value={currentAnoSerie}
                   onChange={(e) => setCurrentAnoSerie(e.target.value)}
                   className="w-full p-2 border rounded-l"
@@ -944,7 +954,6 @@ function SchoolManagementPage() {
         </h3>
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white border">
-            {/* ======================= INÍCIO DA ALTERAÇÃO NA TABELA ======================= */}
             <thead>
               <tr className="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
                 <th className="py-3 px-6 text-left">Nome da Escola</th>
