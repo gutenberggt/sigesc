@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 export const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const roleLabels = {
     admin: 'Administrador',
