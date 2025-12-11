@@ -11,6 +11,7 @@ export const Tabs = ({ tabs, defaultTab = 0, children }) => {
           {tabs.map((tab, index) => (
             <button
               key={index}
+              type="button"
               onClick={() => setActiveTab(index)}
               className={`
                 py-3 px-4 text-sm font-medium whitespace-nowrap transition-colors
