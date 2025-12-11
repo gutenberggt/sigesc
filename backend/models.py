@@ -198,6 +198,12 @@ class SchoolBase(BaseModel):
     ensino_medio: Optional[bool] = False
     eja: Optional[bool] = False
     
+    # Dados do Ensino - Atendimentos
+    aee: Optional[bool] = False  # Atendimento educacional especializado
+    atendimento_integral: Optional[bool] = False
+    reforco_escolar: Optional[bool] = False
+    aulas_complementares: Optional[bool] = False
+    
     # Dados do Ensino - Regime
     turnos_funcionamento: List[str] = []
     organizacao_turmas: Optional[str] = None
