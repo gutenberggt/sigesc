@@ -3,6 +3,10 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Login } from '@/pages/Login';
 import { Dashboard } from '@/pages/Dashboard';
+import { Schools } from '@/pages/Schools';
+import { Users } from '@/pages/Users';
+import { Classes } from '@/pages/Classes';
+import { Courses } from '@/pages/Courses';
 import '@/App.css';
 
 function App() {
