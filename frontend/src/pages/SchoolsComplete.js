@@ -856,6 +856,51 @@ export const SchoolsComplete = () => {
           </label>
         </div>
       </div>
+
+      <div>
+        <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Atendimentos e Programas</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={formData.aee || false}
+              onChange={(e) => updateFormData('aee', e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">Atendimento Educacional Especializado - AEE</span>
+          </label>
+          
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={formData.atendimento_integral || false}
+              onChange={(e) => updateFormData('atendimento_integral', e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">Atendimento Integral</span>
+          </label>
+          
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={formData.reforco_escolar || false}
+              onChange={(e) => updateFormData('reforco_escolar', e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">Reforço Escolar</span>
+          </label>
+          
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={formData.aulas_complementares || false}
+              onChange={(e) => updateFormData('aulas_complementares', e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">Aulas Complementares</span>
+          </label>
+        </div>
+      </div>
     </div>
   );
 
