@@ -751,6 +751,50 @@ export const SchoolsComplete = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Aparelho de Televisão</label>
+            <input
+              type="number"
+              value={formData.qtd_televisores || 0}
+              onChange={(e) => updateFormData('qtd_televisores', parseInt(e.target.value) || 0)}
+              min="0"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Projetor Multimídia (Data show)</label>
+            <input
+              type="number"
+              value={formData.qtd_projetores_multimidia || 0}
+              onChange={(e) => updateFormData('qtd_projetores_multimidia', parseInt(e.target.value) || 0)}
+              min="0"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Aparelho de som</label>
+            <input
+              type="number"
+              value={formData.qtd_aparelhos_som || 0}
+              onChange={(e) => updateFormData('qtd_aparelhos_som', parseInt(e.target.value) || 0)}
+              min="0"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Lousa digital</label>
+            <input
+              type="number"
+              value={formData.qtd_lousas_digitais || 0}
+              onChange={(e) => updateFormData('qtd_lousas_digitais', parseInt(e.target.value) || 0)}
+              min="0"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
         </div>
       </div>
     </div>
