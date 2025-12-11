@@ -63,21 +63,187 @@ class RefreshTokenRequest(BaseModel):
 # ============= SCHOOL MODELS =============
 
 class SchoolBase(BaseModel):
+    # Dados Gerais - Identificação
     name: str
     inep_code: Optional[str] = None
-    address: Optional[str] = None
-    contacts: Optional[str] = None
+    sigla: Optional[str] = None
+    caracteristica_escolar: Optional[str] = None
+    zona_localizacao: Optional[Literal['urbana', 'rural']] = None
+    cnpj: Optional[str] = None
+    situacao_funcionamento: Optional[str] = 'Em atividade'
+    
+    # Dados Gerais - Localização
+    cep: Optional[str] = None
+    logradouro: Optional[str] = None
+    numero: Optional[str] = None
+    complemento: Optional[str] = None
+    bairro: Optional[str] = None
+    municipio: Optional[str] = None
+    distrito: Optional[str] = None
+    estado: Optional[str] = None
+    ddd_telefone: Optional[str] = None
+    telefone: Optional[str] = None
+    celular: Optional[str] = None
+    
+    # Dados Gerais - Contatos
+    email: Optional[str] = None
+    site: Optional[str] = None
+    
+    # Dados Gerais - Georreferenciamento
+    latitude: Optional[str] = None
+    longitude: Optional[str] = None
+    
+    # Dados Gerais - Regras
+    bloquear_lancamento_anos_encerrados: Optional[bool] = False
+    usar_regra_alternativa: Optional[bool] = False
+    
+    # Dados Gerais - Vinculação
+    dependencia_administrativa: Optional[str] = None
+    orgao_responsavel: Optional[str] = None
+    regulamentacao: Optional[str] = None
+    esfera_administrativa: Optional[str] = None
+    
+    # Dados Gerais - Mantenedora
+    categoria_mantenedora: Optional[str] = None
+    cnpj_mantenedora: Optional[str] = None
+    forma_contratacao_estadual: Optional[str] = None
+    forma_contratacao_municipal: Optional[str] = None
+    possui_convenio: Optional[bool] = False
+    
+    # Dados Gerais - Equipe
+    secretario_escolar: Optional[str] = None
+    gestor_principal: Optional[str] = None
+    cargo_gestor: Optional[str] = None
+    
+    # Dados Gerais - Oferta
+    niveis_ensino_oferecidos: List[str] = []
+    anos_letivos_ativos: List[int] = []
+    
+    # Infraestrutura - Serviços
+    abastecimento_agua: Optional[str] = None
+    energia_eletrica: Optional[str] = None
+    saneamento: Optional[str] = None
+    coleta_lixo: Optional[str] = None
+    
+    # Infraestrutura - Acessibilidade
+    possui_rampas: Optional[bool] = False
+    possui_corrimao: Optional[bool] = False
+    banheiros_adaptados: Optional[bool] = False
+    sinalizacao_tatil: Optional[bool] = False
+    
+    # Infraestrutura - Segurança
+    saidas_emergencia: Optional[int] = None
+    extintores: Optional[int] = None
+    brigada_incendio: Optional[bool] = False
+    plano_evacuacao: Optional[bool] = False
+    
+    # Infraestrutura - Conectividade
+    possui_internet: Optional[bool] = False
+    tipo_conexao: Optional[str] = None
+    cobertura_rede: Optional[str] = None
+    
+    # Infraestrutura - Conservação
+    estado_conservacao: Optional[str] = None
+    possui_cercamento: Optional[bool] = False
+    
+    # Dependências - Salas
+    numero_salas_aula: Optional[int] = None
+    capacidade_total_alunos: Optional[int] = None
+    salas_recursos_multifuncionais: Optional[int] = None
+    
+    # Dependências - Administração
+    sala_direcao: Optional[bool] = False
+    sala_secretaria: Optional[bool] = False
+    sala_coordenacao: Optional[bool] = False
+    sala_professores: Optional[bool] = False
+    
+    # Dependências - Serviços
+    numero_banheiros: Optional[int] = None
+    banheiros_acessiveis: Optional[int] = None
+    possui_cozinha: Optional[bool] = False
+    possui_refeitorio: Optional[bool] = False
+    possui_almoxarifado: Optional[bool] = False
+    
+    # Dependências - Outros
+    possui_biblioteca: Optional[bool] = False
+    possui_lab_ciencias: Optional[bool] = False
+    possui_lab_informatica: Optional[bool] = False
+    possui_quadra: Optional[bool] = False
+    
+    # Equipamentos - Tecnologia
+    qtd_computadores: Optional[int] = None
+    qtd_tablets: Optional[int] = None
+    qtd_projetores: Optional[int] = None
+    qtd_impressoras: Optional[int] = None
+    
+    # Equipamentos - Didáticos
+    possui_kits_cientificos: Optional[bool] = False
+    possui_instrumentos_musicais: Optional[bool] = False
+    
+    # Equipamentos - Segurança
+    qtd_extintores: Optional[int] = None
+    qtd_cameras: Optional[int] = None
+    
+    # Recursos - Pedagógicos
+    possui_material_didatico: Optional[bool] = False
+    tamanho_acervo: Optional[int] = None
+    
+    # Recursos - Programas
+    participa_programas_governamentais: List[str] = []
+    
+    # Dados do Ensino - Etapas
+    educacao_infantil: Optional[bool] = False
+    fundamental_anos_iniciais: Optional[bool] = False
+    fundamental_anos_finais: Optional[bool] = False
+    ensino_medio: Optional[bool] = False
+    eja: Optional[bool] = False
+    
+    # Dados do Ensino - Regime
+    turnos_funcionamento: List[str] = []
+    organizacao_turmas: Optional[str] = None
+    tipo_avaliacao: Optional[str] = None
+    
+    # Espaços Escolares
+    possui_quadra_esportiva: Optional[bool] = False
+    possui_patio: Optional[bool] = False
+    possui_parque: Optional[bool] = False
+    possui_brinquedoteca: Optional[bool] = False
+    possui_auditorio: Optional[bool] = False
+    possui_horta: Optional[bool] = False
+    possui_estacionamento: Optional[bool] = False
+    
+    # Status geral
     status: Literal['active', 'inactive'] = 'active'
 
 class SchoolCreate(SchoolBase):
     pass
 
 class SchoolUpdate(BaseModel):
+    # Todos os campos opcionais para atualização parcial
     name: Optional[str] = None
     inep_code: Optional[str] = None
-    address: Optional[str] = None
-    contacts: Optional[str] = None
+    sigla: Optional[str] = None
+    caracteristica_escolar: Optional[str] = None
+    zona_localizacao: Optional[Literal['urbana', 'rural']] = None
+    cnpj: Optional[str] = None
+    situacao_funcionamento: Optional[str] = None
+    cep: Optional[str] = None
+    logradouro: Optional[str] = None
+    numero: Optional[str] = None
+    complemento: Optional[str] = None
+    bairro: Optional[str] = None
+    municipio: Optional[str] = None
+    distrito: Optional[str] = None
+    estado: Optional[str] = None
+    ddd_telefone: Optional[str] = None
+    telefone: Optional[str] = None
+    celular: Optional[str] = None
+    email: Optional[str] = None
+    site: Optional[str] = None
+    latitude: Optional[str] = None
+    longitude: Optional[str] = None
     status: Optional[Literal['active', 'inactive']] = None
+    # ... outros campos podem ser adicionados conforme necessário
 
 class School(SchoolBase):
     model_config = ConfigDict(extra="ignore")
