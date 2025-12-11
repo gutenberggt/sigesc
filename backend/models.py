@@ -175,6 +175,10 @@ class SchoolBase(BaseModel):
     qtd_tablets: Optional[int] = None
     qtd_projetores: Optional[int] = None
     qtd_impressoras: Optional[int] = None
+    qtd_televisores: Optional[int] = None
+    qtd_projetores_multimidia: Optional[int] = None
+    qtd_aparelhos_som: Optional[int] = None
+    qtd_lousas_digitais: Optional[int] = None
     
     # Equipamentos - Didáticos
     possui_kits_cientificos: Optional[bool] = False
