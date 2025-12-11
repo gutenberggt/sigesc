@@ -27,6 +27,43 @@ function App() {
             }
           />
           
+          {/* Rotas de administração */}
+          <Route
+            path="/admin/schools"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Schools />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed']}>
+                <Users />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/admin/classes"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador']}>
+                <Classes />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/admin/courses"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador']}>
+                <Courses />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* Redireciona raiz para dashboard ou login */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           
