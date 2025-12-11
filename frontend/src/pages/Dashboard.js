@@ -108,6 +108,50 @@ export const Dashboard = () => {
           })}
         </div>
 
+        {/* Menu de navegação - Admin/Secretário */}
+        {['admin', 'secretario'].includes(user?.role) && (
+          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Menu de Administração</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <button
+                onClick={() => navigate('/admin/schools')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
+                data-testid="nav-schools-button"
+              >
+                <School className="text-blue-600" size={24} />
+                <span className="font-medium text-gray-900">Escolas</span>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/users')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-all"
+                data-testid="nav-users-button"
+              >
+                <Users className="text-green-600" size={24} />
+                <span className="font-medium text-gray-900">Usuários</span>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/classes')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-all"
+                data-testid="nav-classes-button"
+              >
+                <BookOpen className="text-purple-600" size={24} />
+                <span className="font-medium text-gray-900">Turmas</span>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/courses')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all"
+                data-testid="nav-courses-button"
+              >
+                <GraduationCap className="text-orange-600" size={24} />
+                <span className="font-medium text-gray-900">Disciplinas</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Info de desenvolvimento */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
           <div className="flex items-start">
@@ -115,12 +159,13 @@ export const Dashboard = () => {
               <BarChart3 className="text-blue-600" size={24} />
             </div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-900">Sistema em Desenvolvimento - Fase 1 Concluída</h3>
+              <h3 className="text-sm font-medium text-blue-900">Sistema em Desenvolvimento - Fase 2 em Andamento</h3>
               <div className="mt-2 text-sm text-blue-700">
                 <p>✅ Autenticação JWT implementada</p>
                 <p>✅ Sistema de papéis (RBAC) funcionando</p>
                 <p>✅ Dashboard por papel configurado</p>
-                <p className="mt-2 font-medium">Próxima fase: Cadastros de Escolas, Usuários e Turmas</p>
+                <p>✅ CRUD de Escolas, Usuários, Turmas e Disciplinas</p>
+                <p className="mt-2 font-medium">Próxima fase: Gestão de Alunos e Sistema de Notas</p>
               </div>
             </div>
           </div>
