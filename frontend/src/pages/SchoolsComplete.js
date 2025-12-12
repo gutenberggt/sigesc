@@ -214,7 +214,7 @@ export function SchoolsComplete() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCreate = () => {
+  function handleCreate() {
     setEditingSchool(null);
     setViewMode(false);
     // Reset form with default values
@@ -231,23 +231,23 @@ export function SchoolsComplete() {
       status: 'active'
     });
     setIsModalOpen(true);
-  };
+  }
 
-  const handleView = (school) => {
+  function handleView(school) {
     setEditingSchool(school);
     setViewMode(true);
     setFormData(school);
     setIsModalOpen(true);
-  };
+  }
 
-  const handleEdit = (school) => {
+  function handleEdit(school) {
     setEditingSchool(school);
     setViewMode(false);
     setFormData(school);
     setIsModalOpen(true);
-  };
+  }
 
-  const handleDelete = async (school) => {
+  async function handleDelete(school) {
     if (window.confirm(`Tem certeza que deseja excluir a escola "${school.name}"?`)) {
       try {
         await schoolsAPI.delete(school.id);
@@ -258,9 +258,9 @@ export function SchoolsComplete() {
         console.error(error);
       }
     }
-  };
+  }
 
-  const handleSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
     setSubmitting(true);
 
@@ -280,11 +280,11 @@ export function SchoolsComplete() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
-  const updateFormData = (field, value) => {
+  function updateFormData(field, value) {
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  }
 
   const columns = [
     { header: 'Nome', accessor: 'name' },
