@@ -7,6 +7,7 @@ import { usersAPI, schoolsAPI } from '@/services/api';
 import { Plus, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 
 export const Users = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [schools, setSchools] = useState([]);
   const [loading, setLoading] = useState(true);
