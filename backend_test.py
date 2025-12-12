@@ -1,0 +1,492 @@
+#!/usr/bin/env python3
+"""
+SIGESC Backend API Test Suite
+Tests Guardians and Enrollments CRUD operations
+"""
+
+import requests
+import json
+import os
+from datetime import datetime
+
+# Get backend URL from environment
+BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://edusys-admin.preview.emergentagent.com')
+API_BASE = f"{BACKEND_URL}/api"
+
+# Test credentials
+ADMIN_CREDENTIALS = {
+    "email": "admin@sigesc.com",
+    "password": "password"
+}
+
+SEMED_CREDENTIALS = {
+    "email": "semed@sigesc.com", 
+    "password": "password"
+}
+
+class SIGESCTester:
+    def __init__(self):
+        self.admin_token = None
+        self.semed_token = None
+        self.created_guardian_id = None
+        self.created_enrollment_id = None
+        self.school_id = None
+        self.student_id = None
+        self.class_id = None
+        
+    def log(self, message):
+        """Log test messages with timestamp"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"[{timestamp}] {message}")
+        
+    def login(self, credentials, role_name):
+        """Login and get access token"""
+        self.log(f"🔐 Logging in as {role_name}...")
+        
+        try:
+            response = requests.post(
+                f"{API_BASE}/auth/login",
+                json=credentials,
+                headers={"Content-Type": "application/json"}
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                token = data.get('access_token')
+                user = data.get('user', {})
+                self.log(f"✅ Login successful for {user.get('full_name', role_name)}")
+                return token
+            else:
+                self.log(f"❌ Login failed: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            self.log(f"❌ Login error: {str(e)}")
+            return None
+    
+    def get_headers(self, token):
+        """Get authorization headers"""
+        return {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+    
+    def setup_test_data(self):
+        """Get or create required test data (school, student, class)"""
+        self.log("📋 Setting up test data...")
+        
+        # Get schools
+        response = requests.get(
+            f"{API_BASE}/schools",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            schools = response.json()
+            if schools:
+                self.school_id = schools[0]['id']
+                self.log(f"✅ Using school: {schools[0]['name']} (ID: {self.school_id})")
+            else:
+                self.log("❌ No schools found - creating one...")
+                # Create a test school
+                school_data = {
+                    "name": "Escola Teste SIGESC",
+                    "inep_code": "12345678",
+                    "municipio": "São Paulo",
+                    "estado": "SP"
+                }
+                response = requests.post(
+                    f"{API_BASE}/schools",
+                    json=school_data,
+                    headers=self.get_headers(self.admin_token)
+                )
+                if response.status_code == 201:
+                    self.school_id = response.json()['id']
+                    self.log(f"✅ Created test school (ID: {self.school_id})")
+        
+        # Get students
+        response = requests.get(
+            f"{API_BASE}/students",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            students = response.json()
+            if students:
+                self.student_id = students[0]['id']
+                self.log(f"✅ Using student: {students[0]['full_name']} (ID: {self.student_id})")
+            else:
+                self.log("❌ No students found - creating one...")
+                # Create a test student
+                student_data = {
+                    "full_name": "João Silva Santos",
+                    "school_id": self.school_id,
+                    "enrollment_number": "2025001",
+                    "birth_date": "2010-05-15",
+                    "sex": "masculino"
+                }
+                response = requests.post(
+                    f"{API_BASE}/students",
+                    json=student_data,
+                    headers=self.get_headers(self.admin_token)
+                )
+                if response.status_code == 201:
+                    self.student_id = response.json()['id']
+                    self.log(f"✅ Created test student (ID: {self.student_id})")
+        
+        # Get classes
+        response = requests.get(
+            f"{API_BASE}/classes",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            classes = response.json()
+            if classes:
+                self.class_id = classes[0]['id']
+                self.log(f"✅ Using class: {classes[0]['name']} (ID: {self.class_id})")
+            else:
+                self.log("❌ No classes found - creating one...")
+                # Create a test class
+                class_data = {
+                    "name": "5º Ano A",
+                    "school_id": self.school_id,
+                    "grade_level": "5º Ano",
+                    "shift": "matutino",
+                    "academic_year": 2025
+                }
+                response = requests.post(
+                    f"{API_BASE}/classes",
+                    json=class_data,
+                    headers=self.get_headers(self.admin_token)
+                )
+                if response.status_code == 201:
+                    self.class_id = response.json()['id']
+                    self.log(f"✅ Created test class (ID: {self.class_id})")
+    
+    def test_guardians_crud(self):
+        """Test Guardians CRUD operations"""
+        self.log("\n🧑‍👩‍👧‍👦 Testing Guardians CRUD...")
+        
+        # 1. CREATE Guardian
+        self.log("1️⃣ Creating guardian...")
+        guardian_data = {
+            "full_name": "Maria Silva",
+            "cpf": "111.222.333-44",
+            "relationship": "mae",
+            "cell_phone": "(11) 98765-4321",
+            "email": "maria.silva@email.com",
+            "address": "Rua das Flores, 123",
+            "neighborhood": "Centro",
+            "city": "São Paulo",
+            "state": "SP",
+            "zip_code": "01234-567"
+        }
+        
+        response = requests.post(
+            f"{API_BASE}/guardians",
+            json=guardian_data,
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 201:
+            guardian = response.json()
+            self.created_guardian_id = guardian['id']
+            self.log(f"✅ Guardian created successfully (ID: {self.created_guardian_id})")
+            self.log(f"   Name: {guardian['full_name']}, CPF: {guardian['cpf']}")
+        else:
+            self.log(f"❌ Failed to create guardian: {response.status_code} - {response.text}")
+            return False
+        
+        # 2. LIST Guardians
+        self.log("2️⃣ Listing guardians...")
+        response = requests.get(
+            f"{API_BASE}/guardians",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            guardians = response.json()
+            self.log(f"✅ Found {len(guardians)} guardians")
+            found_created = any(g['id'] == self.created_guardian_id for g in guardians)
+            if found_created:
+                self.log("✅ Created guardian found in list")
+            else:
+                self.log("❌ Created guardian NOT found in list")
+        else:
+            self.log(f"❌ Failed to list guardians: {response.status_code} - {response.text}")
+        
+        # 3. GET Guardian by ID
+        self.log("3️⃣ Getting guardian by ID...")
+        response = requests.get(
+            f"{API_BASE}/guardians/{self.created_guardian_id}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            guardian = response.json()
+            self.log(f"✅ Guardian retrieved: {guardian['full_name']}")
+        else:
+            self.log(f"❌ Failed to get guardian: {response.status_code} - {response.text}")
+        
+        # 4. UPDATE Guardian
+        self.log("4️⃣ Updating guardian...")
+        update_data = {
+            "cell_phone": "(11) 99999-8888",
+            "occupation": "Professora"
+        }
+        
+        response = requests.put(
+            f"{API_BASE}/guardians/{self.created_guardian_id}",
+            json=update_data,
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            guardian = response.json()
+            self.log(f"✅ Guardian updated successfully")
+            self.log(f"   New phone: {guardian['cell_phone']}")
+            self.log(f"   Occupation: {guardian.get('occupation', 'N/A')}")
+        else:
+            self.log(f"❌ Failed to update guardian: {response.status_code} - {response.text}")
+        
+        return True
+    
+    def test_enrollments_crud(self):
+        """Test Enrollments CRUD operations"""
+        self.log("\n📚 Testing Enrollments CRUD...")
+        
+        if not all([self.school_id, self.student_id, self.class_id]):
+            self.log("❌ Missing required data for enrollment test")
+            return False
+        
+        # 1. CREATE Enrollment
+        self.log("1️⃣ Creating enrollment...")
+        enrollment_data = {
+            "student_id": self.student_id,
+            "school_id": self.school_id,
+            "class_id": self.class_id,
+            "academic_year": 2025,
+            "enrollment_date": "2025-02-01",
+            "enrollment_number": "MAT2025001"
+        }
+        
+        response = requests.post(
+            f"{API_BASE}/enrollments",
+            json=enrollment_data,
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 201:
+            enrollment = response.json()
+            self.created_enrollment_id = enrollment['id']
+            self.log(f"✅ Enrollment created successfully (ID: {self.created_enrollment_id})")
+            self.log(f"   Student: {enrollment['student_id']}")
+            self.log(f"   Class: {enrollment['class_id']}")
+            self.log(f"   Year: {enrollment['academic_year']}")
+        else:
+            self.log(f"❌ Failed to create enrollment: {response.status_code} - {response.text}")
+            return False
+        
+        # 2. LIST Enrollments
+        self.log("2️⃣ Listing enrollments...")
+        response = requests.get(
+            f"{API_BASE}/enrollments",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            enrollments = response.json()
+            self.log(f"✅ Found {len(enrollments)} enrollments")
+            found_created = any(e['id'] == self.created_enrollment_id for e in enrollments)
+            if found_created:
+                self.log("✅ Created enrollment found in list")
+            else:
+                self.log("❌ Created enrollment NOT found in list")
+        else:
+            self.log(f"❌ Failed to list enrollments: {response.status_code} - {response.text}")
+        
+        # 3. GET Enrollment by ID
+        self.log("3️⃣ Getting enrollment by ID...")
+        response = requests.get(
+            f"{API_BASE}/enrollments/{self.created_enrollment_id}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            enrollment = response.json()
+            self.log(f"✅ Enrollment retrieved: {enrollment['enrollment_number']}")
+        else:
+            self.log(f"❌ Failed to get enrollment: {response.status_code} - {response.text}")
+        
+        # 4. UPDATE Enrollment
+        self.log("4️⃣ Updating enrollment...")
+        update_data = {
+            "status": "active",
+            "observations": "Matrícula confirmada para 2025"
+        }
+        
+        response = requests.put(
+            f"{API_BASE}/enrollments/{self.created_enrollment_id}",
+            json=update_data,
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            enrollment = response.json()
+            self.log(f"✅ Enrollment updated successfully")
+            self.log(f"   Status: {enrollment['status']}")
+            self.log(f"   Observations: {enrollment.get('observations', 'N/A')}")
+        else:
+            self.log(f"❌ Failed to update enrollment: {response.status_code} - {response.text}")
+        
+        return True
+    
+    def test_semed_permissions(self):
+        """Test SEMED role permissions (should be read-only)"""
+        self.log("\n🔒 Testing SEMED permissions...")
+        
+        # Test SEMED can list guardians
+        self.log("1️⃣ Testing SEMED can list guardians...")
+        response = requests.get(
+            f"{API_BASE}/guardians",
+            headers=self.get_headers(self.semed_token)
+        )
+        
+        if response.status_code == 200:
+            self.log("✅ SEMED can list guardians")
+        else:
+            self.log(f"❌ SEMED cannot list guardians: {response.status_code}")
+        
+        # Test SEMED can list enrollments
+        self.log("2️⃣ Testing SEMED can list enrollments...")
+        response = requests.get(
+            f"{API_BASE}/enrollments",
+            headers=self.get_headers(self.semed_token)
+        )
+        
+        if response.status_code == 200:
+            self.log("✅ SEMED can list enrollments")
+        else:
+            self.log(f"❌ SEMED cannot list enrollments: {response.status_code}")
+        
+        # Test SEMED CANNOT create guardian (should fail)
+        self.log("3️⃣ Testing SEMED cannot create guardian...")
+        guardian_data = {
+            "full_name": "Test Guardian SEMED",
+            "relationship": "pai"
+        }
+        
+        response = requests.post(
+            f"{API_BASE}/guardians",
+            json=guardian_data,
+            headers=self.get_headers(self.semed_token)
+        )
+        
+        if response.status_code == 403:
+            self.log("✅ SEMED correctly denied guardian creation (403)")
+        elif response.status_code == 401:
+            self.log("✅ SEMED correctly denied guardian creation (401)")
+        else:
+            self.log(f"❌ SEMED should not be able to create guardian: {response.status_code}")
+        
+        # Test SEMED CANNOT create enrollment (should fail)
+        self.log("4️⃣ Testing SEMED cannot create enrollment...")
+        enrollment_data = {
+            "student_id": self.student_id,
+            "school_id": self.school_id,
+            "class_id": self.class_id,
+            "academic_year": 2025
+        }
+        
+        response = requests.post(
+            f"{API_BASE}/enrollments",
+            json=enrollment_data,
+            headers=self.get_headers(self.semed_token)
+        )
+        
+        if response.status_code == 403:
+            self.log("✅ SEMED correctly denied enrollment creation (403)")
+        elif response.status_code == 401:
+            self.log("✅ SEMED correctly denied enrollment creation (401)")
+        else:
+            self.log(f"❌ SEMED should not be able to create enrollment: {response.status_code}")
+    
+    def cleanup(self):
+        """Clean up created test data"""
+        self.log("\n🧹 Cleaning up test data...")
+        
+        # Delete created enrollment
+        if self.created_enrollment_id:
+            response = requests.delete(
+                f"{API_BASE}/enrollments/{self.created_enrollment_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            if response.status_code == 204:
+                self.log("✅ Test enrollment deleted")
+            else:
+                self.log(f"❌ Failed to delete enrollment: {response.status_code}")
+        
+        # Delete created guardian
+        if self.created_guardian_id:
+            response = requests.delete(
+                f"{API_BASE}/guardians/{self.created_guardian_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            if response.status_code == 204:
+                self.log("✅ Test guardian deleted")
+            else:
+                self.log(f"❌ Failed to delete guardian: {response.status_code}")
+    
+    def run_all_tests(self):
+        """Run all backend tests"""
+        self.log("🚀 Starting SIGESC Backend API Tests")
+        self.log(f"🌐 Backend URL: {BACKEND_URL}")
+        
+        # Login as admin
+        self.admin_token = self.login(ADMIN_CREDENTIALS, "Admin")
+        if not self.admin_token:
+            self.log("❌ Cannot proceed without admin login")
+            return False
+        
+        # Login as SEMED
+        self.semed_token = self.login(SEMED_CREDENTIALS, "SEMED")
+        if not self.semed_token:
+            self.log("⚠️ SEMED login failed - skipping permission tests")
+        
+        # Setup test data
+        self.setup_test_data()
+        
+        # Run tests
+        success = True
+        
+        try:
+            # Test Guardians CRUD
+            if not self.test_guardians_crud():
+                success = False
+            
+            # Test Enrollments CRUD
+            if not self.test_enrollments_crud():
+                success = False
+            
+            # Test SEMED permissions
+            if self.semed_token:
+                self.test_semed_permissions()
+            
+        finally:
+            # Cleanup
+            self.cleanup()
+        
+        # Final result
+        self.log("\n" + "="*50)
+        if success:
+            self.log("🎉 All backend tests completed successfully!")
+        else:
+            self.log("❌ Some tests failed - check logs above")
+        self.log("="*50)
+        
+        return success
+
+if __name__ == "__main__":
+    tester = SIGESCTester()
+    tester.run_all_tests()
