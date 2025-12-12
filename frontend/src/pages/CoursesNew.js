@@ -96,7 +96,7 @@ export const Courses = () => {
       try {
         await coursesAPI.delete(course.id);
         showAlert('success', 'Componente curricular excluído com sucesso');
-        loadData();
+        reloadData();
       } catch (error) {
         showAlert('error', 'Erro ao excluir componente curricular');
         console.error(error);
@@ -125,7 +125,7 @@ export const Courses = () => {
         showAlert('success', 'Componente curricular criado com sucesso');
       }
       setIsModalOpen(false);
-      loadData();
+      reloadData();
     } catch (error) {
       showAlert('error', error.response?.data?.detail || 'Erro ao salvar componente curricular');
       console.error(error);
