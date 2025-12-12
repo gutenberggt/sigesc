@@ -4,10 +4,12 @@ import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { coursesAPI } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Plus, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 
 export const Courses = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,6 +24,10 @@ export const Courses = () => {
   });
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  // SEMED pode visualizar tudo, mas não pode editar/excluir
+  const canEdit = user?.role !== 'semed';
+  const canDelete = user?.role !== 'semed';
 
   const niveisEnsino = {
     'educacao_infantil': 'Educação Infantil',
