@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { Tabs } from '@/components/Tabs';
-import { studentsAPI, schoolsAPI, classesAPI } from '@/services/api';
+import { studentsAPI, schoolsAPI, classesAPI, uploadAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, AlertCircle, CheckCircle, ArrowLeft, User, Trash2 } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, ArrowLeft, User, Trash2, Upload, FileText, Image } from 'lucide-react';
 
 // Estados brasileiros
 const STATES = [
