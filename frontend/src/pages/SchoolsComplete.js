@@ -578,7 +578,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.possui_rampas || false}
               onChange={(e) => updateFormData('possui_rampas', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Possui Rampas</span>
           </label>
@@ -588,7 +589,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.possui_corrimao || false}
               onChange={(e) => updateFormData('possui_corrimao', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Possui Corrimão</span>
           </label>
@@ -598,7 +600,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.banheiros_adaptados || false}
               onChange={(e) => updateFormData('banheiros_adaptados', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Banheiros Adaptados</span>
           </label>
@@ -608,7 +611,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.sinalizacao_tatil || false}
               onChange={(e) => updateFormData('sinalizacao_tatil', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Sinalização Tátil</span>
           </label>
@@ -623,7 +627,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.possui_internet || false}
               onChange={(e) => updateFormData('possui_internet', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Possui Internet</span>
           </label>
@@ -699,7 +704,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.possui_biblioteca || false}
               onChange={(e) => updateFormData('possui_biblioteca', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Biblioteca</span>
           </label>
@@ -709,7 +715,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.possui_lab_ciencias || false}
               onChange={(e) => updateFormData('possui_lab_ciencias', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Laboratório de Ciências</span>
           </label>
@@ -719,7 +726,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.possui_lab_informatica || false}
               onChange={(e) => updateFormData('possui_lab_informatica', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Laboratório de Informática</span>
           </label>
@@ -729,7 +737,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.possui_quadra || false}
               onChange={(e) => updateFormData('possui_quadra', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Quadra Esportiva</span>
           </label>
@@ -739,7 +748,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.possui_cozinha || false}
               onChange={(e) => updateFormData('possui_cozinha', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Cozinha</span>
           </label>
@@ -749,7 +759,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.possui_refeitorio || false}
               onChange={(e) => updateFormData('possui_refeitorio', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Refeitório</span>
           </label>
@@ -873,7 +884,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.educacao_infantil || false}
               onChange={(e) => updateFormData('educacao_infantil', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Educação Infantil</span>
           </label>
@@ -883,7 +895,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.fundamental_anos_iniciais || false}
               onChange={(e) => updateFormData('fundamental_anos_iniciais', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Ensino Fundamental - Anos Iniciais</span>
           </label>
@@ -893,7 +906,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.fundamental_anos_finais || false}
               onChange={(e) => updateFormData('fundamental_anos_finais', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Ensino Fundamental - Anos Finais</span>
           </label>
@@ -903,7 +917,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.ensino_medio || false}
               onChange={(e) => updateFormData('ensino_medio', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Ensino Médio</span>
           </label>
@@ -913,7 +928,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.eja || false}
               onChange={(e) => updateFormData('eja', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">EJA - Educação de Jovens e Adultos</span>
           </label>
@@ -928,7 +944,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.aee || false}
               onChange={(e) => updateFormData('aee', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Atendimento Educacional Especializado - AEE</span>
           </label>
@@ -938,7 +955,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.atendimento_integral || false}
               onChange={(e) => updateFormData('atendimento_integral', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Atendimento Integral</span>
           </label>
@@ -948,7 +966,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.reforco_escolar || false}
               onChange={(e) => updateFormData('reforco_escolar', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Reforço Escolar</span>
           </label>
@@ -958,7 +977,8 @@ export const SchoolsComplete = () => {
               type="checkbox"
               checked={formData.aulas_complementares || false}
               onChange={(e) => updateFormData('aulas_complementares', e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">Aulas Complementares</span>
           </label>
