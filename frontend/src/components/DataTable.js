@@ -1,6 +1,6 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Trash2 } from 'lucide-react';
 
-export const DataTable = ({ columns, data, onEdit, onDelete, loading = false }) => {
+export const DataTable = ({ columns, data, onView, onEdit, onDelete, loading = false }) => {
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
