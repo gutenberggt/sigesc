@@ -116,6 +116,9 @@ frontend:
         - working: "NA"
           agent: "testing"
           comment: "Starting comprehensive testing of Students management page including login flow, students list functionality, new student modal with all 6 tabs (Identificação, Documentos, Responsáveis, Info. Complementares, Anexos, Turma/Observações), form field validation, student creation, and view functionality"
+        - working: false
+          agent: "testing"
+          comment: "CRITICAL ISSUES FOUND: ❌ Student creation fails with 422 backend validation error - 'full_name' field required but missing from response. ❌ React runtime errors showing 'Objects are not valid as React child' indicating frontend rendering issues. ✅ UI components work correctly: login flow successful, students page loads with proper title and 'Novo Aluno' button, modal opens with all 6 tabs present (Identificação, Documentos, Responsáveis, Info. Complementares, Anexos, Turma/Observações), all tab content sections found including forms, dropdowns, and input fields. ✅ Form filling works but save operation fails due to backend validation. Backend logs show ResponseValidationError with missing 'full_name' field in API response. Frontend shows red screen React errors preventing proper functionality."
 
 metadata:
   created_by: "testing_agent"
