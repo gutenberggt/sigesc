@@ -19,23 +19,26 @@ export const Schools = () => {
   });
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
 
   useEffect(() => {
-    loadSchools();
-  }, []);
+    const fetchSchools = async () => {
+      try {
+        setLoading(true);
+        const data = await schoolsAPI.getAll();
+        setSchools(data);
+      } catch (error) {
+        setAlert({ type: 'error', message: 'Erro ao carregar escolas' });
+        setTimeout(() => setAlert(null), 5000);
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSchools();
+  }, [reloadTrigger]);
 
-  const loadSchools = async () => {
-    try {
-      setLoading(true);
-      const data = await schoolsAPI.getAll();
-      setSchools(data);
-    } catch (error) {
-      showAlert('error', 'Erro ao carregar escolas');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const reloadData = () => setReloadTrigger(prev => prev + 1);
 
   const showAlert = (type, message) => {
     setAlert({ type, message });
