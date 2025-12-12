@@ -2,10 +2,48 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { schoolsAPI, usersAPI, classesAPI } from '@/services/api';
 
 export const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    schools: 0,
+    users: 0,
+    classes: 0,
+    students: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      setLoading(true);
+      const [schoolsData, usersData, classesData] = await Promise.all([
+        schoolsAPI.getAll().catch(() => []),
+        usersAPI.getAll().catch(() => []),
+        classesAPI.getAll().catch(() => [])
+      ]);
+
+      // Conta alunos (usuários com role 'aluno')
+      const studentsCount = usersData.filter(u => u.role === 'aluno').length;
+
+      setStats({
+        schools: schoolsData.length,
+        users: usersData.length,
+        classes: classesData.length,
+        students: studentsCount
+      });
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const roleLabels = {
     admin: 'Administrador',
