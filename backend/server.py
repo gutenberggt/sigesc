@@ -848,6 +848,70 @@ async def delete_enrollment(enrollment_id: str, request: Request):
 
 # ============= HEALTH CHECK =============
 
+# ============= FILE UPLOAD ROUTES =============
+
+ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+@api_router.post("/upload")
+async def upload_file(request: Request, file: UploadFile = File(...)):
+    """Upload de arquivo (foto, documento, laudo, etc.)"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    # Verifica extensão
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Tipo de arquivo não permitido. Permitidos: {', '.join(ALLOWED_EXTENSIONS)}"
+        )
+    
+    # Verifica tamanho (lendo em chunks)
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Arquivo muito grande. Máximo: 5MB"
+        )
+    
+    # Gera nome único
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = UPLOADS_DIR / unique_filename
+    
+    # Salva arquivo
+    with open(file_path, "wb") as buffer:
+        buffer.write(content)
+    
+    # Retorna URL do arquivo
+    backend_url = os.environ.get('BACKEND_URL', '')
+    file_url = f"/uploads/{unique_filename}"
+    
+    return {
+        "filename": unique_filename,
+        "original_name": file.filename,
+        "url": file_url,
+        "size": len(content)
+    }
+
+@api_router.delete("/upload/{filename}")
+async def delete_file(filename: str, request: Request):
+    """Remove arquivo enviado"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    file_path = UPLOADS_DIR / filename
+    
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Arquivo não encontrado"
+        )
+    
+    file_path.unlink()
+    
+    return {"message": "Arquivo removido com sucesso"}
+
+# ============= HEALTH CHECK =============
+
 @api_router.get("/")
 async def root():
     """Health check"""
