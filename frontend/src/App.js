@@ -7,7 +7,7 @@ import { SchoolsComplete as Schools } from '@/pages/SchoolsComplete';
 import { Users } from '@/pages/Users';
 import { Classes } from '@/pages/Classes';
 import { Courses } from '@/pages/CoursesNew';
-import { Students } from '@/pages/Students';
+import { StudentsComplete as Students } from '@/pages/StudentsComplete';
 import '@/App.css';
 
 function App() {
