@@ -183,33 +183,34 @@ export const SchoolsComplete = () => {
     setTimeout(() => setAlert(null), 5000);
   };
 
+  const loadSchools = async () => {
+    try {
+      setLoading(true);
+      const data = await schoolsAPI.getAll();
+      setSchools(data);
+    } catch (error) {
+      setAlert({ type: 'error', message: 'Erro ao carregar escolas' });
+      setTimeout(() => setAlert(null), 5000);
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadClasses = async () => {
+    try {
+      const data = await classesAPI.getAll();
+      setClasses(data);
+    } catch (error) {
+      console.error('Erro ao carregar turmas:', error);
+      setClasses([]);
+    }
+  };
+
   useEffect(() => {
-    const loadSchools = async () => {
-      try {
-        setLoading(true);
-        const data = await schoolsAPI.getAll();
-        setSchools(data);
-      } catch (error) {
-        setAlert({ type: 'error', message: 'Erro ao carregar escolas' });
-        setTimeout(() => setAlert(null), 5000);
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const loadClasses = async () => {
-      try {
-        const data = await classesAPI.getAll();
-        setClasses(data);
-      } catch (error) {
-        console.error('Erro ao carregar turmas:', error);
-        setClasses([]);
-      }
-    };
-
     loadSchools();
     loadClasses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreate = () => {
