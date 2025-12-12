@@ -1413,6 +1413,8 @@ export function SchoolsComplete() {
           onView={handleView}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          canEdit={canEdit}
+          canDelete={canDelete}
         />
 
         <Modal
