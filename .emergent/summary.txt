@@ -1,156 +1,159 @@
 <analysis>**original_problem_statement:**
-O usuário iniciou um projeto chamado **SIGESC (Sistema Integrado de Gestão Escolar)**. A solicitação inicial foi um desafio aberto para desenvolver o projeto juntos. O usuário forneceu uma especificação técnica e funcional extremamente detalhada, incluindo:
+O usuário está desenvolvendo um **SIGESC (Sistema Integrado de Gestão Escolar)**, um projeto full-stack (React/FastAPI/MongoDB). O desenvolvimento está dividido em fases. O sistema deve suportar múltiplos perfis (Administrador, Secretário, SEMED, etc.) com diferentes permissões.
 
 **PRODUCT REQUIREMENTS:**
-- **Nome:** SIGESC — Sistema Integrado de Gestão Escolar
-- **Escopo:** Multi-escola, multi-perfil.
-- **Tecnologia (adaptada):** Frontend React, Backend FastAPI, Banco de Dados MongoDB.
-- **Papéis e Permissões:** Administrador, Secretário, Diretor, Coordenador, Aluno, Pais/Responsáveis, SEMED (Secretaria de Educação).
-- **Funcionalidades Essenciais:**
-    - Gestão de usuários com papéis e vínculos escolares.
-    - Controle de notas (4 bimestres, média ponderada, recuperação).
-    - Geração de documentos (Boletim, Ficha Individual, Declarações, etc.).
-    - Comunicação interna (avisos).
-- **Modelo de Dados:** Estrutura de coleções detalhada para escolas, usuários, turmas, componentes curriculares, alunos, etc.
-- **Cálculos Específicos:** Fórmula de média ponderada ().
-- **Refatoração:** Disciplina foi renomeado para Componente Curricular e se tornou um cadastro global (não por escola).
+- **Sistema:** Multi-escola, multi-perfil (RBAC).
+- **Tecnologia:** Frontend React (com shadcn/ui), Backend FastAPI, Banco de Dados MongoDB.
+- **Funcionalidades Principais:**
+    - Gestão de Escolas, Usuários, Turmas, Componentes Curriculares, Alunos e Responsáveis.
+    - O perfil  deve ter acesso de visualização total, mas sem permissões de edição ou exclusão.
+    - Cadastro de Alunos deve ser um formulário complexo com 6 abas, cobrindo dados pessoais, documentos, responsáveis, informações complementares, anexos e observações, conforme especificação detalhada do usuário.
+    - Lançamento de notas com cálculo de média ponderada.
+    - Geração de documentos (Boletins, Declarações).
 - **UI/UX:**
-    - Cadastro de escolas com múltiplas abas (Dados Gerais, Infraestrutura, etc.).
-    - Níveis de ensino com sub-opções hierárquicas (ex: ao selecionar Educação Infantil, mostrar Berçário, Maternal, etc.).
-    - Opções de Visualizar, Editar e Excluir para os cadastros.
-    - Dashboard com contadores dinâmicos.
+    - Formulários complexos com abas.
+    - Dashboards com contadores e links de navegação baseados no perfil do usuário.
+    - Ações de Visualizar, Editar e Excluir nas tabelas de dados.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-Um projeto full-stack (React/FastAPI/MongoDB) para o SIGESC.
-- **Fase 1 (Fundação & Autenticação):** CONCLUÍDA. O sistema possui autenticação baseada em JWT, rotas protegidas e middleware de RBAC (Role-Based Access Control) no backend. O frontend tem fluxo de login, logout e rotas protegidas.
-- **Fase 2 (Cadastros Base):** CONCLUÍDA. Foram implementados os CRUDs completos para Escolas, Usuários, Turmas e Componentes Curriculares (antigas Disciplinas). O dashboard exibe contagens dinâmicas desses registros.
-- **Fase 3 (Gestão de Alunos):** INICIADA. As rotas de backend e a estrutura inicial do frontend para o cadastro de alunos foram criadas.
+Uma aplicação full-stack com autenticação JWT e RBAC. As Fases 1 (Fundação) e 2 (Cadastros Base) estão concluídas. A Fase 3 (Gestão de Alunos) foi iniciada e está quase completa.
+- **Backend:** CRUDs para Escolas, Usuários, Turmas, Componentes Curriculares, Alunos e Responsáveis.
+- **Frontend:**
+    - Fluxo de login e rotas protegidas.
+    - Páginas CRUD para Escolas (), Usuários, Turmas e Componentes Curriculares.
+    - Uma página de cadastro de Alunos () altamente detalhada com 6 abas foi implementada.
+    - A lógica de permissão para o perfil  (somente leitura) foi implementada em todas as páginas de gerenciamento e no Dashboard.
+    - Um bug crítico e recorrente de  (hoisting) foi corrigido em múltiplos componentes.
 
 **Last working item**:
-- **Last item agent was working:** O agente estava implementando duas melhorias solicitadas pelo usuário no formulário de cadastro de escolas ():
-    1.  Adicionar uma nova aba Turmas para listar as turmas daquela escola.
-    2.  Tornar os checkboxes de Níveis de Ensino hierárquicos, mostrando sub-opções quando um nível principal é selecionado.
-- **Status:** BLOCKED
+- **Last item agent was working:** O agente estava continuando a **Fase 3**, com foco na criação das páginas para **Responsáveis (Guardians)** e **Matrículas (Enrollments)**. O trabalho começou com a expansão dos modelos Pydantic no backend e a criação dos arquivos de página no frontend.
+    - **Models ():** Os modelos  e  foram expandidos para incluir campos mais detalhados.
+    - **Frontend Files:** Foram criados os arquivos  e .
+- **Status:** IN PROGRESS
 - **Agent Testing Done:** N
-- **Which testing method agent to use?** Frontend testing agent (depois de resolver o bug) para verificar a página de escolas ou usar a ferramenta de screenshot para validar a renderização correta da página e a funcionalidade das abas e checkboxes.
-- **User Testing Done:** Y (O usuário reportou o erro que bloqueou o progresso).
+- **Which testing method agent to use?** Frontend testing agent após a implementação da UI para as páginas de Responsáveis e Matrículas.
+- **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
-- **Issue 1: Crash na página de cadastro de escolas (P0 - HIGHEST PRIORITY)**
-    - **Descrição:** A página  está quebrada, exibindo um erro no console do navegador: . Isso impede qualquer interação com o cadastro de escolas.
-    - **Attempted fixes:** Nenhum. O agente diagnosticou o problema (chamada de função antes da sua declaração no ) mas ainda não aplicou a correção.
-    - **Next debug checklist:**
-        1.  Abrir o arquivo .
-        2.  Localizar a definição da função , que é uma .
-        3.  Mover a definição de  para *antes* do hook  que a utiliza. A ordem das declarações é crucial para funções atribuídas a constantes.
-        4.  Após a correção, reiniciar o frontend e verificar se a página carrega sem erros.
-    - **Why fix this issue and what will be achieved with the fix?** Corrigir este bug é crítico para desbloquear a funcionalidade de gestão de escolas, que é central para o sistema e para a continuação das Fases 2 e 3.
-    - **Status:** IN PROGRESS
-    - **Is recurring issue?** N
-    - **Should Test frontend/backend/both after fix?** Frontend.
-    - **Blocked on other issue:** None.
+Nenhum problema pendente. O último problema foi resolvido.
 
 **In progress Task List**:
-- **Task 1: Finalizar as melhorias no Cadastro de Escola (P0)**
-    - **Where to resume:** Após corrigir o bug , é preciso validar se as funcionalidades implementadas estão funcionando como esperado.
-    - **Checklist:**
-        1. Verificar se a nova aba Turmas é exibida no formulário de escola.
-        2. Garantir que a aba Turmas carrega e exibe a lista de turmas associadas à escola que está sendo editada/visualizada.
-        3. Testar a lógica dos checkboxes hierárquicos na aba Dados do Ensino para garantir que as sub-opções aparecem e desaparecem corretamente e que os dados são salvos.
-    - **What will be achieved with this?** Atenderá completamente à solicitação do usuário da mensagem 284, melhorando a usabilidade e a granularidade do cadastro de escolas.
-    - **Status:** IN PROGRESS
+- **Task 1: Implementar a página de Gestão de Responsáveis (P0)**
+    - **Where to resume:** Começar a desenvolver a UI no arquivo . A página deve permitir o CRUD completo de responsáveis.
+    - **What will be achieved with this?** Uma interface dedicada para gerenciar os dados dos pais e responsáveis legais dos alunos.
+    - **Status:** NOT STARTED (apenas o arquivo foi criado).
+    - **Should Test frontend/backend/both after fix?** Both.
+    - **Blocked on something:** None.
+
+- **Task 2: Implementar a página de Gestão de Matrículas (P1)**
+    - **Where to resume:** Começar a desenvolver a UI no arquivo . A página deve permitir vincular um aluno a uma turma específica para um ano letivo.
+    - **What will be achieved with this?** Funcionalidade central para organizar os alunos nas turmas.
+    - **Status:** NOT STARTED (apenas o arquivo foi criado).
+    - **Should Test frontend/backend/both after fix?** Both.
+    - **Blocked on something:** None.
+
+- **Task 3: Adicionar links para as novas páginas no Dashboard (P2)**
+    - **Where to resume:** Editar  para adicionar links para as novas páginas de Responsáveis e Matrículas na seção Consultar Módulos / Menu de Administração.
+    - **What will be achieved with this?** Tornar as novas funcionalidades acessíveis a partir do painel principal.
+    - **Status:** NOT STARTED.
     - **Should Test frontend/backend/both after fix?** Frontend.
-    - **Blocked on something:** Bloqueado pelo **Issue 1**.
+    - **Blocked on something:** None.
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks (P0):**
-    - **FASE 3 - Gestão de Alunos:**
-        - Implementar o formulário de CRUD completo para **Alunos**, incluindo dados pessoais, endereço, documentos, e vínculo com escola/turma.
-        - Implementar o CRUD completo para **Responsáveis (Guardians)**, permitindo vincular até 2 por aluno.
-        - Criar o sistema de **Matrículas (Enrollments)** para vincular alunos a turmas e componentes curriculares.
-- **Future Tasks (P1/P2):**
-    - **FASE 4 - Sistema de Notas:** Implementar a tela de lançamento de notas (B1-B4, Recuperação) e o cálculo automático de médias.
-    - **FASE 5 - Controle de Frequência:** Criar o sistema para registrar faltas e calcular o percentual de presença.
-    - **FASE 6 - Portais de Visualização:** Desenvolver dashboards e portais específicos para cada papel (Aluno, Responsável, Diretor, etc.).
-    - **FASE 7 - Sistema de Comunicação:** Implementar o CRUD de Avisos com direcionamento por público.
-    - **FASE 8 - Geração de Documentos:** Criar a funcionalidade para gerar PDFs de boletins, declarações, etc.
+    - **FASE 4 - Sistema de Notas:** Implementar a interface para lançamento de notas (B1-B4, Recuperação) e o cálculo automático de médias ponderadas .
+- **Future Tasks (P1):**
+    - **FASE 5 - Controle de Frequência:** Sistema para registrar faltas.
+    - **FASE 6 - Portais de Visualização:** Dashboards específicos para os perfis de Aluno, Responsável e Diretor.
+    - **FASE 7 - Sistema de Comunicação:** CRUD de Avisos.
+    - **FASE 8 - Geração de Documentos:** Funcionalidade para gerar PDFs (Boletim, Declarações).
 
 **Completed work in this session**
-- **Fase 1: Fundação & Autenticação (DONE)**
-  - Implementação completa de autenticação JWT e RBAC no backend (, ).
-  - Criação de fluxo de login, rotas protegidas e contexto de autenticação no frontend (, ).
-- **Fase 2: Cadastros Base (DONE)**
-  - CRUD completo para **Escolas** com formulário complexo em abas ().
-  - CRUD para **Usuários**, **Turmas** e **Componentes Curriculares** (, , ).
-  - Funcionalidades de **Visualizar**, **Editar** e **Excluir** nos cadastros.
-  - Dashboard com contadores dinâmicos ().
-  - Refatoração de Disciplinas para Componentes Curriculares como um módulo global.
+- **Bug Fix Crítico:** Corrigido um erro recorrente de  que afetava múltiplas páginas (, , , , etc.). A solução envolveu refatorar o padrão de carregamento de dados em  em toda a aplicação.
+- **Finalização do Cadastro de Escolas:** Validada a implementação da aba Turmas e dos checkboxes hierárquicos na página de escolas.
+- **Implementação da Fase 3 (Alunos):** Criada a página de cadastro de alunos () com 6 abas e campos detalhados, conforme a especificação complexa do usuário.
+- **Implementação da Permissão :** A lógica de acesso somente leitura foi implementada com sucesso. Usuários  podem visualizar dados, mas não veem os botões de Novo, Editar ou Excluir. O dashboard também foi ajustado para este perfil.
+- **Correção de Autenticação:** Resolvido um problema complexo de login que envolvia múltiplos fatores: hash de senha ( vs ) e configuração incorreta do nome do banco de dados no ambiente ( vs ).
 
 **Earlier issues found/mentioned but not fixed**
-- Nenhum. Todas as questões levantadas pelo usuário foram abordadas pelo agente, embora a última implementação tenha introduzido um novo bug.
+- None.
 
 **Known issue recurrence from previous fork**
-- None.
+- **Issue:** .
+- **Recurrence count:** Aconteceu mais de 5 vezes nesta sessão.
+- **Status:** RESOLVED.
+- **Note:** O problema foi causado por um anti-padrão de código (chamar uma função definida com  dentro de  antes de sua declaração) presente em toda a aplicação, combinado com um cache de build agressivo no ambiente de preview. Todos os componentes conhecidos foram refatorados. Se o erro ressurgir, a primeira etapa de depuração deve ser limpar o cache do webpack () e reiniciar o servidor de desenvolvimento do frontend.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Backend:** FastAPI, MongoDB (com  para operações assíncronas), Pydantic.
-- **Frontend:** React, React Router, Tailwind CSS, Radix UI (via shadcn/ui).
-- **Authentication:** JWT (Access and Refresh Tokens).
-- **Authorization:** Middleware de RBAC (Role-Based Access Control) no backend.
+- **Backend:** FastAPI, MongoDB (com ), Pydantic.
+- **Frontend:** React, React Router, Tailwind CSS, shadcn/ui.
+- **Autenticação:** JWT com  para hashing de senhas.
+- **Autorização:** RBAC baseado em middleware no backend e lógica condicional de UI no frontend.
+- **React Patterns:** Refatoração de  para usar um estado de  para re-fetching de dados, em vez de expor funções de carregamento.
 
 **key DB schema**
-- : {id, name, inep_code, address, contacts, status, infrastructure_details, teaching_levels, etc.}
-- : {id, full_name, email, password_hash, role, school_links[]}
-- : {id, school_id, academic_year, name, grade_level, teacher_ids[]}
-- : {id, name, code, workload, teaching_level, program} (Global, sem )
-- : {id, user_id, school_id, enrollment_number, class_id}
-- : {id, user_id, student_ids[]}
-- : {id, student_id, class_id, course_id, academic_year}
+- **students:** (campos adicionados) 
+- **guardians:** (campos adicionados) 
+- **enrollments:** (campos adicionados) 
 
 **changes in tech stack**
-- O usuário sugeriu usar Firebase, mas foi acordado manter a stack existente de **FastAPI + MongoDB + React**.
+- None.
 
 **All files of reference**
-- : Arquivo principal do backend, contém todas as rotas da API.
-- : Define a estrutura de todos os dados do banco de dados.
-- : Página do frontend para o cadastro complexo de escolas. **Atualmente com erro.**
-- : Centraliza todas as chamadas de API do frontend para o backend.
-- : Painel principal após o login, com links para os módulos.
-- : Configura todas as rotas do frontend.
+- **Recém-criados:**
+    - : Página principal e complexa para gestão de alunos.
+    - : Placeholder para a página de gestão de responsáveis.
+    - : Placeholder para a página de gestão de matrículas.
+- **Modificados extensivamente:**
+    - : Atualizado com os novos campos para alunos, responsáveis e matrículas.
+    - : Corrigido o bug de .
+    - , , , : Corrigidos com o novo padrão de  e adicionada a lógica de permissão para .
+    - : Adicionadas as novas rotas e a permissão  às rotas protegidas.
+    - : Modificado para aceitar as propriedades  e .
 
 **Critical Info for New Agent**
-- O projeto é uma aplicação de gestão escolar (SIGESC) com requisitos detalhados fornecidos pelo usuário.
-- O desenvolvimento está sendo feito em fases. As Fases 1 e 2 estão concluídas e a Fase 3 foi iniciada.
-- O usuário é engajado e fornece feedback técnico preciso. As respostas devem ser em português.
-- A tarefa imediata é corrigir o bug de inicialização na página  para desbloquear o desenvolvimento. Após a correção, a validação das novas funcionalidades (aba Turmas e checkboxes hierárquicos) é necessária.
-- A stack técnica é FastAPI, MongoDB e React. Ignore a menção inicial do usuário sobre Firebase.
+- O nome do banco de dados de desenvolvimento está definido em  como . Certifique-se de que quaisquer scripts de banco de dados ou verificações manuais usem este banco de dados para evitar inconsistências.
+- A lógica de permissão para o perfil  (somente leitura) está implementada no frontend, verificando  e ocultando botões. Qualquer nova página de gerenciamento deve seguir este padrão.
+- O projeto sofreu com um bug de  persistente devido a um anti-padrão de código e cache de build. O padrão correto agora é colocar a lógica de busca de dados dentro de  e usar um estado () para forçar atualizações.
 
 **documents created in this job**
 - None
 
 **Last 10 User Messages and any pending user messages**
-1.  **User (msg 284):** Pediu para adicionar uma aba Turmas no cadastro de escolas e sub-opções para os Níveis de Ensino. (IN PROGRESS)
-2.  **User (msg 313):** Reportou o erro fatal  na página de escolas. (PENDING FIX)
+1.  **User:** Pede para continuar com a Fase 3 (Gestão de Alunos). (COMPLETED)
+2.  **User:** Fornece especificações extremamente detalhadas para o formulário de cadastro de alunos. (COMPLETED)
+3.  **User:** Informa sobre a regra de negócio para o perfil  (somente leitura). (COMPLETED)
+4.  **User:** Reporta que o Dashboard do SEMED não mostra os links dos módulos. (COMPLETED)
+5.  **User:** Confirma que o bug do Dashboard foi corrigido (Funcionou!). (COMPLETED)
+6.  **User:** Pergunta sobre como fazer deploy da aplicação em seu próprio servidor/domínio. (ADDRESSED)
+7.  **User:** Confirma que a questão do deploy pode ser resolvida depois e pede para continuar o desenvolvimento. (ACKNOWLEDGED)
+8.  **User:** Concorda em continuar com a Fase 3 (Responsáveis e Matrículas). (ACKNOWLEDGED)
 
 **Project Health Check:**
-- **Broken:**
-    - : Não renderiza devido a um erro de JavaScript (), bloqueando toda a gestão de escolas.
+- **Broken:** None
+- **Mocked:** None
 
 **3rd Party Integrations**
-- None so far.
+- None
 
 **Testing status**
-- **Testing agent used after significant changes:** NO
-- **Troubleshoot agent used after agent stuck in loop:** NO
+- **Testing agent used after significant changes:** YES (para o bug inicial e para a página de alunos, o que revelou problemas que foram corrigidos).
+- **Troubleshoot agent used after agent stuck in loop:** YES (ajudou a diagnosticar o problema de cache de build).
 - **Test files created:** None
-- **Known regressions:** A página de gestão de escolas, que funcionava, agora está quebrada após a última implementação.
+- **Known regressions:** None.
 
 **Credentials to test flow:**
-- **Usuário Admin:**
+- **Admin:**
     - **Email:** 
-    - **Senha:**  (conforme criado nos testes  do agente)</analysis>
+    - **Senha:** 
+- **SEMED (Somente Leitura):**
+    - **Email:** 
+    - **Senha:** 
+
+**What agent forgot to execute**
+- O agente planejou criar as páginas de Responsáveis e Matrículas e adicioná-las às rotas, mas ainda não adicionou os links de navegação para elas no .</analysis>
