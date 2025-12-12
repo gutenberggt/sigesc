@@ -25,36 +25,35 @@ export const Classes = () => {
   });
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [classesData, schoolsData] = await Promise.all([
-        classesAPI.getAll(),
-        schoolsAPI.getAll()
-      ]);
-      setClasses(classesData);
-      setSchools(schoolsData);
-      
-      // Se não for admin/semed e tiver schools, seleciona a primeira
-      if (!['admin', 'semed'].includes(user?.role) && schoolsData.length > 0) {
-        setFormData(prev => ({ ...prev, school_id: schoolsData[0].id }));
+      try {
+        setLoading(true);
+        const [classesData, schoolsData] = await Promise.all([
+          classesAPI.getAll(),
+          schoolsAPI.getAll()
+        ]);
+        setClasses(classesData);
+        setSchools(schoolsData);
+        
+        // Se não for admin/semed e tiver schools, seleciona a primeira
+        if (!['admin', 'semed'].includes(user?.role) && schoolsData.length > 0) {
+          setFormData(prev => ({ ...prev, school_id: schoolsData[0].id }));
+        }
+      } catch (error) {
+        setAlert({ type: 'error', message: 'Erro ao carregar dados' });
+        setTimeout(() => setAlert(null), 5000);
+        console.error(error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      showAlert('error', 'Erro ao carregar dados');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
     };
     fetchData();
-  }, []);
+  }, [reloadTrigger, user?.role]);
   
-  const reloadData = () => {
-    // Force re-render to trigger useEffect
-    window.location.reload();
-  };
+  const reloadData = () => setReloadTrigger(prev => prev + 1);
 
   const showAlert = (type, message) => {
     setAlert({ type, message });
