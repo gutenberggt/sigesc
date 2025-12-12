@@ -133,6 +133,15 @@ export function StudentsComplete() {
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [formData, setFormData] = useState(initialFormData);
   
+  // Estados para busca avançada
+  const [searchName, setSearchName] = useState('');
+  const [searchCpf, setSearchCpf] = useState('');
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
+  const [showCpfSuggestions, setShowCpfSuggestions] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const nameInputRef = useRef(null);
+  const cpfInputRef = useRef(null);
+  
   // SEMED pode visualizar tudo, mas não pode editar/excluir
   const canEdit = user?.role !== 'semed';
   const canDelete = user?.role !== 'semed';
