@@ -744,65 +744,125 @@ export function StudentsComplete() {
       </div>
 
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Responsável Legal *</h3>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
-          <input
-            type="text"
-            value={formData.guardian_name}
-            onChange={(e) => updateFormData('guardian_name', e.target.value)}
-            disabled={viewMode}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Parentesco</label>
-          <select
-            value={formData.guardian_relationship}
-            onChange={(e) => updateFormData('guardian_relationship', e.target.value)}
-            disabled={viewMode}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-          >
-            <option value="">Selecione</option>
-            <option value="pai">Pai</option>
-            <option value="mae">Mãe</option>
-            <option value="avo">Avô/Avó</option>
-            <option value="tio">Tio/Tia</option>
-            <option value="irmao">Irmão/Irmã</option>
-            <option value="outro">Outro</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
-          <input
-            type="text"
-            value={formData.guardian_cpf}
-            onChange={(e) => updateFormData('guardian_cpf', e.target.value)}
-            disabled={viewMode}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">RG</label>
-          <input
-            type="text"
-            value={formData.guardian_rg}
-            onChange={(e) => updateFormData('guardian_rg', e.target.value)}
-            disabled={viewMode}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-          <input
-            type="text"
-            value={formData.guardian_phone}
-            onChange={(e) => updateFormData('guardian_phone', e.target.value)}
-            disabled={viewMode}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-          />
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <p className="text-sm text-blue-800 mb-3">
+          <strong>Selecione quem é o responsável legal do aluno:</strong>
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="legal_guardian_type"
+              value="mother"
+              checked={formData.legal_guardian_type === 'mother'}
+              onChange={(e) => updateFormData('legal_guardian_type', e.target.value)}
+              disabled={viewMode}
+              className="h-4 w-4 text-blue-600"
+            />
+            <span className="text-sm text-gray-700">Mãe</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="legal_guardian_type"
+              value="father"
+              checked={formData.legal_guardian_type === 'father'}
+              onChange={(e) => updateFormData('legal_guardian_type', e.target.value)}
+              disabled={viewMode}
+              className="h-4 w-4 text-blue-600"
+            />
+            <span className="text-sm text-gray-700">Pai</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="legal_guardian_type"
+              value="both"
+              checked={formData.legal_guardian_type === 'both'}
+              onChange={(e) => updateFormData('legal_guardian_type', e.target.value)}
+              disabled={viewMode}
+              className="h-4 w-4 text-blue-600"
+            />
+            <span className="text-sm text-gray-700">Mãe e Pai</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="legal_guardian_type"
+              value="other"
+              checked={formData.legal_guardian_type === 'other'}
+              onChange={(e) => updateFormData('legal_guardian_type', e.target.value)}
+              disabled={viewMode}
+              className="h-4 w-4 text-blue-600"
+            />
+            <span className="text-sm text-gray-700">Outro Responsável</span>
+          </label>
         </div>
       </div>
+
+      {/* Mostrar campos de outro responsável apenas se "Outro" estiver selecionado */}
+      {formData.legal_guardian_type === 'other' && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
+            <input
+              type="text"
+              value={formData.guardian_name}
+              onChange={(e) => updateFormData('guardian_name', e.target.value)}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Parentesco *</label>
+            <select
+              value={formData.guardian_relationship}
+              onChange={(e) => updateFormData('guardian_relationship', e.target.value)}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            >
+              <option value="">Selecione</option>
+              <option value="avo">Avô/Avó</option>
+              <option value="tio">Tio/Tia</option>
+              <option value="irmao">Irmão/Irmã</option>
+              <option value="padrasto">Padrasto</option>
+              <option value="madrasta">Madrasta</option>
+              <option value="tutor">Tutor Legal</option>
+              <option value="outro">Outro</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
+            <input
+              type="text"
+              value={formData.guardian_cpf}
+              onChange={(e) => updateFormData('guardian_cpf', e.target.value)}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">RG</label>
+            <input
+              type="text"
+              value={formData.guardian_rg}
+              onChange={(e) => updateFormData('guardian_rg', e.target.value)}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+            <input
+              type="text"
+              value={formData.guardian_phone}
+              onChange={(e) => updateFormData('guardian_phone', e.target.value)}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="border-t pt-4">
         <div className="flex justify-between items-center mb-4">
