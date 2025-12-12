@@ -284,18 +284,30 @@ class Class(ClassBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-# ============= COURSE (DISCIPLINA) MODELS =============
+# ============= COURSE (COMPONENTE CURRICULAR) MODELS =============
 
 class CourseBase(BaseModel):
-    school_id: str
+    # Nível de Ensino (obrigatório)
+    nivel_ensino: Literal['educacao_infantil', 'fundamental_anos_iniciais', 'fundamental_anos_finais', 'ensino_medio', 'eja']
+    
+    # Atendimento/Programa (opcional)
+    atendimento_programa: Optional[Literal['aee', 'atendimento_integral', 'reforco_escolar', 'aulas_complementares']] = None
+    
+    # Nome do componente curricular
     name: str
+    
+    # Código (opcional)
     code: Optional[str] = None
-    workload: Optional[int] = None  # Carga horária
+    
+    # Carga horária (específica para o nível/atendimento)
+    workload: Optional[int] = None
 
 class CourseCreate(CourseBase):
     pass
 
 class CourseUpdate(BaseModel):
+    nivel_ensino: Optional[Literal['educacao_infantil', 'fundamental_anos_iniciais', 'fundamental_anos_finais', 'ensino_medio', 'eja']] = None
+    atendimento_programa: Optional[Literal['aee', 'atendimento_integral', 'reforco_escolar', 'aulas_complementares']] = None
     name: Optional[str] = None
     code: Optional[str] = None
     workload: Optional[int] = None
