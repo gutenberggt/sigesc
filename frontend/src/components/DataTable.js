@@ -34,7 +34,7 @@ export const DataTable = ({ columns, data, onView, onEdit, onDelete, loading = f
                   {column.header}
                 </th>
               ))}
-              {(onEdit || onDelete) && (
+              {(onView || onEdit || onDelete) && (
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Ações
                 </th>
