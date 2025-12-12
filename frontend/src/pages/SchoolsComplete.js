@@ -179,43 +179,52 @@ export function SchoolsComplete() {
     status: 'active'
   });
 
-  // Funções de carregamento de dados
-  async function loadSchools() {
-    try {
-      setLoading(true);
-      const data = await schoolsAPI.getAll();
-      setSchools(data);
-    } catch (error) {
-      setAlert({ type: 'error', message: 'Erro ao carregar escolas' });
-      setTimeout(() => setAlert(null), 5000);
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Carrega dados quando o componente monta ou reloadTrigger muda
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [schoolsData, classesData] = await Promise.all([
+          schoolsAPI.getAll(),
+          classesAPI.getAll()
+        ]);
+        if (isMounted) {
+          setSchools(schoolsData);
+          setClasses(classesData);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        if (isMounted) {
+          setAlert({ type: 'error', message: 'Erro ao carregar dados' });
+          setTimeout(() => setAlert(null), 5000);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
 
-  async function loadClasses() {
-    try {
-      const data = await classesAPI.getAll();
-      setClasses(data);
-    } catch (error) {
-      console.error('Erro ao carregar turmas:', error);
-      setClasses([]);
-    }
-  }
+    fetchData();
 
-  function showAlert(type, message) {
+    return () => {
+      isMounted = false;
+    };
+  }, [reloadTrigger]);
+
+  // Função para recarregar os dados
+  const reloadData = () => {
+    setReloadTrigger(prev => prev + 1);
+  };
+
+  const showAlert = (type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 5000);
-  }
+  };
 
-  useEffect(() => {
-    loadSchools();
-    loadClasses();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function handleCreate() {
+  const handleCreate = () => {
     setEditingSchool(null);
     setViewMode(false);
     // Reset form with default values
