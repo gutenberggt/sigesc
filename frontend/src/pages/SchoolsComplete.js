@@ -997,6 +997,7 @@ export const SchoolsComplete = () => {
           columns={columns}
           data={schools}
           loading={loading}
+          onView={handleView}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
