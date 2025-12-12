@@ -45,6 +45,13 @@ db = client[os.environ.get('DB_NAME', 'sigesc_db')]
 # Create the main app
 app = FastAPI(title="SIGESC API", version="1.0.0")
 
+# Create uploads directory
+UPLOADS_DIR = ROOT_DIR / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
+
+# Mount static files for uploads
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
