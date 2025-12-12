@@ -502,6 +502,7 @@ class StudentUpdate(BaseModel):
     mother_rg: Optional[str] = None
     mother_phone: Optional[str] = None
     
+    legal_guardian_type: Optional[Literal['mother', 'father', 'both', 'other']] = None
     guardian_name: Optional[str] = None
     guardian_cpf: Optional[str] = None
     guardian_rg: Optional[str] = None
