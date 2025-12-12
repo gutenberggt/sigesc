@@ -235,7 +235,23 @@ export function StudentsComplete() {
       setIsModalOpen(false);
       reloadData();
     } catch (error) {
-      showAlert('error', error.response?.data?.detail || 'Erro ao salvar aluno');
+      // Trata erro de validação do Pydantic (pode ser array de objetos)
+      let errorMessage = 'Erro ao salvar aluno';
+      if (error.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          // Pydantic validation errors
+          errorMessage = detail.map(err => {
+            const field = err.loc?.join('.') || 'Campo';
+            return `${field}: ${err.msg}`;
+          }).join('; ');
+        } else if (typeof detail === 'string') {
+          errorMessage = detail;
+        } else if (typeof detail === 'object' && detail.msg) {
+          errorMessage = detail.msg;
+        }
+      }
+      showAlert('error', errorMessage);
       console.error(error);
     } finally {
       setSubmitting(false);
