@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
-import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3 } from 'lucide-react';
+import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, UserCheck, ClipboardList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { schoolsAPI, usersAPI, classesAPI } from '@/services/api';
@@ -195,6 +195,24 @@ export const Dashboard = () => {
               >
                 <GraduationCap className="text-red-600" size={24} />
                 <span className="font-medium text-gray-900">Alunos</span>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/guardians')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all"
+                data-testid="nav-guardians-button"
+              >
+                <UserCheck className="text-teal-600" size={24} />
+                <span className="font-medium text-gray-900">Responsáveis</span>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/enrollments')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
+                data-testid="nav-enrollments-button"
+              >
+                <ClipboardList className="text-indigo-600" size={24} />
+                <span className="font-medium text-gray-900">Matrículas</span>
               </button>
             </div>
           </div>
