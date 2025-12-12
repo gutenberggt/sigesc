@@ -303,15 +303,21 @@ export function StudentsComplete() {
     { 
       header: 'Status', 
       accessor: 'status',
-      render: (row) => (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-          row.status === 'active' ? 'bg-green-100 text-green-800' :
-          row.status === 'transferred' ? 'bg-yellow-100 text-yellow-800' :
-          'bg-red-100 text-red-800'
-        }`}>
-          {row.status === 'active' ? 'Ativo' : row.status === 'transferred' ? 'Transferido' : 'Inativo'}
-        </span>
-      )
+      render: (row) => {
+        const statusConfig = {
+          'active': { label: 'Ativo', class: 'bg-green-100 text-green-800' },
+          'inactive': { label: 'Inativo', class: 'bg-gray-100 text-gray-800' },
+          'dropout': { label: 'Desistente', class: 'bg-orange-100 text-orange-800' },
+          'transferred': { label: 'Transferido', class: 'bg-yellow-100 text-yellow-800' },
+          'deceased': { label: 'Falecido', class: 'bg-red-100 text-red-800' }
+        };
+        const config = statusConfig[row.status] || statusConfig['active'];
+        return (
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.class}`}>
+            {config.label}
+          </span>
+        );
+      }
     }
   ];
 
