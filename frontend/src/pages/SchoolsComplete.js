@@ -7,7 +7,7 @@ import { Tabs } from '@/components/Tabs';
 import { schoolsAPI, classesAPI } from '@/services/api';
 import { Plus, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 
-export const SchoolsComplete = () => {
+export function SchoolsComplete() {
   const navigate = useNavigate();
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
