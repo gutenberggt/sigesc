@@ -612,17 +612,31 @@ class Guardian(GuardianBase):
 # ============= ENROLLMENT MODELS =============
 
 class EnrollmentBase(BaseModel):
+    """Matrícula - Vínculo do aluno com turma e componentes curriculares"""
     student_id: str
+    school_id: str
     class_id: str
-    course_id: str
+    course_ids: List[str] = []  # Lista de componentes curriculares
     academic_year: int
-    status: Literal['active', 'completed', 'cancelled'] = 'active'
+    enrollment_date: Optional[str] = None
+    enrollment_number: Optional[str] = None  # Número da matrícula
+    
+    # Situação
+    status: Literal['active', 'completed', 'cancelled', 'transferred'] = 'active'
+    
+    # Observações
+    observations: Optional[str] = None
 
 class EnrollmentCreate(EnrollmentBase):
     pass
 
 class EnrollmentUpdate(BaseModel):
-    status: Optional[Literal['active', 'completed', 'cancelled']] = None
+    class_id: Optional[str] = None
+    course_ids: Optional[List[str]] = None
+    enrollment_date: Optional[str] = None
+    enrollment_number: Optional[str] = None
+    status: Optional[Literal['active', 'completed', 'cancelled', 'transferred']] = None
+    observations: Optional[str] = None
 
 class Enrollment(EnrollmentBase):
     model_config = ConfigDict(extra="ignore")
