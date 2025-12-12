@@ -1008,6 +1008,16 @@ export const SchoolsComplete = () => {
   return (
     <Layout>
       <div className="space-y-6">
+        {/* Botão Voltar */}
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+          data-testid="back-to-dashboard-button"
+        >
+          <ArrowLeft size={20} />
+          <span>Voltar ao Dashboard</span>
+        </button>
+
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900" data-testid="schools-title">Escolas</h1>
