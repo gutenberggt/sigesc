@@ -1,4 +1,5 @@
-import { Eye, Pencil, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 export const DataTable = ({ 
   columns, 
@@ -7,9 +8,36 @@ export const DataTable = ({
   onEdit, 
   onDelete, 
   loading = false,
-  canEdit = true,  // Permite desabilitar edição para certos usuários
-  canDelete = true // Permite desabilitar exclusão para certos usuários
+  canEdit = true,
+  canDelete = true,
+  pageSize = 50
 }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Filtrar dados pelo termo de busca
+  const filteredData = data.filter(row => {
+    if (!searchTerm) return true;
+    const searchLower = searchTerm.toLowerCase();
+    return columns.some(col => {
+      const value = row[col.accessor];
+      if (value === null || value === undefined) return false;
+      return String(value).toLowerCase().includes(searchLower);
+    });
+  });
+
+  // Calcular paginação
+  const totalPages = Math.ceil(filteredData.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentData = filteredData.slice(startIndex, endIndex);
+
+  // Reset para página 1 quando busca muda
+  const handleSearch = (value) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
@@ -34,6 +62,27 @@ export const DataTable = ({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      {/* Barra de busca e informações */}
+      <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">
+            Total: <strong>{filteredData.length}</strong> registros
+          </span>
+          {searchTerm && (
+            <span className="text-sm text-blue-600">
+              (filtrado de {data.length})
+            </span>
+          )}
+        </div>
+        <input
+          type="text"
+          placeholder="Buscar..."
+          value={searchTerm}
+          onChange={(e) => handleSearch(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-64"
+        />
+      </div>
+
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200" data-testid="data-table">
           <thead className="bg-gray-50">
@@ -54,11 +103,11 @@ export const DataTable = ({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {data.map((row, rowIndex) => (
+            {currentData.map((row, rowIndex) => (
               <tr key={rowIndex} className="hover:bg-gray-50 transition-colors">
                 {columns.map((column, colIndex) => (
                   <td key={colIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {column.render ? column.render(row) : row[column.accessor]}
+                    {column.render ? column.render(row) : (row[column.accessor] || '-')}
                   </td>
                 ))}
                 {(onView || showEditButton || showDeleteButton) && (
@@ -102,6 +151,54 @@ export const DataTable = ({
           </tbody>
         </table>
       </div>
+
+      {/* Paginação */}
+      {totalPages > 1 && (
+        <div className="px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+          <span className="text-sm text-gray-600">
+            Mostrando {startIndex + 1} a {Math.min(endIndex, filteredData.length)} de {filteredData.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Primeira página"
+            >
+              <ChevronsLeft size={16} />
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Página anterior"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            
+            <span className="px-3 py-1 text-sm">
+              Página <strong>{currentPage}</strong> de <strong>{totalPages}</strong>
+            </span>
+            
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Próxima página"
+            >
+              <ChevronRight size={16} />
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Última página"
+            >
+              <ChevronsRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
