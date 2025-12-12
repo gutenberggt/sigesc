@@ -49,9 +49,19 @@ export const DataTable = ({ columns, data, onView, onEdit, onDelete, loading = f
                     {column.render ? column.render(row) : row[column.accessor]}
                   </td>
                 ))}
-                {(onEdit || onDelete) && (
+                {(onView || onEdit || onDelete) && (
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
+                      {onView && (
+                        <button
+                          onClick={() => onView(row)}
+                          className="text-gray-600 hover:text-gray-900 p-2 rounded-md hover:bg-gray-50 transition-colors"
+                          title="Visualizar"
+                          data-testid={`view-button-${rowIndex}`}
+                        >
+                          <Eye size={16} />
+                        </button>
+                      )}
                       {onEdit && (
                         <button
                           onClick={() => onEdit(row)}
