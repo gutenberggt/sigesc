@@ -262,7 +262,7 @@ export function SchoolsComplete() {
       try {
         await schoolsAPI.delete(school.id);
         showAlert('success', 'Escola excluída com sucesso');
-        loadSchools();
+        reloadData();
       } catch (error) {
         showAlert('error', 'Erro ao excluir escola');
         console.error(error);
@@ -283,7 +283,7 @@ export function SchoolsComplete() {
         showAlert('success', 'Escola criada com sucesso');
       }
       setIsModalOpen(false);
-      loadSchools();
+      reloadData();
     } catch (error) {
       showAlert('error', error.response?.data?.detail || 'Erro ao salvar escola');
       console.error(error);
