@@ -118,6 +118,7 @@ const initialFormData = {
 
 export function StudentsComplete() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [students, setStudents] = useState([]);
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -129,6 +130,10 @@ export function StudentsComplete() {
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [formData, setFormData] = useState(initialFormData);
+  
+  // SEMED pode visualizar tudo, mas não pode editar/excluir
+  const canEdit = user?.role !== 'semed';
+  const canDelete = user?.role !== 'semed';
 
   useEffect(() => {
     const fetchData = async () => {
