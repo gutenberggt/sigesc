@@ -1,10 +1,13 @@
-from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Request
+from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Request, UploadFile, File
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+import uuid
+import shutil
 from pathlib import Path
 from typing import List, Optional
 from datetime import datetime, timezone
