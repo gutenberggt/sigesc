@@ -183,8 +183,8 @@ export const Dashboard = () => {
                 className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all"
                 data-testid="nav-courses-button"
               >
-                <GraduationCap className="text-orange-600" size={24} />
-                <span className="font-medium text-gray-900">Disciplinas</span>
+                <BookOpen className="text-orange-600" size={24} />
+                <span className="font-medium text-gray-900">Componentes Curriculares</span>
               </button>
               
               <button
