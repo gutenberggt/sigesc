@@ -7,6 +7,7 @@ import { SchoolsComplete as Schools } from '@/pages/SchoolsComplete';
 import { Users } from '@/pages/Users';
 import { Classes } from '@/pages/Classes';
 import { Courses } from '@/pages/Courses';
+import { Students } from '@/pages/Students';
 import '@/App.css';
 
 function App() {
