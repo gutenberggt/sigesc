@@ -145,10 +145,12 @@ export const Dashboard = () => {
           })}
         </div>
 
-        {/* Menu de navegação - Admin/Secretário */}
-        {['admin', 'secretario'].includes(user?.role) && (
+        {/* Menu de navegação - Admin/Secretário/SEMED */}
+        {['admin', 'secretario', 'semed'].includes(user?.role) && (
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Menu de Administração</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              {user?.role === 'semed' ? 'Consultar Módulos' : 'Menu de Administração'}
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <button
                 onClick={() => navigate('/admin/schools')}
