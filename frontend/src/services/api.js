@@ -126,3 +126,90 @@ export const coursesAPI = {
     await axios.delete(`${API}/courses/${id}`);
   }
 };
+
+// ============= STUDENTS (ALUNOS) =============
+export const studentsAPI = {
+  getAll: async (schoolId = null, classId = null) => {
+    const params = {};
+    if (schoolId) params.school_id = schoolId;
+    if (classId) params.class_id = classId;
+    const response = await axios.get(`${API}/students`, { params });
+    return response.data;
+  },
+  
+  getById: async (id) => {
+    const response = await axios.get(`${API}/students/${id}`);
+    return response.data;
+  },
+  
+  create: async (data) => {
+    const response = await axios.post(`${API}/students`, data);
+    return response.data;
+  },
+  
+  update: async (id, data) => {
+    const response = await axios.put(`${API}/students/${id}`, data);
+    return response.data;
+  },
+  
+  delete: async (id) => {
+    await axios.delete(`${API}/students/${id}`);
+  }
+};
+
+// ============= GUARDIANS (RESPONSÁVEIS) =============
+export const guardiansAPI = {
+  getAll: async () => {
+    const response = await axios.get(`${API}/guardians`);
+    return response.data;
+  },
+  
+  getById: async (id) => {
+    const response = await axios.get(`${API}/guardians/${id}`);
+    return response.data;
+  },
+  
+  create: async (data) => {
+    const response = await axios.post(`${API}/guardians`, data);
+    return response.data;
+  },
+  
+  update: async (id, data) => {
+    const response = await axios.put(`${API}/guardians/${id}`, data);
+    return response.data;
+  },
+  
+  delete: async (id) => {
+    await axios.delete(`${API}/guardians/${id}`);
+  }
+};
+
+// ============= ENROLLMENTS (MATRÍCULAS) =============
+export const enrollmentsAPI = {
+  getAll: async (studentId = null, classId = null) => {
+    const params = {};
+    if (studentId) params.student_id = studentId;
+    if (classId) params.class_id = classId;
+    const response = await axios.get(`${API}/enrollments`, { params });
+    return response.data;
+  },
+  
+  getById: async (id) => {
+    const response = await axios.get(`${API}/enrollments/${id}`);
+    return response.data;
+  },
+  
+  create: async (data) => {
+    const response = await axios.post(`${API}/enrollments`, data);
+    return response.data;
+  },
+  
+  update: async (id, data) => {
+    const response = await axios.put(`${API}/enrollments/${id}`, data);
+    return response.data;
+  },
+  
+  delete: async (id) => {
+    await axios.delete(`${API}/enrollments/${id}`);
+  }
+};
