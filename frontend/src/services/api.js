@@ -99,10 +99,10 @@ export const classesAPI = {
   }
 };
 
-// ============= COURSES (DISCIPLINAS) =============
+// ============= COURSES (COMPONENTES CURRICULARES) =============
 export const coursesAPI = {
-  getAll: async (schoolId = null) => {
-    const params = schoolId ? { school_id: schoolId } : {};
+  getAll: async (nivelEnsino = null) => {
+    const params = nivelEnsino ? { nivel_ensino: nivelEnsino } : {};
     const response = await axios.get(`${API}/courses`, { params });
     return response.data;
   },
