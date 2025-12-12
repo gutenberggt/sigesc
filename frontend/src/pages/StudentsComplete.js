@@ -60,6 +60,7 @@ const initialFormData = {
   rg_issuer: '',
   rg_state: '',
   nis: '',
+  sus_number: '',
   civil_certificate_type: '',
   civil_certificate_number: '',
   civil_certificate_book: '',
