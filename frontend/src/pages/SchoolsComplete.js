@@ -156,7 +156,7 @@ export const SchoolsComplete = () => {
     loadClasses();
   }, []);
 
-  const loadSchools = async () => {
+  const loadSchools = useCallback(async () => {
     try {
       setLoading(true);
       const data = await schoolsAPI.getAll();
@@ -167,9 +167,9 @@ export const SchoolsComplete = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadClasses = async () => {
+  const loadClasses = useCallback(async () => {
     try {
       // Assuming there's a classesAPI similar to schoolsAPI
       // For now, we'll set an empty array as a placeholder
@@ -177,7 +177,7 @@ export const SchoolsComplete = () => {
     } catch (error) {
       console.error('Erro ao carregar turmas:', error);
     }
-  };
+  }, []);
 
   const showAlert = (type, message) => {
     setAlert({ type, message });
