@@ -408,6 +408,7 @@ class StudentBase(BaseModel):
     mother_phone: Optional[str] = None
     
     # Responsável legal (obrigatório)
+    legal_guardian_type: Optional[Literal['mother', 'father', 'both', 'other']] = None  # Mãe, Pai, Mãe e Pai, Outro
     guardian_name: Optional[str] = None
     guardian_cpf: Optional[str] = None
     guardian_rg: Optional[str] = None
