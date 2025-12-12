@@ -460,15 +460,12 @@ async def delete_class(class_id: str, request: Request):
     
     return None
 
-# ============= COURSE (DISCIPLINA) ROUTES =============
+# ============= COURSE (COMPONENTE CURRICULAR) ROUTES =============
 
 @api_router.post("/courses", response_model=Course, status_code=status.HTTP_201_CREATED)
 async def create_course(course_data: CourseCreate, request: Request):
-    """Cria nova disciplina"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
-    
-    # Verifica acesso à escola
-    await AuthMiddleware.verify_school_access(request, course_data.school_id)
+    """Cria novo componente curricular (global para todas as escolas)"""
+    current_user = await AuthMiddleware.require_roles(['admin'])(request)
     
     course_obj = Course(**course_data.model_dump())
     doc = course_obj.model_dump()
@@ -479,23 +476,15 @@ async def create_course(course_data: CourseCreate, request: Request):
     return course_obj
 
 @api_router.get("/courses", response_model=List[Course])
-async def list_courses(request: Request, school_id: Optional[str] = None, skip: int = 0, limit: int = 100):
-    """Lista disciplinas"""
+async def list_courses(request: Request, nivel_ensino: Optional[str] = None, skip: int = 0, limit: int = 100):
+    """Lista componentes curriculares (global)"""
     current_user = await AuthMiddleware.get_current_user(request)
     
     # Constrói filtro
     filter_query = {}
     
-    if current_user['role'] in ['admin', 'semed']:
-        # Admin e SEMED podem filtrar por escola ou ver todas
-        if school_id:
-            filter_query['school_id'] = school_id
-    else:
-        # Outros papéis veem apenas das escolas vinculadas
-        if school_id and school_id in current_user['school_ids']:
-            filter_query['school_id'] = school_id
-        else:
-            filter_query['school_id'] = {"$in": current_user['school_ids']}
+    if nivel_ensino:
+        filter_query['nivel_ensino'] = nivel_ensino
     
     courses = await db.courses.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
     
@@ -503,7 +492,7 @@ async def list_courses(request: Request, school_id: Optional[str] = None, skip: 
 
 @api_router.get("/courses/{course_id}", response_model=Course)
 async def get_course(course_id: str, request: Request):
-    """Busca disciplina por ID"""
+    """Busca componente curricular por ID"""
     current_user = await AuthMiddleware.get_current_user(request)
     
     course_doc = await db.courses.find_one({"id": course_id}, {"_id": 0})
@@ -511,29 +500,23 @@ async def get_course(course_id: str, request: Request):
     if not course_doc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Disciplina não encontrada"
+            detail="Componente curricular não encontrado"
         )
-    
-    # Verifica acesso à escola da disciplina
-    await AuthMiddleware.verify_school_access(request, course_doc['school_id'])
     
     return Course(**course_doc)
 
 @api_router.put("/courses/{course_id}", response_model=Course)
 async def update_course(course_id: str, course_update: CourseUpdate, request: Request):
-    """Atualiza disciplina"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    """Atualiza componente curricular"""
+    current_user = await AuthMiddleware.require_roles(['admin'])(request)
     
-    # Busca disciplina
+    # Busca componente
     course_doc = await db.courses.find_one({"id": course_id}, {"_id": 0})
     if not course_doc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Disciplina não encontrada"
+            detail="Componente curricular não encontrado"
         )
-    
-    # Verifica acesso
-    await AuthMiddleware.verify_school_access(request, course_doc['school_id'])
     
     update_data = course_update.model_dump(exclude_unset=True)
     
@@ -548,26 +531,15 @@ async def update_course(course_id: str, course_update: CourseUpdate, request: Re
 
 @api_router.delete("/courses/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_course(course_id: str, request: Request):
-    """Deleta disciplina"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
-    
-    # Busca disciplina
-    course_doc = await db.courses.find_one({"id": course_id}, {"_id": 0})
-    if not course_doc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Disciplina não encontrada"
-        )
-    
-    # Verifica acesso
-    await AuthMiddleware.verify_school_access(request, course_doc['school_id'])
+    """Deleta componente curricular"""
+    current_user = await AuthMiddleware.require_roles(['admin'])(request)
     
     result = await db.courses.delete_one({"id": course_id})
     
     if result.deleted_count == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Disciplina não encontrada"
+            detail="Componente curricular não encontrado"
         )
     
     return None
