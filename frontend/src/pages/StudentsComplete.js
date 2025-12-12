@@ -5,6 +5,7 @@ import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { Tabs } from '@/components/Tabs';
 import { studentsAPI, schoolsAPI, classesAPI } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Plus, AlertCircle, CheckCircle, ArrowLeft, User, Trash2 } from 'lucide-react';
 
 // Estados brasileiros
