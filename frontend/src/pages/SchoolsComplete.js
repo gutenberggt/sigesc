@@ -1376,14 +1376,16 @@ export function SchoolsComplete() {
             <h1 className="text-3xl font-bold text-gray-900" data-testid="schools-title">Escolas</h1>
             <p className="text-gray-600 mt-1">Cadastro completo de escolas com todas as informações</p>
           </div>
-          <button
-            onClick={handleCreate}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            data-testid="create-school-button"
-          >
-            <Plus size={20} />
-            <span>Nova Escola</span>
-          </button>
+          {canEdit && (
+            <button
+              onClick={handleCreate}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              data-testid="create-school-button"
+            >
+              <Plus size={20} />
+              <span>Nova Escola</span>
+            </button>
+          )}
         </div>
 
         {alert && (
