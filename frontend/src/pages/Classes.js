@@ -27,10 +27,7 @@ export const Classes = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+    const fetchData = async () => {
     try {
       setLoading(true);
       const [classesData, schoolsData] = await Promise.all([
@@ -50,6 +47,13 @@ export const Classes = () => {
     } finally {
       setLoading(false);
     }
+    };
+    fetchData();
+  }, []);
+  
+  const reloadData = () => {
+    // Force re-render to trigger useEffect
+    window.location.reload();
   };
 
   const showAlert = (type, message) => {
@@ -89,7 +93,7 @@ export const Classes = () => {
       try {
         await classesAPI.delete(classItem.id);
         showAlert('success', 'Turma excluída com sucesso');
-        loadData();
+        reloadData();
       } catch (error) {
         showAlert('error', 'Erro ao excluir turma');
         console.error(error);
@@ -110,7 +114,7 @@ export const Classes = () => {
         showAlert('success', 'Turma criada com sucesso');
       }
       setIsModalOpen(false);
-      loadData();
+      reloadData();
     } catch (error) {
       showAlert('error', error.response?.data?.detail || 'Erro ao salvar turma');
       console.error(error);

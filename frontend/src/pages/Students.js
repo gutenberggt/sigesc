@@ -27,10 +27,7 @@ export const Students = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+    const fetchData = async () => {
     try {
       setLoading(true);
       const [studentsData, schoolsData, classesData] = await Promise.all([
@@ -47,6 +44,13 @@ export const Students = () => {
     } finally {
       setLoading(false);
     }
+    };
+    fetchData();
+  }, []);
+  
+  const reloadData = () => {
+    // Force re-render to trigger useEffect
+    window.location.reload();
   };
 
   const showAlert = (type, message) => {
@@ -93,7 +97,7 @@ export const Students = () => {
       try {
         await studentsAPI.delete(student.id);
         showAlert('success', 'Aluno excluído com sucesso');
-        loadData();
+        reloadData();
       } catch (error) {
         showAlert('error', 'Erro ao excluir aluno');
         console.error(error);
@@ -114,7 +118,7 @@ export const Students = () => {
         showAlert('success', 'Aluno criado com sucesso');
       }
       setIsModalOpen(false);
-      loadData();
+      reloadData();
     } catch (error) {
       showAlert('error', error.response?.data?.detail || 'Erro ao salvar aluno');
       console.error(error);

@@ -23,10 +23,7 @@ export const Courses = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+    const fetchData = async () => {
     try {
       setLoading(true);
       const [coursesData, schoolsData] = await Promise.all([
@@ -41,6 +38,13 @@ export const Courses = () => {
     } finally {
       setLoading(false);
     }
+    };
+    fetchData();
+  }, []);
+  
+  const reloadData = () => {
+    // Force re-render to trigger useEffect
+    window.location.reload();
   };
 
   const showAlert = (type, message) => {
@@ -76,7 +80,7 @@ export const Courses = () => {
       try {
         await coursesAPI.delete(course.id);
         showAlert('success', 'Disciplina excluída com sucesso');
-        loadData();
+        reloadData();
       } catch (error) {
         showAlert('error', 'Erro ao excluir disciplina');
         console.error(error);
@@ -102,7 +106,7 @@ export const Courses = () => {
         showAlert('success', 'Disciplina criada com sucesso');
       }
       setIsModalOpen(false);
-      loadData();
+      reloadData();
     } catch (error) {
       showAlert('error', error.response?.data?.detail || 'Erro ao salvar disciplina');
       console.error(error);

@@ -25,10 +25,7 @@ export const Users = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+    const fetchData = async () => {
     try {
       setLoading(true);
       const [usersData, schoolsData] = await Promise.all([
@@ -43,6 +40,13 @@ export const Users = () => {
     } finally {
       setLoading(false);
     }
+    };
+    fetchData();
+  }, []);
+  
+  const reloadData = () => {
+    // Force re-render to trigger useEffect
+    window.location.reload();
   };
 
   const showAlert = (type, message) => {
@@ -81,7 +85,7 @@ export const Users = () => {
       try {
         await usersAPI.delete(user.id);
         showAlert('success', 'Usuário excluído com sucesso');
-        loadData();
+        reloadData();
       } catch (error) {
         showAlert('error', 'Erro ao excluir usuário');
         console.error(error);
@@ -107,7 +111,7 @@ export const Users = () => {
         showAlert('success', 'Usuário criado com sucesso');
       }
       setIsModalOpen(false);
-      loadData();
+      reloadData();
     } catch (error) {
       showAlert('error', error.response?.data?.detail || 'Erro ao salvar usuário');
       console.error(error);
