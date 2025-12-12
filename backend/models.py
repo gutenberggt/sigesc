@@ -474,6 +474,7 @@ class StudentUpdate(BaseModel):
     rg_issuer: Optional[str] = None
     rg_state: Optional[str] = None
     nis: Optional[str] = None
+    sus_number: Optional[str] = None
     
     civil_certificate_type: Optional[Literal['nascimento', 'casamento']] = None
     civil_certificate_number: Optional[str] = None
