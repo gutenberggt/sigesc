@@ -17,33 +17,32 @@ export const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const loadStats = async () => {
+      try {
+        setLoading(true);
+        const [schoolsData, usersData, classesData] = await Promise.all([
+          schoolsAPI.getAll().catch(() => []),
+          usersAPI.getAll().catch(() => []),
+          classesAPI.getAll().catch(() => [])
+        ]);
+
+        // Conta alunos (usuários com role 'aluno')
+        const studentsCount = usersData.filter(u => u.role === 'aluno').length;
+
+        setStats({
+          schools: schoolsData.length,
+          users: usersData.length,
+          classes: classesData.length,
+          students: studentsCount
+        });
+      } catch (error) {
+        console.error('Erro ao carregar estatísticas:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     loadStats();
   }, []);
-
-  const loadStats = async () => {
-    try {
-      setLoading(true);
-      const [schoolsData, usersData, classesData] = await Promise.all([
-        schoolsAPI.getAll().catch(() => []),
-        usersAPI.getAll().catch(() => []),
-        classesAPI.getAll().catch(() => [])
-      ]);
-
-      // Conta alunos (usuários com role 'aluno')
-      const studentsCount = usersData.filter(u => u.role === 'aluno').length;
-
-      setStats({
-        schools: schoolsData.length,
-        users: usersData.length,
-        classes: classesData.length,
-        students: studentsCount
-      });
-    } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const roleLabels = {
     admin: 'Administrador',
