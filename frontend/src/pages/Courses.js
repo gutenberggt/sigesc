@@ -21,31 +21,30 @@ export const Courses = () => {
   });
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [coursesData, schoolsData] = await Promise.all([
-        coursesAPI.getAll(),
-        schoolsAPI.getAll()
-      ]);
-      setCourses(coursesData);
-      setSchools(schoolsData);
-    } catch (error) {
-      showAlert('error', 'Erro ao carregar dados');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
+      try {
+        setLoading(true);
+        const [coursesData, schoolsData] = await Promise.all([
+          coursesAPI.getAll(),
+          schoolsAPI.getAll()
+        ]);
+        setCourses(coursesData);
+        setSchools(schoolsData);
+      } catch (error) {
+        setAlert({ type: 'error', message: 'Erro ao carregar dados' });
+        setTimeout(() => setAlert(null), 5000);
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
-  }, []);
+  }, [reloadTrigger]);
   
-  const reloadData = () => {
-    // Force re-render to trigger useEffect
-    window.location.reload();
-  };
+  const reloadData = () => setReloadTrigger(prev => prev + 1);
 
   const showAlert = (type, message) => {
     setAlert({ type, message });
