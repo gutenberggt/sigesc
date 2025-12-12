@@ -453,10 +453,86 @@ class StudentCreate(StudentBase):
     pass
 
 class StudentUpdate(BaseModel):
-    user_id: Optional[str] = None
-    class_id: Optional[str] = None
+    # Identificação
+    enrollment_number: Optional[str] = None
+    inep_code: Optional[str] = None
+    
+    # Dados pessoais
+    full_name: Optional[str] = None
     birth_date: Optional[str] = None
+    sex: Optional[Literal['masculino', 'feminino']] = None
+    nationality: Optional[str] = None
+    birth_city: Optional[str] = None
+    birth_state: Optional[str] = None
+    color_race: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarada']] = None
+    
+    # Documentos
+    cpf: Optional[str] = None
+    rg: Optional[str] = None
+    rg_issue_date: Optional[str] = None
+    rg_issuer: Optional[str] = None
+    rg_state: Optional[str] = None
+    nis: Optional[str] = None
+    
+    civil_certificate_type: Optional[Literal['nascimento', 'casamento']] = None
+    civil_certificate_number: Optional[str] = None
+    civil_certificate_book: Optional[str] = None
+    civil_certificate_page: Optional[str] = None
+    civil_certificate_registry: Optional[str] = None
+    civil_certificate_city: Optional[str] = None
+    civil_certificate_state: Optional[str] = None
+    civil_certificate_date: Optional[str] = None
+    
+    passport_number: Optional[str] = None
+    passport_country: Optional[str] = None
+    passport_expiry: Optional[str] = None
+    no_documents_justification: Optional[str] = None
+    
+    # Responsáveis
+    father_name: Optional[str] = None
+    father_cpf: Optional[str] = None
+    father_rg: Optional[str] = None
+    father_phone: Optional[str] = None
+    
+    mother_name: Optional[str] = None
+    mother_cpf: Optional[str] = None
+    mother_rg: Optional[str] = None
+    mother_phone: Optional[str] = None
+    
+    guardian_name: Optional[str] = None
+    guardian_cpf: Optional[str] = None
+    guardian_rg: Optional[str] = None
+    guardian_phone: Optional[str] = None
+    guardian_relationship: Optional[str] = None
+    guardian_user_id: Optional[str] = None
+    
+    authorized_persons: Optional[List[AuthorizedPerson]] = None
+    
+    # Informações complementares
+    uses_school_transport: Optional[bool] = None
+    transport_type: Optional[str] = None
+    transport_route: Optional[str] = None
+    religion: Optional[str] = None
+    benefits: Optional[List[str]] = None
+    has_disability: Optional[bool] = None
+    disabilities: Optional[List[str]] = None
+    disability_details: Optional[str] = None
+    is_literate: Optional[bool] = None
+    is_emancipated: Optional[bool] = None
+    
+    # Anexos
+    photo_url: Optional[str] = None
+    documents_urls: Optional[List[str]] = None
+    medical_report_url: Optional[str] = None
+    
+    # Vínculo escolar
+    class_id: Optional[str] = None
+    user_id: Optional[str] = None
     guardian_ids: Optional[List[str]] = None
+    
+    # Observações
+    observations: Optional[str] = None
+    status: Optional[Literal['active', 'inactive', 'transferred']] = None
 
 class Student(StudentBase):
     model_config = ConfigDict(extra="ignore")
