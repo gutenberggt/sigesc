@@ -38,22 +38,26 @@ export const Courses = () => {
     'aulas_complementares': 'Aulas Complementares'
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const coursesData = await coursesAPI.getAll();
-      setCourses(coursesData);
-    } catch (error) {
-      showAlert('error', 'Erro ao carregar dados');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const coursesData = await coursesAPI.getAll();
+        setCourses(coursesData);
+      } catch (error) {
+        setAlert({ type: 'error', message: 'Erro ao carregar dados' });
+        setTimeout(() => setAlert(null), 5000);
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [reloadTrigger]);
+
+  const reloadData = () => setReloadTrigger(prev => prev + 1);
 
   const showAlert = (type, message) => {
     setAlert({ type, message });
