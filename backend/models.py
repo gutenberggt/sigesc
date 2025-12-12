@@ -534,7 +534,7 @@ class StudentUpdate(BaseModel):
     
     # Observações
     observations: Optional[str] = None
-    status: Optional[Literal['active', 'inactive', 'transferred']] = None
+    status: Optional[Literal['active', 'inactive', 'dropout', 'transferred', 'deceased']] = None
 
 class Student(StudentBase):
     model_config = ConfigDict(extra="ignore")
