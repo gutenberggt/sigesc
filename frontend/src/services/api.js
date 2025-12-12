@@ -213,3 +213,29 @@ export const enrollmentsAPI = {
     await axios.delete(`${API}/enrollments/${id}`);
   }
 };
+
+// ============= FILE UPLOAD =============
+export const uploadAPI = {
+  upload: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axios.post(`${API}/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
+  },
+  
+  delete: async (filename) => {
+    await axios.delete(`${API}/upload/${filename}`);
+  },
+  
+  getUrl: (url) => {
+    if (!url) return null;
+    // Se já é uma URL completa, retorna como está
+    if (url.startsWith('http')) return url;
+    // Se é um caminho relativo, adiciona a URL do backend
+    return `${BACKEND_URL}${url}`;
+  }
+};
