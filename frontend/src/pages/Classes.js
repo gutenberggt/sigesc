@@ -172,14 +172,16 @@ export const Classes = () => {
             <h1 className="text-3xl font-bold text-gray-900" data-testid="classes-title">Turmas</h1>
             <p className="text-gray-600 mt-1">Gerencie as turmas das escolas</p>
           </div>
-          <button
-            onClick={handleCreate}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            data-testid="create-class-button"
-          >
-            <Plus size={20} />
-            <span>Nova Turma</span>
-          </button>
+          {canEdit && (
+            <button
+              onClick={handleCreate}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              data-testid="create-class-button"
+            >
+              <Plus size={20} />
+              <span>Nova Turma</span>
+            </button>
+          )}
         </div>
 
         {alert && (
@@ -208,6 +210,8 @@ export const Classes = () => {
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          canEdit={canEdit}
+          canDelete={canDelete}
         />
 
         <Modal
