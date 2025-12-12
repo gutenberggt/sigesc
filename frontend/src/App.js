@@ -8,6 +8,8 @@ import { Users } from '@/pages/Users';
 import { Classes } from '@/pages/Classes';
 import { Courses } from '@/pages/CoursesNew';
 import { StudentsComplete as Students } from '@/pages/StudentsComplete';
+import { Guardians } from '@/pages/Guardians';
+import { Enrollments } from '@/pages/Enrollments';
 import '@/App.css';
 
 function App() {
@@ -70,6 +72,24 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed']}>
                 <Students />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/admin/guardians"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed']}>
+                <Guardians />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/admin/enrollments"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed']}>
+                <Enrollments />
               </ProtectedRoute>
             }
           />
