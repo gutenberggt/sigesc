@@ -4,7 +4,7 @@ import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { Tabs } from '@/components/Tabs';
-import { schoolsAPI } from '@/services/api';
+import { schoolsAPI, classesAPI } from '@/services/api';
 import { Plus, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 
 export const SchoolsComplete = () => {
