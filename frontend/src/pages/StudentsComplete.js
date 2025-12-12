@@ -169,6 +169,20 @@ export function StudentsComplete() {
     fetchData();
   }, [reloadTrigger]);
 
+  // Fechar dropdowns ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (nameInputRef.current && !nameInputRef.current.contains(event.target)) {
+        setShowNameSuggestions(false);
+      }
+      if (cpfInputRef.current && !cpfInputRef.current.contains(event.target)) {
+        setShowCpfSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const reloadData = () => setReloadTrigger(prev => prev + 1);
 
   const showAlert = (type, message) => {
