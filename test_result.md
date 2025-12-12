@@ -107,7 +107,7 @@ user_problem_statement: "Test the Students management page (StudentsComplete.js)
 frontend:
   - task: "Students Management Page Testing"
     implemented: true
-    working: "NA"
+    working: false
     file: "/app/frontend/src/pages/StudentsComplete.js"
     stuck_count: 1
     priority: "high"
