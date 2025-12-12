@@ -562,7 +562,7 @@ async def create_student(student_data: StudentCreate, request: Request):
     
     return student_obj
 
-@api_router.get("/students", response_model=List[Student])
+@api_router.get("/students")
 async def list_students(request: Request, school_id: Optional[str] = None, class_id: Optional[str] = None, skip: int = 0, limit: int = 100):
     """Lista alunos"""
     current_user = await AuthMiddleware.get_current_user(request)
@@ -586,6 +586,24 @@ async def list_students(request: Request, school_id: Optional[str] = None, class
             filter_query['class_id'] = class_id
     
     students = await db.students.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+    
+    # Garante que todos os campos existam (compatibilidade com registros antigos)
+    for student in students:
+        student.setdefault('full_name', '')
+        student.setdefault('inep_code', None)
+        student.setdefault('sex', None)
+        student.setdefault('nationality', 'Brasileira')
+        student.setdefault('birth_city', None)
+        student.setdefault('birth_state', None)
+        student.setdefault('color_race', None)
+        student.setdefault('cpf', None)
+        student.setdefault('rg', None)
+        student.setdefault('nis', None)
+        student.setdefault('status', 'active')
+        student.setdefault('authorized_persons', [])
+        student.setdefault('benefits', [])
+        student.setdefault('disabilities', [])
+        student.setdefault('documents_urls', [])
     
     return students
 
