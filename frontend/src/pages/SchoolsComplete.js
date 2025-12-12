@@ -178,12 +178,8 @@ export function SchoolsComplete() {
     status: 'active'
   });
 
-  const showAlert = (type, message) => {
-    setAlert({ type, message });
-    setTimeout(() => setAlert(null), 5000);
-  };
-
-  const loadSchools = async () => {
+  // Funções de carregamento de dados
+  async function loadSchools() {
     try {
       setLoading(true);
       const data = await schoolsAPI.getAll();
@@ -195,9 +191,9 @@ export function SchoolsComplete() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const loadClasses = async () => {
+  async function loadClasses() {
     try {
       const data = await classesAPI.getAll();
       setClasses(data);
@@ -205,7 +201,12 @@ export function SchoolsComplete() {
       console.error('Erro ao carregar turmas:', error);
       setClasses([]);
     }
-  };
+  }
+
+  function showAlert(type, message) {
+    setAlert({ type, message });
+    setTimeout(() => setAlert(null), 5000);
+  }
 
   useEffect(() => {
     loadSchools();
