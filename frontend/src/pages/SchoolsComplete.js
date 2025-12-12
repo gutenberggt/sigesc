@@ -153,6 +153,7 @@ export const SchoolsComplete = () => {
 
   useEffect(() => {
     loadSchools();
+    loadClasses();
   }, []);
 
   const loadSchools = async () => {
