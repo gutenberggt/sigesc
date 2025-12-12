@@ -178,10 +178,10 @@ export const SchoolsComplete = () => {
     status: 'active'
   });
 
-  useEffect(() => {
-    loadSchools();
-    loadClasses();
-  }, [loadSchools, loadClasses]);
+  const showAlert = (type, message) => {
+    setAlert({ type, message });
+    setTimeout(() => setAlert(null), 5000);
+  };
 
   const loadSchools = useCallback(async () => {
     try {
@@ -206,7 +206,12 @@ export const SchoolsComplete = () => {
     }
   }, []);
 
-  const showAlert = (type, message) => {
+  useEffect(() => {
+    loadSchools();
+    loadClasses();
+  }, [loadSchools, loadClasses]);
+
+  const handleCreate = () => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 5000);
   };
