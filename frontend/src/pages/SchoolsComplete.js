@@ -172,6 +172,7 @@ export const SchoolsComplete = () => {
 
   const handleCreate = () => {
     setEditingSchool(null);
+    setViewMode(false);
     // Reset form with default values
     setFormData({
       name: '',
@@ -188,8 +189,16 @@ export const SchoolsComplete = () => {
     setIsModalOpen(true);
   };
 
+  const handleView = (school) => {
+    setEditingSchool(school);
+    setViewMode(true);
+    setFormData(school);
+    setIsModalOpen(true);
+  };
+
   const handleEdit = (school) => {
     setEditingSchool(school);
+    setViewMode(false);
     setFormData(school);
     setIsModalOpen(true);
   };
