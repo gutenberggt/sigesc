@@ -10,6 +10,7 @@ import { Plus, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 export const SchoolsComplete = () => {
   const navigate = useNavigate();
   const [schools, setSchools] = useState([]);
+  const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState(null);
