@@ -154,7 +154,7 @@ export const SchoolsComplete = () => {
   useEffect(() => {
     loadSchools();
     loadClasses();
-  }, []);
+  }, [loadSchools, loadClasses]);
 
   const loadSchools = useCallback(async () => {
     try {
