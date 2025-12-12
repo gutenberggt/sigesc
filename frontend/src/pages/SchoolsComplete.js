@@ -17,6 +17,7 @@ export function SchoolsComplete() {
   const [viewMode, setViewMode] = useState(false);
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
 
   // Estado do formulário com valores padrão
   const [formData, setFormData] = useState({
