@@ -563,7 +563,7 @@ async def create_student(student_data: StudentCreate, request: Request):
     return student_obj
 
 @api_router.get("/students")
-async def list_students(request: Request, school_id: Optional[str] = None, class_id: Optional[str] = None, skip: int = 0, limit: int = 100):
+async def list_students(request: Request, school_id: Optional[str] = None, class_id: Optional[str] = None, skip: int = 0, limit: int = 5000):
     """Lista alunos"""
     current_user = await AuthMiddleware.get_current_user(request)
     
