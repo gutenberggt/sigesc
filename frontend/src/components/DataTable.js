@@ -1,6 +1,15 @@
 import { Eye, Pencil, Trash2 } from 'lucide-react';
 
-export const DataTable = ({ columns, data, onView, onEdit, onDelete, loading = false }) => {
+export const DataTable = ({ 
+  columns, 
+  data, 
+  onView, 
+  onEdit, 
+  onDelete, 
+  loading = false,
+  canEdit = true,  // Permite desabilitar edição para certos usuários
+  canDelete = true // Permite desabilitar exclusão para certos usuários
+}) => {
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
@@ -20,6 +29,9 @@ export const DataTable = ({ columns, data, onView, onEdit, onDelete, loading = f
     );
   }
 
+  const showEditButton = onEdit && canEdit;
+  const showDeleteButton = onDelete && canDelete;
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
@@ -34,7 +46,7 @@ export const DataTable = ({ columns, data, onView, onEdit, onDelete, loading = f
                   {column.header}
                 </th>
               ))}
-              {(onView || onEdit || onDelete) && (
+              {(onView || showEditButton || showDeleteButton) && (
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Ações
                 </th>
@@ -49,7 +61,7 @@ export const DataTable = ({ columns, data, onView, onEdit, onDelete, loading = f
                     {column.render ? column.render(row) : row[column.accessor]}
                   </td>
                 ))}
-                {(onView || onEdit || onDelete) && (
+                {(onView || showEditButton || showDeleteButton) && (
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
                       {onView && (
@@ -62,7 +74,7 @@ export const DataTable = ({ columns, data, onView, onEdit, onDelete, loading = f
                           <Eye size={16} />
                         </button>
                       )}
-                      {onEdit && (
+                      {showEditButton && (
                         <button
                           onClick={() => onEdit(row)}
                           className="text-blue-600 hover:text-blue-900 p-2 rounded-md hover:bg-blue-50 transition-colors"
@@ -72,7 +84,7 @@ export const DataTable = ({ columns, data, onView, onEdit, onDelete, loading = f
                           <Pencil size={16} />
                         </button>
                       )}
-                      {onDelete && (
+                      {showDeleteButton && (
                         <button
                           onClick={() => onDelete(row)}
                           className="text-red-600 hover:text-red-900 p-2 rounded-md hover:bg-red-50 transition-colors"
