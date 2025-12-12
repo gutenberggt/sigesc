@@ -128,7 +128,8 @@ metadata:
 test_plan:
   current_focus:
     - "Students Management Page Testing"
-  stuck_tasks: []
+  stuck_tasks: 
+    - "Students Management Page Testing"
   test_all: false
   test_priority: "high_first"
 
