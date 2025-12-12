@@ -23,6 +23,10 @@ export const Classes = () => {
     grade_level: '',
     teacher_ids: []
   });
+  
+  // SEMED pode visualizar tudo, mas não pode editar/excluir
+  const canEdit = user?.role !== 'semed';
+  const canDelete = user?.role !== 'semed';
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
