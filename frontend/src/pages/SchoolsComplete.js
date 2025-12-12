@@ -212,11 +212,6 @@ export const SchoolsComplete = () => {
   }, [loadSchools, loadClasses]);
 
   const handleCreate = () => {
-    setAlert({ type, message });
-    setTimeout(() => setAlert(null), 5000);
-  };
-
-  const handleCreate = () => {
     setEditingSchool(null);
     setViewMode(false);
     // Reset form with default values
