@@ -3,6 +3,9 @@ import { useState } from 'react';
 export const Tabs = ({ tabs, defaultTab = 0, children }) => {
   const [activeTab, setActiveTab] = useState(defaultTab);
 
+  // Detecta se tabs é um array de strings ou de objetos
+  const isObjectFormat = tabs && tabs.length > 0 && typeof tabs[0] === 'object';
+
   return (
     <div className="w-full">
       {/* Tab Headers */}
@@ -10,7 +13,7 @@ export const Tabs = ({ tabs, defaultTab = 0, children }) => {
         <nav className="flex space-x-4 overflow-x-auto" aria-label="Tabs">
           {tabs.map((tab, index) => (
             <button
-              key={index}
+              key={isObjectFormat ? tab.id : index}
               type="button"
               onClick={() => setActiveTab(index)}
               className={`
@@ -21,9 +24,9 @@ export const Tabs = ({ tabs, defaultTab = 0, children }) => {
                     : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }
               `}
-              data-testid={`tab-${index}`}
+              data-testid={`tab-${isObjectFormat ? tab.id : index}`}
             >
-              {tab}
+              {isObjectFormat ? tab.label : tab}
             </button>
           ))}
         </nav>
@@ -31,7 +34,11 @@ export const Tabs = ({ tabs, defaultTab = 0, children }) => {
 
       {/* Tab Content */}
       <div className="mt-6">
-        {typeof children === 'function' ? children(activeTab) : children[activeTab]}
+        {isObjectFormat ? (
+          tabs[activeTab]?.content
+        ) : (
+          typeof children === 'function' ? children(activeTab) : children?.[activeTab]
+        )}
       </div>
     </div>
   );
