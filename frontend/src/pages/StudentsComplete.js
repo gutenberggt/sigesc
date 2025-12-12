@@ -329,6 +329,38 @@ export function StudentsComplete() {
 
   const filteredClasses = classes.filter(c => c.school_id === formData.school_id);
 
+  // Lógica de sugestões de busca
+  const nameSuggestions = searchName.length >= 3 
+    ? students.filter(s => 
+        s.full_name?.toLowerCase().startsWith(searchName.toLowerCase())
+      ).slice(0, 10)
+    : [];
+
+  const cpfSuggestions = searchCpf.length >= 3
+    ? students.filter(s => 
+        s.cpf?.replace(/\D/g, '').startsWith(searchCpf.replace(/\D/g, ''))
+      ).slice(0, 10)
+    : [];
+
+  // Dados exibidos na tabela (filtrado por seleção ou todos)
+  const displayedStudents = selectedStudent ? [selectedStudent] : students;
+
+  const handleSelectStudent = (student) => {
+    setSelectedStudent(student);
+    setSearchName(student.full_name || '');
+    setSearchCpf(student.cpf || '');
+    setShowNameSuggestions(false);
+    setShowCpfSuggestions(false);
+  };
+
+  const handleClearSearch = () => {
+    setSearchName('');
+    setSearchCpf('');
+    setSelectedStudent(null);
+    setShowNameSuggestions(false);
+    setShowCpfSuggestions(false);
+  };
+
   const columns = [
     { header: 'Matrícula', accessor: 'enrollment_number' },
     { header: 'Nome', accessor: 'full_name', render: (row) => row.full_name || '-' },
