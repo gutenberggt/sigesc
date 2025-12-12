@@ -1299,7 +1299,9 @@ export function StudentsComplete() {
           >
             <option value="active">Ativo</option>
             <option value="inactive">Inativo</option>
+            <option value="dropout">Desistente</option>
             <option value="transferred">Transferido</option>
+            <option value="deceased">Falecido</option>
           </select>
         </div>
       </div>
