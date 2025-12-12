@@ -187,14 +187,16 @@ export const Courses = () => {
             </h1>
             <p className="text-gray-600 mt-1">Componentes globais disponíveis para todas as escolas</p>
           </div>
-          <button
-            onClick={handleCreate}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            data-testid="create-course-button"
-          >
-            <Plus size={20} />
-            <span>Novo Componente</span>
-          </button>
+          {canEdit && (
+            <button
+              onClick={handleCreate}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              data-testid="create-course-button"
+            >
+              <Plus size={20} />
+              <span>Novo Componente</span>
+            </button>
+          )}
         </div>
 
         {alert && (
@@ -224,6 +226,8 @@ export const Courses = () => {
           onView={handleView}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          canEdit={canEdit}
+          canDelete={canDelete}
         />
 
         <Modal
