@@ -302,7 +302,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.inep_code || ''}
               onChange={(e) => updateFormData('inep_code', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="Ex: 15175600"
             />
           </div>
@@ -313,7 +314,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.sigla || ''}
               onChange={(e) => updateFormData('sigla', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="Ex: CMEI"
             />
           </div>
@@ -324,7 +326,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.caracteristica_escolar || ''}
               onChange={(e) => updateFormData('caracteristica_escolar', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -333,7 +336,8 @@ export const SchoolsComplete = () => {
             <select
               value={formData.zona_localizacao || 'urbana'}
               onChange={(e) => updateFormData('zona_localizacao', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="urbana">Urbana</option>
               <option value="rural">Rural</option>
@@ -346,7 +350,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.cnpj || ''}
               onChange={(e) => updateFormData('cnpj', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="00.000.000/0000-00"
             />
           </div>
@@ -357,7 +362,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.situacao_funcionamento || ''}
               onChange={(e) => updateFormData('situacao_funcionamento', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="Ex: Em atividade"
             />
           </div>
@@ -374,7 +380,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.cep || ''}
               onChange={(e) => updateFormData('cep', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="00000-000"
             />
           </div>
@@ -385,7 +392,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.logradouro || ''}
               onChange={(e) => updateFormData('logradouro', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="Rua, Avenida, etc."
             />
           </div>
@@ -396,7 +404,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.numero || ''}
               onChange={(e) => updateFormData('numero', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -406,7 +415,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.complemento || ''}
               onChange={(e) => updateFormData('complemento', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -416,7 +426,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.bairro || ''}
               onChange={(e) => updateFormData('bairro', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -426,7 +437,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.municipio || ''}
               onChange={(e) => updateFormData('municipio', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -436,7 +448,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.estado || ''}
               onChange={(e) => updateFormData('estado', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="Ex: PA, SP, RJ"
             />
           </div>
@@ -528,7 +541,8 @@ export const SchoolsComplete = () => {
             <select
               value={formData.abastecimento_agua || ''}
               onChange={(e) => updateFormData('abastecimento_agua', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">Selecione</option>
               <option value="Rede pública">Rede pública</option>
@@ -543,7 +557,8 @@ export const SchoolsComplete = () => {
             <select
               value={formData.energia_eletrica || ''}
               onChange={(e) => updateFormData('energia_eletrica', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">Selecione</option>
               <option value="Rede pública">Rede pública</option>
@@ -618,7 +633,8 @@ export const SchoolsComplete = () => {
             <select
               value={formData.tipo_conexao || ''}
               onChange={(e) => updateFormData('tipo_conexao', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">Selecione</option>
               <option value="Fibra óptica">Fibra óptica</option>
@@ -644,7 +660,8 @@ export const SchoolsComplete = () => {
               value={formData.numero_salas_aula || 0}
               onChange={(e) => updateFormData('numero_salas_aula', parseInt(e.target.value) || 0)}
               min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -655,7 +672,8 @@ export const SchoolsComplete = () => {
               value={formData.capacidade_total_alunos || 0}
               onChange={(e) => updateFormData('capacidade_total_alunos', parseInt(e.target.value) || 0)}
               min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -666,7 +684,8 @@ export const SchoolsComplete = () => {
               value={formData.numero_banheiros || 0}
               onChange={(e) => updateFormData('numero_banheiros', parseInt(e.target.value) || 0)}
               min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
         </div>
@@ -751,7 +770,8 @@ export const SchoolsComplete = () => {
               value={formData.qtd_computadores || 0}
               onChange={(e) => updateFormData('qtd_computadores', parseInt(e.target.value) || 0)}
               min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -762,7 +782,8 @@ export const SchoolsComplete = () => {
               value={formData.qtd_tablets || 0}
               onChange={(e) => updateFormData('qtd_tablets', parseInt(e.target.value) || 0)}
               min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -773,7 +794,8 @@ export const SchoolsComplete = () => {
               value={formData.qtd_projetores || 0}
               onChange={(e) => updateFormData('qtd_projetores', parseInt(e.target.value) || 0)}
               min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -784,7 +806,8 @@ export const SchoolsComplete = () => {
               value={formData.qtd_impressoras || 0}
               onChange={(e) => updateFormData('qtd_impressoras', parseInt(e.target.value) || 0)}
               min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -795,7 +818,8 @@ export const SchoolsComplete = () => {
               value={formData.qtd_televisores || 0}
               onChange={(e) => updateFormData('qtd_televisores', parseInt(e.target.value) || 0)}
               min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -806,7 +830,8 @@ export const SchoolsComplete = () => {
               value={formData.qtd_projetores_multimidia || 0}
               onChange={(e) => updateFormData('qtd_projetores_multimidia', parseInt(e.target.value) || 0)}
               min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -817,7 +842,8 @@ export const SchoolsComplete = () => {
               value={formData.qtd_aparelhos_som || 0}
               onChange={(e) => updateFormData('qtd_aparelhos_som', parseInt(e.target.value) || 0)}
               min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -828,7 +854,8 @@ export const SchoolsComplete = () => {
               value={formData.qtd_lousas_digitais || 0}
               onChange={(e) => updateFormData('qtd_lousas_digitais', parseInt(e.target.value) || 0)}
               min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
         </div>
