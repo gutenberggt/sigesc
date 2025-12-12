@@ -4,10 +4,12 @@ import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { usersAPI, schoolsAPI } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Plus, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 
 export const Users = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [schools, setSchools] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +25,10 @@ export const Users = () => {
   });
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  // SEMED pode visualizar tudo, mas não pode editar/excluir
+  const canEdit = user?.role !== 'semed';
+  const canDelete = user?.role !== 'semed';
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
   useEffect(() => {
