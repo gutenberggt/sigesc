@@ -1441,9 +1441,125 @@ export function StudentsComplete() {
           </div>
         )}
 
+        {/* Campos de Busca Avançada */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex flex-wrap items-end gap-4">
+            {/* Busca por Nome */}
+            <div className="relative flex-1 min-w-[250px]" ref={nameInputRef}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Search size={14} className="inline mr-1" />
+                Buscar por Nome
+              </label>
+              <input
+                type="text"
+                value={searchName}
+                onChange={(e) => {
+                  setSearchName(e.target.value);
+                  setShowNameSuggestions(e.target.value.length >= 3);
+                  if (e.target.value.length < 3) {
+                    setSelectedStudent(null);
+                  }
+                }}
+                onFocus={() => setShowNameSuggestions(searchName.length >= 3)}
+                placeholder="Digite pelo menos 3 letras..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              {/* Dropdown de sugestões por nome */}
+              {showNameSuggestions && nameSuggestions.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {nameSuggestions.map((student) => (
+                    <button
+                      key={student.id}
+                      type="button"
+                      onClick={() => handleSelectStudent(student)}
+                      className="w-full px-4 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="font-medium text-gray-900">{student.full_name}</div>
+                      <div className="text-xs text-gray-500">
+                        Matrícula: {student.enrollment_number} | CPF: {student.cpf || '-'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showNameSuggestions && searchName.length >= 3 && nameSuggestions.length === 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-gray-500 text-sm">
+                  Nenhum aluno encontrado
+                </div>
+              )}
+            </div>
+
+            {/* Busca por CPF */}
+            <div className="relative flex-1 min-w-[250px]" ref={cpfInputRef}>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Search size={14} className="inline mr-1" />
+                Buscar por CPF
+              </label>
+              <input
+                type="text"
+                value={searchCpf}
+                onChange={(e) => {
+                  setSearchCpf(e.target.value);
+                  setShowCpfSuggestions(e.target.value.length >= 3);
+                  if (e.target.value.length < 3) {
+                    setSelectedStudent(null);
+                  }
+                }}
+                onFocus={() => setShowCpfSuggestions(searchCpf.length >= 3)}
+                placeholder="Digite pelo menos 3 dígitos..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              {/* Dropdown de sugestões por CPF */}
+              {showCpfSuggestions && cpfSuggestions.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {cpfSuggestions.map((student) => (
+                    <button
+                      key={student.id}
+                      type="button"
+                      onClick={() => handleSelectStudent(student)}
+                      className="w-full px-4 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="font-medium text-gray-900">{student.cpf}</div>
+                      <div className="text-xs text-gray-500">
+                        {student.full_name} | Matrícula: {student.enrollment_number}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showCpfSuggestions && searchCpf.length >= 3 && cpfSuggestions.length === 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-gray-500 text-sm">
+                  Nenhum aluno encontrado
+                </div>
+              )}
+            </div>
+
+            {/* Botão Limpar Consulta */}
+            {(searchName || searchCpf || selectedStudent) && (
+              <button
+                onClick={handleClearSearch}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300"
+              >
+                <X size={18} />
+                <span>Limpar Consulta</span>
+              </button>
+            )}
+          </div>
+
+          {/* Indicador de filtro ativo */}
+          {selectedStudent && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+              <span>Exibindo resultado para:</span>
+              <strong>{selectedStudent.full_name}</strong>
+              <span className="text-gray-400">|</span>
+              <span>Matrícula: {selectedStudent.enrollment_number}</span>
+            </div>
+          )}
+        </div>
+
         <DataTable
           columns={columns}
-          data={students}
+          data={displayedStudents}
           loading={loading}
           onView={handleView}
           onEdit={handleEdit}
