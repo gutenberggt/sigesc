@@ -452,7 +452,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.telefone || ''}
               onChange={(e) => updateFormData('telefone', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="(00) 0000-0000"
             />
           </div>
@@ -463,7 +464,8 @@ export const SchoolsComplete = () => {
               type="text"
               value={formData.celular || ''}
               onChange={(e) => updateFormData('celular', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               placeholder="(00) 00000-0000"
             />
           </div>
@@ -474,7 +476,8 @@ export const SchoolsComplete = () => {
               type="email"
               value={formData.email || ''}
               onChange={(e) => updateFormData('email', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
@@ -484,11 +487,33 @@ export const SchoolsComplete = () => {
               type="url"
               value={formData.site || ''}
               onChange={(e) => updateFormData('site', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
         </div>
       </div>
+
+      {/* Status - Somente no modo edição */}
+      {editingSchool && (
+        <div>
+          <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Status da Escola</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <select
+                value={formData.status || 'active'}
+                onChange={(e) => updateFormData('status', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="active">Ativa</option>
+                <option value="inactive">Inativa</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
