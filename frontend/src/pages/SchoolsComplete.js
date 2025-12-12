@@ -5,10 +5,12 @@ import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { Tabs } from '@/components/Tabs';
 import { schoolsAPI, classesAPI } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Plus, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 
 export function SchoolsComplete() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,6 +20,10 @@ export function SchoolsComplete() {
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
+
+  // SEMED pode visualizar tudo, mas não pode editar/excluir
+  const canEdit = user?.role !== 'semed';
+  const canDelete = user?.role !== 'semed';
 
   // Estado do formulário com valores padrão
   const [formData, setFormData] = useState({
