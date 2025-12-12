@@ -224,12 +224,21 @@ export function StudentsComplete() {
     
     setSubmitting(true);
 
+    // Limpa dados antes de enviar (converte strings vazias para null em campos Literal)
+    const cleanData = { ...formData };
+    const literalFields = ['sex', 'color_race', 'civil_certificate_type', 'legal_guardian_type'];
+    literalFields.forEach(field => {
+      if (cleanData[field] === '') {
+        cleanData[field] = null;
+      }
+    });
+
     try {
       if (editingStudent) {
-        await studentsAPI.update(editingStudent.id, formData);
+        await studentsAPI.update(editingStudent.id, cleanData);
         showAlert('success', 'Aluno atualizado com sucesso');
       } else {
-        await studentsAPI.create(formData);
+        await studentsAPI.create(cleanData);
         showAlert('success', 'Aluno cadastrado com sucesso');
       }
       setIsModalOpen(false);
@@ -243,17 +252,6 @@ export function StudentsComplete() {
           // Pydantic validation errors
           errorMessage = detail.map(err => {
             const field = err.loc?.join('.') || 'Campo';
-            return `${field}: ${err.msg}`;
-          }).join('; ');
-        } else if (typeof detail === 'string') {
-          errorMessage = detail;
-        } else if (typeof detail === 'object' && detail.msg) {
-          errorMessage = detail.msg;
-        }
-      }
-      showAlert('error', errorMessage);
-      console.error(error);
-    } finally {
       setSubmitting(false);
     }
   };
