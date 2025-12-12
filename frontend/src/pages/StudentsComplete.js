@@ -83,6 +83,7 @@ const initialFormData = {
   mother_cpf: '',
   mother_rg: '',
   mother_phone: '',
+  legal_guardian_type: '',  // 'mother', 'father', 'both', 'other'
   guardian_name: '',
   guardian_cpf: '',
   guardian_rg: '',
