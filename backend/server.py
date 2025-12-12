@@ -335,15 +335,12 @@ async def update_school(school_id: str, school_update: SchoolUpdate, request: Re
 
 @api_router.delete("/schools/{school_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_school(school_id: str, request: Request):
-    """Deleta escola (soft delete)"""
+    """Deleta escola definitivamente"""
     current_user = await AuthMiddleware.require_roles(['admin'])(request)
     
-    result = await db.schools.update_one(
-        {"id": school_id},
-        {"$set": {"status": "inactive"}}
-    )
+    result = await db.schools.delete_one({"id": school_id})
     
-    if result.matched_count == 0:
+    if result.deleted_count == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Escola não encontrada"
