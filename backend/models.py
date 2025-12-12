@@ -448,7 +448,7 @@ class StudentBase(BaseModel):
     observations: Optional[str] = None
     
     # Status
-    status: Literal['active', 'inactive', 'transferred'] = 'active'
+    status: Literal['active', 'inactive', 'dropout', 'transferred', 'deceased'] = 'active'
 
 class StudentCreate(StudentBase):
     pass
