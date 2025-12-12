@@ -347,13 +347,107 @@ class Course(CourseBase):
 
 # ============= STUDENT MODELS =============
 
+class AuthorizedPerson(BaseModel):
+    """Pessoa autorizada a buscar o aluno"""
+    name: str
+    relationship: str  # Parentesco: tio, avó, vizinho, etc.
+    phone: Optional[str] = None
+    document: Optional[str] = None  # CPF ou RG
+
 class StudentBase(BaseModel):
-    user_id: Optional[str] = None  # Opcional se aluno não tem acesso ao portal
+    # === IDENTIFICAÇÃO ===
     school_id: str
-    enrollment_number: str
-    class_id: str
-    birth_date: Optional[str] = None
-    guardian_ids: List[str] = []
+    enrollment_number: str  # Código interno/matrícula
+    inep_code: Optional[str] = None  # Código INEP do aluno
+    
+    # === DADOS PESSOAIS ===
+    full_name: str
+    birth_date: Optional[str] = None  # dd/mm/aaaa
+    sex: Optional[Literal['masculino', 'feminino']] = None
+    nationality: Optional[str] = 'Brasileira'
+    birth_city: Optional[str] = None  # Naturalidade
+    birth_state: Optional[str] = None
+    color_race: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarada']] = None
+    
+    # === DOCUMENTOS ===
+    cpf: Optional[str] = None
+    rg: Optional[str] = None
+    rg_issue_date: Optional[str] = None
+    rg_issuer: Optional[str] = None  # Órgão emissor
+    rg_state: Optional[str] = None  # Estado emissor
+    nis: Optional[str] = None  # NIS/PIS/PASEP
+    
+    # Certidão Civil
+    civil_certificate_type: Optional[Literal['nascimento', 'casamento']] = None
+    civil_certificate_number: Optional[str] = None
+    civil_certificate_book: Optional[str] = None  # Livro
+    civil_certificate_page: Optional[str] = None  # Folha
+    civil_certificate_registry: Optional[str] = None  # Cartório
+    civil_certificate_city: Optional[str] = None
+    civil_certificate_state: Optional[str] = None
+    civil_certificate_date: Optional[str] = None
+    
+    # Passaporte (opcional)
+    passport_number: Optional[str] = None
+    passport_country: Optional[str] = None
+    passport_expiry: Optional[str] = None
+    
+    # Justificativa de ausência de documentação
+    no_documents_justification: Optional[str] = None
+    
+    # === RESPONSÁVEIS ===
+    father_name: Optional[str] = None
+    father_cpf: Optional[str] = None
+    father_rg: Optional[str] = None
+    father_phone: Optional[str] = None
+    
+    mother_name: Optional[str] = None
+    mother_cpf: Optional[str] = None
+    mother_rg: Optional[str] = None
+    mother_phone: Optional[str] = None
+    
+    # Responsável legal (obrigatório)
+    guardian_name: Optional[str] = None
+    guardian_cpf: Optional[str] = None
+    guardian_rg: Optional[str] = None
+    guardian_phone: Optional[str] = None
+    guardian_relationship: Optional[str] = None  # Parentesco
+    guardian_user_id: Optional[str] = None  # Vínculo com usuário do sistema
+    
+    # Autorizados a buscar (até 5)
+    authorized_persons: List[AuthorizedPerson] = []
+    
+    # === INFORMAÇÕES COMPLEMENTARES ===
+    uses_school_transport: Optional[bool] = False
+    transport_type: Optional[str] = None  # Tipo de veículo
+    transport_route: Optional[str] = None  # Rota
+    
+    religion: Optional[str] = None
+    benefits: List[str] = []  # Bolsa família, etc.
+    
+    # Deficiências/Transtornos
+    has_disability: Optional[bool] = False
+    disabilities: List[str] = []  # Lista de deficiências
+    disability_details: Optional[str] = None
+    
+    is_literate: Optional[bool] = None  # Alfabetizado
+    is_emancipated: Optional[bool] = False  # Emancipado
+    
+    # === DOCUMENTOS/ANEXOS ===
+    photo_url: Optional[str] = None
+    documents_urls: List[str] = []  # URLs dos documentos gerais
+    medical_report_url: Optional[str] = None  # Laudo médico
+    
+    # === VÍNCULO ESCOLAR ===
+    class_id: Optional[str] = None
+    user_id: Optional[str] = None  # Se aluno tem acesso ao portal
+    guardian_ids: List[str] = []  # IDs dos responsáveis no sistema
+    
+    # === OBSERVAÇÕES ===
+    observations: Optional[str] = None
+    
+    # Status
+    status: Literal['active', 'inactive', 'transferred'] = 'active'
 
 class StudentCreate(StudentBase):
     pass
