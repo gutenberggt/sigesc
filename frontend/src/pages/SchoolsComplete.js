@@ -880,8 +880,10 @@ export const SchoolsComplete = () => {
     <div className="space-y-6">
       <div>
         <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Níveis de Ensino Oferecidos</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="flex items-center space-x-2">
+        
+        {/* Educação Infantil */}
+        <div className="mb-6">
+          <label className="flex items-center space-x-2 mb-3">
             <input
               type="checkbox"
               checked={formData.educacao_infantil || false}
@@ -889,10 +891,68 @@ export const SchoolsComplete = () => {
               disabled={viewMode}
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <span className="text-sm text-gray-700">Educação Infantil</span>
+            <span className="text-sm font-semibold text-gray-900">Educação Infantil</span>
           </label>
           
-          <label className="flex items-center space-x-2">
+          {formData.educacao_infantil && (
+            <div className="ml-6 grid grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-blue-50 rounded-lg">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.educacao_infantil_bercario || false}
+                  onChange={(e) => updateFormData('educacao_infantil_bercario', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">Berçário</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.educacao_infantil_maternal_i || false}
+                  onChange={(e) => updateFormData('educacao_infantil_maternal_i', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">Maternal I</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.educacao_infantil_maternal_ii || false}
+                  onChange={(e) => updateFormData('educacao_infantil_maternal_ii', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">Maternal II</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.educacao_infantil_pre_i || false}
+                  onChange={(e) => updateFormData('educacao_infantil_pre_i', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">Pré I</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.educacao_infantil_pre_ii || false}
+                  onChange={(e) => updateFormData('educacao_infantil_pre_ii', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">Pré II</span>
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* Fundamental Anos Iniciais */}
+        <div className="mb-6">
+          <label className="flex items-center space-x-2 mb-3">
             <input
               type="checkbox"
               checked={formData.fundamental_anos_iniciais || false}
@@ -900,10 +960,68 @@ export const SchoolsComplete = () => {
               disabled={viewMode}
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <span className="text-sm text-gray-700">Ensino Fundamental - Anos Iniciais</span>
+            <span className="text-sm font-semibold text-gray-900">Ensino Fundamental - Anos Iniciais</span>
           </label>
           
-          <label className="flex items-center space-x-2">
+          {formData.fundamental_anos_iniciais && (
+            <div className="ml-6 grid grid-cols-2 md:grid-cols-5 gap-3 p-4 bg-green-50 rounded-lg">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.fundamental_inicial_1ano || false}
+                  onChange={(e) => updateFormData('fundamental_inicial_1ano', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">1º Ano</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.fundamental_inicial_2ano || false}
+                  onChange={(e) => updateFormData('fundamental_inicial_2ano', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">2º Ano</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.fundamental_inicial_3ano || false}
+                  onChange={(e) => updateFormData('fundamental_inicial_3ano', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">3º Ano</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.fundamental_inicial_4ano || false}
+                  onChange={(e) => updateFormData('fundamental_inicial_4ano', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">4º Ano</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.fundamental_inicial_5ano || false}
+                  onChange={(e) => updateFormData('fundamental_inicial_5ano', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">5º Ano</span>
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* Fundamental Anos Finais */}
+        <div className="mb-6">
+          <label className="flex items-center space-x-2 mb-3">
             <input
               type="checkbox"
               checked={formData.fundamental_anos_finais || false}
@@ -911,9 +1029,57 @@ export const SchoolsComplete = () => {
               disabled={viewMode}
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <span className="text-sm text-gray-700">Ensino Fundamental - Anos Finais</span>
+            <span className="text-sm font-semibold text-gray-900">Ensino Fundamental - Anos Finais</span>
           </label>
           
+          {formData.fundamental_anos_finais && (
+            <div className="ml-6 grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-purple-50 rounded-lg">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.fundamental_final_6ano || false}
+                  onChange={(e) => updateFormData('fundamental_final_6ano', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">6º Ano</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.fundamental_final_7ano || false}
+                  onChange={(e) => updateFormData('fundamental_final_7ano', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">7º Ano</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.fundamental_final_8ano || false}
+                  onChange={(e) => updateFormData('fundamental_final_8ano', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">8º Ano</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.fundamental_final_9ano || false}
+                  onChange={(e) => updateFormData('fundamental_final_9ano', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">9º Ano</span>
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* Ensino Médio */}
+        <div className="mb-6">
           <label className="flex items-center space-x-2">
             <input
               type="checkbox"
@@ -922,10 +1088,13 @@ export const SchoolsComplete = () => {
               disabled={viewMode}
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <span className="text-sm text-gray-700">Ensino Médio</span>
+            <span className="text-sm font-semibold text-gray-900">Ensino Médio</span>
           </label>
-          
-          <label className="flex items-center space-x-2">
+        </div>
+
+        {/* EJA Anos Iniciais */}
+        <div className="mb-6">
+          <label className="flex items-center space-x-2 mb-3">
             <input
               type="checkbox"
               checked={formData.eja || false}
@@ -933,8 +1102,72 @@ export const SchoolsComplete = () => {
               disabled={viewMode}
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <span className="text-sm text-gray-700">EJA - Educação de Jovens e Adultos</span>
+            <span className="text-sm font-semibold text-gray-900">EJA - Educação de Jovens e Adultos - Anos Iniciais</span>
           </label>
+          
+          {formData.eja && (
+            <div className="ml-6 grid grid-cols-2 gap-3 p-4 bg-yellow-50 rounded-lg">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.eja_inicial_1etapa || false}
+                  onChange={(e) => updateFormData('eja_inicial_1etapa', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">1ª Etapa</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.eja_inicial_2etapa || false}
+                  onChange={(e) => updateFormData('eja_inicial_2etapa', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">2ª Etapa</span>
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* EJA Anos Finais */}
+        <div className="mb-6">
+          <label className="flex items-center space-x-2 mb-3">
+            <input
+              type="checkbox"
+              checked={formData.eja_final || false}
+              onChange={(e) => updateFormData('eja_final', e.target.checked)}
+              disabled={viewMode}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <span className="text-sm font-semibold text-gray-900">EJA - Educação de Jovens e Adultos - Anos Finais</span>
+          </label>
+          
+          {formData.eja_final && (
+            <div className="ml-6 grid grid-cols-2 gap-3 p-4 bg-orange-50 rounded-lg">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.eja_final_3etapa || false}
+                  onChange={(e) => updateFormData('eja_final_3etapa', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">3ª Etapa</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.eja_final_4etapa || false}
+                  onChange={(e) => updateFormData('eja_final_4etapa', e.target.checked)}
+                  disabled={viewMode}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">4ª Etapa</span>
+              </label>
+            </div>
+          )}
         </div>
       </div>
 
@@ -988,6 +1221,66 @@ export const SchoolsComplete = () => {
       </div>
     </div>
   );
+
+  const renderTurmas = () => {
+    // Filtra turmas da escola atual
+    const schoolClasses = classes.filter(c => c.school_id === (editingSchool?.id || formData.school_id));
+
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center mb-4">
+          <h4 className="text-md font-semibold text-gray-900">Turmas Cadastradas</h4>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/classes')}
+            className="text-sm text-blue-600 hover:text-blue-800 underline"
+          >
+            Gerenciar Turmas
+          </button>
+        </div>
+
+        {schoolClasses.length === 0 ? (
+          <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <p className="text-gray-500">Nenhuma turma cadastrada para esta escola</p>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/classes')}
+              className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
+            >
+              Cadastrar primeira turma
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 border rounded-lg">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ano Letivo</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Série/Etapa</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turno</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {schoolClasses.map((classItem, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900">{classItem.name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{classItem.academic_year}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{classItem.grade_level}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      {classItem.shift === 'morning' ? 'Manhã' :
+                       classItem.shift === 'afternoon' ? 'Tarde' :
+                       classItem.shift === 'evening' ? 'Noite' : 'Integral'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const tabLabels = [
     'Dados Gerais',
