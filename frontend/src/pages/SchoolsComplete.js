@@ -171,11 +171,11 @@ export const SchoolsComplete = () => {
 
   const loadClasses = useCallback(async () => {
     try {
-      // Assuming there's a classesAPI similar to schoolsAPI
-      // For now, we'll set an empty array as a placeholder
-      setClasses([]);
+      const data = await classesAPI.getAll();
+      setClasses(data);
     } catch (error) {
       console.error('Erro ao carregar turmas:', error);
+      setClasses([]);
     }
   }, []);
 
