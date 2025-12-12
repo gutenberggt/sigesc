@@ -1097,7 +1097,7 @@ export function StudentsComplete() {
     <div className="space-y-6">
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
         <p className="text-sm text-blue-800">
-          <strong>ℹ️ Formatos aceitos:</strong> JPG, PNG, PDF, GIF (máx. 2MB por arquivo)
+          <strong>ℹ️ Formatos aceitos:</strong> JPG, PNG, PDF, GIF, DOC, DOCX (máx. 5MB por arquivo)
         </p>
       </div>
 
@@ -1106,7 +1106,7 @@ export function StudentsComplete() {
         {formData.photo_url ? (
           <div className="relative">
             <img 
-              src={formData.photo_url} 
+              src={uploadAPI.getUrl(formData.photo_url)} 
               alt="Foto do aluno" 
               className="w-32 h-32 object-cover rounded-lg border"
             />
@@ -1127,59 +1127,103 @@ export function StudentsComplete() {
         )}
         {!viewMode && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">URL da Foto</label>
-            <input
-              type="url"
-              value={formData.photo_url}
-              onChange={(e) => updateFormData('photo_url', e.target.value)}
-              className="w-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="https://..."
-            />
-            <p className="text-xs text-gray-500 mt-1">Cole a URL de uma imagem hospedada</p>
+            <label className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
+              <Upload size={18} />
+              <span>Selecionar Foto</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    try {
+                      const result = await uploadAPI.upload(file);
+                      updateFormData('photo_url', result.url);
+                      showAlert('success', 'Foto enviada com sucesso');
+                    } catch (error) {
+                      showAlert('error', 'Erro ao enviar foto');
+                    }
+                  }
+                }}
+              />
+            </label>
+            <p className="text-xs text-gray-500 mt-1">JPG, PNG ou GIF</p>
           </div>
         )}
       </div>
 
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Laudo Médico</h3>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">URL do Laudo</label>
-        <input
-          type="url"
-          value={formData.medical_report_url}
-          onChange={(e) => updateFormData('medical_report_url', e.target.value)}
-          disabled={viewMode}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-          placeholder="https://..."
-        />
-        {formData.medical_report_url && (
-          <a 
-            href={formData.medical_report_url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-blue-600 text-sm hover:underline mt-1 inline-block"
-          >
-            Visualizar laudo
-          </a>
+      <div className="flex items-center gap-4">
+        {formData.medical_report_url ? (
+          <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <FileText className="text-green-600" size={24} />
+            <div>
+              <p className="text-sm font-medium text-green-800">Laudo anexado</p>
+              <a 
+                href={uploadAPI.getUrl(formData.medical_report_url)} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 text-sm hover:underline"
+              >
+                Visualizar arquivo
+              </a>
+            </div>
+            {!viewMode && (
+              <button
+                type="button"
+                onClick={() => updateFormData('medical_report_url', '')}
+                className="ml-auto p-1 text-red-600 hover:bg-red-100 rounded"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
+          </div>
+        ) : (
+          !viewMode && (
+            <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 cursor-pointer transition-colors border border-gray-300">
+              <Upload size={18} />
+              <span>Anexar Laudo</span>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    try {
+                      const result = await uploadAPI.upload(file);
+                      updateFormData('medical_report_url', result.url);
+                      showAlert('success', 'Laudo enviado com sucesso');
+                    } catch (error) {
+                      showAlert('error', 'Erro ao enviar laudo');
+                    }
+                  }
+                }}
+              />
+            </label>
+          )
         )}
       </div>
 
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Documentos Gerais</h3>
-      <p className="text-sm text-gray-500 mb-2">URLs de documentos digitalizados (certidões, comprovantes, etc.)</p>
-      {/* Simplified document list */}
+      <p className="text-sm text-gray-500 mb-2">Certidões, comprovantes, declarações, etc.</p>
+      
       <div className="space-y-2">
         {formData.documents_urls.map((url, index) => (
-          <div key={index} className="flex items-center gap-2">
-            <input
-              type="url"
-              value={url}
-              onChange={(e) => {
-                const newUrls = [...formData.documents_urls];
-                newUrls[index] = e.target.value;
-                updateFormData('documents_urls', newUrls);
-              }}
-              disabled={viewMode}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-            />
+          <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <FileText className="text-gray-600" size={20} />
+            <span className="flex-1 text-sm text-gray-700 truncate">
+              {url.split('/').pop() || `Documento ${index + 1}`}
+            </span>
+            <a 
+              href={uploadAPI.getUrl(url)} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 text-sm hover:underline"
+            >
+              Visualizar
+            </a>
             {!viewMode && (
               <button
                 type="button"
@@ -1187,17 +1231,40 @@ export function StudentsComplete() {
                   const newUrls = formData.documents_urls.filter((_, i) => i !== index);
                   updateFormData('documents_urls', newUrls);
                 }}
-                className="p-2 text-red-600 hover:bg-red-100 rounded-lg"
+                className="p-1 text-red-600 hover:bg-red-100 rounded"
               >
                 <Trash2 size={18} />
               </button>
             )}
           </div>
         ))}
+        
         {!viewMode && (
-          <button
-            type="button"
-            onClick={() => updateFormData('documents_urls', [...formData.documents_urls, ''])}
+          <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors">
+            <Plus size={18} className="text-gray-500" />
+            <span className="text-gray-600">Adicionar documento</span>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  try {
+                    const result = await uploadAPI.upload(file);
+                    updateFormData('documents_urls', [...formData.documents_urls, result.url]);
+                    showAlert('success', 'Documento enviado com sucesso');
+                  } catch (error) {
+                    showAlert('error', 'Erro ao enviar documento');
+                  }
+                }
+              }}
+            />
+          </label>
+        )}
+      </div>
+    </div>
+  );
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
           >
             <Plus size={16} /> Adicionar documento
