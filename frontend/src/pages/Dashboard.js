@@ -186,6 +186,15 @@ export const Dashboard = () => {
                 <GraduationCap className="text-orange-600" size={24} />
                 <span className="font-medium text-gray-900">Disciplinas</span>
               </button>
+              
+              <button
+                onClick={() => navigate('/admin/students')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all"
+                data-testid="nav-students-button"
+              >
+                <GraduationCap className="text-red-600" size={24} />
+                <span className="font-medium text-gray-900">Alunos</span>
+              </button>
             </div>
           </div>
         )}
