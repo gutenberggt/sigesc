@@ -119,6 +119,34 @@ class SchoolBase(BaseModel):
     niveis_ensino_oferecidos: List[str] = []
     anos_letivos_ativos: List[int] = []
     
+    # Educação Infantil - Sub-níveis
+    educacao_infantil_bercario: Optional[bool] = False
+    educacao_infantil_maternal_i: Optional[bool] = False
+    educacao_infantil_maternal_ii: Optional[bool] = False
+    educacao_infantil_pre_i: Optional[bool] = False
+    educacao_infantil_pre_ii: Optional[bool] = False
+    
+    # Fundamental Anos Iniciais - Sub-níveis
+    fundamental_inicial_1ano: Optional[bool] = False
+    fundamental_inicial_2ano: Optional[bool] = False
+    fundamental_inicial_3ano: Optional[bool] = False
+    fundamental_inicial_4ano: Optional[bool] = False
+    fundamental_inicial_5ano: Optional[bool] = False
+    
+    # Fundamental Anos Finais - Sub-níveis
+    fundamental_final_6ano: Optional[bool] = False
+    fundamental_final_7ano: Optional[bool] = False
+    fundamental_final_8ano: Optional[bool] = False
+    fundamental_final_9ano: Optional[bool] = False
+    
+    # EJA Anos Iniciais - Sub-níveis
+    eja_inicial_1etapa: Optional[bool] = False
+    eja_inicial_2etapa: Optional[bool] = False
+    
+    # EJA Anos Finais - Sub-níveis
+    eja_final_3etapa: Optional[bool] = False
+    eja_final_4etapa: Optional[bool] = False
+    
     # Infraestrutura - Serviços
     abastecimento_agua: Optional[str] = None
     energia_eletrica: Optional[str] = None
