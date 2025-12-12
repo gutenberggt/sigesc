@@ -32,7 +32,7 @@ function App() {
           <Route
             path="/admin/schools"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['admin', 'semed']}>
                 <Schools />
               </ProtectedRoute>
             }
@@ -50,7 +50,7 @@ function App() {
           <Route
             path="/admin/classes"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed']}>
                 <Classes />
               </ProtectedRoute>
             }
@@ -59,7 +59,7 @@ function App() {
           <Route
             path="/admin/courses"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed']}>
                 <Courses />
               </ProtectedRoute>
             }
@@ -68,7 +68,7 @@ function App() {
           <Route
             path="/admin/students"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed']}>
                 <Students />
               </ProtectedRoute>
             }
