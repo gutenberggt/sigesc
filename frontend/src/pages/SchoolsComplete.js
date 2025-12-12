@@ -994,7 +994,8 @@ export const SchoolsComplete = () => {
     'Infraestrutura',
     'Dependências',
     'Equipamentos',
-    'Dados do Ensino'
+    'Dados do Ensino',
+    'Turmas'
   ];
 
   const tabContents = [
