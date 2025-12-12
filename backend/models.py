@@ -376,6 +376,7 @@ class StudentBase(BaseModel):
     rg_issuer: Optional[str] = None  # Órgão emissor
     rg_state: Optional[str] = None  # Estado emissor
     nis: Optional[str] = None  # NIS/PIS/PASEP
+    sus_number: Optional[str] = None  # Número do Cartão SUS
     
     # Certidão Civil
     civil_certificate_type: Optional[Literal['nascimento', 'casamento']] = None
