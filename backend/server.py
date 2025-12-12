@@ -572,6 +572,280 @@ async def delete_course(course_id: str, request: Request):
     
     return None
 
+# ============= STUDENT (ALUNO) ROUTES =============
+
+@api_router.post("/students", response_model=Student, status_code=status.HTTP_201_CREATED)
+async def create_student(student_data: StudentCreate, request: Request):
+    """Cria novo aluno"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    # Verifica acesso à escola
+    await AuthMiddleware.verify_school_access(request, student_data.school_id)
+    
+    student_obj = Student(**student_data.model_dump())
+    doc = student_obj.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    
+    await db.students.insert_one(doc)
+    
+    return student_obj
+
+@api_router.get("/students", response_model=List[Student])
+async def list_students(request: Request, school_id: Optional[str] = None, class_id: Optional[str] = None, skip: int = 0, limit: int = 100):
+    """Lista alunos"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    # Constrói filtro
+    filter_query = {}
+    
+    if current_user['role'] in ['admin', 'semed']:
+        if school_id:
+            filter_query['school_id'] = school_id
+        if class_id:
+            filter_query['class_id'] = class_id
+    else:
+        # Outros papéis veem apenas das escolas vinculadas
+        if school_id and school_id in current_user['school_ids']:
+            filter_query['school_id'] = school_id
+        else:
+            filter_query['school_id'] = {"$in": current_user['school_ids']}
+        
+        if class_id:
+            filter_query['class_id'] = class_id
+    
+    students = await db.students.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+    
+    return students
+
+@api_router.get("/students/{student_id}", response_model=Student)
+async def get_student(student_id: str, request: Request):
+    """Busca aluno por ID"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    student_doc = await db.students.find_one({"id": student_id}, {"_id": 0})
+    
+    if not student_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aluno não encontrado"
+        )
+    
+    # Verifica acesso à escola do aluno
+    await AuthMiddleware.verify_school_access(request, student_doc['school_id'])
+    
+    return Student(**student_doc)
+
+@api_router.put("/students/{student_id}", response_model=Student)
+async def update_student(student_id: str, student_update: StudentUpdate, request: Request):
+    """Atualiza aluno"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    # Busca aluno
+    student_doc = await db.students.find_one({"id": student_id}, {"_id": 0})
+    if not student_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aluno não encontrado"
+        )
+    
+    # Verifica acesso
+    await AuthMiddleware.verify_school_access(request, student_doc['school_id'])
+    
+    update_data = student_update.model_dump(exclude_unset=True)
+    
+    if update_data:
+        await db.students.update_one(
+            {"id": student_id},
+            {"$set": update_data}
+        )
+    
+    updated_student = await db.students.find_one({"id": student_id}, {"_id": 0})
+    return Student(**updated_student)
+
+@api_router.delete("/students/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_student(student_id: str, request: Request):
+    """Deleta aluno"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    # Busca aluno
+    student_doc = await db.students.find_one({"id": student_id}, {"_id": 0})
+    if not student_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aluno não encontrado"
+        )
+    
+    # Verifica acesso
+    await AuthMiddleware.verify_school_access(request, student_doc['school_id'])
+    
+    result = await db.students.delete_one({"id": student_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aluno não encontrado"
+        )
+    
+    return None
+
+# ============= GUARDIAN (RESPONSÁVEL) ROUTES =============
+
+@api_router.post("/guardians", response_model=Guardian, status_code=status.HTTP_201_CREATED)
+async def create_guardian(guardian_data: GuardianCreate, request: Request):
+    """Cria novo responsável"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    guardian_obj = Guardian(**guardian_data.model_dump())
+    doc = guardian_obj.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    
+    await db.guardians.insert_one(doc)
+    
+    return guardian_obj
+
+@api_router.get("/guardians", response_model=List[Guardian])
+async def list_guardians(request: Request, skip: int = 0, limit: int = 100):
+    """Lista responsáveis"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'semed'])(request)
+    
+    guardians = await db.guardians.find({}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+    
+    return guardians
+
+@api_router.get("/guardians/{guardian_id}", response_model=Guardian)
+async def get_guardian(guardian_id: str, request: Request):
+    """Busca responsável por ID"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    guardian_doc = await db.guardians.find_one({"id": guardian_id}, {"_id": 0})
+    
+    if not guardian_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Responsável não encontrado"
+        )
+    
+    return Guardian(**guardian_doc)
+
+@api_router.put("/guardians/{guardian_id}", response_model=Guardian)
+async def update_guardian(guardian_id: str, guardian_update: GuardianUpdate, request: Request):
+    """Atualiza responsável"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    update_data = guardian_update.model_dump(exclude_unset=True)
+    
+    if update_data:
+        result = await db.guardians.update_one(
+            {"id": guardian_id},
+            {"$set": update_data}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Responsável não encontrado"
+            )
+    
+    updated_guardian = await db.guardians.find_one({"id": guardian_id}, {"_id": 0})
+    return Guardian(**updated_guardian)
+
+@api_router.delete("/guardians/{guardian_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_guardian(guardian_id: str, request: Request):
+    """Deleta responsável"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    result = await db.guardians.delete_one({"id": guardian_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Responsável não encontrado"
+        )
+    
+    return None
+
+# ============= ENROLLMENT (MATRÍCULA) ROUTES =============
+
+@api_router.post("/enrollments", response_model=Enrollment, status_code=status.HTTP_201_CREATED)
+async def create_enrollment(enrollment_data: EnrollmentCreate, request: Request):
+    """Cria nova matrícula"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    enrollment_obj = Enrollment(**enrollment_data.model_dump())
+    doc = enrollment_obj.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    
+    await db.enrollments.insert_one(doc)
+    
+    return enrollment_obj
+
+@api_router.get("/enrollments", response_model=List[Enrollment])
+async def list_enrollments(request: Request, student_id: Optional[str] = None, class_id: Optional[str] = None, skip: int = 0, limit: int = 100):
+    """Lista matrículas"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    filter_query = {}
+    if student_id:
+        filter_query['student_id'] = student_id
+    if class_id:
+        filter_query['class_id'] = class_id
+    
+    enrollments = await db.enrollments.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+    
+    return enrollments
+
+@api_router.get("/enrollments/{enrollment_id}", response_model=Enrollment)
+async def get_enrollment(enrollment_id: str, request: Request):
+    """Busca matrícula por ID"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    enrollment_doc = await db.enrollments.find_one({"id": enrollment_id}, {"_id": 0})
+    
+    if not enrollment_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Matrícula não encontrada"
+        )
+    
+    return Enrollment(**enrollment_doc)
+
+@api_router.put("/enrollments/{enrollment_id}", response_model=Enrollment)
+async def update_enrollment(enrollment_id: str, enrollment_update: EnrollmentUpdate, request: Request):
+    """Atualiza matrícula"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    update_data = enrollment_update.model_dump(exclude_unset=True)
+    
+    if update_data:
+        result = await db.enrollments.update_one(
+            {"id": enrollment_id},
+            {"$set": update_data}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Matrícula não encontrada"
+            )
+    
+    updated_enrollment = await db.enrollments.find_one({"id": enrollment_id}, {"_id": 0})
+    return Enrollment(**updated_enrollment)
+
+@api_router.delete("/enrollments/{enrollment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_enrollment(enrollment_id: str, request: Request):
+    """Deleta matrícula"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    result = await db.enrollments.delete_one({"id": enrollment_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Matrícula não encontrada"
+        )
+    
+    return None
+
 # ============= HEALTH CHECK =============
 
 @api_router.get("/")
