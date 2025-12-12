@@ -1297,7 +1297,8 @@ export const SchoolsComplete = () => {
     renderInfraestrutura(),
     renderDependencias(),
     renderEquipamentos(),
-    renderDadosEnsino()
+    renderDadosEnsino(),
+    renderTurmas()
   ];
 
   return (
