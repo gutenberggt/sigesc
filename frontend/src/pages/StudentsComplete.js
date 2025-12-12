@@ -252,6 +252,17 @@ export function StudentsComplete() {
           // Pydantic validation errors
           errorMessage = detail.map(err => {
             const field = err.loc?.join('.') || 'Campo';
+            return `${field}: ${err.msg}`;
+          }).join('; ');
+        } else if (typeof detail === 'string') {
+          errorMessage = detail;
+        } else if (typeof detail === 'object' && detail.msg) {
+          errorMessage = detail.msg;
+        }
+      }
+      showAlert('error', errorMessage);
+      console.error(error);
+    } finally {
       setSubmitting(false);
     }
   };
