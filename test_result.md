@@ -109,9 +109,9 @@ frontend:
     implemented: true
     working: "NA"
     file: "/app/frontend/src/pages/StudentsComplete.js"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "testing"
