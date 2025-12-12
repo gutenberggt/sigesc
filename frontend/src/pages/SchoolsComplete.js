@@ -131,6 +131,7 @@ export const SchoolsComplete = () => {
     fundamental_anos_finais: false,
     ensino_medio: false,
     eja: false,
+    eja_final: false,
     aee: false,
     atendimento_integral: false,
     reforco_escolar: false,
@@ -138,6 +139,32 @@ export const SchoolsComplete = () => {
     turnos_funcionamento: [],
     organizacao_turmas: '',
     tipo_avaliacao: '',
+    
+    // Sub-níveis Educação Infantil
+    educacao_infantil_bercario: false,
+    educacao_infantil_maternal_i: false,
+    educacao_infantil_maternal_ii: false,
+    educacao_infantil_pre_i: false,
+    educacao_infantil_pre_ii: false,
+    
+    // Sub-níveis Fundamental Inicial
+    fundamental_inicial_1ano: false,
+    fundamental_inicial_2ano: false,
+    fundamental_inicial_3ano: false,
+    fundamental_inicial_4ano: false,
+    fundamental_inicial_5ano: false,
+    
+    // Sub-níveis Fundamental Final
+    fundamental_final_6ano: false,
+    fundamental_final_7ano: false,
+    fundamental_final_8ano: false,
+    fundamental_final_9ano: false,
+    
+    // Sub-níveis EJA
+    eja_inicial_1etapa: false,
+    eja_inicial_2etapa: false,
+    eja_final_3etapa: false,
+    eja_final_4etapa: false,
     
     // Espaços Escolares
     possui_quadra_esportiva: false,
