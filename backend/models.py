@@ -361,7 +361,7 @@ class StudentBase(BaseModel):
     inep_code: Optional[str] = None  # Código INEP do aluno
     
     # === DADOS PESSOAIS ===
-    full_name: str
+    full_name: Optional[str] = None
     birth_date: Optional[str] = None  # dd/mm/aaaa
     sex: Optional[Literal['masculino', 'feminino']] = None
     nationality: Optional[str] = 'Brasileira'
