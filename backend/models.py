@@ -542,16 +542,67 @@ class Student(StudentBase):
 # ============= GUARDIAN MODELS =============
 
 class GuardianBase(BaseModel):
-    user_id: str
+    """Responsável/Guardian - Pessoa responsável por um ou mais alunos"""
+    # Dados pessoais
+    full_name: str
+    cpf: Optional[str] = None
+    rg: Optional[str] = None
+    birth_date: Optional[str] = None
+    
+    # Contato
+    phone: Optional[str] = None
+    cell_phone: Optional[str] = None
+    email: Optional[str] = None
+    
+    # Endereço
+    address: Optional[str] = None
+    address_number: Optional[str] = None
+    address_complement: Optional[str] = None
+    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    
+    # Trabalho
+    occupation: Optional[str] = None
+    workplace: Optional[str] = None
+    work_phone: Optional[str] = None
+    
+    # Vínculo
+    relationship: Literal['pai', 'mae', 'avo', 'tio', 'irmao', 'responsavel', 'outro'] = 'responsavel'
     student_ids: List[str] = []
-    relationship: Literal['pai', 'mae', 'responsavel']
+    user_id: Optional[str] = None  # Se o responsável tem acesso ao portal
+    
+    # Status
+    status: Literal['active', 'inactive'] = 'active'
+    observations: Optional[str] = None
 
 class GuardianCreate(GuardianBase):
     pass
 
 class GuardianUpdate(BaseModel):
+    full_name: Optional[str] = None
+    cpf: Optional[str] = None
+    rg: Optional[str] = None
+    birth_date: Optional[str] = None
+    phone: Optional[str] = None
+    cell_phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    address_number: Optional[str] = None
+    address_complement: Optional[str] = None
+    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    occupation: Optional[str] = None
+    workplace: Optional[str] = None
+    work_phone: Optional[str] = None
+    relationship: Optional[Literal['pai', 'mae', 'avo', 'tio', 'irmao', 'responsavel', 'outro']] = None
     student_ids: Optional[List[str]] = None
-    relationship: Optional[Literal['pai', 'mae', 'responsavel']] = None
+    user_id: Optional[str] = None
+    status: Optional[Literal['active', 'inactive']] = None
+    observations: Optional[str] = None
 
 class Guardian(GuardianBase):
     model_config = ConfigDict(extra="ignore")
