@@ -11,6 +11,7 @@ export const SchoolsComplete = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState(null);
+  const [viewMode, setViewMode] = useState(false);
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
