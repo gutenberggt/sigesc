@@ -60,23 +60,23 @@ export const Dashboard = () => {
     switch (user?.role) {
       case 'admin':
         return [
-          { title: 'Escolas', icon: School, value: '0', color: 'blue' },
-          { title: 'Usuários', icon: Users, value: '1', color: 'green' },
-          { title: 'Turmas', icon: BookOpen, value: '0', color: 'purple' },
-          { title: 'Alunos', icon: GraduationCap, value: '0', color: 'orange' }
+          { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
+          { title: 'Usuários', icon: Users, value: loading ? '...' : stats.users.toString(), color: 'green' },
+          { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple' },
+          { title: 'Alunos', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'orange' }
         ];
       case 'secretario':
         return [
-          { title: 'Alunos', icon: GraduationCap, value: '0', color: 'blue' },
-          { title: 'Turmas', icon: BookOpen, value: '0', color: 'green' },
-          { title: 'Professores', icon: Users, value: '0', color: 'purple' },
+          { title: 'Alunos', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'blue' },
+          { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'green' },
+          { title: 'Professores', icon: Users, value: loading ? '...' : '0', color: 'purple' },
           { title: 'Avisos', icon: Bell, value: '0', color: 'orange' }
         ];
       case 'diretor':
       case 'coordenador':
         return [
-          { title: 'Turmas', icon: BookOpen, value: '0', color: 'blue' },
-          { title: 'Alunos', icon: GraduationCap, value: '0', color: 'green' },
+          { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'blue' },
+          { title: 'Alunos', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
           { title: 'Relatórios', icon: BarChart3, value: '0', color: 'purple' },
           { title: 'Avisos', icon: Bell, value: '0', color: 'orange' }
         ];
@@ -90,9 +90,9 @@ export const Dashboard = () => {
         ];
       case 'semed':
         return [
-          { title: 'Escolas', icon: School, value: '0', color: 'blue' },
-          { title: 'Total Alunos', icon: GraduationCap, value: '0', color: 'green' },
-          { title: 'Total Turmas', icon: BookOpen, value: '0', color: 'purple' },
+          { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
+          { title: 'Total Alunos', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
+          { title: 'Total Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple' },
           { title: 'Relatórios', icon: BarChart3, value: 'Ver', color: 'orange' }
         ];
       default:
