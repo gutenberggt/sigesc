@@ -168,6 +168,16 @@ export const SchoolsComplete = () => {
     }
   };
 
+  const loadClasses = async () => {
+    try {
+      // Assuming there's a classesAPI similar to schoolsAPI
+      // For now, we'll set an empty array as a placeholder
+      setClasses([]);
+    } catch (error) {
+      console.error('Erro ao carregar turmas:', error);
+    }
+  };
+
   const showAlert = (type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 5000);
