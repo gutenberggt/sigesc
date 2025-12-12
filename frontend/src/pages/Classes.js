@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export const Classes = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
   const [schools, setSchools] = useState([]);
   const [loading, setLoading] = useState(true);
