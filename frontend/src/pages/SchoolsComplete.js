@@ -1005,7 +1005,7 @@ export const SchoolsComplete = () => {
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          title={editingSchool ? 'Editar Escola' : 'Nova Escola'}
+          title={viewMode ? 'Visualizar Escola' : (editingSchool ? 'Editar Escola' : 'Nova Escola')}
           size="xl"
         >
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -1020,16 +1020,18 @@ export const SchoolsComplete = () => {
                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                 data-testid="cancel-button"
               >
-                Cancelar
+                {viewMode ? 'Fechar' : 'Cancelar'}
               </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-                data-testid="submit-button"
-              >
-                {submitting ? 'Salvando...' : 'Salvar'}
-              </button>
+              {!viewMode && (
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+                  data-testid="submit-button"
+                >
+                  {submitting ? 'Salvando...' : 'Salvar'}
+                </button>
+              )}
             </div>
           </form>
         </Modal>
