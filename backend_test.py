@@ -1049,10 +1049,11 @@ class SIGESCTester:
             
             # Check for low attendance students (< 75%)
             low_attendance_count = 0
-            for alert in alerts:
-                if alert.get('attendance_percentage', 100) < 75:
-                    low_attendance_count += 1
-                    self.log(f"   Alert: {alert.get('student_name')} - {alert.get('attendance_percentage')}%")
+            if isinstance(alerts, list):
+                for alert in alerts:
+                    if isinstance(alert, dict) and alert.get('attendance_percentage', 100) < 75:
+                        low_attendance_count += 1
+                        self.log(f"   Alert: {alert.get('student_name')} - {alert.get('attendance_percentage')}%")
             
             self.log(f"   Students with low attendance (< 75%): {low_attendance_count}")
             
