@@ -1330,7 +1330,7 @@ async def get_calendar_summary(academic_year: int, request: Request):
     Retorna resumo do calendário letivo para um ano.
     Conta dias letivos, feriados, etc.
     """
-    await AuthMiddleware.require_auth(request)
+    await AuthMiddleware.get_current_user(request)
     
     events = await db.calendar_events.find(
         {"academic_year": academic_year}, 
