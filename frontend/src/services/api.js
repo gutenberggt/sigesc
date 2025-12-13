@@ -359,6 +359,11 @@ export const attendanceAPI = {
     return response.data;
   },
   
+  delete: async (attendanceId) => {
+    const response = await axios.delete(`${API}/attendance/${attendanceId}`);
+    return response.data;
+  },
+  
   getStudentReport: async (studentId, academicYear) => {
     const response = await axios.get(`${API}/attendance/report/student/${studentId}?academic_year=${academicYear}`);
     return response.data;
