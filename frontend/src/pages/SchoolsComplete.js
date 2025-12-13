@@ -1421,7 +1421,8 @@ export function SchoolsComplete() {
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderTurmas = () => {
     // Filtra turmas da escola atual
