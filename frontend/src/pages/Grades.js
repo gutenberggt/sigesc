@@ -278,7 +278,8 @@ export function Grades() {
         b2: item.grade.b2,
         b3: item.grade.b3,
         b4: item.grade.b4,
-        recovery: item.grade.recovery,
+        rec_s1: item.grade.rec_s1,
+        rec_s2: item.grade.rec_s2,
         observations: item.grade.observations
       }));
       
