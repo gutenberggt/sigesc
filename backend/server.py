@@ -846,7 +846,243 @@ async def delete_enrollment(enrollment_id: str, request: Request):
     
     return None
 
-# ============= HEALTH CHECK =============
+# ============= GRADES ROUTES =============
+
+@api_router.get("/grades")
+async def list_grades(
+    request: Request, 
+    student_id: Optional[str] = None,
+    class_id: Optional[str] = None,
+    course_id: Optional[str] = None,
+    academic_year: Optional[int] = None
+):
+    """Lista notas com filtros opcionais"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    filter_query = {}
+    
+    if student_id:
+        filter_query['student_id'] = student_id
+    if class_id:
+        filter_query['class_id'] = class_id
+    if course_id:
+        filter_query['course_id'] = course_id
+    if academic_year:
+        filter_query['academic_year'] = academic_year
+    
+    grades = await db.grades.find(filter_query, {"_id": 0}).to_list(1000)
+    return grades
+
+
+@api_router.get("/grades/by-class/{class_id}/{course_id}")
+async def get_grades_by_class(class_id: str, course_id: str, request: Request, academic_year: Optional[int] = None):
+    """Busca todas as notas de uma turma para um componente curricular"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    if not academic_year:
+        academic_year = datetime.now().year
+    
+    # Busca alunos da turma
+    students = await db.students.find(
+        {"class_id": class_id, "status": "active"},
+        {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1}
+    ).sort("full_name", 1).to_list(1000)
+    
+    # Busca notas existentes
+    grades = await db.grades.find(
+        {"class_id": class_id, "course_id": course_id, "academic_year": academic_year},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    # Mapeia notas por student_id
+    grades_map = {g['student_id']: g for g in grades}
+    
+    # Monta lista com todos os alunos e suas notas
+    result = []
+    for student in students:
+        grade = grades_map.get(student['id'], {
+            'student_id': student['id'],
+            'class_id': class_id,
+            'course_id': course_id,
+            'academic_year': academic_year,
+            'b1': None, 'b2': None, 'b3': None, 'b4': None,
+            'recovery': None, 'final_average': None, 'status': 'cursando'
+        })
+        result.append({
+            'student': student,
+            'grade': grade
+        })
+    
+    return result
+
+
+@api_router.get("/grades/by-student/{student_id}")
+async def get_grades_by_student(student_id: str, request: Request, academic_year: Optional[int] = None):
+    """Busca todas as notas de um aluno"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    if not academic_year:
+        academic_year = datetime.now().year
+    
+    # Busca dados do aluno
+    student = await db.students.find_one({"id": student_id}, {"_id": 0})
+    if not student:
+        raise HTTPException(status_code=404, detail="Aluno não encontrado")
+    
+    # Busca notas do aluno
+    grades = await db.grades.find(
+        {"student_id": student_id, "academic_year": academic_year},
+        {"_id": 0}
+    ).to_list(100)
+    
+    # Busca componentes curriculares para enriquecer dados
+    course_ids = list(set(g['course_id'] for g in grades))
+    courses = await db.courses.find({"id": {"$in": course_ids}}, {"_id": 0}).to_list(100)
+    courses_map = {c['id']: c for c in courses}
+    
+    # Enriquece notas com dados do componente
+    for grade in grades:
+        course = courses_map.get(grade['course_id'], {})
+        grade['course_name'] = course.get('name', 'N/A')
+    
+    return {
+        'student': student,
+        'grades': grades,
+        'academic_year': academic_year
+    }
+
+
+@api_router.post("/grades", response_model=Grade)
+async def create_grade(grade_data: GradeCreate, request: Request):
+    """Cria ou atualiza nota de um aluno"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor'])(request)
+    
+    # Verifica se já existe nota para este aluno/turma/componente/ano
+    existing = await db.grades.find_one({
+        "student_id": grade_data.student_id,
+        "class_id": grade_data.class_id,
+        "course_id": grade_data.course_id,
+        "academic_year": grade_data.academic_year
+    }, {"_id": 0})
+    
+    if existing:
+        # Atualiza nota existente
+        update_data = grade_data.model_dump(exclude_unset=True, exclude={'student_id', 'class_id', 'course_id', 'academic_year'})
+        update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+        
+        await db.grades.update_one(
+            {"id": existing['id']},
+            {"$set": update_data}
+        )
+        
+        # Recalcula média
+        updated = await calculate_and_update_grade(db, existing['id'])
+        return Grade(**updated)
+    
+    # Cria nova nota
+    grade_dict = grade_data.model_dump()
+    grade_dict['id'] = str(uuid.uuid4())
+    grade_dict['created_at'] = datetime.now(timezone.utc).isoformat()
+    grade_dict['final_average'] = None
+    grade_dict['status'] = 'cursando'
+    
+    await db.grades.insert_one(grade_dict)
+    
+    # Calcula média se houver notas
+    if any([grade_data.b1, grade_data.b2, grade_data.b3, grade_data.b4]):
+        updated = await calculate_and_update_grade(db, grade_dict['id'])
+        return Grade(**updated)
+    
+    return Grade(**grade_dict)
+
+
+@api_router.put("/grades/{grade_id}", response_model=Grade)
+async def update_grade(grade_id: str, grade_update: GradeUpdate, request: Request):
+    """Atualiza notas de um aluno"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor'])(request)
+    
+    grade = await db.grades.find_one({"id": grade_id}, {"_id": 0})
+    if not grade:
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    
+    update_data = grade_update.model_dump(exclude_unset=True)
+    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    await db.grades.update_one(
+        {"id": grade_id},
+        {"$set": update_data}
+    )
+    
+    # Recalcula média
+    updated = await calculate_and_update_grade(db, grade_id)
+    return Grade(**updated)
+
+
+@api_router.post("/grades/batch")
+async def update_grades_batch(request: Request, grades: List[dict]):
+    """Atualiza notas em lote (por turma)"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor'])(request)
+    
+    results = []
+    for grade_data in grades:
+        # Verifica se já existe
+        existing = await db.grades.find_one({
+            "student_id": grade_data['student_id'],
+            "class_id": grade_data['class_id'],
+            "course_id": grade_data['course_id'],
+            "academic_year": grade_data['academic_year']
+        }, {"_id": 0})
+        
+        if existing:
+            # Atualiza
+            update_fields = {k: v for k, v in grade_data.items() 
+                          if k in ['b1', 'b2', 'b3', 'b4', 'recovery', 'observations'] and v is not None}
+            update_fields['updated_at'] = datetime.now(timezone.utc).isoformat()
+            
+            await db.grades.update_one(
+                {"id": existing['id']},
+                {"$set": update_fields}
+            )
+            
+            updated = await calculate_and_update_grade(db, existing['id'])
+            results.append(updated)
+        else:
+            # Cria novo
+            new_grade = {
+                'id': str(uuid.uuid4()),
+                'student_id': grade_data['student_id'],
+                'class_id': grade_data['class_id'],
+                'course_id': grade_data['course_id'],
+                'academic_year': grade_data['academic_year'],
+                'b1': grade_data.get('b1'),
+                'b2': grade_data.get('b2'),
+                'b3': grade_data.get('b3'),
+                'b4': grade_data.get('b4'),
+                'recovery': grade_data.get('recovery'),
+                'observations': grade_data.get('observations'),
+                'final_average': None,
+                'status': 'cursando',
+                'created_at': datetime.now(timezone.utc).isoformat()
+            }
+            
+            await db.grades.insert_one(new_grade)
+            updated = await calculate_and_update_grade(db, new_grade['id'])
+            results.append(updated)
+    
+    return {"updated": len(results), "grades": results}
+
+
+@api_router.delete("/grades/{grade_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_grade(grade_id: str, request: Request):
+    """Remove uma nota"""
+    current_user = await AuthMiddleware.require_roles(['admin'])(request)
+    
+    result = await db.grades.delete_one({"id": grade_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    
+    return None
 
 # ============= FILE UPLOAD ROUTES =============
 
