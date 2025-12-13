@@ -8,6 +8,7 @@ import { Users } from '@/pages/Users';
 import { Classes } from '@/pages/Classes';
 import { Courses } from '@/pages/CoursesNew';
 import { StudentsComplete as Students } from '@/pages/StudentsComplete';
+import { Grades } from '@/pages/Grades';
 import '@/App.css';
 
 function App() {
@@ -70,6 +71,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed']}>
                 <Students />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/admin/grades"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'professor', 'semed']}>
+                <Grades />
               </ProtectedRoute>
             }
           />
