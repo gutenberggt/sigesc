@@ -890,6 +890,46 @@ export const Attendance = () => {
             </div>
           </div>
         </Modal>
+        
+        {/* Modal de Confirmação de Exclusão */}
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          title="Excluir Frequência"
+        >
+          <div className="space-y-4">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="text-red-500 mt-0.5" size={20} />
+                <div>
+                  <div className="font-medium text-red-800">Tem certeza que deseja excluir esta frequência?</div>
+                  <div className="text-sm text-red-600 mt-1">
+                    Esta ação não pode ser desfeita. Todos os registros de frequência desta data serão removidos.
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {attendanceData && (
+              <div className="text-sm text-gray-600">
+                <p><strong>Turma:</strong> {attendanceData.class_name}</p>
+                <p><strong>Data:</strong> {formatDate(attendanceData.date)}</p>
+                <p><strong>Alunos:</strong> {attendanceData.students?.length || 0}</p>
+              </div>
+            )}
+            
+            <div className="flex gap-2">
+              <Button 
+                onClick={deleteAttendance} 
+                disabled={deleting}
+                className="flex-1 bg-red-600 hover:bg-red-700"
+              >
+                {deleting ? 'Excluindo...' : 'Sim, Excluir'}
+              </Button>
+              <Button variant="outline" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </Layout>
   );
