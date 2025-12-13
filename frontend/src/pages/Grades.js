@@ -589,7 +589,7 @@ export function Grades() {
                 ) : selectedClass && selectedCourse ? (
                   <div className="text-center py-8 text-gray-500">
                     <BookOpen size={48} className="mx-auto mb-4 text-gray-300" />
-                    <p>Clique em "Carregar Notas" para visualizar</p>
+                    <p>Clique em &quot;Carregar Notas&quot; para visualizar</p>
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
