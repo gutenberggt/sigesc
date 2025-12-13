@@ -182,10 +182,10 @@ export const Staff = () => {
   const loadInitialData = async () => {
     try {
       const [schoolsData, usersData, classesData, coursesData] = await Promise.all([
-        schoolAPI.list(),
+        schoolsAPI.list(),
         usersAPI.list(),
-        classAPI.list(),
-        courseAPI.list()
+        classesAPI.list(),
+        coursesAPI.list()
       ]);
       setSchools(schoolsData);
       setUsers(usersData.filter(u => !['aluno', 'responsavel'].includes(u.role)));
