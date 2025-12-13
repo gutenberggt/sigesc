@@ -311,23 +311,31 @@ const MonthlyView = ({ year, month, events, onDayClick, onEventClick }) => {
 
 // Vista Semanal
 const WeeklyView = ({ startDate, events, onDayClick, onEventClick }) => {
-  const today = new Date().toISOString().split('T')[0];
+  // Formata data de hoje sem problemas de timezone
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   
-  // Gera os 7 dias da semana
+  // Gera os 7 dias da semana (Domingo a Sábado)
   const weekDays = [];
-  const start = new Date(startDate);
+  const start = new Date(startDate + 'T12:00:00'); // Usa meio-dia para evitar problemas de timezone
   
   for (let i = 0; i < 7; i++) {
     const date = new Date(start);
     date.setDate(start.getDate() + i);
-    const dateStr = date.toISOString().split('T')[0];
+    
+    // Formata a data manualmente para evitar problemas de timezone
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const dayOfMonth = date.getDate();
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayOfMonth).padStart(2, '0')}`;
+    
     const dayEvents = events.filter(e => dateStr >= e.start_date && dateStr <= e.end_date);
     
     weekDays.push({
       date: dateStr,
       dayName: WEEKDAYS_FULL[date.getDay()],
-      day: date.getDate(),
-      month: MONTHS[date.getMonth()],
+      day: dayOfMonth,
+      month: MONTHS[month],
       events: dayEvents,
       isToday: dateStr === today
     });
