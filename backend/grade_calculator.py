@@ -1,19 +1,11 @@
 """
-Utilitários para cálculo de notas e recuperação do SIGESC
-
-Sistema de Pesos:
-- B1 × 2 (1º bimestre)
-- B2 × 3 (2º bimestre)
-- B3 × 2 (3º bimestre)
-- B4 × 3 (4º bimestre)
-
-Recuperação:
-- Rec2: após 2º bimestre, substitui a menor entre B1 e B2 (se Rec2 > nota original)
-- Rec4: após 4º bimestre, substitui a menor entre B3 e B4 (se Rec4 > nota original)
-- Em caso de empate, substitui a de maior peso
+Módulo de cálculo de notas do SIGESC
+Fórmula: (B1×2 + B2×3 + B3×2 + B4×3) / 10
+Média mínima para aprovação: 5,0
+Frequência mínima: 75%
 """
 
-from typing import Optional, Tuple
+from typing import Optional, Dict, Tuple
 
 # Pesos dos bimestres
 WEIGHTS = {
@@ -23,128 +15,161 @@ WEIGHTS = {
     'b4': 3
 }
 
-def apply_recovery(b1: Optional[float], b2: Optional[float], 
-                   b3: Optional[float], b4: Optional[float],
-                   rec2: Optional[float], rec4: Optional[float]) -> Tuple[float, float, float, float]:
-    """
-    Aplica recuperação às notas dos bimestres
-    
-    Returns:
-        Tuple com as notas finais (b1_final, b2_final, b3_final, b4_final)
-    """
-    # Inicializa notas finais com as originais (ou 0 se None)
-    b1_final = b1 if b1 is not None else 0
-    b2_final = b2 if b2 is not None else 0
-    b3_final = b3 if b3 is not None else 0
-    b4_final = b4 if b4 is not None else 0
-    
-    # Aplicar Rec2 (substitui menor entre B1 e B2)
-    if rec2 is not None and b1 is not None and b2 is not None:
-        # Identifica a menor nota
-        if b1 < b2:
-            # B1 é menor, substitui se rec2 for maior
-            if rec2 > b1:
-                b1_final = rec2
-        elif b2 < b1:
-            # B2 é menor, substitui se rec2 for maior
-            if rec2 > b2:
-                b2_final = rec2
-        else:
-            # Empate: substitui a de maior peso (B2 tem peso 3, B1 tem peso 2)
-            if rec2 > b2:
-                b2_final = rec2
-    
-    # Aplicar Rec4 (substitui menor entre B3 e B4)
-    if rec4 is not None and b3 is not None and b4 is not None:
-        # Identifica a menor nota
-        if b3 < b4:
-            # B3 é menor, substitui se rec4 for maior
-            if rec4 > b3:
-                b3_final = rec4
-        elif b4 < b3:
-            # B4 é menor, substitui se rec4 for maior
-            if rec4 > b4:
-                b4_final = rec4
-        else:
-            # Empate: substitui a de maior peso (B4 tem peso 3, B3 tem peso 2)
-            if rec4 > b4:
-                b4_final = rec4
-    
-    return b1_final, b2_final, b3_final, b4_final
+# Constantes
+MIN_AVERAGE = 5.0
+MIN_ATTENDANCE = 75.0
 
-def calculate_final_average(b1: Optional[float], b2: Optional[float],
-                            b3: Optional[float], b4: Optional[float],
-                            rec2: Optional[float] = None, 
-                            rec4: Optional[float] = None) -> Optional[float]:
+
+def calculate_weighted_average(b1: Optional[float], b2: Optional[float], 
+                                b3: Optional[float], b4: Optional[float],
+                                recovery: Optional[float] = None) -> Tuple[Optional[float], Dict]:
     """
-    Calcula a média final ponderada aplicando recuperação se necessário
+    Calcula a média ponderada considerando a recuperação.
     
-    Fórmula: (B1×2 + B2×3 + B3×2 + B4×3) / 10
-    
-    Args:
-        b1, b2, b3, b4: Notas dos bimestres (0-10)
-        rec2: Nota de recuperação após 2º bimestre
-        rec4: Nota de recuperação após 4º bimestre
+    A recuperação substitui a menor nota. Se duas notas forem iguais,
+    substitui a de maior peso (B2 ou B4 que têm peso 3).
     
     Returns:
-        Média final ou None se não houver notas suficientes
+        Tuple com (média_final, detalhes do cálculo)
     """
-    # Se não há nenhuma nota, retorna None
-    if all(x is None for x in [b1, b2, b3, b4]):
-        return None
+    grades = {'b1': b1, 'b2': b2, 'b3': b3, 'b4': b4}
     
-    # Aplica recuperação
-    b1_final, b2_final, b3_final, b4_final = apply_recovery(b1, b2, b3, b4, rec2, rec4)
+    # Se não tem todas as notas dos bimestres, retorna None
+    if any(g is None for g in grades.values()):
+        return None, {'incomplete': True, 'message': 'Notas incompletas'}
+    
+    # Aplica recuperação se houver
+    final_grades = grades.copy()
+    recovery_applied = None
+    
+    if recovery is not None:
+        # Encontra a menor nota
+        min_grade = min(grades.values())
+        
+        # Encontra todos os bimestres com a menor nota
+        min_bimesters = [k for k, v in grades.items() if v == min_grade]
+        
+        if len(min_bimesters) == 1:
+            # Apenas um bimestre com a menor nota
+            recovery_applied = min_bimesters[0]
+        else:
+            # Múltiplos bimestres com a mesma nota - escolhe o de maior peso
+            # Prioridade: B2 (peso 3) > B4 (peso 3) > B1 (peso 2) > B3 (peso 2)
+            priority = ['b2', 'b4', 'b1', 'b3']
+            for p in priority:
+                if p in min_bimesters:
+                    recovery_applied = p
+                    break
+        
+        # Aplica a recuperação apenas se for maior que a nota original
+        if recovery > final_grades[recovery_applied]:
+            final_grades[recovery_applied] = recovery
     
     # Calcula média ponderada
-    total_weight = WEIGHTS['b1'] + WEIGHTS['b2'] + WEIGHTS['b3'] + WEIGHTS['b4']
-    weighted_sum = (
-        b1_final * WEIGHTS['b1'] +
-        b2_final * WEIGHTS['b2'] +
-        b3_final * WEIGHTS['b3'] +
-        b4_final * WEIGHTS['b4']
-    )
+    total = sum(final_grades[k] * WEIGHTS[k] for k in final_grades)
+    average = total / sum(WEIGHTS.values())  # Soma dos pesos = 10
     
-    average = weighted_sum / total_weight
-    return round(average, 2)
+    # Arredonda para 1 casa decimal
+    average = round(average, 1)
+    
+    details = {
+        'original_grades': grades,
+        'final_grades': final_grades,
+        'recovery': recovery,
+        'recovery_applied_to': recovery_applied,
+        'average': average,
+        'weights': WEIGHTS
+    }
+    
+    return average, details
 
-def is_approved(final_average: Optional[float], min_average: float = 6.0) -> Optional[bool]:
+
+def determine_status(average: Optional[float], attendance_percentage: Optional[float] = None) -> str:
     """
-    Verifica se o aluno foi aprovado
-    
-    Args:
-        final_average: Média final
-        min_average: Média mínima para aprovação (padrão: 6.0)
+    Determina o status do aluno baseado na média e frequência.
     
     Returns:
-        True se aprovado, False se reprovado, None se média não disponível
+        'cursando': Ainda não tem todas as notas
+        'aprovado': Média >= 5.0 e frequência >= 75%
+        'reprovado_nota': Média < 5.0
+        'reprovado_frequencia': Frequência < 75%
+        'recuperacao': Em recuperação
     """
-    if final_average is None:
+    if average is None:
+        return 'cursando'
+    
+    # Verifica frequência primeiro
+    if attendance_percentage is not None and attendance_percentage < MIN_ATTENDANCE:
+        return 'reprovado_frequencia'
+    
+    # Verifica média
+    if average >= MIN_AVERAGE:
+        return 'aprovado'
+    else:
+        return 'reprovado_nota'
+
+
+def format_grade(value: Optional[float]) -> str:
+    """Formata nota para exibição com vírgula"""
+    if value is None:
+        return '-'
+    return f"{value:.1f}".replace('.', ',')
+
+
+def parse_grade(value: str) -> Optional[float]:
+    """Converte string com vírgula para float"""
+    if not value or value == '-':
+        return None
+    try:
+        return float(value.replace(',', '.'))
+    except ValueError:
+        return None
+
+
+async def calculate_and_update_grade(db, grade_id: str) -> dict:
+    """
+    Calcula e atualiza a média de uma nota no banco de dados.
+    
+    Args:
+        db: Conexão com MongoDB
+        grade_id: ID da nota a ser atualizada
+        
+    Returns:
+        Nota atualizada
+    """
+    from datetime import datetime, timezone
+    
+    grade = await db.grades.find_one({"id": grade_id}, {"_id": 0})
+    if not grade:
         return None
     
-    return final_average >= min_average
-
-def calculate_and_update_grade(grade_data: dict, min_average: float = 6.0) -> dict:
-    """
-    Calcula média final e status de aprovação para um registro de nota
-    
-    Args:
-        grade_data: Dicionário com as notas (b1, b2, b3, b4, rec2, rec4)
-        min_average: Média mínima para aprovação
-    
-    Returns:
-        Dicionário atualizado com final_average e approved
-    """
-    final_avg = calculate_final_average(
-        grade_data.get('b1'),
-        grade_data.get('b2'),
-        grade_data.get('b3'),
-        grade_data.get('b4'),
-        grade_data.get('rec2'),
-        grade_data.get('rec4')
+    # Calcula média
+    average, details = calculate_weighted_average(
+        grade.get('b1'),
+        grade.get('b2'),
+        grade.get('b3'),
+        grade.get('b4'),
+        grade.get('recovery')
     )
     
-    grade_data['final_average'] = final_avg
-    grade_data['approved'] = is_approved(final_avg, min_average)
+    # Busca frequência do aluno (se existir)
+    attendance_percentage = None
+    # TODO: Implementar busca de frequência quando o módulo de frequência estiver pronto
     
-    return grade_data
+    # Determina status
+    status = determine_status(average, attendance_percentage)
+    
+    # Atualiza no banco
+    update_data = {
+        'final_average': average,
+        'status': status,
+        'updated_at': datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.grades.update_one(
+        {"id": grade_id},
+        {"$set": update_data}
+    )
+    
+    updated_grade = await db.grades.find_one({"id": grade_id}, {"_id": 0})
+    return updated_grade
