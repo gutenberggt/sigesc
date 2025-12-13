@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -11,27 +11,28 @@ import {
   Edit,
   Trash2,
   Eye,
-  ChevronDown,
-  ChevronUp,
-  BookOpen,
-  MapPin,
-  Clock,
   AlertTriangle,
-  CheckCircle,
   XCircle,
   ArrowLeft,
   GraduationCap,
   Briefcase,
-  Calendar
+  Plus,
+  Minus,
+  Phone,
+  Camera,
+  User
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { staffAPI, schoolAssignmentAPI, teacherAssignmentAPI, schoolsAPI, usersAPI, classesAPI, coursesAPI } from '@/services/api';
+import { staffAPI, schoolAssignmentAPI, teacherAssignmentAPI, schoolsAPI, classesAPI, coursesAPI } from '@/services/api';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const CARGOS = {
   professor: 'Professor',
   diretor: 'Diretor',
   coordenador: 'Coordenador',
   secretario: 'Secretário',
+  auxiliar_secretaria: 'Auxiliar de Secretaria',
   auxiliar: 'Auxiliar Administrativo',
   merendeira: 'Merendeira',
   zelador: 'Zelador',
@@ -55,6 +56,21 @@ const TIPOS_VINCULO = {
   comissionado: 'Comissionado'
 };
 
+const SEXOS = {
+  masculino: 'Masculino',
+  feminino: 'Feminino',
+  outro: 'Outro'
+};
+
+const COR_RACA = {
+  branca: 'Branca',
+  preta: 'Preta',
+  parda: 'Parda',
+  amarela: 'Amarela',
+  indigena: 'Indígena',
+  nao_declarado: 'Não Declarado'
+};
+
 const FUNCOES = {
   professor: 'Professor',
   diretor: 'Diretor',
@@ -75,12 +91,12 @@ export const Staff = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const academicYear = new Date().getFullYear();
+  const fileInputRef = useRef(null);
   
   // Estados principais
   const [loading, setLoading] = useState(true);
   const [staffList, setStaffList] = useState([]);
   const [schools, setSchools] = useState([]);
-  const [users, setUsers] = useState([]);
   const [classes, setClasses] = useState([]);
   const [courses, setCourses] = useState([]);
   
@@ -91,7 +107,7 @@ export const Staff = () => {
   const [filterSchool, setFilterSchool] = useState('');
   
   // Abas
-  const [activeTab, setActiveTab] = useState('servidores'); // servidores, lotacoes, alocacoes
+  const [activeTab, setActiveTab] = useState('servidores');
   
   // Modais
   const [showStaffModal, setShowStaffModal] = useState(false);
@@ -104,29 +120,42 @@ export const Staff = () => {
   const [editingStaff, setEditingStaff] = useState(null);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleteType, setDeleteType] = useState(''); // staff, lotacao, alocacao
+  const [deleteType, setDeleteType] = useState('');
   
   // Lotações e Alocações
   const [lotacoes, setLotacoes] = useState([]);
   const [alocacoes, setAlocacoes] = useState([]);
   
-  // Form states
+  // Form states - Servidor
   const [staffForm, setStaffForm] = useState({
-    user_id: '',
-    matricula: '',
+    nome: '',
+    foto_url: '',
+    data_nascimento: '',
+    sexo: '',
+    cor_raca: '',
+    celular: '',
+    email: '',
     cargo: 'professor',
     cargo_especifico: '',
     tipo_vinculo: 'efetivo',
     data_admissao: '',
     carga_horaria_semanal: '',
-    formacao: '',
-    especializacao: '',
+    formacoes: [],
+    especializacoes: [],
     status: 'ativo',
     motivo_afastamento: '',
     data_afastamento: '',
     previsao_retorno: '',
     observacoes: ''
   });
+  
+  // Campos temporários para formação/especialização
+  const [novaFormacao, setNovaFormacao] = useState('');
+  const [novaEspecializacao, setNovaEspecializacao] = useState('');
+  
+  // Preview da foto
+  const [fotoPreview, setFotoPreview] = useState(null);
+  const [fotoFile, setFotoFile] = useState(null);
   
   const [lotacaoForm, setLotacaoForm] = useState({
     staff_id: '',
@@ -181,14 +210,12 @@ export const Staff = () => {
   
   const loadInitialData = async () => {
     try {
-      const [schoolsData, usersData, classesData, coursesData] = await Promise.all([
+      const [schoolsData, classesData, coursesData] = await Promise.all([
         schoolsAPI.list(),
-        usersAPI.list(),
         classesAPI.list(),
         coursesAPI.list()
       ]);
       setSchools(schoolsData);
-      setUsers(usersData.filter(u => !['aluno', 'responsavel'].includes(u.role)));
       setClasses(classesData);
       setCourses(coursesData);
     } catch (error) {
@@ -252,19 +279,13 @@ export const Staff = () => {
   const filteredStaff = useMemo(() => {
     return staffList.filter(s => {
       const matchesSearch = !searchTerm || 
-        s.user?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.matricula?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCargo = !filterCargo || s.cargo === filterCargo;
       const matchesStatus = !filterStatus || s.status === filterStatus;
       return matchesSearch && matchesCargo && matchesStatus;
     });
   }, [staffList, searchTerm, filterCargo, filterStatus]);
-  
-  // Usuários disponíveis (sem cadastro de servidor)
-  const availableUsers = useMemo(() => {
-    const staffUserIds = staffList.map(s => s.user_id);
-    return users.filter(u => !staffUserIds.includes(u.id));
-  }, [users, staffList]);
   
   // Professores para alocação
   const professors = useMemo(() => {
@@ -277,47 +298,123 @@ export const Staff = () => {
     return classes.filter(c => c.school_id === alocacaoForm.school_id);
   }, [classes, alocacaoForm.school_id]);
   
+  // Formatar celular para WhatsApp
+  const formatWhatsAppLink = (celular) => {
+    if (!celular) return null;
+    const numero = celular.replace(/\D/g, '');
+    const numeroCompleto = numero.startsWith('55') ? numero : `55${numero}`;
+    return `https://wa.me/${numeroCompleto}`;
+  };
+  
+  // Handlers de foto
+  const handleFotoClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const handleFotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setFotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFotoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  // Handlers de formação
+  const addFormacao = () => {
+    if (novaFormacao.trim()) {
+      setStaffForm({
+        ...staffForm,
+        formacoes: [...(staffForm.formacoes || []), novaFormacao.trim()]
+      });
+      setNovaFormacao('');
+    }
+  };
+  
+  const removeFormacao = (index) => {
+    const newFormacoes = [...staffForm.formacoes];
+    newFormacoes.splice(index, 1);
+    setStaffForm({ ...staffForm, formacoes: newFormacoes });
+  };
+  
+  const addEspecializacao = () => {
+    if (novaEspecializacao.trim()) {
+      setStaffForm({
+        ...staffForm,
+        especializacoes: [...(staffForm.especializacoes || []), novaEspecializacao.trim()]
+      });
+      setNovaEspecializacao('');
+    }
+  };
+  
+  const removeEspecializacao = (index) => {
+    const newEspecializacoes = [...staffForm.especializacoes];
+    newEspecializacoes.splice(index, 1);
+    setStaffForm({ ...staffForm, especializacoes: newEspecializacoes });
+  };
+  
   // ===== HANDLERS =====
   
   const handleNewStaff = () => {
     setEditingStaff(null);
     setStaffForm({
-      user_id: '',
-      matricula: '',
+      nome: '',
+      foto_url: '',
+      data_nascimento: '',
+      sexo: '',
+      cor_raca: '',
+      celular: '',
+      email: '',
       cargo: 'professor',
       cargo_especifico: '',
       tipo_vinculo: 'efetivo',
       data_admissao: '',
       carga_horaria_semanal: '',
-      formacao: '',
-      especializacao: '',
+      formacoes: [],
+      especializacoes: [],
       status: 'ativo',
       motivo_afastamento: '',
       data_afastamento: '',
       previsao_retorno: '',
       observacoes: ''
     });
+    setFotoPreview(null);
+    setFotoFile(null);
+    setNovaFormacao('');
+    setNovaEspecializacao('');
     setShowStaffModal(true);
   };
   
   const handleEditStaff = (staff) => {
     setEditingStaff(staff);
     setStaffForm({
-      user_id: staff.user_id,
-      matricula: staff.matricula || '',
+      nome: staff.nome || '',
+      foto_url: staff.foto_url || '',
+      data_nascimento: staff.data_nascimento || '',
+      sexo: staff.sexo || '',
+      cor_raca: staff.cor_raca || '',
+      celular: staff.celular || '',
+      email: staff.email || '',
       cargo: staff.cargo || 'professor',
       cargo_especifico: staff.cargo_especifico || '',
       tipo_vinculo: staff.tipo_vinculo || 'efetivo',
       data_admissao: staff.data_admissao || '',
       carga_horaria_semanal: staff.carga_horaria_semanal || '',
-      formacao: staff.formacao || '',
-      especializacao: staff.especializacao || '',
+      formacoes: staff.formacoes || [],
+      especializacoes: staff.especializacoes || [],
       status: staff.status || 'ativo',
       motivo_afastamento: staff.motivo_afastamento || '',
       data_afastamento: staff.data_afastamento || '',
       previsao_retorno: staff.previsao_retorno || '',
       observacoes: staff.observacoes || ''
     });
+    setFotoPreview(staff.foto_url ? `${API_URL}${staff.foto_url}` : null);
+    setFotoFile(null);
+    setNovaFormacao('');
+    setNovaEspecializacao('');
     setShowStaffModal(true);
   };
   
@@ -333,8 +430,8 @@ export const Staff = () => {
   };
   
   const handleSaveStaff = async () => {
-    if (!staffForm.user_id || !staffForm.matricula || !staffForm.cargo) {
-      showAlertMessage('error', 'Preencha os campos obrigatórios');
+    if (!staffForm.nome || !staffForm.cargo) {
+      showAlertMessage('error', 'Preencha os campos obrigatórios (Nome e Cargo)');
       return;
     }
     
@@ -345,12 +442,22 @@ export const Staff = () => {
         carga_horaria_semanal: staffForm.carga_horaria_semanal ? parseInt(staffForm.carga_horaria_semanal) : null
       };
       
+      let savedStaff;
       if (editingStaff) {
-        await staffAPI.update(editingStaff.id, data);
+        savedStaff = await staffAPI.update(editingStaff.id, data);
         showAlertMessage('success', 'Servidor atualizado!');
       } else {
-        await staffAPI.create(data);
-        showAlertMessage('success', 'Servidor cadastrado!');
+        savedStaff = await staffAPI.create(data);
+        showAlertMessage('success', `Servidor cadastrado! Matrícula: ${savedStaff.matricula}`);
+      }
+      
+      // Upload da foto se houver
+      if (fotoFile && savedStaff?.id) {
+        try {
+          await staffAPI.uploadPhoto(savedStaff.id, fotoFile);
+        } catch (photoError) {
+          console.error('Erro ao fazer upload da foto:', photoError);
+        }
       }
       
       setShowStaffModal(false);
@@ -637,34 +744,62 @@ export const Staff = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Servidor</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Matrícula</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Foto</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cargo</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vínculo</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Celular</th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredStaff.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                        <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                           Nenhum servidor encontrado
                         </td>
                       </tr>
                     ) : filteredStaff.map(staff => (
                       <tr key={staff.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
-                          <div className="font-medium text-gray-900">{staff.user?.full_name || '-'}</div>
-                          <div className="text-sm text-gray-500">{staff.user?.email}</div>
+                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                            {staff.foto_url ? (
+                              <img 
+                                src={`${API_URL}${staff.foto_url}`} 
+                                alt={staff.nome}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <User size={20} className="text-gray-400" />
+                            )}
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-gray-700">{staff.matricula}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-gray-900">{staff.nome}</div>
+                          <div className="text-xs text-gray-500">Mat: {staff.matricula}</div>
+                        </td>
                         <td className="px-4 py-3 text-gray-700">{CARGOS[staff.cargo] || staff.cargo}</td>
                         <td className="px-4 py-3 text-gray-700">{TIPOS_VINCULO[staff.tipo_vinculo] || staff.tipo_vinculo}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_SERVIDOR[staff.status]?.color || 'bg-gray-100'}`}>
                             {STATUS_SERVIDOR[staff.status]?.label || staff.status}
                           </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {staff.celular ? (
+                            <a
+                              href={formatWhatsAppLink(staff.celular)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-green-600 hover:text-green-700"
+                            >
+                              <Phone size={14} />
+                              <span className="text-sm">{staff.celular}</span>
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex justify-center gap-2">
@@ -743,7 +878,7 @@ export const Staff = () => {
                     ) : lotacoes.map(lot => (
                       <tr key={lot.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
-                          <div className="font-medium text-gray-900">{lot.staff?.user_name || '-'}</div>
+                          <div className="font-medium text-gray-900">{lot.staff?.nome || lot.staff?.user_name || '-'}</div>
                           <div className="text-sm text-gray-500">{lot.staff?.matricula}</div>
                         </td>
                         <td className="px-4 py-3 text-gray-700">{lot.school_name}</td>
@@ -856,36 +991,121 @@ export const Staff = () => {
           size="lg"
         >
           <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-            {/* Usuário */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Usuário *</label>
-              <select
-                value={staffForm.user_id}
-                onChange={(e) => setStaffForm({ ...staffForm, user_id: e.target.value })}
-                disabled={!!editingStaff}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            {/* Foto */}
+            <div className="flex justify-center">
+              <div 
+                onClick={handleFotoClick}
+                className="w-24 h-24 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:bg-gray-50 overflow-hidden"
               >
-                <option value="">Selecione o usuário</option>
-                {(editingStaff ? users : availableUsers).map(u => (
-                  <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>
-                ))}
-              </select>
+                {fotoPreview ? (
+                  <img src={fotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="text-center">
+                    <Camera size={24} className="mx-auto text-gray-400" />
+                    <span className="text-xs text-gray-500">Adicionar foto</span>
+                  </div>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFotoChange}
+                className="hidden"
+              />
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              {/* Matrícula */}
+            {/* Nome */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
+              <input
+                type="text"
+                value={staffForm.nome}
+                onChange={(e) => setStaffForm({ ...staffForm, nome: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Nome completo do servidor"
+              />
+            </div>
+            
+            {/* Matrícula (apenas visualização se editando) */}
+            {editingStaff && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Matrícula *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Matrícula</label>
                 <input
                   type="text"
-                  value={staffForm.matricula}
-                  onChange={(e) => setStaffForm({ ...staffForm, matricula: e.target.value })}
+                  value={editingStaff.matricula}
+                  disabled
+                  className="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-600"
+                />
+                <p className="text-xs text-gray-500 mt-1">Matrícula gerada automaticamente</p>
+              </div>
+            )}
+            
+            {/* Dados pessoais */}
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
+                <input
+                  type="date"
+                  value={staffForm.data_nascimento}
+                  onChange={(e) => setStaffForm({ ...staffForm, data_nascimento: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: 12345"
                 />
               </div>
-              
-              {/* Cargo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
+                <select
+                  value={staffForm.sexo}
+                  onChange={(e) => setStaffForm({ ...staffForm, sexo: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Selecione</option>
+                  {Object.entries(SEXOS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cor/Raça</label>
+                <select
+                  value={staffForm.cor_raca}
+                  onChange={(e) => setStaffForm({ ...staffForm, cor_raca: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Selecione</option>
+                  {Object.entries(COR_RACA).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            {/* Contato */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Celular</label>
+                <input
+                  type="text"
+                  value={staffForm.celular}
+                  onChange={(e) => setStaffForm({ ...staffForm, celular: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="(99) 99999-9999"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                <input
+                  type="email"
+                  value={staffForm.email}
+                  onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+            </div>
+            
+            {/* Dados funcionais */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Cargo *</label>
                 <select
@@ -898,10 +1118,6 @@ export const Staff = () => {
                   ))}
                 </select>
               </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              {/* Tipo Vínculo */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Vínculo</label>
                 <select
@@ -914,8 +1130,9 @@ export const Staff = () => {
                   ))}
                 </select>
               </div>
-              
-              {/* Data Admissão */}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Data de Admissão</label>
                 <input
@@ -925,10 +1142,6 @@ export const Staff = () => {
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              {/* Carga Horária */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Carga Horária Semanal</label>
                 <input
@@ -939,8 +1152,9 @@ export const Staff = () => {
                   placeholder="Ex: 40"
                 />
               </div>
-              
-              {/* Status */}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select
@@ -955,31 +1169,77 @@ export const Staff = () => {
               </div>
             </div>
             
-            {/* Campos de Professor */}
-            {staffForm.cargo === 'professor' && (
-              <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Formação</label>
-                  <input
-                    type="text"
-                    value={staffForm.formacao}
-                    onChange={(e) => setStaffForm({ ...staffForm, formacao: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ex: Licenciatura em Matemática"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Especialização</label>
-                  <input
-                    type="text"
-                    value={staffForm.especializacao}
-                    onChange={(e) => setStaffForm({ ...staffForm, especializacao: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="Ex: Pós em Educação"
-                  />
-                </div>
+            {/* Formações - com botão de adicionar/remover */}
+            <div className="p-4 bg-blue-50 rounded-lg space-y-3">
+              <h4 className="font-medium text-blue-900">Formação Acadêmica</h4>
+              
+              {/* Adicionar formação */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={novaFormacao}
+                  onChange={(e) => setNovaFormacao(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFormacao())}
+                  className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: Licenciatura em Matemática"
+                />
+                <Button type="button" onClick={addFormacao} size="sm">
+                  <Plus size={16} />
+                </Button>
               </div>
-            )}
+              
+              {/* Lista de formações */}
+              {staffForm.formacoes?.length > 0 && (
+                <div className="space-y-1">
+                  {staffForm.formacoes.map((f, idx) => (
+                    <div key={idx} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded border">
+                      <span className="flex-1 text-sm">{f}</span>
+                      <button 
+                        type="button"
+                        onClick={() => removeFormacao(idx)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Minus size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Adicionar especialização */}
+              <h4 className="font-medium text-blue-900 pt-2">Especializações</h4>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={novaEspecializacao}
+                  onChange={(e) => setNovaEspecializacao(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addEspecializacao())}
+                  className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: Pós-graduação em Educação Especial"
+                />
+                <Button type="button" onClick={addEspecializacao} size="sm">
+                  <Plus size={16} />
+                </Button>
+              </div>
+              
+              {/* Lista de especializações */}
+              {staffForm.especializacoes?.length > 0 && (
+                <div className="space-y-1">
+                  {staffForm.especializacoes.map((e, idx) => (
+                    <div key={idx} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded border">
+                      <span className="flex-1 text-sm">{e}</span>
+                      <button 
+                        type="button"
+                        onClick={() => removeEspecializacao(idx)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Minus size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             
             {/* Campos de Afastamento */}
             {['afastado', 'licenca'].includes(staffForm.status) && (
@@ -1027,6 +1287,15 @@ export const Staff = () => {
               />
             </div>
             
+            {/* Nota sobre matrícula */}
+            {!editingStaff && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800">
+                  <strong>Nota:</strong> A matrícula será gerada automaticamente após salvar.
+                </p>
+              </div>
+            )}
+            
             {/* Botões */}
             <div className="flex gap-2 pt-4 border-t">
               <Button onClick={handleSaveStaff} disabled={saving} className="flex-1">
@@ -1055,7 +1324,7 @@ export const Staff = () => {
                 <option value="">Selecione o servidor</option>
                 {staffList.filter(s => s.status === 'ativo').map(s => (
                   <option key={s.id} value={s.id}>
-                    {s.user?.full_name} - {s.matricula} ({CARGOS[s.cargo]})
+                    {s.nome} - {s.matricula} ({CARGOS[s.cargo]})
                   </option>
                 ))}
               </select>
@@ -1077,7 +1346,6 @@ export const Staff = () => {
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              {/* Função */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Função</label>
                 <select
@@ -1090,8 +1358,6 @@ export const Staff = () => {
                   ))}
                 </select>
               </div>
-              
-              {/* Turno */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Turno</label>
                 <select
@@ -1108,7 +1374,6 @@ export const Staff = () => {
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              {/* Data Início */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Data Início *</label>
                 <input
@@ -1118,8 +1383,6 @@ export const Staff = () => {
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              
-              {/* Carga Horária */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Carga Horária</label>
                 <input
@@ -1132,7 +1395,6 @@ export const Staff = () => {
               </div>
             </div>
             
-            {/* Botões */}
             <div className="flex gap-2 pt-4 border-t">
               <Button onClick={handleSaveLotacao} disabled={saving} className="flex-1">
                 {saving ? 'Salvando...' : 'Salvar'}
@@ -1149,7 +1411,6 @@ export const Staff = () => {
           title="Nova Alocação de Professor"
         >
           <div className="space-y-4">
-            {/* Professor */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Professor *</label>
               <select
@@ -1160,13 +1421,12 @@ export const Staff = () => {
                 <option value="">Selecione o professor</option>
                 {professors.map(s => (
                   <option key={s.id} value={s.id}>
-                    {s.user?.full_name} - {s.matricula}
+                    {s.nome} - {s.matricula}
                   </option>
                 ))}
               </select>
             </div>
             
-            {/* Escola */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Escola *</label>
               <select
@@ -1181,7 +1441,6 @@ export const Staff = () => {
               </select>
             </div>
             
-            {/* Turma */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Turma *</label>
               <select
@@ -1197,7 +1456,6 @@ export const Staff = () => {
               </select>
             </div>
             
-            {/* Componente */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Componente Curricular *</label>
               <select
@@ -1212,7 +1470,6 @@ export const Staff = () => {
               </select>
             </div>
             
-            {/* Carga Horária */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Carga Horária Semanal</label>
               <input
@@ -1224,7 +1481,6 @@ export const Staff = () => {
               />
             </div>
             
-            {/* Botões */}
             <div className="flex gap-2 pt-4 border-t">
               <Button onClick={handleSaveAlocacao} disabled={saving} className="flex-1">
                 {saving ? 'Salvando...' : 'Salvar'}
@@ -1243,26 +1499,67 @@ export const Staff = () => {
         >
           {selectedStaff && (
             <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-              {/* Info básica */}
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-bold text-lg text-gray-900">{selectedStaff.user?.full_name}</h3>
-                <p className="text-gray-600">{selectedStaff.user?.email}</p>
-                <div className="mt-2 flex gap-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_SERVIDOR[selectedStaff.status]?.color}`}>
-                    {STATUS_SERVIDOR[selectedStaff.status]?.label}
-                  </span>
-                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {CARGOS[selectedStaff.cargo]}
-                  </span>
+              {/* Info básica com foto */}
+              <div className="p-4 bg-gray-50 rounded-lg flex gap-4">
+                <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {selectedStaff.foto_url ? (
+                    <img 
+                      src={`${API_URL}${selectedStaff.foto_url}`} 
+                      alt={selectedStaff.nome}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User size={32} className="text-gray-400" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900">{selectedStaff.nome}</h3>
+                  <p className="text-gray-600">Matrícula: {selectedStaff.matricula}</p>
+                  <div className="mt-2 flex gap-2 flex-wrap">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_SERVIDOR[selectedStaff.status]?.color}`}>
+                      {STATUS_SERVIDOR[selectedStaff.status]?.label}
+                    </span>
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {CARGOS[selectedStaff.cargo]}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Dados pessoais */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-sm text-gray-500">Celular</span>
+                  {selectedStaff.celular ? (
+                    <a
+                      href={formatWhatsAppLink(selectedStaff.celular)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-green-600 hover:text-green-700 font-medium"
+                    >
+                      <Phone size={14} />
+                      {selectedStaff.celular}
+                    </a>
+                  ) : (
+                    <p className="font-medium">-</p>
+                  )}
+                </div>
+                <div>
+                  <span className="text-sm text-gray-500">E-mail</span>
+                  <p className="font-medium">{selectedStaff.email || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-sm text-gray-500">Data de Nascimento</span>
+                  <p className="font-medium">{selectedStaff.data_nascimento || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-sm text-gray-500">Sexo</span>
+                  <p className="font-medium">{SEXOS[selectedStaff.sexo] || '-'}</p>
                 </div>
               </div>
               
               {/* Dados funcionais */}
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="text-sm text-gray-500">Matrícula</span>
-                  <p className="font-medium">{selectedStaff.matricula}</p>
-                </div>
                 <div>
                   <span className="text-sm text-gray-500">Tipo de Vínculo</span>
                   <p className="font-medium">{TIPOS_VINCULO[selectedStaff.tipo_vinculo]}</p>
@@ -1277,23 +1574,33 @@ export const Staff = () => {
                 </div>
               </div>
               
-              {/* Formação (para professores) */}
-              {selectedStaff.cargo === 'professor' && (
+              {/* Formações */}
+              {(selectedStaff.formacoes?.length > 0 || selectedStaff.especializacoes?.length > 0) && (
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
                     <GraduationCap size={18} />
-                    Formação
+                    Formação Acadêmica
                   </h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-sm text-gray-500">Formação</span>
-                      <p className="font-medium">{selectedStaff.formacao || '-'}</p>
+                  {selectedStaff.formacoes?.length > 0 && (
+                    <div className="mb-2">
+                      <span className="text-sm text-gray-600 font-medium">Formações:</span>
+                      <ul className="list-disc list-inside text-sm">
+                        {selectedStaff.formacoes.map((f, i) => (
+                          <li key={i}>{f}</li>
+                        ))}
+                      </ul>
                     </div>
+                  )}
+                  {selectedStaff.especializacoes?.length > 0 && (
                     <div>
-                      <span className="text-sm text-gray-500">Especialização</span>
-                      <p className="font-medium">{selectedStaff.especializacao || '-'}</p>
+                      <span className="text-sm text-gray-600 font-medium">Especializações:</span>
+                      <ul className="list-disc list-inside text-sm">
+                        {selectedStaff.especializacoes.map((e, i) => (
+                          <li key={i}>{e}</li>
+                        ))}
+                      </ul>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
               
@@ -1324,11 +1631,11 @@ export const Staff = () => {
                 </div>
               )}
               
-              {/* Alocações (para professores) */}
+              {/* Alocações */}
               {selectedStaff.alocacoes?.length > 0 && (
                 <div className="p-4 bg-purple-50 rounded-lg">
                   <h4 className="font-medium text-purple-900 mb-2 flex items-center gap-2">
-                    <BookOpen size={18} />
+                    <Briefcase size={18} />
                     Turmas/Componentes
                   </h4>
                   <div className="space-y-2">
