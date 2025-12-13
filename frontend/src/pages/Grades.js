@@ -308,7 +308,7 @@ export function Grades() {
     if (gradeIndex >= 0) {
       newGrades.grades[gradeIndex][field] = value;
       const g = newGrades.grades[gradeIndex];
-      g.final_average = calculateAverage(g.b1, g.b2, g.b3, g.b4, g.recovery);
+      g.final_average = calculateAverage(g.b1, g.b2, g.b3, g.b4, g.rec_s1, g.rec_s2);
       g.status = g.final_average !== null 
         ? (g.final_average >= 5 ? 'aprovado' : 'reprovado_nota')
         : 'cursando';
