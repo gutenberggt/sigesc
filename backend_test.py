@@ -671,6 +671,17 @@ class SIGESCTester:
         """Clean up created test data"""
         self.log("\n🧹 Cleaning up test data...")
         
+        # Delete created grade
+        if self.created_grade_id:
+            response = requests.delete(
+                f"{API_BASE}/grades/{self.created_grade_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            if response.status_code == 204:
+                self.log("✅ Test grade deleted")
+            else:
+                self.log(f"❌ Failed to delete grade: {response.status_code}")
+        
         # Delete created enrollment
         if self.created_enrollment_id:
             response = requests.delete(
