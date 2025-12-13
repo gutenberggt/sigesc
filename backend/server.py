@@ -1183,6 +1183,181 @@ async def health_check():
             }
         )
 
+# ============= CALENDAR EVENTS =============
+
+# Cores padrão para cada tipo de evento
+EVENT_COLORS = {
+    'feriado_nacional': '#EF4444',  # Vermelho
+    'feriado_estadual': '#F97316',  # Laranja
+    'feriado_municipal': '#EAB308',  # Amarelo
+    'sabado_letivo': '#22C55E',  # Verde
+    'recesso_escolar': '#3B82F6',  # Azul
+    'evento_escolar': '#8B5CF6',  # Roxo
+    'outros': '#6B7280'  # Cinza
+}
+
+@api_router.get("/calendar/events")
+async def list_calendar_events(
+    request: Request,
+    academic_year: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    event_type: Optional[str] = None
+):
+    """Lista eventos do calendário com filtros opcionais"""
+    await AuthMiddleware.require_auth(request)
+    
+    query = {}
+    
+    if academic_year:
+        query["academic_year"] = academic_year
+    
+    if start_date and end_date:
+        # Eventos que intersectam com o período
+        query["$or"] = [
+            {"start_date": {"$gte": start_date, "$lte": end_date}},
+            {"end_date": {"$gte": start_date, "$lte": end_date}},
+            {"$and": [{"start_date": {"$lte": start_date}}, {"end_date": {"$gte": end_date}}]}
+        ]
+    elif start_date:
+        query["end_date"] = {"$gte": start_date}
+    elif end_date:
+        query["start_date"] = {"$lte": end_date}
+    
+    if event_type:
+        query["event_type"] = event_type
+    
+    events = await db.calendar_events.find(query, {"_id": 0}).sort("start_date", 1).to_list(1000)
+    return events
+
+@api_router.get("/calendar/events/{event_id}")
+async def get_calendar_event(event_id: str, request: Request):
+    """Obtém um evento específico"""
+    await AuthMiddleware.require_auth(request)
+    
+    event = await db.calendar_events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+    return event
+
+@api_router.post("/calendar/events", status_code=status.HTTP_201_CREATED)
+async def create_calendar_event(event: CalendarEventCreate, request: Request):
+    """Cria um novo evento no calendário"""
+    await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    # Define cor padrão se não fornecida
+    event_dict = event.model_dump()
+    if not event_dict.get('color'):
+        event_dict['color'] = EVENT_COLORS.get(event_dict['event_type'], '#6B7280')
+    
+    new_event = {
+        "id": str(uuid.uuid4()),
+        **event_dict,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.calendar_events.insert_one(new_event)
+    return await db.calendar_events.find_one({"id": new_event["id"]}, {"_id": 0})
+
+@api_router.put("/calendar/events/{event_id}")
+async def update_calendar_event(event_id: str, event: CalendarEventUpdate, request: Request):
+    """Atualiza um evento existente"""
+    await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    existing = await db.calendar_events.find_one({"id": event_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+    
+    update_data = {k: v for k, v in event.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.calendar_events.update_one({"id": event_id}, {"$set": update_data})
+    return await db.calendar_events.find_one({"id": event_id}, {"_id": 0})
+
+@api_router.delete("/calendar/events/{event_id}")
+async def delete_calendar_event(event_id: str, request: Request):
+    """Remove um evento do calendário"""
+    await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    result = await db.calendar_events.delete_one({"id": event_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+    return {"message": "Evento removido com sucesso"}
+
+@api_router.get("/calendar/check-date/{date}")
+async def check_calendar_date(date: str, request: Request):
+    """
+    Verifica se uma data específica é dia letivo ou não.
+    Retorna informações sobre eventos nessa data.
+    """
+    await AuthMiddleware.require_auth(request)
+    
+    # Busca eventos que incluem essa data
+    events = await db.calendar_events.find({
+        "start_date": {"$lte": date},
+        "end_date": {"$gte": date}
+    }, {"_id": 0}).to_list(100)
+    
+    # Determina se é dia letivo
+    is_school_day = True  # Por padrão é dia letivo
+    blocking_events = []
+    enabling_events = []
+    
+    for event in events:
+        if event.get('is_school_day'):
+            enabling_events.append(event)
+        else:
+            blocking_events.append(event)
+            is_school_day = False
+    
+    # Se há sábado letivo habilitando, considera letivo
+    for event in enabling_events:
+        if event.get('event_type') == 'sabado_letivo':
+            is_school_day = True
+            break
+    
+    return {
+        "date": date,
+        "is_school_day": is_school_day,
+        "events": events,
+        "blocking_events": blocking_events,
+        "enabling_events": enabling_events
+    }
+
+@api_router.get("/calendar/summary/{academic_year}")
+async def get_calendar_summary(academic_year: int, request: Request):
+    """
+    Retorna resumo do calendário letivo para um ano.
+    Conta dias letivos, feriados, etc.
+    """
+    await AuthMiddleware.require_auth(request)
+    
+    events = await db.calendar_events.find(
+        {"academic_year": academic_year}, 
+        {"_id": 0}
+    ).to_list(1000)
+    
+    summary = {
+        "academic_year": academic_year,
+        "total_events": len(events),
+        "by_type": {},
+        "school_days_added": 0,  # Sábados letivos
+        "non_school_days": 0  # Feriados/Recessos
+    }
+    
+    for event in events:
+        event_type = event.get('event_type', 'outros')
+        if event_type not in summary["by_type"]:
+            summary["by_type"][event_type] = 0
+        summary["by_type"][event_type] += 1
+        
+        if event.get('is_school_day'):
+            summary["school_days_added"] += 1
+        else:
+            summary["non_school_days"] += 1
+    
+    return summary
+
 # Include the router in the main app
 app.include_router(api_router)
 
