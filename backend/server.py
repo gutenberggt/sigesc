@@ -1205,7 +1205,7 @@ async def list_calendar_events(
     event_type: Optional[str] = None
 ):
     """Lista eventos do calendário com filtros opcionais"""
-    await AuthMiddleware.require_auth(request)
+    await AuthMiddleware.get_current_user(request)
     
     query = {}
     
@@ -1233,7 +1233,7 @@ async def list_calendar_events(
 @api_router.get("/calendar/events/{event_id}")
 async def get_calendar_event(event_id: str, request: Request):
     """Obtém um evento específico"""
-    await AuthMiddleware.require_auth(request)
+    await AuthMiddleware.get_current_user(request)
     
     event = await db.calendar_events.find_one({"id": event_id}, {"_id": 0})
     if not event:
