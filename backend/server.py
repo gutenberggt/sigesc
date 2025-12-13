@@ -1037,7 +1037,7 @@ async def update_grades_batch(request: Request, grades: List[dict]):
         if existing:
             # Atualiza
             update_fields = {k: v for k, v in grade_data.items() 
-                          if k in ['b1', 'b2', 'b3', 'b4', 'recovery', 'observations'] and v is not None}
+                          if k in ['b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2', 'recovery', 'observations'] and v is not None}
             update_fields['updated_at'] = datetime.now(timezone.utc).isoformat()
             
             await db.grades.update_one(
@@ -1059,6 +1059,8 @@ async def update_grades_batch(request: Request, grades: List[dict]):
                 'b2': grade_data.get('b2'),
                 'b3': grade_data.get('b3'),
                 'b4': grade_data.get('b4'),
+                'rec_s1': grade_data.get('rec_s1'),
+                'rec_s2': grade_data.get('rec_s2'),
                 'recovery': grade_data.get('recovery'),
                 'observations': grade_data.get('observations'),
                 'final_average': None,
