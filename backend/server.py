@@ -906,6 +906,7 @@ async def get_grades_by_class(class_id: str, course_id: str, request: Request, a
             'course_id': course_id,
             'academic_year': academic_year,
             'b1': None, 'b2': None, 'b3': None, 'b4': None,
+            'rec_s1': None, 'rec_s2': None,
             'recovery': None, 'final_average': None, 'status': 'cursando'
         })
         result.append({
