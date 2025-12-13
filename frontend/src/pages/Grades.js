@@ -171,14 +171,15 @@ export function Grades() {
   
   // Filtra componentes curriculares baseado na escola, nível de ensino e série/ano da turma
   const filteredCourses = courses.filter(course => {
-    // Deve ser da mesma escola
-    if (course.school_id !== selectedSchool) return false;
+    // Se o componente é global (sem school_id) ou é da mesma escola
+    const matchesSchool = !course.school_id || course.school_id === selectedSchool;
+    if (!matchesSchool) return false;
     
-    // Se não tem turma selecionada, mostra todos da escola
+    // Se não tem turma selecionada, mostra todos os componentes compatíveis
     if (!selectedClassData) return true;
     
-    // Deve ser do mesmo nível de ensino
-    if (course.nivel_ensino !== selectedClassData.education_level) return false;
+    // Deve ser do mesmo nível de ensino (se o componente tiver nível definido)
+    if (course.nivel_ensino && course.nivel_ensino !== selectedClassData.education_level) return false;
     
     // Se o componente não tem séries específicas, aplica a todas do nível
     if (!course.grade_levels || course.grade_levels.length === 0) return true;
