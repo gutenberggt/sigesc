@@ -934,7 +934,150 @@ export function SchoolsComplete() {
     </div>
   );
 
-  const renderDadosEnsino = () => (
+  const renderDadosEnsino = () => {
+    // Modo de visualização - mostra apenas os itens selecionados
+    if (viewMode) {
+      const niveisAtivos = [];
+      
+      // Educação Infantil
+      if (formData.educacao_infantil) {
+        const subniveis = [];
+        if (formData.educacao_infantil_bercario) subniveis.push('Berçário');
+        if (formData.educacao_infantil_maternal_i) subniveis.push('Maternal I');
+        if (formData.educacao_infantil_maternal_ii) subniveis.push('Maternal II');
+        if (formData.educacao_infantil_pre_i) subniveis.push('Pré I');
+        if (formData.educacao_infantil_pre_ii) subniveis.push('Pré II');
+        niveisAtivos.push({
+          nome: 'Educação Infantil',
+          subniveis,
+          cor: 'blue'
+        });
+      }
+      
+      // Fundamental Anos Iniciais
+      if (formData.fundamental_anos_iniciais) {
+        const subniveis = [];
+        if (formData.fundamental_inicial_1ano) subniveis.push('1º Ano');
+        if (formData.fundamental_inicial_2ano) subniveis.push('2º Ano');
+        if (formData.fundamental_inicial_3ano) subniveis.push('3º Ano');
+        if (formData.fundamental_inicial_4ano) subniveis.push('4º Ano');
+        if (formData.fundamental_inicial_5ano) subniveis.push('5º Ano');
+        niveisAtivos.push({
+          nome: 'Ensino Fundamental - Anos Iniciais',
+          subniveis,
+          cor: 'green'
+        });
+      }
+      
+      // Fundamental Anos Finais
+      if (formData.fundamental_anos_finais) {
+        const subniveis = [];
+        if (formData.fundamental_final_6ano) subniveis.push('6º Ano');
+        if (formData.fundamental_final_7ano) subniveis.push('7º Ano');
+        if (formData.fundamental_final_8ano) subniveis.push('8º Ano');
+        if (formData.fundamental_final_9ano) subniveis.push('9º Ano');
+        niveisAtivos.push({
+          nome: 'Ensino Fundamental - Anos Finais',
+          subniveis,
+          cor: 'purple'
+        });
+      }
+      
+      // Ensino Médio
+      if (formData.ensino_medio) {
+        niveisAtivos.push({
+          nome: 'Ensino Médio',
+          subniveis: [],
+          cor: 'red'
+        });
+      }
+      
+      // EJA Anos Iniciais
+      if (formData.eja) {
+        const subniveis = [];
+        if (formData.eja_inicial_1etapa) subniveis.push('1ª Etapa');
+        if (formData.eja_inicial_2etapa) subniveis.push('2ª Etapa');
+        niveisAtivos.push({
+          nome: 'EJA - Anos Iniciais',
+          subniveis,
+          cor: 'yellow'
+        });
+      }
+      
+      // EJA Anos Finais
+      if (formData.eja_final) {
+        const subniveis = [];
+        if (formData.eja_final_3etapa) subniveis.push('3ª Etapa');
+        if (formData.eja_final_4etapa) subniveis.push('4ª Etapa');
+        niveisAtivos.push({
+          nome: 'EJA - Anos Finais',
+          subniveis,
+          cor: 'orange'
+        });
+      }
+      
+      // Atendimentos ativos
+      const atendimentosAtivos = [];
+      if (formData.aee) atendimentosAtivos.push('Atendimento Educacional Especializado - AEE');
+      if (formData.atendimento_integral) atendimentosAtivos.push('Atendimento Integral');
+      if (formData.reforco_escolar) atendimentosAtivos.push('Reforço Escolar');
+      if (formData.aulas_complementares) atendimentosAtivos.push('Aulas Complementares');
+      
+      const corClasses = {
+        blue: 'bg-blue-100 text-blue-800 border-blue-200',
+        green: 'bg-green-100 text-green-800 border-green-200',
+        purple: 'bg-purple-100 text-purple-800 border-purple-200',
+        red: 'bg-red-100 text-red-800 border-red-200',
+        yellow: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+        orange: 'bg-orange-100 text-orange-800 border-orange-200'
+      };
+      
+      return (
+        <div className="space-y-6">
+          <div>
+            <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Níveis de Ensino Oferecidos</h4>
+            {niveisAtivos.length > 0 ? (
+              <div className="space-y-4">
+                {niveisAtivos.map((nivel, idx) => (
+                  <div key={idx} className={`p-4 rounded-lg border ${corClasses[nivel.cor]}`}>
+                    <h5 className="font-semibold mb-2">{nivel.nome}</h5>
+                    {nivel.subniveis.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {nivel.subniveis.map((sub, subIdx) => (
+                          <span key={subIdx} className="px-2 py-1 bg-white/50 rounded text-sm">
+                            {sub}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">Nenhum nível de ensino cadastrado</p>
+            )}
+          </div>
+          
+          <div>
+            <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Atendimentos e Programas</h4>
+            {atendimentosAtivos.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {atendimentosAtivos.map((atend, idx) => (
+                  <span key={idx} className="px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm">
+                    ✓ {atend}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">Nenhum atendimento especial cadastrado</p>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    // Modo de edição - formulário completo
+    return (
     <div className="space-y-6">
       <div>
         <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Níveis de Ensino Oferecidos</h4>
