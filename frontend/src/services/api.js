@@ -214,6 +214,52 @@ export const enrollmentsAPI = {
   }
 };
 
+// ============= GRADES =============
+export const gradesAPI = {
+  getAll: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.student_id) params.append('student_id', filters.student_id);
+    if (filters.class_id) params.append('class_id', filters.class_id);
+    if (filters.course_id) params.append('course_id', filters.course_id);
+    if (filters.academic_year) params.append('academic_year', filters.academic_year);
+    const response = await axios.get(`${API}/grades?${params.toString()}`);
+    return response.data;
+  },
+  
+  getByClass: async (classId, courseId, academicYear = null) => {
+    let url = `${API}/grades/by-class/${classId}/${courseId}`;
+    if (academicYear) url += `?academic_year=${academicYear}`;
+    const response = await axios.get(url);
+    return response.data;
+  },
+  
+  getByStudent: async (studentId, academicYear = null) => {
+    let url = `${API}/grades/by-student/${studentId}`;
+    if (academicYear) url += `?academic_year=${academicYear}`;
+    const response = await axios.get(url);
+    return response.data;
+  },
+  
+  create: async (data) => {
+    const response = await axios.post(`${API}/grades`, data);
+    return response.data;
+  },
+  
+  update: async (id, data) => {
+    const response = await axios.put(`${API}/grades/${id}`, data);
+    return response.data;
+  },
+  
+  updateBatch: async (grades) => {
+    const response = await axios.post(`${API}/grades/batch`, grades);
+    return response.data;
+  },
+  
+  delete: async (id) => {
+    await axios.delete(`${API}/grades/${id}`);
+  }
+};
+
 // ============= FILE UPLOAD =============
 export const uploadAPI = {
   upload: async (file) => {
