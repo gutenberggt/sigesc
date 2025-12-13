@@ -555,11 +555,16 @@ export const Calendar = () => {
     }
   };
   
-  // Início da semana para vista semanal
+  // Início da semana para vista semanal (Domingo)
   const getWeekStart = () => {
     const date = new Date(currentDate);
-    date.setDate(date.getDate() - date.getDay());
-    return date.toISOString().split('T')[0];
+    const day = date.getDay(); // 0 = Domingo, 6 = Sábado
+    date.setDate(date.getDate() - day);
+    // Formata manualmente para evitar problemas de timezone
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const dayOfMonth = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${dayOfMonth}`;
   };
   
   // Handlers
