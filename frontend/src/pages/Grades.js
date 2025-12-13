@@ -753,9 +753,10 @@ export function Grades() {
                               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Componente</th>
                               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">B1 (×2)</th>
                               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">B2 (×3)</th>
+                              <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 1º</th>
                               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">B3 (×2)</th>
                               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">B4 (×3)</th>
-                              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Rec.</th>
+                              <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 2º</th>
                               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Média</th>
                               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
                             </tr>
@@ -778,6 +779,14 @@ export function Grades() {
                                     disabled={!canEdit}
                                   />
                                 </td>
+                                <td className="px-4 py-3 text-center bg-blue-50">
+                                  <GradeInput
+                                    value={grade.rec_s1}
+                                    onChange={(v) => updateStudentGrade(grade.id, grade.course_id, 'rec_s1', v)}
+                                    disabled={!canEdit}
+                                    placeholder="-"
+                                  />
+                                </td>
                                 <td className="px-4 py-3 text-center">
                                   <GradeInput
                                     value={grade.b3}
@@ -792,10 +801,10 @@ export function Grades() {
                                     disabled={!canEdit}
                                   />
                                 </td>
-                                <td className="px-4 py-3 text-center">
+                                <td className="px-4 py-3 text-center bg-blue-50">
                                   <GradeInput
-                                    value={grade.recovery}
-                                    onChange={(v) => updateStudentGrade(grade.id, grade.course_id, 'recovery', v)}
+                                    value={grade.rec_s2}
+                                    onChange={(v) => updateStudentGrade(grade.id, grade.course_id, 'rec_s2', v)}
                                     disabled={!canEdit}
                                     placeholder="-"
                                   />
