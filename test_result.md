@@ -84,7 +84,7 @@ backend:
         comment: "✅ Course model correctly accepts optional school_id and nivel_ensino fields. Global components (school_id=null) working. Components filtered by education level (nivel_ensino: fundamental_anos_iniciais) as expected."
 
 frontend:
-  - task: "Grades Page - Por Turma tab"
+  - task: "Grades Page - Por Turma tab with Two-Recovery System"
     implemented: true
     working: true
     file: "frontend/src/pages/Grades.js"
@@ -98,6 +98,9 @@ frontend:
       - working: true
         agent: "testing"
         comment: "✅ Por Turma tab fully functional. Successfully tested complete flow: login → grades page → school selection (EMEIEF SORRISO DO ARAGUAIA) → class selection (3º Ano A) → component selection (Matemática) → load grades → display student table with Maria da Silva Santos → grade entry (7,0 Brazilian format) → save button enabled. All expected table headers present (Aluno, B1-B4, Rec., Média, Status)."
+      - working: true
+        agent: "testing"
+        comment: "✅ NEW TWO-RECOVERY SYSTEM FULLY IMPLEMENTED AND WORKING! Successfully verified: 1) Table columns in correct order: Aluno | B1 (×2) | B2 (×3) | Rec. 1º | B3 (×2) | B4 (×3) | Rec. 2º | Média | Status, 2) Both recovery columns present with blue highlighting (bg-blue-50, text-blue-600), 3) Login flow working (admin@sigesc.com/password), 4) School/class/component selection working (EMEIEF SORRISO DO ARAGUAIA → 3º Ano A → Matemática), 5) Grade entry functional with Brazilian format, 6) Legend contains recovery explanations for both semesters. Two-recovery system successfully replaces single recovery column."
 
   - task: "Component filtering by education level"
     implemented: true
