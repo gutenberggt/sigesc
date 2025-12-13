@@ -790,7 +790,11 @@ class GradeBase(BaseModel):
     b3: Optional[float] = None  # 3º Bimestre (peso 2)
     b4: Optional[float] = None  # 4º Bimestre (peso 3)
     
-    # Recuperação (substitui menor nota)
+    # Recuperação por semestre (substitui menor nota do semestre)
+    rec_s1: Optional[float] = None  # Recuperação 1º Semestre (B1/B2)
+    rec_s2: Optional[float] = None  # Recuperação 2º Semestre (B3/B4)
+    
+    # Campo legado para compatibilidade
     recovery: Optional[float] = None
     
     # Resultados calculados
