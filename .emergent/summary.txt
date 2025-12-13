@@ -5,112 +5,148 @@ O usuário está desenvolvendo um **SIGESC (Sistema Integrado de Gestão Escolar
 - **Sistema:** Multi-escola, multi-perfil (RBAC).
 - **Tecnologia:** Frontend React (com shadcn/ui), Backend FastAPI, Banco de Dados MongoDB.
 - **Funcionalidades Principais:**
-    - Gestão de Escolas, Usuários, Turmas, Componentes Curriculares, Alunos e Responsáveis.
+    - Gestão de Escolas, Usuários, Turmas, Componentes Curriculares, Alunos.
     - O perfil  deve ter acesso de visualização total, mas sem permissões de edição ou exclusão.
-    - Cadastro de Alunos deve ser um formulário complexo com 6 abas.
-    - **[NOVO]** Importação em massa de alunos a partir de um arquivo Excel.
-    - Lançamento de notas com cálculo de média ponderada.
+    - Cadastro de Alunos deve ser um formulário complexo com múltiplas abas.
+    - Importação em massa de alunos a partir de um arquivo Excel.
+    - **[EM ANDAMENTO]** Lançamento de notas com cálculo de média ponderada.
     - Geração de documentos (Boletins, Declarações).
 - **UI/UX:**
     - Formulários complexos com abas.
     - Dashboards com contadores e links de navegação baseados no perfil do usuário.
     - Ações de Visualizar, Editar e Excluir nas tabelas de dados.
+    - Busca avançada de alunos por nome e CPF com autocomplete.
+    - Upload de arquivos do dispositivo em vez de campos de URL.
+    - Campos de formulário dinâmicos e dependentes (ex: Nível de Ensino -> Série/Etapa).
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-Uma aplicação full-stack funcional com autenticação JWT e RBAC. As Fases 1, 2 e 3 (Cadastros Base, Gestão de Alunos, Responsáveis e Matrículas) estão concluídas. O sistema possui CRUDs e páginas para Escolas, Usuários, Turmas, Componentes Curriculares, Alunos, Responsáveis e Matrículas. A lógica de permissão somente leitura para o perfil  está implementada e funcional. Recentemente, foi adicionada a funcionalidade de importação em massa, e **3.703 alunos** foram importados para a escola Floresta do Araguaia a partir de um arquivo Excel fornecido pelo usuário.
+Uma aplicação full-stack funcional com autenticação JWT e RBAC. As funcionalidades de gestão de Escolas, Usuários e Alunos estão avançadas. A página de Alunos () foi significativamente melhorada com paginação do lado do servidor para lidar com mais de 3700 registros, busca por nome/CPF com autocomplete, e um formulário de cadastro/edição aprimorado que inclui upload de arquivos e campos condicionais. A Fase 4 (Sistema de Notas) foi iniciada, com a criação da página de lançamento de notas, endpoints de API e a lógica de cálculo de média. O formulário de criação de Turmas também foi aprimorado com dropdowns dependentes para Nível de Ensino e Série.
 
 **Last working item**:
-- **Last item agent was working:** O agente concluiu a importação em massa de alunos a partir de um arquivo Excel () solicitado pelo usuário.
-    - **Reasoning:** O usuário forneceu um arquivo com dados de alunos e solicitou sua importação para o sistema. O agente criou um script para automatizar esse processo, limpando e validando os dados (filtrando por CPF e removendo duplicatas) e importando-os em lotes para a API.
-- **Status:** NONE (COMPLETED)
-- **Agent Testing Done:** Y
-- **Which testing method agent to use?** NA
-- **User Testing Done:** Y (O usuário pediu para avançar para o próximo passo após a importação).
+- **Last item agent was working:** O agente estava ajustando o sistema para vincular Componentes Curriculares a níveis de ensino e séries específicas, conforme solicitado pelo usuário. O objetivo é que, na página de Lançamento de Notas, os componentes curriculares disponíveis para seleção sejam filtrados com base na turma (nível de ensino e série) selecionada.
+    - **Reasoning:** O usuário especificou que os componentes para o Fundamental - Anos Iniciais são únicos, enquanto para os Anos Finais podem variar por série. Isso requer uma associação mais granular entre componentes e séries, que o agente começou a implementar.
+- **Status:** IN PROGRESS
+- **Agent Testing Done:** N
+- **Which testing method agent to use?** frontend testing agent
+- **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
 Nenhum problema pendente.
 
 **In progress Task List**:
-Nenhuma tarefa em andamento.
+- **Task 1: Concluir a vinculação de Componentes Curriculares a Séries/Níveis (P0)**
+    - **Where to resume:** O agente atualizou o modelo  no backend e reescreveu a página de cadastro de componentes (). O próximo passo é modificar a página de Lançamento de Notas () para filtrar a lista de componentes curriculares com base na turma selecionada.
+    - **What will be achieved with this?** O lançamento de notas será mais preciso, exibindo apenas as matérias relevantes para cada turma.
+    - **Status:** IN PROGRESS
+    - **Should Test frontend/backend/both after fix?** both
+    - **Blocked on something:** None
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-    - **P0: FASE 4 - Sistema de Notas:** Implementar a interface para lançamento de notas (B1-B4, Recuperação) e o cálculo automático da média ponderada . O agente deve iniciar o planejamento desta fase e solicitar ao usuário os detalhes necessários.
+    - **P0: Finalizar e Testar a Fase 4 - Sistema de Notas:** Após concluir a Task 1, realizar testes completos no fluxo de lançamento e cálculo de notas, incluindo a lógica de recuperação que substitui a menor nota do semestre.
 - **Future Tasks:**
-    - **P1: FASE 5 - Controle de Frequência:** Sistema para registrar faltas.
+    - **P1: FASE 5 - Controle de Frequência:** Sistema para registrar a frequência dos alunos (mínimo de 75% obrigatório).
     - **P2: FASE 6 - Portais de Visualização:** Dashboards específicos para os perfis de Aluno, Responsável e Diretor.
     - **P3: FASE 7 - Sistema de Comunicação:** CRUD de Avisos.
     - **P4: FASE 8 - Geração de Documentos:** Funcionalidade para gerar PDFs (Boletim, Declarações).
 
 **Completed work in this session**
-- **Importação de Alunos em Massa:** Criou a escola Floresta do Araguaia e importou com sucesso 3.703 alunos de um arquivo Excel, validando e limpando os dados durante o processo.
-- **Finalização da Fase 3:**
-    - Adicionou as rotas para as páginas de Responsáveis () e Matrículas () no arquivo .
-    - Adicionou os links de navegação para essas novas páginas no .
-- **Correção de Acesso:** Resolveu um problema de login ao resetar a senha do usuário  para  no banco de dados e corrigir uma dica de senha incorreta na página de login.
-- **Testes de Funcionalidade:** Verificou o funcionamento das páginas de Responsáveis e Matrículas e confirmou que a permissão de somente leitura do perfil  se aplicava corretamente a elas.
+- **Melhorias na Gestão de Alunos ():**
+    - Implementada paginação e busca por nome/CPF com autocomplete para gerenciar 3700+ alunos.
+    - Adicionado campo Número SUS e novas opções de Status do aluno.
+    - Substituídos campos de URL por funcionalidade de upload de arquivos para documentos.
+    - Implementada lógica condicional para seleção do Responsável Legal.
+    - O campo Código/Matrícula tornou-se somente leitura.
+- **Correções de Bugs Críticos:**
+    - Resolvido erro  ao salvar alunos, limpando dados vazios antes do envio.
+    - Corrigido bug que impedia o salvamento da  na edição de um aluno.
+    - Corrigido bug que impedia o salvamento dos Dados do Ensino na edição de uma escola.
+- **Melhorias na Gestão de Escolas ():**
+    - Criada uma visualização limpa que exibe apenas os níveis de ensino e atendimentos que a escola oferece.
+- **Melhorias na Gestão de Turmas ():**
+    - Implementados dropdowns dependentes: Nível de Ensino (filtrado pela escola) e Série/Etapa (filtrado pelo nível de ensino).
+- **Início da Fase 4 - Sistema de Notas:**
+    - Criados modelos, endpoints de API e o  para notas.
+    - Criada a página  com abas Por Turma e Por Aluno.
+    - Adicionado o link Notas no menu principal.
+- **Remoção de Menus:**
+    - Os menus Responsáveis e Matrículas foram removidos do Dashboard e das rotas, conforme solicitado.
 
 **Earlier issues found/mentioned but not fixed**
-- None.
+- **Issue 1:** O usuário acessou uma URL de preview incorreta ( em vez de ), o que causou confusão sobre o estado da aplicação.
+    - **Debug checklist:** Se o problema ocorrer novamente, o agente deve lembrar o usuário da URL correta e talvez adicionar um aviso no topo da página para evitar confusão.
+    - **Why to solve this issue and what will be achieved with this?** Evitará perda de tempo e garantirá que o usuário esteja testando a versão mais recente da aplicação.
+    - **Should Test frontend/backend/both after fix:** frontend
+    - **Is recurring issue?** N
 
 **Known issue recurrence from previous fork**
-- **Issue recurrence in previous fork:** .
-- **Recurrence count:** 0 nesta sessão.
-- **Status:** RESOLVED
-- **Note:** O problema não ocorreu nesta sessão. O padrão de código refatorado parece ter resolvido a questão.
+- None in this session.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Backend:** FastAPI, MongoDB (com ), Pydantic.
-- **Frontend:** React, React Router, Tailwind CSS, shadcn/ui.
-- **Autenticação:** JWT com .
-- **Autorização:** RBAC condicional na UI.
-- **Data Migration:** Scripting em Python com  e  para realizar a importação de dados de um arquivo  para a API.
+- **Backend:** FastAPI, file uploads (, ), Pydantic com  para validação de status.
+- **Frontend:** React (, , ), renderização condicional, formulários complexos, componentes controlados, upload de arquivos com , paginação do lado do servidor, autocomplete para busca.
+- **Arquitetura:** Dropdowns dependentes, separação de lógica de cálculo (backend).
 
 **key DB schema**
-- **students:** Coleção populada com ~3700 registros.
-- **guardians:** 
-- **enrollments:** 
-- **schools:** Contém a nova escola Floresta do Araguaia.
+- **students:** Adicionados campos , , , , .
+- **schools:** Adicionados múltiplos campos booleanos para níveis de ensino (ex: ).
+- **classes:** Adicionado campo .
+- **courses:** Adicionados campos  e .
+- **grades:** Nova coleção com a estrutura .
 
 **changes in tech stack**
 - None.
 
 **All files of reference**
-- **Modificados:**
-    - : Adicionadas rotas para  e .
-    - : Adicionados links para as novas páginas e atualizado o texto de status do sistema.
-    - : Corrigido o texto de dica de senha.
-- **Criados (Temporários/Scripts):**
-    - : Script para ler o Excel e popular o banco de dados de alunos via API.
-    - : Script para corrigir a senha do usuário admin.
-    - : Script para criar a escola Floresta do Araguaia.
+- **Modificados/Reescritos:**
+    - : Atualizado com novos campos e modelos para Notas, Turmas, Componentes Curriculares, Alunos e Escolas.
+    - : Adicionados endpoints para upload de arquivos e CRUD de notas.
+    - : Grandes modificações para implementar paginação, busca, upload e correções de bugs.
+    - : Reescrito para implementar dropdowns dependentes.
+    - : Reescrito para adicionar associação com níveis de ensino e séries.
+    - : Adicionada lógica de paginação.
+    - : Adicionadas funções para os novos endpoints.
+    -  e : Removidos links para Responsáveis/Matrículas e adicionado link para Notas.
+- **Criados:**
+    - : Novo módulo para lógica de cálculo de notas.
+    - : Nova página para lançamento de notas.
 
 **Areas that need refactoring**:
-- None.
+- O arquivo  está com mais de 1500 linhas e contém a lógica da lista, busca, modal, múltiplas abas e submissão. Ele deve ser quebrado em componentes menores (ex: , , ) para melhorar a manutenibilidade.
 
 **key api endpoints**
-- : Usado para a importação em massa.
-- , : Verificados.
-- : Usado para verificar a importação.
+- : Endpoint para upload de arquivos.
+- : Busca notas de um aluno.
+- : Cria/atualiza notas de um aluno em um componente curricular.
+- : Endpoint de atualização de aluno, agora aceitando  e outros campos novos.
+- : Endpoint de atualização de escola, agora aceitando os campos de Dados de Ensino.
+- : Endpoint de atualização de turma, agora aceitando .
 
 **Critical Info for New Agent**
-- O próximo passo é a **Fase 4 - Sistema de Notas**. Inicie planejando esta funcionalidade.
-- A base de dados agora contém um volume significativo de alunos (~3700), o que é ideal para testar as novas funcionalidades de notas e frequência.
-- Todos os itens da Fase 3 (Alunos, Responsáveis, Matrículas) estão concluídos e integrados à navegação do sistema.
+- O foco principal é finalizar a **Task 1** (vincular componentes a séries) e depois testar exaustivamente a **Fase 4 (Sistema de Notas)**.
+- O arquivo  é um ponto crítico da aplicação. Qualquer alteração nele requer cuidado. Considere propor um refatoramento ao usuário após a conclusão da Fase 4.
+- A aplicação agora manipula um volume de dados real (3700+ alunos), então a performance das consultas de frontend e backend é importante. A paginação foi implementada na página de Alunos, e o mesmo padrão pode ser necessário em outras partes do sistema no futuro.
 
 **documents created in this job**
 - None.
 
 **Last 10 User Messages and any pending user messages**
-- **user:**  (The provided link isn't working). -> **ADDRESSED**
-- **user:**  (Shall we go to the next step?). -> **ACKNOWLEDGED**
-- **user:**  (Analyzing this file, can you register these students properly?) +  upload. -> **COMPLETED**
-- **user:**  (User provides import instructions). -> **COMPLETED**
+1.  **user:**  -> **COMPLETED** (Menus foram removidos).
+2.  **user:**  -> **ACKNOWLEDGED** (Agente iniciou a Fase 4 - Sistema de Notas).
+3.  **user:** (Fornece requisitos detalhados para o Sistema de Notas) -> **IN PROGRESS** (Agente implementou a base e está refinando).
+4.  **user:**  -> **ACKNOWLEDGED**.
+5.  **user:**  -> **COMPLETED** (Bug foi corrigido).
+6.  **user:**  -> **COMPLETED** (Status atualizado via script).
+7.  **user:**  -> **ACKNOWLEDGED**.
+8.  **user:**  -> **COMPLETED** (Dropdowns dependentes implementados em ).
+9.  **user:**  -> **IN PROGRESS** (Este é o 
+wtmp begins Fri Dec 12 22:01:14 2025).
+10. **(pending) user:** Nenhuma mensagem pendente. O agente está implementando a última solicitação.
 
 **Project Health Check:**
 - **Broken:** None.
@@ -120,9 +156,9 @@ Nenhuma tarefa em andamento.
 - None.
 
 **Testing status**
-- **Testing agent used after significant changes:** YES ( para APIs de Guardians/Enrollments).
+- **Testing agent used after significant changes:** YES (Usado para a implementação inicial do Sistema de Notas).
 - **Troubleshoot agent used after agent stuck in loop:** NO.
-- **Test files created:** 
+- **Test files created:** O agente de teste criou arquivos de teste, mas eles não foram explicitamente salvos no workspace principal.
 - **Known regressions:** None.
 
 **Credentials to test flow:**
@@ -134,4 +170,4 @@ Nenhuma tarefa em andamento.
     - **Senha:** 
 
 **What agent forgot to execute**
-- Nada. O agente concluiu com sucesso as tarefas pendentes da sessão anterior e a nova tarefa de importação solicitada pelo usuário.</analysis>
+- Nada. O agente tem sido eficaz em abordar todas as solicitações e correções de bugs levantadas pelo usuário nesta sessão.</analysis>
