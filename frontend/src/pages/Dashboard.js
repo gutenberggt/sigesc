@@ -216,7 +216,7 @@ export const Dashboard = () => {
               <BarChart3 className="text-blue-600" size={24} />
             </div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-900">Sistema em Desenvolvimento - Fase 3 Concluída</h3>
+              <h3 className="text-sm font-medium text-blue-900">Sistema em Desenvolvimento - Fase 4 em Andamento</h3>
               <div className="mt-2 text-sm text-blue-700">
                 <p>✅ Autenticação JWT implementada</p>
                 <p>✅ Sistema de papéis (RBAC) funcionando</p>
@@ -224,7 +224,8 @@ export const Dashboard = () => {
                 <p>✅ CRUD de Escolas, Usuários, Turmas e Disciplinas</p>
                 <p>✅ Gestão completa de Alunos (6 abas)</p>
                 <p>✅ Busca avançada por Nome e CPF</p>
-                <p className="mt-2 font-medium">Próxima fase: Sistema de Notas e Frequência</p>
+                <p>✅ Sistema de Notas (lançamento por turma e por aluno)</p>
+                <p className="mt-2 font-medium">Próxima fase: Controle de Frequência</p>
               </div>
             </div>
           </div>
