@@ -167,9 +167,8 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Grades Page - Por Turma tab with Two-Recovery System"
-    - "Component filtering by education level"
-    - "Grade entry flow - Carregar Notas button"
+    - "Academic Calendar (Calendário Letivo) - Calendar Views and Navigation"
+    - "Events Management - Create and Manage Calendar Events"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
