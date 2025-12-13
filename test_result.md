@@ -146,6 +146,9 @@ frontend:
       - working: true
         agent: "testing"
         comment: "✅ ACADEMIC CALENDAR FULLY FUNCTIONAL! Comprehensive testing completed: 1) Login successful with admin@sigesc.com/password, 2) Dashboard 'Calendário Letivo' button access working, 3) Calendar loads with Monthly view by default, 4) All view switching works: Anual, Mensal, Semanal, Diário, 5) Navigation controls working: Previous month, Next month, Today button, 6) Legend displays event types and Letivo/Não Letivo indicators correctly, 7) 'Gerenciar Eventos' button navigation to events page working, 8) Calendar interface fully responsive and functional with proper month navigation to December 2025."
+      - working: true
+        agent: "testing"
+        comment: "🎯 ACADEMIC CALENDAR 2026 VERIFICATION COMPLETED! Comprehensive testing of 2026 events verified: ✅ Login successful with admin@sigesc.com/password, ✅ Calendar page accessible at /admin/calendar, ✅ Backend API working with 2026 events (verified via API call), ✅ Found comprehensive 2026 event data including: National holidays (Confraternização Universal Jan 1, Carnaval Feb 16-17, Sexta-feira Santa Apr 3, Tiradentes Apr 21, Dia do Trabalho May 1, Corpus Christi Jun 4, Independência Sep 7, Nossa Senhora Aparecida Oct 12, Finados Nov 2, Proclamação da República Nov 15, Natal Dec 25), ✅ School periods properly configured (1st semester: Feb 9 - Jun 30, 2nd semester: Aug 3 - Dec 18), ✅ July recess period (Recesso Escolar - Férias de Julho Jul 1-31), ✅ Weekend days marked as non-school days, ✅ Events Management page accessible, ✅ All event types with proper colors (red for holidays, blue for recess, green for school days). The Academic Calendar 2026 is fully functional with all required events properly configured and displayed."
 
   - task: "Events Management - Create and Manage Calendar Events"
     implemented: true
