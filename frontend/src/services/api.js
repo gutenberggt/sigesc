@@ -382,3 +382,99 @@ export const attendanceAPI = {
     return response.data;
   }
 };
+
+// ============= STAFF (SERVIDORES) =============
+export const staffAPI = {
+  list: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.school_id) queryParams.append('school_id', params.school_id);
+    if (params.cargo) queryParams.append('cargo', params.cargo);
+    if (params.status) queryParams.append('status', params.status);
+    const response = await axios.get(`${API}/staff?${queryParams}`);
+    return response.data;
+  },
+  
+  get: async (id) => {
+    const response = await axios.get(`${API}/staff/${id}`);
+    return response.data;
+  },
+  
+  getByUser: async (userId) => {
+    const response = await axios.get(`${API}/staff/by-user/${userId}`);
+    return response.data;
+  },
+  
+  create: async (data) => {
+    const response = await axios.post(`${API}/staff`, data);
+    return response.data;
+  },
+  
+  update: async (id, data) => {
+    const response = await axios.put(`${API}/staff/${id}`, data);
+    return response.data;
+  },
+  
+  delete: async (id) => {
+    const response = await axios.delete(`${API}/staff/${id}`);
+    return response.data;
+  }
+};
+
+// ============= SCHOOL ASSIGNMENTS (LOTAÇÕES) =============
+export const schoolAssignmentAPI = {
+  list: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.school_id) queryParams.append('school_id', params.school_id);
+    if (params.staff_id) queryParams.append('staff_id', params.staff_id);
+    if (params.status) queryParams.append('status', params.status);
+    if (params.academic_year) queryParams.append('academic_year', params.academic_year);
+    const response = await axios.get(`${API}/school-assignments?${queryParams}`);
+    return response.data;
+  },
+  
+  create: async (data) => {
+    const response = await axios.post(`${API}/school-assignments`, data);
+    return response.data;
+  },
+  
+  update: async (id, data) => {
+    const response = await axios.put(`${API}/school-assignments/${id}`, data);
+    return response.data;
+  },
+  
+  delete: async (id) => {
+    const response = await axios.delete(`${API}/school-assignments/${id}`);
+    return response.data;
+  }
+};
+
+// ============= TEACHER ASSIGNMENTS (ALOCAÇÃO DE PROFESSORES) =============
+export const teacherAssignmentAPI = {
+  list: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.school_id) queryParams.append('school_id', params.school_id);
+    if (params.staff_id) queryParams.append('staff_id', params.staff_id);
+    if (params.class_id) queryParams.append('class_id', params.class_id);
+    if (params.course_id) queryParams.append('course_id', params.course_id);
+    if (params.academic_year) queryParams.append('academic_year', params.academic_year);
+    if (params.status) queryParams.append('status', params.status);
+    const response = await axios.get(`${API}/teacher-assignments?${queryParams}`);
+    return response.data;
+  },
+  
+  create: async (data) => {
+    const response = await axios.post(`${API}/teacher-assignments`, data);
+    return response.data;
+  },
+  
+  update: async (id, data) => {
+    const response = await axios.put(`${API}/teacher-assignments/${id}`, data);
+    return response.data;
+  },
+  
+  delete: async (id) => {
+    const response = await axios.delete(`${API}/teacher-assignments/${id}`);
+    return response.data;
+  }
+};
+
