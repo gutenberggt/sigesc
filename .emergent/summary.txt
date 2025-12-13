@@ -9,144 +9,133 @@ O usuário está desenvolvendo um **SIGESC (Sistema Integrado de Gestão Escolar
     - O perfil  deve ter acesso de visualização total, mas sem permissões de edição ou exclusão.
     - Cadastro de Alunos deve ser um formulário complexo com múltiplas abas.
     - Importação em massa de alunos a partir de um arquivo Excel.
-    - **[EM ANDAMENTO]** Lançamento de notas com cálculo de média ponderada.
+    - Lançamento de notas com cálculo de média ponderada.
     - Geração de documentos (Boletins, Declarações).
-- **UI/UX:**
-    - Formulários complexos com abas.
-    - Dashboards com contadores e links de navegação baseados no perfil do usuário.
-    - Ações de Visualizar, Editar e Excluir nas tabelas de dados.
-    - Busca avançada de alunos por nome e CPF com autocomplete.
-    - Upload de arquivos do dispositivo em vez de campos de URL.
-    - Campos de formulário dinâmicos e dependentes (ex: Nível de Ensino -> Série/Etapa).
+    - **[CONCLUÍDO]** Um Calendário Letivo com visualizações anuais, mensais, semanais e diárias, e gerenciamento de eventos (feriados, dias letivos/não letivos).
+    - **[EM ANDAMENTO]** Fase 5: Controle de Frequência.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-Uma aplicação full-stack funcional com autenticação JWT e RBAC. As funcionalidades de gestão de Escolas, Usuários e Alunos estão avançadas. A página de Alunos () foi significativamente melhorada com paginação do lado do servidor para lidar com mais de 3700 registros, busca por nome/CPF com autocomplete, e um formulário de cadastro/edição aprimorado que inclui upload de arquivos e campos condicionais. A Fase 4 (Sistema de Notas) foi iniciada, com a criação da página de lançamento de notas, endpoints de API e a lógica de cálculo de média. O formulário de criação de Turmas também foi aprimorado com dropdowns dependentes para Nível de Ensino e Série.
+Uma aplicação full-stack funcional com autenticação JWT e RBAC. O sistema possui módulos robustos para gestão de Escolas, Usuários, Alunos, Turmas e Componentes Curriculares. A Fase 4 (Sistema de Notas) foi concluída, incluindo um sistema de recuperação semestral (Rec. 1º e 2º Sem.) e cálculo de média que considera campos vazios como zero. Recentemente, a funcionalidade de Calendário Letivo foi implementada com sucesso, permitindo o gerenciamento de eventos e a visualização em múltiplos formatos (anual, mensal, etc.). A estrutura inicial para a Fase 5 (Controle de Frequência) foi criada.
 
 **Last working item**:
-- **Last item agent was working:** O agente estava ajustando o sistema para vincular Componentes Curriculares a níveis de ensino e séries específicas, conforme solicitado pelo usuário. O objetivo é que, na página de Lançamento de Notas, os componentes curriculares disponíveis para seleção sejam filtrados com base na turma (nível de ensino e série) selecionada.
-    - **Reasoning:** O usuário especificou que os componentes para o Fundamental - Anos Iniciais são únicos, enquanto para os Anos Finais podem variar por série. Isso requer uma associação mais granular entre componentes e séries, que o agente começou a implementar.
+- **Last item agent was working:** O agente iniciou a implementação da **Fase 5 - Controle de Frequência**. Com base nos requisitos detalhados do usuário, foram criados os arquivos e estruturas iniciais para a nova funcionalidade.
+    - **Reasoning:** Esta é a próxima fase do projeto, conforme solicitado pelo usuário após a conclusão bem-sucedida do Calendário Letivo. O agente preparou o terreno para o desenvolvimento, criando os modelos de dados, endpoints de API e a página do frontend.
 - **Status:** IN PROGRESS
 - **Agent Testing Done:** N
-- **Which testing method agent to use?** frontend testing agent
+- **Which testing method agent to use?** both
 - **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
 Nenhum problema pendente.
 
 **In progress Task List**:
-- **Task 1: Concluir a vinculação de Componentes Curriculares a Séries/Níveis (P0)**
-    - **Where to resume:** O agente atualizou o modelo  no backend e reescreveu a página de cadastro de componentes (). O próximo passo é modificar a página de Lançamento de Notas () para filtrar a lista de componentes curriculares com base na turma selecionada.
-    - **What will be achieved with this?** O lançamento de notas será mais preciso, exibindo apenas as matérias relevantes para cada turma.
+- **Task 1: Concluir a implementação da Fase 5 - Controle de Frequência (P0)**
+    - **Where to resume:** A estrutura base está pronta. O próximo passo é desenvolver a interface do usuário em  e implementar a lógica de negócios nos endpoints da API em . É preciso implementar as regras específicas de frequência (diária vs. por componente curricular) baseadas no nível de ensino da turma, o cálculo de 75% de presença e as permissões para administradores/secretários.
+    - **What will be achieved with this?** Um sistema completo para registro e consulta de frequência de alunos, conforme os requisitos do usuário.
     - **Status:** IN PROGRESS
     - **Should Test frontend/backend/both after fix?** both
     - **Blocked on something:** None
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-    - **P0: Finalizar e Testar a Fase 4 - Sistema de Notas:** Após concluir a Task 1, realizar testes completos no fluxo de lançamento e cálculo de notas, incluindo a lógica de recuperação que substitui a menor nota do semestre.
+    - **P0: Testar a Fase 5 - Controle de Frequência:** Após a implementação, realizar testes completos no fluxo de lançamento, consulta e validação de frequência.
 - **Future Tasks:**
-    - **P1: FASE 5 - Controle de Frequência:** Sistema para registrar a frequência dos alunos (mínimo de 75% obrigatório).
-    - **P2: FASE 6 - Portais de Visualização:** Dashboards específicos para os perfis de Aluno, Responsável e Diretor.
-    - **P3: FASE 7 - Sistema de Comunicação:** CRUD de Avisos.
-    - **P4: FASE 8 - Geração de Documentos:** Funcionalidade para gerar PDFs (Boletim, Declarações).
+    - **P1: FASE 6 - Portais de Visualização:** Dashboards específicos para os perfis de Aluno, Responsável e Diretor.
+    - **P2: FASE 7 - Sistema de Comunicação:** CRUD de Avisos.
+    - **P3: FASE 8 - Geração de Documentos:** Funcionalidade para gerar PDFs (Boletim, Declarações).
 
 **Completed work in this session**
-- **Melhorias na Gestão de Alunos ():**
-    - Implementada paginação e busca por nome/CPF com autocomplete para gerenciar 3700+ alunos.
-    - Adicionado campo Número SUS e novas opções de Status do aluno.
-    - Substituídos campos de URL por funcionalidade de upload de arquivos para documentos.
-    - Implementada lógica condicional para seleção do Responsável Legal.
-    - O campo Código/Matrícula tornou-se somente leitura.
-- **Correções de Bugs Críticos:**
-    - Resolvido erro  ao salvar alunos, limpando dados vazios antes do envio.
-    - Corrigido bug que impedia o salvamento da  na edição de um aluno.
-    - Corrigido bug que impedia o salvamento dos Dados do Ensino na edição de uma escola.
-- **Melhorias na Gestão de Escolas ():**
-    - Criada uma visualização limpa que exibe apenas os níveis de ensino e atendimentos que a escola oferece.
-- **Melhorias na Gestão de Turmas ():**
-    - Implementados dropdowns dependentes: Nível de Ensino (filtrado pela escola) e Série/Etapa (filtrado pelo nível de ensino).
-- **Início da Fase 4 - Sistema de Notas:**
-    - Criados modelos, endpoints de API e o  para notas.
-    - Criada a página  com abas Por Turma e Por Aluno.
-    - Adicionado o link Notas no menu principal.
-- **Remoção de Menus:**
-    - Os menus Responsáveis e Matrículas foram removidos do Dashboard e das rotas, conforme solicitado.
+- **Finalização da Fase 4 - Sistema de Notas:**
+    - Implementado um sistema de recuperação duplo (1º e 2º semestre), atualizando o modelo de dados ( em ), a lógica de cálculo () e a interface do usuário ().
+    - Ajustada a lógica de cálculo da média para ser exibida desde a primeira nota lançada, tratando campos vazios como zero.
+    - Corrigido um bug de validação no backend que impedia a listagem de componentes curriculares legados (tornando  e  opcionais no modelo ).
+    - Realizados testes completos de frontend e backend para validar todo o fluxo de notas.
+- **Implementação do Calendário Letivo (Nova Fase):**
+    - Criados modelos (), endpoints de API e páginas de frontend (, ) para a funcionalidade.
+    - Populado o calendário de 2026 com feriados nacionais e períodos letivos, conforme solicitado.
+    - Corrigido um bug de autenticação nos endpoints da API do calendário.
+    - Resolvido um problema de banco de dados onde um script de seeding estava se conectando a uma instância de DB diferente da aplicação principal.
+    - Ajustada a exibição da visualização semanal para começar no domingo e terminar no sábado.
+    - Adicionado um botão Voltar ao Dashboard nas páginas do calendário.
+    - Removidas as etiquetas redundantes Sábado e Domingo de dentro das células do calendário.
+- **Início da Fase 5 - Controle de Frequência:**
+    - Criados os modelos de dados () e os endpoints de API para frequência.
+    - Criada a página de frontend () e as rotas necessárias.
 
 **Earlier issues found/mentioned but not fixed**
-- **Issue 1:** O usuário acessou uma URL de preview incorreta ( em vez de ), o que causou confusão sobre o estado da aplicação.
-    - **Debug checklist:** Se o problema ocorrer novamente, o agente deve lembrar o usuário da URL correta e talvez adicionar um aviso no topo da página para evitar confusão.
-    - **Why to solve this issue and what will be achieved with this?** Evitará perda de tempo e garantirá que o usuário esteja testando a versão mais recente da aplicação.
+- **Issue 1:** O arquivo  está com mais de 1500 linhas. Ele deve ser quebrado em componentes menores para melhorar a manutenibilidade.
+    - **Debug checklist:** Propor ao usuário um refatoramento após a conclusão das fases atuais.
+    - **Why to solve this issue and what will be achieved with this?** Melhorar a organização e facilitar futuras manutenções no código mais complexo da aplicação.
     - **Should Test frontend/backend/both after fix:** frontend
     - **Is recurring issue?** N
 
 **Known issue recurrence from previous fork**
-- None in this session.
+- None.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Backend:** FastAPI, file uploads (, ), Pydantic com  para validação de status.
-- **Frontend:** React (, , ), renderização condicional, formulários complexos, componentes controlados, upload de arquivos com , paginação do lado do servidor, autocomplete para busca.
-- **Arquitetura:** Dropdowns dependentes, separação de lógica de cálculo (backend).
+- **Backend:** FastAPI, Pydantic, CRUD assíncrono, manipulação de datas com , scripts de seeding de dados.
+- **Frontend:** React (, , ), gerenciamento de estado complexo, renderização condicional, componentes de UI customizados para calendário, formulários.
+- **Arquitetura:** Separação de lógica de cálculo (backend), componentes reutilizáveis, comunicação via API REST.
 
 **key DB schema**
-- **students:** Adicionados campos , , , , .
-- **schools:** Adicionados múltiplos campos booleanos para níveis de ensino (ex: ).
-- **classes:** Adicionado campo .
-- **courses:** Adicionados campos  e .
-- **grades:** Nova coleção com a estrutura .
+- **grades:** Adicionados campos  e .
+- **calendar_events (nova):** 
+- **attendance (nova):** 
 
 **changes in tech stack**
 - None.
 
 **All files of reference**
 - **Modificados/Reescritos:**
-    - : Atualizado com novos campos e modelos para Notas, Turmas, Componentes Curriculares, Alunos e Escolas.
-    - : Adicionados endpoints para upload de arquivos e CRUD de notas.
-    - : Grandes modificações para implementar paginação, busca, upload e correções de bugs.
-    - : Reescrito para implementar dropdowns dependentes.
-    - : Reescrito para adicionar associação com níveis de ensino e séries.
-    - : Adicionada lógica de paginação.
-    - : Adicionadas funções para os novos endpoints.
-    -  e : Removidos links para Responsáveis/Matrículas e adicionado link para Notas.
+    - : Adicionados modelos  e . Modelo  atualizado.
+    - : Adicionados endpoints para Calendário e Frequência.
+    - : Lógica de cálculo de média e recuperação atualizada.
+    - : Finalizada a implementação com duas recuperações e cálculo de média a partir da primeira nota.
+    - : Adicionadas funções para os endpoints de Calendário e Frequência.
+    - : Adicionadas rotas para Calendário, Eventos e Frequência.
+    - : Adicionados links para as novas funcionalidades.
 - **Criados:**
-    - : Novo módulo para lógica de cálculo de notas.
-    - : Nova página para lançamento de notas.
+    - : Página principal do Calendário Letivo.
+    - : Página para gerenciamento de eventos do calendário.
+    - : Página para o novo módulo de Controle de Frequência.
 
 **Areas that need refactoring**:
-- O arquivo  está com mais de 1500 linhas e contém a lógica da lista, busca, modal, múltiplas abas e submissão. Ele deve ser quebrado em componentes menores (ex: , , ) para melhorar a manutenibilidade.
+- O arquivo  continua muito grande e complexo.
+- O arquivo  cresceu bastante e poderia ser dividido em componentes menores (ex: , , ).
 
 **key api endpoints**
-- : Endpoint para upload de arquivos.
-- : Busca notas de um aluno.
-- : Cria/atualiza notas de um aluno em um componente curricular.
-- : Endpoint de atualização de aluno, agora aceitando  e outros campos novos.
-- : Endpoint de atualização de escola, agora aceitando os campos de Dados de Ensino.
-- : Endpoint de atualização de turma, agora aceitando .
+- : CRUD para eventos do calendário.
+- : Resumo de eventos por ano.
+- : Detalhes de um dia específico.
+- : CRUD para registros de frequência.
+- : Busca frequência por turma e data.
+- : Busca frequência de um aluno.
 
 **Critical Info for New Agent**
-- O foco principal é finalizar a **Task 1** (vincular componentes a séries) e depois testar exaustivamente a **Fase 4 (Sistema de Notas)**.
-- O arquivo  é um ponto crítico da aplicação. Qualquer alteração nele requer cuidado. Considere propor um refatoramento ao usuário após a conclusão da Fase 4.
-- A aplicação agora manipula um volume de dados real (3700+ alunos), então a performance das consultas de frontend e backend é importante. A paginação foi implementada na página de Alunos, e o mesmo padrão pode ser necessário em outras partes do sistema no futuro.
+- O foco imediato é construir a funcionalidade de **Controle de Frequência (Fase 5)**, seguindo os requisitos detalhados fornecidos pelo usuário.
+- Preste atenção às regras de negócio complexas: a frequência varia (diária vs. por matéria) dependendo do nível de ensino da turma.
+- A permissão para lançar frequências em datas futuras é restrita a  e .
+- O cálculo de 75% de presença deve ser feito sobre o total de dias letivos do ano, que são definidos no Calendário Letivo.
 
 **documents created in this job**
 - None.
 
 **Last 10 User Messages and any pending user messages**
-1.  **user:**  -> **COMPLETED** (Menus foram removidos).
-2.  **user:**  -> **ACKNOWLEDGED** (Agente iniciou a Fase 4 - Sistema de Notas).
-3.  **user:** (Fornece requisitos detalhados para o Sistema de Notas) -> **IN PROGRESS** (Agente implementou a base e está refinando).
-4.  **user:**  -> **ACKNOWLEDGED**.
-5.  **user:**  -> **COMPLETED** (Bug foi corrigido).
-6.  **user:**  -> **COMPLETED** (Status atualizado via script).
-7.  **user:**  -> **ACKNOWLEDGED**.
-8.  **user:**  -> **COMPLETED** (Dropdowns dependentes implementados em ).
-9.  **user:**  -> **IN PROGRESS** (Este é o 
-wtmp begins Fri Dec 12 22:01:14 2025).
-10. **(pending) user:** Nenhuma mensagem pendente. O agente está implementando a última solicitação.
+1.  **user:**  -> **COMPLETED** (Botão adicionado).
+2.  **user:**  -> **COMPLETED** (Rota corrigida).
+3.  **user:**  -> **COMPLETED** (Lógica da semana corrigida para Domingo-Sábado).
+4.  **user:**  -> **COMPLETED** (Etiquetas removidas das células).
+5.  **user:**  -> **ACKNOWLEDGED** (Agente propôs a próxima fase).
+6.  **user:** (Fornece requisitos detalhados para a Fase 5 - Controle de Frequência). -> **IN PROGRESS** (Agente iniciou a implementação).
+7.  **user:**  -> **IN PROGRESS** (Requisitos para a Fase 5).
+8.  **user:**  -> **IN PROGRESS** (Requisitos para a Fase 5).
+9.  **user:**  -> **IN PROGRESS** (Requisitos para a Fase 5).
+10. **(pending) user:** Nenhuma mensagem pendente. O agente está implementando a última solicitação de funcionalidade.
 
 **Project Health Check:**
 - **Broken:** None.
@@ -156,9 +145,9 @@ wtmp begins Fri Dec 12 22:01:14 2025).
 - None.
 
 **Testing status**
-- **Testing agent used after significant changes:** YES (Usado para a implementação inicial do Sistema de Notas).
+- **Testing agent used after significant changes:** YES (Usado extensivamente para validar a Fase de Notas e a nova funcionalidade de Calendário).
 - **Troubleshoot agent used after agent stuck in loop:** NO.
-- **Test files created:** O agente de teste criou arquivos de teste, mas eles não foram explicitamente salvos no workspace principal.
+- **Test files created:** Sim, os agentes de teste criaram scripts de teste durante as execuções, mas eles são temporários.
 - **Known regressions:** None.
 
 **Credentials to test flow:**
@@ -170,4 +159,4 @@ wtmp begins Fri Dec 12 22:01:14 2025).
     - **Senha:** 
 
 **What agent forgot to execute**
-- Nada. O agente tem sido eficaz em abordar todas as solicitações e correções de bugs levantadas pelo usuário nesta sessão.</analysis>
+- O agente seguiu todas as solicitações do usuário de forma eficaz e sequencial. Nenhuma tarefa solicitada foi esquecida.</analysis>
