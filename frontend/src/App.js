@@ -86,6 +86,24 @@ function App() {
             }
           />
           
+          <Route
+            path="/admin/calendar"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'professor', 'semed']}>
+                <Calendar />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/admin/events"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed']}>
+                <Events />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* Redireciona raiz para dashboard ou login */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           
