@@ -456,6 +456,7 @@ class StudentCreate(StudentBase):
 
 class StudentUpdate(BaseModel):
     # Identificação
+    school_id: Optional[str] = None
     enrollment_number: Optional[str] = None
     inep_code: Optional[str] = None
     
