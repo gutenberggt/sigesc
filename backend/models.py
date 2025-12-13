@@ -280,8 +280,123 @@ class SchoolUpdate(BaseModel):
     site: Optional[str] = None
     latitude: Optional[str] = None
     longitude: Optional[str] = None
+    
+    # Equipe
+    secretario_escolar: Optional[str] = None
+    gestor_principal: Optional[str] = None
+    cargo_gestor: Optional[str] = None
+    
+    # Infraestrutura
+    abastecimento_agua: Optional[str] = None
+    energia_eletrica: Optional[str] = None
+    saneamento: Optional[str] = None
+    coleta_lixo: Optional[str] = None
+    possui_rampas: Optional[bool] = None
+    possui_corrimao: Optional[bool] = None
+    banheiros_adaptados: Optional[bool] = None
+    sinalizacao_tatil: Optional[bool] = None
+    saidas_emergencia: Optional[int] = None
+    extintores: Optional[int] = None
+    brigada_incendio: Optional[bool] = None
+    plano_evacuacao: Optional[bool] = None
+    possui_internet: Optional[bool] = None
+    tipo_conexao: Optional[str] = None
+    cobertura_rede: Optional[str] = None
+    estado_conservacao: Optional[str] = None
+    possui_cercamento: Optional[bool] = None
+    
+    # Dependências
+    numero_salas_aula: Optional[int] = None
+    capacidade_total_alunos: Optional[int] = None
+    salas_recursos_multifuncionais: Optional[int] = None
+    sala_direcao: Optional[bool] = None
+    sala_secretaria: Optional[bool] = None
+    sala_coordenacao: Optional[bool] = None
+    sala_professores: Optional[bool] = None
+    numero_banheiros: Optional[int] = None
+    banheiros_acessiveis: Optional[int] = None
+    possui_cozinha: Optional[bool] = None
+    possui_refeitorio: Optional[bool] = None
+    possui_almoxarifado: Optional[bool] = None
+    possui_biblioteca: Optional[bool] = None
+    possui_lab_ciencias: Optional[bool] = None
+    possui_lab_informatica: Optional[bool] = None
+    possui_quadra: Optional[bool] = None
+    
+    # Equipamentos
+    qtd_computadores: Optional[int] = None
+    qtd_tablets: Optional[int] = None
+    qtd_projetores: Optional[int] = None
+    qtd_impressoras: Optional[int] = None
+    qtd_televisores: Optional[int] = None
+    qtd_projetores_multimidia: Optional[int] = None
+    qtd_aparelhos_som: Optional[int] = None
+    qtd_lousas_digitais: Optional[int] = None
+    possui_kits_cientificos: Optional[bool] = None
+    possui_instrumentos_musicais: Optional[bool] = None
+    qtd_extintores: Optional[int] = None
+    qtd_cameras: Optional[int] = None
+    
+    # Recursos
+    possui_material_didatico: Optional[bool] = None
+    tamanho_acervo: Optional[int] = None
+    participa_programas_governamentais: Optional[List[str]] = None
+    
+    # Dados do Ensino - Etapas principais
+    educacao_infantil: Optional[bool] = None
+    fundamental_anos_iniciais: Optional[bool] = None
+    fundamental_anos_finais: Optional[bool] = None
+    ensino_medio: Optional[bool] = None
+    eja: Optional[bool] = None
+    eja_final: Optional[bool] = None
+    
+    # Sub-níveis Educação Infantil
+    educacao_infantil_bercario: Optional[bool] = None
+    educacao_infantil_maternal_i: Optional[bool] = None
+    educacao_infantil_maternal_ii: Optional[bool] = None
+    educacao_infantil_pre_i: Optional[bool] = None
+    educacao_infantil_pre_ii: Optional[bool] = None
+    
+    # Sub-níveis Fundamental Inicial
+    fundamental_inicial_1ano: Optional[bool] = None
+    fundamental_inicial_2ano: Optional[bool] = None
+    fundamental_inicial_3ano: Optional[bool] = None
+    fundamental_inicial_4ano: Optional[bool] = None
+    fundamental_inicial_5ano: Optional[bool] = None
+    
+    # Sub-níveis Fundamental Final
+    fundamental_final_6ano: Optional[bool] = None
+    fundamental_final_7ano: Optional[bool] = None
+    fundamental_final_8ano: Optional[bool] = None
+    fundamental_final_9ano: Optional[bool] = None
+    
+    # Sub-níveis EJA
+    eja_inicial_1etapa: Optional[bool] = None
+    eja_inicial_2etapa: Optional[bool] = None
+    eja_final_3etapa: Optional[bool] = None
+    eja_final_4etapa: Optional[bool] = None
+    
+    # Atendimentos
+    aee: Optional[bool] = None
+    atendimento_integral: Optional[bool] = None
+    reforco_escolar: Optional[bool] = None
+    aulas_complementares: Optional[bool] = None
+    
+    # Regime
+    turnos_funcionamento: Optional[List[str]] = None
+    organizacao_turmas: Optional[str] = None
+    tipo_avaliacao: Optional[str] = None
+    
+    # Espaços Escolares
+    possui_quadra_esportiva: Optional[bool] = None
+    possui_patio: Optional[bool] = None
+    possui_parque: Optional[bool] = None
+    possui_brinquedoteca: Optional[bool] = None
+    possui_auditorio: Optional[bool] = None
+    possui_horta: Optional[bool] = None
+    possui_estacionamento: Optional[bool] = None
+    
     status: Optional[Literal['active', 'inactive']] = None
-    # ... outros campos podem ser adicionados conforme necessário
 
 class School(SchoolBase):
     model_config = ConfigDict(extra="ignore")
