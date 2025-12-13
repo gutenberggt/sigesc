@@ -1849,6 +1849,371 @@ async def get_attendance_alerts(
         "alerts": all_alerts
     }
 
+# ============= STAFF (SERVIDORES) =============
+
+@api_router.get("/staff")
+async def list_staff(request: Request, school_id: Optional[str] = None, cargo: Optional[str] = None, status: Optional[str] = None):
+    """Lista todos os servidores"""
+    await AuthMiddleware.require_roles(['admin', 'secretario', 'semed'])(request)
+    
+    query = {}
+    if cargo:
+        query["cargo"] = cargo
+    if status:
+        query["status"] = status
+    
+    staff_list = await db.staff.find(query, {"_id": 0}).to_list(1000)
+    
+    # Enriquecer com dados do usuário
+    for staff in staff_list:
+        user = await db.users.find_one({"id": staff['user_id']}, {"_id": 0, "password_hash": 0})
+        if user:
+            staff['user'] = user
+        
+        # Se filtrar por escola, verificar lotações
+        if school_id:
+            lotacao = await db.school_assignments.find_one({
+                "staff_id": staff['id'],
+                "school_id": school_id,
+                "status": "ativo"
+            }, {"_id": 0})
+            if not lotacao:
+                continue
+            staff['lotacao_atual'] = lotacao
+    
+    # Filtrar se school_id foi passado
+    if school_id:
+        staff_list = [s for s in staff_list if 'lotacao_atual' in s]
+    
+    return staff_list
+
+@api_router.get("/staff/{staff_id}")
+async def get_staff(staff_id: str, request: Request):
+    """Busca servidor por ID"""
+    await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'diretor'])(request)
+    
+    staff = await db.staff.find_one({"id": staff_id}, {"_id": 0})
+    if not staff:
+        raise HTTPException(status_code=404, detail="Servidor não encontrado")
+    
+    # Enriquecer com dados do usuário
+    user = await db.users.find_one({"id": staff['user_id']}, {"_id": 0, "password_hash": 0})
+    if user:
+        staff['user'] = user
+    
+    # Buscar lotações
+    lotacoes = await db.school_assignments.find({"staff_id": staff_id}, {"_id": 0}).to_list(100)
+    for lot in lotacoes:
+        school = await db.schools.find_one({"id": lot['school_id']}, {"_id": 0, "name": 1})
+        if school:
+            lot['school_name'] = school['name']
+    staff['lotacoes'] = lotacoes
+    
+    # Se for professor, buscar alocações de turmas
+    if staff['cargo'] == 'professor':
+        alocacoes = await db.teacher_assignments.find({"staff_id": staff_id}, {"_id": 0}).to_list(100)
+        for aloc in alocacoes:
+            turma = await db.classes.find_one({"id": aloc['class_id']}, {"_id": 0, "name": 1})
+            course = await db.courses.find_one({"id": aloc['course_id']}, {"_id": 0, "name": 1})
+            if turma:
+                aloc['class_name'] = turma['name']
+            if course:
+                aloc['course_name'] = course['name']
+        staff['alocacoes'] = alocacoes
+    
+    return staff
+
+@api_router.post("/staff")
+async def create_staff(staff_data: StaffCreate, request: Request):
+    """Cria novo servidor"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    # Verifica se usuário existe
+    user = await db.users.find_one({"id": staff_data.user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    # Verifica se já existe servidor para este usuário
+    existing = await db.staff.find_one({"user_id": staff_data.user_id})
+    if existing:
+        raise HTTPException(status_code=400, detail="Usuário já possui cadastro de servidor")
+    
+    # Verifica matrícula única
+    existing_mat = await db.staff.find_one({"matricula": staff_data.matricula})
+    if existing_mat:
+        raise HTTPException(status_code=400, detail="Matrícula já existe")
+    
+    new_staff = Staff(**staff_data.model_dump())
+    await db.staff.insert_one(new_staff.model_dump())
+    
+    return await db.staff.find_one({"id": new_staff.id}, {"_id": 0})
+
+@api_router.put("/staff/{staff_id}")
+async def update_staff(staff_id: str, staff_data: StaffUpdate, request: Request):
+    """Atualiza servidor"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    existing = await db.staff.find_one({"id": staff_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Servidor não encontrado")
+    
+    # Verifica matrícula única se alterada
+    if staff_data.matricula and staff_data.matricula != existing.get('matricula'):
+        existing_mat = await db.staff.find_one({"matricula": staff_data.matricula})
+        if existing_mat:
+            raise HTTPException(status_code=400, detail="Matrícula já existe")
+    
+    update_data = {k: v for k, v in staff_data.model_dump().items() if v is not None}
+    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    await db.staff.update_one({"id": staff_id}, {"$set": update_data})
+    
+    return await db.staff.find_one({"id": staff_id}, {"_id": 0})
+
+@api_router.delete("/staff/{staff_id}")
+async def delete_staff(staff_id: str, request: Request):
+    """Remove servidor"""
+    await AuthMiddleware.require_roles(['admin'])(request)
+    
+    existing = await db.staff.find_one({"id": staff_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Servidor não encontrado")
+    
+    # Verifica se tem lotações ativas
+    active_assignments = await db.school_assignments.find_one({"staff_id": staff_id, "status": "ativo"})
+    if active_assignments:
+        raise HTTPException(status_code=400, detail="Servidor possui lotações ativas. Encerre-as primeiro.")
+    
+    await db.staff.delete_one({"id": staff_id})
+    return {"message": "Servidor removido com sucesso"}
+
+# ============= SCHOOL ASSIGNMENTS (LOTAÇÕES) =============
+
+@api_router.get("/school-assignments")
+async def list_school_assignments(
+    request: Request, 
+    school_id: Optional[str] = None, 
+    staff_id: Optional[str] = None,
+    status: Optional[str] = None,
+    academic_year: Optional[int] = None
+):
+    """Lista lotações"""
+    await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'diretor'])(request)
+    
+    query = {}
+    if school_id:
+        query["school_id"] = school_id
+    if staff_id:
+        query["staff_id"] = staff_id
+    if status:
+        query["status"] = status
+    if academic_year:
+        query["academic_year"] = academic_year
+    
+    assignments = await db.school_assignments.find(query, {"_id": 0}).to_list(1000)
+    
+    # Enriquecer com dados
+    for assign in assignments:
+        staff = await db.staff.find_one({"id": assign['staff_id']}, {"_id": 0})
+        if staff:
+            user = await db.users.find_one({"id": staff['user_id']}, {"_id": 0, "full_name": 1, "email": 1})
+            assign['staff'] = staff
+            if user:
+                assign['staff']['user_name'] = user.get('full_name')
+                assign['staff']['user_email'] = user.get('email')
+        
+        school = await db.schools.find_one({"id": assign['school_id']}, {"_id": 0, "name": 1})
+        if school:
+            assign['school_name'] = school['name']
+    
+    return assignments
+
+@api_router.post("/school-assignments")
+async def create_school_assignment(assignment: SchoolAssignmentCreate, request: Request):
+    """Cria nova lotação"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    # Verifica se servidor existe
+    staff = await db.staff.find_one({"id": assignment.staff_id})
+    if not staff:
+        raise HTTPException(status_code=404, detail="Servidor não encontrado")
+    
+    # Verifica se escola existe
+    school = await db.schools.find_one({"id": assignment.school_id})
+    if not school:
+        raise HTTPException(status_code=404, detail="Escola não encontrada")
+    
+    # Verifica se já existe lotação ativa para mesma escola/ano
+    existing = await db.school_assignments.find_one({
+        "staff_id": assignment.staff_id,
+        "school_id": assignment.school_id,
+        "academic_year": assignment.academic_year,
+        "status": "ativo"
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Servidor já possui lotação ativa nesta escola para este ano")
+    
+    new_assignment = SchoolAssignment(**assignment.model_dump())
+    await db.school_assignments.insert_one(new_assignment.model_dump())
+    
+    return await db.school_assignments.find_one({"id": new_assignment.id}, {"_id": 0})
+
+@api_router.put("/school-assignments/{assignment_id}")
+async def update_school_assignment(assignment_id: str, assignment_data: SchoolAssignmentUpdate, request: Request):
+    """Atualiza lotação"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    existing = await db.school_assignments.find_one({"id": assignment_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Lotação não encontrada")
+    
+    update_data = {k: v for k, v in assignment_data.model_dump().items() if v is not None}
+    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    await db.school_assignments.update_one({"id": assignment_id}, {"$set": update_data})
+    
+    return await db.school_assignments.find_one({"id": assignment_id}, {"_id": 0})
+
+@api_router.delete("/school-assignments/{assignment_id}")
+async def delete_school_assignment(assignment_id: str, request: Request):
+    """Remove lotação"""
+    await AuthMiddleware.require_roles(['admin'])(request)
+    
+    existing = await db.school_assignments.find_one({"id": assignment_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Lotação não encontrada")
+    
+    await db.school_assignments.delete_one({"id": assignment_id})
+    return {"message": "Lotação removida com sucesso"}
+
+# ============= TEACHER ASSIGNMENTS (ALOCAÇÃO DE PROFESSORES) =============
+
+@api_router.get("/teacher-assignments")
+async def list_teacher_assignments(
+    request: Request,
+    school_id: Optional[str] = None,
+    staff_id: Optional[str] = None,
+    class_id: Optional[str] = None,
+    course_id: Optional[str] = None,
+    academic_year: Optional[int] = None,
+    status: Optional[str] = None
+):
+    """Lista alocações de professores"""
+    await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'diretor', 'coordenador'])(request)
+    
+    query = {}
+    if school_id:
+        query["school_id"] = school_id
+    if staff_id:
+        query["staff_id"] = staff_id
+    if class_id:
+        query["class_id"] = class_id
+    if course_id:
+        query["course_id"] = course_id
+    if academic_year:
+        query["academic_year"] = academic_year
+    if status:
+        query["status"] = status
+    
+    assignments = await db.teacher_assignments.find(query, {"_id": 0}).to_list(1000)
+    
+    # Enriquecer com dados
+    for assign in assignments:
+        staff = await db.staff.find_one({"id": assign['staff_id']}, {"_id": 0})
+        if staff:
+            user = await db.users.find_one({"id": staff['user_id']}, {"_id": 0, "full_name": 1})
+            assign['staff_name'] = user.get('full_name') if user else None
+        
+        turma = await db.classes.find_one({"id": assign['class_id']}, {"_id": 0, "name": 1})
+        if turma:
+            assign['class_name'] = turma['name']
+        
+        course = await db.courses.find_one({"id": assign['course_id']}, {"_id": 0, "name": 1})
+        if course:
+            assign['course_name'] = course['name']
+        
+        school = await db.schools.find_one({"id": assign['school_id']}, {"_id": 0, "name": 1})
+        if school:
+            assign['school_name'] = school['name']
+    
+    return assignments
+
+@api_router.post("/teacher-assignments")
+async def create_teacher_assignment(assignment: TeacherAssignmentCreate, request: Request):
+    """Cria nova alocação de professor"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
+    
+    # Verifica se servidor existe e é professor
+    staff = await db.staff.find_one({"id": assignment.staff_id})
+    if not staff:
+        raise HTTPException(status_code=404, detail="Servidor não encontrado")
+    if staff['cargo'] != 'professor':
+        raise HTTPException(status_code=400, detail="Servidor não é professor")
+    
+    # Verifica se turma existe
+    turma = await db.classes.find_one({"id": assignment.class_id})
+    if not turma:
+        raise HTTPException(status_code=404, detail="Turma não encontrada")
+    
+    # Verifica se componente existe
+    course = await db.courses.find_one({"id": assignment.course_id})
+    if not course:
+        raise HTTPException(status_code=404, detail="Componente curricular não encontrado")
+    
+    # Verifica se já existe alocação ativa para mesma turma/componente/ano
+    existing = await db.teacher_assignments.find_one({
+        "class_id": assignment.class_id,
+        "course_id": assignment.course_id,
+        "academic_year": assignment.academic_year,
+        "status": "ativo"
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Já existe professor alocado para este componente nesta turma")
+    
+    new_assignment = TeacherAssignment(**assignment.model_dump())
+    await db.teacher_assignments.insert_one(new_assignment.model_dump())
+    
+    return await db.teacher_assignments.find_one({"id": new_assignment.id}, {"_id": 0})
+
+@api_router.put("/teacher-assignments/{assignment_id}")
+async def update_teacher_assignment(assignment_id: str, assignment_data: TeacherAssignmentUpdate, request: Request):
+    """Atualiza alocação de professor"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
+    
+    existing = await db.teacher_assignments.find_one({"id": assignment_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Alocação não encontrada")
+    
+    update_data = {k: v for k, v in assignment_data.model_dump().items() if v is not None}
+    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    await db.teacher_assignments.update_one({"id": assignment_id}, {"$set": update_data})
+    
+    return await db.teacher_assignments.find_one({"id": assignment_id}, {"_id": 0})
+
+@api_router.delete("/teacher-assignments/{assignment_id}")
+async def delete_teacher_assignment(assignment_id: str, request: Request):
+    """Remove alocação de professor"""
+    await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    existing = await db.teacher_assignments.find_one({"id": assignment_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Alocação não encontrada")
+    
+    await db.teacher_assignments.delete_one({"id": assignment_id})
+    return {"message": "Alocação removida com sucesso"}
+
+@api_router.get("/staff/by-user/{user_id}")
+async def get_staff_by_user(user_id: str, request: Request):
+    """Busca servidor pelo ID do usuário"""
+    await AuthMiddleware.get_current_user(request)
+    
+    staff = await db.staff.find_one({"user_id": user_id}, {"_id": 0})
+    if not staff:
+        raise HTTPException(status_code=404, detail="Servidor não encontrado para este usuário")
+    
+    return staff
+
 # Include the router in the main app
 app.include_router(api_router)
 
