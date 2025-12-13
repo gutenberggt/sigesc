@@ -2231,16 +2231,14 @@ async def delete_teacher_assignment(assignment_id: str, request: Request):
     await db.teacher_assignments.delete_one({"id": assignment_id})
     return {"message": "Alocação removida com sucesso"}
 
-@api_router.get("/staff/by-user/{user_id}")
-async def get_staff_by_user(user_id: str, request: Request):
-    """Busca servidor pelo ID do usuário"""
-    await AuthMiddleware.get_current_user(request)
-    
-    staff = await db.staff.find_one({"user_id": user_id}, {"_id": 0})
-    if not staff:
-        raise HTTPException(status_code=404, detail="Servidor não encontrado para este usuário")
-    
-    return staff
+@api_router.get("/uploads/staff/{filename}")
+async def get_staff_photo(filename: str):
+    """Serve foto do servidor"""
+    from fastapi.responses import FileResponse
+    filepath = f"/app/backend/uploads/staff/{filename}"
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="Foto não encontrada")
+    return FileResponse(filepath)
 
 # Include the router in the main app
 app.include_router(api_router)
