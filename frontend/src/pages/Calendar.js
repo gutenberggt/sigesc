@@ -487,6 +487,7 @@ export const Calendar = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [showEventModal, setShowEventModal] = useState(false);
+  const navigateTo = useNavigate();
   
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
