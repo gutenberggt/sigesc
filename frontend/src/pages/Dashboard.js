@@ -223,6 +223,15 @@ export const Dashboard = () => {
                 <ClipboardCheck className="text-cyan-600" size={24} />
                 <span className="font-medium text-gray-900">Frequência</span>
               </button>
+              
+              <button
+                onClick={() => navigate('/admin/staff')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 transition-all"
+                data-testid="nav-staff-button"
+              >
+                <Briefcase className="text-amber-600" size={24} />
+                <span className="font-medium text-gray-900">Servidores</span>
+              </button>
             </div>
           </div>
         )}
