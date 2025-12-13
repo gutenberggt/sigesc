@@ -154,16 +154,19 @@ const DayCell = ({ date, events, isToday, isCurrentMonth, onClick, onEventClick,
         )}
       </div>
       <div className="space-y-1">
-        {dayEvents.slice(0, 3).map((event, idx) => (
-          <EventBadge 
-            key={event.id || idx} 
-            event={event} 
-            compact={dayEvents.length > 2}
-            onClick={onEventClick}
-          />
-        ))}
-        {dayEvents.length > 3 && (
-          <div className="text-xs text-gray-500">+{dayEvents.length - 3} mais</div>
+        {dayEvents
+          .filter(event => event.name !== 'Sábado' && event.name !== 'Domingo')
+          .slice(0, 3)
+          .map((event, idx) => (
+            <EventBadge 
+              key={event.id || idx} 
+              event={event} 
+              compact={dayEvents.length > 2}
+              onClick={onEventClick}
+            />
+          ))}
+        {dayEvents.filter(event => event.name !== 'Sábado' && event.name !== 'Domingo').length > 3 && (
+          <div className="text-xs text-gray-500">+{dayEvents.filter(event => event.name !== 'Sábado' && event.name !== 'Domingo').length - 3} mais</div>
         )}
       </div>
     </div>
