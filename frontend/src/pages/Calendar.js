@@ -95,26 +95,61 @@ const EventBadge = ({ event, compact = false, onClick }) => {
 };
 
 // Componente de célula do dia
-const DayCell = ({ date, events, isToday, isCurrentMonth, onClick, onEventClick }) => {
+const DayCell = ({ date, events, isToday, isCurrentMonth, onClick, onEventClick, academicYear }) => {
   const dayEvents = events.filter(e => {
     return date >= e.start_date && date <= e.end_date;
   });
   
+  // Verifica se é final de semana
+  const dateObj = new Date(date + 'T12:00:00');
+  const dayOfWeek = dateObj.getDay();
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+  
+  // Verifica se está dentro dos períodos letivos (2026)
+  const isInSchoolPeriod = (
+    (date >= '2026-02-09' && date <= '2026-06-30') ||
+    (date >= '2026-08-03' && date <= '2026-12-18')
+  );
+  
+  // Verifica eventos
   const hasNonSchoolDay = dayEvents.some(e => !e.is_school_day);
   const hasSchoolDay = dayEvents.some(e => e.is_school_day);
+  const hasFeriado = dayEvents.some(e => e.event_type?.includes('feriado'));
+  const hasRecesso = dayEvents.some(e => e.event_type === 'recesso_escolar');
+  
+  // Determina se é dia letivo
+  // É letivo se: está no período letivo + não é final de semana + não tem feriado/recesso
+  const isSchoolDay = isInSchoolPeriod && !isWeekend && !hasFeriado && !hasRecesso && !hasNonSchoolDay;
+  
+  // Define a cor de fundo
+  let bgClass = 'bg-white';
+  if (!isCurrentMonth) {
+    bgClass = 'bg-gray-50 text-gray-400';
+  } else if (hasFeriado) {
+    bgClass = 'bg-red-100';
+  } else if (hasRecesso) {
+    bgClass = 'bg-blue-50';
+  } else if (isWeekend && isInSchoolPeriod) {
+    bgClass = 'bg-gray-100';
+  } else if (isSchoolDay) {
+    bgClass = 'bg-green-50';
+  } else if (hasSchoolDay) {
+    bgClass = 'bg-green-50';
+  }
   
   return (
     <div 
       className={`min-h-[80px] p-1 border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors
-        ${!isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white'}
+        ${bgClass}
         ${isToday ? 'ring-2 ring-blue-500' : ''}
-        ${hasNonSchoolDay && !hasSchoolDay ? 'bg-red-50' : ''}
-        ${hasSchoolDay ? 'bg-green-50' : ''}
       `}
       onClick={() => onClick(date)}
     >
-      <div className={`text-sm font-medium mb-1 ${isToday ? 'text-blue-600' : ''}`}>
-        {parseInt(date.split('-')[2])}
+      <div className={`text-sm font-medium mb-1 flex items-center justify-between ${isToday ? 'text-blue-600' : ''}`}>
+        <span>{parseInt(date.split('-')[2])}</span>
+        {isCurrentMonth && isInSchoolPeriod && !isWeekend && !hasFeriado && !hasRecesso && (
+          <span className="w-2 h-2 rounded-full bg-green-500" title="Dia Letivo"></span>
+        )}
       </div>
       <div className="space-y-1">
         {dayEvents.slice(0, 3).map((event, idx) => (
