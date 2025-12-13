@@ -10,6 +10,7 @@ None at this time.
 Date: 2025-12-12
 
 ## Test Scope
+- Grades System (Sistema de Notas) - COMPREHENSIVE TESTING COMPLETED
 - Guardians (Responsáveis) CRUD
 - Enrollments (Matrículas) CRUD
 - Dashboard navigation to new pages
@@ -20,8 +21,14 @@ Date: 2025-12-12
 - SEMED: semed@sigesc.com / password
 
 ## API Endpoints to Test
-- POST/GET/PUT/DELETE /api/guardians
-- POST/GET/PUT/DELETE /api/enrollments
+- GET /api/grades - Lista notas ✅
+- GET /api/grades/by-class/{class_id}/{course_id} - Notas por turma ✅
+- GET /api/grades/by-student/{student_id} - Notas por aluno ✅
+- POST /api/grades - Criar nota ✅
+- PUT /api/grades/{id} - Atualizar nota ✅
+- POST /api/grades/batch - Atualizar em lote ✅
+- POST/GET/PUT/DELETE /api/guardians ✅
+- POST/GET/PUT/DELETE /api/enrollments ✅
 
 ## Frontend Pages to Test
 - /admin/guardians
