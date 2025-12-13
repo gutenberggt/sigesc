@@ -1600,6 +1600,24 @@ async def save_attendance(attendance: AttendanceCreate, request: Request):
         await db.attendance.insert_one(new_attendance)
         return await db.attendance.find_one({"id": new_attendance['id']}, {"_id": 0})
 
+@api_router.delete("/attendance/{attendance_id}")
+async def delete_attendance(attendance_id: str, request: Request):
+    """Remove um registro de frequência"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor'])(request)
+    
+    # Verifica se existe
+    existing = await db.attendance.find_one({"id": attendance_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Registro de frequência não encontrado")
+    
+    # Remove o registro
+    result = await db.attendance.delete_one({"id": attendance_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Erro ao remover frequência")
+    
+    return {"message": "Frequência removida com sucesso"}
+
 @api_router.get("/attendance/report/student/{student_id}")
 async def get_student_attendance_report(
     student_id: str,
