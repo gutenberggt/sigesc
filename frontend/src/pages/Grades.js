@@ -21,8 +21,8 @@ const parseGrade = (value) => {
   return isNaN(num) ? null : Math.min(10, Math.max(0, num));
 };
 
-// Calcula média ponderada
-const calculateAverage = (b1, b2, b3, b4, recovery) => {
+// Calcula média ponderada com recuperações por semestre
+const calculateAverage = (b1, b2, b3, b4, rec_s1, rec_s2) => {
   const grades = { b1, b2, b3, b4 };
   
   // Se não tem todas as notas, retorna null
@@ -30,23 +30,24 @@ const calculateAverage = (b1, b2, b3, b4, recovery) => {
     return null;
   }
   
-  // Aplica recuperação
+  // Aplica recuperações por semestre
   let finalGrades = { ...grades };
-  if (recovery !== null && recovery !== undefined) {
-    // Encontra menor nota
-    const minGrade = Math.min(...Object.values(grades));
-    const minKeys = Object.keys(grades).filter(k => grades[k] === minGrade);
-    
-    // Se há empate, substitui a de maior peso (b2 ou b4)
-    let keyToReplace = minKeys[0];
-    if (minKeys.length > 1) {
-      const priority = ['b2', 'b4', 'b1', 'b3'];
-      keyToReplace = priority.find(p => minKeys.includes(p));
+  
+  // Recuperação 1º Semestre (substitui menor entre B1 e B2)
+  if (rec_s1 !== null && rec_s1 !== undefined) {
+    const minS1 = Math.min(b1, b2);
+    const keyS1 = b1 === b2 ? 'b2' : (b1 < b2 ? 'b1' : 'b2');
+    if (rec_s1 > finalGrades[keyS1]) {
+      finalGrades[keyS1] = rec_s1;
     }
-    
-    // Só substitui se recuperação for maior
-    if (recovery > finalGrades[keyToReplace]) {
-      finalGrades[keyToReplace] = recovery;
+  }
+  
+  // Recuperação 2º Semestre (substitui menor entre B3 e B4)
+  if (rec_s2 !== null && rec_s2 !== undefined) {
+    const minS2 = Math.min(b3, b4);
+    const keyS2 = b3 === b4 ? 'b4' : (b3 < b4 ? 'b3' : 'b4');
+    if (rec_s2 > finalGrades[keyS2]) {
+      finalGrades[keyS2] = rec_s2;
     }
   }
   
