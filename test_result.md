@@ -86,39 +86,48 @@ backend:
 frontend:
   - task: "Grades Page - Por Turma tab"
     implemented: true
-    working: "NA"
-    file: "frontend/src/pages/GradesPage.js"
+    working: true
+    file: "frontend/src/pages/Grades.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "testing"
         comment: "Frontend testing not performed as per system limitations. Backend APIs are working correctly to support frontend functionality."
+      - working: true
+        agent: "testing"
+        comment: "✅ Por Turma tab fully functional. Successfully tested complete flow: login → grades page → school selection (EMEIEF SORRISO DO ARAGUAIA) → class selection (3º Ano A) → component selection (Matemática) → load grades → display student table with Maria da Silva Santos → grade entry (7,0 Brazilian format) → save button enabled. All expected table headers present (Aluno, B1-B4, Rec., Média, Status)."
 
   - task: "Component filtering by education level"
     implemented: true
-    working: "NA"
-    file: "frontend/src/pages/GradesPage.js"
+    working: true
+    file: "frontend/src/pages/Grades.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "testing"
         comment: "Frontend testing not performed as per system limitations. Backend courses API supports filtering by nivel_ensino parameter."
+      - working: true
+        agent: "testing"
+        comment: "✅ Component filtering working correctly. Found 9 curriculum components for fundamental_anos_iniciais education level including expected components: Matemática, Língua Portuguesa, Arte, História, Geografia, Educação Física, Ciências, Ensino Religioso, Educação Ambiental e Clima. Filtering by education level is properly implemented."
 
   - task: "Grade entry flow - Carregar Notas button"
     implemented: true
-    working: "NA"
-    file: "frontend/src/pages/GradesPage.js"
+    working: true
+    file: "frontend/src/pages/Grades.js"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "testing"
         comment: "Frontend testing not performed as per system limitations. Backend grades by class API working correctly to support this functionality."
+      - working: true
+        agent: "testing"
+        comment: "✅ Grade entry flow working perfectly. Carregar Notas button loads student data correctly, displays 1 student (Maria da Silva Santos) with proper grade input fields. Grade entry supports Brazilian format (7,0 with comma), Salvar Notas button becomes enabled after changes. All grade calculation fields (B1×2, B2×3, B3×2, B4×3) present with recovery option."
 
 metadata:
   created_by: "testing_agent"
