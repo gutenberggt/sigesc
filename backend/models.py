@@ -813,7 +813,9 @@ class GradeCreate(BaseModel):
     b2: Optional[float] = None
     b3: Optional[float] = None
     b4: Optional[float] = None
-    recovery: Optional[float] = None
+    rec_s1: Optional[float] = None  # Recuperação 1º Semestre
+    rec_s2: Optional[float] = None  # Recuperação 2º Semestre
+    recovery: Optional[float] = None  # Campo legado
     observations: Optional[str] = None
 
 class GradeUpdate(BaseModel):
@@ -821,7 +823,9 @@ class GradeUpdate(BaseModel):
     b2: Optional[float] = None
     b3: Optional[float] = None
     b4: Optional[float] = None
-    recovery: Optional[float] = None
+    rec_s1: Optional[float] = None  # Recuperação 1º Semestre
+    rec_s2: Optional[float] = None  # Recuperação 2º Semestre
+    recovery: Optional[float] = None  # Campo legado
     observations: Optional[str] = None
 
 class Grade(GradeBase):
