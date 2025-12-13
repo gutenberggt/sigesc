@@ -165,6 +165,35 @@ class SIGESCTester:
                 if response.status_code == 201:
                     self.class_id = response.json()['id']
                     self.log(f"✅ Created test class (ID: {self.class_id})")
+        
+        # Get courses (componentes curriculares)
+        response = requests.get(
+            f"{API_BASE}/courses",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            courses = response.json()
+            if courses:
+                self.course_id = courses[0]['id']
+                self.log(f"✅ Using course: {courses[0]['name']} (ID: {self.course_id})")
+            else:
+                self.log("❌ No courses found - creating one...")
+                # Create a test course
+                course_data = {
+                    "name": "Matemática",
+                    "code": "MAT",
+                    "nivel_ensino": "fundamental",
+                    "workload": 200
+                }
+                response = requests.post(
+                    f"{API_BASE}/courses",
+                    json=course_data,
+                    headers=self.get_headers(self.admin_token)
+                )
+                if response.status_code == 201:
+                    self.course_id = response.json()['id']
+                    self.log(f"✅ Created test course (ID: {self.course_id})")
     
     def test_guardians_crud(self):
         """Test Guardians CRUD operations"""
