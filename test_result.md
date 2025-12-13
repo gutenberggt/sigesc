@@ -140,7 +140,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Grades Page - Por Turma tab"
+    - "Grades Page - Por Turma tab with Two-Recovery System"
     - "Component filtering by education level"
     - "Grade entry flow - Carregar Notas button"
   stuck_tasks: []
