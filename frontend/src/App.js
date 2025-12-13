@@ -9,6 +9,8 @@ import { Classes } from '@/pages/Classes';
 import { Courses } from '@/pages/CoursesNew';
 import { StudentsComplete as Students } from '@/pages/StudentsComplete';
 import { Grades } from '@/pages/Grades';
+import { Calendar } from '@/pages/Calendar';
+import { Events } from '@/pages/Events';
 import '@/App.css';
 
 function App() {
