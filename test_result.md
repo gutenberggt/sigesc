@@ -183,7 +183,7 @@ frontend:
   - task: "Staff Management (Gestão de Servidores) - Phase 5.5"
     implemented: true
     working: true
-    file: "backend/server.py"
+    file: "frontend/src/pages/Staff.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
@@ -191,6 +191,9 @@ frontend:
       - working: true
         agent: "testing"
         comment: "🎉 PHASE 5.5 STAFF MANAGEMENT FULLY TESTED AND WORKING! Comprehensive testing of all staff management endpoints completed successfully: ✅ STAFF ENDPOINTS: GET /api/staff (list all staff with user data populated), GET /api/staff/{id} (retrieve individual staff with lotações and alocações), POST /api/staff (create new staff with matricula 12345, cargo professor, tipo_vinculo efetivo), PUT /api/staff/{id} (update staff status and observations), DELETE /api/staff/{id} (remove staff successfully), ✅ SCHOOL ASSIGNMENTS (LOTAÇÕES): GET /api/school-assignments (list all assignments), POST /api/school-assignments (create assignment with funcao professor, data_inicio 2025-01-01), PUT /api/school-assignments/{id} (update funcao to coordenador), DELETE /api/school-assignments/{id} (remove assignment), ✅ TEACHER ASSIGNMENTS (ALOCAÇÕES): GET /api/teacher-assignments (list teacher assignments), POST /api/teacher-assignments (create assignment linking staff to class and course), PUT /api/teacher-assignments/{id} (update assignment observations), DELETE /api/teacher-assignments/{id} (remove assignment), ✅ DATA RELATIONSHIPS: Staff properly populated with user data, lotações, and alocações when retrieved by ID, ✅ BUSINESS RULES: Only professors can have teacher assignments, staff cannot be deleted with active assignments, matricula uniqueness enforced. All 15 test steps completed successfully including full CRUD operations and relationship verification. Staff management system is fully functional and ready for production use!"
+      - working: true
+        agent: "testing"
+        comment: "🎉 PHASE 5.5 STAFF MANAGEMENT FRONTEND FULLY TESTED AND WORKING! Comprehensive UI testing completed successfully: ✅ Login flow (admin@sigesc.com/password) working perfectly, ✅ Navigation to /admin/staff successful, ✅ Page header with 'Gestão de Servidores' title found, ✅ Subtitle 'Cadastro, Lotação e Alocação de Servidores' displayed correctly, ✅ 'Voltar ao Dashboard' and 'Novo Servidor' buttons present and functional, ✅ All 3 tabs (Servidores, Lotações, Alocações de Professores) found and working, ✅ Search filter input functional (accepts text input), ✅ All filter dropdowns working: Todas as Escolas, Todos os Cargos, Todos os Status, ✅ Table structure verified with correct headers: Servidor, Matrícula, Cargo, Vínculo, Status, Ações, ✅ Empty state handling working ('Nenhum servidor encontrado' message displayed), ✅ 'Novo Servidor' modal opens correctly with comprehensive form fields: User selection, Matrícula input, Cargo selection, Tipo de Vínculo, Data de Admissão, Carga Horária, Status, Formação/Especialização (for professors), Observações textarea, ✅ Tab switching functional between all three tabs, ✅ Context-sensitive buttons appear correctly (Nova Lotação, Nova Alocação), ✅ Modal form validation and structure working properly, ✅ No critical errors or interface issues found. The Staff Management interface is fully functional and ready for production use!"
 
 metadata:
   created_by: "testing_agent"
