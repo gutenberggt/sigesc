@@ -1864,26 +1864,19 @@ async def list_staff(request: Request, school_id: Optional[str] = None, cargo: O
     
     staff_list = await db.staff.find(query, {"_id": 0}).to_list(1000)
     
-    # Enriquecer com dados do usuário
-    for staff in staff_list:
-        user = await db.users.find_one({"id": staff['user_id']}, {"_id": 0, "password_hash": 0})
-        if user:
-            staff['user'] = user
-        
-        # Se filtrar por escola, verificar lotações
-        if school_id:
+    # Se filtrar por escola, verificar lotações
+    if school_id:
+        filtered_staff = []
+        for staff in staff_list:
             lotacao = await db.school_assignments.find_one({
                 "staff_id": staff['id'],
                 "school_id": school_id,
                 "status": "ativo"
             }, {"_id": 0})
-            if not lotacao:
-                continue
-            staff['lotacao_atual'] = lotacao
-    
-    # Filtrar se school_id foi passado
-    if school_id:
-        staff_list = [s for s in staff_list if 'lotacao_atual' in s]
+            if lotacao:
+                staff['lotacao_atual'] = lotacao
+                filtered_staff.append(staff)
+        staff_list = filtered_staff
     
     return staff_list
 
@@ -1895,11 +1888,6 @@ async def get_staff(staff_id: str, request: Request):
     staff = await db.staff.find_one({"id": staff_id}, {"_id": 0})
     if not staff:
         raise HTTPException(status_code=404, detail="Servidor não encontrado")
-    
-    # Enriquecer com dados do usuário
-    user = await db.users.find_one({"id": staff['user_id']}, {"_id": 0, "password_hash": 0})
-    if user:
-        staff['user'] = user
     
     # Buscar lotações
     lotacoes = await db.school_assignments.find({"staff_id": staff_id}, {"_id": 0}).to_list(100)
@@ -1923,45 +1911,51 @@ async def get_staff(staff_id: str, request: Request):
     
     return staff
 
+async def generate_matricula():
+    """Gera matrícula automática no formato ANO + sequencial (ex: 202500001)"""
+    year = datetime.now().year
+    prefix = str(year)
+    
+    # Busca última matrícula do ano
+    last_staff = await db.staff.find(
+        {"matricula": {"$regex": f"^{prefix}"}},
+        {"_id": 0, "matricula": 1}
+    ).sort("matricula", -1).limit(1).to_list(1)
+    
+    if last_staff:
+        last_num = int(last_staff[0]['matricula'][4:])
+        new_num = last_num + 1
+    else:
+        new_num = 1
+    
+    return f"{prefix}{new_num:05d}"
+
 @api_router.post("/staff")
 async def create_staff(staff_data: StaffCreate, request: Request):
-    """Cria novo servidor"""
+    """Cria novo servidor com matrícula automática"""
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
     
-    # Verifica se usuário existe
-    user = await db.users.find_one({"id": staff_data.user_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    # Gera matrícula automática
+    matricula = await generate_matricula()
     
-    # Verifica se já existe servidor para este usuário
-    existing = await db.staff.find_one({"user_id": staff_data.user_id})
-    if existing:
-        raise HTTPException(status_code=400, detail="Usuário já possui cadastro de servidor")
+    # Cria o servidor
+    new_staff = Staff(
+        matricula=matricula,
+        **staff_data.model_dump()
+    )
     
-    # Verifica matrícula única
-    existing_mat = await db.staff.find_one({"matricula": staff_data.matricula})
-    if existing_mat:
-        raise HTTPException(status_code=400, detail="Matrícula já existe")
-    
-    new_staff = Staff(**staff_data.model_dump())
     await db.staff.insert_one(new_staff.model_dump())
     
     return await db.staff.find_one({"id": new_staff.id}, {"_id": 0})
 
 @api_router.put("/staff/{staff_id}")
 async def update_staff(staff_id: str, staff_data: StaffUpdate, request: Request):
-    """Atualiza servidor"""
+    """Atualiza servidor (matrícula não pode ser alterada)"""
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
     
     existing = await db.staff.find_one({"id": staff_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Servidor não encontrado")
-    
-    # Verifica matrícula única se alterada
-    if staff_data.matricula and staff_data.matricula != existing.get('matricula'):
-        existing_mat = await db.staff.find_one({"matricula": staff_data.matricula})
-        if existing_mat:
-            raise HTTPException(status_code=400, detail="Matrícula já existe")
     
     update_data = {k: v for k, v in staff_data.model_dump().items() if v is not None}
     update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
@@ -1986,6 +1980,40 @@ async def delete_staff(staff_id: str, request: Request):
     
     await db.staff.delete_one({"id": staff_id})
     return {"message": "Servidor removido com sucesso"}
+
+@api_router.post("/staff/{staff_id}/photo")
+async def upload_staff_photo(staff_id: str, request: Request, file: UploadFile = File(...)):
+    """Upload de foto do servidor"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    existing = await db.staff.find_one({"id": staff_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Servidor não encontrado")
+    
+    # Validar tipo de arquivo
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="Arquivo deve ser uma imagem")
+    
+    # Salvar arquivo
+    file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+    filename = f"staff_{staff_id}.{file_ext}"
+    filepath = f"/app/backend/uploads/staff/{filename}"
+    
+    # Criar diretório se não existir
+    os.makedirs("/app/backend/uploads/staff", exist_ok=True)
+    
+    with open(filepath, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    
+    # Atualizar URL da foto no banco
+    foto_url = f"/api/uploads/staff/{filename}"
+    await db.staff.update_one(
+        {"id": staff_id},
+        {"$set": {"foto_url": foto_url, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"foto_url": foto_url}
 
 # ============= SCHOOL ASSIGNMENTS (LOTAÇÕES) =============
 
