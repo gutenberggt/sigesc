@@ -188,7 +188,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Attendance Control (Controle de Frequência) - Backend Testing Complete"
+    - "Attendance Control (Controle de Frequência) - Frontend Testing Complete"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
