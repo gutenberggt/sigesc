@@ -163,9 +163,29 @@ export function Grades() {
     setTimeout(() => setAlert(null), 5000);
   };
   
+  // Turma selecionada (para obter nível de ensino e série)
+  const selectedClassData = classes.find(c => c.id === selectedClass);
+  
   // Filtros derivados
   const filteredClasses = classes.filter(c => c.school_id === selectedSchool);
-  const filteredCourses = courses.filter(c => c.school_id === selectedSchool);
+  
+  // Filtra componentes curriculares baseado na escola, nível de ensino e série/ano da turma
+  const filteredCourses = courses.filter(course => {
+    // Deve ser da mesma escola
+    if (course.school_id !== selectedSchool) return false;
+    
+    // Se não tem turma selecionada, mostra todos da escola
+    if (!selectedClassData) return true;
+    
+    // Deve ser do mesmo nível de ensino
+    if (course.nivel_ensino !== selectedClassData.education_level) return false;
+    
+    // Se o componente não tem séries específicas, aplica a todas do nível
+    if (!course.grade_levels || course.grade_levels.length === 0) return true;
+    
+    // Verifica se a série da turma está nas séries do componente
+    return course.grade_levels.includes(selectedClassData.grade_level);
+  });
   
   // Sugestões de busca
   const nameSuggestions = searchName.length >= 3 
