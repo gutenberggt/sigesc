@@ -285,3 +285,47 @@ export const uploadAPI = {
     return `${BACKEND_URL}${url}`;
   }
 };
+
+// ============= CALENDAR EVENTS =============
+export const calendarAPI = {
+  getEvents: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.academic_year) queryParams.append('academic_year', params.academic_year);
+    if (params.start_date) queryParams.append('start_date', params.start_date);
+    if (params.end_date) queryParams.append('end_date', params.end_date);
+    if (params.event_type) queryParams.append('event_type', params.event_type);
+    
+    const url = `${API}/calendar/events${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const response = await axios.get(url);
+    return response.data;
+  },
+  
+  getById: async (id) => {
+    const response = await axios.get(`${API}/calendar/events/${id}`);
+    return response.data;
+  },
+  
+  create: async (data) => {
+    const response = await axios.post(`${API}/calendar/events`, data);
+    return response.data;
+  },
+  
+  update: async (id, data) => {
+    const response = await axios.put(`${API}/calendar/events/${id}`, data);
+    return response.data;
+  },
+  
+  delete: async (id) => {
+    await axios.delete(`${API}/calendar/events/${id}`);
+  },
+  
+  checkDate: async (date) => {
+    const response = await axios.get(`${API}/calendar/check-date/${date}`);
+    return response.data;
+  },
+  
+  getSummary: async (academicYear) => {
+    const response = await axios.get(`${API}/calendar/summary/${academicYear}`);
+    return response.data;
+  }
+};
