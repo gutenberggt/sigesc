@@ -11,6 +11,7 @@ import { StudentsComplete as Students } from '@/pages/StudentsComplete';
 import { Grades } from '@/pages/Grades';
 import { Calendar } from '@/pages/Calendar';
 import { Events } from '@/pages/Events';
+import { Attendance } from '@/pages/Attendance';
 import '@/App.css';
 
 function App() {
