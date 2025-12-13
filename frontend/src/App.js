@@ -105,6 +105,15 @@ function App() {
             }
           />
           
+          <Route
+            path="/admin/attendance"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'professor', 'diretor', 'coordenador', 'semed']}>
+                <Attendance />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* Redireciona raiz para dashboard ou login */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           
