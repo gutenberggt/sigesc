@@ -137,9 +137,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Courses API endpoint - GET /api/courses"
-    - "Grades by Class API - GET /api/grades/by-class/{class_id}/{course_id}"
-    - "Grade calculation formula - weighted average"
+    - "Grades Page - Por Turma tab"
+    - "Component filtering by education level"
+    - "Grade entry flow - Carregar Notas button"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -147,3 +147,5 @@ test_plan:
 agent_communication:
   - agent: "testing"
     message: "✅ SIGESC Grades System (Fase 4) backend testing completed successfully. All backend APIs working correctly: 1) Courses endpoint returns proper fields (nivel_ensino, grade_levels, school_id), 2) Grades by class API works with specific class ID (3º Ano A), 3) Grade calculation formula verified (weighted average), 4) Recovery system working, 5) Authentication/authorization proper. Frontend testing not performed due to system limitations - main agent should handle UI testing or ask user to test manually."
+  - agent: "testing"
+    message: "✅ SIGESC Grades Page frontend testing completed successfully! All major functionality working: 1) Login flow works with admin@sigesc.com/password, 2) Por Turma tab active by default, 3) School dropdown populated with EMEIEF SORRISO DO ARAGUAIA, 4) Class dropdown shows 3º Ano A after school selection, 5) Component dropdown shows 9 filtered components for fundamental_anos_iniciais, 6) Carregar Notas loads Maria da Silva Santos student data, 7) Grade entry supports Brazilian format (7,0), 8) Salvar Notas button enables after changes. Component filtering by education level working correctly. Ready for production use."
