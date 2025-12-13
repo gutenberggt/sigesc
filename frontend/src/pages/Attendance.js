@@ -622,12 +622,12 @@ export const Attendance = () => {
                                     key={status}
                                     onClick={() => canEdit && dateCheck?.can_record && updateStudentStatus(student.id, status)}
                                     disabled={!canEdit || !dateCheck?.can_record}
-                                    className={`w-10 h-10 rounded-lg font-bold text-white transition-all
+                                    className={`w-10 h-10 rounded-lg font-bold transition-all
                                       ${student.status === status 
-                                        ? status === 'P' ? 'bg-green-500 ring-2 ring-green-300' 
-                                          : status === 'F' ? 'bg-red-500 ring-2 ring-red-300'
-                                          : 'bg-yellow-500 ring-2 ring-yellow-300'
-                                        : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                                        ? status === 'P' ? 'bg-green-500 text-white ring-2 ring-green-300' 
+                                          : status === 'F' ? 'bg-red-500 text-white ring-2 ring-red-300'
+                                          : 'bg-yellow-500 text-white ring-2 ring-yellow-300'
+                                        : 'bg-gray-300 text-gray-500 hover:bg-gray-400'
                                       }
                                       ${(!canEdit || !dateCheck?.can_record) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
                                     `}
@@ -642,9 +642,21 @@ export const Attendance = () => {
                       </tbody>
                     </table>
                     
-                    {/* Botão Salvar */}
+                    {/* Botões Salvar e Excluir */}
                     {canEdit && dateCheck?.can_record && (
-                      <div className="p-4 bg-gray-50 border-t flex justify-end gap-2">
+                      <div className="p-4 bg-gray-50 border-t flex justify-between items-center">
+                        <div>
+                          {attendanceData.attendance_id && (
+                            <Button
+                              variant="outline"
+                              onClick={() => setShowDeleteModal(true)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                            >
+                              <Trash2 size={16} className="mr-2" />
+                              Excluir Frequência
+                            </Button>
+                          )}
+                        </div>
                         <Button
                           onClick={saveAttendance}
                           disabled={saving || !hasChanges}
