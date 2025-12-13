@@ -329,3 +329,51 @@ export const calendarAPI = {
     return response.data;
   }
 };
+
+// ============= ATTENDANCE (FREQUÊNCIA) =============
+export const attendanceAPI = {
+  getSettings: async (academicYear) => {
+    const response = await axios.get(`${API}/attendance/settings/${academicYear}`);
+    return response.data;
+  },
+  
+  updateSettings: async (academicYear, allowFutureDates) => {
+    const response = await axios.put(`${API}/attendance/settings/${academicYear}?allow_future_dates=${allowFutureDates}`);
+    return response.data;
+  },
+  
+  checkDate: async (date) => {
+    const response = await axios.get(`${API}/attendance/check-date/${date}`);
+    return response.data;
+  },
+  
+  getByClass: async (classId, date, courseId = null, period = 'regular') => {
+    let url = `${API}/attendance/by-class/${classId}/${date}?period=${period}`;
+    if (courseId) url += `&course_id=${courseId}`;
+    const response = await axios.get(url);
+    return response.data;
+  },
+  
+  save: async (data) => {
+    const response = await axios.post(`${API}/attendance`, data);
+    return response.data;
+  },
+  
+  getStudentReport: async (studentId, academicYear) => {
+    const response = await axios.get(`${API}/attendance/report/student/${studentId}?academic_year=${academicYear}`);
+    return response.data;
+  },
+  
+  getClassReport: async (classId, academicYear) => {
+    const response = await axios.get(`${API}/attendance/report/class/${classId}?academic_year=${academicYear}`);
+    return response.data;
+  },
+  
+  getAlerts: async (schoolId = null, academicYear = null) => {
+    let url = `${API}/attendance/alerts?`;
+    if (schoolId) url += `school_id=${schoolId}&`;
+    if (academicYear) url += `academic_year=${academicYear}`;
+    const response = await axios.get(url);
+    return response.data;
+  }
+};
