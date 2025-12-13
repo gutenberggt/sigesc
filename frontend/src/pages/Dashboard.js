@@ -214,6 +214,15 @@ export const Dashboard = () => {
                 <Calendar className="text-indigo-600" size={24} />
                 <span className="font-medium text-gray-900">Calendário Letivo</span>
               </button>
+              
+              <button
+                onClick={() => navigate('/admin/attendance')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-cyan-50 hover:border-cyan-300 transition-all"
+                data-testid="nav-attendance-button"
+              >
+                <ClipboardCheck className="text-cyan-600" size={24} />
+                <span className="font-medium text-gray-900">Frequência</span>
+              </button>
             </div>
           </div>
         )}
