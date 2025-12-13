@@ -582,6 +582,16 @@ export const Calendar = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigateTo('/admin/dashboard')}
+              >
+                <ArrowLeft size={18} className="mr-1" />
+                Voltar ao Dashboard
+              </Button>
+            </div>
             <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
               <CalendarIcon className="text-blue-600" />
               Calendário Letivo
@@ -589,7 +599,7 @@ export const Calendar = () => {
             <p className="text-gray-600">Visualize feriados, eventos e dias letivos</p>
           </div>
           
-          <Button onClick={() => window.location.href = '/admin/events'}>
+          <Button onClick={() => navigateTo('/admin/events')}>
             <Plus size={18} className="mr-2" />
             Gerenciar Eventos
           </Button>
