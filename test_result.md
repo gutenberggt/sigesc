@@ -180,6 +180,18 @@ frontend:
         agent: "testing"
         comment: "🎉 PHASE 5 ATTENDANCE CONTROL FRONTEND FULLY TESTED AND WORKING! Comprehensive UI testing completed successfully: ✅ Login flow (admin@sigesc.com/password) working, ✅ Navigation to /admin/attendance successful, ✅ Page header with 'Controle de Frequência' title displayed, ✅ 'Voltar ao Dashboard' and 'Configurações' buttons present, ✅ All 3 tabs (Lançamento, Relatórios, Alertas) found and functional, ✅ LANÇAMENTO TAB: School dropdown working (EMEIEF SORRISO DO ARAGUAIA selected), date navigation working (2025-12-15 set), weekday display working (Sábado shown), 'Carregar Frequência' button present, ✅ RELATÓRIOS TAB: School/class selection working, 'Gerar Relatório' button functional, report table headers verified, ✅ ALERTAS TAB: 'Buscar Alertas' button working, no alerts message displayed correctly, ✅ SETTINGS MODAL: Opens correctly, 'Permitir lançamento em datas futuras' checkbox found and functional, toggle working, save functionality working with 'Configurações salvas!' success message. Minor issue: Class '3º Ano A' not available in current dataset, but interface handles this gracefully. All core attendance control functionality working perfectly!"
 
+  - task: "Staff Management (Gestão de Servidores) - Phase 5.5"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "🎉 PHASE 5.5 STAFF MANAGEMENT FULLY TESTED AND WORKING! Comprehensive testing of all staff management endpoints completed successfully: ✅ STAFF ENDPOINTS: GET /api/staff (list all staff with user data populated), GET /api/staff/{id} (retrieve individual staff with lotações and alocações), POST /api/staff (create new staff with matricula 12345, cargo professor, tipo_vinculo efetivo), PUT /api/staff/{id} (update staff status and observations), DELETE /api/staff/{id} (remove staff successfully), ✅ SCHOOL ASSIGNMENTS (LOTAÇÕES): GET /api/school-assignments (list all assignments), POST /api/school-assignments (create assignment with funcao professor, data_inicio 2025-01-01), PUT /api/school-assignments/{id} (update funcao to coordenador), DELETE /api/school-assignments/{id} (remove assignment), ✅ TEACHER ASSIGNMENTS (ALOCAÇÕES): GET /api/teacher-assignments (list teacher assignments), POST /api/teacher-assignments (create assignment linking staff to class and course), PUT /api/teacher-assignments/{id} (update assignment observations), DELETE /api/teacher-assignments/{id} (remove assignment), ✅ DATA RELATIONSHIPS: Staff properly populated with user data, lotações, and alocações when retrieved by ID, ✅ BUSINESS RULES: Only professors can have teacher assignments, staff cannot be deleted with active assignments, matricula uniqueness enforced. All 15 test steps completed successfully including full CRUD operations and relationship verification. Staff management system is fully functional and ready for production use!"
+
 metadata:
   created_by: "testing_agent"
   version: "1.0"
