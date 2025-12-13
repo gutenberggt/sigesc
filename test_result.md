@@ -36,6 +36,18 @@ Date: 2025-12-12
 ---
 
 backend:
+  - task: "Grades System API"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Comprehensive Grades System testing completed successfully! All endpoints working: GET /api/grades (list), GET /api/grades/by-class/{class_id}/{course_id} (class grades), GET /api/grades/by-student/{student_id} (student grades), POST /api/grades (create), PUT /api/grades/{id} (update), POST /api/grades/batch (batch update). Grade calculation formula (B1×2 + B2×3 + B3×2 + B4×3) / 10 verified correct. Recovery system properly substitutes lowest grade. Status correctly updates (cursando/aprovado/reprovado_nota) based on 5.0 minimum. Authentication properly required with Bearer token."
+
   - task: "Guardians CRUD API"
     implemented: true
     working: true
