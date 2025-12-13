@@ -651,33 +651,53 @@ class Enrollment(EnrollmentBase):
 # ============= GRADES MODELS =============
 
 class GradeBase(BaseModel):
-    enrollment_id: str
+    """Notas por bimestre de um aluno em um componente curricular"""
+    student_id: str  # ID do aluno
+    class_id: str  # ID da turma
+    course_id: str  # ID do componente curricular
+    academic_year: int  # Ano letivo
+    
+    # Notas por bimestre (0 a 10)
+    b1: Optional[float] = None  # 1º Bimestre (peso 2)
+    b2: Optional[float] = None  # 2º Bimestre (peso 3)
+    b3: Optional[float] = None  # 3º Bimestre (peso 2)
+    b4: Optional[float] = None  # 4º Bimestre (peso 3)
+    
+    # Recuperação (substitui menor nota)
+    recovery: Optional[float] = None
+    
+    # Resultados calculados
+    final_average: Optional[float] = None
+    status: Literal['cursando', 'aprovado', 'reprovado_nota', 'reprovado_frequencia', 'recuperacao'] = 'cursando'
+    
+    # Observações
+    observations: Optional[str] = None
+
+class GradeCreate(BaseModel):
+    student_id: str
+    class_id: str
+    course_id: str
     academic_year: int
     b1: Optional[float] = None
     b2: Optional[float] = None
     b3: Optional[float] = None
     b4: Optional[float] = None
-    rec2: Optional[float] = None  # Recuperação após 2º bimestre
-    rec4: Optional[float] = None  # Recuperação após 4º bimestre
-    final_average: Optional[float] = None
-    approved: Optional[bool] = None
-
-class GradeCreate(BaseModel):
-    enrollment_id: str
-    academic_year: int
+    recovery: Optional[float] = None
+    observations: Optional[str] = None
 
 class GradeUpdate(BaseModel):
     b1: Optional[float] = None
     b2: Optional[float] = None
     b3: Optional[float] = None
     b4: Optional[float] = None
-    rec2: Optional[float] = None
-    rec4: Optional[float] = None
+    recovery: Optional[float] = None
+    observations: Optional[str] = None
 
 class Grade(GradeBase):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
 
 # ============= ATTENDANCE MODELS =============
 
