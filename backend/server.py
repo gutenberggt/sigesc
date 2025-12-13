@@ -1358,6 +1358,476 @@ async def get_calendar_summary(academic_year: int, request: Request):
     
     return summary
 
+# ============= ATTENDANCE (FREQUÊNCIA) =============
+
+@api_router.get("/attendance/settings/{academic_year}")
+async def get_attendance_settings(academic_year: int, request: Request):
+    """Obtém configurações de frequência para o ano letivo"""
+    await AuthMiddleware.get_current_user(request)
+    
+    settings = await db.attendance_settings.find_one(
+        {"academic_year": academic_year}, 
+        {"_id": 0}
+    )
+    
+    if not settings:
+        # Retorna configurações padrão
+        return {
+            "academic_year": academic_year,
+            "allow_future_dates": False
+        }
+    
+    return settings
+
+@api_router.put("/attendance/settings/{academic_year}")
+async def update_attendance_settings(academic_year: int, request: Request, allow_future_dates: bool):
+    """Atualiza configurações de frequência (apenas Admin/Secretário)"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    existing = await db.attendance_settings.find_one({"academic_year": academic_year})
+    
+    if existing:
+        await db.attendance_settings.update_one(
+            {"academic_year": academic_year},
+            {"$set": {
+                "allow_future_dates": allow_future_dates,
+                "updated_by": current_user['id'],
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+    else:
+        await db.attendance_settings.insert_one({
+            "id": str(uuid.uuid4()),
+            "academic_year": academic_year,
+            "allow_future_dates": allow_future_dates,
+            "updated_by": current_user['id'],
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        })
+    
+    return await db.attendance_settings.find_one({"academic_year": academic_year}, {"_id": 0})
+
+@api_router.get("/attendance/check-date/{date}")
+async def check_attendance_date(date: str, request: Request):
+    """
+    Verifica se uma data é válida para lançamento de frequência.
+    Considera: dia letivo, feriados, finais de semana, permissão de data futura.
+    """
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    # Verifica se é data futura
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    is_future = date > today
+    
+    # Busca configurações do ano
+    year = int(date.split("-")[0])
+    settings = await db.attendance_settings.find_one({"academic_year": year}, {"_id": 0})
+    allow_future = settings.get("allow_future_dates", False) if settings else False
+    
+    # Verifica se usuário pode lançar em data futura
+    can_use_future = current_user['role'] in ['admin', 'secretario'] and allow_future
+    
+    # Verifica eventos do calendário nessa data (feriados, etc.)
+    events = await db.calendar_events.find({
+        "start_date": {"$lte": date},
+        "end_date": {"$gte": date}
+    }, {"_id": 0}).to_list(100)
+    
+    # Verifica se é dia letivo
+    is_school_day = True
+    blocking_events = []
+    
+    for event in events:
+        if not event.get('is_school_day', True):
+            is_school_day = False
+            blocking_events.append(event)
+    
+    # Verifica se é final de semana
+    date_obj = datetime.strptime(date, "%Y-%m-%d")
+    is_weekend = date_obj.weekday() in [5, 6]  # Sábado=5, Domingo=6
+    
+    # Determina se pode lançar
+    can_record = is_school_day and not is_weekend
+    if is_future and not can_use_future:
+        can_record = False
+    
+    return {
+        "date": date,
+        "is_school_day": is_school_day,
+        "is_weekend": is_weekend,
+        "is_future": is_future,
+        "allow_future_dates": allow_future,
+        "can_record": can_record,
+        "blocking_events": blocking_events,
+        "message": (
+            "Data futura não permitida" if is_future and not can_use_future
+            else "Final de semana" if is_weekend
+            else "Dia não letivo" if not is_school_day
+            else "Liberado para lançamento"
+        )
+    }
+
+@api_router.get("/attendance/by-class/{class_id}/{date}")
+async def get_attendance_by_class(
+    class_id: str, 
+    date: str, 
+    request: Request,
+    course_id: Optional[str] = None,
+    period: str = "regular"
+):
+    """
+    Obtém frequência de uma turma em uma data.
+    Se course_id fornecido, busca frequência por componente curricular.
+    """
+    await AuthMiddleware.get_current_user(request)
+    
+    # Busca dados da turma
+    turma = await db.classes.find_one({"id": class_id}, {"_id": 0})
+    if not turma:
+        raise HTTPException(status_code=404, detail="Turma não encontrada")
+    
+    # Determina tipo de frequência baseado no nível de ensino
+    education_level = turma.get('education_level', '')
+    
+    # Anos Iniciais = frequência diária, Anos Finais = por componente
+    if education_level in ['fundamental_anos_iniciais', 'eja']:
+        attendance_type = 'daily'
+    else:
+        attendance_type = 'by_component'
+    
+    # Para Atendimento Integral e Aulas Complementares, sempre por componente
+    if period in ['integral', 'complementar']:
+        attendance_type = 'by_component'
+    
+    # Busca frequência existente
+    query = {
+        "class_id": class_id,
+        "date": date,
+        "period": period
+    }
+    
+    if attendance_type == 'by_component' and course_id:
+        query["course_id"] = course_id
+    
+    attendance = await db.attendance.find_one(query, {"_id": 0})
+    
+    # Busca alunos da turma
+    students = await db.students.find(
+        {"class_id": class_id, "status": "active"},
+        {"_id": 0}
+    ).sort("full_name", 1).to_list(1000)
+    
+    # Monta resposta com alunos e seus status de frequência
+    records_map = {}
+    if attendance and attendance.get('records'):
+        for record in attendance['records']:
+            records_map[record['student_id']] = record['status']
+    
+    result = {
+        "class_id": class_id,
+        "class_name": turma.get('name'),
+        "education_level": education_level,
+        "date": date,
+        "attendance_type": attendance_type,
+        "course_id": course_id,
+        "period": period,
+        "attendance_id": attendance.get('id') if attendance else None,
+        "observations": attendance.get('observations') if attendance else None,
+        "students": [
+            {
+                "id": s['id'],
+                "full_name": s['full_name'],
+                "enrollment_number": s.get('enrollment_number'),
+                "status": records_map.get(s['id'], None)  # None = não lançado
+            }
+            for s in students
+        ]
+    }
+    
+    return result
+
+@api_router.post("/attendance")
+async def save_attendance(attendance: AttendanceCreate, request: Request):
+    """Salva ou atualiza frequência de uma turma"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor'])(request)
+    
+    # Verifica se pode lançar nessa data
+    date_check = await check_attendance_date(attendance.date, request)
+    if not date_check['can_record']:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Não é possível lançar frequência: {date_check['message']}"
+        )
+    
+    # Verifica se já existe
+    query = {
+        "class_id": attendance.class_id,
+        "date": attendance.date,
+        "period": attendance.period
+    }
+    
+    if attendance.attendance_type == 'by_component' and attendance.course_id:
+        query["course_id"] = attendance.course_id
+    
+    existing = await db.attendance.find_one(query)
+    
+    if existing:
+        # Atualiza existente
+        await db.attendance.update_one(
+            {"id": existing['id']},
+            {"$set": {
+                "records": [r.model_dump() for r in attendance.records],
+                "observations": attendance.observations,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        return await db.attendance.find_one({"id": existing['id']}, {"_id": 0})
+    else:
+        # Cria novo
+        new_attendance = {
+            "id": str(uuid.uuid4()),
+            "class_id": attendance.class_id,
+            "date": attendance.date,
+            "academic_year": attendance.academic_year,
+            "attendance_type": attendance.attendance_type,
+            "course_id": attendance.course_id,
+            "period": attendance.period,
+            "records": [r.model_dump() for r in attendance.records],
+            "observations": attendance.observations,
+            "created_by": current_user['id'],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.attendance.insert_one(new_attendance)
+        return await db.attendance.find_one({"id": new_attendance['id']}, {"_id": 0})
+
+@api_router.get("/attendance/report/student/{student_id}")
+async def get_student_attendance_report(
+    student_id: str,
+    request: Request,
+    academic_year: Optional[int] = None
+):
+    """Relatório de frequência de um aluno"""
+    await AuthMiddleware.get_current_user(request)
+    
+    if not academic_year:
+        academic_year = datetime.now().year
+    
+    # Busca dados do aluno
+    student = await db.students.find_one({"id": student_id}, {"_id": 0})
+    if not student:
+        raise HTTPException(status_code=404, detail="Aluno não encontrado")
+    
+    # Busca todas as frequências do aluno no ano
+    attendances = await db.attendance.find(
+        {
+            "academic_year": academic_year,
+            "records.student_id": student_id
+        },
+        {"_id": 0}
+    ).sort("date", 1).to_list(1000)
+    
+    # Conta presenças, faltas e justificadas
+    total_days = 0
+    present = 0
+    absent = 0
+    justified = 0
+    
+    daily_records = []
+    
+    for att in attendances:
+        for record in att.get('records', []):
+            if record['student_id'] == student_id:
+                total_days += 1
+                if record['status'] == 'P':
+                    present += 1
+                elif record['status'] == 'F':
+                    absent += 1
+                elif record['status'] == 'J':
+                    justified += 1
+                
+                daily_records.append({
+                    "date": att['date'],
+                    "status": record['status'],
+                    "period": att.get('period', 'regular'),
+                    "course_id": att.get('course_id')
+                })
+    
+    # Calcula percentual (considera justificadas como presença para o cálculo)
+    attendance_percentage = ((present + justified) / total_days * 100) if total_days > 0 else 0
+    
+    return {
+        "student": student,
+        "academic_year": academic_year,
+        "summary": {
+            "total_days": total_days,
+            "present": present,
+            "absent": absent,
+            "justified": justified,
+            "attendance_percentage": round(attendance_percentage, 1),
+            "status": "regular" if attendance_percentage >= 75 else "alerta"
+        },
+        "daily_records": daily_records
+    }
+
+@api_router.get("/attendance/report/class/{class_id}")
+async def get_class_attendance_report(
+    class_id: str,
+    request: Request,
+    academic_year: Optional[int] = None
+):
+    """Relatório de frequência de uma turma"""
+    await AuthMiddleware.get_current_user(request)
+    
+    if not academic_year:
+        academic_year = datetime.now().year
+    
+    # Busca dados da turma
+    turma = await db.classes.find_one({"id": class_id}, {"_id": 0})
+    if not turma:
+        raise HTTPException(status_code=404, detail="Turma não encontrada")
+    
+    # Busca alunos da turma
+    students = await db.students.find(
+        {"class_id": class_id, "status": "active"},
+        {"_id": 0}
+    ).sort("full_name", 1).to_list(1000)
+    
+    # Busca todas as frequências da turma no ano
+    attendances = await db.attendance.find(
+        {"class_id": class_id, "academic_year": academic_year},
+        {"_id": 0}
+    ).sort("date", 1).to_list(1000)
+    
+    # Conta total de dias letivos com frequência registrada
+    unique_dates = set()
+    for att in attendances:
+        unique_dates.add(att['date'])
+    
+    total_school_days = len(unique_dates)
+    
+    # Calcula frequência de cada aluno
+    student_stats = []
+    low_attendance_alerts = []
+    
+    for student in students:
+        present = 0
+        absent = 0
+        justified = 0
+        
+        for att in attendances:
+            for record in att.get('records', []):
+                if record['student_id'] == student['id']:
+                    if record['status'] == 'P':
+                        present += 1
+                    elif record['status'] == 'F':
+                        absent += 1
+                    elif record['status'] == 'J':
+                        justified += 1
+        
+        total = present + absent + justified
+        percentage = ((present + justified) / total * 100) if total > 0 else 0
+        
+        stat = {
+            "student_id": student['id'],
+            "student_name": student['full_name'],
+            "enrollment_number": student.get('enrollment_number'),
+            "present": present,
+            "absent": absent,
+            "justified": justified,
+            "total_records": total,
+            "attendance_percentage": round(percentage, 1),
+            "status": "regular" if percentage >= 75 else "alerta"
+        }
+        
+        student_stats.append(stat)
+        
+        if percentage < 75 and total > 0:
+            low_attendance_alerts.append(stat)
+    
+    return {
+        "class": turma,
+        "academic_year": academic_year,
+        "total_school_days_recorded": total_school_days,
+        "total_students": len(students),
+        "students": student_stats,
+        "low_attendance_alerts": low_attendance_alerts,
+        "alert_count": len(low_attendance_alerts)
+    }
+
+@api_router.get("/attendance/alerts")
+async def get_attendance_alerts(
+    request: Request,
+    school_id: Optional[str] = None,
+    academic_year: Optional[int] = None
+):
+    """Lista alunos com frequência abaixo de 75%"""
+    await AuthMiddleware.get_current_user(request)
+    
+    if not academic_year:
+        academic_year = datetime.now().year
+    
+    # Busca todas as turmas (opcionalmente filtrada por escola)
+    class_query = {}
+    if school_id:
+        class_query["school_id"] = school_id
+    
+    classes = await db.classes.find(class_query, {"_id": 0}).to_list(1000)
+    
+    all_alerts = []
+    
+    for turma in classes:
+        # Busca alunos da turma
+        students = await db.students.find(
+            {"class_id": turma['id'], "status": "active"},
+            {"_id": 0}
+        ).to_list(1000)
+        
+        # Busca frequências da turma
+        attendances = await db.attendance.find(
+            {"class_id": turma['id'], "academic_year": academic_year},
+            {"_id": 0}
+        ).to_list(1000)
+        
+        for student in students:
+            present = 0
+            absent = 0
+            justified = 0
+            
+            for att in attendances:
+                for record in att.get('records', []):
+                    if record['student_id'] == student['id']:
+                        if record['status'] == 'P':
+                            present += 1
+                        elif record['status'] == 'F':
+                            absent += 1
+                        elif record['status'] == 'J':
+                            justified += 1
+            
+            total = present + absent + justified
+            if total > 0:
+                percentage = ((present + justified) / total * 100)
+                
+                if percentage < 75:
+                    all_alerts.append({
+                        "student_id": student['id'],
+                        "student_name": student['full_name'],
+                        "class_id": turma['id'],
+                        "class_name": turma.get('name'),
+                        "school_id": turma.get('school_id'),
+                        "attendance_percentage": round(percentage, 1),
+                        "total_records": total,
+                        "absent": absent
+                    })
+    
+    # Ordena por percentual de frequência (menor primeiro)
+    all_alerts.sort(key=lambda x: x['attendance_percentage'])
+    
+    return {
+        "academic_year": academic_year,
+        "total_alerts": len(all_alerts),
+        "alerts": all_alerts
+    }
+
 # Include the router in the main app
 app.include_router(api_router)
 
