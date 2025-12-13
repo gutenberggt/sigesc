@@ -432,11 +432,11 @@ class Class(ClassBase):
 # ============= COURSE (COMPONENTE CURRICULAR) MODELS =============
 
 class CourseBase(BaseModel):
-    # Escola (obrigatório)
-    school_id: str
+    # Escola (opcional para compatibilidade com dados legados)
+    school_id: Optional[str] = None
     
-    # Nível de Ensino (obrigatório)
-    nivel_ensino: Literal['educacao_infantil', 'fundamental_anos_iniciais', 'fundamental_anos_finais', 'ensino_medio', 'eja', 'eja_final']
+    # Nível de Ensino (opcional para compatibilidade com dados legados)
+    nivel_ensino: Optional[Literal['educacao_infantil', 'fundamental_anos_iniciais', 'fundamental_anos_finais', 'ensino_medio', 'eja', 'eja_final']] = None
     
     # Séries/Anos que usam este componente (opcional - se vazio, aplica a todas do nível)
     # Para Fundamental Anos Iniciais: não precisa preencher (é o mesmo para todos)
