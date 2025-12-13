@@ -7,6 +7,52 @@ import { classesAPI, schoolsAPI } from '@/services/api';
 import { Plus, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Mapeamento de níveis de ensino para séries/etapas
+const GRADE_LEVELS_BY_EDUCATION = {
+  educacao_infantil: [
+    { value: 'bercario', label: 'Berçário', field: 'educacao_infantil_bercario' },
+    { value: 'maternal_i', label: 'Maternal I', field: 'educacao_infantil_maternal_i' },
+    { value: 'maternal_ii', label: 'Maternal II', field: 'educacao_infantil_maternal_ii' },
+    { value: 'pre_i', label: 'Pré I', field: 'educacao_infantil_pre_i' },
+    { value: 'pre_ii', label: 'Pré II', field: 'educacao_infantil_pre_ii' }
+  ],
+  fundamental_anos_iniciais: [
+    { value: '1ano', label: '1º Ano', field: 'fundamental_inicial_1ano' },
+    { value: '2ano', label: '2º Ano', field: 'fundamental_inicial_2ano' },
+    { value: '3ano', label: '3º Ano', field: 'fundamental_inicial_3ano' },
+    { value: '4ano', label: '4º Ano', field: 'fundamental_inicial_4ano' },
+    { value: '5ano', label: '5º Ano', field: 'fundamental_inicial_5ano' }
+  ],
+  fundamental_anos_finais: [
+    { value: '6ano', label: '6º Ano', field: 'fundamental_final_6ano' },
+    { value: '7ano', label: '7º Ano', field: 'fundamental_final_7ano' },
+    { value: '8ano', label: '8º Ano', field: 'fundamental_final_8ano' },
+    { value: '9ano', label: '9º Ano', field: 'fundamental_final_9ano' }
+  ],
+  ensino_medio: [
+    { value: '1serie_em', label: '1ª Série EM', field: null },
+    { value: '2serie_em', label: '2ª Série EM', field: null },
+    { value: '3serie_em', label: '3ª Série EM', field: null }
+  ],
+  eja: [
+    { value: 'eja_1etapa', label: 'EJA 1ª Etapa', field: 'eja_inicial_1etapa' },
+    { value: 'eja_2etapa', label: 'EJA 2ª Etapa', field: 'eja_inicial_2etapa' }
+  ],
+  eja_final: [
+    { value: 'eja_3etapa', label: 'EJA 3ª Etapa', field: 'eja_final_3etapa' },
+    { value: 'eja_4etapa', label: 'EJA 4ª Etapa', field: 'eja_final_4etapa' }
+  ]
+};
+
+const EDUCATION_LEVELS = [
+  { value: 'educacao_infantil', label: 'Educação Infantil' },
+  { value: 'fundamental_anos_iniciais', label: 'Ensino Fundamental - Anos Iniciais' },
+  { value: 'fundamental_anos_finais', label: 'Ensino Fundamental - Anos Finais' },
+  { value: 'ensino_medio', label: 'Ensino Médio' },
+  { value: 'eja', label: 'EJA - Anos Iniciais' },
+  { value: 'eja_final', label: 'EJA - Anos Finais' }
+];
+
 export const Classes = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -20,6 +66,7 @@ export const Classes = () => {
     academic_year: new Date().getFullYear(),
     name: '',
     shift: 'morning',
+    education_level: '',
     grade_level: '',
     teacher_ids: []
   });
@@ -64,6 +111,32 @@ export const Classes = () => {
     setTimeout(() => setAlert(null), 5000);
   };
 
+  // Obtém a escola selecionada
+  const selectedSchool = schools.find(s => s.id === formData.school_id);
+
+  // Filtra os níveis de ensino disponíveis para a escola selecionada
+  const getAvailableEducationLevels = () => {
+    if (!selectedSchool) return [];
+    
+    return EDUCATION_LEVELS.filter(level => {
+      return selectedSchool[level.value] === true;
+    });
+  };
+
+  // Filtra as séries/etapas disponíveis para o nível selecionado e escola
+  const getAvailableGradeLevels = () => {
+    if (!selectedSchool || !formData.education_level) return [];
+    
+    const gradeLevels = GRADE_LEVELS_BY_EDUCATION[formData.education_level] || [];
+    
+    return gradeLevels.filter(grade => {
+      // Se não tem campo específico (ex: ensino médio), mostra todas
+      if (!grade.field) return true;
+      // Se tem campo, verifica se está habilitado na escola
+      return selectedSchool[grade.field] === true;
+    });
+  };
+
   const handleCreate = () => {
     setEditingClass(null);
     const defaultSchoolId = schools.length > 0 ? schools[0].id : '';
@@ -72,6 +145,7 @@ export const Classes = () => {
       academic_year: new Date().getFullYear(),
       name: '',
       shift: 'morning',
+      education_level: '',
       grade_level: '',
       teacher_ids: []
     });
@@ -80,11 +154,26 @@ export const Classes = () => {
 
   const handleEdit = (classItem) => {
     setEditingClass(classItem);
+    
+    // Tenta identificar o nível de ensino baseado na série/etapa existente
+    let educationLevel = classItem.education_level || '';
+    if (!educationLevel && classItem.grade_level) {
+      // Tenta encontrar o nível de ensino baseado na série
+      for (const [level, grades] of Object.entries(GRADE_LEVELS_BY_EDUCATION)) {
+        const found = grades.find(g => g.label === classItem.grade_level || g.value === classItem.grade_level);
+        if (found) {
+          educationLevel = level;
+          break;
+        }
+      }
+    }
+    
     setFormData({
       school_id: classItem.school_id,
       academic_year: classItem.academic_year,
       name: classItem.name,
       shift: classItem.shift,
+      education_level: educationLevel,
       grade_level: classItem.grade_level,
       teacher_ids: classItem.teacher_ids || []
     });
@@ -109,11 +198,17 @@ export const Classes = () => {
     setSubmitting(true);
 
     try {
+      const dataToSend = {
+        ...formData,
+        // Salva o label da série/etapa em vez do value
+        grade_level: formData.grade_level
+      };
+      
       if (editingClass) {
-        await classesAPI.update(editingClass.id, formData);
+        await classesAPI.update(editingClass.id, dataToSend);
         showAlert('success', 'Turma atualizada com sucesso');
       } else {
-        await classesAPI.create(formData);
+        await classesAPI.create(dataToSend);
         showAlert('success', 'Turma criada com sucesso');
       }
       setIsModalOpen(false);
@@ -124,6 +219,24 @@ export const Classes = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Handlers para mudança de campos
+  const handleSchoolChange = (schoolId) => {
+    setFormData({
+      ...formData,
+      school_id: schoolId,
+      education_level: '',
+      grade_level: ''
+    });
+  };
+
+  const handleEducationLevelChange = (level) => {
+    setFormData({
+      ...formData,
+      education_level: level,
+      grade_level: ''
+    });
   };
 
   const shiftLabels = {
@@ -138,6 +251,11 @@ export const Classes = () => {
     return school?.name || schoolId;
   };
 
+  const getEducationLevelLabel = (value) => {
+    const level = EDUCATION_LEVELS.find(l => l.value === value);
+    return level?.label || value;
+  };
+
   const columns = [
     { header: 'Nome', accessor: 'name' },
     {
@@ -146,6 +264,11 @@ export const Classes = () => {
       render: (row) => getSchoolName(row.school_id)
     },
     { header: 'Ano Letivo', accessor: 'academic_year' },
+    {
+      header: 'Nível de Ensino',
+      accessor: 'education_level',
+      render: (row) => getEducationLevelLabel(row.education_level) || '-'
+    },
     { header: 'Série/Etapa', accessor: 'grade_level' },
     {
       header: 'Turno',
@@ -153,6 +276,9 @@ export const Classes = () => {
       render: (row) => shiftLabels[row.shift]
     }
   ];
+
+  const availableEducationLevels = getAvailableEducationLevels();
+  const availableGradeLevels = getAvailableGradeLevels();
 
   return (
     <Layout>
@@ -224,7 +350,7 @@ export const Classes = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">Escola *</label>
               <select
                 value={formData.school_id}
-                onChange={(e) => setFormData({ ...formData, school_id: e.target.value })}
+                onChange={(e) => handleSchoolChange(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 data-testid="class-school-select"
@@ -266,16 +392,51 @@ export const Classes = () => {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Nível de Ensino *</label>
+              <select
+                value={formData.education_level}
+                onChange={(e) => handleEducationLevelChange(e.target.value)}
+                required
+                disabled={!formData.school_id}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                data-testid="class-education-level-select"
+              >
+                <option value="">Selecione o nível de ensino</option>
+                {availableEducationLevels.map((level) => (
+                  <option key={level.value} value={level.value}>
+                    {level.label}
+                  </option>
+                ))}
+              </select>
+              {formData.school_id && availableEducationLevels.length === 0 && (
+                <p className="text-sm text-orange-600 mt-1">
+                  ⚠️ Esta escola não possui níveis de ensino cadastrados
+                </p>
+              )}
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Série/Etapa *</label>
-              <input
-                type="text"
+              <select
                 value={formData.grade_level}
                 onChange={(e) => setFormData({ ...formData, grade_level: e.target.value })}
                 required
-                placeholder="Ex: 1º Ano EF, 6º Ano"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                data-testid="class-grade-input"
-              />
+                disabled={!formData.education_level}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                data-testid="class-grade-select"
+              >
+                <option value="">Selecione a série/etapa</option>
+                {availableGradeLevels.map((grade) => (
+                  <option key={grade.value} value={grade.label}>
+                    {grade.label}
+                  </option>
+                ))}
+              </select>
+              {formData.education_level && availableGradeLevels.length === 0 && (
+                <p className="text-sm text-orange-600 mt-1">
+                  ⚠️ Esta escola não possui séries/etapas cadastradas para este nível
+                </p>
+              )}
             </div>
 
             <div>
@@ -283,33 +444,32 @@ export const Classes = () => {
               <select
                 value={formData.shift}
                 onChange={(e) => setFormData({ ...formData, shift: e.target.value })}
+                required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 data-testid="class-shift-select"
               >
-                {Object.entries(shiftLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
+                <option value="morning">Manhã</option>
+                <option value="afternoon">Tarde</option>
+                <option value="evening">Noite</option>
+                <option value="full_time">Integral</option>
               </select>
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4">
+            <div className="flex justify-end space-x-2 mt-6 pt-4 border-t">
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                data-testid="cancel-button"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-                data-testid="submit-button"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                data-testid="class-submit-button"
               >
-                {submitting ? 'Salvando...' : 'Salvar'}
+                {submitting ? 'Salvando...' : (editingClass ? 'Atualizar' : 'Criar')}
               </button>
             </div>
           </form>
