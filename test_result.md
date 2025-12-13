@@ -200,7 +200,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Attendance Control (Controle de Frequência) - Frontend Testing Complete"
+    - "Staff Management (Gestão de Servidores) - Phase 5.5 Testing Complete"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
