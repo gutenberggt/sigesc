@@ -815,9 +815,297 @@ class SIGESCTester:
             else:
                 self.log(f"❌ Failed to delete guardian: {response.status_code}")
     
+    def test_attendance_control_phase5(self):
+        """Test Attendance Control (Controle de Frequência) - Phase 5 as per review request"""
+        self.log("\n📅 Testing Attendance Control - Phase 5 (Controle de Frequência)...")
+        
+        # Test data from review request
+        specific_class_id = "42a876e6-aea3-40a3-8660-e1ef44fc3c4a"  # 3º Ano A - fundamental_anos_iniciais
+        specific_student_id = "bb4d4a82-2217-41b5-905e-cc5461aaa96f"  # Maria da Silva Santos
+        academic_year = 2025
+        test_date = "2025-12-15"  # Monday for testing
+        
+        # 1. Test GET /api/attendance/settings/{academic_year}
+        self.log(f"1️⃣ Testing GET /api/attendance/settings/{academic_year}...")
+        response = requests.get(
+            f"{API_BASE}/attendance/settings/{academic_year}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            settings = response.json()
+            self.log(f"✅ Attendance settings retrieved for {academic_year}")
+            self.log(f"   Academic year: {settings.get('academic_year')}")
+            self.log(f"   Allow future dates: {settings.get('allow_future_dates', False)}")
+        else:
+            self.log(f"❌ Failed to get attendance settings: {response.status_code} - {response.text}")
+            return False
+        
+        # 2. Test PUT /api/attendance/settings/{academic_year}?allow_future_dates=true
+        self.log(f"2️⃣ Testing PUT /api/attendance/settings/{academic_year}?allow_future_dates=true...")
+        response = requests.put(
+            f"{API_BASE}/attendance/settings/{academic_year}?allow_future_dates=true",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            updated_settings = response.json()
+            self.log(f"✅ Attendance settings updated")
+            self.log(f"   Allow future dates: {updated_settings.get('allow_future_dates')}")
+            if updated_settings.get('allow_future_dates'):
+                self.log("✅ Future dates permission enabled correctly")
+            else:
+                self.log("❌ Future dates permission not enabled")
+        else:
+            self.log(f"❌ Failed to update attendance settings: {response.status_code} - {response.text}")
+            return False
+        
+        # 3. Test GET /api/attendance/check-date/{date}
+        self.log(f"3️⃣ Testing GET /api/attendance/check-date/{test_date}...")
+        response = requests.get(
+            f"{API_BASE}/attendance/check-date/{test_date}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            date_check = response.json()
+            self.log(f"✅ Date validation successful for {test_date}")
+            self.log(f"   Is school day: {date_check.get('is_school_day')}")
+            self.log(f"   Is weekend: {date_check.get('is_weekend')}")
+            self.log(f"   Is future: {date_check.get('is_future')}")
+            self.log(f"   Can record: {date_check.get('can_record')}")
+            self.log(f"   Message: {date_check.get('message')}")
+            
+            # Verify Monday is not weekend
+            if not date_check.get('is_weekend'):
+                self.log("✅ Monday correctly identified as not weekend")
+            else:
+                self.log("❌ Monday incorrectly identified as weekend")
+                
+        else:
+            self.log(f"❌ Failed to check date: {response.status_code} - {response.text}")
+            return False
+        
+        # 4. Test GET /api/attendance/by-class/{class_id}/{date}
+        self.log(f"4️⃣ Testing GET /api/attendance/by-class/{specific_class_id}/{test_date}...")
+        response = requests.get(
+            f"{API_BASE}/attendance/by-class/{specific_class_id}/{test_date}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            class_attendance = response.json()
+            self.log(f"✅ Class attendance retrieved")
+            self.log(f"   Class name: {class_attendance.get('class_name')}")
+            self.log(f"   Education level: {class_attendance.get('education_level')}")
+            self.log(f"   Attendance type: {class_attendance.get('attendance_type')}")
+            self.log(f"   Number of students: {len(class_attendance.get('students', []))}")
+            
+            # Verify fundamental_anos_iniciais uses daily attendance
+            if class_attendance.get('attendance_type') == 'daily':
+                self.log("✅ Fundamental Anos Iniciais correctly uses daily attendance")
+            else:
+                self.log(f"❌ Expected daily attendance, got: {class_attendance.get('attendance_type')}")
+            
+            # Find Maria da Silva Santos
+            maria_found = False
+            for student in class_attendance.get('students', []):
+                if student.get('id') == specific_student_id:
+                    maria_found = True
+                    self.log(f"✅ Found Maria da Silva Santos: {student.get('full_name')}")
+                    break
+            
+            if not maria_found:
+                self.log("❌ Maria da Silva Santos not found in class")
+                
+        else:
+            self.log(f"❌ Failed to get class attendance: {response.status_code} - {response.text}")
+            return False
+        
+        # 5. Test POST /api/attendance - Save attendance with complete data
+        self.log(f"5️⃣ Testing POST /api/attendance - Saving attendance...")
+        attendance_data = {
+            "class_id": specific_class_id,
+            "date": test_date,
+            "academic_year": academic_year,
+            "attendance_type": "daily",
+            "period": "regular",
+            "records": [
+                {
+                    "student_id": specific_student_id,
+                    "status": "P"  # Present
+                }
+            ],
+            "observations": "Teste de frequência - Maria presente"
+        }
+        
+        response = requests.post(
+            f"{API_BASE}/attendance",
+            json=attendance_data,
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200 or response.status_code == 201:
+            saved_attendance = response.json()
+            self.log(f"✅ Attendance saved successfully")
+            self.log(f"   Attendance ID: {saved_attendance.get('id')}")
+            self.log(f"   Date: {saved_attendance.get('date')}")
+            self.log(f"   Records count: {len(saved_attendance.get('records', []))}")
+            
+            # Verify Maria's status
+            for record in saved_attendance.get('records', []):
+                if record.get('student_id') == specific_student_id:
+                    if record.get('status') == 'P':
+                        self.log("✅ Maria da Silva Santos marked as Present (P)")
+                    else:
+                        self.log(f"❌ Expected status 'P', got: {record.get('status')}")
+                    break
+                    
+        else:
+            self.log(f"❌ Failed to save attendance: {response.status_code} - {response.text}")
+            return False
+        
+        # 6. Test GET /api/attendance/report/student/{student_id}
+        self.log(f"6️⃣ Testing GET /api/attendance/report/student/{specific_student_id}...")
+        response = requests.get(
+            f"{API_BASE}/attendance/report/student/{specific_student_id}?academic_year={academic_year}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            student_report = response.json()
+            self.log(f"✅ Student attendance report retrieved")
+            student_info = student_report.get('student', {})
+            summary = student_report.get('summary', {})
+            
+            self.log(f"   Student: {student_info.get('full_name')}")
+            self.log(f"   Total days: {summary.get('total_days', 0)}")
+            self.log(f"   Present: {summary.get('present', 0)}")
+            self.log(f"   Absent: {summary.get('absent', 0)}")
+            self.log(f"   Justified: {summary.get('justified', 0)}")
+            self.log(f"   Attendance %: {summary.get('attendance_percentage', 0)}%")
+            self.log(f"   Status: {summary.get('status')}")
+            
+            # Verify attendance percentage calculation
+            total = summary.get('total_days', 0)
+            present = summary.get('present', 0)
+            justified = summary.get('justified', 0)
+            if total > 0:
+                expected_percentage = ((present + justified) / total) * 100
+                actual_percentage = summary.get('attendance_percentage', 0)
+                if abs(expected_percentage - actual_percentage) < 0.1:
+                    self.log("✅ Attendance percentage calculation is correct")
+                else:
+                    self.log(f"❌ Attendance percentage calculation error. Expected: {expected_percentage:.1f}%, Got: {actual_percentage}%")
+                    
+        else:
+            self.log(f"❌ Failed to get student report: {response.status_code} - {response.text}")
+            return False
+        
+        # 7. Test GET /api/attendance/report/class/{class_id}
+        self.log(f"7️⃣ Testing GET /api/attendance/report/class/{specific_class_id}...")
+        response = requests.get(
+            f"{API_BASE}/attendance/report/class/{specific_class_id}?academic_year={academic_year}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            class_report = response.json()
+            self.log(f"✅ Class attendance report retrieved")
+            class_info = class_report.get('class', {})
+            
+            self.log(f"   Class: {class_info.get('name')}")
+            self.log(f"   Total students: {class_report.get('total_students', 0)}")
+            self.log(f"   School days recorded: {class_report.get('total_school_days_recorded', 0)}")
+            self.log(f"   Low attendance alerts: {class_report.get('alert_count', 0)}")
+            
+            # Check if our test student appears in the report
+            students = class_report.get('students', [])
+            maria_in_report = False
+            for student in students:
+                if student.get('student_id') == specific_student_id:
+                    maria_in_report = True
+                    self.log(f"✅ Maria found in class report with {student.get('attendance_percentage', 0)}% attendance")
+                    break
+            
+            if not maria_in_report:
+                self.log("❌ Maria not found in class attendance report")
+                
+        else:
+            self.log(f"❌ Failed to get class report: {response.status_code} - {response.text}")
+            return False
+        
+        # 8. Test GET /api/attendance/alerts
+        self.log(f"8️⃣ Testing GET /api/attendance/alerts...")
+        response = requests.get(
+            f"{API_BASE}/attendance/alerts?academic_year={academic_year}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            alerts = response.json()
+            self.log(f"✅ Attendance alerts retrieved")
+            self.log(f"   Total alerts: {len(alerts)}")
+            
+            # Check for low attendance students (< 75%)
+            low_attendance_count = 0
+            for alert in alerts:
+                if alert.get('attendance_percentage', 100) < 75:
+                    low_attendance_count += 1
+                    self.log(f"   Alert: {alert.get('student_name')} - {alert.get('attendance_percentage')}%")
+            
+            self.log(f"   Students with low attendance (< 75%): {low_attendance_count}")
+            
+        else:
+            self.log(f"❌ Failed to get attendance alerts: {response.status_code} - {response.text}")
+            return False
+        
+        # 9. Test weekend blocking
+        self.log(f"9️⃣ Testing weekend blocking...")
+        weekend_date = "2025-12-14"  # Sunday
+        response = requests.get(
+            f"{API_BASE}/attendance/check-date/{weekend_date}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            weekend_check = response.json()
+            if weekend_check.get('is_weekend') and not weekend_check.get('can_record'):
+                self.log("✅ Weekend correctly blocked for attendance recording")
+            else:
+                self.log("❌ Weekend should be blocked for attendance recording")
+        else:
+            self.log(f"❌ Failed to check weekend date: {response.status_code}")
+        
+        # 10. Test future date blocking (disable future dates first)
+        self.log(f"🔟 Testing future date blocking...")
+        # Disable future dates
+        response = requests.put(
+            f"{API_BASE}/attendance/settings/{academic_year}?allow_future_dates=false",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            # Test future date
+            future_date = "2025-12-31"
+            response = requests.get(
+                f"{API_BASE}/attendance/check-date/{future_date}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                future_check = response.json()
+                if future_check.get('is_future') and not future_check.get('can_record'):
+                    self.log("✅ Future date correctly blocked when permission disabled")
+                else:
+                    self.log("❌ Future date should be blocked when permission disabled")
+        
+        self.log("✅ Attendance Control Phase 5 testing completed!")
+        return True
+
     def run_all_tests(self):
         """Run all backend tests"""
-        self.log("🚀 Starting SIGESC Backend API Tests")
+        self.log("🚀 Starting SIGESC Backend API Tests - PHASE 5 ATTENDANCE CONTROL")
         self.log(f"🌐 Backend URL: {BACKEND_URL}")
         
         # Login as admin
@@ -838,6 +1126,10 @@ class SIGESCTester:
         success = True
         
         try:
+            # MAIN FOCUS: Test Attendance Control Phase 5
+            if not self.test_attendance_control_phase5():
+                success = False
+            
             # Test authentication requirements
             self.test_authentication_required()
             
@@ -873,6 +1165,7 @@ class SIGESCTester:
         self.log("\n" + "="*50)
         if success:
             self.log("🎉 All backend tests completed successfully!")
+            self.log("✅ PHASE 5 - ATTENDANCE CONTROL FULLY TESTED")
         else:
             self.log("❌ Some tests failed - check logs above")
         self.log("="*50)
