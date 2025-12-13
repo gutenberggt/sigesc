@@ -1443,38 +1443,66 @@ class SIGESCTester:
             # Cleanup created entities
             self.log("🧹 Cleaning up staff management test data...")
             
-            # Delete teacher assignment
+            # Test DELETE endpoints as part of the testing flow
+            
+            # Step 13: Test DELETE /api/teacher-assignments/{id}
+            self.log("1️⃣3️⃣ Testing DELETE /api/teacher-assignments/{id}...")
             if created_teacher_assignment_id:
                 response = requests.delete(
                     f"{API_BASE}/teacher-assignments/{created_teacher_assignment_id}",
                     headers=self.get_headers(self.admin_token)
                 )
-                if response.status_code == 204:
-                    self.log("✅ Test teacher assignment deleted")
+                if response.status_code == 200 or response.status_code == 204:
+                    self.log("✅ Teacher assignment deleted successfully")
                 else:
-                    self.log(f"❌ Failed to delete teacher assignment: {response.status_code}")
+                    self.log(f"❌ Failed to delete teacher assignment: {response.status_code} - {response.text}")
             
-            # Delete school assignment
+            # Step 14: Test DELETE /api/school-assignments/{id}
+            self.log("1️⃣4️⃣ Testing DELETE /api/school-assignments/{id}...")
             if created_school_assignment_id:
                 response = requests.delete(
                     f"{API_BASE}/school-assignments/{created_school_assignment_id}",
                     headers=self.get_headers(self.admin_token)
                 )
-                if response.status_code == 204:
-                    self.log("✅ Test school assignment deleted")
+                if response.status_code == 200 or response.status_code == 204:
+                    self.log("✅ School assignment deleted successfully")
                 else:
-                    self.log(f"❌ Failed to delete school assignment: {response.status_code}")
+                    self.log(f"❌ Failed to delete school assignment: {response.status_code} - {response.text}")
             
-            # Delete staff (this should be done after assignments are deleted)
+            # Step 15: Test DELETE /api/staff/{id}
+            self.log("1️⃣5️⃣ Testing DELETE /api/staff/{id}...")
             if created_staff_id:
                 response = requests.delete(
                     f"{API_BASE}/staff/{created_staff_id}",
                     headers=self.get_headers(self.admin_token)
                 )
-                if response.status_code == 204:
-                    self.log("✅ Test staff deleted")
+                if response.status_code == 200 or response.status_code == 204:
+                    self.log("✅ Staff deleted successfully")
+                    # Clear the ID so cleanup doesn't try to delete again
+                    created_staff_id = None
+                    created_school_assignment_id = None
+                    created_teacher_assignment_id = None
                 else:
-                    self.log(f"❌ Failed to delete staff: {response.status_code}")
+                    self.log(f"❌ Failed to delete staff: {response.status_code} - {response.text}")
+            
+            # Additional cleanup (in case delete tests failed)
+            if created_teacher_assignment_id:
+                requests.delete(
+                    f"{API_BASE}/teacher-assignments/{created_teacher_assignment_id}",
+                    headers=self.get_headers(self.admin_token)
+                )
+            
+            if created_school_assignment_id:
+                requests.delete(
+                    f"{API_BASE}/school-assignments/{created_school_assignment_id}",
+                    headers=self.get_headers(self.admin_token)
+                )
+            
+            if created_staff_id:
+                requests.delete(
+                    f"{API_BASE}/staff/{created_staff_id}",
+                    headers=self.get_headers(self.admin_token)
+                )
 
     def run_all_tests(self):
         """Run all backend tests"""
