@@ -365,9 +365,11 @@ const WeeklyView = ({ startDate, events, onDayClick, onEventClick }) => {
               <div className="text-xs text-gray-400">{day.month}</div>
             </div>
             <div className="p-2 space-y-2">
-              {day.events.map((event, idx) => (
-                <EventBadge key={event.id || idx} event={event} onClick={onEventClick} />
-              ))}
+              {day.events
+                .filter(event => event.name !== 'Sábado' && event.name !== 'Domingo')
+                .map((event, idx) => (
+                  <EventBadge key={event.id || idx} event={event} onClick={onEventClick} />
+                ))}
             </div>
           </div>
         ))}
