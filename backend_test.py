@@ -727,6 +727,13 @@ class SIGESCTester:
         success = True
         
         try:
+            # Test authentication requirements
+            self.test_authentication_required()
+            
+            # Test Grades System (main focus of this review)
+            if not self.test_grades_system():
+                success = False
+            
             # Test Guardians CRUD
             if not self.test_guardians_crud():
                 success = False
