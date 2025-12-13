@@ -25,7 +25,8 @@ from models import (
     Grade, GradeCreate, GradeUpdate,
     Attendance, AttendanceCreate, AttendanceUpdate,
     Notice, NoticeCreate, NoticeUpdate,
-    Document, DocumentCreate
+    Document, DocumentCreate,
+    CalendarEvent, CalendarEventCreate, CalendarEventUpdate
 )
 from auth_utils import (
     hash_password, verify_password, create_access_token, 
