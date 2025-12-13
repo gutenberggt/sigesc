@@ -965,3 +965,58 @@ class CalendarEvent(CalendarEventBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
+
+# ============= ATTENDANCE MODELS (FREQUÊNCIA) =============
+
+class AttendanceRecord(BaseModel):
+    """Registro de frequência individual de um aluno"""
+    student_id: str
+    status: Literal['P', 'F', 'J']  # P=Presente, F=Falta, J=Justificado
+    
+class AttendanceBase(BaseModel):
+    """Frequência de uma turma em uma data"""
+    class_id: str  # ID da turma
+    date: str  # Data (YYYY-MM-DD)
+    academic_year: int  # Ano letivo
+    
+    # Tipo de frequência baseado no nível de ensino
+    # 'daily' = uma frequência por dia (Fundamental Anos Iniciais, EJA Anos Iniciais)
+    # 'by_component' = frequência por componente curricular (Fundamental Anos Finais, EJA Anos Finais)
+    attendance_type: Literal['daily', 'by_component']
+    
+    # Se attendance_type = 'by_component', indica o componente curricular
+    course_id: Optional[str] = None
+    
+    # Período (para Atendimento Integral e Aulas Complementares)
+    period: Literal['regular', 'integral', 'complementar'] = 'regular'
+    
+    # Lista de registros de frequência dos alunos
+    records: List[AttendanceRecord] = []
+    
+    # Observações gerais
+    observations: Optional[str] = None
+
+class AttendanceCreate(AttendanceBase):
+    pass
+
+class AttendanceUpdate(BaseModel):
+    records: Optional[List[AttendanceRecord]] = None
+    observations: Optional[str] = None
+
+class Attendance(AttendanceBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_by: Optional[str] = None  # ID do usuário que criou
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+# ============= ATTENDANCE SETTINGS =============
+
+class AttendanceSettings(BaseModel):
+    """Configurações de frequência"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    academic_year: int
+    allow_future_dates: bool = False  # Permitir lançamento em datas futuras
+    updated_by: Optional[str] = None
+    updated_at: Optional[datetime] = None
