@@ -380,7 +380,9 @@ const WeeklyView = ({ startDate, events, onDayClick, onEventClick }) => {
 
 // Vista Diária
 const DailyView = ({ date, events, onEventClick }) => {
-  const dayEvents = events.filter(e => date >= e.start_date && date <= e.end_date);
+  const allDayEvents = events.filter(e => date >= e.start_date && date <= e.end_date);
+  // Filtra para não exibir "Sábado" e "Domingo"
+  const dayEvents = allDayEvents.filter(e => e.name !== 'Sábado' && e.name !== 'Domingo');
   const dateObj = new Date(date + 'T12:00:00');
   
   // Horas do dia
