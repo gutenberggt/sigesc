@@ -443,6 +443,230 @@ class SIGESCTester:
         else:
             self.log(f"❌ SEMED should not be able to create enrollment: {response.status_code}")
     
+    def test_grades_system(self):
+        """Test comprehensive Grades system as per review request"""
+        self.log("\n📊 Testing Grades System (Sistema de Notas)...")
+        
+        if not all([self.student_id, self.class_id, self.course_id]):
+            self.log("❌ Missing required data for grades test")
+            return False
+        
+        # 1. Test GET /api/grades - Lista notas
+        self.log("1️⃣ Testing GET /api/grades...")
+        response = requests.get(
+            f"{API_BASE}/grades",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            grades = response.json()
+            self.log(f"✅ Successfully listed {len(grades)} grades")
+        else:
+            self.log(f"❌ Failed to list grades: {response.status_code} - {response.text}")
+        
+        # 2. Test POST /api/grades - Criar nota
+        self.log("2️⃣ Testing POST /api/grades - Creating grade...")
+        grade_data = {
+            "student_id": self.student_id,
+            "class_id": self.class_id,
+            "course_id": self.course_id,
+            "academic_year": 2025,
+            "b1": 8.0,
+            "b2": 7.0,
+            "b3": 6.0,
+            "b4": 9.0
+        }
+        
+        response = requests.post(
+            f"{API_BASE}/grades",
+            json=grade_data,
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200 or response.status_code == 201:
+            grade = response.json()
+            self.created_grade_id = grade['id']
+            self.log(f"✅ Grade created successfully (ID: {self.created_grade_id})")
+            
+            # Verify grade calculation: (B1×2 + B2×3 + B3×2 + B4×3) / 10
+            expected_average = (8.0*2 + 7.0*3 + 6.0*2 + 9.0*3) / 10
+            actual_average = grade.get('final_average')
+            
+            self.log(f"   B1: {grade.get('b1')}, B2: {grade.get('b2')}, B3: {grade.get('b3')}, B4: {grade.get('b4')}")
+            self.log(f"   Expected average: {expected_average}")
+            self.log(f"   Actual average: {actual_average}")
+            
+            if actual_average and abs(actual_average - expected_average) < 0.01:
+                self.log("✅ Grade calculation formula is correct!")
+            else:
+                self.log("❌ Grade calculation formula appears incorrect")
+            
+            # Check status (should be 'aprovado' since average > 5.0)
+            status = grade.get('status')
+            self.log(f"   Status: {status}")
+            if expected_average >= 5.0 and status == 'aprovado':
+                self.log("✅ Status correctly set to 'aprovado'")
+            elif expected_average < 5.0 and status == 'reprovado_nota':
+                self.log("✅ Status correctly set to 'reprovado_nota'")
+            else:
+                self.log(f"❌ Status may be incorrect for average {expected_average}")
+                
+        else:
+            self.log(f"❌ Failed to create grade: {response.status_code} - {response.text}")
+            return False
+        
+        # 3. Test GET /api/grades/by-student/{student_id}
+        self.log("3️⃣ Testing GET /api/grades/by-student/{student_id}...")
+        response = requests.get(
+            f"{API_BASE}/grades/by-student/{self.student_id}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            student_grades = response.json()
+            self.log(f"✅ Successfully retrieved grades for student")
+            self.log(f"   Student: {student_grades.get('student', {}).get('full_name', 'N/A')}")
+            self.log(f"   Number of grades: {len(student_grades.get('grades', []))}")
+        else:
+            self.log(f"❌ Failed to get student grades: {response.status_code} - {response.text}")
+        
+        # 4. Test GET /api/grades/by-class/{class_id}/{course_id}
+        self.log("4️⃣ Testing GET /api/grades/by-class/{class_id}/{course_id}...")
+        response = requests.get(
+            f"{API_BASE}/grades/by-class/{self.class_id}/{self.course_id}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            class_grades = response.json()
+            self.log(f"✅ Successfully retrieved grades for class")
+            self.log(f"   Number of students: {len(class_grades)}")
+            
+            # Find our test student in the results
+            test_student_found = False
+            for item in class_grades:
+                if item.get('student', {}).get('id') == self.student_id:
+                    test_student_found = True
+                    grade_info = item.get('grade', {})
+                    self.log(f"   Found test student with grades: B1={grade_info.get('b1')}, B2={grade_info.get('b2')}, B3={grade_info.get('b3')}, B4={grade_info.get('b4')}")
+                    break
+            
+            if test_student_found:
+                self.log("✅ Test student found in class grades")
+            else:
+                self.log("❌ Test student not found in class grades")
+        else:
+            self.log(f"❌ Failed to get class grades: {response.status_code} - {response.text}")
+        
+        # 5. Test PUT /api/grades/{id} - Atualizar nota
+        self.log("5️⃣ Testing PUT /api/grades/{id} - Updating grade...")
+        if self.created_grade_id:
+            update_data = {
+                "b1": 5.0,  # Lower B1 to test recovery
+                "observations": "Nota atualizada para teste de recuperação"
+            }
+            
+            response = requests.put(
+                f"{API_BASE}/grades/{self.created_grade_id}",
+                json=update_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                updated_grade = response.json()
+                self.log(f"✅ Grade updated successfully")
+                self.log(f"   Updated B1: {updated_grade.get('b1')}")
+                self.log(f"   New average: {updated_grade.get('final_average')}")
+                self.log(f"   Status: {updated_grade.get('status')}")
+            else:
+                self.log(f"❌ Failed to update grade: {response.status_code} - {response.text}")
+        
+        # 6. Test recovery grade (substitui menor nota)
+        self.log("6️⃣ Testing recovery grade (substitutes lowest grade)...")
+        if self.created_grade_id:
+            recovery_data = {
+                "recovery": 9.5  # High recovery grade
+            }
+            
+            response = requests.put(
+                f"{API_BASE}/grades/{self.created_grade_id}",
+                json=recovery_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                recovery_grade = response.json()
+                self.log(f"✅ Recovery grade added successfully")
+                self.log(f"   Recovery: {recovery_grade.get('recovery')}")
+                self.log(f"   Final average: {recovery_grade.get('final_average')}")
+                self.log(f"   Status: {recovery_grade.get('status')}")
+                
+                # Recovery should replace the lowest grade (B1=5.0) in calculation
+                # New calculation: (9.5×2 + 7.0×3 + 6.0×2 + 9.0×3) / 10 = 7.8
+                expected_with_recovery = (9.5*2 + 7.0*3 + 6.0*2 + 9.0*3) / 10
+                actual_with_recovery = recovery_grade.get('final_average')
+                
+                if actual_with_recovery and abs(actual_with_recovery - expected_with_recovery) < 0.01:
+                    self.log("✅ Recovery grade calculation is correct!")
+                else:
+                    self.log(f"❌ Recovery calculation may be incorrect. Expected: {expected_with_recovery}, Got: {actual_with_recovery}")
+            else:
+                self.log(f"❌ Failed to add recovery grade: {response.status_code} - {response.text}")
+        
+        # 7. Test POST /api/grades/batch - Atualizar em lote
+        self.log("7️⃣ Testing POST /api/grades/batch - Batch update...")
+        batch_data = [
+            {
+                "student_id": self.student_id,
+                "class_id": self.class_id,
+                "course_id": self.course_id,
+                "academic_year": 2025,
+                "b1": 6.0,
+                "b2": 8.0,
+                "b3": 7.0,
+                "b4": 9.0,
+                "observations": "Atualização em lote"
+            }
+        ]
+        
+        response = requests.post(
+            f"{API_BASE}/grades/batch",
+            json=batch_data,
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            batch_result = response.json()
+            self.log(f"✅ Batch update successful")
+            self.log(f"   Updated: {batch_result.get('updated', 0)} grades")
+            
+            if batch_result.get('grades'):
+                for grade in batch_result['grades']:
+                    self.log(f"   Grade ID: {grade.get('id')}, Average: {grade.get('final_average')}, Status: {grade.get('status')}")
+        else:
+            self.log(f"❌ Failed batch update: {response.status_code} - {response.text}")
+        
+        return True
+    
+    def test_authentication_required(self):
+        """Test that grades endpoints require authentication"""
+        self.log("\n🔐 Testing authentication requirements...")
+        
+        # Test without token
+        response = requests.get(f"{API_BASE}/grades")
+        if response.status_code == 401:
+            self.log("✅ Grades endpoint correctly requires authentication")
+        else:
+            self.log(f"❌ Grades endpoint should require authentication: {response.status_code}")
+        
+        # Test with invalid token
+        invalid_headers = {"Authorization": "Bearer invalid_token"}
+        response = requests.get(f"{API_BASE}/grades", headers=invalid_headers)
+        if response.status_code == 401:
+            self.log("✅ Invalid token correctly rejected")
+        else:
+            self.log(f"❌ Invalid token should be rejected: {response.status_code}")
+    
     def cleanup(self):
         """Clean up created test data"""
         self.log("\n🧹 Cleaning up test data...")
