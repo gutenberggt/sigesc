@@ -410,7 +410,8 @@ class ClassBase(BaseModel):
     academic_year: int
     name: str
     shift: Literal['morning', 'afternoon', 'evening', 'full_time']
-    grade_level: str  # Ex: "1º Ano EF", "6º Ano", etc
+    education_level: Optional[str] = None  # Nível de ensino (educacao_infantil, fundamental_anos_iniciais, etc.)
+    grade_level: str  # Ex: "1º Ano", "6º Ano", "Berçário", etc
     teacher_ids: List[str] = []
 
 class ClassCreate(ClassBase):
@@ -419,6 +420,7 @@ class ClassCreate(ClassBase):
 class ClassUpdate(BaseModel):
     name: Optional[str] = None
     shift: Optional[Literal['morning', 'afternoon', 'evening', 'full_time']] = None
+    education_level: Optional[str] = None
     grade_level: Optional[str] = None
     teacher_ids: Optional[List[str]] = None
 
