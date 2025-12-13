@@ -90,6 +90,10 @@ export const Attendance = () => {
   const [settings, setSettings] = useState({ allow_future_dates: false });
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   
+  // Exclusão
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  
   // Relatórios
   const [classReport, setClassReport] = useState(null);
   const [alertsData, setAlertsData] = useState(null);
