@@ -855,6 +855,14 @@ export function Grades() {
               <span>Fórmula: (B1×2 + B2×3 + B3×2 + B4×3) / 10</span>
             </div>
             <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">Rec. 1º</span>
+              <span>Recuperação substitui menor nota do 1º semestre (B1/B2)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">Rec. 2º</span>
+              <span>Recuperação substitui menor nota do 2º semestre (B3/B4)</span>
+            </div>
+            <div className="flex items-center gap-2">
               <TrendingUp size={16} className="text-green-500" />
               <span>Média ≥ 5,0 = Aprovado</span>
             </div>
