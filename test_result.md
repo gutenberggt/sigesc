@@ -153,3 +153,5 @@ test_plan:
 agent_communication:
   - agent: "testing"
     message: "✅ Backend API testing completed successfully! All Guardians and Enrollments CRUD operations are working perfectly. SEMED role permissions are properly implemented. Backend APIs are ready for frontend integration. Frontend testing was not performed due to system limitations - main agent should verify UI components and navigation."
+  - agent: "testing"
+    message: "✅ GRADES SYSTEM TESTING COMPLETED! Comprehensive testing of Sistema de Notas performed as requested. All 6 endpoints working perfectly: GET /api/grades, GET /api/grades/by-class/{class_id}/{course_id}, GET /api/grades/by-student/{student_id}, POST /api/grades, PUT /api/grades/{id}, POST /api/grades/batch. Grade calculation formula (B1×2 + B2×3 + B3×2 + B4×3) / 10 verified correct. Recovery system properly substitutes lowest grade when recovery > original grade. Status updates correctly (cursando/aprovado/reprovado_nota) with 5.0 minimum passing grade. Authentication with Bearer token working. All test scenarios passed including failing grades, recovery scenarios, and batch updates."
