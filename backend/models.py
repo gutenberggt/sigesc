@@ -1020,3 +1020,144 @@ class AttendanceSettings(BaseModel):
     allow_future_dates: bool = False  # Permitir lançamento em datas futuras
     updated_by: Optional[str] = None
     updated_at: Optional[datetime] = None
+
+# ============= SERVIDOR (STAFF) MODELS =============
+
+class StaffBase(BaseModel):
+    """Servidor - Funcionário da rede de ensino"""
+    user_id: str  # Vínculo com o usuário do sistema
+    
+    # Dados Funcionais
+    matricula: str  # Matrícula funcional
+    cargo: Literal['professor', 'diretor', 'coordenador', 'secretario', 'auxiliar', 'merendeira', 'zelador', 'vigia', 'outro']
+    cargo_especifico: Optional[str] = None  # Descrição específica do cargo
+    
+    # Vínculo Empregatício
+    tipo_vinculo: Literal['efetivo', 'contratado', 'temporario', 'comissionado'] = 'efetivo'
+    data_admissao: Optional[str] = None  # Data de admissão (YYYY-MM-DD)
+    carga_horaria_semanal: Optional[int] = None  # Horas semanais
+    
+    # Formação (para professores)
+    formacao: Optional[str] = None  # Ex: "Licenciatura em Matemática"
+    especializacao: Optional[str] = None
+    
+    # Status do servidor
+    status: Literal['ativo', 'afastado', 'licenca', 'ferias', 'aposentado', 'exonerado'] = 'ativo'
+    motivo_afastamento: Optional[str] = None
+    data_afastamento: Optional[str] = None
+    previsao_retorno: Optional[str] = None
+    
+    # Observações
+    observacoes: Optional[str] = None
+
+class StaffCreate(StaffBase):
+    pass
+
+class StaffUpdate(BaseModel):
+    matricula: Optional[str] = None
+    cargo: Optional[Literal['professor', 'diretor', 'coordenador', 'secretario', 'auxiliar', 'merendeira', 'zelador', 'vigia', 'outro']] = None
+    cargo_especifico: Optional[str] = None
+    tipo_vinculo: Optional[Literal['efetivo', 'contratado', 'temporario', 'comissionado']] = None
+    data_admissao: Optional[str] = None
+    carga_horaria_semanal: Optional[int] = None
+    formacao: Optional[str] = None
+    especializacao: Optional[str] = None
+    status: Optional[Literal['ativo', 'afastado', 'licenca', 'ferias', 'aposentado', 'exonerado']] = None
+    motivo_afastamento: Optional[str] = None
+    data_afastamento: Optional[str] = None
+    previsao_retorno: Optional[str] = None
+    observacoes: Optional[str] = None
+
+class Staff(StaffBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+# ============= LOTAÇÃO (SCHOOL ASSIGNMENT) MODELS =============
+
+class SchoolAssignmentBase(BaseModel):
+    """Lotação - Vínculo do servidor com uma escola"""
+    staff_id: str  # ID do servidor
+    school_id: str  # ID da escola
+    
+    # Função na escola
+    funcao: Literal['professor', 'diretor', 'vice_diretor', 'coordenador', 'secretario', 'apoio'] = 'professor'
+    
+    # Período da lotação
+    data_inicio: str  # Data início (YYYY-MM-DD)
+    data_fim: Optional[str] = None  # Data fim (YYYY-MM-DD) - null se ainda ativo
+    
+    # Carga horária nesta escola
+    carga_horaria: Optional[int] = None  # Horas semanais nesta escola
+    turno: Optional[Literal['matutino', 'vespertino', 'noturno', 'integral']] = None
+    
+    # Status
+    status: Literal['ativo', 'encerrado', 'transferido'] = 'ativo'
+    motivo_encerramento: Optional[str] = None
+    
+    # Ano letivo
+    academic_year: int
+    
+    observacoes: Optional[str] = None
+
+class SchoolAssignmentCreate(SchoolAssignmentBase):
+    pass
+
+class SchoolAssignmentUpdate(BaseModel):
+    funcao: Optional[Literal['professor', 'diretor', 'vice_diretor', 'coordenador', 'secretario', 'apoio']] = None
+    data_fim: Optional[str] = None
+    carga_horaria: Optional[int] = None
+    turno: Optional[Literal['matutino', 'vespertino', 'noturno', 'integral']] = None
+    status: Optional[Literal['ativo', 'encerrado', 'transferido']] = None
+    motivo_encerramento: Optional[str] = None
+    observacoes: Optional[str] = None
+
+class SchoolAssignment(SchoolAssignmentBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+# ============= ALOCAÇÃO DE PROFESSOR (TEACHER ASSIGNMENT) MODELS =============
+
+class TeacherAssignmentBase(BaseModel):
+    """Alocação de Professor - Vínculo do professor com turma e componente curricular"""
+    staff_id: str  # ID do servidor (professor)
+    school_id: str  # ID da escola
+    class_id: str  # ID da turma
+    course_id: str  # ID do componente curricular
+    
+    # Ano letivo
+    academic_year: int
+    
+    # Carga horária semanal para este componente
+    carga_horaria_semanal: Optional[int] = None  # Aulas por semana
+    
+    # Status
+    status: Literal['ativo', 'substituido', 'encerrado'] = 'ativo'
+    
+    # Professor substituto (se houver)
+    substituto_staff_id: Optional[str] = None
+    data_substituicao: Optional[str] = None
+    motivo_substituicao: Optional[str] = None
+    
+    observacoes: Optional[str] = None
+
+class TeacherAssignmentCreate(TeacherAssignmentBase):
+    pass
+
+class TeacherAssignmentUpdate(BaseModel):
+    carga_horaria_semanal: Optional[int] = None
+    status: Optional[Literal['ativo', 'substituido', 'encerrado']] = None
+    substituto_staff_id: Optional[str] = None
+    data_substituicao: Optional[str] = None
+    motivo_substituicao: Optional[str] = None
+    observacoes: Optional[str] = None
+
+class TeacherAssignment(TeacherAssignmentBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
