@@ -23,7 +23,7 @@ from models import (
     Guardian, GuardianCreate, GuardianUpdate,
     Enrollment, EnrollmentCreate, EnrollmentUpdate,
     Grade, GradeCreate, GradeUpdate,
-    Attendance, AttendanceCreate, AttendanceUpdate,
+    Attendance, AttendanceCreate, AttendanceUpdate, AttendanceRecord, AttendanceSettings,
     Notice, NoticeCreate, NoticeUpdate,
     Document, DocumentCreate,
     CalendarEvent, CalendarEventCreate, CalendarEventUpdate
