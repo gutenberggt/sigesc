@@ -586,7 +586,7 @@ export const Calendar = () => {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => navigateTo('/admin/dashboard')}
+                onClick={() => navigateTo('/dashboard')}
               >
                 <ArrowLeft size={18} className="mr-1" />
                 Voltar ao Dashboard
