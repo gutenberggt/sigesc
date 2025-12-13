@@ -30,9 +30,11 @@ class SIGESCTester:
         self.semed_token = None
         self.created_guardian_id = None
         self.created_enrollment_id = None
+        self.created_grade_id = None
         self.school_id = None
         self.student_id = None
         self.class_id = None
+        self.course_id = None
         
     def log(self, message):
         """Log test messages with timestamp"""
