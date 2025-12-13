@@ -427,12 +427,12 @@ export function StudentsComplete() {
           <input
             type="text"
             value={formData.enrollment_number}
-            onChange={(e) => updateFormData('enrollment_number', e.target.value)}
-            required
-            disabled={viewMode}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-            placeholder="Ex: 20240001"
+            readOnly
+            disabled
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+            placeholder="Gerado automaticamente"
           />
+          <p className="text-xs text-gray-500 mt-1">Gerado automaticamente pelo sistema</p>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Código INEP</label>
