@@ -141,6 +141,7 @@ metadata:
 
 test_plan:
   current_focus:
+    - "Grades System API"
     - "Dashboard Navigation to Guardians/Enrollments"
     - "Guardians Page UI"
     - "Enrollments Page UI"
