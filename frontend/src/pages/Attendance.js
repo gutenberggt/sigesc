@@ -333,6 +333,25 @@ export const Attendance = () => {
     }
   };
   
+  // Excluir frequência
+  const deleteAttendance = async () => {
+    if (!attendanceData?.attendance_id) return;
+    
+    setDeleting(true);
+    try {
+      await attendanceAPI.delete(attendanceData.attendance_id);
+      showAlertMessage('success', 'Frequência excluída com sucesso!');
+      setShowDeleteModal(false);
+      // Recarrega para limpar os dados
+      await loadAttendance();
+    } catch (error) {
+      console.error('Erro ao excluir frequência:', error);
+      showAlertMessage('error', error.response?.data?.detail || 'Erro ao excluir frequência');
+    } finally {
+      setDeleting(false);
+    }
+  };
+  
   // Navega data
   const navigateDate = (days) => {
     const date = new Date(selectedDate + 'T12:00:00');
