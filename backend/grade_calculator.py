@@ -7,6 +7,8 @@ Frequência mínima: 75%
 Recuperação por semestre:
 - Rec. 1º Sem: substitui a menor nota entre B1 e B2 (se for maior)
 - Rec. 2º Sem: substitui a menor nota entre B3 e B4 (se for maior)
+
+IMPORTANTE: Campos vazios são tratados como 0 para exibir a média desde a 1ª nota.
 """
 
 from typing import Optional, Dict, Tuple
@@ -28,9 +30,10 @@ def calculate_weighted_average(b1: Optional[float], b2: Optional[float],
                                 b3: Optional[float], b4: Optional[float],
                                 rec_s1: Optional[float] = None,
                                 rec_s2: Optional[float] = None,
-                                recovery: Optional[float] = None) -> Tuple[Optional[float], Dict]:
+                                recovery: Optional[float] = None) -> Tuple[float, Dict]:
     """
     Calcula a média ponderada considerando as recuperações por semestre.
+    Campos vazios (None) são tratados como 0.
     
     Rec. 1º Semestre (rec_s1): substitui a menor nota entre B1 e B2 se for maior
     Rec. 2º Semestre (rec_s2): substitui a menor nota entre B3 e B4 se for maior
@@ -38,11 +41,14 @@ def calculate_weighted_average(b1: Optional[float], b2: Optional[float],
     Returns:
         Tuple com (média_final, detalhes do cálculo)
     """
-    grades = {'b1': b1, 'b2': b2, 'b3': b3, 'b4': b4}
-    
-    # Se não tem todas as notas dos bimestres, retorna None
-    if any(g is None for g in grades.values()):
-        return None, {'incomplete': True, 'message': 'Notas incompletas'}
+    # Converte None para 0 - campos vazios são tratados como 0
+    original_grades = {'b1': b1, 'b2': b2, 'b3': b3, 'b4': b4}
+    grades = {
+        'b1': b1 if b1 is not None else 0,
+        'b2': b2 if b2 is not None else 0,
+        'b3': b3 if b3 is not None else 0,
+        'b4': b4 if b4 is not None else 0
+    }
     
     # Aplica recuperações
     final_grades = grades.copy()
@@ -52,17 +58,14 @@ def calculate_weighted_average(b1: Optional[float], b2: Optional[float],
     # Recuperação 1º Semestre (B1, B2)
     if rec_s1 is not None:
         # Encontra a menor nota do 1º semestre
-        s1_grades = {'b1': b1, 'b2': b2}
+        s1_grades = {'b1': grades['b1'], 'b2': grades['b2']}
         min_grade_s1 = min(s1_grades.values())
         
-        # Encontra o bimestre com menor nota
-        min_bimesters_s1 = [k for k, v in s1_grades.items() if v == min_grade_s1]
-        
-        # Se ambos têm a mesma nota, prioriza B2 (maior peso)
-        if len(min_bimesters_s1) > 1:
-            rec_s1_applied = 'b2'
+        # Encontra o bimestre com menor nota (se empate, prioriza B2)
+        if s1_grades['b1'] <= s1_grades['b2']:
+            rec_s1_applied = 'b1'
         else:
-            rec_s1_applied = min_bimesters_s1[0]
+            rec_s1_applied = 'b2'
         
         # Aplica apenas se a recuperação for maior que a nota original
         if rec_s1 > final_grades[rec_s1_applied]:
@@ -73,17 +76,13 @@ def calculate_weighted_average(b1: Optional[float], b2: Optional[float],
     # Recuperação 2º Semestre (B3, B4)
     if rec_s2 is not None:
         # Encontra a menor nota do 2º semestre
-        s2_grades = {'b3': b3, 'b4': b4}
-        min_grade_s2 = min(s2_grades.values())
+        s2_grades = {'b3': grades['b3'], 'b4': grades['b4']}
         
-        # Encontra o bimestre com menor nota
-        min_bimesters_s2 = [k for k, v in s2_grades.items() if v == min_grade_s2]
-        
-        # Se ambos têm a mesma nota, prioriza B4 (maior peso)
-        if len(min_bimesters_s2) > 1:
-            rec_s2_applied = 'b4'
+        # Encontra o bimestre com menor nota (se empate, prioriza B4)
+        if s2_grades['b3'] <= s2_grades['b4']:
+            rec_s2_applied = 'b3'
         else:
-            rec_s2_applied = min_bimesters_s2[0]
+            rec_s2_applied = 'b4'
         
         # Aplica apenas se a recuperação for maior que a nota original
         if rec_s2 > final_grades[rec_s2_applied]:
@@ -121,7 +120,8 @@ def calculate_weighted_average(b1: Optional[float], b2: Optional[float],
     average = round(average, 1)
     
     details = {
-        'original_grades': grades,
+        'original_grades': original_grades,
+        'grades_with_zero': grades,
         'final_grades': final_grades,
         'rec_s1': rec_s1,
         'rec_s1_applied_to': rec_s1_applied,
@@ -196,6 +196,7 @@ async def calculate_and_update_grade(db, grade_id: str) -> dict:
         return None
     
     # Calcula média com suporte a ambos os formatos de recuperação
+    # Campos vazios são tratados como 0
     average, details = calculate_weighted_average(
         grade.get('b1'),
         grade.get('b2'),
