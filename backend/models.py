@@ -898,3 +898,70 @@ class Document(DocumentBase):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# ============= CALENDAR EVENT MODELS =============
+
+class CalendarEventBase(BaseModel):
+    """Evento do Calendário Letivo"""
+    name: str  # Nome do evento
+    description: Optional[str] = None  # Descrição detalhada
+    
+    # Tipo do evento
+    event_type: Literal[
+        'feriado_nacional',
+        'feriado_estadual', 
+        'feriado_municipal',
+        'sabado_letivo',
+        'recesso_escolar',
+        'evento_escolar',
+        'outros'
+    ]
+    
+    # Indica se é dia letivo ou não letivo
+    is_school_day: bool = False  # True = Letivo, False = Não Letivo
+    
+    # Período do evento
+    start_date: str  # Data início (YYYY-MM-DD)
+    end_date: str  # Data fim (YYYY-MM-DD) - igual start_date se for um único dia
+    
+    # Turno/Período do dia
+    period: Literal['integral', 'manha', 'tarde', 'noite', 'personalizado'] = 'integral'
+    
+    # Horários personalizados (apenas se period = 'personalizado')
+    start_time: Optional[str] = None  # HH:MM
+    end_time: Optional[str] = None  # HH:MM
+    
+    # Ano letivo
+    academic_year: int
+    
+    # Cor para exibição no calendário (hex)
+    color: Optional[str] = None
+
+class CalendarEventCreate(CalendarEventBase):
+    pass
+
+class CalendarEventUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    event_type: Optional[Literal[
+        'feriado_nacional',
+        'feriado_estadual', 
+        'feriado_municipal',
+        'sabado_letivo',
+        'recesso_escolar',
+        'evento_escolar',
+        'outros'
+    ]] = None
+    is_school_day: Optional[bool] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    period: Optional[Literal['integral', 'manha', 'tarde', 'noite', 'personalizado']] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    color: Optional[str] = None
+
+class CalendarEvent(CalendarEventBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
