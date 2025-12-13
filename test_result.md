@@ -135,6 +135,30 @@ frontend:
         agent: "testing"
         comment: "✅ Grade entry flow working perfectly. Carregar Notas button loads student data correctly, displays 1 student (Maria da Silva Santos) with proper grade input fields. Grade entry supports Brazilian format (7,0 with comma), Salvar Notas button becomes enabled after changes. All grade calculation fields (B1×2, B2×3, B3×2, B4×3) present with recovery option."
 
+  - task: "Academic Calendar (Calendário Letivo) - Calendar Views and Navigation"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/Calendar.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ ACADEMIC CALENDAR FULLY FUNCTIONAL! Comprehensive testing completed: 1) Login successful with admin@sigesc.com/password, 2) Dashboard 'Calendário Letivo' button access working, 3) Calendar loads with Monthly view by default, 4) All view switching works: Anual, Mensal, Semanal, Diário, 5) Navigation controls working: Previous month, Next month, Today button, 6) Legend displays event types and Letivo/Não Letivo indicators correctly, 7) 'Gerenciar Eventos' button navigation to events page working, 8) Calendar interface fully responsive and functional with proper month navigation to December 2025."
+
+  - task: "Events Management - Create and Manage Calendar Events"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/Events.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ EVENTS MANAGEMENT FULLY FUNCTIONAL! Complete testing verified: 1) Events page loads with proper filters (search, event type, year), 2) 'Novo Evento' button opens modal correctly, 3) All form fields present and working: Nome do Evento, Descrição, Tipo de Evento (7 options: Feriado Nacional, Estadual, Municipal, Sábado Letivo, Recesso Escolar, Evento Escolar, Outros), Dia Letivo radio buttons (Letivo/Não Letivo), Data Início/Fim, Período do Dia (Integral, Manhã, Tarde, Noite, Personalizado), Cor (optional), Ano Letivo, 4) Test event creation successful: 'Feriado de Natal' as Feriado Nacional, Não Letivo, date 2025-12-25, Integral period, 5) Event appears correctly in calendar on December 25th with red background indicating 'Feriado Nacional' type. Full CRUD functionality working."
+
 metadata:
   created_by: "testing_agent"
   version: "1.0"
