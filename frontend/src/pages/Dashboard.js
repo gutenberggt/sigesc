@@ -214,8 +214,7 @@ export const Dashboard = () => {
                 <p>✅ Dashboard por papel configurado</p>
                 <p>✅ CRUD de Escolas, Usuários, Turmas e Disciplinas</p>
                 <p>✅ Gestão completa de Alunos (6 abas)</p>
-                <p>✅ Gestão de Responsáveis</p>
-                <p>✅ Gestão de Matrículas</p>
+                <p>✅ Busca avançada por Nome e CPF</p>
                 <p className="mt-2 font-medium">Próxima fase: Sistema de Notas e Frequência</p>
               </div>
             </div>
