@@ -22,21 +22,22 @@ const parseGrade = (value) => {
 };
 
 // Calcula média ponderada com recuperações por semestre
+// Campos vazios são tratados como 0 para exibir média desde a 1ª nota
 const calculateAverage = (b1, b2, b3, b4, rec_s1, rec_s2) => {
-  const grades = { b1, b2, b3, b4 };
-  
-  // Se não tem todas as notas, retorna null
-  if (Object.values(grades).some(g => g === null || g === undefined)) {
-    return null;
-  }
+  // Converte null/undefined para 0
+  const grades = { 
+    b1: b1 ?? 0, 
+    b2: b2 ?? 0, 
+    b3: b3 ?? 0, 
+    b4: b4 ?? 0 
+  };
   
   // Aplica recuperações por semestre
   let finalGrades = { ...grades };
   
   // Recuperação 1º Semestre (substitui menor entre B1 e B2)
   if (rec_s1 !== null && rec_s1 !== undefined) {
-    const minS1 = Math.min(b1, b2);
-    const keyS1 = b1 === b2 ? 'b2' : (b1 < b2 ? 'b1' : 'b2');
+    const keyS1 = grades.b1 <= grades.b2 ? 'b1' : 'b2';
     if (rec_s1 > finalGrades[keyS1]) {
       finalGrades[keyS1] = rec_s1;
     }
@@ -44,8 +45,7 @@ const calculateAverage = (b1, b2, b3, b4, rec_s1, rec_s2) => {
   
   // Recuperação 2º Semestre (substitui menor entre B3 e B4)
   if (rec_s2 !== null && rec_s2 !== undefined) {
-    const minS2 = Math.min(b3, b4);
-    const keyS2 = b3 === b4 ? 'b4' : (b3 < b4 ? 'b3' : 'b4');
+    const keyS2 = grades.b3 <= grades.b4 ? 'b3' : 'b4';
     if (rec_s2 > finalGrades[keyS2]) {
       finalGrades[keyS2] = rec_s2;
     }
