@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
-import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, UserCheck, ClipboardList } from 'lucide-react';
+import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { schoolsAPI, usersAPI, classesAPI } from '@/services/api';
