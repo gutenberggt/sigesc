@@ -1025,11 +1025,17 @@ class AttendanceSettings(BaseModel):
 
 class StaffBase(BaseModel):
     """Servidor - Funcionário da rede de ensino"""
-    user_id: str  # Vínculo com o usuário do sistema
+    # Dados Pessoais
+    nome: str  # Nome completo do servidor
+    foto_url: Optional[str] = None  # URL da foto do servidor
+    data_nascimento: Optional[str] = None  # Data de nascimento (YYYY-MM-DD)
+    sexo: Optional[Literal['masculino', 'feminino', 'outro']] = None
+    cor_raca: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarado']] = None
+    celular: Optional[str] = None  # Número do celular para WhatsApp
+    email: Optional[str] = None
     
-    # Dados Funcionais
-    matricula: str  # Matrícula funcional
-    cargo: Literal['professor', 'diretor', 'coordenador', 'secretario', 'auxiliar', 'merendeira', 'zelador', 'vigia', 'outro']
+    # Dados Funcionais (matrícula será gerada automaticamente)
+    cargo: Literal['professor', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'auxiliar', 'merendeira', 'zelador', 'vigia', 'outro']
     cargo_especifico: Optional[str] = None  # Descrição específica do cargo
     
     # Vínculo Empregatício
@@ -1037,9 +1043,9 @@ class StaffBase(BaseModel):
     data_admissao: Optional[str] = None  # Data de admissão (YYYY-MM-DD)
     carga_horaria_semanal: Optional[int] = None  # Horas semanais
     
-    # Formação (para professores)
-    formacao: Optional[str] = None  # Ex: "Licenciatura em Matemática"
-    especializacao: Optional[str] = None
+    # Formação (lista de formações)
+    formacoes: Optional[List[str]] = []  # Lista de formações
+    especializacoes: Optional[List[str]] = []  # Lista de especializações
     
     # Status do servidor
     status: Literal['ativo', 'afastado', 'licenca', 'ferias', 'aposentado', 'exonerado'] = 'ativo'
@@ -1050,27 +1056,73 @@ class StaffBase(BaseModel):
     # Observações
     observacoes: Optional[str] = None
 
-class StaffCreate(StaffBase):
-    pass
+class StaffCreate(BaseModel):
+    """Modelo para criar servidor (sem matrícula - será gerada automaticamente)"""
+    nome: str
+    foto_url: Optional[str] = None
+    data_nascimento: Optional[str] = None
+    sexo: Optional[Literal['masculino', 'feminino', 'outro']] = None
+    cor_raca: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarado']] = None
+    celular: Optional[str] = None
+    email: Optional[str] = None
+    cargo: Literal['professor', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'auxiliar', 'merendeira', 'zelador', 'vigia', 'outro']
+    cargo_especifico: Optional[str] = None
+    tipo_vinculo: Literal['efetivo', 'contratado', 'temporario', 'comissionado'] = 'efetivo'
+    data_admissao: Optional[str] = None
+    carga_horaria_semanal: Optional[int] = None
+    formacoes: Optional[List[str]] = []
+    especializacoes: Optional[List[str]] = []
+    status: Literal['ativo', 'afastado', 'licenca', 'ferias', 'aposentado', 'exonerado'] = 'ativo'
+    motivo_afastamento: Optional[str] = None
+    data_afastamento: Optional[str] = None
+    previsao_retorno: Optional[str] = None
+    observacoes: Optional[str] = None
 
 class StaffUpdate(BaseModel):
-    matricula: Optional[str] = None
-    cargo: Optional[Literal['professor', 'diretor', 'coordenador', 'secretario', 'auxiliar', 'merendeira', 'zelador', 'vigia', 'outro']] = None
+    nome: Optional[str] = None
+    foto_url: Optional[str] = None
+    data_nascimento: Optional[str] = None
+    sexo: Optional[Literal['masculino', 'feminino', 'outro']] = None
+    cor_raca: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarado']] = None
+    celular: Optional[str] = None
+    email: Optional[str] = None
+    cargo: Optional[Literal['professor', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'auxiliar', 'merendeira', 'zelador', 'vigia', 'outro']] = None
     cargo_especifico: Optional[str] = None
     tipo_vinculo: Optional[Literal['efetivo', 'contratado', 'temporario', 'comissionado']] = None
     data_admissao: Optional[str] = None
     carga_horaria_semanal: Optional[int] = None
-    formacao: Optional[str] = None
-    especializacao: Optional[str] = None
+    formacoes: Optional[List[str]] = None
+    especializacoes: Optional[List[str]] = None
     status: Optional[Literal['ativo', 'afastado', 'licenca', 'ferias', 'aposentado', 'exonerado']] = None
     motivo_afastamento: Optional[str] = None
     data_afastamento: Optional[str] = None
     previsao_retorno: Optional[str] = None
     observacoes: Optional[str] = None
 
-class Staff(StaffBase):
+class Staff(BaseModel):
+    """Modelo completo do servidor com matrícula"""
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    matricula: str  # Gerada automaticamente
+    nome: str
+    foto_url: Optional[str] = None
+    data_nascimento: Optional[str] = None
+    sexo: Optional[Literal['masculino', 'feminino', 'outro']] = None
+    cor_raca: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarado']] = None
+    celular: Optional[str] = None
+    email: Optional[str] = None
+    cargo: Literal['professor', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'auxiliar', 'merendeira', 'zelador', 'vigia', 'outro']
+    cargo_especifico: Optional[str] = None
+    tipo_vinculo: Literal['efetivo', 'contratado', 'temporario', 'comissionado'] = 'efetivo'
+    data_admissao: Optional[str] = None
+    carga_horaria_semanal: Optional[int] = None
+    formacoes: Optional[List[str]] = []
+    especializacoes: Optional[List[str]] = []
+    status: Literal['ativo', 'afastado', 'licenca', 'ferias', 'aposentado', 'exonerado'] = 'ativo'
+    motivo_afastamento: Optional[str] = None
+    data_afastamento: Optional[str] = None
+    previsao_retorno: Optional[str] = None
+    observacoes: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
 
