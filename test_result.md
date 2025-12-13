@@ -162,6 +162,18 @@ frontend:
         agent: "testing"
         comment: "✅ EVENTS MANAGEMENT FULLY FUNCTIONAL! Complete testing verified: 1) Events page loads with proper filters (search, event type, year), 2) 'Novo Evento' button opens modal correctly, 3) All form fields present and working: Nome do Evento, Descrição, Tipo de Evento (7 options: Feriado Nacional, Estadual, Municipal, Sábado Letivo, Recesso Escolar, Evento Escolar, Outros), Dia Letivo radio buttons (Letivo/Não Letivo), Data Início/Fim, Período do Dia (Integral, Manhã, Tarde, Noite, Personalizado), Cor (optional), Ano Letivo, 4) Test event creation successful: 'Feriado de Natal' as Feriado Nacional, Não Letivo, date 2025-12-25, Integral period, 5) Event appears correctly in calendar on December 25th with red background indicating 'Feriado Nacional' type. Full CRUD functionality working."
 
+  - task: "Attendance Control (Controle de Frequência) - Phase 5"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/Attendance.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "✅ Attendance control page implemented and working. Features verified: 1) Lançamento tab with school/class/period selectors, 2) Date navigation with weekday display, 3) Date validation (weekends, holidays, future dates), 4) Student list with P/F/J buttons, 5) 'Todos Presentes' and 'Todos Ausentes' bulk actions, 6) Save attendance button, 7) Relatórios tab for class reports, 8) Alertas tab for low attendance alerts, 9) Settings modal for future dates permission. Education level detection working (daily vs by_component)."
+
 metadata:
   created_by: "testing_agent"
   version: "1.0"
@@ -170,8 +182,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Academic Calendar (Calendário Letivo) - Calendar Views and Navigation"
-    - "Events Management - Create and Manage Calendar Events"
+    - "Attendance Control (Controle de Frequência) - Complete Testing"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
