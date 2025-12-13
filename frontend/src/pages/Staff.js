@@ -25,7 +25,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { staffAPI, schoolAssignmentAPI, teacherAssignmentAPI, schoolAPI, usersAPI, classAPI, courseAPI } from '@/services/api';
+import { staffAPI, schoolAssignmentAPI, teacherAssignmentAPI, schoolsAPI, usersAPI, classesAPI, coursesAPI } from '@/services/api';
 
 const CARGOS = {
   professor: 'Professor',
