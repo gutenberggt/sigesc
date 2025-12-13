@@ -205,6 +205,15 @@ export const Dashboard = () => {
                 <ClipboardList className="text-teal-600" size={24} />
                 <span className="font-medium text-gray-900">Notas</span>
               </button>
+              
+              <button
+                onClick={() => navigate('/admin/calendar')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
+                data-testid="nav-calendar-button"
+              >
+                <Calendar className="text-indigo-600" size={24} />
+                <span className="font-medium text-gray-900">Calendário Letivo</span>
+              </button>
             </div>
           </div>
         )}
