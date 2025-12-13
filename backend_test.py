@@ -841,6 +841,14 @@ class SIGESCTester:
             # Test authentication requirements
             self.test_authentication_required()
             
+            # Test Courses endpoint (Fase 4 requirement)
+            if not self.test_courses_endpoint():
+                success = False
+            
+            # Test specific class grades (Fase 4 requirement)
+            if not self.test_grades_by_class_specific():
+                success = False
+            
             # Test Grades System (main focus of this review)
             if not self.test_grades_system():
                 success = False
