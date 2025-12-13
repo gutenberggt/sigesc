@@ -399,11 +399,6 @@ export const staffAPI = {
     return response.data;
   },
   
-  getByUser: async (userId) => {
-    const response = await axios.get(`${API}/staff/by-user/${userId}`);
-    return response.data;
-  },
-  
   create: async (data) => {
     const response = await axios.post(`${API}/staff`, data);
     return response.data;
@@ -416,6 +411,15 @@ export const staffAPI = {
   
   delete: async (id) => {
     const response = await axios.delete(`${API}/staff/${id}`);
+    return response.data;
+  },
+  
+  uploadPhoto: async (staffId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axios.post(`${API}/staff/${staffId}/photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return response.data;
   }
 };
