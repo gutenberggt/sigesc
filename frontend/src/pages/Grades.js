@@ -254,9 +254,9 @@ export function Grades() {
     const newData = [...gradesData];
     newData[index].grade[field] = value;
     
-    // Recalcula média
+    // Recalcula média com recuperações por semestre
     const g = newData[index].grade;
-    g.final_average = calculateAverage(g.b1, g.b2, g.b3, g.b4, g.recovery);
+    g.final_average = calculateAverage(g.b1, g.b2, g.b3, g.b4, g.rec_s1, g.rec_s2);
     g.status = g.final_average !== null 
       ? (g.final_average >= 5 ? 'aprovado' : 'reprovado_nota')
       : 'cursando';
