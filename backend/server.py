@@ -26,7 +26,10 @@ from models import (
     Attendance, AttendanceCreate, AttendanceUpdate, AttendanceRecord, AttendanceSettings,
     Notice, NoticeCreate, NoticeUpdate,
     Document, DocumentCreate,
-    CalendarEvent, CalendarEventCreate, CalendarEventUpdate
+    CalendarEvent, CalendarEventCreate, CalendarEventUpdate,
+    Staff, StaffCreate, StaffUpdate,
+    SchoolAssignment, SchoolAssignmentCreate, SchoolAssignmentUpdate,
+    TeacherAssignment, TeacherAssignmentCreate, TeacherAssignmentUpdate
 )
 from auth_utils import (
     hash_password, verify_password, create_access_token, 
