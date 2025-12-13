@@ -101,6 +101,9 @@ frontend:
       - working: true
         agent: "testing"
         comment: "✅ NEW TWO-RECOVERY SYSTEM FULLY IMPLEMENTED AND WORKING! Successfully verified: 1) Table columns in correct order: Aluno | B1 (×2) | B2 (×3) | Rec. 1º | B3 (×2) | B4 (×3) | Rec. 2º | Média | Status, 2) Both recovery columns present with blue highlighting (bg-blue-50, text-blue-600), 3) Login flow working (admin@sigesc.com/password), 4) School/class/component selection working (EMEIEF SORRISO DO ARAGUAIA → 3º Ano A → Matemática), 5) Grade entry functional with Brazilian format, 6) Legend contains recovery explanations for both semesters. Two-recovery system successfully replaces single recovery column."
+      - working: true
+        agent: "testing"
+        comment: "✅ EMPTY FIELDS AS ZERO FEATURE FULLY WORKING! Comprehensive testing completed: 1) Average calculation displays immediately after first grade entry (B1=8,0 → average=1,6), 2) Average updates dynamically as more grades entered (B1=8,0 + B2=7,0 → average=3,7), 3) Empty fields correctly treated as 0 in weighted formula (B1×2 + B2×3 + B3×2 + B4×3)/10, 4) Status updates correctly based on average (Reprovado for <5.0), 5) All UI interactions working (dropdowns, grade entry, save button). The requested functionality for treating empty fields as zero and showing average from first grade entry is working perfectly."
 
   - task: "Component filtering by education level"
     implemented: true
