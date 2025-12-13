@@ -1,0 +1,747 @@
+import { useState, useEffect, useMemo } from 'react';
+import { Layout } from '@/components/Layout';
+import { 
+  Calendar as CalendarIcon, 
+  ChevronLeft, 
+  ChevronRight, 
+  Plus,
+  Eye,
+  Edit,
+  Trash2,
+  Sun,
+  Moon,
+  Sunrise,
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  XCircle
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/Modal';
+import { calendarAPI } from '@/services/api';
+
+// Tipos de eventos com cores e labels
+const EVENT_TYPES = {
+  feriado_nacional: { label: 'Feriado Nacional', color: '#EF4444', bg: 'bg-red-100' },
+  feriado_estadual: { label: 'Feriado Estadual', color: '#F97316', bg: 'bg-orange-100' },
+  feriado_municipal: { label: 'Feriado Municipal', color: '#EAB308', bg: 'bg-yellow-100' },
+  sabado_letivo: { label: 'Sábado Letivo', color: '#22C55E', bg: 'bg-green-100' },
+  recesso_escolar: { label: 'Recesso Escolar', color: '#3B82F6', bg: 'bg-blue-100' },
+  evento_escolar: { label: 'Evento Escolar', color: '#8B5CF6', bg: 'bg-purple-100' },
+  outros: { label: 'Outros', color: '#6B7280', bg: 'bg-gray-100' }
+};
+
+// Períodos do dia
+const PERIODS = {
+  integral: { label: 'Integral (Dia todo)', icon: CalendarIcon },
+  manha: { label: 'Manhã', icon: Sunrise },
+  tarde: { label: 'Tarde', icon: Sun },
+  noite: { label: 'Noite', icon: Moon },
+  personalizado: { label: 'Horário Personalizado', icon: Clock }
+};
+
+// Nomes dos meses
+const MONTHS = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+// Nomes dos dias da semana
+const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const WEEKDAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+// Helper para formatar data
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-');
+  return `${day}/${month}/${year}`;
+};
+
+// Helper para obter dias do mês
+const getDaysInMonth = (year, month) => {
+  return new Date(year, month + 1, 0).getDate();
+};
+
+// Helper para obter primeiro dia da semana do mês
+const getFirstDayOfMonth = (year, month) => {
+  return new Date(year, month, 1).getDay();
+};
+
+// Componente de Evento
+const EventBadge = ({ event, compact = false, onClick }) => {
+  const type = EVENT_TYPES[event.event_type] || EVENT_TYPES.outros;
+  
+  if (compact) {
+    return (
+      <div 
+        className="w-2 h-2 rounded-full cursor-pointer" 
+        style={{ backgroundColor: event.color || type.color }}
+        title={event.name}
+        onClick={() => onClick?.(event)}
+      />
+    );
+  }
+  
+  return (
+    <div 
+      className={`text-xs px-2 py-1 rounded truncate cursor-pointer hover:opacity-80 ${event.is_school_day ? 'border-l-4 border-green-500' : ''}`}
+      style={{ backgroundColor: event.color || type.color, color: 'white' }}
+      title={`${event.name}${event.is_school_day ? ' (Letivo)' : ' (Não Letivo)'}`}
+      onClick={() => onClick?.(event)}
+    >
+      {event.name}
+    </div>
+  );
+};
+
+// Componente de célula do dia
+const DayCell = ({ date, events, isToday, isCurrentMonth, onClick, onEventClick }) => {
+  const dayEvents = events.filter(e => {
+    return date >= e.start_date && date <= e.end_date;
+  });
+  
+  const hasNonSchoolDay = dayEvents.some(e => !e.is_school_day);
+  const hasSchoolDay = dayEvents.some(e => e.is_school_day);
+  
+  return (
+    <div 
+      className={`min-h-[80px] p-1 border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors
+        ${!isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white'}
+        ${isToday ? 'ring-2 ring-blue-500' : ''}
+        ${hasNonSchoolDay && !hasSchoolDay ? 'bg-red-50' : ''}
+        ${hasSchoolDay ? 'bg-green-50' : ''}
+      `}
+      onClick={() => onClick(date)}
+    >
+      <div className={`text-sm font-medium mb-1 ${isToday ? 'text-blue-600' : ''}`}>
+        {parseInt(date.split('-')[2])}
+      </div>
+      <div className="space-y-1">
+        {dayEvents.slice(0, 3).map((event, idx) => (
+          <EventBadge 
+            key={event.id || idx} 
+            event={event} 
+            compact={dayEvents.length > 2}
+            onClick={onEventClick}
+          />
+        ))}
+        {dayEvents.length > 3 && (
+          <div className="text-xs text-gray-500">+{dayEvents.length - 3} mais</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Vista Anual
+const AnnualView = ({ year, events, onDayClick, onEventClick }) => {
+  return (
+    <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+      {MONTHS.map((month, monthIndex) => {
+        const daysInMonth = getDaysInMonth(year, monthIndex);
+        const firstDay = getFirstDayOfMonth(year, monthIndex);
+        const days = [];
+        
+        // Dias vazios antes do primeiro dia
+        for (let i = 0; i < firstDay; i++) {
+          days.push(<div key={`empty-${i}`} className="text-center text-xs p-1" />);
+        }
+        
+        // Dias do mês
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const dayEvents = events.filter(e => dateStr >= e.start_date && dateStr <= e.end_date);
+          const hasEvents = dayEvents.length > 0;
+          const hasNonSchoolDay = dayEvents.some(e => !e.is_school_day);
+          const hasSchoolDay = dayEvents.some(e => e.is_school_day);
+          const isToday = dateStr === new Date().toISOString().split('T')[0];
+          
+          days.push(
+            <div 
+              key={day}
+              className={`text-center text-xs p-1 cursor-pointer hover:bg-gray-100 rounded
+                ${isToday ? 'ring-1 ring-blue-500 font-bold' : ''}
+                ${hasNonSchoolDay && !hasSchoolDay ? 'bg-red-100 text-red-700' : ''}
+                ${hasSchoolDay ? 'bg-green-100 text-green-700' : ''}
+                ${hasEvents && !hasNonSchoolDay && !hasSchoolDay ? 'bg-purple-100' : ''}
+              `}
+              title={dayEvents.map(e => e.name).join(', ')}
+              onClick={() => onDayClick(dateStr)}
+            >
+              {day}
+            </div>
+          );
+        }
+        
+        return (
+          <div key={month} className="bg-white rounded-lg shadow-sm border p-3">
+            <h4 className="font-semibold text-sm text-center mb-2 text-gray-700">{month}</h4>
+            <div className="grid grid-cols-7 gap-0.5 text-xs text-gray-500 mb-1">
+              {WEEKDAYS.map(d => <div key={d} className="text-center">{d[0]}</div>)}
+            </div>
+            <div className="grid grid-cols-7 gap-0.5">
+              {days}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// Vista Mensal
+const MonthlyView = ({ year, month, events, onDayClick, onEventClick }) => {
+  const daysInMonth = getDaysInMonth(year, month);
+  const firstDay = getFirstDayOfMonth(year, month);
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Dias do mês anterior
+  const prevMonthDays = getDaysInMonth(year, month - 1);
+  const prevMonth = month === 0 ? 11 : month - 1;
+  const prevYear = month === 0 ? year - 1 : year;
+  
+  // Dias do próximo mês
+  const nextMonth = month === 11 ? 0 : month + 1;
+  const nextYear = month === 11 ? year + 1 : year;
+  
+  const cells = [];
+  
+  // Dias do mês anterior
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const day = prevMonthDays - i;
+    const dateStr = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    cells.push(
+      <DayCell 
+        key={`prev-${day}`}
+        date={dateStr}
+        events={events}
+        isToday={dateStr === today}
+        isCurrentMonth={false}
+        onClick={onDayClick}
+        onEventClick={onEventClick}
+      />
+    );
+  }
+  
+  // Dias do mês atual
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    cells.push(
+      <DayCell 
+        key={day}
+        date={dateStr}
+        events={events}
+        isToday={dateStr === today}
+        isCurrentMonth={true}
+        onClick={onDayClick}
+        onEventClick={onEventClick}
+      />
+    );
+  }
+  
+  // Dias do próximo mês
+  const remainingCells = 42 - cells.length;
+  for (let day = 1; day <= remainingCells; day++) {
+    const dateStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    cells.push(
+      <DayCell 
+        key={`next-${day}`}
+        date={dateStr}
+        events={events}
+        isToday={dateStr === today}
+        isCurrentMonth={false}
+        onClick={onDayClick}
+        onEventClick={onEventClick}
+      />
+    );
+  }
+  
+  return (
+    <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+      <div className="grid grid-cols-7 bg-gray-100">
+        {WEEKDAYS.map(day => (
+          <div key={day} className="p-2 text-center text-sm font-medium text-gray-600 border-b">
+            {day}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7">
+        {cells}
+      </div>
+    </div>
+  );
+};
+
+// Vista Semanal
+const WeeklyView = ({ startDate, events, onDayClick, onEventClick }) => {
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Gera os 7 dias da semana
+  const weekDays = [];
+  const start = new Date(startDate);
+  
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + i);
+    const dateStr = date.toISOString().split('T')[0];
+    const dayEvents = events.filter(e => dateStr >= e.start_date && dateStr <= e.end_date);
+    
+    weekDays.push({
+      date: dateStr,
+      dayName: WEEKDAYS_FULL[date.getDay()],
+      day: date.getDate(),
+      month: MONTHS[date.getMonth()],
+      events: dayEvents,
+      isToday: dateStr === today
+    });
+  }
+  
+  return (
+    <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+      <div className="grid grid-cols-7">
+        {weekDays.map(day => (
+          <div 
+            key={day.date}
+            className={`border-r last:border-r-0 min-h-[400px] ${day.isToday ? 'bg-blue-50' : ''}`}
+          >
+            <div 
+              className={`p-2 text-center border-b cursor-pointer hover:bg-gray-50
+                ${day.isToday ? 'bg-blue-100' : 'bg-gray-50'}
+              `}
+              onClick={() => onDayClick(day.date)}
+            >
+              <div className="text-xs text-gray-500">{day.dayName}</div>
+              <div className={`text-lg font-semibold ${day.isToday ? 'text-blue-600' : ''}`}>
+                {day.day}
+              </div>
+              <div className="text-xs text-gray-400">{day.month}</div>
+            </div>
+            <div className="p-2 space-y-2">
+              {day.events.map((event, idx) => (
+                <EventBadge key={event.id || idx} event={event} onClick={onEventClick} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Vista Diária
+const DailyView = ({ date, events, onEventClick }) => {
+  const dayEvents = events.filter(e => date >= e.start_date && date <= e.end_date);
+  const dateObj = new Date(date + 'T12:00:00');
+  
+  // Horas do dia
+  const hours = [];
+  for (let h = 6; h <= 22; h++) {
+    hours.push(h);
+  }
+  
+  return (
+    <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+      <div className="p-4 bg-gray-50 border-b">
+        <div className="text-center">
+          <div className="text-sm text-gray-500">{WEEKDAYS_FULL[dateObj.getDay()]}</div>
+          <div className="text-3xl font-bold">{dateObj.getDate()}</div>
+          <div className="text-sm text-gray-500">{MONTHS[dateObj.getMonth()]} {dateObj.getFullYear()}</div>
+        </div>
+      </div>
+      
+      {/* Eventos do dia */}
+      {dayEvents.length > 0 && (
+        <div className="p-4 border-b">
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">Eventos do Dia</h4>
+          <div className="space-y-2">
+            {dayEvents.map((event, idx) => {
+              const type = EVENT_TYPES[event.event_type] || EVENT_TYPES.outros;
+              const period = PERIODS[event.period] || PERIODS.integral;
+              
+              return (
+                <div 
+                  key={event.id || idx}
+                  className={`p-3 rounded-lg cursor-pointer hover:opacity-90 ${type.bg}`}
+                  style={{ borderLeft: `4px solid ${event.color || type.color}` }}
+                  onClick={() => onEventClick(event)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{event.name}</div>
+                    <div className="flex items-center gap-2">
+                      {event.is_school_day ? (
+                        <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded">Letivo</span>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded">Não Letivo</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">{type.label}</div>
+                  <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                    <period.icon size={12} />
+                    {period.label}
+                    {event.period === 'personalizado' && event.start_time && event.end_time && (
+                      <span className="ml-1">({event.start_time} - {event.end_time})</span>
+                    )}
+                  </div>
+                  {event.description && (
+                    <div className="text-sm text-gray-500 mt-2">{event.description}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      
+      {/* Timeline do dia */}
+      <div className="p-4">
+        <div className="space-y-0">
+          {hours.map(hour => (
+            <div key={hour} className="flex border-t border-gray-100 min-h-[40px]">
+              <div className="w-16 text-xs text-gray-400 py-2 text-right pr-2">
+                {hour}:00
+              </div>
+              <div className="flex-1 py-1">
+                {dayEvents
+                  .filter(e => {
+                    if (e.period === 'integral') return true;
+                    if (e.period === 'manha' && hour >= 7 && hour < 12) return true;
+                    if (e.period === 'tarde' && hour >= 13 && hour < 18) return true;
+                    if (e.period === 'noite' && hour >= 18 && hour < 22) return true;
+                    if (e.period === 'personalizado' && e.start_time && e.end_time) {
+                      const startHour = parseInt(e.start_time.split(':')[0]);
+                      const endHour = parseInt(e.end_time.split(':')[0]);
+                      return hour >= startHour && hour < endHour;
+                    }
+                    return false;
+                  })
+                  .map((event, idx) => (
+                    <div 
+                      key={`${event.id}-${hour}-${idx}`}
+                      className="text-xs px-2 py-1 rounded mb-1"
+                      style={{ backgroundColor: event.color || EVENT_TYPES[event.event_type]?.color, color: 'white' }}
+                    >
+                      {event.name}
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      {dayEvents.length === 0 && (
+        <div className="p-8 text-center text-gray-500">
+          <CalendarIcon size={48} className="mx-auto mb-2 opacity-30" />
+          <p>Nenhum evento neste dia</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Componente Principal
+export const Calendar = () => {
+  const [view, setView] = useState('monthly'); // annual, monthly, weekly, daily
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [showEventModal, setShowEventModal] = useState(false);
+  
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth();
+  
+  // Carrega eventos
+  useEffect(() => {
+    loadEvents();
+  }, [currentYear]);
+  
+  const loadEvents = async () => {
+    setLoading(true);
+    try {
+      const data = await calendarAPI.getEvents({ academic_year: currentYear });
+      setEvents(data);
+    } catch (error) {
+      console.error('Erro ao carregar eventos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Navegação
+  const navigate = (direction) => {
+    const newDate = new Date(currentDate);
+    
+    switch (view) {
+      case 'annual':
+        newDate.setFullYear(newDate.getFullYear() + direction);
+        break;
+      case 'monthly':
+        newDate.setMonth(newDate.getMonth() + direction);
+        break;
+      case 'weekly':
+        newDate.setDate(newDate.getDate() + (direction * 7));
+        break;
+      case 'daily':
+        newDate.setDate(newDate.getDate() + direction);
+        break;
+    }
+    
+    setCurrentDate(newDate);
+  };
+  
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
+  
+  // Título da navegação
+  const getNavigationTitle = () => {
+    switch (view) {
+      case 'annual':
+        return currentYear;
+      case 'monthly':
+        return `${MONTHS[currentMonth]} ${currentYear}`;
+      case 'weekly':
+        const weekStart = new Date(currentDate);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        return `${weekStart.getDate()} ${MONTHS[weekStart.getMonth()]} - ${weekEnd.getDate()} ${MONTHS[weekEnd.getMonth()]} ${currentYear}`;
+      case 'daily':
+        return `${currentDate.getDate()} de ${MONTHS[currentMonth]} de ${currentYear}`;
+      default:
+        return '';
+    }
+  };
+  
+  // Início da semana para vista semanal
+  const getWeekStart = () => {
+    const date = new Date(currentDate);
+    date.setDate(date.getDate() - date.getDay());
+    return date.toISOString().split('T')[0];
+  };
+  
+  // Handlers
+  const handleDayClick = (date) => {
+    setSelectedDate(date);
+    if (view !== 'daily') {
+      setCurrentDate(new Date(date + 'T12:00:00'));
+      setView('daily');
+    }
+  };
+  
+  const handleEventClick = (event) => {
+    setSelectedEvent(event);
+    setShowEventModal(true);
+  };
+  
+  return (
+    <Layout>
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+              <CalendarIcon className="text-blue-600" />
+              Calendário Letivo
+            </h1>
+            <p className="text-gray-600">Visualize feriados, eventos e dias letivos</p>
+          </div>
+          
+          <Button onClick={() => window.location.href = '/admin/events'}>
+            <Plus size={18} className="mr-2" />
+            Gerenciar Eventos
+          </Button>
+        </div>
+        
+        {/* Controles */}
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            {/* Seletor de vista */}
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+              {[
+                { id: 'annual', label: 'Anual' },
+                { id: 'monthly', label: 'Mensal' },
+                { id: 'weekly', label: 'Semanal' },
+                { id: 'daily', label: 'Diário' }
+              ].map(v => (
+                <button
+                  key={v.id}
+                  className={`px-4 py-2 text-sm rounded-md transition-colors ${
+                    view === v.id ? 'bg-white shadow text-blue-600 font-medium' : 'text-gray-600 hover:bg-gray-200'
+                  }`}
+                  onClick={() => setView(v.id)}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+            
+            {/* Navegação */}
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+                <ChevronLeft size={18} />
+              </Button>
+              <div className="min-w-[200px] text-center font-medium">
+                {getNavigationTitle()}
+              </div>
+              <Button variant="outline" size="sm" onClick={() => navigate(1)}>
+                <ChevronRight size={18} />
+              </Button>
+              <Button variant="outline" size="sm" onClick={goToToday}>
+                Hoje
+              </Button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Legenda */}
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex flex-wrap gap-4 text-sm">
+            {Object.entries(EVENT_TYPES).map(([key, value]) => (
+              <div key={key} className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: value.color }} />
+                <span>{value.label}</span>
+              </div>
+            ))}
+            <div className="flex items-center gap-2 ml-4 pl-4 border-l">
+              <CheckCircle size={14} className="text-green-500" />
+              <span>Letivo</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <XCircle size={14} className="text-red-500" />
+              <span>Não Letivo</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Calendário */}
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : (
+          <>
+            {view === 'annual' && (
+              <AnnualView 
+                year={currentYear} 
+                events={events}
+                onDayClick={handleDayClick}
+                onEventClick={handleEventClick}
+              />
+            )}
+            {view === 'monthly' && (
+              <MonthlyView 
+                year={currentYear}
+                month={currentMonth}
+                events={events}
+                onDayClick={handleDayClick}
+                onEventClick={handleEventClick}
+              />
+            )}
+            {view === 'weekly' && (
+              <WeeklyView 
+                startDate={getWeekStart()}
+                events={events}
+                onDayClick={handleDayClick}
+                onEventClick={handleEventClick}
+              />
+            )}
+            {view === 'daily' && (
+              <DailyView 
+                date={currentDate.toISOString().split('T')[0]}
+                events={events}
+                onEventClick={handleEventClick}
+              />
+            )}
+          </>
+        )}
+        
+        {/* Modal de detalhes do evento */}
+        <Modal
+          isOpen={showEventModal}
+          onClose={() => {
+            setShowEventModal(false);
+            setSelectedEvent(null);
+          }}
+          title="Detalhes do Evento"
+        >
+          {selectedEvent && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div 
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: selectedEvent.color || EVENT_TYPES[selectedEvent.event_type]?.color }}
+                />
+                <h3 className="text-lg font-semibold">{selectedEvent.name}</h3>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500">Tipo:</span>
+                  <p className="font-medium">{EVENT_TYPES[selectedEvent.event_type]?.label}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Dia Letivo:</span>
+                  <p className={`font-medium ${selectedEvent.is_school_day ? 'text-green-600' : 'text-red-600'}`}>
+                    {selectedEvent.is_school_day ? 'Sim' : 'Não'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Data Início:</span>
+                  <p className="font-medium">{formatDate(selectedEvent.start_date)}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Data Fim:</span>
+                  <p className="font-medium">{formatDate(selectedEvent.end_date)}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Período:</span>
+                  <p className="font-medium">{PERIODS[selectedEvent.period]?.label}</p>
+                </div>
+                {selectedEvent.period === 'personalizado' && (
+                  <div>
+                    <span className="text-gray-500">Horário:</span>
+                    <p className="font-medium">{selectedEvent.start_time} - {selectedEvent.end_time}</p>
+                  </div>
+                )}
+              </div>
+              
+              {selectedEvent.description && (
+                <div>
+                  <span className="text-gray-500 text-sm">Descrição:</span>
+                  <p className="mt-1">{selectedEvent.description}</p>
+                </div>
+              )}
+              
+              <div className="flex gap-2 pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => {
+                    setShowEventModal(false);
+                    window.location.href = `/admin/events?edit=${selectedEvent.id}`;
+                  }}
+                >
+                  <Edit size={16} className="mr-2" />
+                  Editar
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowEventModal(false)}
+                >
+                  Fechar
+                </Button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      </div>
+    </Layout>
+  );
+};
+
+export default Calendar;
