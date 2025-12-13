@@ -243,7 +243,7 @@ export const Dashboard = () => {
               <BarChart3 className="text-blue-600" size={24} />
             </div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-900">Sistema em Desenvolvimento - Fase 5 Em Andamento</h3>
+              <h3 className="text-sm font-medium text-blue-900">Sistema em Desenvolvimento - Fase 5.5 Em Andamento</h3>
               <div className="mt-2 text-sm text-blue-700">
                 <p>✅ Autenticação JWT implementada</p>
                 <p>✅ Sistema de papéis (RBAC) funcionando</p>
@@ -255,6 +255,7 @@ export const Dashboard = () => {
                 <p>✅ Calendário Letivo (visualização Anual, Mensal, Semanal, Diária)</p>
                 <p>✅ Gestão de Eventos (feriados, sábados letivos, etc.)</p>
                 <p>✅ Controle de Frequência (lançamento e relatórios)</p>
+                <p>✅ Gestão de Servidores (cadastro, lotação, alocação de professores)</p>
                 <p className="mt-2 font-medium">Próxima fase: Portais de Visualização</p>
               </div>
             </div>
