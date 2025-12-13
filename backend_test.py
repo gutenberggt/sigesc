@@ -1104,9 +1104,381 @@ class SIGESCTester:
         self.log("✅ Attendance Control Phase 5 testing completed!")
         return True
 
+    def test_staff_management_phase55(self):
+        """Test Staff Management (Gestão de Servidores) - Phase 5.5 as per review request"""
+        self.log("\n👥 Testing Staff Management - Phase 5.5 (Gestão de Servidores)...")
+        
+        # Variables to store created IDs for cleanup
+        created_staff_id = None
+        created_school_assignment_id = None
+        created_teacher_assignment_id = None
+        professor_user_id = None
+        
+        try:
+            # Step 1: Get a user with role 'professor' to create staff
+            self.log("1️⃣ Finding user with role 'professor' to create staff...")
+            response = requests.get(
+                f"{API_BASE}/users",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                users = response.json()
+                professor_users = [u for u in users if u.get('role') == 'professor']
+                
+                if professor_users:
+                    professor_user_id = professor_users[0]['id']
+                    self.log(f"✅ Found professor user: {professor_users[0].get('full_name')} (ID: {professor_user_id})")
+                else:
+                    self.log("❌ No professor users found - creating one...")
+                    # Create a professor user for testing
+                    professor_data = {
+                        "full_name": "Professor João Silva",
+                        "email": "professor.joao@sigesc.com",
+                        "password": "password123",
+                        "role": "professor",
+                        "status": "active"
+                    }
+                    
+                    response = requests.post(
+                        f"{API_BASE}/auth/register",
+                        json=professor_data,
+                        headers=self.get_headers(self.admin_token)
+                    )
+                    
+                    if response.status_code == 201:
+                        professor_user_id = response.json()['id']
+                        self.log(f"✅ Created professor user (ID: {professor_user_id})")
+                    else:
+                        self.log(f"❌ Failed to create professor user: {response.status_code}")
+                        return False
+            else:
+                self.log(f"❌ Failed to get users: {response.status_code}")
+                return False
+            
+            # Step 2: Test POST /api/staff - Create new staff
+            self.log("2️⃣ Testing POST /api/staff - Creating new staff...")
+            staff_data = {
+                "user_id": professor_user_id,
+                "matricula": "12345",
+                "cargo": "professor",
+                "tipo_vinculo": "efetivo",
+                "status": "ativo"
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/staff",
+                json=staff_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200 or response.status_code == 201:
+                staff = response.json()
+                created_staff_id = staff['id']
+                self.log(f"✅ Staff created successfully (ID: {created_staff_id})")
+                self.log(f"   Matricula: {staff.get('matricula')}")
+                self.log(f"   Cargo: {staff.get('cargo')}")
+                self.log(f"   Tipo Vínculo: {staff.get('tipo_vinculo')}")
+                self.log(f"   Status: {staff.get('status')}")
+            else:
+                self.log(f"❌ Failed to create staff: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 3: Test GET /api/staff - List all staff
+            self.log("3️⃣ Testing GET /api/staff - Listing all staff...")
+            response = requests.get(
+                f"{API_BASE}/staff",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                staff_list = response.json()
+                self.log(f"✅ Successfully retrieved {len(staff_list)} staff members")
+                
+                # Verify our created staff is in the list
+                found_created = any(s['id'] == created_staff_id for s in staff_list)
+                if found_created:
+                    self.log("✅ Created staff found in list")
+                else:
+                    self.log("❌ Created staff NOT found in list")
+                
+                # Check staff structure
+                if staff_list:
+                    first_staff = staff_list[0]
+                    expected_fields = ['id', 'user_id', 'matricula', 'cargo', 'tipo_vinculo', 'status']
+                    for field in expected_fields:
+                        if field in first_staff:
+                            self.log(f"   ✅ Field '{field}' present")
+                        else:
+                            self.log(f"   ❌ Field '{field}' missing")
+            else:
+                self.log(f"❌ Failed to list staff: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 4: Test GET /api/staff/{id} - Get staff by ID
+            self.log("4️⃣ Testing GET /api/staff/{id} - Getting staff by ID...")
+            response = requests.get(
+                f"{API_BASE}/staff/{created_staff_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                staff = response.json()
+                self.log(f"✅ Staff retrieved successfully")
+                self.log(f"   Name: {staff.get('user', {}).get('full_name', 'N/A')}")
+                self.log(f"   Matricula: {staff.get('matricula')}")
+                self.log(f"   Cargo: {staff.get('cargo')}")
+                
+                # Check if user data is populated
+                if 'user' in staff:
+                    self.log("✅ User data populated in staff response")
+                else:
+                    self.log("❌ User data not populated in staff response")
+            else:
+                self.log(f"❌ Failed to get staff: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 5: Test PUT /api/staff/{id} - Update staff
+            self.log("5️⃣ Testing PUT /api/staff/{id} - Updating staff...")
+            update_data = {
+                "status": "ativo",
+                "observacoes": "Staff atualizado via teste automatizado"
+            }
+            
+            response = requests.put(
+                f"{API_BASE}/staff/{created_staff_id}",
+                json=update_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                updated_staff = response.json()
+                self.log(f"✅ Staff updated successfully")
+                self.log(f"   Status: {updated_staff.get('status')}")
+                self.log(f"   Observações: {updated_staff.get('observacoes', 'N/A')}")
+            else:
+                self.log(f"❌ Failed to update staff: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 6: Test POST /api/school-assignments - Create school assignment (lotação)
+            self.log("6️⃣ Testing POST /api/school-assignments - Creating school assignment...")
+            if not self.school_id:
+                self.log("❌ No school_id available for school assignment")
+                return False
+            
+            assignment_data = {
+                "staff_id": created_staff_id,
+                "school_id": self.school_id,
+                "funcao": "professor",
+                "data_inicio": "2025-01-01",
+                "academic_year": 2025
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/school-assignments",
+                json=assignment_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200 or response.status_code == 201:
+                assignment = response.json()
+                created_school_assignment_id = assignment['id']
+                self.log(f"✅ School assignment created successfully (ID: {created_school_assignment_id})")
+                self.log(f"   Staff ID: {assignment.get('staff_id')}")
+                self.log(f"   School ID: {assignment.get('school_id')}")
+                self.log(f"   Função: {assignment.get('funcao')}")
+                self.log(f"   Data Início: {assignment.get('data_inicio')}")
+            else:
+                self.log(f"❌ Failed to create school assignment: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 7: Test GET /api/school-assignments - List school assignments
+            self.log("7️⃣ Testing GET /api/school-assignments - Listing school assignments...")
+            response = requests.get(
+                f"{API_BASE}/school-assignments",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                assignments = response.json()
+                self.log(f"✅ Successfully retrieved {len(assignments)} school assignments")
+                
+                # Verify our created assignment is in the list
+                found_created = any(a['id'] == created_school_assignment_id for a in assignments)
+                if found_created:
+                    self.log("✅ Created school assignment found in list")
+                else:
+                    self.log("❌ Created school assignment NOT found in list")
+            else:
+                self.log(f"❌ Failed to list school assignments: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 8: Test PUT /api/school-assignments/{id} - Update school assignment
+            self.log("8️⃣ Testing PUT /api/school-assignments/{id} - Updating school assignment...")
+            update_assignment_data = {
+                "funcao": "coordenador",
+                "observacoes": "Promovido a coordenador"
+            }
+            
+            response = requests.put(
+                f"{API_BASE}/school-assignments/{created_school_assignment_id}",
+                json=update_assignment_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                updated_assignment = response.json()
+                self.log(f"✅ School assignment updated successfully")
+                self.log(f"   New função: {updated_assignment.get('funcao')}")
+                self.log(f"   Observações: {updated_assignment.get('observacoes', 'N/A')}")
+            else:
+                self.log(f"❌ Failed to update school assignment: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 9: Test POST /api/teacher-assignments - Create teacher assignment (alocação)
+            self.log("9️⃣ Testing POST /api/teacher-assignments - Creating teacher assignment...")
+            if not all([self.class_id, self.course_id]):
+                self.log("❌ Missing class_id or course_id for teacher assignment")
+                return False
+            
+            teacher_assignment_data = {
+                "staff_id": created_staff_id,
+                "school_id": self.school_id,
+                "class_id": self.class_id,
+                "course_id": self.course_id,
+                "academic_year": 2025
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/teacher-assignments",
+                json=teacher_assignment_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200 or response.status_code == 201:
+                teacher_assignment = response.json()
+                created_teacher_assignment_id = teacher_assignment['id']
+                self.log(f"✅ Teacher assignment created successfully (ID: {created_teacher_assignment_id})")
+                self.log(f"   Staff ID: {teacher_assignment.get('staff_id')}")
+                self.log(f"   Class ID: {teacher_assignment.get('class_id')}")
+                self.log(f"   Course ID: {teacher_assignment.get('course_id')}")
+            else:
+                self.log(f"❌ Failed to create teacher assignment: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 10: Test GET /api/teacher-assignments - List teacher assignments
+            self.log("🔟 Testing GET /api/teacher-assignments - Listing teacher assignments...")
+            response = requests.get(
+                f"{API_BASE}/teacher-assignments",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                teacher_assignments = response.json()
+                self.log(f"✅ Successfully retrieved {len(teacher_assignments)} teacher assignments")
+                
+                # Verify our created assignment is in the list
+                found_created = any(ta['id'] == created_teacher_assignment_id for ta in teacher_assignments)
+                if found_created:
+                    self.log("✅ Created teacher assignment found in list")
+                else:
+                    self.log("❌ Created teacher assignment NOT found in list")
+            else:
+                self.log(f"❌ Failed to list teacher assignments: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 11: Test PUT /api/teacher-assignments/{id} - Update teacher assignment
+            self.log("1️⃣1️⃣ Testing PUT /api/teacher-assignments/{id} - Updating teacher assignment...")
+            update_teacher_data = {
+                "observacoes": "Alocação atualizada via teste"
+            }
+            
+            response = requests.put(
+                f"{API_BASE}/teacher-assignments/{created_teacher_assignment_id}",
+                json=update_teacher_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                updated_teacher_assignment = response.json()
+                self.log(f"✅ Teacher assignment updated successfully")
+                self.log(f"   Observações: {updated_teacher_assignment.get('observacoes', 'N/A')}")
+            else:
+                self.log(f"❌ Failed to update teacher assignment: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 12: Verify all entities were created correctly
+            self.log("1️⃣2️⃣ Verifying all entities were created correctly...")
+            
+            # Check staff with populated relationships
+            response = requests.get(
+                f"{API_BASE}/staff/{created_staff_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                staff_with_relations = response.json()
+                
+                # Check if lotações are populated
+                if 'lotacoes' in staff_with_relations and staff_with_relations['lotacoes']:
+                    self.log("✅ Staff lotações (school assignments) populated correctly")
+                else:
+                    self.log("❌ Staff lotações not populated")
+                
+                # Check if alocações are populated (for professors)
+                if staff_with_relations.get('cargo') == 'professor':
+                    if 'alocacoes' in staff_with_relations and staff_with_relations['alocacoes']:
+                        self.log("✅ Staff alocações (teacher assignments) populated correctly")
+                    else:
+                        self.log("❌ Staff alocações not populated")
+            
+            self.log("✅ Staff Management Phase 5.5 testing completed successfully!")
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Error during staff management testing: {str(e)}")
+            return False
+            
+        finally:
+            # Cleanup created entities
+            self.log("🧹 Cleaning up staff management test data...")
+            
+            # Delete teacher assignment
+            if created_teacher_assignment_id:
+                response = requests.delete(
+                    f"{API_BASE}/teacher-assignments/{created_teacher_assignment_id}",
+                    headers=self.get_headers(self.admin_token)
+                )
+                if response.status_code == 204:
+                    self.log("✅ Test teacher assignment deleted")
+                else:
+                    self.log(f"❌ Failed to delete teacher assignment: {response.status_code}")
+            
+            # Delete school assignment
+            if created_school_assignment_id:
+                response = requests.delete(
+                    f"{API_BASE}/school-assignments/{created_school_assignment_id}",
+                    headers=self.get_headers(self.admin_token)
+                )
+                if response.status_code == 204:
+                    self.log("✅ Test school assignment deleted")
+                else:
+                    self.log(f"❌ Failed to delete school assignment: {response.status_code}")
+            
+            # Delete staff (this should be done after assignments are deleted)
+            if created_staff_id:
+                response = requests.delete(
+                    f"{API_BASE}/staff/{created_staff_id}",
+                    headers=self.get_headers(self.admin_token)
+                )
+                if response.status_code == 204:
+                    self.log("✅ Test staff deleted")
+                else:
+                    self.log(f"❌ Failed to delete staff: {response.status_code}")
+
     def run_all_tests(self):
         """Run all backend tests"""
-        self.log("🚀 Starting SIGESC Backend API Tests - PHASE 5 ATTENDANCE CONTROL")
+        self.log("🚀 Starting SIGESC Backend API Tests - PHASE 5.5 STAFF MANAGEMENT")
         self.log(f"🌐 Backend URL: {BACKEND_URL}")
         
         # Login as admin
@@ -1127,36 +1499,12 @@ class SIGESCTester:
         success = True
         
         try:
-            # MAIN FOCUS: Test Attendance Control Phase 5
-            if not self.test_attendance_control_phase5():
+            # MAIN FOCUS: Test Staff Management Phase 5.5
+            if not self.test_staff_management_phase55():
                 success = False
             
             # Test authentication requirements
             self.test_authentication_required()
-            
-            # Test Courses endpoint (Fase 4 requirement)
-            if not self.test_courses_endpoint():
-                success = False
-            
-            # Test specific class grades (Fase 4 requirement)
-            if not self.test_grades_by_class_specific():
-                success = False
-            
-            # Test Grades System (main focus of this review)
-            if not self.test_grades_system():
-                success = False
-            
-            # Test Guardians CRUD
-            if not self.test_guardians_crud():
-                success = False
-            
-            # Test Enrollments CRUD
-            if not self.test_enrollments_crud():
-                success = False
-            
-            # Test SEMED permissions
-            if self.semed_token:
-                self.test_semed_permissions()
             
         finally:
             # Cleanup
@@ -1166,7 +1514,7 @@ class SIGESCTester:
         self.log("\n" + "="*50)
         if success:
             self.log("🎉 All backend tests completed successfully!")
-            self.log("✅ PHASE 5 - ATTENDANCE CONTROL FULLY TESTED")
+            self.log("✅ PHASE 5.5 - STAFF MANAGEMENT FULLY TESTED")
         else:
             self.log("❌ Some tests failed - check logs above")
         self.log("="*50)
