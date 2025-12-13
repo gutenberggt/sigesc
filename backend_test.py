@@ -443,6 +443,117 @@ class SIGESCTester:
         else:
             self.log(f"❌ SEMED should not be able to create enrollment: {response.status_code}")
     
+    def test_courses_endpoint(self):
+        """Test Courses endpoint as per review request - Fase 4"""
+        self.log("\n📚 Testing Courses Endpoint (Sistema de Notas - Fase 4)...")
+        
+        # Test GET /api/courses - verify returns all courses with proper fields
+        self.log("1️⃣ Testing GET /api/courses - verify fields (nivel_ensino, grade_levels, school_id)...")
+        response = requests.get(
+            f"{API_BASE}/courses",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            courses = response.json()
+            self.log(f"✅ Successfully retrieved {len(courses)} courses")
+            
+            if courses:
+                # Check first course for required fields
+                first_course = courses[0]
+                required_fields = ['id', 'name', 'nivel_ensino', 'grade_levels']
+                optional_fields = ['school_id']
+                
+                self.log(f"   Checking course: {first_course.get('name', 'N/A')}")
+                
+                # Check required fields
+                missing_fields = []
+                for field in required_fields:
+                    if field not in first_course:
+                        missing_fields.append(field)
+                    else:
+                        self.log(f"   ✅ {field}: {first_course.get(field)}")
+                
+                # Check optional fields
+                for field in optional_fields:
+                    if field in first_course:
+                        self.log(f"   ✅ {field}: {first_course.get(field)}")
+                    else:
+                        self.log(f"   ℹ️ {field}: Not present (optional)")
+                
+                if missing_fields:
+                    self.log(f"   ❌ Missing required fields: {missing_fields}")
+                    return False
+                else:
+                    self.log("   ✅ All required fields present")
+                    
+                # Store course_id for later tests
+                self.course_id = first_course['id']
+                
+            else:
+                self.log("❌ No courses found in database")
+                return False
+        else:
+            self.log(f"❌ Failed to retrieve courses: {response.status_code} - {response.text}")
+            return False
+        
+        return True
+    
+    def test_grades_by_class_specific(self):
+        """Test specific class grades endpoint as per review request"""
+        self.log("\n📊 Testing Grades by Class - Specific Class (3º Ano A)...")
+        
+        # Use the specific class_id from review request
+        specific_class_id = "42a876e6-aea3-40a3-8660-e1ef44fc3c4a"
+        
+        if not self.course_id:
+            self.log("❌ No course_id available for testing")
+            return False
+        
+        # Test GET /api/grades/by-class/{class_id}/{course_id}
+        self.log(f"1️⃣ Testing GET /api/grades/by-class/{specific_class_id}/{self.course_id}...")
+        response = requests.get(
+            f"{API_BASE}/grades/by-class/{specific_class_id}/{self.course_id}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            class_grades = response.json()
+            self.log(f"✅ Successfully retrieved grades for class 3º Ano A")
+            self.log(f"   Number of students in class: {len(class_grades)}")
+            
+            if class_grades:
+                # Check structure of response
+                first_student = class_grades[0]
+                if 'student' in first_student and 'grade' in first_student:
+                    student_info = first_student['student']
+                    grade_info = first_student['grade']
+                    
+                    self.log(f"   Sample student: {student_info.get('full_name', 'N/A')}")
+                    self.log(f"   Enrollment number: {student_info.get('enrollment_number', 'N/A')}")
+                    self.log(f"   Grade data structure: {list(grade_info.keys())}")
+                    
+                    # Check if grade has expected fields
+                    expected_grade_fields = ['student_id', 'class_id', 'course_id', 'academic_year', 'b1', 'b2', 'b3', 'b4', 'final_average', 'status']
+                    present_fields = [field for field in expected_grade_fields if field in grade_info]
+                    self.log(f"   Grade fields present: {present_fields}")
+                    
+                    self.log("✅ Class grades structure is correct")
+                else:
+                    self.log("❌ Unexpected response structure - missing 'student' or 'grade' keys")
+                    return False
+            else:
+                self.log("ℹ️ No students found in this class (may be empty)")
+                
+        elif response.status_code == 404:
+            self.log(f"❌ Class not found: {specific_class_id}")
+            return False
+        else:
+            self.log(f"❌ Failed to retrieve class grades: {response.status_code} - {response.text}")
+            return False
+        
+        return True
+
     def test_grades_system(self):
         """Test comprehensive Grades system as per review request"""
         self.log("\n📊 Testing Grades System (Sistema de Notas)...")
