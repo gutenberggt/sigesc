@@ -1290,7 +1290,7 @@ async def check_calendar_date(date: str, request: Request):
     Verifica se uma data específica é dia letivo ou não.
     Retorna informações sobre eventos nessa data.
     """
-    await AuthMiddleware.require_auth(request)
+    await AuthMiddleware.get_current_user(request)
     
     # Busca eventos que incluem essa data
     events = await db.calendar_events.find({
