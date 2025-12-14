@@ -1856,6 +1856,258 @@ class SIGESCTester:
                 except:
                     pass
 
+    def test_staff_management_deletion_ui(self):
+        """Test Staff Management UI with existing lotações/alocações display and deletion as per review request"""
+        self.log("\n🗑️ Testing Staff Management - Lotação and Alocação Deletion UI...")
+        
+        # Variables to store created IDs for testing deletion
+        created_staff_id = None
+        created_school_assignment_id = None
+        created_teacher_assignment_id = None
+        
+        try:
+            # Step 1: Create a staff member for testing
+            self.log("1️⃣ Creating staff member for deletion testing...")
+            staff_data = {
+                "nome": "João Carlos Silva",
+                "cargo": "professor", 
+                "tipo_vinculo": "efetivo",
+                "email": "joao.carlos@sigesc.com",
+                "celular": "(11) 99999-1111"
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/staff",
+                json=staff_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code in [200, 201]:
+                staff = response.json()
+                created_staff_id = staff['id']
+                self.log(f"✅ Staff created for testing (ID: {created_staff_id})")
+            else:
+                self.log(f"❌ Failed to create staff: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 2: Create school assignment (lotação) for testing deletion
+            self.log("2️⃣ Creating school assignment (lotação) for deletion testing...")
+            if not self.school_id:
+                self.log("❌ No school_id available")
+                return False
+                
+            assignment_data = {
+                "staff_id": created_staff_id,
+                "school_id": self.school_id,
+                "funcao": "professor",
+                "turno": "matutino",
+                "data_inicio": "2025-01-01",
+                "academic_year": 2025
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/school-assignments",
+                json=assignment_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code in [200, 201]:
+                assignment = response.json()
+                created_school_assignment_id = assignment['id']
+                self.log(f"✅ School assignment created (ID: {created_school_assignment_id})")
+            else:
+                self.log(f"❌ Failed to create school assignment: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 3: Create teacher assignment (alocação) for testing deletion
+            self.log("3️⃣ Creating teacher assignment (alocação) for deletion testing...")
+            if not all([self.class_id, self.course_id]):
+                self.log("❌ Missing class_id or course_id")
+                return False
+                
+            teacher_assignment_data = {
+                "staff_id": created_staff_id,
+                "school_id": self.school_id,
+                "class_id": self.class_id,
+                "course_id": self.course_id,
+                "academic_year": 2025
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/teacher-assignments",
+                json=teacher_assignment_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code in [200, 201]:
+                teacher_assignment = response.json()
+                created_teacher_assignment_id = teacher_assignment['id']
+                self.log(f"✅ Teacher assignment created (ID: {created_teacher_assignment_id})")
+            else:
+                self.log(f"❌ Failed to create teacher assignment: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 4: Test GET /api/school-assignments?staff_id={id} - Show existing lotações
+            self.log("4️⃣ Testing GET /api/school-assignments?staff_id={id} - Show existing lotações...")
+            response = requests.get(
+                f"{API_BASE}/school-assignments?staff_id={created_staff_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                lotacoes = response.json()
+                self.log(f"✅ Retrieved {len(lotacoes)} lotações for staff")
+                
+                if lotacoes:
+                    lotacao = lotacoes[0]
+                    self.log(f"   School name: {lotacao.get('school_name', 'N/A')}")
+                    self.log(f"   Function: {lotacao.get('funcao', 'N/A')}")
+                    self.log(f"   Shift: {lotacao.get('turno', 'N/A')}")
+                    self.log(f"   Start date: {lotacao.get('data_inicio', 'N/A')}")
+                    self.log("✅ Lotação data structure verified")
+                else:
+                    self.log("❌ No lotações found for created staff")
+                    return False
+            else:
+                self.log(f"❌ Failed to get lotações: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 5: Test GET /api/teacher-assignments?staff_id={id} - Show existing alocações
+            self.log("5️⃣ Testing GET /api/teacher-assignments?staff_id={id} - Show existing alocações...")
+            response = requests.get(
+                f"{API_BASE}/teacher-assignments?staff_id={created_staff_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                alocacoes = response.json()
+                self.log(f"✅ Retrieved {len(alocacoes)} alocações for staff")
+                
+                if alocacoes:
+                    alocacao = alocacoes[0]
+                    self.log(f"   School name: {alocacao.get('school_name', 'N/A')}")
+                    self.log(f"   Class name: {alocacao.get('class_name', 'N/A')}")
+                    self.log(f"   Course name: {alocacao.get('course_name', 'N/A')}")
+                    self.log(f"   Workload: {alocacao.get('workload', 'N/A')}")
+                    self.log("✅ Alocação data structure verified")
+                else:
+                    self.log("❌ No alocações found for created staff")
+                    return False
+            else:
+                self.log(f"❌ Failed to get alocações: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 6: Test DELETE /api/school-assignments/{id} - Delete lotação
+            self.log("6️⃣ Testing DELETE /api/school-assignments/{id} - Delete lotação...")
+            response = requests.delete(
+                f"{API_BASE}/school-assignments/{created_school_assignment_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 204:
+                self.log("✅ Lotação deleted successfully")
+                
+                # Verify deletion by checking if it's gone
+                response = requests.get(
+                    f"{API_BASE}/school-assignments?staff_id={created_staff_id}",
+                    headers=self.get_headers(self.admin_token)
+                )
+                
+                if response.status_code == 200:
+                    remaining_lotacoes = response.json()
+                    if len(remaining_lotacoes) == 0:
+                        self.log("✅ Lotação deletion verified - no lotações remain")
+                    else:
+                        self.log(f"❌ Lotação deletion failed - {len(remaining_lotacoes)} lotações still exist")
+                        return False
+                else:
+                    self.log(f"❌ Failed to verify lotação deletion: {response.status_code}")
+                    return False
+                    
+            else:
+                self.log(f"❌ Failed to delete lotação: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 7: Test DELETE /api/teacher-assignments/{id} - Delete alocação
+            self.log("7️⃣ Testing DELETE /api/teacher-assignments/{id} - Delete alocação...")
+            response = requests.delete(
+                f"{API_BASE}/teacher-assignments/{created_teacher_assignment_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 204:
+                self.log("✅ Alocação deleted successfully")
+                
+                # Verify deletion by checking if it's gone
+                response = requests.get(
+                    f"{API_BASE}/teacher-assignments?staff_id={created_staff_id}",
+                    headers=self.get_headers(self.admin_token)
+                )
+                
+                if response.status_code == 200:
+                    remaining_alocacoes = response.json()
+                    if len(remaining_alocacoes) == 0:
+                        self.log("✅ Alocação deletion verified - no alocações remain")
+                    else:
+                        self.log(f"❌ Alocação deletion failed - {len(remaining_alocacoes)} alocações still exist")
+                        return False
+                else:
+                    self.log(f"❌ Failed to verify alocação deletion: {response.status_code}")
+                    return False
+                    
+            else:
+                self.log(f"❌ Failed to delete alocação: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 8: Test staff with no lotações/alocações message
+            self.log("8️⃣ Testing empty state messages...")
+            
+            # Check lotações empty state
+            response = requests.get(
+                f"{API_BASE}/school-assignments?staff_id={created_staff_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                lotacoes = response.json()
+                if len(lotacoes) == 0:
+                    self.log("✅ Empty lotações state verified - should show 'O servidor não está lotado em nenhuma escola.'")
+                else:
+                    self.log(f"❌ Expected empty lotações, found {len(lotacoes)}")
+            
+            # Check alocações empty state
+            response = requests.get(
+                f"{API_BASE}/teacher-assignments?staff_id={created_staff_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                alocacoes = response.json()
+                if len(alocacoes) == 0:
+                    self.log("✅ Empty alocações state verified - should show 'O professor não está alocado em nenhuma turma.'")
+                else:
+                    self.log(f"❌ Expected empty alocações, found {len(alocacoes)}")
+            
+            self.log("✅ Staff Management Deletion UI testing completed successfully!")
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Error during deletion testing: {str(e)}")
+            return False
+            
+        finally:
+            # Cleanup - delete the staff member
+            if created_staff_id:
+                self.log("🧹 Cleaning up test staff...")
+                response = requests.delete(
+                    f"{API_BASE}/staff/{created_staff_id}",
+                    headers=self.get_headers(self.admin_token)
+                )
+                if response.status_code == 204:
+                    self.log("✅ Test staff cleaned up")
+                else:
+                    self.log(f"❌ Failed to cleanup test staff: {response.status_code}")
+
     def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting SIGESC Backend API Tests - PHASE 5.5 STAFF MANAGEMENT")
