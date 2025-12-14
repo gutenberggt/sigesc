@@ -1021,6 +1021,55 @@ class AttendanceSettings(BaseModel):
     updated_by: Optional[str] = None
     updated_at: Optional[datetime] = None
 
+# ============= OBJETOS DE CONHECIMENTO MODELS =============
+
+class LearningObjectBase(BaseModel):
+    """Registro de conteúdos ministrados (Objetos de Conhecimento)"""
+    class_id: str  # ID da turma
+    course_id: str  # ID do componente curricular
+    date: str  # Data do registro (YYYY-MM-DD)
+    academic_year: int
+    content: str  # Conteúdo/objeto de conhecimento ministrado
+    observations: Optional[str] = None  # Observações do professor
+    methodology: Optional[str] = None  # Metodologia utilizada
+    resources: Optional[str] = None  # Recursos utilizados
+    number_of_classes: int = 1  # Número de aulas
+
+class LearningObjectCreate(BaseModel):
+    class_id: str
+    course_id: str
+    date: str
+    academic_year: int
+    content: str
+    observations: Optional[str] = None
+    methodology: Optional[str] = None
+    resources: Optional[str] = None
+    number_of_classes: int = 1
+
+class LearningObjectUpdate(BaseModel):
+    content: Optional[str] = None
+    observations: Optional[str] = None
+    methodology: Optional[str] = None
+    resources: Optional[str] = None
+    number_of_classes: Optional[int] = None
+
+class LearningObject(BaseModel):
+    """Modelo completo do registro de objetos de conhecimento"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    class_id: str
+    course_id: str
+    date: str
+    academic_year: int
+    content: str
+    observations: Optional[str] = None
+    methodology: Optional[str] = None
+    resources: Optional[str] = None
+    number_of_classes: int = 1
+    recorded_by: Optional[str] = None  # ID do usuário que registrou
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
 # ============= SERVIDOR (STAFF) MODELS =============
 
 class StaffBase(BaseModel):
