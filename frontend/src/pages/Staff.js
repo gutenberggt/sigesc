@@ -181,6 +181,10 @@ export const Staff = () => {
     observacoes: ''
   });
   
+  // Escolas do professor selecionado para alocação
+  const [professorSchools, setProfessorSchools] = useState([]);
+  const [loadingProfessorSchools, setLoadingProfessorSchools] = useState(false);
+  
   // Alert
   const [alert, setAlert] = useState({ show: false, type: '', message: '' });
   
