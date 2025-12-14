@@ -1159,11 +1159,11 @@ class SIGESCTester:
             # Step 2: Test POST /api/staff - Create new staff
             self.log("2️⃣ Testing POST /api/staff - Creating new staff...")
             staff_data = {
-                "user_id": professor_user_id,
-                "matricula": "12345",
+                "nome": "Professor João Silva",
                 "cargo": "professor",
                 "tipo_vinculo": "efetivo",
-                "status": "ativo"
+                "email": "professor.joao@sigesc.com",
+                "celular": "(11) 99999-0000"
             }
             
             response = requests.post(
