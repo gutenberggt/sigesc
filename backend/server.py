@@ -2086,6 +2086,29 @@ async def create_school_assignment(assignment: SchoolAssignmentCreate, request: 
     
     return await db.school_assignments.find_one({"id": new_assignment.id}, {"_id": 0})
 
+@api_router.get("/school-assignments/staff/{staff_id}/schools")
+async def get_staff_schools(staff_id: str, request: Request, academic_year: Optional[int] = None):
+    """Busca as escolas onde um servidor está lotado"""
+    await AuthMiddleware.get_current_user(request)
+    
+    query = {
+        "staff_id": staff_id,
+        "status": "ativo"
+    }
+    if academic_year:
+        query["academic_year"] = academic_year
+    
+    lotacoes = await db.school_assignments.find(query, {"_id": 0}).to_list(100)
+    
+    # Busca os dados das escolas
+    schools = []
+    for lot in lotacoes:
+        school = await db.schools.find_one({"id": lot['school_id']}, {"_id": 0})
+        if school:
+            schools.append(school)
+    
+    return schools
+
 @api_router.put("/school-assignments/{assignment_id}")
 async def update_school_assignment(assignment_id: str, assignment_data: SchoolAssignmentUpdate, request: Request):
     """Atualiza lotação"""
