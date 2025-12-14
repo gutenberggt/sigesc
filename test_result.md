@@ -203,7 +203,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Staff Management Deletion UI - Backend Testing Complete"
+    - "Staff Management Workload Formula Correction - Testing Complete"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
