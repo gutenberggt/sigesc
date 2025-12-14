@@ -125,6 +125,70 @@ function App() {
             }
           />
           
+          {/* Rotas do Professor */}
+          <Route
+            path="/professor"
+            element={
+              <ProtectedRoute allowedRoles={['professor']}>
+                <ProfessorDashboard />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/professor/turma/:classId/diario"
+            element={
+              <ProtectedRoute allowedRoles={['professor']}>
+                <ProfessorDashboard />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/professor/turma/:classId/alunos"
+            element={
+              <ProtectedRoute allowedRoles={['professor']}>
+                <ProfessorDashboard />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/professor/notas"
+            element={
+              <ProtectedRoute allowedRoles={['professor']}>
+                <ProfessorDashboard />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/professor/frequencia"
+            element={
+              <ProtectedRoute allowedRoles={['professor']}>
+                <ProfessorDashboard />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/professor/calendario"
+            element={
+              <ProtectedRoute allowedRoles={['professor']}>
+                <Calendar />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/professor/perfil"
+            element={
+              <ProtectedRoute allowedRoles={['professor']}>
+                <ProfessorDashboard />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* Redireciona raiz para dashboard ou login */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           
