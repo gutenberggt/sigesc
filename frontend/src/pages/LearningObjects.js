@@ -20,7 +20,7 @@ import {
   Home
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI } from '@/services/api';
+import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI } from '@/services/api';
 
 // Nomes dos meses
 const MONTHS = [
