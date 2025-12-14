@@ -1460,7 +1460,7 @@ export const Staff = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Professor *</label>
               <select
                 value={alocacaoForm.staff_id}
-                onChange={(e) => setAlocacaoForm({ ...alocacaoForm, staff_id: e.target.value })}
+                onChange={(e) => handleProfessorChange(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Selecione o professor</option>
@@ -1473,12 +1473,33 @@ export const Staff = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Escola *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Escola * 
+                {loadingProfessorSchools && <span className="text-gray-400 ml-2">(carregando...)</span>}
+              </label>
               <select
                 value={alocacaoForm.school_id}
                 onChange={(e) => setAlocacaoForm({ ...alocacaoForm, school_id: e.target.value, class_id: '' })}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                disabled={!alocacaoForm.staff_id || loadingProfessorSchools}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
               >
+                <option value="">
+                  {!alocacaoForm.staff_id 
+                    ? 'Selecione o professor primeiro' 
+                    : professorSchools.length === 0 
+                      ? 'Professor sem lotação ativa'
+                      : 'Selecione a escola'}
+                </option>
+                {professorSchools.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              {alocacaoForm.staff_id && professorSchools.length === 0 && !loadingProfessorSchools && (
+                <p className="text-xs text-red-500 mt-1">
+                  Este professor não possui lotação. Vá na aba "Lotações" para adicionar.
+                </p>
+              )}
+            </div>
                 <option value="">Selecione a escola</option>
                 {schools.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
