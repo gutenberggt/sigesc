@@ -378,9 +378,19 @@ export const Staff = () => {
         status: 'ativo'
       });
       setExistingAlocacoes(data);
+      
+      // Calcular carga horária existente baseada nos componentes
+      // Precisamos buscar o workload de cada componente
+      const cargaExistente = data.reduce((sum, aloc) => {
+        const courseData = courses.find(c => c.id === aloc.course_id);
+        const workload = courseData?.workload || 0;
+        return sum + (workload / 40);
+      }, 0);
+      setCargaHorariaExistente(cargaExistente);
     } catch (error) {
       console.error('Erro ao carregar alocações existentes:', error);
       setExistingAlocacoes([]);
+      setCargaHorariaExistente(0);
     } finally {
       setLoadingExisting(false);
     }
