@@ -33,6 +33,7 @@ const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export const LearningObjects = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
   
   // Estados de filtros
