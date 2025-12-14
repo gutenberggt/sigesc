@@ -1,81 +1,60 @@
 <analysis>**original_problem_statement:**
-O usuário está desenvolvendo um **SIGESC (Sistema Integrado de Gestão Escolar)**, um projeto full-stack (React/FastAPI/MongoDB). O desenvolvimento está dividido em fases e o sistema deve suportar múltiplos perfis (Administrador, Secretário, Professor, etc.) com diferentes permissões.
+O usuário está desenvolvendo um **SIGESC (Sistema Integrado de Gestão Escolar)**, um projeto full-stack (React/FastAPI/MongoDB). As solicitações mais recentes incluíram:
 
-**PRODUCT REQUIREMENTS:**
-- **Sistema:** Multi-escola, multi-perfil (RBAC).
-- **Tecnologia:** Frontend React (com shadcn/ui), Backend FastAPI, Banco de Dados MongoDB.
-- **Funcionalidades Principais:**
-    - **[CONCLUÍDO]** Gestão de Escolas, Usuários, Turmas, Componentes Curriculares, Alunos.
-    - **[CONCLUÍDO]** O perfil  tem acesso de visualização total.
-    - **[CONCLUÍDO]** Cadastro de Alunos com formulário complexo.
-    - **[CONCLUÍDO]** Sistema de Notas com cálculo de média e recuperação.
-    - **[CONCLUÍDO]** Calendário Letivo com gestão de eventos.
-    - **[CONCLUÍDO]** Fase 5: Controle de Frequência, com opção de exclusão.
-    - **[CONCLUÍDO]** Fase 5.5: Gestão de Servidores (cadastro, lotação e alocação).
-    - **[EM ANDAMENTO]** Ajustes na UI/UX da Gestão de Servidores (lotação e alocação de professores).
+1.  **[CONCLUÍDO]** Vários ajustes de UX/UI na funcionalidade de **Gestão de Servidores**, como a implementação de uma interface de multi-seleção para lotação/alocação e a validação da carga horária do professor para não exceder o limite cadastrado.
+2.  **[CONCLUÍDO]** A criação da **FASE 6 - Portal do Professor**. Isso envolveu a criação de um dashboard dedicado, a implementação da criação automática de usuários para novos professores (com a senha sendo os 6 primeiros dígitos do CPF) e a configuração de permissões para que os professores vejam apenas suas turmas.
+3.  **[EM ANDAMENTO]** A criação de uma nova página chamada **Objetos de Conhecimento**, que permitirá aos professores registrar o conteúdo ministrado diariamente. A estrutura desta página deve ser semelhante à da aba Lançamento do Controle de Frequência.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-Uma aplicação full-stack robusta com autenticação JWT e RBAC. Módulos para gestão de Escolas, Usuários, Alunos, Turmas, Notas, Calendário Letivo e Controle de Frequência estão finalizados e testados. Recentemente, foi implementada a **Fase 5.5 - Gestão de Servidores**, que permite o cadastro de funcionários, a lotação em escolas e a alocação de professores a turmas e componentes curriculares. Foram realizados múltiplos ajustes nesta fase, como matrícula automática, novos campos no formulário, upload de foto e correções de bugs nos dropdowns. A lógica para filtrar escolas na alocação de um professor (mostrando apenas onde ele está lotado) também foi concluída.
+Uma aplicação full-stack com autenticação JWT e RBAC. Os módulos para gestão de Escolas, Usuários, Alunos, Turmas, Notas, Calendário, Frequência e Servidores estão funcionais. A **Fase 6 - Portal do Professor** foi totalmente implementada, incluindo um dashboard funcional em  e a lógica de criação automática de usuários no backend.
+
+O trabalho na página **Objetos de Conhecimento** foi iniciado:
+*   **Backend:** Foram criados os modelos Pydantic () e os endpoints CRUD () em  e .
+*   **Frontend:** Foi criado o arquivo da página (), a rota foi adicionada em , as chamadas de API foram incluídas em  e um card de navegação foi adicionado ao .
 
 **Last working item**:
-- **Last item agent was working:** O agente estava implementando ajustes na UI/UX dos modais de **Lotação** e **Alocação de Professor** dentro da página de Gestão de Servidores, conforme a última solicitação do usuário.
-    - **Reasoning:** O usuário solicitou uma interface mais dinâmica: em vez de salvar uma lotação/alocação por vez, ele quer selecionar múltiplos itens (escolas, turmas, componentes) que são adicionados a uma lista e salvos de uma vez. A solicitação também inclui um cálculo automático da carga horária do professor. O agente iniciou as alterações, atualizando os estados dos formulários no frontend para suportar listas e começando a reescrever os handlers de salvamento e a estrutura JSX dos modais.
+- **Last item agent was working:** O agente estava iniciando a implementação da funcionalidade **Objetos de Conhecimento**. Ele finalizou toda a configuração do backend (modelos e endpoints) e a estrutura inicial do frontend (arquivo da página, rota, API e card de navegação). A próxima etapa era construir a interface de usuário (UI) da página.
 - **Status:** IN PROGRESS
 - **Agent Testing Done:** N
 - **Which testing method agent to use?** both
 - **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
-- **Issue 1: Ajustar UI/UX da Lotação e Alocação de Servidores (P0)**
-    - **Description:** Implementar uma interface de multi-seleção para lotação (escolas) e alocação de professores (turmas e componentes), e calcular a carga horária automaticamente.
-    - **Attempted fixes:** O agente atualizou os estados  e  em  para usar arrays (, ) e começou a reescrever as funções  e .
-    - **Next debug checklist:**
-        1.  **Frontend ():**
-            -   Finalizar a reescrita das funções  e  para iterar sobre as listas e fazer as chamadas de API necessárias.
-            -   Reescrever o JSX do modal de **Lotação**: deve ter um seletor de escola e um botão  para adicionar a escola a uma lista visível abaixo. Cada item na lista deve ter um botão  para remover.
-            -   Reescrever o JSX do modal de **Alocação**:
-                -   Deve ter um seletor de turma/série com um botão  para adicionar a uma lista.
-                -   Deve ter um seletor de componente curricular com um botão  para adicionar a uma lista. A primeira opção deve ser Todos.
-                -   O campo Carga Horária Semanal deve ser calculado automaticamente somando  para cada componente adicionado e não deve ser editável.
-        2.  **Backend ():**
-            -   Verificar se os endpoints  e  precisam de ajustes para facilitar múltiplas criações, ou confirmar que o loop no frontend é a abordagem correta. A lógica atual espera um item por vez.
-    - **Why fix this issue and what will be achieved with this?** Melhorar a usabilidade do sistema, permitindo que o administrador gerencie lotações e alocações de forma mais eficiente e com menos cliques.
-    - **Status:** IN PROGRESS
-    - **Is recurring issue?** N
-    - **Should Test frontend/backend/both after fix?** both
-    - **Blocked on other issue:** None
+Nenhum. O trabalho atual é uma nova tarefa, não um problema.
 
 **In progress Task List**:
-Nenhum.
+- **Task 1: Implementar a UI da página Objetos de Conhecimento (P0)**
+    - **Where to resume:** O agente deve começar a desenvolver o arquivo . Este arquivo está atualmente vazio (é um esqueleto de componente React).
+    - **What will be achieved with this?** A página permitirá que os professores selecionem data, turma e componente curricular, e registrem o conteúdo ensinado (Objeto de Conhecimento) e a metodologia utilizada. A interface deve ser semelhante à da página de lançamento de frequência ().
+    - **Status:** IN PROGRESS
+    - **Should Test frontend/backend/both after fix?** both
+    - **Blocked on something:** None
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-    - **P0: Testar os ajustes na Fase 5.5 - Gestão de Servidores:** Após a implementação da UI de multi-seleção, realizar testes completos no fluxo de lotação e alocação.
+    - **P0: Testar a funcionalidade Objetos de Conhecimento:** Após a implementação da UI, realizar testes completos no fluxo de criação, visualização e edição dos registros.
 - **Future Tasks:**
-    - **P1: FASE 6 - Portais de Visualização:** Dashboards específicos para os perfis de Aluno, Responsável e Diretor.
-    - **P2: FASE 7 - Sistema de Comunicação:** CRUD de Avisos.
-    - **P3: FASE 8 - Geração de Documentos:** Funcionalidade para gerar PDFs (Boletim, Declarações).
+    - **P1: FASE 7 - Sistema de Comunicação:** CRUD de Avisos.
+    - **P2: FASE 8 - Geração de Documentos:** Funcionalidade para gerar PDFs (Boletim, Declarações).
 
 **Completed work in this session**
-- **Fase 5 - Controle de Frequência:**
-    - Implementação da funcionalidade completa, incluindo UI e API.
-    - Adição de um botão de exclusão para registros de frequência e ajuste na UI dos botões para status não lançado.
-- **Fase 5.5 - Gestão de Servidores:**
-    - Criação dos modelos de dados (, , ) e endpoints de API.
-    - Desenvolvimento da página de frontend () com abas para Servidores, Lotações e Alocações de Professores.
-    - Realização de múltiplos ajustes de UX no formulário de cadastro de servidor (matrícula automática, upload de foto, novos campos, UI para adicionar formações/especializações).
-    - Atualização da lista de servidores com novo layout, incluindo foto e link para WhatsApp.
-    - Correção de bug () que impedia o carregamento de escolas, turmas e cursos nos modais.
-    - Correção de bug no backend () após a refatoração do modelo de dados de  para .
-    - Implementação da regra de negócio que filtra o dropdown de escolas no modal de alocação, mostrando apenas as escolas onde o professor possui uma lotação ativa.
-    - Ajuste na validação do backend para permitir que um professor seja alocado a múltiplos componentes curriculares na mesma turma.
+- **Fase 5.5 - Melhorias na Gestão de Servidores:**
+    - Finalizada a UI de multi-seleção para Lotação e Alocação.
+    - Implementada a exibição e exclusão de alocações/lotações existentes nos modais.
+    - Corrigida a fórmula de cálculo da carga horária semanal para  e ajustada a exibição de dados existentes.
+    - Implementada a validação que impede a alocação de carga horária superior à cadastrada para o professor, desabilitando o botão de salvar.
+    - Corrigido um bug que impedia a seção Adicionar Nova Alocação de aparecer para professores com lotação mas sem alocações.
+- **Fase 6 - Portal do Professor:**
+    - **Backend:** Adicionado campo  ao  e lógica para criar  automaticamente para professores no endpoint . Criados endpoints dedicados ().
+    - **Frontend:** Criada a página , adicionada a rota em  com redirecionamento para professores, e implementada a UI do dashboard.
+    - **Debug Crítico:** Resolvido um problema complexo de login que ocorria porque o agente estava atualizando o banco de dados  enquanto a aplicação usava o .
 
 **Earlier issues found/mentioned but not fixed**
-- **Issue 1:** O arquivo  (mais de 1500 linhas) precisa ser refatorado em componentes menores para melhorar a manutenibilidade.
-- **Issue 2:** O arquivo  cresceu e poderia ser dividido em componentes menores.
-- **Issue 3:** O arquivo  está se tornando grande e complexo, sendo um candidato a refatoração futura.
+- **Issue 1:** O arquivo  cresceu para mais de 2.100 linhas e precisa urgentemente de refatoração para ser dividido em componentes menores.
+- **Issue 2:** O arquivo  continua grande e precisa de refatoração.
+- **Issue 3:** O arquivo  pode ser dividido em componentes menores.
 
 **Known issue recurrence from previous fork**
 - None.
@@ -84,63 +63,58 @@ Nenhum.
 
 
 **Key Technical Concepts**
-- **Backend:** FastAPI, Pydantic, CRUD assíncrono, upload de arquivos (), geração de diretórios ().
-- **Frontend:** React (, , ), gerenciamento de estado para formulários complexos e listas dinâmicas, renderização condicional, chamadas de API assíncronas, manipulação de  para upload de arquivos.
-- **Arquitetura:** API REST, separação de responsabilidades entre frontend e backend.
+- **Backend:** Lógica de negócios no endpoint de criação () para gerar entidades relacionadas ().
+- **Database:** A distinção entre diferentes bancos de dados ( usado pela aplicação vs.  usado para scripts manuais) foi um ponto crítico de depuração.
+- **Frontend:** Redirecionamento de rotas baseado no perfil do usuário () no  e .
 
 **key DB schema**
-- **staff:** 
-- **school_assignments:** 
-- **teacher_assignments:** 
+- **staff:**  (Atualizado)
+- **knowledge_objects:**  (Novo)
+- **users:** 
 
 **changes in tech stack**
 - None.
 
 **All files of reference**
 - **Criados:**
-    - : Página para a nova funcionalidade de Gestão de Servidores.
-- **Modificados/Reescritos:**
-    - : Adicionados os modelos , ,  e enums relacionados.
-    - : Adicionados múltiplos endpoints para CRUD de servidores, lotações e alocações. Lógica de matrícula automática implementada. Adicionado endpoint estático para servir fotos.
-    - : Adicionadas funções para os novos endpoints de , incluindo upload de foto. Adicionados aliases  para as APIs de ,  e .
-    - : Adicionada a rota para a página .
-    - : Adicionado card de navegação para a página de Servidores.
-    - : Adicionada funcionalidade de exclusão e ajuste de UI.
-    - : Arquivo foi reescrito e modificado várias vezes para adicionar novos campos, ajustar layout, corrigir bugs e iniciar a implementação da UI de multi-seleção.
+    - : Dashboard exclusivo para o perfil de professor.
+    - : Esqueleto da página para registro de objetos de conhecimento.
+- **Modificados:**
+    - : Fortemente modificado para implementar as melhorias de UX na lotação/alocação e validação de carga horária.
+    - : Adicionados  e  ao  e criados os modelos .
+    - : Adicionada lógica de criação automática de usuário e novos endpoints para o Portal do Professor e Objetos de Conhecimento.
+    - : Adicionadas novas funções de API para as novas funcionalidades.
+    - : Adicionadas rotas para  e .
+    - : Adicionada lógica de redirecionamento para professores e um novo card de navegação.
 
 **Areas that need refactoring**:
-- : Continua sendo um arquivo monolítico que deve ser dividido.
-- : Pode ser dividido em componentes menores.
-- : Está crescendo em complexidade e deve ser considerado para refatoração após a estabilização da funcionalidade atual.
+- : A complexidade e o tamanho do arquivo são críticos. A refatoração deve ser priorizada após a conclusão da tarefa atual.
+- : Continua sendo um candidato à refatoração.
 
 **key api endpoints**
-- : CRUD para servidores.
-- : Upload de foto do servidor.
-- : Rota estática para servir imagens.
-- : CRUD para lotações de servidores em escolas.
-- : CRUD para alocações de professores em turmas/componentes.
-- : Busca as lotações ativas de um servidor.
+-  (POST): Modificado para criar um usuário automaticamente se o cargo for 'professor'.
+- : (NOVOS) Conjunto de endpoints para o Portal do Professor.
+- : (NOVOS) Endpoints CRUD para os Objetos de Conhecimento.
 
 **Critical Info for New Agent**
-- O foco imediato é finalizar a implementação da interface de multi-seleção para **Lotação e Alocação de Professores** no arquivo .
-- A lógica de cálculo da carga horária () deve ser implementada no frontend.
-- O backend atualmente salva um registro por vez. A implementação no frontend deve fazer um loop e chamar a API para cada item adicionado na lista, ou o backend deve ser adaptado para receber uma lista de itens. A abordagem atual iniciada pelo agente anterior é fazer o loop no frontend.
-- Após a conclusão, a funcionalidade deve ser testada de ponta a ponta.
+- **Database:** A aplicação usa o banco de dados . Todas as manipulações manuais de dados ou scripts devem ser direcionadas a este banco, não a  ou qualquer outro, para evitar problemas de inconsistência de dados.
+- **Tarefa Atual:** O foco imediato é construir a interface do usuário no arquivo , baseando-se no layout e funcionalidade da página . O backend para esta funcionalidade já está pronto.
+- **Refatoração:** Esteja ciente de que o arquivo  é um grande débito técnico e sua refatoração deve ser planejada para o futuro próximo.
 
 **documents created in this job**
 - None.
 
 **Last 10 User Messages and any pending user messages**
-1.  **user:** Pedido de ajustes na Gestão de Servidores (foto, nome, matrícula automática, novos campos, UI de formação). -> **COMPLETED**
-2.  **user:** Pedido de ajuste no layout da lista de servidores. -> **COMPLETED**
-3.  **user:** Pergunta se pode apagar conversas anteriores. -> **COMPLETED** (Agente explicou que é seguro).
-4.  **user:** Reporta bug: dropdown de escolas vazio no modal de lotação/alocação. -> **COMPLETED** (Corrigido o nome da função da API de  para ).
-5.  **user:** Pedido de ajuste na lógica de negócio (servidor em múltiplas escolas, professor apenas em escolas lotadas, professor com múltiplos componentes na mesma turma). -> **COMPLETED**
-6.  **user:** Reporta bug: erro 500 ao listar lotações. -> **COMPLETED** (Corrigido  no backend).
-7.  **user:** Reporta bug: o dropdown de escola não atualiza após selecionar um professor. -> **COMPLETED** (Problema de lotação inexistente para o teste, a funcionalidade foi validada).
-8.  **user:** (PENDING) Pedido de ajuste na UI de Lotação e Alocação para usar um sistema de lista com botões  e . -> **IN PROGRESS**
-9.  **user:** (PENDING) A seleção de turma/componente na alocação deve seguir o mesmo padrão de lista. -> **IN PROGRESS**
-10. **user:** (PENDING) A carga horária na alocação deve ser calculada automaticamente (). -> **IN PROGRESS**
+1.  **user:** Pede para validar a carga horária do professor durante a alocação. -> **COMPLETED**
+2.  **user:** Especifica a mensagem de erro e pede para desabilitar o botão de salvar se a carga horária for excedida. -> **COMPLETED**
+3.  **user:** Ok. Continue o desenvolvimento do sistema. -> **COMPLETED**
+4.  **user:** Pede para criar o Portal do Professor (dashboard, criação automática de usuário, etc.). -> **COMPLETED**
+5.  **user:** Fornece o CPF da professora Ricleide. -> **COMPLETED**
+6.  **user:** Pede para criar o usuário da professora Ricleide com os 6 primeiros dígitos do CPF como senha. -> **COMPLETED**
+7.  **user:** Antes, preciso que você crie Dashboards específico para o perfil do Portal do Professor... (reforçando o pedido). -> **COMPLETED**
+8.  **user:** Pede para criar a página Objetos de Conhecimento com estrutura similar ao Controle de Frequência. -> **IN PROGRESS**
+9.  **user:** Podemos continuar? -> **PENDING** (Sinal para o agente continuar com a tarefa em andamento).
+10. **user:** Ok. Continue o desenvolvimento do sistema. -> **COMPLETED**
 
 **Project Health Check:**
 - **Broken:** None.
@@ -150,18 +124,14 @@ Nenhum.
 - None.
 
 **Testing status**
-- **Testing agent used after significant changes:** YES (Usado para validar as Fases 5 e 5.5).
-- **Troubleshoot agent used after agent stuck in loop:** NO.
-- **Test files created:** Arquivos de teste temporários foram criados pelos agentes de teste.
-- **Known regressions:** None.
+- **Testing agent used after significant changes:** YES
+- **Troubleshoot agent used after agent stuck in loop:** NO
+- **Test files created:** None.
+- **Known regressions:** Houve uma perda de dados de teste (servidores) que foram recriados. A causa raiz foi a depuração no banco de dados errado.
 
 **Credentials to test flow:**
-- **Admin:**
-    - **Email:** 
-    - **Senha:** 
-- **SEMED (Somente Leitura):**
-    - **Email:** 
-    - **Senha:** 
+- **Admin:**  / 
+- **Professor (Ricleide):**  / 
 
 **What agent forgot to execute**
-- Nenhuma tarefa solicitada foi esquecida. O agente está atualmente trabalhando na última solicitação do usuário.</analysis>
+- Nenhuma tarefa solicitada foi esquecida. O agente está no meio da implementação do último pedido do usuário.</analysis>
