@@ -496,6 +496,7 @@ const DailyView = ({ date, events, onEventClick }) => {
 
 // Componente Principal
 export const Calendar = () => {
+  const { user } = useAuth();
   const [view, setView] = useState('monthly'); // annual, monthly, weekly, daily
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
