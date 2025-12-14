@@ -1547,7 +1547,7 @@ class SIGESCTester:
                 "nome": "Professor Multi-Selection Test",
                 "cargo": "professor",
                 "tipo_vinculo": "efetivo",
-                "email": "professor.multitest@sigesc.com",
+                "email": f"professor.multitest{timestamp}@sigesc.com",
                 "celular": "(11) 99999-0001"
             }
             
