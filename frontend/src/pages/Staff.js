@@ -1822,7 +1822,7 @@ export const Staff = () => {
         <Modal
           isOpen={showAlocacaoModal}
           onClose={() => setShowAlocacaoModal(false)}
-          title="Nova Alocação de Professor"
+          title="Gerenciar Alocações de Professor"
           size="lg"
         >
           <div className="space-y-4 max-h-[70vh] overflow-y-auto">
@@ -1843,149 +1843,233 @@ export const Staff = () => {
               </select>
             </div>
             
-            {/* Escola */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Escola * 
-                {loadingProfessorSchools && <span className="text-gray-400 ml-2">(carregando...)</span>}
-              </label>
-              <select
-                value={alocacaoForm.school_id}
-                onChange={(e) => handleAlocacaoSchoolChange(e.target.value)}
-                disabled={!alocacaoForm.staff_id || loadingProfessorSchools}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              >
-                <option value="">
-                  {!alocacaoForm.staff_id 
-                    ? 'Selecione o professor primeiro' 
-                    : professorSchools.length === 0 
-                      ? 'Professor sem lotação ativa'
-                      : 'Selecione a escola'}
-                </option>
-                {professorSchools.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-              {alocacaoForm.staff_id && professorSchools.length === 0 && !loadingProfessorSchools && (
-                <p className="text-xs text-red-500 mt-1">
-                  Este professor não possui lotação. Vá na aba Lotações para adicionar.
-                </p>
-              )}
-            </div>
-            
-            {/* Série/Ano (Turmas) com botão + */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Série/Ano (Turma) *</label>
-              <div className="flex gap-2">
-                <select
-                  value={selectedAlocacaoClass}
-                  onChange={(e) => setSelectedAlocacaoClass(e.target.value)}
-                  disabled={!alocacaoForm.school_id}
-                  className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                >
-                  <option value="">Selecione a turma</option>
-                  {filteredClasses.filter(c => !alocacaoTurmas.find(t => t.id === c.id)).map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-                <Button type="button" onClick={addTurmaAlocacao} disabled={!selectedAlocacaoClass}>
-                  <Plus size={16} />
-                </Button>
-              </div>
-              
-              {/* Lista de turmas adicionadas */}
-              {alocacaoTurmas.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {alocacaoTurmas.map(turma => (
-                    <div key={turma.id} className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded border border-blue-200">
-                      <GraduationCap size={16} className="text-blue-600" />
-                      <span className="flex-1 text-sm font-medium">{turma.name}</span>
-                      <button 
-                        type="button"
-                        onClick={() => removeTurmaAlocacao(turma.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Minus size={16} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            {/* Componentes Curriculares com botão + */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Componentes Curriculares *</label>
-              <div className="flex gap-2">
-                <select
-                  value={selectedAlocacaoComponent}
-                  onChange={(e) => setSelectedAlocacaoComponent(e.target.value)}
-                  className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Selecione o componente</option>
-                  <option value="TODOS" className="font-bold text-blue-600">📚 TODOS</option>
-                  {courses.filter(c => !alocacaoComponentes.find(ac => ac.id === c.id)).map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} {c.workload ? `(${c.workload}h)` : ''}
-                    </option>
-                  ))}
-                </select>
-                <Button type="button" onClick={addComponenteAlocacao} disabled={!selectedAlocacaoComponent}>
-                  <Plus size={16} />
-                </Button>
-              </div>
-              
-              {/* Lista de componentes adicionados */}
-              {alocacaoComponentes.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {alocacaoComponentes.map(comp => (
-                    <div key={comp.id} className="flex items-center gap-2 bg-purple-50 px-3 py-2 rounded border border-purple-200">
-                      <BookOpen size={16} className="text-purple-600" />
-                      <span className="flex-1 text-sm font-medium">
-                        {comp.name}
-                        {comp.workload && (
-                          <span className="text-gray-500 ml-1">
-                            ({comp.workload}h → {Math.ceil(comp.workload / 4)}h/sem)
-                          </span>
-                        )}
-                      </span>
-                      <button 
-                        type="button"
-                        onClick={() => removeComponenteAlocacao(comp.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Minus size={16} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            {/* Carga Horária Total (calculada automaticamente) */}
-            {(alocacaoTurmas.length > 0 && alocacaoComponentes.length > 0) && (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="text-sm font-medium text-green-800">Carga Horária Semanal Total:</span>
-                    <p className="text-xs text-green-600 mt-1">
-                      {alocacaoTurmas.length} turma(s) × {alocacaoComponentes.length} componente(s) = {alocacaoTurmas.length * alocacaoComponentes.length} alocações
-                    </p>
+            {/* Alocações existentes */}
+            {alocacaoForm.staff_id && (
+              <div className="p-4 bg-gray-50 rounded-lg border">
+                <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
+                  <GraduationCap size={16} />
+                  Alocações Atuais
+                  {loadingExisting && <span className="text-gray-400 text-sm">(carregando...)</span>}
+                </h4>
+                
+                {!loadingExisting && groupedAlocacoes.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">
+                    O professor não está alocado em nenhuma turma.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {groupedAlocacoes.map(turma => (
+                      <div key={turma.class_id} className="bg-white rounded border overflow-hidden">
+                        {/* Header da turma */}
+                        <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 border-b">
+                          <GraduationCap size={16} className="text-blue-600" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-blue-900">{turma.class_name}</p>
+                            <p className="text-xs text-blue-600">{turma.school_name}</p>
+                          </div>
+                          {canDelete && (
+                            <button 
+                              type="button"
+                              onClick={() => handleDeleteTurmaAlocacoes(turma.class_id)}
+                              className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                              title="Excluir todas alocações desta turma"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Componentes da turma */}
+                        <div className="p-2 space-y-1">
+                          {turma.componentes.map(comp => (
+                            <div key={comp.id} className="flex items-center gap-2 bg-purple-50 px-3 py-1.5 rounded">
+                              <BookOpen size={14} className="text-purple-600" />
+                              <span className="flex-1 text-sm">
+                                {comp.course_name}
+                                {comp.carga_horaria_semanal && (
+                                  <span className="text-gray-500 ml-1">({comp.carga_horaria_semanal}h/sem)</span>
+                                )}
+                              </span>
+                              {canDelete && (
+                                <button 
+                                  type="button"
+                                  onClick={() => handleDeleteExistingAlocacao(comp.id)}
+                                  className="p-0.5 text-red-500 hover:text-red-700"
+                                  title="Excluir alocação"
+                                >
+                                  <Minus size={14} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <span className="text-2xl font-bold text-green-700">{cargaHorariaTotal}h</span>
+                )}
+              </div>
+            )}
+            
+            {/* Adicionar nova alocação */}
+            {alocacaoForm.staff_id && professorSchools.length > 0 && (
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
+                  <Plus size={16} />
+                  Adicionar Nova Alocação
+                </h4>
+                
+                {/* Escola */}
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Escola
+                    {loadingProfessorSchools && <span className="text-gray-400 ml-2">(carregando...)</span>}
+                  </label>
+                  <select
+                    value={alocacaoForm.school_id}
+                    onChange={(e) => handleAlocacaoSchoolChange(e.target.value)}
+                    disabled={loadingProfessorSchools}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-gray-100"
+                  >
+                    <option value="">Selecione a escola</option>
+                    {professorSchools.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
                 </div>
+                
+                {/* Série/Ano (Turmas) com botão + */}
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Série/Ano (Turma)</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedAlocacaoClass}
+                      onChange={(e) => setSelectedAlocacaoClass(e.target.value)}
+                      disabled={!alocacaoForm.school_id}
+                      className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-gray-100"
+                    >
+                      <option value="">Selecione a turma</option>
+                      {filteredClasses.filter(c => !alocacaoTurmas.find(t => t.id === c.id)).map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                    <Button type="button" onClick={addTurmaAlocacao} disabled={!selectedAlocacaoClass}>
+                      <Plus size={16} />
+                    </Button>
+                  </div>
+                  
+                  {/* Lista de turmas a serem adicionadas */}
+                  {alocacaoTurmas.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {alocacaoTurmas.map(turma => (
+                        <div key={turma.id} className="flex items-center gap-2 bg-blue-100 px-3 py-2 rounded border border-blue-300">
+                          <GraduationCap size={16} className="text-blue-600" />
+                          <span className="flex-1 text-sm font-medium">{turma.name}</span>
+                          <button 
+                            type="button"
+                            onClick={() => removeTurmaAlocacao(turma.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Minus size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Componentes Curriculares com botão + */}
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Componentes Curriculares</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedAlocacaoComponent}
+                      onChange={(e) => setSelectedAlocacaoComponent(e.target.value)}
+                      className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="">Selecione o componente</option>
+                      <option value="TODOS" className="font-bold">TODOS</option>
+                      {courses.filter(c => !alocacaoComponentes.find(ac => ac.id === c.id)).map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.workload ? `(${c.workload}h)` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <Button type="button" onClick={addComponenteAlocacao} disabled={!selectedAlocacaoComponent}>
+                      <Plus size={16} />
+                    </Button>
+                  </div>
+                  
+                  {/* Lista de componentes a serem adicionados */}
+                  {alocacaoComponentes.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {alocacaoComponentes.map(comp => (
+                        <div key={comp.id} className="flex items-center gap-2 bg-purple-100 px-3 py-2 rounded border border-purple-300">
+                          <BookOpen size={16} className="text-purple-600" />
+                          <span className="flex-1 text-sm font-medium">
+                            {comp.name}
+                            {comp.workload && (
+                              <span className="text-gray-500 ml-1">
+                                ({comp.workload}h → {Math.ceil(comp.workload / 4)}h/sem)
+                              </span>
+                            )}
+                          </span>
+                          <button 
+                            type="button"
+                            onClick={() => removeComponenteAlocacao(comp.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Minus size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Carga Horária Total (calculada automaticamente) */}
+                {(alocacaoTurmas.length > 0 && alocacaoComponentes.length > 0) && (
+                  <div className="p-3 bg-green-100 border border-green-300 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="text-sm font-medium text-green-800">Carga Horária Semanal Total:</span>
+                        <p className="text-xs text-green-600 mt-0.5">
+                          {alocacaoTurmas.length} turma(s) × {alocacaoComponentes.length} componente(s) = {alocacaoTurmas.length * alocacaoComponentes.length} alocações
+                        </p>
+                      </div>
+                      <span className="text-xl font-bold text-green-700">{cargaHorariaTotal}h</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Mensagem se professor não tem lotação */}
+            {alocacaoForm.staff_id && professorSchools.length === 0 && !loadingProfessorSchools && (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>Atenção:</strong> Este professor não possui lotação em nenhuma escola. 
+                  Vá na aba Lotações para adicionar antes de fazer alocações.
+                </p>
               </div>
             )}
             
             <div className="flex gap-2 pt-4 border-t">
+              {(alocacaoTurmas.length > 0 && alocacaoComponentes.length > 0) && (
+                <Button 
+                  onClick={handleSaveAlocacao} 
+                  disabled={saving} 
+                  className="flex-1"
+                >
+                  {saving ? 'Salvando...' : `Adicionar ${alocacaoTurmas.length * alocacaoComponentes.length} alocação(ões)`}
+                </Button>
+              )}
               <Button 
-                onClick={handleSaveAlocacao} 
-                disabled={saving || alocacaoTurmas.length === 0 || alocacaoComponentes.length === 0} 
-                className="flex-1"
+                variant="outline" 
+                onClick={() => setShowAlocacaoModal(false)}
+                className={(alocacaoTurmas.length === 0 || alocacaoComponentes.length === 0) ? 'flex-1' : ''}
               >
-                {saving ? 'Salvando...' : `Salvar (${alocacaoTurmas.length * alocacaoComponentes.length} alocações)`}
+                {(alocacaoTurmas.length > 0 && alocacaoComponentes.length > 0) ? 'Cancelar' : 'Fechar'}
               </Button>
-              <Button variant="outline" onClick={() => setShowAlocacaoModal(false)}>Cancelar</Button>
             </div>
           </div>
         </Modal>
