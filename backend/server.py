@@ -2188,15 +2188,17 @@ async def create_teacher_assignment(assignment: TeacherAssignmentCreate, request
     if not course:
         raise HTTPException(status_code=404, detail="Componente curricular não encontrado")
     
-    # Verifica se já existe alocação ativa para mesma turma/componente/ano
+    # Verifica se o MESMO professor já está alocado para o MESMO componente na MESMA turma/ano
+    # (permite múltiplos componentes na mesma turma, mas não duplicar a mesma alocação)
     existing = await db.teacher_assignments.find_one({
+        "staff_id": assignment.staff_id,
         "class_id": assignment.class_id,
         "course_id": assignment.course_id,
         "academic_year": assignment.academic_year,
         "status": "ativo"
     })
     if existing:
-        raise HTTPException(status_code=400, detail="Já existe professor alocado para este componente nesta turma")
+        raise HTTPException(status_code=400, detail="Este professor já está alocado para este componente nesta turma")
     
     new_assignment = TeacherAssignment(**assignment.model_dump())
     await db.teacher_assignments.insert_one(new_assignment.model_dump())
