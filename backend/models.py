@@ -1085,6 +1085,7 @@ class StaffCreate(BaseModel):
 
 class StaffUpdate(BaseModel):
     nome: Optional[str] = None
+    cpf: Optional[str] = None
     foto_url: Optional[str] = None
     data_nascimento: Optional[str] = None
     sexo: Optional[Literal['masculino', 'feminino', 'outro']] = None
@@ -1102,6 +1103,7 @@ class StaffUpdate(BaseModel):
     motivo_afastamento: Optional[str] = None
     data_afastamento: Optional[str] = None
     previsao_retorno: Optional[str] = None
+    user_id: Optional[str] = None
     observacoes: Optional[str] = None
 
 class Staff(BaseModel):
