@@ -453,6 +453,13 @@ export const schoolAssignmentAPI = {
     return response.data;
   },
   
+  getStaffSchools: async (staffId, academicYear = null) => {
+    let url = `${API}/school-assignments/staff/${staffId}/schools`;
+    if (academicYear) url += `?academic_year=${academicYear}`;
+    const response = await axios.get(url);
+    return response.data;
+  },
+  
   create: async (data) => {
     const response = await axios.post(`${API}/school-assignments`, data);
     return response.data;
