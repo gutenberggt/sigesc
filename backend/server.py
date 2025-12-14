@@ -2310,6 +2310,138 @@ async def get_staff_photo(filename: str):
         raise HTTPException(status_code=404, detail="Foto não encontrada")
     return FileResponse(filepath)
 
+# ============= OBJETOS DE CONHECIMENTO =============
+
+from models import LearningObject, LearningObjectCreate, LearningObjectUpdate
+
+@api_router.get("/learning-objects")
+async def list_learning_objects(
+    request: Request,
+    class_id: Optional[str] = None,
+    course_id: Optional[str] = None,
+    date: Optional[str] = None,
+    academic_year: Optional[int] = None,
+    month: Optional[int] = None
+):
+    """Lista objetos de conhecimento (conteúdos ministrados)"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'professor', 'semed'])(request)
+    
+    query = {}
+    if class_id:
+        query["class_id"] = class_id
+    if course_id:
+        query["course_id"] = course_id
+    if date:
+        query["date"] = date
+    if academic_year:
+        query["academic_year"] = academic_year
+    
+    # Filtrar por mês se especificado
+    if month and academic_year:
+        start_date = f"{academic_year}-{month:02d}-01"
+        if month == 12:
+            end_date = f"{academic_year + 1}-01-01"
+        else:
+            end_date = f"{academic_year}-{month + 1:02d}-01"
+        query["date"] = {"$gte": start_date, "$lt": end_date}
+    
+    objects = await db.learning_objects.find(query, {"_id": 0}).sort("date", -1).to_list(1000)
+    
+    # Enriquecer com nomes
+    for obj in objects:
+        turma = await db.classes.find_one({"id": obj["class_id"]}, {"_id": 0, "name": 1})
+        course = await db.courses.find_one({"id": obj["course_id"]}, {"_id": 0, "name": 1})
+        obj["class_name"] = turma.get("name", "") if turma else ""
+        obj["course_name"] = course.get("name", "") if course else ""
+    
+    return objects
+
+@api_router.get("/learning-objects/{object_id}")
+async def get_learning_object(object_id: str, request: Request):
+    """Retorna um objeto de conhecimento específico"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'professor', 'semed'])(request)
+    
+    obj = await db.learning_objects.find_one({"id": object_id}, {"_id": 0})
+    if not obj:
+        raise HTTPException(status_code=404, detail="Registro não encontrado")
+    
+    return obj
+
+@api_router.post("/learning-objects")
+async def create_learning_object(data: LearningObjectCreate, request: Request):
+    """Cria um registro de objeto de conhecimento"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'professor'])(request)
+    
+    # Verifica se já existe registro para esta data/turma/componente
+    existing = await db.learning_objects.find_one({
+        "class_id": data.class_id,
+        "course_id": data.course_id,
+        "date": data.date
+    })
+    
+    if existing:
+        raise HTTPException(
+            status_code=400, 
+            detail="Já existe um registro para esta turma/componente nesta data. Use a opção de editar."
+        )
+    
+    new_object = LearningObject(
+        **data.model_dump(),
+        recorded_by=current_user['id']
+    )
+    
+    await db.learning_objects.insert_one(new_object.model_dump())
+    
+    return await db.learning_objects.find_one({"id": new_object.id}, {"_id": 0})
+
+@api_router.put("/learning-objects/{object_id}")
+async def update_learning_object(object_id: str, data: LearningObjectUpdate, request: Request):
+    """Atualiza um registro de objeto de conhecimento"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'professor'])(request)
+    
+    existing = await db.learning_objects.find_one({"id": object_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Registro não encontrado")
+    
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.learning_objects.update_one(
+        {"id": object_id},
+        {"$set": update_data}
+    )
+    
+    return await db.learning_objects.find_one({"id": object_id}, {"_id": 0})
+
+@api_router.delete("/learning-objects/{object_id}")
+async def delete_learning_object(object_id: str, request: Request):
+    """Exclui um registro de objeto de conhecimento"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'professor'])(request)
+    
+    existing = await db.learning_objects.find_one({"id": object_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Registro não encontrado")
+    
+    await db.learning_objects.delete_one({"id": object_id})
+    
+    return {"message": "Registro excluído com sucesso"}
+
+@api_router.get("/learning-objects/check-date/{class_id}/{course_id}/{date}")
+async def check_learning_object_date(class_id: str, course_id: str, date: str, request: Request):
+    """Verifica se existe registro para uma data específica"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'professor', 'semed'])(request)
+    
+    existing = await db.learning_objects.find_one({
+        "class_id": class_id,
+        "course_id": course_id,
+        "date": date
+    }, {"_id": 0})
+    
+    return {
+        "has_record": existing is not None,
+        "record": existing
+    }
+
 # ============= PORTAL DO PROFESSOR =============
 
 @api_router.get("/professor/me")
