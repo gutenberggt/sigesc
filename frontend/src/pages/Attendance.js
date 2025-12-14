@@ -81,6 +81,10 @@ export const Attendance = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('regular');
   const [academicYear] = useState(new Date().getFullYear());
   
+  // Dados do professor (quando logado como professor)
+  const [professorTurmas, setProfessorTurmas] = useState([]);
+  const isProfessor = user?.role === 'professor';
+  
   // Dados de frequência
   const [attendanceData, setAttendanceData] = useState(null);
   const [dateCheck, setDateCheck] = useState(null);
@@ -106,7 +110,7 @@ export const Attendance = () => {
   useEffect(() => {
     loadSchools();
     loadSettings();
-  }, []);
+  }, [isProfessor, academicYear]);
   
   // Carrega turmas quando escola muda
   useEffect(() => {
