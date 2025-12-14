@@ -2427,7 +2427,7 @@ class SIGESCTester:
 
     def run_all_tests(self):
         """Run all backend tests"""
-        self.log("🚀 Starting SIGESC Backend API Tests - PHASE 5.5 STAFF MANAGEMENT")
+        self.log("🚀 Starting SIGESC Backend API Tests - LEARNING OBJECTS TESTING")
         self.log(f"🌐 Backend URL: {BACKEND_URL}")
         
         # Login as admin
@@ -2448,16 +2448,8 @@ class SIGESCTester:
         success = True
         
         try:
-            # REVIEW REQUEST FOCUS: Test Staff Management Deletion UI
-            if not self.test_staff_management_deletion_ui():
-                success = False
-            
-            # MAIN FOCUS: Test Staff Management Phase 5.5
-            if not self.test_staff_management_phase55():
-                success = False
-            
-            # NEW: Test Staff Management Multi-Selection UI
-            if not self.test_staff_multi_selection_ui():
+            # MAIN FOCUS: Test Learning Objects Full Feature (NEW REVIEW REQUEST)
+            if not self.test_learning_objects_full_feature():
                 success = False
             
             # Test authentication requirements
@@ -2471,7 +2463,7 @@ class SIGESCTester:
         self.log("\n" + "="*50)
         if success:
             self.log("🎉 All backend tests completed successfully!")
-            self.log("✅ PHASE 5.5 - STAFF MANAGEMENT FULLY TESTED")
+            self.log("✅ LEARNING OBJECTS (OBJETOS DE CONHECIMENTO) FULLY TESTED")
         else:
             self.log("❌ Some tests failed - check logs above")
         self.log("="*50)
