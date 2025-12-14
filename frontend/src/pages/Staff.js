@@ -845,7 +845,7 @@ export const Staff = () => {
   const calcularCargaHoraria = (componentes) => {
     const total = componentes.reduce((sum, comp) => {
       const carga = comp.workload || 0;
-      return sum + Math.ceil(carga / 40);
+      return sum + (carga / 40);
     }, 0);
     setCargaHorariaTotal(total);
   };
