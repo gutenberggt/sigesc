@@ -336,6 +336,124 @@ export const Staff = () => {
     }
   };
   
+  // Carregar lotações existentes do servidor
+  const loadExistingLotacoes = async (staffId) => {
+    if (!staffId) {
+      setExistingLotacoes([]);
+      return;
+    }
+    
+    setLoadingExisting(true);
+    try {
+      const data = await schoolAssignmentAPI.list({ 
+        staff_id: staffId, 
+        academic_year: academicYear,
+        status: 'ativo'
+      });
+      setExistingLotacoes(data);
+    } catch (error) {
+      console.error('Erro ao carregar lotações existentes:', error);
+      setExistingLotacoes([]);
+    } finally {
+      setLoadingExisting(false);
+    }
+  };
+  
+  // Carregar alocações existentes do professor
+  const loadExistingAlocacoes = async (staffId) => {
+    if (!staffId) {
+      setExistingAlocacoes([]);
+      return;
+    }
+    
+    setLoadingExisting(true);
+    try {
+      const data = await teacherAssignmentAPI.list({ 
+        staff_id: staffId, 
+        academic_year: academicYear,
+        status: 'ativo'
+      });
+      setExistingAlocacoes(data);
+    } catch (error) {
+      console.error('Erro ao carregar alocações existentes:', error);
+      setExistingAlocacoes([]);
+    } finally {
+      setLoadingExisting(false);
+    }
+  };
+  
+  // Excluir lotação existente
+  const handleDeleteExistingLotacao = async (lotacaoId) => {
+    try {
+      await schoolAssignmentAPI.delete(lotacaoId);
+      showAlertMessage('success', 'Lotação excluída!');
+      // Recarregar as lotações existentes
+      await loadExistingLotacoes(lotacaoForm.staff_id);
+      // Recarregar a lista geral se estiver na aba de lotações
+      if (activeTab === 'lotacoes') {
+        loadLotacoes();
+      }
+    } catch (error) {
+      console.error('Erro ao excluir lotação:', error);
+      showAlertMessage('error', error.response?.data?.detail || 'Erro ao excluir lotação');
+    }
+  };
+  
+  // Excluir alocação existente (por componente)
+  const handleDeleteExistingAlocacao = async (alocacaoId) => {
+    try {
+      await teacherAssignmentAPI.delete(alocacaoId);
+      showAlertMessage('success', 'Alocação excluída!');
+      // Recarregar as alocações existentes
+      await loadExistingAlocacoes(alocacaoForm.staff_id);
+      // Recarregar a lista geral se estiver na aba de alocações
+      if (activeTab === 'alocacoes') {
+        loadAlocacoes();
+      }
+    } catch (error) {
+      console.error('Erro ao excluir alocação:', error);
+      showAlertMessage('error', error.response?.data?.detail || 'Erro ao excluir alocação');
+    }
+  };
+  
+  // Excluir todas alocações de uma turma
+  const handleDeleteTurmaAlocacoes = async (classId) => {
+    const alocacoesDaTurma = existingAlocacoes.filter(a => a.class_id === classId);
+    
+    try {
+      for (const aloc of alocacoesDaTurma) {
+        await teacherAssignmentAPI.delete(aloc.id);
+      }
+      showAlertMessage('success', `${alocacoesDaTurma.length} alocação(ões) da turma excluída(s)!`);
+      // Recarregar as alocações existentes
+      await loadExistingAlocacoes(alocacaoForm.staff_id);
+      // Recarregar a lista geral se estiver na aba de alocações
+      if (activeTab === 'alocacoes') {
+        loadAlocacoes();
+      }
+    } catch (error) {
+      console.error('Erro ao excluir alocações da turma:', error);
+      showAlertMessage('error', 'Erro ao excluir alocações da turma');
+    }
+  };
+  
+  // Agrupar alocações por turma
+  const groupedAlocacoes = useMemo(() => {
+    const grouped = {};
+    existingAlocacoes.forEach(aloc => {
+      if (!grouped[aloc.class_id]) {
+        grouped[aloc.class_id] = {
+          class_id: aloc.class_id,
+          class_name: aloc.class_name,
+          school_name: aloc.school_name,
+          componentes: []
+        };
+      }
+      grouped[aloc.class_id].componentes.push(aloc);
+    });
+    return Object.values(grouped);
+  }, [existingAlocacoes]);
+  
   // Formatar celular para WhatsApp
   const formatWhatsAppLink = (celular) => {
     if (!celular) return null;
