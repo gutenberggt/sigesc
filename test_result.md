@@ -279,3 +279,15 @@ agent_communication:
         agent: "testing"
         comment: "✅ WORKLOAD FORMULA CORRECTION SUCCESSFULLY IMPLEMENTED AND TESTED! Fixed the workload calculation formula in Staff Allocation modal: ✅ FORMULA CORRECTION: Changed from Math.ceil(workload / 40) to (workload / 40) for exact division, ✅ CODE CHANGES: Updated 3 locations in Staff.js - calcularCargaHoraria function (line 848), handleSaveAlocacao function (line 865), and component display (line 2014), ✅ EXPECTED RESULTS VERIFIED: Matemática (160h) → 4h/sem (160 / 40 = 4), Arte (40h) → 1h/sem (40 / 40 = 1), Total calculation shows sum of individual components, ✅ UI TESTING: Successfully accessed Staff Management page, opened 'Nova Alocação' modal, verified professor 'João Carlos Silva - 202500001' and school 'EMEIEF SORRISO DO ARAGUAIA' selection working, ✅ FORMULA DISPLAY: Components now show correct weekly hours calculation using exact division instead of rounding up, ✅ TOTAL CALCULATION: 'Carga Horária Semanal Total' correctly sums individual component calculations. The workload formula correction is working correctly and ready for production use!"
 
+  - task: "Staff Management - Workload Validation Feature Testing"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/Staff.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "⚠️ WORKLOAD VALIDATION FEATURE TESTING ATTEMPTED BUT INCOMPLETE: Attempted comprehensive testing of the workload validation feature in Staff Allocation modal as requested. ✅ FEATURE ANALYSIS COMPLETED: Reviewed code implementation and confirmed all required components are present: 1) 'Resumo da Carga Horária do Professor' section with Cadastrada/Já Alocada/Nova Alocação display, 2) Dynamic calculation updates when components added, 3) Red styling (bg-red-50) when limit exceeded, 4) Warning message with instructions when over 40h/sem limit, 5) Proper workload formula (component workload / 40). ❌ UI TESTING BLOCKED: Encountered technical issues with Playwright script execution preventing full UI validation. ⚠️ MANUAL TESTING RECOMMENDED: The workload validation feature appears to be properly implemented based on code review, but requires manual testing or alternative testing approach to verify: 1) Login → Staff → Alocações de Professores → Nova Alocação, 2) Select professor to see workload summary, 3) Add multiple components to exceed 40h/sem limit, 4) Verify red styling and warning message appear. All backend APIs are working correctly to support this feature."
+
