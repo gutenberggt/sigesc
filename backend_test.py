@@ -1519,9 +1519,11 @@ class SIGESCTester:
             self.log("1️⃣ Setting up test professor and staff...")
             
             # Create professor user
+            import time
+            timestamp = str(int(time.time()))
             professor_data = {
                 "full_name": "Professor Multi-Selection Test",
-                "email": "professor.multitest@sigesc.com",
+                "email": f"professor.multitest{timestamp}@sigesc.com",
                 "password": "password123",
                 "role": "professor",
                 "status": "active"
