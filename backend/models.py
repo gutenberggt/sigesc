@@ -1027,6 +1027,7 @@ class StaffBase(BaseModel):
     """Servidor - Funcionário da rede de ensino"""
     # Dados Pessoais
     nome: str  # Nome completo do servidor
+    cpf: Optional[str] = None  # CPF do servidor (usado para gerar senha)
     foto_url: Optional[str] = None  # URL da foto do servidor
     data_nascimento: Optional[str] = None  # Data de nascimento (YYYY-MM-DD)
     sexo: Optional[Literal['masculino', 'feminino', 'outro']] = None
@@ -1052,6 +1053,9 @@ class StaffBase(BaseModel):
     motivo_afastamento: Optional[str] = None
     data_afastamento: Optional[str] = None
     previsao_retorno: Optional[str] = None
+    
+    # Vínculo com usuário do sistema (criado automaticamente para professores)
+    user_id: Optional[str] = None
     
     # Observações
     observacoes: Optional[str] = None
