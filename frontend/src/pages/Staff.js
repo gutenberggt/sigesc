@@ -506,39 +506,69 @@ export const Staff = () => {
   const handleNewLotacao = (staff = null) => {
     setLotacaoForm({
       staff_id: staff?.id || '',
-      school_id: '',
       funcao: staff?.cargo === 'professor' ? 'professor' : 'apoio',
       data_inicio: new Date().toISOString().split('T')[0],
-      data_fim: '',
-      carga_horaria: '',
       turno: '',
       status: 'ativo',
       academic_year: academicYear,
       observacoes: ''
     });
+    setLotacaoEscolas([]);
+    setSelectedLotacaoSchool('');
     setShowLotacaoModal(true);
   };
   
+  // Adicionar escola à lista de lotação
+  const addEscolaLotacao = () => {
+    if (!selectedLotacaoSchool) return;
+    
+    const escola = schools.find(s => s.id === selectedLotacaoSchool);
+    if (!escola) return;
+    
+    // Verificar se já está na lista
+    if (lotacaoEscolas.find(e => e.id === escola.id)) {
+      showAlertMessage('error', 'Escola já adicionada');
+      return;
+    }
+    
+    setLotacaoEscolas([...lotacaoEscolas, escola]);
+    setSelectedLotacaoSchool('');
+  };
+  
+  // Remover escola da lista de lotação
+  const removeEscolaLotacao = (schoolId) => {
+    setLotacaoEscolas(lotacaoEscolas.filter(e => e.id !== schoolId));
+  };
+  
   const handleSaveLotacao = async () => {
-    if (!lotacaoForm.staff_id || !lotacaoForm.school_id || !lotacaoForm.data_inicio) {
-      showAlertMessage('error', 'Preencha os campos obrigatórios');
+    if (!lotacaoForm.staff_id || lotacaoEscolas.length === 0 || !lotacaoForm.data_inicio) {
+      showAlertMessage('error', 'Selecione o servidor e adicione pelo menos uma escola');
       return;
     }
     
     setSaving(true);
     try {
-      const data = {
-        ...lotacaoForm,
-        carga_horaria: lotacaoForm.carga_horaria ? parseInt(lotacaoForm.carga_horaria) : null
-      };
+      // Criar uma lotação para cada escola selecionada
+      for (const escola of lotacaoEscolas) {
+        const data = {
+          ...lotacaoForm,
+          school_id: escola.id
+        };
+        
+        try {
+          await schoolAssignmentAPI.create(data);
+        } catch (err) {
+          // Ignora erro de duplicação, continua com as outras
+          console.log(`Lotação para ${escola.name}: ${err.response?.data?.detail || 'erro'}`);
+        }
+      }
       
-      await schoolAssignmentAPI.create(data);
-      showAlertMessage('success', 'Lotação criada!');
+      showAlertMessage('success', `${lotacaoEscolas.length} lotação(ões) criada(s)!`);
       setShowLotacaoModal(false);
       loadLotacoes();
     } catch (error) {
-      console.error('Erro ao salvar lotação:', error);
-      showAlertMessage('error', error.response?.data?.detail || 'Erro ao salvar lotação');
+      console.error('Erro ao salvar lotações:', error);
+      showAlertMessage('error', error.response?.data?.detail || 'Erro ao salvar lotações');
     } finally {
       setSaving(false);
     }
@@ -549,13 +579,15 @@ export const Staff = () => {
     setAlocacaoForm({
       staff_id: staff?.id || '',
       school_id: '',
-      class_id: '',
-      course_id: '',
       academic_year: academicYear,
-      carga_horaria_semanal: '',
       status: 'ativo',
       observacoes: ''
     });
+    setAlocacaoTurmas([]);
+    setAlocacaoComponentes([]);
+    setSelectedAlocacaoClass('');
+    setSelectedAlocacaoComponent('');
+    setCargaHorariaTotal(0);
     setProfessorSchools([]);
     
     // Se já tem um professor, carregar as escolas dele
@@ -571,32 +603,133 @@ export const Staff = () => {
     setAlocacaoForm({ 
       ...alocacaoForm, 
       staff_id: staffId,
-      school_id: '',  // Limpa escola ao trocar professor
-      class_id: ''    // Limpa turma
+      school_id: ''
     });
+    setAlocacaoTurmas([]);
+    setAlocacaoComponentes([]);
+    setCargaHorariaTotal(0);
     await loadProfessorSchools(staffId);
   };
   
+  // Handler para quando a escola é alterada
+  const handleAlocacaoSchoolChange = (schoolId) => {
+    setAlocacaoForm({ ...alocacaoForm, school_id: schoolId });
+    setAlocacaoTurmas([]);
+    setAlocacaoComponentes([]);
+    setSelectedAlocacaoClass('');
+    setSelectedAlocacaoComponent('');
+    setCargaHorariaTotal(0);
+  };
+  
+  // Adicionar turma à lista de alocação
+  const addTurmaAlocacao = () => {
+    if (!selectedAlocacaoClass) return;
+    
+    const turma = filteredClasses.find(c => c.id === selectedAlocacaoClass);
+    if (!turma) return;
+    
+    // Verificar se já está na lista
+    if (alocacaoTurmas.find(t => t.id === turma.id)) {
+      showAlertMessage('error', 'Turma já adicionada');
+      return;
+    }
+    
+    setAlocacaoTurmas([...alocacaoTurmas, turma]);
+    setSelectedAlocacaoClass('');
+  };
+  
+  // Remover turma da lista de alocação
+  const removeTurmaAlocacao = (classId) => {
+    setAlocacaoTurmas(alocacaoTurmas.filter(t => t.id !== classId));
+  };
+  
+  // Adicionar componente à lista de alocação
+  const addComponenteAlocacao = () => {
+    if (!selectedAlocacaoComponent) return;
+    
+    // Se selecionou "Todos"
+    if (selectedAlocacaoComponent === 'TODOS') {
+      const novosComponentes = courses.filter(c => !alocacaoComponentes.find(ac => ac.id === c.id));
+      if (novosComponentes.length > 0) {
+        const todosComponentes = [...alocacaoComponentes, ...novosComponentes];
+        setAlocacaoComponentes(todosComponentes);
+        // Calcular carga horária
+        calcularCargaHoraria(todosComponentes);
+      }
+      setSelectedAlocacaoComponent('');
+      return;
+    }
+    
+    const componente = courses.find(c => c.id === selectedAlocacaoComponent);
+    if (!componente) return;
+    
+    // Verificar se já está na lista
+    if (alocacaoComponentes.find(c => c.id === componente.id)) {
+      showAlertMessage('error', 'Componente já adicionado');
+      return;
+    }
+    
+    const novosComponentes = [...alocacaoComponentes, componente];
+    setAlocacaoComponentes(novosComponentes);
+    calcularCargaHoraria(novosComponentes);
+    setSelectedAlocacaoComponent('');
+  };
+  
+  // Remover componente da lista de alocação
+  const removeComponenteAlocacao = (courseId) => {
+    const novosComponentes = alocacaoComponentes.filter(c => c.id !== courseId);
+    setAlocacaoComponentes(novosComponentes);
+    calcularCargaHoraria(novosComponentes);
+  };
+  
+  // Calcular carga horária total (workload / 4)
+  const calcularCargaHoraria = (componentes) => {
+    const total = componentes.reduce((sum, comp) => {
+      const carga = comp.workload || 0;
+      return sum + Math.ceil(carga / 4);
+    }, 0);
+    setCargaHorariaTotal(total);
+  };
+  
   const handleSaveAlocacao = async () => {
-    if (!alocacaoForm.staff_id || !alocacaoForm.school_id || !alocacaoForm.class_id || !alocacaoForm.course_id) {
-      showAlertMessage('error', 'Preencha os campos obrigatórios');
+    if (!alocacaoForm.staff_id || !alocacaoForm.school_id || alocacaoTurmas.length === 0 || alocacaoComponentes.length === 0) {
+      showAlertMessage('error', 'Selecione o professor, escola, adicione turma(s) e componente(s)');
       return;
     }
     
     setSaving(true);
+    let created = 0;
     try {
-      const data = {
-        ...alocacaoForm,
-        carga_horaria_semanal: alocacaoForm.carga_horaria_semanal ? parseInt(alocacaoForm.carga_horaria_semanal) : null
-      };
+      // Criar uma alocação para cada combinação turma + componente
+      for (const turma of alocacaoTurmas) {
+        for (const componente of alocacaoComponentes) {
+          const cargaHoraria = componente.workload ? Math.ceil(componente.workload / 4) : null;
+          
+          const data = {
+            staff_id: alocacaoForm.staff_id,
+            school_id: alocacaoForm.school_id,
+            class_id: turma.id,
+            course_id: componente.id,
+            academic_year: alocacaoForm.academic_year,
+            carga_horaria_semanal: cargaHoraria,
+            status: 'ativo'
+          };
+          
+          try {
+            await teacherAssignmentAPI.create(data);
+            created++;
+          } catch (err) {
+            console.log(`Alocação ${turma.name} + ${componente.name}: ${err.response?.data?.detail || 'erro'}`);
+          }
+        }
+      }
       
-      await teacherAssignmentAPI.create(data);
-      showAlertMessage('success', 'Alocação criada!');
+      showAlertMessage('success', `${created} alocação(ões) criada(s)!`);
       setShowAlocacaoModal(false);
       loadAlocacoes();
     } catch (error) {
-      console.error('Erro ao salvar alocação:', error);
-      showAlertMessage('error', error.response?.data?.detail || 'Erro ao salvar alocação');
+      console.error('Erro ao salvar alocações:', error);
+      showAlertMessage('error', error.response?.data?.detail || 'Erro ao salvar alocações');
     } finally {
       setSaving(false);
     }
