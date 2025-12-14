@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
-import { gradesAPI, schoolsAPI, classesAPI, coursesAPI, studentsAPI } from '@/services/api';
+import { gradesAPI, schoolsAPI, classesAPI, coursesAPI, studentsAPI, professorAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   Home, BookOpen, Users, User, Save, AlertCircle, CheckCircle, 
