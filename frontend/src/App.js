@@ -167,7 +167,7 @@ function App() {
             path="/professor/notas"
             element={
               <ProtectedRoute allowedRoles={['professor']}>
-                <ProfessorDashboard />
+                <Grades />
               </ProtectedRoute>
             }
           />
@@ -176,7 +176,16 @@ function App() {
             path="/professor/frequencia"
             element={
               <ProtectedRoute allowedRoles={['professor']}>
-                <ProfessorDashboard />
+                <Attendance />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/professor/objetos-conhecimento"
+            element={
+              <ProtectedRoute allowedRoles={['professor']}>
+                <LearningObjects />
               </ProtectedRoute>
             }
           />
