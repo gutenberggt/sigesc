@@ -49,6 +49,10 @@ export const LearningObjects = () => {
   const [courses, setCourses] = useState([]);
   const [records, setRecords] = useState([]);
   
+  // Dados do professor (quando logado como professor)
+  const [professorTurmas, setProfessorTurmas] = useState([]);
+  const isProfessor = user?.role === 'professor';
+  
   // Estados de UI
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -81,14 +85,41 @@ export const LearningObjects = () => {
     const loadInitialData = async () => {
       try {
         setLoading(true);
-        const [schoolsData, classesData, coursesData] = await Promise.all([
-          schoolsAPI.getAll(),
-          classesAPI.getAll(),
-          coursesAPI.getAll()
-        ]);
-        setSchools(schoolsData);
-        setClasses(classesData);
-        setCourses(coursesData);
+        
+        if (isProfessor) {
+          // Para professor, carrega apenas suas turmas alocadas
+          const turmasData = await professorAPI.getTurmas(academicYear);
+          setProfessorTurmas(turmasData);
+          
+          // Extrai escolas únicas das turmas do professor
+          const uniqueSchools = [];
+          const schoolIds = new Set();
+          turmasData.forEach(turma => {
+            if (turma.school_id && !schoolIds.has(turma.school_id)) {
+              schoolIds.add(turma.school_id);
+              uniqueSchools.push({
+                id: turma.school_id,
+                name: turma.school_name
+              });
+            }
+          });
+          setSchools(uniqueSchools);
+          
+          // Se só tem uma escola, seleciona automaticamente
+          if (uniqueSchools.length === 1) {
+            setSelectedSchool(uniqueSchools[0].id);
+          }
+        } else {
+          // Para outros usuários, carrega todos os dados
+          const [schoolsData, classesData, coursesData] = await Promise.all([
+            schoolsAPI.getAll(),
+            classesAPI.getAll(),
+            coursesAPI.getAll()
+          ]);
+          setSchools(schoolsData);
+          setClasses(classesData);
+          setCourses(coursesData);
+        }
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
         showAlert('error', 'Erro ao carregar dados iniciais');
