@@ -2004,24 +2004,29 @@ class SIGESCTester:
                 headers=self.get_headers(self.admin_token)
             )
             
-            if response.status_code == 204:
-                self.log("✅ Lotação deleted successfully")
-                
-                # Verify deletion by checking if it's gone
-                response = requests.get(
-                    f"{API_BASE}/school-assignments?staff_id={created_staff_id}",
-                    headers=self.get_headers(self.admin_token)
-                )
-                
-                if response.status_code == 200:
-                    remaining_lotacoes = response.json()
-                    if len(remaining_lotacoes) == 0:
-                        self.log("✅ Lotação deletion verified - no lotações remain")
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('message') == 'Lotação removida com sucesso':
+                    self.log("✅ Lotação deleted successfully")
+                    
+                    # Verify deletion by checking if it's gone
+                    response = requests.get(
+                        f"{API_BASE}/school-assignments?staff_id={created_staff_id}",
+                        headers=self.get_headers(self.admin_token)
+                    )
+                    
+                    if response.status_code == 200:
+                        remaining_lotacoes = response.json()
+                        if len(remaining_lotacoes) == 0:
+                            self.log("✅ Lotação deletion verified - no lotações remain")
+                        else:
+                            self.log(f"❌ Lotação deletion failed - {len(remaining_lotacoes)} lotações still exist")
+                            return False
                     else:
-                        self.log(f"❌ Lotação deletion failed - {len(remaining_lotacoes)} lotações still exist")
+                        self.log(f"❌ Failed to verify lotação deletion: {response.status_code}")
                         return False
                 else:
-                    self.log(f"❌ Failed to verify lotação deletion: {response.status_code}")
+                    self.log(f"❌ Unexpected deletion response: {result}")
                     return False
                     
             else:
