@@ -147,8 +147,8 @@ export const Courses = () => {
           className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
           data-testid="back-to-dashboard-button"
         >
-          <ArrowLeft size={20} />
-          <span>Voltar ao Dashboard</span>
+          <Home size={18} />
+          <span>Início</span>
         </button>
 
         <div className="flex justify-between items-center">
