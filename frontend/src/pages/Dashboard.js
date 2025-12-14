@@ -16,12 +16,10 @@ export const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Redireciona professor para o dashboard específico
-  if (user?.role === 'professor') {
-    return <Navigate to="/professor" replace />;
-  }
-
   useEffect(() => {
+    // Não carrega stats se for professor (será redirecionado)
+    if (user?.role === 'professor') return;
+    
     const loadStats = async () => {
       try {
         setLoading(true);
@@ -47,7 +45,12 @@ export const Dashboard = () => {
       }
     };
     loadStats();
-  }, []);
+  }, [user?.role]);
+
+  // Redireciona professor para o dashboard específico
+  if (user?.role === 'professor') {
+    return <Navigate to="/professor" replace />;
+  }
 
   const roleLabels = {
     admin: 'Administrador',
