@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert } from '@/components/ui/alert';
 import { Modal } from '@/components/Modal';
-import { schoolsAPI, classesAPI, coursesAPI, attendanceAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, coursesAPI, attendanceAPI, professorAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
