@@ -723,8 +723,9 @@ export const Staff = () => {
   
   // Alocação handlers
   const handleNewAlocacao = async (staff = null) => {
+    const staffId = staff?.id || '';
     setAlocacaoForm({
-      staff_id: staff?.id || '',
+      staff_id: staffId,
       school_id: '',
       academic_year: academicYear,
       status: 'ativo',
@@ -736,10 +737,14 @@ export const Staff = () => {
     setSelectedAlocacaoComponent('');
     setCargaHorariaTotal(0);
     setProfessorSchools([]);
+    setExistingAlocacoes([]);
     
-    // Se já tem um professor, carregar as escolas dele
-    if (staff?.id) {
-      await loadProfessorSchools(staff.id);
+    // Se já tem um professor, carregar as escolas e alocações dele
+    if (staffId) {
+      await Promise.all([
+        loadProfessorSchools(staffId),
+        loadExistingAlocacoes(staffId)
+      ]);
     }
     
     setShowAlocacaoModal(true);
@@ -755,7 +760,14 @@ export const Staff = () => {
     setAlocacaoTurmas([]);
     setAlocacaoComponentes([]);
     setCargaHorariaTotal(0);
-    await loadProfessorSchools(staffId);
+    setExistingAlocacoes([]);
+    
+    if (staffId) {
+      await Promise.all([
+        loadProfessorSchools(staffId),
+        loadExistingAlocacoes(staffId)
+      ]);
+    }
   };
   
   // Handler para quando a escola é alterada
