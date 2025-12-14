@@ -233,6 +233,15 @@ export const Dashboard = () => {
               </button>
               
               <button
+                onClick={() => navigate('/admin/learning-objects')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-all"
+                data-testid="nav-learning-objects-button"
+              >
+                <BookOpen className="text-purple-600" size={24} />
+                <span className="font-medium text-gray-900">Objetos de Conhecimento</span>
+              </button>
+              
+              <button
                 onClick={() => navigate('/admin/staff')}
                 className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 transition-all"
                 data-testid="nav-staff-button"
