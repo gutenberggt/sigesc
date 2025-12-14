@@ -5,7 +5,7 @@ import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { coursesAPI, schoolsAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, AlertCircle, CheckCircle, ArrowLeft, Info } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, Info } from 'lucide-react';
 
 // Mapeamento de níveis de ensino para séries/etapas
 const GRADE_LEVELS_BY_EDUCATION = {

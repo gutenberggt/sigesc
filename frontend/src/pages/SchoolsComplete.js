@@ -6,7 +6,7 @@ import { Modal } from '@/components/Modal';
 import { Tabs } from '@/components/Tabs';
 import { schoolsAPI, classesAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home } from 'lucide-react';
 
 export function SchoolsComplete() {
   const navigate = useNavigate();
