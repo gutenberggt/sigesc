@@ -2056,21 +2056,21 @@ export const Staff = () => {
             )}
             
             <div className="flex gap-2 pt-4 border-t">
-              {(alocacaoTurmas.length > 0 && alocacaoComponentes.length > 0) && (
-                <Button 
-                  onClick={handleSaveAlocacao} 
-                  disabled={saving} 
-                  className="flex-1"
-                >
-                  {saving ? 'Salvando...' : `Adicionar ${alocacaoTurmas.length * alocacaoComponentes.length} alocação(ões)`}
-                </Button>
-              )}
+              <Button 
+                onClick={handleSaveAlocacao} 
+                disabled={saving || alocacaoTurmas.length === 0 || alocacaoComponentes.length === 0} 
+                className="flex-1"
+              >
+                {saving ? 'Salvando...' : 
+                  (alocacaoTurmas.length > 0 && alocacaoComponentes.length > 0) 
+                    ? `Adicionar ${alocacaoTurmas.length * alocacaoComponentes.length} alocação(ões)` 
+                    : 'Adicionar Alocação'}
+              </Button>
               <Button 
                 variant="outline" 
                 onClick={() => setShowAlocacaoModal(false)}
-                className={(alocacaoTurmas.length === 0 || alocacaoComponentes.length === 0) ? 'flex-1' : ''}
               >
-                {(alocacaoTurmas.length > 0 && alocacaoComponentes.length > 0) ? 'Cancelar' : 'Fechar'}
+                Fechar
               </Button>
             </div>
           </div>
