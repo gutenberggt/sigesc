@@ -302,6 +302,29 @@ export const Staff = () => {
     return classes.filter(c => c.school_id === alocacaoForm.school_id);
   }, [classes, alocacaoForm.school_id]);
   
+  // Carregar escolas do professor quando selecionado
+  const loadProfessorSchools = async (staffId) => {
+    if (!staffId) {
+      setProfessorSchools([]);
+      return;
+    }
+    
+    setLoadingProfessorSchools(true);
+    try {
+      const schoolsData = await schoolAssignmentAPI.getStaffSchools(staffId, academicYear);
+      setProfessorSchools(schoolsData);
+      
+      if (schoolsData.length === 0) {
+        showAlertMessage('error', 'Este professor não possui lotação ativa. Faça a lotação primeiro.');
+      }
+    } catch (error) {
+      console.error('Erro ao carregar escolas do professor:', error);
+      setProfessorSchools([]);
+    } finally {
+      setLoadingProfessorSchools(false);
+    }
+  };
+  
   // Formatar celular para WhatsApp
   const formatWhatsAppLink = (celular) => {
     if (!celular) return null;
