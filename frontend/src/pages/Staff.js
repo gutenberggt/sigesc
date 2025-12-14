@@ -841,11 +841,11 @@ export const Staff = () => {
     calcularCargaHoraria(novosComponentes);
   };
   
-  // Calcular carga horária total (workload / 4)
+  // Calcular carga horária total (workload / 40)
   const calcularCargaHoraria = (componentes) => {
     const total = componentes.reduce((sum, comp) => {
       const carga = comp.workload || 0;
-      return sum + Math.ceil(carga / 4);
+      return sum + Math.ceil(carga / 40);
     }, 0);
     setCargaHorariaTotal(total);
   };
