@@ -233,7 +233,7 @@ export default function ProfessorDashboard() {
         {/* Menu de Acesso Rápido */}
         <div>
           <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <Card 
               className="cursor-pointer hover:bg-blue-50 transition-colors"
               onClick={() => navigate('/professor/notas')}
@@ -256,10 +256,20 @@ export default function ProfessorDashboard() {
 
             <Card 
               className="cursor-pointer hover:bg-purple-50 transition-colors"
+              onClick={() => navigate('/professor/objetos-conhecimento')}
+            >
+              <CardContent className="p-4 text-center">
+                <BookOpen className="mx-auto mb-2 text-purple-600" size={32} />
+                <p className="font-medium">Objetos de Conhecimento</p>
+              </CardContent>
+            </Card>
+
+            <Card 
+              className="cursor-pointer hover:bg-indigo-50 transition-colors"
               onClick={() => navigate('/professor/calendario')}
             >
               <CardContent className="p-4 text-center">
-                <Calendar className="mx-auto mb-2 text-purple-600" size={32} />
+                <Calendar className="mx-auto mb-2 text-indigo-600" size={32} />
                 <p className="font-medium">Calendário</p>
               </CardContent>
             </Card>
