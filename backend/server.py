@@ -2044,11 +2044,7 @@ async def list_school_assignments(
     for assign in assignments:
         staff = await db.staff.find_one({"id": assign['staff_id']}, {"_id": 0})
         if staff:
-            user = await db.users.find_one({"id": staff['user_id']}, {"_id": 0, "full_name": 1, "email": 1})
             assign['staff'] = staff
-            if user:
-                assign['staff']['user_name'] = user.get('full_name')
-                assign['staff']['user_email'] = user.get('email')
         
         school = await db.schools.find_one({"id": assign['school_id']}, {"_id": 0, "name": 1})
         if school:
