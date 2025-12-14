@@ -19,6 +19,11 @@ axios.interceptors.request.use(
 
 // ============= SCHOOLS =============
 export const schoolsAPI = {
+  list: async () => {
+    const response = await axios.get(`${API}/schools`);
+    return response.data;
+  },
+  
   getAll: async () => {
     const response = await axios.get(`${API}/schools`);
     return response.data;
