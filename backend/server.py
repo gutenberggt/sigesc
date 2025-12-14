@@ -101,9 +101,6 @@ async def login(credentials: LoginRequest):
     # Busca usuário
     user_doc = await db.users.find_one({"email": credentials.email}, {"_id": 0})
     
-    logger.info(f"LOGIN ATTEMPT: email={credentials.email}")
-    logger.info(f"USER FOUND: {user_doc is not None}")
-    
     if not user_doc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -112,15 +109,8 @@ async def login(credentials: LoginRequest):
     
     user = UserInDB(**user_doc)
     
-    logger.info(f"USER ROLE: {user.role}")
-    logger.info(f"USER STATUS: {user.status}")
-    logger.info(f"PASSWORD HASH: {user.password_hash[:30]}...")
-    
     # Verifica senha
-    password_valid = verify_password(credentials.password, user.password_hash)
-    logger.info(f"PASSWORD VALID: {password_valid}")
-    
-    if not password_valid:
+    if not verify_password(credentials.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos"
