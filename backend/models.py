@@ -1112,6 +1112,7 @@ class Staff(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     matricula: str  # Gerada automaticamente
     nome: str
+    cpf: Optional[str] = None
     foto_url: Optional[str] = None
     data_nascimento: Optional[str] = None
     sexo: Optional[Literal['masculino', 'feminino', 'outro']] = None
@@ -1129,6 +1130,7 @@ class Staff(BaseModel):
     motivo_afastamento: Optional[str] = None
     data_afastamento: Optional[str] = None
     previsao_retorno: Optional[str] = None
+    user_id: Optional[str] = None
     observacoes: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
