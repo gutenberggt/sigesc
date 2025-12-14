@@ -2138,14 +2138,11 @@ export const Staff = () => {
                     {/* Aviso de excesso */}
                     {(cargaHorariaExistente + cargaHorariaTotal) > professorCargaHoraria && (
                       <div className="mt-2 p-2 bg-red-100 rounded border border-red-200">
-                        <p className="text-sm text-red-800 font-medium flex items-center gap-1">
+                        <p className="text-sm text-red-800 font-bold flex items-center gap-1">
                           <AlertTriangle size={16} />
-                          Atenção: Carga horária excede o limite cadastrado!
+                          Não é possível salvar:
                         </p>
-                        <p className="text-xs text-red-700 mt-1">
-                          Para prosseguir, você pode:
-                        </p>
-                        <ul className="text-xs text-red-700 mt-1 ml-4 list-disc">
+                        <ul className="text-xs text-red-700 mt-2 ml-4 list-disc">
                           <li>Aumentar a carga horária semanal no cadastro do professor (aba Servidores)</li>
                           <li>Reduzir o número de turmas ou componentes nesta alocação</li>
                           <li>Remover alocações existentes antes de adicionar novas</li>
