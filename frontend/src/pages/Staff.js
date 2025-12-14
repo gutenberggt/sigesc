@@ -627,9 +627,10 @@ export const Staff = () => {
   };
   
   // Lotação handlers
-  const handleNewLotacao = (staff = null) => {
+  const handleNewLotacao = async (staff = null) => {
+    const staffId = staff?.id || '';
     setLotacaoForm({
-      staff_id: staff?.id || '',
+      staff_id: staffId,
       funcao: staff?.cargo === 'professor' ? 'professor' : 'apoio',
       data_inicio: new Date().toISOString().split('T')[0],
       turno: '',
@@ -639,7 +640,29 @@ export const Staff = () => {
     });
     setLotacaoEscolas([]);
     setSelectedLotacaoSchool('');
+    setExistingLotacoes([]);
+    
+    // Carregar lotações existentes se tiver um servidor
+    if (staffId) {
+      await loadExistingLotacoes(staffId);
+    }
+    
     setShowLotacaoModal(true);
+  };
+  
+  // Handler para quando o servidor é alterado no modal de lotação
+  const handleLotacaoStaffChange = async (staffId) => {
+    const staff = staffList.find(s => s.id === staffId);
+    setLotacaoForm({ 
+      ...lotacaoForm, 
+      staff_id: staffId,
+      funcao: staff?.cargo === 'professor' ? 'professor' : 'apoio'
+    });
+    setExistingLotacoes([]);
+    
+    if (staffId) {
+      await loadExistingLotacoes(staffId);
+    }
   };
   
   // Adicionar escola à lista de lotação
