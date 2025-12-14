@@ -1883,27 +1883,34 @@ export const Staff = () => {
                         
                         {/* Componentes da turma */}
                         <div className="p-2 space-y-1">
-                          {turma.componentes.map(comp => (
-                            <div key={comp.id} className="flex items-center gap-2 bg-purple-50 px-3 py-1.5 rounded">
-                              <BookOpen size={14} className="text-purple-600" />
-                              <span className="flex-1 text-sm">
-                                {comp.course_name}
-                                {comp.carga_horaria_semanal && (
-                                  <span className="text-gray-500 ml-1">({comp.carga_horaria_semanal}h/sem)</span>
+                          {turma.componentes.map(comp => {
+                            // Buscar o workload do componente na lista de courses
+                            const courseData = courses.find(c => c.id === comp.course_id);
+                            const workloadTotal = courseData?.workload || 0;
+                            const cargaSemanalCalculada = workloadTotal > 0 ? workloadTotal / 40 : null;
+                            
+                            return (
+                              <div key={comp.id} className="flex items-center gap-2 bg-purple-50 px-3 py-1.5 rounded">
+                                <BookOpen size={14} className="text-purple-600" />
+                                <span className="flex-1 text-sm">
+                                  {comp.course_name}
+                                  {cargaSemanalCalculada && (
+                                    <span className="text-gray-500 ml-1">({cargaSemanalCalculada}h/sem)</span>
+                                  )}
+                                </span>
+                                {canDelete && (
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleDeleteExistingAlocacao(comp.id)}
+                                    className="p-0.5 text-red-500 hover:text-red-700"
+                                    title="Excluir alocação"
+                                  >
+                                    <Minus size={14} />
+                                  </button>
                                 )}
-                              </span>
-                              {canDelete && (
-                                <button 
-                                  type="button"
-                                  onClick={() => handleDeleteExistingAlocacao(comp.id)}
-                                  className="p-0.5 text-red-500 hover:text-red-700"
-                                  title="Excluir alocação"
-                                >
-                                  <Minus size={14} />
-                                </button>
-                              )}
-                            </div>
-                          ))}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
