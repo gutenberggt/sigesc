@@ -16,8 +16,10 @@ import {
   FileText,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Home
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI } from '@/services/api';
 
 // Nomes dos meses
