@@ -2011,7 +2011,7 @@ export const Staff = () => {
                             {comp.name}
                             {comp.workload && (
                               <span className="text-gray-500 ml-1">
-                                ({comp.workload}h → {Math.ceil(comp.workload / 4)}h/sem)
+                                ({comp.workload}h → {Math.ceil(comp.workload / 40)}h/sem)
                               </span>
                             )}
                           </span>
