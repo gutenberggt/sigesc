@@ -196,6 +196,10 @@ export const Staff = () => {
   const [existingAlocacoes, setExistingAlocacoes] = useState([]);
   const [loadingExisting, setLoadingExisting] = useState(false);
   
+  // Carga horária do professor e validação
+  const [professorCargaHoraria, setProfessorCargaHoraria] = useState(0);
+  const [cargaHorariaExistente, setCargaHorariaExistente] = useState(0);
+  
   // Alert
   const [alert, setAlert] = useState({ show: false, type: '', message: '' });
   
