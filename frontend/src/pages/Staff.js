@@ -159,27 +159,32 @@ export const Staff = () => {
   
   const [lotacaoForm, setLotacaoForm] = useState({
     staff_id: '',
-    school_id: '',
     funcao: 'professor',
     data_inicio: new Date().toISOString().split('T')[0],
-    data_fim: '',
-    carga_horaria: '',
     turno: '',
     status: 'ativo',
     academic_year: academicYear,
     observacoes: ''
   });
   
+  // Lista de escolas selecionadas para lotação
+  const [lotacaoEscolas, setLotacaoEscolas] = useState([]);
+  const [selectedLotacaoSchool, setSelectedLotacaoSchool] = useState('');
+  
   const [alocacaoForm, setAlocacaoForm] = useState({
     staff_id: '',
     school_id: '',
-    class_id: '',
-    course_id: '',
     academic_year: academicYear,
-    carga_horaria_semanal: '',
     status: 'ativo',
     observacoes: ''
   });
+  
+  // Listas de turmas e componentes selecionados para alocação
+  const [alocacaoTurmas, setAlocacaoTurmas] = useState([]);
+  const [alocacaoComponentes, setAlocacaoComponentes] = useState([]);
+  const [selectedAlocacaoClass, setSelectedAlocacaoClass] = useState('');
+  const [selectedAlocacaoComponent, setSelectedAlocacaoComponent] = useState('');
+  const [cargaHorariaTotal, setCargaHorariaTotal] = useState(0);
   
   // Escolas do professor selecionado para alocação
   const [professorSchools, setProfessorSchools] = useState([]);
