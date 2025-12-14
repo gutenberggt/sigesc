@@ -4,7 +4,7 @@ import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { coursesAPI, schoolsAPI } from '@/services/api';
-import { Plus, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home } from 'lucide-react';
 
 export const Courses = () => {
   const navigate = useNavigate();
