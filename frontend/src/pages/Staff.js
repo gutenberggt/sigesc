@@ -2167,7 +2167,12 @@ export const Staff = () => {
             <div className="flex gap-2 pt-4 border-t">
               <Button 
                 onClick={handleSaveAlocacao} 
-                disabled={saving || alocacaoTurmas.length === 0 || alocacaoComponentes.length === 0} 
+                disabled={
+                  saving || 
+                  alocacaoTurmas.length === 0 || 
+                  alocacaoComponentes.length === 0 ||
+                  (professorCargaHoraria > 0 && (cargaHorariaExistente + cargaHorariaTotal) > professorCargaHoraria)
+                } 
                 className="flex-1"
               >
                 {saving ? 'Salvando...' : 
