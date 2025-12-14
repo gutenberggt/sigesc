@@ -2113,7 +2113,7 @@ class SIGESCTester:
                     f"{API_BASE}/staff/{created_staff_id}",
                     headers=self.get_headers(self.admin_token)
                 )
-                if response.status_code == 204:
+                if response.status_code in [200, 204]:
                     self.log("✅ Test staff cleaned up")
                 else:
                     self.log(f"❌ Failed to cleanup test staff: {response.status_code}")
