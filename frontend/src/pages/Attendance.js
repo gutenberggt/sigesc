@@ -13,7 +13,7 @@ import {
   ChevronRight,
   Settings,
   FileText,
-  ArrowLeft,
+  Home,
   Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
