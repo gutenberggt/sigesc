@@ -604,16 +604,13 @@ export const Calendar = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => navigateTo('/dashboard')}
-              >
-                <ArrowLeft size={18} className="mr-1" />
-                Voltar ao Dashboard
-              </Button>
-            </div>
+            <button
+              onClick={() => navigateTo(user?.role === 'professor' ? '/professor' : '/dashboard')}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors mb-2"
+            >
+              <Home size={18} />
+              <span>Início</span>
+            </button>
             <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
               <CalendarIcon className="text-blue-600" />
               Calendário Letivo
