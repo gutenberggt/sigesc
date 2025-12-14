@@ -982,14 +982,13 @@ export const Staff = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
+            <button
               onClick={() => navigate('/dashboard')}
-              className="flex items-center gap-2"
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
-              <ArrowLeft size={16} />
-              Voltar ao Dashboard
-            </Button>
+              <Home size={18} />
+              <span>Início</span>
+            </button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <Users className="text-blue-600" />
