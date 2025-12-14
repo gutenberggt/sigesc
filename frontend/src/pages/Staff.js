@@ -1650,7 +1650,7 @@ export const Staff = () => {
               </select>
               {alocacaoForm.staff_id && professorSchools.length === 0 && !loadingProfessorSchools && (
                 <p className="text-xs text-red-500 mt-1">
-                  Este professor não possui lotação. Vá na aba "Lotações" para adicionar.
+                  Este professor não possui lotação. Vá na aba Lotações para adicionar.
                 </p>
               )}
             </div>
