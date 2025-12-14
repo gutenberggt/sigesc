@@ -543,3 +543,42 @@ export const professorAPI = {
     return response.data;
   }
 };
+
+// ============= LEARNING OBJECTS API (Objetos de Conhecimento) =============
+export const learningObjectsAPI = {
+  // Lista objetos de conhecimento com filtros
+  list: async (filters = {}) => {
+    const response = await axios.get(`${API}/learning-objects`, { params: filters });
+    return response.data;
+  },
+  
+  // Busca um objeto específico
+  get: async (id) => {
+    const response = await axios.get(`${API}/learning-objects/${id}`);
+    return response.data;
+  },
+  
+  // Cria um novo registro
+  create: async (data) => {
+    const response = await axios.post(`${API}/learning-objects`, data);
+    return response.data;
+  },
+  
+  // Atualiza um registro
+  update: async (id, data) => {
+    const response = await axios.put(`${API}/learning-objects/${id}`, data);
+    return response.data;
+  },
+  
+  // Exclui um registro
+  delete: async (id) => {
+    const response = await axios.delete(`${API}/learning-objects/${id}`);
+    return response.data;
+  },
+  
+  // Verifica se existe registro para uma data
+  checkDate: async (classId, courseId, date) => {
+    const response = await axios.get(`${API}/learning-objects/check-date/${classId}/${courseId}/${date}`);
+    return response.data;
+  }
+};
