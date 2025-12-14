@@ -1,75 +1,81 @@
 <analysis>**original_problem_statement:**
-O usuário está desenvolvendo um **SIGESC (Sistema Integrado de Gestão Escolar)**, um projeto full-stack (React/FastAPI/MongoDB). O desenvolvimento está dividido em fases. O sistema deve suportar múltiplos perfis (Administrador, Secretário, SEMED, etc.) com diferentes permissões.
+O usuário está desenvolvendo um **SIGESC (Sistema Integrado de Gestão Escolar)**, um projeto full-stack (React/FastAPI/MongoDB). O desenvolvimento está dividido em fases e o sistema deve suportar múltiplos perfis (Administrador, Secretário, Professor, etc.) com diferentes permissões.
 
 **PRODUCT REQUIREMENTS:**
 - **Sistema:** Multi-escola, multi-perfil (RBAC).
 - **Tecnologia:** Frontend React (com shadcn/ui), Backend FastAPI, Banco de Dados MongoDB.
 - **Funcionalidades Principais:**
-    - Gestão de Escolas, Usuários, Turmas, Componentes Curriculares, Alunos.
-    - O perfil  deve ter acesso de visualização total, mas sem permissões de edição ou exclusão.
-    - Cadastro de Alunos deve ser um formulário complexo com múltiplas abas.
-    - Importação em massa de alunos a partir de um arquivo Excel.
-    - Lançamento de notas com cálculo de média ponderada.
-    - Geração de documentos (Boletins, Declarações).
-    - **[CONCLUÍDO]** Um Calendário Letivo com visualizações anuais, mensais, semanais e diárias, e gerenciamento de eventos (feriados, dias letivos/não letivos).
-    - **[EM ANDAMENTO]** Fase 5: Controle de Frequência.
+    - **[CONCLUÍDO]** Gestão de Escolas, Usuários, Turmas, Componentes Curriculares, Alunos.
+    - **[CONCLUÍDO]** O perfil  tem acesso de visualização total.
+    - **[CONCLUÍDO]** Cadastro de Alunos com formulário complexo.
+    - **[CONCLUÍDO]** Sistema de Notas com cálculo de média e recuperação.
+    - **[CONCLUÍDO]** Calendário Letivo com gestão de eventos.
+    - **[CONCLUÍDO]** Fase 5: Controle de Frequência, com opção de exclusão.
+    - **[CONCLUÍDO]** Fase 5.5: Gestão de Servidores (cadastro, lotação e alocação).
+    - **[EM ANDAMENTO]** Ajustes na UI/UX da Gestão de Servidores (lotação e alocação de professores).
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-Uma aplicação full-stack funcional com autenticação JWT e RBAC. O sistema possui módulos robustos para gestão de Escolas, Usuários, Alunos, Turmas e Componentes Curriculares. A Fase 4 (Sistema de Notas) foi concluída, incluindo um sistema de recuperação semestral (Rec. 1º e 2º Sem.) e cálculo de média que considera campos vazios como zero. Recentemente, a funcionalidade de Calendário Letivo foi implementada com sucesso, permitindo o gerenciamento de eventos e a visualização em múltiplos formatos (anual, mensal, etc.). A estrutura inicial para a Fase 5 (Controle de Frequência) foi criada.
+Uma aplicação full-stack robusta com autenticação JWT e RBAC. Módulos para gestão de Escolas, Usuários, Alunos, Turmas, Notas, Calendário Letivo e Controle de Frequência estão finalizados e testados. Recentemente, foi implementada a **Fase 5.5 - Gestão de Servidores**, que permite o cadastro de funcionários, a lotação em escolas e a alocação de professores a turmas e componentes curriculares. Foram realizados múltiplos ajustes nesta fase, como matrícula automática, novos campos no formulário, upload de foto e correções de bugs nos dropdowns. A lógica para filtrar escolas na alocação de um professor (mostrando apenas onde ele está lotado) também foi concluída.
 
 **Last working item**:
-- **Last item agent was working:** O agente iniciou a implementação da **Fase 5 - Controle de Frequência**. Com base nos requisitos detalhados do usuário, foram criados os arquivos e estruturas iniciais para a nova funcionalidade.
-    - **Reasoning:** Esta é a próxima fase do projeto, conforme solicitado pelo usuário após a conclusão bem-sucedida do Calendário Letivo. O agente preparou o terreno para o desenvolvimento, criando os modelos de dados, endpoints de API e a página do frontend.
+- **Last item agent was working:** O agente estava implementando ajustes na UI/UX dos modais de **Lotação** e **Alocação de Professor** dentro da página de Gestão de Servidores, conforme a última solicitação do usuário.
+    - **Reasoning:** O usuário solicitou uma interface mais dinâmica: em vez de salvar uma lotação/alocação por vez, ele quer selecionar múltiplos itens (escolas, turmas, componentes) que são adicionados a uma lista e salvos de uma vez. A solicitação também inclui um cálculo automático da carga horária do professor. O agente iniciou as alterações, atualizando os estados dos formulários no frontend para suportar listas e começando a reescrever os handlers de salvamento e a estrutura JSX dos modais.
 - **Status:** IN PROGRESS
 - **Agent Testing Done:** N
 - **Which testing method agent to use?** both
 - **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
-Nenhum problema pendente.
+- **Issue 1: Ajustar UI/UX da Lotação e Alocação de Servidores (P0)**
+    - **Description:** Implementar uma interface de multi-seleção para lotação (escolas) e alocação de professores (turmas e componentes), e calcular a carga horária automaticamente.
+    - **Attempted fixes:** O agente atualizou os estados  e  em  para usar arrays (, ) e começou a reescrever as funções  e .
+    - **Next debug checklist:**
+        1.  **Frontend ():**
+            -   Finalizar a reescrita das funções  e  para iterar sobre as listas e fazer as chamadas de API necessárias.
+            -   Reescrever o JSX do modal de **Lotação**: deve ter um seletor de escola e um botão  para adicionar a escola a uma lista visível abaixo. Cada item na lista deve ter um botão  para remover.
+            -   Reescrever o JSX do modal de **Alocação**:
+                -   Deve ter um seletor de turma/série com um botão  para adicionar a uma lista.
+                -   Deve ter um seletor de componente curricular com um botão  para adicionar a uma lista. A primeira opção deve ser Todos.
+                -   O campo Carga Horária Semanal deve ser calculado automaticamente somando  para cada componente adicionado e não deve ser editável.
+        2.  **Backend ():**
+            -   Verificar se os endpoints  e  precisam de ajustes para facilitar múltiplas criações, ou confirmar que o loop no frontend é a abordagem correta. A lógica atual espera um item por vez.
+    - **Why fix this issue and what will be achieved with this?** Melhorar a usabilidade do sistema, permitindo que o administrador gerencie lotações e alocações de forma mais eficiente e com menos cliques.
+    - **Status:** IN PROGRESS
+    - **Is recurring issue?** N
+    - **Should Test frontend/backend/both after fix?** both
+    - **Blocked on other issue:** None
 
 **In progress Task List**:
-- **Task 1: Concluir a implementação da Fase 5 - Controle de Frequência (P0)**
-    - **Where to resume:** A estrutura base está pronta. O próximo passo é desenvolver a interface do usuário em  e implementar a lógica de negócios nos endpoints da API em . É preciso implementar as regras específicas de frequência (diária vs. por componente curricular) baseadas no nível de ensino da turma, o cálculo de 75% de presença e as permissões para administradores/secretários.
-    - **What will be achieved with this?** Um sistema completo para registro e consulta de frequência de alunos, conforme os requisitos do usuário.
-    - **Status:** IN PROGRESS
-    - **Should Test frontend/backend/both after fix?** both
-    - **Blocked on something:** None
+Nenhum.
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-    - **P0: Testar a Fase 5 - Controle de Frequência:** Após a implementação, realizar testes completos no fluxo de lançamento, consulta e validação de frequência.
+    - **P0: Testar os ajustes na Fase 5.5 - Gestão de Servidores:** Após a implementação da UI de multi-seleção, realizar testes completos no fluxo de lotação e alocação.
 - **Future Tasks:**
     - **P1: FASE 6 - Portais de Visualização:** Dashboards específicos para os perfis de Aluno, Responsável e Diretor.
     - **P2: FASE 7 - Sistema de Comunicação:** CRUD de Avisos.
     - **P3: FASE 8 - Geração de Documentos:** Funcionalidade para gerar PDFs (Boletim, Declarações).
 
 **Completed work in this session**
-- **Finalização da Fase 4 - Sistema de Notas:**
-    - Implementado um sistema de recuperação duplo (1º e 2º semestre), atualizando o modelo de dados ( em ), a lógica de cálculo () e a interface do usuário ().
-    - Ajustada a lógica de cálculo da média para ser exibida desde a primeira nota lançada, tratando campos vazios como zero.
-    - Corrigido um bug de validação no backend que impedia a listagem de componentes curriculares legados (tornando  e  opcionais no modelo ).
-    - Realizados testes completos de frontend e backend para validar todo o fluxo de notas.
-- **Implementação do Calendário Letivo (Nova Fase):**
-    - Criados modelos (), endpoints de API e páginas de frontend (, ) para a funcionalidade.
-    - Populado o calendário de 2026 com feriados nacionais e períodos letivos, conforme solicitado.
-    - Corrigido um bug de autenticação nos endpoints da API do calendário.
-    - Resolvido um problema de banco de dados onde um script de seeding estava se conectando a uma instância de DB diferente da aplicação principal.
-    - Ajustada a exibição da visualização semanal para começar no domingo e terminar no sábado.
-    - Adicionado um botão Voltar ao Dashboard nas páginas do calendário.
-    - Removidas as etiquetas redundantes Sábado e Domingo de dentro das células do calendário.
-- **Início da Fase 5 - Controle de Frequência:**
-    - Criados os modelos de dados () e os endpoints de API para frequência.
-    - Criada a página de frontend () e as rotas necessárias.
+- **Fase 5 - Controle de Frequência:**
+    - Implementação da funcionalidade completa, incluindo UI e API.
+    - Adição de um botão de exclusão para registros de frequência e ajuste na UI dos botões para status não lançado.
+- **Fase 5.5 - Gestão de Servidores:**
+    - Criação dos modelos de dados (, , ) e endpoints de API.
+    - Desenvolvimento da página de frontend () com abas para Servidores, Lotações e Alocações de Professores.
+    - Realização de múltiplos ajustes de UX no formulário de cadastro de servidor (matrícula automática, upload de foto, novos campos, UI para adicionar formações/especializações).
+    - Atualização da lista de servidores com novo layout, incluindo foto e link para WhatsApp.
+    - Correção de bug () que impedia o carregamento de escolas, turmas e cursos nos modais.
+    - Correção de bug no backend () após a refatoração do modelo de dados de  para .
+    - Implementação da regra de negócio que filtra o dropdown de escolas no modal de alocação, mostrando apenas as escolas onde o professor possui uma lotação ativa.
+    - Ajuste na validação do backend para permitir que um professor seja alocado a múltiplos componentes curriculares na mesma turma.
 
 **Earlier issues found/mentioned but not fixed**
-- **Issue 1:** O arquivo  está com mais de 1500 linhas. Ele deve ser quebrado em componentes menores para melhorar a manutenibilidade.
-    - **Debug checklist:** Propor ao usuário um refatoramento após a conclusão das fases atuais.
-    - **Why to solve this issue and what will be achieved with this?** Melhorar a organização e facilitar futuras manutenções no código mais complexo da aplicação.
-    - **Should Test frontend/backend/both after fix:** frontend
-    - **Is recurring issue?** N
+- **Issue 1:** O arquivo  (mais de 1500 linhas) precisa ser refatorado em componentes menores para melhorar a manutenibilidade.
+- **Issue 2:** O arquivo  cresceu e poderia ser dividido em componentes menores.
+- **Issue 3:** O arquivo  está se tornando grande e complexo, sendo um candidato a refatoração futura.
 
 **Known issue recurrence from previous fork**
 - None.
@@ -78,64 +84,63 @@ Nenhum problema pendente.
 
 
 **Key Technical Concepts**
-- **Backend:** FastAPI, Pydantic, CRUD assíncrono, manipulação de datas com , scripts de seeding de dados.
-- **Frontend:** React (, , ), gerenciamento de estado complexo, renderização condicional, componentes de UI customizados para calendário, formulários.
-- **Arquitetura:** Separação de lógica de cálculo (backend), componentes reutilizáveis, comunicação via API REST.
+- **Backend:** FastAPI, Pydantic, CRUD assíncrono, upload de arquivos (), geração de diretórios ().
+- **Frontend:** React (, , ), gerenciamento de estado para formulários complexos e listas dinâmicas, renderização condicional, chamadas de API assíncronas, manipulação de  para upload de arquivos.
+- **Arquitetura:** API REST, separação de responsabilidades entre frontend e backend.
 
 **key DB schema**
-- **grades:** Adicionados campos  e .
-- **calendar_events (nova):** 
-- **attendance (nova):** 
+- **staff:** 
+- **school_assignments:** 
+- **teacher_assignments:** 
 
 **changes in tech stack**
 - None.
 
 **All files of reference**
-- **Modificados/Reescritos:**
-    - : Adicionados modelos  e . Modelo  atualizado.
-    - : Adicionados endpoints para Calendário e Frequência.
-    - : Lógica de cálculo de média e recuperação atualizada.
-    - : Finalizada a implementação com duas recuperações e cálculo de média a partir da primeira nota.
-    - : Adicionadas funções para os endpoints de Calendário e Frequência.
-    - : Adicionadas rotas para Calendário, Eventos e Frequência.
-    - : Adicionados links para as novas funcionalidades.
 - **Criados:**
-    - : Página principal do Calendário Letivo.
-    - : Página para gerenciamento de eventos do calendário.
-    - : Página para o novo módulo de Controle de Frequência.
+    - : Página para a nova funcionalidade de Gestão de Servidores.
+- **Modificados/Reescritos:**
+    - : Adicionados os modelos , ,  e enums relacionados.
+    - : Adicionados múltiplos endpoints para CRUD de servidores, lotações e alocações. Lógica de matrícula automática implementada. Adicionado endpoint estático para servir fotos.
+    - : Adicionadas funções para os novos endpoints de , incluindo upload de foto. Adicionados aliases  para as APIs de ,  e .
+    - : Adicionada a rota para a página .
+    - : Adicionado card de navegação para a página de Servidores.
+    - : Adicionada funcionalidade de exclusão e ajuste de UI.
+    - : Arquivo foi reescrito e modificado várias vezes para adicionar novos campos, ajustar layout, corrigir bugs e iniciar a implementação da UI de multi-seleção.
 
 **Areas that need refactoring**:
-- O arquivo  continua muito grande e complexo.
-- O arquivo  cresceu bastante e poderia ser dividido em componentes menores (ex: , , ).
+- : Continua sendo um arquivo monolítico que deve ser dividido.
+- : Pode ser dividido em componentes menores.
+- : Está crescendo em complexidade e deve ser considerado para refatoração após a estabilização da funcionalidade atual.
 
 **key api endpoints**
-- : CRUD para eventos do calendário.
-- : Resumo de eventos por ano.
-- : Detalhes de um dia específico.
-- : CRUD para registros de frequência.
-- : Busca frequência por turma e data.
-- : Busca frequência de um aluno.
+- : CRUD para servidores.
+- : Upload de foto do servidor.
+- : Rota estática para servir imagens.
+- : CRUD para lotações de servidores em escolas.
+- : CRUD para alocações de professores em turmas/componentes.
+- : Busca as lotações ativas de um servidor.
 
 **Critical Info for New Agent**
-- O foco imediato é construir a funcionalidade de **Controle de Frequência (Fase 5)**, seguindo os requisitos detalhados fornecidos pelo usuário.
-- Preste atenção às regras de negócio complexas: a frequência varia (diária vs. por matéria) dependendo do nível de ensino da turma.
-- A permissão para lançar frequências em datas futuras é restrita a  e .
-- O cálculo de 75% de presença deve ser feito sobre o total de dias letivos do ano, que são definidos no Calendário Letivo.
+- O foco imediato é finalizar a implementação da interface de multi-seleção para **Lotação e Alocação de Professores** no arquivo .
+- A lógica de cálculo da carga horária () deve ser implementada no frontend.
+- O backend atualmente salva um registro por vez. A implementação no frontend deve fazer um loop e chamar a API para cada item adicionado na lista, ou o backend deve ser adaptado para receber uma lista de itens. A abordagem atual iniciada pelo agente anterior é fazer o loop no frontend.
+- Após a conclusão, a funcionalidade deve ser testada de ponta a ponta.
 
 **documents created in this job**
 - None.
 
 **Last 10 User Messages and any pending user messages**
-1.  **user:**  -> **COMPLETED** (Botão adicionado).
-2.  **user:**  -> **COMPLETED** (Rota corrigida).
-3.  **user:**  -> **COMPLETED** (Lógica da semana corrigida para Domingo-Sábado).
-4.  **user:**  -> **COMPLETED** (Etiquetas removidas das células).
-5.  **user:**  -> **ACKNOWLEDGED** (Agente propôs a próxima fase).
-6.  **user:** (Fornece requisitos detalhados para a Fase 5 - Controle de Frequência). -> **IN PROGRESS** (Agente iniciou a implementação).
-7.  **user:**  -> **IN PROGRESS** (Requisitos para a Fase 5).
-8.  **user:**  -> **IN PROGRESS** (Requisitos para a Fase 5).
-9.  **user:**  -> **IN PROGRESS** (Requisitos para a Fase 5).
-10. **(pending) user:** Nenhuma mensagem pendente. O agente está implementando a última solicitação de funcionalidade.
+1.  **user:** Pedido de ajustes na Gestão de Servidores (foto, nome, matrícula automática, novos campos, UI de formação). -> **COMPLETED**
+2.  **user:** Pedido de ajuste no layout da lista de servidores. -> **COMPLETED**
+3.  **user:** Pergunta se pode apagar conversas anteriores. -> **COMPLETED** (Agente explicou que é seguro).
+4.  **user:** Reporta bug: dropdown de escolas vazio no modal de lotação/alocação. -> **COMPLETED** (Corrigido o nome da função da API de  para ).
+5.  **user:** Pedido de ajuste na lógica de negócio (servidor em múltiplas escolas, professor apenas em escolas lotadas, professor com múltiplos componentes na mesma turma). -> **COMPLETED**
+6.  **user:** Reporta bug: erro 500 ao listar lotações. -> **COMPLETED** (Corrigido  no backend).
+7.  **user:** Reporta bug: o dropdown de escola não atualiza após selecionar um professor. -> **COMPLETED** (Problema de lotação inexistente para o teste, a funcionalidade foi validada).
+8.  **user:** (PENDING) Pedido de ajuste na UI de Lotação e Alocação para usar um sistema de lista com botões  e . -> **IN PROGRESS**
+9.  **user:** (PENDING) A seleção de turma/componente na alocação deve seguir o mesmo padrão de lista. -> **IN PROGRESS**
+10. **user:** (PENDING) A carga horária na alocação deve ser calculada automaticamente (). -> **IN PROGRESS**
 
 **Project Health Check:**
 - **Broken:** None.
@@ -145,9 +150,9 @@ Nenhum problema pendente.
 - None.
 
 **Testing status**
-- **Testing agent used after significant changes:** YES (Usado extensivamente para validar a Fase de Notas e a nova funcionalidade de Calendário).
+- **Testing agent used after significant changes:** YES (Usado para validar as Fases 5 e 5.5).
 - **Troubleshoot agent used after agent stuck in loop:** NO.
-- **Test files created:** Sim, os agentes de teste criaram scripts de teste durante as execuções, mas eles são temporários.
+- **Test files created:** Arquivos de teste temporários foram criados pelos agentes de teste.
 - **Known regressions:** None.
 
 **Credentials to test flow:**
@@ -159,4 +164,4 @@ Nenhum problema pendente.
     - **Senha:** 
 
 **What agent forgot to execute**
-- O agente seguiu todas as solicitações do usuário de forma eficaz e sequencial. Nenhuma tarefa solicitada foi esquecida.</analysis>
+- Nenhuma tarefa solicitada foi esquecida. O agente está atualmente trabalhando na última solicitação do usuário.</analysis>
