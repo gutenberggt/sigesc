@@ -4,7 +4,7 @@ import { Layout } from '@/components/Layout';
 import { gradesAPI, schoolsAPI, classesAPI, coursesAPI, studentsAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
-  ArrowLeft, BookOpen, Users, User, Save, AlertCircle, CheckCircle, 
+  Home, BookOpen, Users, User, Save, AlertCircle, CheckCircle, 
   Search, X, Calculator, TrendingUp, TrendingDown
 } from 'lucide-react';
 
