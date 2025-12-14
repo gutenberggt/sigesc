@@ -101,6 +101,10 @@ export function Grades() {
   const [courses, setCourses] = useState([]);
   const [students, setStudents] = useState([]);
   
+  // Dados do professor (quando logado como professor)
+  const [professorTurmas, setProfessorTurmas] = useState([]);
+  const isProfessor = user?.role === 'professor';
+  
   // Filtros - Por Turma
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
@@ -127,23 +131,53 @@ export function Grades() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [schoolsData, classesData, coursesData, studentsData] = await Promise.all([
-          schoolsAPI.getAll(),
-          classesAPI.getAll(),
-          coursesAPI.getAll(),
-          studentsAPI.getAll()
-        ]);
-        setSchools(schoolsData);
-        setClasses(classesData);
-        setCourses(coursesData);
-        setStudents(studentsData);
+        if (isProfessor) {
+          // Para professor, carrega apenas suas turmas alocadas
+          const turmasData = await professorAPI.getTurmas(academicYear);
+          setProfessorTurmas(turmasData);
+          
+          // Extrai escolas únicas das turmas do professor
+          const uniqueSchools = [];
+          const schoolIds = new Set();
+          turmasData.forEach(turma => {
+            if (turma.school_id && !schoolIds.has(turma.school_id)) {
+              schoolIds.add(turma.school_id);
+              uniqueSchools.push({
+                id: turma.school_id,
+                name: turma.school_name
+              });
+            }
+          });
+          setSchools(uniqueSchools);
+          
+          // Se só tem uma escola, seleciona automaticamente
+          if (uniqueSchools.length === 1) {
+            setSelectedSchool(uniqueSchools[0].id);
+          }
+          
+          // Carrega alunos para busca por aluno (se necessário)
+          const studentsData = await studentsAPI.getAll();
+          setStudents(studentsData);
+        } else {
+          // Para outros usuários, carrega todos os dados
+          const [schoolsData, classesData, coursesData, studentsData] = await Promise.all([
+            schoolsAPI.getAll(),
+            classesAPI.getAll(),
+            coursesAPI.getAll(),
+            studentsAPI.getAll()
+          ]);
+          setSchools(schoolsData);
+          setClasses(classesData);
+          setCourses(coursesData);
+          setStudents(studentsData);
+        }
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
         showAlert('error', 'Erro ao carregar dados');
       }
     };
     loadData();
-  }, []);
+  }, [isProfessor, academicYear]);
   
   // Fecha dropdowns ao clicar fora
   useEffect(() => {
