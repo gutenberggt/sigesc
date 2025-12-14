@@ -540,7 +540,7 @@ export const Staff = () => {
   };
   
   // Alocação handlers
-  const handleNewAlocacao = (staff = null) => {
+  const handleNewAlocacao = async (staff = null) => {
     setAlocacaoForm({
       staff_id: staff?.id || '',
       school_id: '',
@@ -551,7 +551,25 @@ export const Staff = () => {
       status: 'ativo',
       observacoes: ''
     });
+    setProfessorSchools([]);
+    
+    // Se já tem um professor, carregar as escolas dele
+    if (staff?.id) {
+      await loadProfessorSchools(staff.id);
+    }
+    
     setShowAlocacaoModal(true);
+  };
+  
+  // Handler para quando o professor é alterado no dropdown
+  const handleProfessorChange = async (staffId) => {
+    setAlocacaoForm({ 
+      ...alocacaoForm, 
+      staff_id: staffId,
+      school_id: '',  // Limpa escola ao trocar professor
+      class_id: ''    // Limpa turma
+    });
+    await loadProfessorSchools(staffId);
   };
   
   const handleSaveAlocacao = async () => {
