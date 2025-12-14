@@ -1542,11 +1542,11 @@ class SIGESCTester:
             
             # Create staff
             staff_data = {
-                "user_id": professor_user_id,
-                "matricula": "MULTI001",
+                "nome": "Professor Multi-Selection Test",
                 "cargo": "professor",
                 "tipo_vinculo": "efetivo",
-                "status": "ativo"
+                "email": "professor.multitest@sigesc.com",
+                "celular": "(11) 99999-0001"
             }
             
             response = requests.post(
