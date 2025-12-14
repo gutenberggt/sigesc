@@ -15,12 +15,13 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  ArrowLeft
+  Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/Modal';
 import { calendarAPI } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Tipos de eventos com cores e labels
 const EVENT_TYPES = {
