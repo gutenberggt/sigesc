@@ -13,6 +13,7 @@ import { Calendar } from '@/pages/Calendar';
 import { Events } from '@/pages/Events';
 import { Attendance } from '@/pages/Attendance';
 import { Staff } from '@/pages/Staff';
+import { LearningObjects } from '@/pages/LearningObjects';
 import ProfessorDashboard from '@/pages/ProfessorDashboard';
 import '@/App.css';
 
