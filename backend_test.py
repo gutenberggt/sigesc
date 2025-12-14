@@ -1881,6 +1881,10 @@ class SIGESCTester:
             if not self.test_staff_management_phase55():
                 success = False
             
+            # NEW: Test Staff Management Multi-Selection UI
+            if not self.test_staff_multi_selection_ui():
+                success = False
+            
             # Test authentication requirements
             self.test_authentication_required()
             
