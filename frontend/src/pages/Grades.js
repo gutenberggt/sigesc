@@ -199,29 +199,35 @@ export function Grades() {
   };
   
   // Turma selecionada (para obter nível de ensino e série)
-  const selectedClassData = classes.find(c => c.id === selectedClass);
+  const selectedClassData = isProfessor 
+    ? professorTurmas.find(t => t.id === selectedClass)
+    : classes.find(c => c.id === selectedClass);
   
-  // Filtros derivados
-  const filteredClasses = classes.filter(c => c.school_id === selectedSchool);
+  // Filtros derivados - para professor usa as turmas alocadas
+  const filteredClasses = isProfessor
+    ? professorTurmas.filter(t => t.school_id === selectedSchool)
+    : classes.filter(c => c.school_id === selectedSchool);
   
-  // Filtra componentes curriculares baseado na escola, nível de ensino e série/ano da turma
-  const filteredCourses = courses.filter(course => {
-    // Se o componente é global (sem school_id) ou é da mesma escola
-    const matchesSchool = !course.school_id || course.school_id === selectedSchool;
-    if (!matchesSchool) return false;
-    
-    // Se não tem turma selecionada, mostra todos os componentes compatíveis
-    if (!selectedClassData) return true;
-    
-    // Deve ser do mesmo nível de ensino (se o componente tiver nível definido)
-    if (course.nivel_ensino && course.nivel_ensino !== selectedClassData.education_level) return false;
-    
-    // Se o componente não tem séries específicas, aplica a todas do nível
-    if (!course.grade_levels || course.grade_levels.length === 0) return true;
-    
-    // Verifica se a série da turma está nas séries do componente
-    return course.grade_levels.includes(selectedClassData.grade_level);
-  });
+  // Filtra componentes curriculares
+  const filteredCourses = isProfessor
+    ? (selectedClassData?.componentes || [])
+    : courses.filter(course => {
+        // Se o componente é global (sem school_id) ou é da mesma escola
+        const matchesSchool = !course.school_id || course.school_id === selectedSchool;
+        if (!matchesSchool) return false;
+        
+        // Se não tem turma selecionada, mostra todos os componentes compatíveis
+        if (!selectedClassData) return true;
+        
+        // Deve ser do mesmo nível de ensino (se o componente tiver nível definido)
+        if (course.nivel_ensino && course.nivel_ensino !== selectedClassData.education_level) return false;
+        
+        // Se o componente não tem séries específicas, aplica a todas do nível
+        if (!course.grade_levels || course.grade_levels.length === 0) return true;
+        
+        // Verifica se a série da turma está nas séries do componente
+        return course.grade_levels.includes(selectedClassData.grade_level);
+      });
   
   // Sugestões de busca
   const nameSuggestions = searchName.length >= 3 
