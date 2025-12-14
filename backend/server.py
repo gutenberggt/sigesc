@@ -1932,21 +1932,71 @@ async def generate_matricula():
 
 @api_router.post("/staff")
 async def create_staff(staff_data: StaffCreate, request: Request):
-    """Cria novo servidor com matrícula automática"""
+    """Cria novo servidor com matrícula automática e cria usuário se for professor"""
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
     
     # Gera matrícula automática
     matricula = await generate_matricula()
     
+    user_id = None
+    
+    # Se for professor e tiver email e CPF, cria usuário automaticamente
+    if staff_data.cargo == 'professor' and staff_data.email and staff_data.cpf:
+        # Verifica se já existe usuário com este email
+        existing_user = await db.users.find_one({"email": staff_data.email})
+        if existing_user:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Já existe um usuário cadastrado com o email {staff_data.email}"
+            )
+        
+        # Extrai os 6 primeiros dígitos do CPF (sem pontos e traços)
+        cpf_limpo = ''.join(filter(str.isdigit, staff_data.cpf))
+        if len(cpf_limpo) < 6:
+            raise HTTPException(
+                status_code=400, 
+                detail="CPF inválido. O CPF deve ter pelo menos 6 dígitos para gerar a senha."
+            )
+        senha = cpf_limpo[:6]
+        
+        # Cria o usuário do professor
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        
+        new_user = {
+            "id": str(uuid.uuid4()),
+            "full_name": staff_data.nome,
+            "email": staff_data.email,
+            "password_hash": pwd_context.hash(senha),
+            "role": "professor",
+            "status": "active",
+            "avatar_url": staff_data.foto_url,
+            "school_links": [],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.users.insert_one(new_user)
+        user_id = new_user["id"]
+    
     # Cria o servidor
+    staff_dict = staff_data.model_dump()
+    staff_dict['user_id'] = user_id
+    
     new_staff = Staff(
         matricula=matricula,
-        **staff_data.model_dump()
+        **staff_dict
     )
     
     await db.staff.insert_one(new_staff.model_dump())
     
-    return await db.staff.find_one({"id": new_staff.id}, {"_id": 0})
+    result = await db.staff.find_one({"id": new_staff.id}, {"_id": 0})
+    
+    # Adiciona informação sobre criação do usuário
+    if user_id:
+        result['_user_created'] = True
+        result['_user_message'] = f"Usuário criado com email {staff_data.email} e senha: {cpf_limpo[:6]} (6 primeiros dígitos do CPF)"
+    
+    return result
 
 @api_router.put("/staff/{staff_id}")
 async def update_staff(staff_id: str, staff_data: StaffUpdate, request: Request):
