@@ -118,6 +118,15 @@ function App() {
           />
           
           <Route
+            path="/admin/learning-objects"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'professor', 'diretor', 'coordenador', 'semed']}>
+                <LearningObjects />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
             path="/admin/staff"
             element={
               <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed', 'diretor']}>
