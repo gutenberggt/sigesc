@@ -775,12 +775,19 @@ export const Staff = () => {
     setAlocacaoComponentes([]);
     setCargaHorariaTotal(0);
     setExistingAlocacoes([]);
+    setCargaHorariaExistente(0);
     
     if (staffId) {
+      // Buscar a carga horária semanal do professor
+      const professor = staffList.find(s => s.id === staffId);
+      setProfessorCargaHoraria(professor?.carga_horaria_semanal || 0);
+      
       await Promise.all([
         loadProfessorSchools(staffId),
         loadExistingAlocacoes(staffId)
       ]);
+    } else {
+      setProfessorCargaHoraria(0);
     }
   };
   
