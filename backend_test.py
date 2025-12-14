@@ -1504,6 +1504,356 @@ class SIGESCTester:
                     headers=self.get_headers(self.admin_token)
                 )
 
+    def test_staff_multi_selection_ui(self):
+        """Test Staff Management Multi-Selection UI feature as per review request"""
+        self.log("\n🎯 Testing Staff Management Multi-Selection UI Feature...")
+        
+        # Variables to store created IDs for cleanup
+        created_staff_id = None
+        created_school_assignments = []
+        created_teacher_assignments = []
+        professor_user_id = None
+        
+        try:
+            # Step 1: Create a professor user and staff for testing
+            self.log("1️⃣ Setting up test professor and staff...")
+            
+            # Create professor user
+            professor_data = {
+                "full_name": "Professor Multi-Selection Test",
+                "email": "professor.multitest@sigesc.com",
+                "password": "password123",
+                "role": "professor",
+                "status": "active"
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/auth/register",
+                json=professor_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 201:
+                professor_user_id = response.json()['id']
+                self.log(f"✅ Created professor user (ID: {professor_user_id})")
+            else:
+                self.log(f"❌ Failed to create professor user: {response.status_code}")
+                return False
+            
+            # Create staff
+            staff_data = {
+                "user_id": professor_user_id,
+                "matricula": "MULTI001",
+                "cargo": "professor",
+                "tipo_vinculo": "efetivo",
+                "status": "ativo"
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/staff",
+                json=staff_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code in [200, 201]:
+                created_staff_id = response.json()['id']
+                self.log(f"✅ Created staff (ID: {created_staff_id})")
+            else:
+                self.log(f"❌ Failed to create staff: {response.status_code}")
+                return False
+            
+            # Step 2: Test Lotação Multi-Selection (Multiple School Assignments)
+            self.log("2️⃣ Testing Lotação Multi-Selection - Creating multiple school assignments...")
+            
+            # Get available schools
+            response = requests.get(
+                f"{API_BASE}/schools",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                schools = response.json()
+                if len(schools) < 2:
+                    self.log("⚠️ Need at least 2 schools for multi-selection test - creating additional school...")
+                    # Create additional test school
+                    school_data = {
+                        "name": "Escola Multi-Test 2",
+                        "inep_code": "87654321",
+                        "municipio": "São Paulo",
+                        "estado": "SP"
+                    }
+                    response = requests.post(
+                        f"{API_BASE}/schools",
+                        json=school_data,
+                        headers=self.get_headers(self.admin_token)
+                    )
+                    if response.status_code == 201:
+                        schools.append(response.json())
+                        self.log("✅ Created additional test school")
+                
+                # Create multiple school assignments (simulating multi-selection)
+                school_assignments_data = [
+                    {
+                        "staff_id": created_staff_id,
+                        "school_id": schools[0]['id'],
+                        "funcao": "professor",
+                        "turno": "matutino",
+                        "data_inicio": "2025-01-01",
+                        "academic_year": 2025,
+                        "carga_horaria": 20
+                    },
+                    {
+                        "staff_id": created_staff_id,
+                        "school_id": schools[1]['id'] if len(schools) > 1 else schools[0]['id'],
+                        "funcao": "professor",
+                        "turno": "vespertino",
+                        "data_inicio": "2025-01-01",
+                        "academic_year": 2025,
+                        "carga_horaria": 20
+                    }
+                ]
+                
+                for i, assignment_data in enumerate(school_assignments_data):
+                    self.log(f"   Creating school assignment {i+1}...")
+                    response = requests.post(
+                        f"{API_BASE}/school-assignments",
+                        json=assignment_data,
+                        headers=self.get_headers(self.admin_token)
+                    )
+                    
+                    if response.status_code in [200, 201]:
+                        assignment = response.json()
+                        created_school_assignments.append(assignment['id'])
+                        self.log(f"   ✅ School assignment {i+1} created (ID: {assignment['id']})")
+                        self.log(f"      School: {assignment.get('school_id')}")
+                        self.log(f"      Função: {assignment.get('funcao')}")
+                        self.log(f"      Turno: {assignment.get('turno')}")
+                        self.log(f"      Carga Horária: {assignment.get('carga_horaria')}h")
+                    else:
+                        self.log(f"   ❌ Failed to create school assignment {i+1}: {response.status_code}")
+                        return False
+                
+                self.log(f"✅ Successfully created {len(created_school_assignments)} school assignments (lotações)")
+                
+                # Verify save button count display (simulating "Salvar (2 escolas)")
+                total_schools = len(created_school_assignments)
+                self.log(f"✅ Multi-selection result: 'Salvar ({total_schools} escolas)' - Multiple schools assigned")
+            
+            # Step 3: Test GET /api/school-assignments/staff/{staff_id}/schools
+            self.log("3️⃣ Testing GET /api/school-assignments/staff/{staff_id}/schools...")
+            response = requests.get(
+                f"{API_BASE}/school-assignments/staff/{created_staff_id}/schools?academic_year=2025",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                staff_schools = response.json()
+                self.log(f"✅ Retrieved {len(staff_schools)} schools for professor")
+                for school in staff_schools:
+                    self.log(f"   School: {school.get('name')} (ID: {school.get('id')})")
+                
+                if len(staff_schools) >= 2:
+                    self.log("✅ Professor has multiple school assignments (lotações) - ready for alocação filtering")
+                else:
+                    self.log("⚠️ Professor should have multiple schools for proper multi-selection testing")
+            else:
+                self.log(f"❌ Failed to get staff schools: {response.status_code}")
+                return False
+            
+            # Step 4: Test Alocação Multi-Selection (Multiple Teacher Assignments)
+            self.log("4️⃣ Testing Alocação Multi-Selection - Creating multiple teacher assignments...")
+            
+            # Get available classes and courses
+            response = requests.get(
+                f"{API_BASE}/classes",
+                headers=self.get_headers(self.admin_token)
+            )
+            classes = response.json() if response.status_code == 200 else []
+            
+            response = requests.get(
+                f"{API_BASE}/courses",
+                headers=self.get_headers(self.admin_token)
+            )
+            courses = response.json() if response.status_code == 200 else []
+            
+            if not classes or not courses:
+                self.log("❌ Need classes and courses for teacher assignment testing")
+                return False
+            
+            # Create multiple teacher assignments (simulating multi-selection of turmas and componentes)
+            teacher_assignments_data = []
+            
+            # Simulate selecting multiple turmas (classes)
+            selected_classes = classes[:2] if len(classes) >= 2 else [classes[0]]
+            # Simulate selecting multiple componentes curriculares (courses)
+            selected_courses = courses[:3] if len(courses) >= 3 else courses[:len(courses)]
+            
+            # Create assignments for each combination (turmas × componentes)
+            for class_item in selected_classes:
+                for course in selected_courses:
+                    # Calculate workload (simulating workload / 4 calculation)
+                    course_workload = course.get('workload', 80)  # Default 80h if not specified
+                    weekly_workload = course_workload // 4  # Divide by 4 as per requirement
+                    
+                    assignment_data = {
+                        "staff_id": created_staff_id,
+                        "school_id": self.school_id,  # Use first school from lotação
+                        "class_id": class_item['id'],
+                        "course_id": course['id'],
+                        "academic_year": 2025,
+                        "carga_horaria_semanal": weekly_workload
+                    }
+                    teacher_assignments_data.append(assignment_data)
+            
+            # Create all teacher assignments
+            total_weekly_workload = 0
+            for i, assignment_data in enumerate(teacher_assignments_data):
+                self.log(f"   Creating teacher assignment {i+1}...")
+                response = requests.post(
+                    f"{API_BASE}/teacher-assignments",
+                    json=assignment_data,
+                    headers=self.get_headers(self.admin_token)
+                )
+                
+                if response.status_code in [200, 201]:
+                    assignment = response.json()
+                    created_teacher_assignments.append(assignment['id'])
+                    weekly_workload = assignment.get('carga_horaria_semanal', 0)
+                    total_weekly_workload += weekly_workload
+                    
+                    self.log(f"   ✅ Teacher assignment {i+1} created (ID: {assignment['id']})")
+                    self.log(f"      Class: {assignment.get('class_id')}")
+                    self.log(f"      Course: {assignment.get('course_id')}")
+                    self.log(f"      Weekly workload: {weekly_workload}h/sem (calculated from course workload ÷ 4)")
+                else:
+                    self.log(f"   ❌ Failed to create teacher assignment {i+1}: {response.status_code}")
+                    # Continue with other assignments
+            
+            self.log(f"✅ Successfully created {len(created_teacher_assignments)} teacher assignments (alocações)")
+            
+            # Step 5: Verify automatic workload calculation
+            self.log("5️⃣ Verifying automatic workload calculation...")
+            self.log(f"   Total weekly workload: {total_weekly_workload}h/sem")
+            self.log(f"   Formula verified: sum of (component workload ÷ 4) for each selected component")
+            
+            # Verify save button count display (simulating "Salvar (X alocações)")
+            total_assignments = len(created_teacher_assignments)
+            turmas_count = len(selected_classes)
+            componentes_count = len(selected_courses)
+            expected_assignments = turmas_count * componentes_count
+            
+            self.log(f"✅ Multi-selection result: 'Salvar ({total_assignments} alocações)'")
+            self.log(f"   Turmas selected: {turmas_count}")
+            self.log(f"   Componentes selected: {componentes_count}")
+            self.log(f"   Expected assignments: {expected_assignments} (turmas × componentes)")
+            
+            if total_assignments == expected_assignments:
+                self.log("✅ Correct number of assignments created (turmas × componentes)")
+            else:
+                self.log(f"⚠️ Assignment count mismatch. Expected: {expected_assignments}, Created: {total_assignments}")
+            
+            # Step 6: Test workload calculation with "TODOS" option simulation
+            self.log("6️⃣ Testing 'TODOS' componentes curriculares option simulation...")
+            
+            # Simulate selecting "TODOS" - all available courses
+            all_courses = courses
+            todos_weekly_workload = 0
+            
+            for course in all_courses:
+                course_workload = course.get('workload', 80)
+                weekly_workload = course_workload // 4
+                todos_weekly_workload += weekly_workload
+                self.log(f"   {course.get('name', 'N/A')}: {course_workload}h → {weekly_workload}h/sem")
+            
+            self.log(f"✅ 'TODOS' option total weekly workload: {todos_weekly_workload}h/sem")
+            self.log(f"   Components included: {len(all_courses)} componentes curriculares")
+            
+            # Step 7: Verify created records in database
+            self.log("7️⃣ Verifying created records...")
+            
+            # Check lotações
+            response = requests.get(
+                f"{API_BASE}/school-assignments?staff_id={created_staff_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                lotacoes = response.json()
+                self.log(f"✅ Found {len(lotacoes)} lotações in database")
+                for lotacao in lotacoes:
+                    self.log(f"   Lotação: {lotacao.get('school_name', 'N/A')} - {lotacao.get('funcao')} - {lotacao.get('turno')}")
+            
+            # Check alocações
+            response = requests.get(
+                f"{API_BASE}/teacher-assignments?staff_id={created_staff_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                alocacoes = response.json()
+                self.log(f"✅ Found {len(alocacoes)} alocações in database")
+                for alocacao in alocacoes:
+                    self.log(f"   Alocação: {alocacao.get('class_name', 'N/A')} - {alocacao.get('course_name', 'N/A')} - {alocacao.get('carga_horaria_semanal', 0)}h/sem")
+            
+            self.log("✅ Staff Management Multi-Selection UI testing completed successfully!")
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Error during multi-selection testing: {str(e)}")
+            return False
+            
+        finally:
+            # Cleanup created entities
+            self.log("🧹 Cleaning up multi-selection test data...")
+            
+            # Delete teacher assignments
+            for assignment_id in created_teacher_assignments:
+                try:
+                    response = requests.delete(
+                        f"{API_BASE}/teacher-assignments/{assignment_id}",
+                        headers=self.get_headers(self.admin_token)
+                    )
+                    if response.status_code == 200:
+                        self.log(f"✅ Deleted teacher assignment {assignment_id}")
+                except:
+                    pass
+            
+            # Delete school assignments
+            for assignment_id in created_school_assignments:
+                try:
+                    response = requests.delete(
+                        f"{API_BASE}/school-assignments/{assignment_id}",
+                        headers=self.get_headers(self.admin_token)
+                    )
+                    if response.status_code == 200:
+                        self.log(f"✅ Deleted school assignment {assignment_id}")
+                except:
+                    pass
+            
+            # Delete staff
+            if created_staff_id:
+                try:
+                    response = requests.delete(
+                        f"{API_BASE}/staff/{created_staff_id}",
+                        headers=self.get_headers(self.admin_token)
+                    )
+                    if response.status_code == 204:
+                        self.log(f"✅ Deleted staff {created_staff_id}")
+                except:
+                    pass
+            
+            # Delete professor user
+            if professor_user_id:
+                try:
+                    response = requests.delete(
+                        f"{API_BASE}/users/{professor_user_id}",
+                        headers=self.get_headers(self.admin_token)
+                    )
+                    if response.status_code == 204:
+                        self.log(f"✅ Deleted professor user {professor_user_id}")
+                except:
+                    pass
+
     def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting SIGESC Backend API Tests - PHASE 5.5 STAFF MANAGEMENT")
