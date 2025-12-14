@@ -1806,13 +1806,15 @@ export const Staff = () => {
             )}
             
             <div className="flex gap-2 pt-4 border-t">
-              {lotacaoEscolas.length > 0 && (
-                <Button onClick={handleSaveLotacao} disabled={saving} className="flex-1">
-                  {saving ? 'Salvando...' : `Adicionar ${lotacaoEscolas.length} lotação(ões)`}
-                </Button>
-              )}
-              <Button variant="outline" onClick={() => setShowLotacaoModal(false)} className={lotacaoEscolas.length === 0 ? 'flex-1' : ''}>
-                {lotacaoEscolas.length > 0 ? 'Cancelar' : 'Fechar'}
+              <Button 
+                onClick={handleSaveLotacao} 
+                disabled={saving || lotacaoEscolas.length === 0} 
+                className="flex-1"
+              >
+                {saving ? 'Salvando...' : lotacaoEscolas.length > 0 ? `Adicionar ${lotacaoEscolas.length} lotação(ões)` : 'Adicionar Lotação'}
+              </Button>
+              <Button variant="outline" onClick={() => setShowLotacaoModal(false)}>
+                Fechar
               </Button>
             </div>
           </div>
