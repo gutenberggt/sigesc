@@ -1500,12 +1500,6 @@ export const Staff = () => {
                 </p>
               )}
             </div>
-                <option value="">Selecione a escola</option>
-                {schools.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Turma *</label>
