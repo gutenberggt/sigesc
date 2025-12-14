@@ -1513,19 +1513,43 @@ export const Staff = () => {
               </select>
             </div>
             
-            {/* Escola */}
+            {/* Escola com botão + */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Escola *</label>
-              <select
-                value={lotacaoForm.school_id}
-                onChange={(e) => setLotacaoForm({ ...lotacaoForm, school_id: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Selecione a escola</option>
-                {schools.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Escola(s) *</label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedLotacaoSchool}
+                  onChange={(e) => setSelectedLotacaoSchool(e.target.value)}
+                  className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Selecione a escola</option>
+                  {schools.filter(s => !lotacaoEscolas.find(e => e.id === s.id)).map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                <Button type="button" onClick={addEscolaLotacao} disabled={!selectedLotacaoSchool}>
+                  <Plus size={16} />
+                </Button>
+              </div>
+              
+              {/* Lista de escolas adicionadas */}
+              {lotacaoEscolas.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {lotacaoEscolas.map(escola => (
+                    <div key={escola.id} className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded border border-green-200">
+                      <Building2 size={16} className="text-green-600" />
+                      <span className="flex-1 text-sm font-medium">{escola.name}</span>
+                      <button 
+                        type="button"
+                        onClick={() => removeEscolaLotacao(escola.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Minus size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             
             <div className="grid grid-cols-2 gap-4">
@@ -1556,31 +1580,19 @@ export const Staff = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data Início *</label>
-                <input
-                  type="date"
-                  value={lotacaoForm.data_inicio}
-                  onChange={(e) => setLotacaoForm({ ...lotacaoForm, data_inicio: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Carga Horária</label>
-                <input
-                  type="number"
-                  value={lotacaoForm.carga_horaria}
-                  onChange={(e) => setLotacaoForm({ ...lotacaoForm, carga_horaria: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Horas semanais"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data Início *</label>
+              <input
+                type="date"
+                value={lotacaoForm.data_inicio}
+                onChange={(e) => setLotacaoForm({ ...lotacaoForm, data_inicio: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
             </div>
             
             <div className="flex gap-2 pt-4 border-t">
-              <Button onClick={handleSaveLotacao} disabled={saving} className="flex-1">
-                {saving ? 'Salvando...' : 'Salvar'}
+              <Button onClick={handleSaveLotacao} disabled={saving || lotacaoEscolas.length === 0} className="flex-1">
+                {saving ? 'Salvando...' : `Salvar ${lotacaoEscolas.length > 0 ? `(${lotacaoEscolas.length} escola${lotacaoEscolas.length > 1 ? 's' : ''})` : ''}`}
               </Button>
               <Button variant="outline" onClick={() => setShowLotacaoModal(false)}>Cancelar</Button>
             </div>
@@ -1592,8 +1604,10 @@ export const Staff = () => {
           isOpen={showAlocacaoModal}
           onClose={() => setShowAlocacaoModal(false)}
           title="Nova Alocação de Professor"
+          size="lg"
         >
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+            {/* Professor */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Professor *</label>
               <select
@@ -1610,6 +1624,7 @@ export const Staff = () => {
               </select>
             </div>
             
+            {/* Escola */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Escola * 
@@ -1617,7 +1632,7 @@ export const Staff = () => {
               </label>
               <select
                 value={alocacaoForm.school_id}
-                onChange={(e) => setAlocacaoForm({ ...alocacaoForm, school_id: e.target.value, class_id: '' })}
+                onChange={(e) => handleAlocacaoSchoolChange(e.target.value)}
                 disabled={!alocacaoForm.staff_id || loadingProfessorSchools}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
               >
@@ -1639,25 +1654,122 @@ export const Staff = () => {
               )}
             </div>
             
+            {/* Série/Ano (Turmas) com botão + */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Turma *</label>
-              <select
-                value={alocacaoForm.class_id}
-                onChange={(e) => setAlocacaoForm({ ...alocacaoForm, class_id: e.target.value })}
-                disabled={!alocacaoForm.school_id}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              >
-                <option value="">Selecione a turma</option>
-                {filteredClasses.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Série/Ano (Turma) *</label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedAlocacaoClass}
+                  onChange={(e) => setSelectedAlocacaoClass(e.target.value)}
+                  disabled={!alocacaoForm.school_id}
+                  className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                >
+                  <option value="">Selecione a turma</option>
+                  {filteredClasses.filter(c => !alocacaoTurmas.find(t => t.id === c.id)).map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <Button type="button" onClick={addTurmaAlocacao} disabled={!selectedAlocacaoClass}>
+                  <Plus size={16} />
+                </Button>
+              </div>
+              
+              {/* Lista de turmas adicionadas */}
+              {alocacaoTurmas.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {alocacaoTurmas.map(turma => (
+                    <div key={turma.id} className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded border border-blue-200">
+                      <GraduationCap size={16} className="text-blue-600" />
+                      <span className="flex-1 text-sm font-medium">{turma.name}</span>
+                      <button 
+                        type="button"
+                        onClick={() => removeTurmaAlocacao(turma.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Minus size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             
+            {/* Componentes Curriculares com botão + */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Componente Curricular *</label>
-              <select
-                value={alocacaoForm.course_id}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Componentes Curriculares *</label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedAlocacaoComponent}
+                  onChange={(e) => setSelectedAlocacaoComponent(e.target.value)}
+                  className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Selecione o componente</option>
+                  <option value="TODOS" className="font-bold text-blue-600">📚 TODOS</option>
+                  {courses.filter(c => !alocacaoComponentes.find(ac => ac.id === c.id)).map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.workload ? `(${c.workload}h)` : ''}
+                    </option>
+                  ))}
+                </select>
+                <Button type="button" onClick={addComponenteAlocacao} disabled={!selectedAlocacaoComponent}>
+                  <Plus size={16} />
+                </Button>
+              </div>
+              
+              {/* Lista de componentes adicionados */}
+              {alocacaoComponentes.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {alocacaoComponentes.map(comp => (
+                    <div key={comp.id} className="flex items-center gap-2 bg-purple-50 px-3 py-2 rounded border border-purple-200">
+                      <BookOpen size={16} className="text-purple-600" />
+                      <span className="flex-1 text-sm font-medium">
+                        {comp.name}
+                        {comp.workload && (
+                          <span className="text-gray-500 ml-1">
+                            ({comp.workload}h → {Math.ceil(comp.workload / 4)}h/sem)
+                          </span>
+                        )}
+                      </span>
+                      <button 
+                        type="button"
+                        onClick={() => removeComponenteAlocacao(comp.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Minus size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Carga Horária Total (calculada automaticamente) */}
+            {(alocacaoTurmas.length > 0 && alocacaoComponentes.length > 0) && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="text-sm font-medium text-green-800">Carga Horária Semanal Total:</span>
+                    <p className="text-xs text-green-600 mt-1">
+                      {alocacaoTurmas.length} turma(s) × {alocacaoComponentes.length} componente(s) = {alocacaoTurmas.length * alocacaoComponentes.length} alocações
+                    </p>
+                  </div>
+                  <span className="text-2xl font-bold text-green-700">{cargaHorariaTotal}h</span>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex gap-2 pt-4 border-t">
+              <Button 
+                onClick={handleSaveAlocacao} 
+                disabled={saving || alocacaoTurmas.length === 0 || alocacaoComponentes.length === 0} 
+                className="flex-1"
+              >
+                {saving ? 'Salvando...' : `Salvar (${alocacaoTurmas.length * alocacaoComponentes.length} alocações)`}
+              </Button>
+              <Button variant="outline" onClick={() => setShowAlocacaoModal(false)}>Cancelar</Button>
+            </div>
+          </div>
+        </Modal>
                 onChange={(e) => setAlocacaoForm({ ...alocacaoForm, course_id: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               >
