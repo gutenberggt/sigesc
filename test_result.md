@@ -203,10 +203,22 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Staff Management - Workload Validation Feature Testing"
+    - "Learning Objects (Objetos de Conhecimento) - Full CRUD Testing"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+  - task: "Learning Objects (Objetos de Conhecimento) - Full Feature Testing"
+    implemented: true
+    working: "pending"
+    file: "frontend/src/pages/LearningObjects.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "pending"
+        agent: "main"
+        comment: "Implemented Learning Objects page with calendar view, filters (school, class, course, year), form for content/methodology/resources/observations/number_of_classes, monthly statistics, and record listing. Backend endpoints ready at /api/learning-objects/*. Needs full testing."
 
 agent_communication:
   - agent: "testing"
