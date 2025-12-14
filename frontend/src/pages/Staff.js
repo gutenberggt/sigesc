@@ -191,6 +191,11 @@ export const Staff = () => {
   const [professorSchools, setProfessorSchools] = useState([]);
   const [loadingProfessorSchools, setLoadingProfessorSchools] = useState(false);
   
+  // Lotações e Alocações existentes do servidor selecionado
+  const [existingLotacoes, setExistingLotacoes] = useState([]);
+  const [existingAlocacoes, setExistingAlocacoes] = useState([]);
+  const [loadingExisting, setLoadingExisting] = useState(false);
+  
   // Alert
   const [alert, setAlert] = useState({ show: false, type: '', message: '' });
   
