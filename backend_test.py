@@ -2118,6 +2118,313 @@ class SIGESCTester:
                 else:
                     self.log(f"❌ Failed to cleanup test staff: {response.status_code}")
 
+    def test_learning_objects_full_feature(self):
+        """Test Learning Objects (Objetos de Conhecimento) - Full Feature Testing as per review request"""
+        self.log("\n📚 Testing Learning Objects (Objetos de Conhecimento) - Full Feature Testing...")
+        
+        # Test data from review request
+        specific_class_id = "42a876e6-aea3-40a3-8660-e1ef44fc3c4a"  # 3º Ano A
+        test_date = "2025-12-10"
+        academic_year = 2025
+        created_learning_object_id = None
+        
+        # Get a valid course_id first
+        if not self.course_id:
+            self.log("❌ No course_id available - getting courses first...")
+            response = requests.get(
+                f"{API_BASE}/courses",
+                headers=self.get_headers(self.admin_token)
+            )
+            if response.status_code == 200:
+                courses = response.json()
+                if courses:
+                    self.course_id = courses[0]['id']
+                    self.log(f"✅ Using course: {courses[0]['name']} (ID: {self.course_id})")
+                else:
+                    self.log("❌ No courses found")
+                    return False
+            else:
+                self.log(f"❌ Failed to get courses: {response.status_code}")
+                return False
+        
+        try:
+            # 1. Test POST /api/learning-objects - Create new learning object
+            self.log("1️⃣ Testing POST /api/learning-objects - Creating learning object...")
+            learning_object_data = {
+                "class_id": specific_class_id,
+                "course_id": self.course_id,
+                "date": test_date,
+                "academic_year": academic_year,
+                "content": "Introdução aos números decimais e frações",
+                "methodology": "Aula expositiva dialogada com exemplos práticos",
+                "resources": "Quadro branco, livro didático, material concreto",
+                "observations": "Turma demonstrou boa compreensão",
+                "number_of_classes": 2
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/learning-objects",
+                json=learning_object_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200 or response.status_code == 201:
+                learning_object = response.json()
+                created_learning_object_id = learning_object['id']
+                self.log(f"✅ Learning object created successfully (ID: {created_learning_object_id})")
+                self.log(f"   Class ID: {learning_object.get('class_id')}")
+                self.log(f"   Course ID: {learning_object.get('course_id')}")
+                self.log(f"   Date: {learning_object.get('date')}")
+                self.log(f"   Content: {learning_object.get('content')}")
+                self.log(f"   Methodology: {learning_object.get('methodology')}")
+                self.log(f"   Resources: {learning_object.get('resources')}")
+                self.log(f"   Number of classes: {learning_object.get('number_of_classes')}")
+                self.log(f"   Observations: {learning_object.get('observations')}")
+            else:
+                self.log(f"❌ Failed to create learning object: {response.status_code} - {response.text}")
+                return False
+            
+            # 2. Test GET /api/learning-objects - List learning objects with filters
+            self.log("2️⃣ Testing GET /api/learning-objects - Listing with filters...")
+            
+            # Test without filters
+            response = requests.get(
+                f"{API_BASE}/learning-objects",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                all_objects = response.json()
+                self.log(f"✅ Successfully retrieved {len(all_objects)} learning objects (no filters)")
+            else:
+                self.log(f"❌ Failed to list learning objects: {response.status_code} - {response.text}")
+                return False
+            
+            # Test with class_id filter
+            response = requests.get(
+                f"{API_BASE}/learning-objects?class_id={specific_class_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                class_objects = response.json()
+                self.log(f"✅ Successfully retrieved {len(class_objects)} learning objects for class {specific_class_id}")
+                
+                # Verify our created object is in the list
+                found_created = any(obj['id'] == created_learning_object_id for obj in class_objects)
+                if found_created:
+                    self.log("✅ Created learning object found in class filter")
+                else:
+                    self.log("❌ Created learning object NOT found in class filter")
+            else:
+                self.log(f"❌ Failed to list learning objects with class filter: {response.status_code}")
+            
+            # Test with course_id filter
+            response = requests.get(
+                f"{API_BASE}/learning-objects?course_id={self.course_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                course_objects = response.json()
+                self.log(f"✅ Successfully retrieved {len(course_objects)} learning objects for course {self.course_id}")
+            else:
+                self.log(f"❌ Failed to list learning objects with course filter: {response.status_code}")
+            
+            # Test with academic_year filter
+            response = requests.get(
+                f"{API_BASE}/learning-objects?academic_year={academic_year}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                year_objects = response.json()
+                self.log(f"✅ Successfully retrieved {len(year_objects)} learning objects for year {academic_year}")
+            else:
+                self.log(f"❌ Failed to list learning objects with year filter: {response.status_code}")
+            
+            # Test with month filter (December = 12)
+            response = requests.get(
+                f"{API_BASE}/learning-objects?academic_year={academic_year}&month=12",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                month_objects = response.json()
+                self.log(f"✅ Successfully retrieved {len(month_objects)} learning objects for December {academic_year}")
+            else:
+                self.log(f"❌ Failed to list learning objects with month filter: {response.status_code}")
+            
+            # 3. Test GET /api/learning-objects/{id} - Get specific learning object
+            self.log("3️⃣ Testing GET /api/learning-objects/{id} - Getting specific learning object...")
+            response = requests.get(
+                f"{API_BASE}/learning-objects/{created_learning_object_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                specific_object = response.json()
+                self.log(f"✅ Successfully retrieved specific learning object")
+                self.log(f"   ID: {specific_object.get('id')}")
+                self.log(f"   Content: {specific_object.get('content')}")
+                self.log(f"   Date: {specific_object.get('date')}")
+                
+                # Verify all fields are present
+                expected_fields = ['id', 'class_id', 'course_id', 'date', 'academic_year', 'content', 'methodology', 'resources', 'observations', 'number_of_classes']
+                missing_fields = [field for field in expected_fields if field not in specific_object]
+                if missing_fields:
+                    self.log(f"❌ Missing fields in response: {missing_fields}")
+                else:
+                    self.log("✅ All expected fields present in response")
+            else:
+                self.log(f"❌ Failed to get specific learning object: {response.status_code} - {response.text}")
+                return False
+            
+            # 4. Test PUT /api/learning-objects/{id} - Update learning object
+            self.log("4️⃣ Testing PUT /api/learning-objects/{id} - Updating learning object...")
+            update_data = {
+                "content": "Introdução aos números decimais e frações - ATUALIZADO",
+                "methodology": "Aula expositiva dialogada com exemplos práticos e exercícios",
+                "observations": "Turma demonstrou excelente compreensão após atualização"
+            }
+            
+            response = requests.put(
+                f"{API_BASE}/learning-objects/{created_learning_object_id}",
+                json=update_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                updated_object = response.json()
+                self.log(f"✅ Learning object updated successfully")
+                self.log(f"   Updated content: {updated_object.get('content')}")
+                self.log(f"   Updated methodology: {updated_object.get('methodology')}")
+                self.log(f"   Updated observations: {updated_object.get('observations')}")
+                
+                # Verify the update was applied
+                if "ATUALIZADO" in updated_object.get('content', ''):
+                    self.log("✅ Content update verified")
+                else:
+                    self.log("❌ Content update not applied correctly")
+            else:
+                self.log(f"❌ Failed to update learning object: {response.status_code} - {response.text}")
+                return False
+            
+            # 5. Test GET /api/learning-objects/check-date/{class_id}/{course_id}/{date} - Check if record exists
+            self.log("5️⃣ Testing GET /api/learning-objects/check-date/{class_id}/{course_id}/{date}...")
+            response = requests.get(
+                f"{API_BASE}/learning-objects/check-date/{specific_class_id}/{self.course_id}/{test_date}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                date_check = response.json()
+                self.log(f"✅ Date check successful")
+                self.log(f"   Has record: {date_check.get('has_record')}")
+                
+                if date_check.get('has_record'):
+                    self.log("✅ Correctly found existing record for the date")
+                    record = date_check.get('record', {})
+                    if record.get('id') == created_learning_object_id:
+                        self.log("✅ Returned record matches our created object")
+                    else:
+                        self.log("❌ Returned record does not match our created object")
+                else:
+                    self.log("❌ Should have found existing record for the date")
+            else:
+                self.log(f"❌ Failed to check date: {response.status_code} - {response.text}")
+                return False
+            
+            # 6. Test duplicate prevention - try to create another record for same date/class/course
+            self.log("6️⃣ Testing duplicate prevention...")
+            duplicate_data = {
+                "class_id": specific_class_id,
+                "course_id": self.course_id,
+                "date": test_date,
+                "academic_year": academic_year,
+                "content": "Tentativa de duplicação",
+                "number_of_classes": 1
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/learning-objects",
+                json=duplicate_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 400:
+                self.log("✅ Duplicate prevention working correctly (400 error)")
+                error_detail = response.json().get('detail', '')
+                if "Já existe um registro" in error_detail:
+                    self.log("✅ Correct error message for duplicate")
+                else:
+                    self.log(f"❌ Unexpected error message: {error_detail}")
+            else:
+                self.log(f"❌ Duplicate prevention failed - should return 400: {response.status_code}")
+            
+            # 7. Test DELETE /api/learning-objects/{id} - Delete learning object
+            self.log("7️⃣ Testing DELETE /api/learning-objects/{id} - Deleting learning object...")
+            response = requests.delete(
+                f"{API_BASE}/learning-objects/{created_learning_object_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                delete_result = response.json()
+                self.log(f"✅ Learning object deleted successfully")
+                self.log(f"   Message: {delete_result.get('message')}")
+            else:
+                self.log(f"❌ Failed to delete learning object: {response.status_code} - {response.text}")
+                return False
+            
+            # 8. Verify deletion - try to get the deleted object
+            self.log("8️⃣ Verifying deletion...")
+            response = requests.get(
+                f"{API_BASE}/learning-objects/{created_learning_object_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 404:
+                self.log("✅ Deletion verified - object not found (404)")
+            else:
+                self.log(f"❌ Deletion verification failed - object still exists: {response.status_code}")
+                return False
+            
+            # 9. Verify check-date returns no record after deletion
+            self.log("9️⃣ Verifying check-date after deletion...")
+            response = requests.get(
+                f"{API_BASE}/learning-objects/check-date/{specific_class_id}/{self.course_id}/{test_date}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                date_check_after = response.json()
+                if not date_check_after.get('has_record'):
+                    self.log("✅ Check-date correctly shows no record after deletion")
+                else:
+                    self.log("❌ Check-date still shows record after deletion")
+            else:
+                self.log(f"❌ Failed to check date after deletion: {response.status_code}")
+            
+            self.log("✅ Learning Objects Full Feature Testing completed successfully!")
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Error during learning objects testing: {str(e)}")
+            return False
+        
+        finally:
+            # Cleanup - try to delete the learning object if it still exists
+            if created_learning_object_id:
+                try:
+                    requests.delete(
+                        f"{API_BASE}/learning-objects/{created_learning_object_id}",
+                        headers=self.get_headers(self.admin_token)
+                    )
+                    self.log("🧹 Cleanup: Learning object deleted")
+                except:
+                    pass
+
     def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting SIGESC Backend API Tests - PHASE 5.5 STAFF MANAGEMENT")
