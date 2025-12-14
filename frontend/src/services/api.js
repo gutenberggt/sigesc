@@ -78,6 +78,12 @@ export const usersAPI = {
 
 // ============= CLASSES (TURMAS) =============
 export const classesAPI = {
+  list: async (schoolId = null) => {
+    const params = schoolId ? { school_id: schoolId } : {};
+    const response = await axios.get(`${API}/classes`, { params });
+    return response.data;
+  },
+  
   getAll: async (schoolId = null) => {
     const params = schoolId ? { school_id: schoolId } : {};
     const response = await axios.get(`${API}/classes`, { params });
@@ -106,6 +112,12 @@ export const classesAPI = {
 
 // ============= COURSES (COMPONENTES CURRICULARES) =============
 export const coursesAPI = {
+  list: async (nivelEnsino = null) => {
+    const params = nivelEnsino ? { nivel_ensino: nivelEnsino } : {};
+    const response = await axios.get(`${API}/courses`, { params });
+    return response.data;
+  },
+  
   getAll: async (nivelEnsino = null) => {
     const params = nivelEnsino ? { nivel_ensino: nivelEnsino } : {};
     const response = await axios.get(`${API}/courses`, { params });
