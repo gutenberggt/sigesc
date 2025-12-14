@@ -141,8 +141,33 @@ export const Attendance = () => {
   
   const loadSchools = async () => {
     try {
-      const data = await schoolsAPI.getAll();
-      setSchools(data);
+      if (isProfessor) {
+        // Para professor, carrega apenas suas turmas alocadas
+        const turmasData = await professorAPI.getTurmas(academicYear);
+        setProfessorTurmas(turmasData);
+        
+        // Extrai escolas únicas das turmas do professor
+        const uniqueSchools = [];
+        const schoolIds = new Set();
+        turmasData.forEach(turma => {
+          if (turma.school_id && !schoolIds.has(turma.school_id)) {
+            schoolIds.add(turma.school_id);
+            uniqueSchools.push({
+              id: turma.school_id,
+              name: turma.school_name
+            });
+          }
+        });
+        setSchools(uniqueSchools);
+        
+        // Se só tem uma escola, seleciona automaticamente
+        if (uniqueSchools.length === 1) {
+          setSelectedSchool(uniqueSchools[0].id);
+        }
+      } else {
+        const data = await schoolsAPI.getAll();
+        setSchools(data);
+      }
     } catch (error) {
       console.error('Erro ao carregar escolas:', error);
     }
@@ -150,9 +175,15 @@ export const Attendance = () => {
   
   const loadClasses = async () => {
     try {
-      const data = await classesAPI.getAll();
-      const filtered = data.filter(c => c.school_id === selectedSchool);
-      setClasses(filtered);
+      if (isProfessor) {
+        // Para professor, filtra suas turmas pela escola selecionada
+        const filtered = professorTurmas.filter(t => t.school_id === selectedSchool);
+        setClasses(filtered);
+      } else {
+        const data = await classesAPI.getAll();
+        const filtered = data.filter(c => c.school_id === selectedSchool);
+        setClasses(filtered);
+      }
     } catch (error) {
       console.error('Erro ao carregar turmas:', error);
     }
@@ -160,14 +191,24 @@ export const Attendance = () => {
   
   const loadCourses = async () => {
     try {
-      const data = await coursesAPI.getAll();
-      // Filtra por nível de ensino da turma
-      const turma = classes.find(c => c.id === selectedClass);
-      if (turma) {
-        const filtered = data.filter(c => 
-          !c.nivel_ensino || c.nivel_ensino === turma.education_level
-        );
-        setCourses(filtered);
+      if (isProfessor) {
+        // Para professor, usa os componentes da turma selecionada
+        const turma = professorTurmas.find(t => t.id === selectedClass);
+        if (turma && turma.componentes) {
+          setCourses(turma.componentes);
+        } else {
+          setCourses([]);
+        }
+      } else {
+        const data = await coursesAPI.getAll();
+        // Filtra por nível de ensino da turma
+        const turma = classes.find(c => c.id === selectedClass);
+        if (turma) {
+          const filtered = data.filter(c => 
+            !c.nivel_ensino || c.nivel_ensino === turma.education_level
+          );
+          setCourses(filtered);
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar componentes:', error);
