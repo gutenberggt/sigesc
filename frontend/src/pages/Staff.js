@@ -1860,28 +1860,49 @@ export const Staff = () => {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {groupedAlocacoes.map(turma => (
-                      <div key={turma.class_id} className="bg-white rounded border overflow-hidden">
-                        {/* Header da turma */}
-                        <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 border-b">
-                          <GraduationCap size={16} className="text-blue-600" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-blue-900">{turma.class_name}</p>
-                            <p className="text-xs text-blue-600">{turma.school_name}</p>
+                    {groupedAlocacoes.map(turma => {
+                      // Calcular as somas de carga horária da turma
+                      const totalSemanal = turma.componentes.reduce((sum, comp) => {
+                        const courseData = courses.find(c => c.id === comp.course_id);
+                        const workload = courseData?.workload || 0;
+                        return sum + (workload / 40);
+                      }, 0);
+                      
+                      const totalMensal = turma.componentes.reduce((sum, comp) => {
+                        const courseData = courses.find(c => c.id === comp.course_id);
+                        const workload = courseData?.workload || 0;
+                        return sum + (workload / 8);
+                      }, 0);
+                      
+                      return (
+                        <div key={turma.class_id} className="bg-white rounded border overflow-hidden">
+                          {/* Header da turma */}
+                          <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 border-b">
+                            <GraduationCap size={16} className="text-blue-600" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-blue-900">{turma.class_name}</p>
+                              <p className="text-xs text-blue-600">
+                                {turma.school_name}
+                                {totalSemanal > 0 && (
+                                  <span className="ml-2 font-medium text-green-700">
+                                    ({totalSemanal}h/sem • {totalMensal}h/mês)
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                            {canDelete && (
+                              <button 
+                                type="button"
+                                onClick={() => handleDeleteTurmaAlocacoes(turma.class_id)}
+                                className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                                title="Excluir todas alocações desta turma"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
                           </div>
-                          {canDelete && (
-                            <button 
-                              type="button"
-                              onClick={() => handleDeleteTurmaAlocacoes(turma.class_id)}
-                              className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
-                              title="Excluir todas alocações desta turma"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
-                        </div>
-                        
-                        {/* Componentes da turma */}
+                          
+                          {/* Componentes da turma */}
                         <div className="p-2 space-y-1">
                           {turma.componentes.map(comp => {
                             // Buscar o workload do componente na lista de courses
