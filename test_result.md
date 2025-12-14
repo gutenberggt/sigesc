@@ -203,7 +203,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Staff Management (Gestão de Servidores) - Phase 5.5 Frontend Testing Complete"
+    - "Staff Management Multi-Selection UI - Backend Testing Complete"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
