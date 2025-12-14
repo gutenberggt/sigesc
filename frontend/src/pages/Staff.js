@@ -13,7 +13,7 @@ import {
   Eye,
   AlertTriangle,
   XCircle,
-  ArrowLeft,
+  Home,
   GraduationCap,
   Briefcase,
   Plus,
