@@ -2040,24 +2040,29 @@ class SIGESCTester:
                 headers=self.get_headers(self.admin_token)
             )
             
-            if response.status_code == 204:
-                self.log("✅ Alocação deleted successfully")
-                
-                # Verify deletion by checking if it's gone
-                response = requests.get(
-                    f"{API_BASE}/teacher-assignments?staff_id={created_staff_id}",
-                    headers=self.get_headers(self.admin_token)
-                )
-                
-                if response.status_code == 200:
-                    remaining_alocacoes = response.json()
-                    if len(remaining_alocacoes) == 0:
-                        self.log("✅ Alocação deletion verified - no alocações remain")
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('message') == 'Alocação removida com sucesso':
+                    self.log("✅ Alocação deleted successfully")
+                    
+                    # Verify deletion by checking if it's gone
+                    response = requests.get(
+                        f"{API_BASE}/teacher-assignments?staff_id={created_staff_id}",
+                        headers=self.get_headers(self.admin_token)
+                    )
+                    
+                    if response.status_code == 200:
+                        remaining_alocacoes = response.json()
+                        if len(remaining_alocacoes) == 0:
+                            self.log("✅ Alocação deletion verified - no alocações remain")
+                        else:
+                            self.log(f"❌ Alocação deletion failed - {len(remaining_alocacoes)} alocações still exist")
+                            return False
                     else:
-                        self.log(f"❌ Alocação deletion failed - {len(remaining_alocacoes)} alocações still exist")
+                        self.log(f"❌ Failed to verify alocação deletion: {response.status_code}")
                         return False
                 else:
-                    self.log(f"❌ Failed to verify alocação deletion: {response.status_code}")
+                    self.log(f"❌ Unexpected deletion response: {result}")
                     return False
                     
             else:
