@@ -1063,6 +1063,7 @@ class StaffBase(BaseModel):
 class StaffCreate(BaseModel):
     """Modelo para criar servidor (sem matrícula - será gerada automaticamente)"""
     nome: str
+    cpf: Optional[str] = None
     foto_url: Optional[str] = None
     data_nascimento: Optional[str] = None
     sexo: Optional[Literal['masculino', 'feminino', 'outro']] = None
