@@ -2131,6 +2131,10 @@ class SIGESCTester:
         success = True
         
         try:
+            # REVIEW REQUEST FOCUS: Test Staff Management Deletion UI
+            if not self.test_staff_management_deletion_ui():
+                success = False
+            
             # MAIN FOCUS: Test Staff Management Phase 5.5
             if not self.test_staff_management_phase55():
                 success = False
