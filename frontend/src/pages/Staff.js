@@ -20,7 +20,8 @@ import {
   Minus,
   Phone,
   Camera,
-  User
+  User,
+  BookOpen
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { staffAPI, schoolAssignmentAPI, teacherAssignmentAPI, schoolsAPI, classesAPI, coursesAPI } from '@/services/api';
