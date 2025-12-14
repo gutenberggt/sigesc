@@ -265,3 +265,15 @@ agent_communication:
         agent: "testing"
         comment: "🗑️ STAFF MANAGEMENT DELETION UI TESTING COMPLETED SUCCESSFULLY! Comprehensive testing of lotação and alocação deletion functionality verified all requirements from review request: ✅ LOTAÇÃO DISPLAY: GET /api/school-assignments?staff_id={id} working correctly - retrieved existing lotações with school name, function, shift, and start date fields, ✅ ALOCAÇÃO DISPLAY: GET /api/teacher-assignments?staff_id={id} working correctly - retrieved existing alocações with school name, class name, course name, and workload fields, ✅ LOTAÇÃO DELETION: DELETE /api/school-assignments/{id} working correctly - successfully deleted lotação and verified removal from database, ✅ ALOCAÇÃO DELETION: DELETE /api/teacher-assignments/{id} working correctly - successfully deleted alocação and verified removal from database, ✅ EMPTY STATE VERIFICATION: Confirmed empty states work correctly - when no lotações exist should show 'O servidor não está lotado em nenhuma escola.', when no alocações exist should show 'O professor não está alocado em nenhuma turma.', ✅ DATA STRUCTURE VERIFICATION: All API responses contain proper enriched data (school names, class names, course names) for UI display, ✅ DELETION VERIFICATION: Both deletion endpoints return success messages and properly remove records from database. All backend APIs supporting the Staff Management deletion UI are fully functional and ready for production use!"
 
+  - task: "Staff Management - Workload Formula Correction"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/Staff.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ WORKLOAD FORMULA CORRECTION SUCCESSFULLY IMPLEMENTED AND TESTED! Fixed the workload calculation formula in Staff Allocation modal: ✅ FORMULA CORRECTION: Changed from Math.ceil(workload / 40) to (workload / 40) for exact division, ✅ CODE CHANGES: Updated 3 locations in Staff.js - calcularCargaHoraria function (line 848), handleSaveAlocacao function (line 865), and component display (line 2014), ✅ EXPECTED RESULTS VERIFIED: Matemática (160h) → 4h/sem (160 / 40 = 4), Arte (40h) → 1h/sem (40 / 40 = 1), Total calculation shows sum of individual components, ✅ UI TESTING: Successfully accessed Staff Management page, opened 'Nova Alocação' modal, verified professor 'João Carlos Silva - 202500001' and school 'EMEIEF SORRISO DO ARAGUAIA' selection working, ✅ FORMULA DISPLAY: Components now show correct weekly hours calculation using exact division instead of rounding up, ✅ TOTAL CALCULATION: 'Carga Horária Semanal Total' correctly sums individual component calculations. The workload formula correction is working correctly and ready for production use!"
+
