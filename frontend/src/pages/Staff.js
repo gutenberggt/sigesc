@@ -1934,7 +1934,8 @@ export const Staff = () => {
                           })}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
