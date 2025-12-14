@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { schoolsAPI, usersAPI, classesAPI } from '@/services/api';
 
@@ -15,6 +15,11 @@ export const Dashboard = () => {
     students: 0
   });
   const [loading, setLoading] = useState(true);
+
+  // Redireciona professor para o dashboard específico
+  if (user?.role === 'professor') {
+    return <Navigate to="/professor" replace />;
+  }
 
   useEffect(() => {
     const loadStats = async () => {
