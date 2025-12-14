@@ -506,3 +506,40 @@ export const teacherAssignmentAPI = {
   }
 };
 
+// ============= PROFESSOR API =============
+export const professorAPI = {
+  // Retorna o perfil do professor logado
+  getProfile: async () => {
+    const response = await axios.get(`${API}/professor/me`);
+    return response.data;
+  },
+  
+  // Retorna as turmas do professor logado
+  getTurmas: async (academicYear = null) => {
+    const params = academicYear ? { academic_year: academicYear } : {};
+    const response = await axios.get(`${API}/professor/turmas`, { params });
+    return response.data;
+  },
+  
+  // Retorna os alunos de uma turma
+  getTurmaAlunos: async (classId) => {
+    const response = await axios.get(`${API}/professor/turmas/${classId}/alunos`);
+    return response.data;
+  },
+  
+  // Retorna as notas de uma turma/componente
+  getTurmaNotas: async (classId, courseId, bimestre = null) => {
+    const params = bimestre ? { bimestre } : {};
+    const response = await axios.get(`${API}/professor/turmas/${classId}/componentes/${courseId}/notas`, { params });
+    return response.data;
+  },
+  
+  // Retorna a frequência de uma turma/componente
+  getTurmaFrequencia: async (classId, courseId, month = null, year = null) => {
+    const params = {};
+    if (month) params.month = month;
+    if (year) params.year = year;
+    const response = await axios.get(`${API}/professor/turmas/${classId}/componentes/${courseId}/frequencia`, { params });
+    return response.data;
+  }
+};
