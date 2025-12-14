@@ -128,7 +128,33 @@ export const LearningObjects = () => {
       }
     };
     loadInitialData();
-  }, []);
+  }, [isProfessor, academicYear]);
+
+  // Atualiza turmas quando escola muda (para professor)
+  useEffect(() => {
+    if (isProfessor && selectedSchool) {
+      const filtered = professorTurmas.filter(t => t.school_id === selectedSchool);
+      setClasses(filtered);
+      // Se só tem uma turma, seleciona automaticamente
+      if (filtered.length === 1) {
+        setSelectedClass(filtered[0].id);
+      }
+    }
+  }, [isProfessor, selectedSchool, professorTurmas]);
+
+  // Atualiza componentes quando turma muda (para professor)
+  useEffect(() => {
+    if (isProfessor && selectedClass) {
+      const turma = professorTurmas.find(t => t.id === selectedClass);
+      if (turma && turma.componentes) {
+        setCourses(turma.componentes);
+        // Se só tem um componente, seleciona automaticamente
+        if (turma.componentes.length === 1) {
+          setSelectedCourse(turma.componentes[0].id);
+        }
+      }
+    }
+  }, [isProfessor, selectedClass, professorTurmas]);
 
   // Carrega registros quando filtros mudam
   useEffect(() => {
@@ -153,9 +179,13 @@ export const LearningObjects = () => {
 
   // Turmas filtradas por escola
   const filteredClasses = useMemo(() => {
+    if (isProfessor) {
+      // Para professor, já filtramos no estado classes
+      return classes;
+    }
     if (!selectedSchool) return classes;
     return classes.filter(c => c.school_id === selectedSchool);
-  }, [classes, selectedSchool]);
+  }, [classes, selectedSchool, isProfessor]);
 
   // Gera os dias do mês
   const calendarDays = useMemo(() => {
