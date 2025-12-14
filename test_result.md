@@ -203,7 +203,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Learning Objects (Objetos de Conhecimento) - Full CRUD Testing"
+    - "Staff Management - Workload Validation Feature Testing"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
