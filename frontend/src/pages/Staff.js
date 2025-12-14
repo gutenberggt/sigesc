@@ -862,7 +862,7 @@ export const Staff = () => {
       // Criar uma alocação para cada combinação turma + componente
       for (const turma of alocacaoTurmas) {
         for (const componente of alocacaoComponentes) {
-          const cargaHoraria = componente.workload ? Math.ceil(componente.workload / 4) : null;
+          const cargaHoraria = componente.workload ? Math.ceil(componente.workload / 40) : null;
           
           const data = {
             staff_id: alocacaoForm.staff_id,
