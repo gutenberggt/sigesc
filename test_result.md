@@ -119,6 +119,18 @@ backend:
         agent: "testing"
         comment: "✅ Course model correctly accepts optional school_id and nivel_ensino fields. Global components (school_id=null) working. Components filtered by education level (nivel_ensino: fundamental_anos_iniciais) as expected."
 
+  - task: "SIGESC Real-Time WebSocket Messaging System"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "🎉 SIGESC REAL-TIME WEBSOCKET MESSAGING SYSTEM FULLY TESTED AND WORKING! Comprehensive testing completed successfully for all requested features: ✅ WEBSOCKET CONNECTION: Successfully connected to wss://sigesc-school-1.preview.emergentagent.com/api/ws/{token} for both Admin (Gutenberg Barroso) and Professor (RICLEIDE DA SILVA GONÇALVES), ✅ PING/PONG COMMUNICATION: WebSocket ping/pong working correctly for both users - sent 'ping' and received 'pong' response immediately, ✅ AUTHENTICATION: JWT token-based WebSocket authentication working properly, ✅ CONNECTIONS API: GET /api/connections successfully retrieved 1 connection between Admin and Ricleide with status 'accepted' (Connection ID: 11faaa15-32cd-4712-a435-281f5bb5e28c), ✅ MESSAGE SENDING: POST /api/messages successfully sent messages from Admin to Ricleide (Message IDs: 4014d5e4-8335-43b0-9204-75eda99e068f, 9613300b-8edc-4488-8a1d-7ab785186a20), ✅ REAL-TIME NOTIFICATIONS: WebSocket listener successfully received 'new_message' notification in real-time when message was sent, notification contained correct message ID, content, and timestamp, ✅ MESSAGE VERIFICATION: Test messages found in conversation via GET /api/messages/{connection_id} with correct sender name (Gutenberg Barroso), content, and metadata, ✅ BIDIRECTIONAL COMMUNICATION: Both Admin and Ricleide can establish WebSocket connections simultaneously, ✅ SSL/TLS SUPPORT: WebSocket connections working over WSS (secure WebSocket) protocol. All test credentials working correctly: admin@sigesc.com/password and ricleidegoncalves@gmail.com/007724. The real-time messaging system is fully operational and ready for production use!"
+
 frontend:
   - task: "Grades Page - Por Turma tab with Two-Recovery System"
     implemented: true
