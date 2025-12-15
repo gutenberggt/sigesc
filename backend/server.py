@@ -1127,9 +1127,8 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
     with open(file_path, "wb") as buffer:
         buffer.write(content)
     
-    # Retorna URL do arquivo
-    backend_url = os.environ.get('BACKEND_URL', '')
-    file_url = f"/uploads/{unique_filename}"
+    # Retorna URL do arquivo através da API (garante CORS e headers corretos)
+    file_url = f"/api/uploads/{unique_filename}"
     
     return {
         "filename": unique_filename,
