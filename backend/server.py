@@ -3679,13 +3679,18 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
         # Decodificar token para obter user_id
         payload = decode_token(token)
         if not payload:
+            logger.warning(f"WebSocket: Token inválido")
             await websocket.close(code=4001)
             return
         
-        user_id = payload.get('user_id')
+        # O token usa 'sub' como chave para user_id
+        user_id = payload.get('sub')
         if not user_id:
+            logger.warning(f"WebSocket: Token sem user_id")
             await websocket.close(code=4001)
             return
+        
+        logger.info(f"WebSocket: Tentando conectar user_id={user_id}")
         
         # Conectar
         await connection_manager.connect(websocket, user_id)
