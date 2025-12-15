@@ -23,6 +23,18 @@ backend:
         agent: "testing"
         comment: "✅ Messages system fully functional. POST /api/messages successfully sends messages between connected users (Admin → Ricleide). GET /api/messages/{connection_id} retrieves 5 messages in conversation with test message found. GET /api/messages/conversations/list shows 1 conversation correctly. POST /api/messages/{message_id}/read marks messages as read. GET /api/messages/unread/count returns correct count (0). Validation correctly blocks messages to non-connected users."
 
+  - task: "Message Deletion System and Compliance Logs"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ MESSAGE DELETION SYSTEM FULLY TESTED AND WORKING! Comprehensive testing completed successfully: ✅ SCENARIO 1 - EXISTING LOGS VERIFICATION: GET /api/admin/message-logs/users returns 2 users with logs (Gutenberg and Ricleide found), GET /api/admin/message-logs/user/{admin_user_id} successfully retrieved admin logs (9 total messages, 0 attachments), ✅ SCENARIO 2 - MESSAGE DELETION FLOW: Successfully created test message, verified it appears in conversation, DELETE /api/messages/{message_id} successfully deleted message with proper response 'Mensagem excluída com sucesso', verified message count decreased by 1 and deleted message no longer appears in conversation, confirmed log was created for deleted message with proper fields (log ID, deleted_by, expires_at with 30-day retention), ✅ SCENARIO 3 - VALIDATION TESTS: Non-admin correctly denied access to logs (403), unauthorized users correctly denied message deletion (403), ✅ ADMIN ENDPOINTS VERIFICATION: GET /api/admin/message-logs successfully retrieved 11 logs with all expected fields (id, original_message_id, sender_id, receiver_id, content, logged_at, deleted_at, expires_at), DELETE /api/admin/message-logs/expired working correctly (0 expired logs removed), ✅ CONVERSATION DELETION VALIDATION: Invalid connection_id correctly returns 404. All message deletion and compliance logging functionality working perfectly according to specifications!"
+
   - task: "Courses API endpoint - GET /api/courses"
     implemented: true
     working: true
