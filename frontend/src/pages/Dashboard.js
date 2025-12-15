@@ -16,18 +16,20 @@ export const Dashboard = () => {
     students: 0
   });
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     // Não carrega stats se for professor (será redirecionado)
     if (user?.role === 'professor') return;
     
-    const loadStats = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        const [schoolsData, usersData, classesData] = await Promise.all([
+        const [schoolsData, usersData, classesData, profileData] = await Promise.all([
           schoolsAPI.getAll().catch(() => []),
           usersAPI.getAll().catch(() => []),
-          classesAPI.getAll().catch(() => [])
+          classesAPI.getAll().catch(() => []),
+          profilesAPI.getMyProfile().catch(() => null)
         ]);
 
         // Conta alunos (usuários com role 'aluno')
@@ -39,13 +41,15 @@ export const Dashboard = () => {
           classes: classesData.length,
           students: studentsCount
         });
+        
+        setProfile(profileData);
       } catch (error) {
-        console.error('Erro ao carregar estatísticas:', error);
+        console.error('Erro ao carregar dados:', error);
       } finally {
         setLoading(false);
       }
     };
-    loadStats();
+    loadData();
   }, [user?.role]);
 
   // Redireciona professor para o dashboard específico
