@@ -2744,7 +2744,7 @@ class SIGESCTester:
         self.log("\n" + "="*50)
         if success:
             self.log("🎉 All backend tests completed successfully!")
-            self.log("✅ LEARNING OBJECTS (OBJETOS DE CONHECIMENTO) FULLY TESTED")
+            self.log("✅ PROFILE IMAGE UPLOAD (FOTO DE PERFIL E CAPA) FULLY TESTED")
         else:
             self.log("❌ Some tests failed - check logs above")
         self.log("="*50)
