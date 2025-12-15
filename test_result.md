@@ -1,4 +1,28 @@
 backend:
+  - task: "Connections System - Connection Management APIs"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Connections system working correctly. GET /api/connections returns 1 connection, GET /api/connections/status/{user_id} correctly shows 'accepted' status for Admin-Ricleide connection (ID: 11faaa15-32cd-4712-a435-281f5bb5e28c). GET /api/connections/pending and /api/connections/sent working properly. Minor: Self-invitation validation needs improvement (currently allows self-invites)."
+
+  - task: "Messages System - Messaging between Connected Users"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ Messages system fully functional. POST /api/messages successfully sends messages between connected users (Admin → Ricleide). GET /api/messages/{connection_id} retrieves 5 messages in conversation with test message found. GET /api/messages/conversations/list shows 1 conversation correctly. POST /api/messages/{message_id}/read marks messages as read. GET /api/messages/unread/count returns correct count (0). Validation correctly blocks messages to non-connected users."
+
   - task: "Courses API endpoint - GET /api/courses"
     implemented: true
     working: true
