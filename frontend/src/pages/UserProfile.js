@@ -772,47 +772,51 @@ export const UserProfile = () => {
           </CardContent>
         </Card>
 
-        {/* Sobre */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <User className="text-blue-600" />
-              Sobre
-            </CardTitle>
-            {canEdit && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => {
-                  setEditData({ sobre: profile.sobre || '' });
-                  setShowEditModal(true);
-                }}
-              >
-                <Edit size={16} />
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            {profile.sobre ? (
-              <p className="text-gray-700 whitespace-pre-line">{profile.sobre}</p>
-            ) : (
-              <p className="text-gray-400 italic">
-                {canEdit ? 'Clique em editar para adicionar uma descrição sobre você.' : 'Nenhuma descrição adicionada.'}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        {/* Layout 75% / 25% */}
+        <div className="flex gap-6">
+          {/* Coluna principal (75%) */}
+          <div className="flex-1 space-y-6" style={{ maxWidth: 'calc(75% - 12px)' }}>
+            {/* Sobre */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <User className="text-blue-600" />
+                  Sobre
+                </CardTitle>
+                {canEdit && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setEditData({ sobre: profile.sobre || '' });
+                      setShowEditModal(true);
+                    }}
+                  >
+                    <Edit size={16} />
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {profile.sobre ? (
+                  <p className="text-gray-700 whitespace-pre-line">{profile.sobre}</p>
+                ) : (
+                  <p className="text-gray-400 italic">
+                    {canEdit ? 'Clique em editar para adicionar uma descrição sobre você.' : 'Nenhuma descrição adicionada.'}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* Experiência */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Briefcase className="text-blue-600" />
-              Experiência
-            </CardTitle>
-            {canEdit && (
-              <Button 
-                variant="ghost" 
+            {/* Experiência */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Briefcase className="text-blue-600" />
+                  Experiência
+                </CardTitle>
+                {canEdit && (
+                  <Button 
+                    variant="ghost" 
                 size="sm"
                 onClick={() => {
                   setEditData({});
