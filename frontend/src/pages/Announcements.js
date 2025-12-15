@@ -267,6 +267,19 @@ const Announcements = () => {
   return (
     <Layout>
       <div className="space-y-6">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <button 
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+          >
+            <Home size={16} />
+            Dashboard
+          </button>
+          <span>/</span>
+          <span className="text-gray-900 font-medium">Avisos</span>
+        </div>
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
