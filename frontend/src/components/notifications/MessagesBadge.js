@@ -197,7 +197,7 @@ export const MessagesBadge = () => {
           <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
             <button
               onClick={() => {
-                navigate('/perfil');
+                navigate('/profile');
                 setIsOpen(false);
               }}
               className="w-full text-center text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center justify-center gap-1"
