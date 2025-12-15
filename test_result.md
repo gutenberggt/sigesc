@@ -251,7 +251,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Message Deletion System and Compliance Logs - COMPLETED"
+    - "SIGESC Real-Time WebSocket Messaging System - COMPLETED"
   stuck_tasks: 
     - "Staff Management - Workload Validation Feature Testing"
   test_all: false
