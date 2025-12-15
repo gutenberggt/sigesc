@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from models import (
     User, UserCreate, UserUpdate, UserResponse, UserInDB,
     LoginRequest, TokenResponse, RefreshTokenRequest,
+    UserProfile, UserProfileCreate, UserProfileUpdate,
+    ProfileExperience, ProfileEducation, ProfileSkill, ProfileCertification,
     School, SchoolCreate, SchoolUpdate,
     Class, ClassCreate, ClassUpdate,
     Course, CourseCreate, CourseUpdate,
