@@ -137,6 +137,15 @@ function App() {
             }
           />
           
+          <Route
+            path="/admin/logs"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <MessageLogs />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* Rotas do Professor */}
           <Route
             path="/professor"
