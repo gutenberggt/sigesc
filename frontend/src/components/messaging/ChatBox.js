@@ -20,6 +20,24 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
   const menuRef = useRef(null);
   const isMountedRef = useRef(true);
   const reconnectTimeoutRef = useRef(null);
+  
+  // Refs para evitar closure issues - sempre terão os valores atuais
+  const connectionRef = useRef(connection);
+  const userRef = useRef(user);
+  const onMessageReceivedRef = useRef(onMessageReceived);
+  
+  // Atualizar refs quando os valores mudarem
+  useEffect(() => {
+    connectionRef.current = connection;
+  }, [connection]);
+  
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+  
+  useEffect(() => {
+    onMessageReceivedRef.current = onMessageReceived;
+  }, [onMessageReceived]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,7 +54,7 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
     }
   };
 
-  // WebSocket setup - executado uma vez quando o componente monta
+  // WebSocket setup
   useEffect(() => {
     isMountedRef.current = true;
     let ws = null;
@@ -68,7 +86,7 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send('ping');
           }
-        }, 25000); // Ping a cada 25 segundos (antes do timeout de 30s)
+        }, 25000);
       };
 
       ws.onmessage = (event) => {
@@ -81,23 +99,39 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
           
           if (data.type === 'new_message' && data.message) {
             const msg = data.message;
-            // Verificar se a mensagem é do outro usuário para mim
-            const isFromOtherUser = msg.sender_id === connection.user_id;
-            const isToMe = msg.receiver_id === user?.id;
+            // USAR REFS para obter valores ATUAIS (evita closure issue)
+            const currentConnection = connectionRef.current;
+            const currentUser = userRef.current;
             
+            // Verificar se a mensagem é do outro usuário para mim
+            const isFromOtherUser = msg.sender_id === currentConnection?.user_id;
+            const isToMe = msg.receiver_id === currentUser?.id;
+            
+            console.log('ChatBox WebSocket: sender_id:', msg.sender_id);
+            console.log('ChatBox WebSocket: connection.user_id:', currentConnection?.user_id);
+            console.log('ChatBox WebSocket: receiver_id:', msg.receiver_id);
+            console.log('ChatBox WebSocket: user.id:', currentUser?.id);
             console.log('ChatBox WebSocket: isFromOtherUser:', isFromOtherUser, 'isToMe:', isToMe);
             
             if (isFromOtherUser && isToMe) {
-              console.log('ChatBox WebSocket: Adicionando mensagem ao chat!');
+              console.log('ChatBox WebSocket: ✓ Adicionando mensagem ao chat!');
               setMessages(prev => [...prev, msg]);
-              onMessageReceived?.(msg);
+              onMessageReceivedRef.current?.(msg);
+            } else {
+              console.log('ChatBox WebSocket: ✗ Mensagem filtrada (não é para este chat)');
             }
           } else if (data.type === 'message_deleted') {
             setMessages(prev => prev.filter(m => m.id !== data.message_id));
-          } else if (data.type === 'conversation_deleted' && data.connection_id === connection.id) {
-            setMessages([]);
+          } else if (data.type === 'conversation_deleted') {
+            const currentConnection = connectionRef.current;
+            if (data.connection_id === currentConnection?.id) {
+              setMessages([]);
+            }
           }
         } catch (error) {
+          console.error('ChatBox WebSocket: Erro ao parsear', error);
+        }
+      };
           console.error('ChatBox WebSocket: Erro ao parsear', error);
         }
       };
