@@ -2704,7 +2704,7 @@ class SIGESCTester:
 
     def run_all_tests(self):
         """Run all backend tests"""
-        self.log("🚀 Starting SIGESC Backend API Tests - PROFILE IMAGE UPLOAD TESTING")
+        self.log("🚀 Starting SIGESC Backend API Tests - CONNECTIONS AND MESSAGES TESTING")
         self.log(f"🌐 Backend URL: {BACKEND_URL}")
         
         # Login as admin
@@ -2725,7 +2725,11 @@ class SIGESCTester:
         success = True
         
         try:
-            # MAIN FOCUS: Test Profile Image Upload (NEW REVIEW REQUEST)
+            # MAIN FOCUS: Test Connections and Messages System (NEW REVIEW REQUEST)
+            if not self.test_connections_system():
+                success = False
+            
+            # Test Profile Image Upload
             if not self.test_profile_image_upload():
                 success = False
             
@@ -2744,7 +2748,7 @@ class SIGESCTester:
         self.log("\n" + "="*50)
         if success:
             self.log("🎉 All backend tests completed successfully!")
-            self.log("✅ PROFILE IMAGE UPLOAD (FOTO DE PERFIL E CAPA) FULLY TESTED")
+            self.log("✅ CONNECTIONS AND MESSAGES SYSTEM FULLY TESTED")
         else:
             self.log("❌ Some tests failed - check logs above")
         self.log("="*50)
