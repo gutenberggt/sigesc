@@ -1,9 +1,10 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
-import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase } from 'lucide-react';
+import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { schoolsAPI, usersAPI, classesAPI } from '@/services/api';
+import { schoolsAPI, usersAPI, classesAPI, profilesAPI } from '@/services/api';
+import { Card, CardContent } from '@/components/ui/card';
 
 export const Dashboard = () => {
   const { user } = useAuth();
