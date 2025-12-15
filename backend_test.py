@@ -2704,7 +2704,7 @@ class SIGESCTester:
 
     def run_all_tests(self):
         """Run all backend tests"""
-        self.log("🚀 Starting SIGESC Backend API Tests - LEARNING OBJECTS TESTING")
+        self.log("🚀 Starting SIGESC Backend API Tests - PROFILE IMAGE UPLOAD TESTING")
         self.log(f"🌐 Backend URL: {BACKEND_URL}")
         
         # Login as admin
