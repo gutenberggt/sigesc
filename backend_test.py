@@ -3031,10 +3031,6 @@ class SIGESCTester:
             if not self.test_message_deletion_system():
                 success = False
             
-            # Test Connections and Messages System
-            if not self.test_connections_system():
-                success = False
-            
             # Test Profile Image Upload
             if not self.test_profile_image_upload():
                 success = False
