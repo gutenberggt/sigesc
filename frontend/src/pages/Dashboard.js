@@ -187,7 +187,65 @@ export const Dashboard = () => {
           })}
         </div>
 
-        {/* Menu de navegação - Admin/Secretário/SEMED */}
+        {/* Acesso Rápido - Segunda linha de blocos */}
+        {['admin', 'secretario', 'semed'].includes(user?.role) && (
+          <div>
+            <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <Card 
+                className="cursor-pointer hover:bg-blue-50 transition-colors"
+                onClick={() => navigate('/admin/schools')}
+              >
+                <CardContent className="p-4 text-center">
+                  <School className="mx-auto mb-2 text-blue-600" size={32} />
+                  <p className="font-medium">Escolas</p>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:bg-green-50 transition-colors"
+                onClick={() => navigate('/admin/users')}
+              >
+                <CardContent className="p-4 text-center">
+                  <Users className="mx-auto mb-2 text-green-600" size={32} />
+                  <p className="font-medium">Usuários</p>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:bg-purple-50 transition-colors"
+                onClick={() => navigate('/admin/classes')}
+              >
+                <CardContent className="p-4 text-center">
+                  <BookOpen className="mx-auto mb-2 text-purple-600" size={32} />
+                  <p className="font-medium">Turmas</p>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:bg-orange-50 transition-colors"
+                onClick={() => navigate('/admin/students')}
+              >
+                <CardContent className="p-4 text-center">
+                  <GraduationCap className="mx-auto mb-2 text-orange-600" size={32} />
+                  <p className="font-medium">Alunos</p>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:bg-indigo-50 transition-colors"
+                onClick={() => navigate('/profile')}
+              >
+                <CardContent className="p-4 text-center">
+                  <User className="mx-auto mb-2 text-indigo-600" size={32} />
+                  <p className="font-medium">Meu Perfil</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Menu de navegação completo - Admin/Secretário/SEMED */}
         {['admin', 'secretario', 'semed'].includes(user?.role) && (
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
