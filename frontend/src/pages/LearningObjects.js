@@ -363,19 +363,21 @@ export const LearningObjects = () => {
 
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
+          <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(user?.role === 'professor' ? '/professor' : '/dashboard')}
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors mb-2"
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <Home size={18} />
               <span>Início</span>
             </button>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <BookOpen className="text-purple-600" />
-              Objetos de Conhecimento
-            </h1>
-            <p className="text-gray-600">Registro de conteúdos ministrados</p>
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <BookOpen className="text-purple-600" />
+                Objetos de Conhecimento
+              </h1>
+              <p className="text-gray-600 text-sm">Registro de conteúdos ministrados</p>
+            </div>
           </div>
         </div>
 
