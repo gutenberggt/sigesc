@@ -283,20 +283,21 @@ export const Classes = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Botão Voltar */}
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-          data-testid="back-to-dashboard-button"
-        >
-          <Home size={18} />
-          <span>Início</span>
-        </button>
-
+        {/* Header */}
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900" data-testid="classes-title">Turmas</h1>
-            <p className="text-gray-600 mt-1">Gerencie as turmas das escolas</p>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+              data-testid="back-to-dashboard-button"
+            >
+              <Home size={18} />
+              <span>Início</span>
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900" data-testid="classes-title">Turmas</h1>
+              <p className="text-gray-600 text-sm">Gerencie as turmas das escolas</p>
+            </div>
           </div>
           {canEdit && (
             <button
