@@ -71,6 +71,59 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ============= WEBSOCKET CONNECTION MANAGER =============
+
+class ConnectionManager:
+    """Gerenciador de conexões WebSocket para mensagens em tempo real"""
+    
+    def __init__(self):
+        # Mapeia user_id -> lista de WebSocket connections
+        self.active_connections: Dict[str, List[WebSocket]] = {}
+    
+    async def connect(self, websocket: WebSocket, user_id: str):
+        """Aceita nova conexão WebSocket"""
+        await websocket.accept()
+        if user_id not in self.active_connections:
+            self.active_connections[user_id] = []
+        self.active_connections[user_id].append(websocket)
+        logger.info(f"WebSocket conectado: user_id={user_id}")
+    
+    def disconnect(self, websocket: WebSocket, user_id: str):
+        """Remove conexão WebSocket"""
+        if user_id in self.active_connections:
+            if websocket in self.active_connections[user_id]:
+                self.active_connections[user_id].remove(websocket)
+            if not self.active_connections[user_id]:
+                del self.active_connections[user_id]
+        logger.info(f"WebSocket desconectado: user_id={user_id}")
+    
+    async def send_message(self, user_id: str, message: dict):
+        """Envia mensagem para um usuário específico"""
+        if user_id in self.active_connections:
+            disconnected = []
+            for connection in self.active_connections[user_id]:
+                try:
+                    await connection.send_json(message)
+                except Exception as e:
+                    logger.error(f"Erro ao enviar mensagem WebSocket: {e}")
+                    disconnected.append(connection)
+            # Remover conexões falhas
+            for conn in disconnected:
+                self.active_connections[user_id].remove(conn)
+    
+    async def send_notification(self, user_id: str, notification: dict):
+        """Envia notificação para um usuário"""
+        await self.send_message(user_id, notification)
+    
+    async def broadcast(self, message: dict, exclude_user_id: str = None):
+        """Envia mensagem para todos os usuários conectados"""
+        for user_id, connections in self.active_connections.items():
+            if user_id != exclude_user_id:
+                await self.send_message(user_id, message)
+
+# Instância global do gerenciador de conexões
+connection_manager = ConnectionManager()
+
 # ============= AUTH ROUTES =============
 
 @api_router.post("/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
