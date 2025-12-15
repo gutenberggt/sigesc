@@ -39,7 +39,7 @@ const Announcements = () => {
   // Data for selectors
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
-  const [staff, setStaff] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
 
   // Fetch announcements
   const fetchAnnouncements = async () => {
@@ -57,14 +57,15 @@ const Announcements = () => {
   // Fetch data for selectors
   const fetchSelectorData = async () => {
     try {
-      const [schoolsData, classesData, staffData] = await Promise.all([
+      const [schoolsData, classesData, usersData] = await Promise.all([
         schoolsAPI.list(),
         classesAPI.list(),
-        staffAPI.list()
+        usersAPI.list()
       ]);
       setSchools(schoolsData);
       setClasses(classesData);
-      setStaff(staffData);
+      // Filtrar apenas usuários ativos
+      setAllUsers(usersData.filter(u => u.status === 'active'));
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
     }
