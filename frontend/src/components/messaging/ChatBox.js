@@ -53,14 +53,19 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
 
         try {
           const data = JSON.parse(event.data);
+          console.log('ChatBox WebSocket: Mensagem recebida', data);
           
           if (data.type === 'new_message' && data.message) {
             // Verificar se a mensagem é para esta conversa
             const msg = data.message;
-            if (
-              (msg.sender_id === connection.user_id || msg.receiver_id === connection.user_id) &&
-              msg.sender_id !== user?.id // Não duplicar mensagens enviadas por mim
-            ) {
+            // A mensagem pertence a esta conversa se:
+            // - Foi enviada pelo outro usuário (connection.user_id) para mim, OU
+            // - Foi enviada por mim para o outro usuário (já adicionada localmente, ignorar)
+            const isFromOtherUser = msg.sender_id === connection.user_id;
+            const isToMe = msg.receiver_id === user?.id;
+            
+            if (isFromOtherUser && isToMe) {
+              // Mensagem recebida do outro usuário
               setMessages(prev => [...prev, msg]);
               onMessageReceived?.(msg);
             }
