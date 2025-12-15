@@ -2720,7 +2720,7 @@ class SIGESCTester:
         
         # Test data from review request
         connection_id = "11faaa15-32cd-4712-a435-281f5bb5e28c"  # Admin-Ricleide connection
-        admin_user_id = "5edcfabe-3a6d-44f4-93e3-61b16c7d78e6"
+        admin_user_id = "5edcfabe-3a6d-44f4-9310-9bacf3a62491"  # Correct admin user ID
         ricleide_user_id = "b97578dd-bc66-446c-88d7-686b423af399"
         
         # Scenario 1: Verify existing logs
