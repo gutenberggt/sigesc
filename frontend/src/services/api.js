@@ -298,6 +298,10 @@ export const uploadAPI = {
     if (!url) return null;
     // Se já é uma URL completa, retorna como está
     if (url.startsWith('http')) return url;
+    // Se é um caminho antigo /uploads/, converte para /api/uploads/
+    if (url.startsWith('/uploads/')) {
+      return `${BACKEND_URL}/api${url}`;
+    }
     // Se é um caminho relativo, adiciona a URL do backend
     return `${BACKEND_URL}${url}`;
   }
