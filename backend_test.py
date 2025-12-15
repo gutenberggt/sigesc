@@ -3206,7 +3206,7 @@ class SIGESCTester:
             # Step 8: Test filtering announcements by recipient
             self.log("8️⃣ Testing announcement filtering by recipient...")
             response = requests.get(
-                f"{API_BASE}/announcements?recipient_type=role&recipient_value=professor",
+                f"{API_BASE}/announcements?recipient_type=role&target_role=professor",
                 headers=self.get_headers(self.admin_token)
             )
             
