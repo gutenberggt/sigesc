@@ -1097,6 +1097,29 @@ export const UserProfile = () => {
             )}
           </CardContent>
         </Card>
+          </div>
+
+          {/* Coluna lateral - Conexões (25%) */}
+          {isOwnProfile && (
+            <div className="w-80 flex-shrink-0">
+              <Card className="sticky top-4 h-[calc(100vh-120px)]">
+                <ConnectionsList 
+                  onSelectConnection={handleSelectConnection}
+                  onOpenChat={handleOpenChat}
+                  selectedConnectionId={selectedConnection?.id}
+                />
+              </Card>
+            </div>
+          )}
+        </div>
+
+        {/* Chat Box */}
+        {activeChat && (
+          <ChatBox
+            connection={activeChat}
+            onClose={handleCloseChat}
+          />
+        )}
 
         {/* Modal - Editar Perfil */}
         <Modal
