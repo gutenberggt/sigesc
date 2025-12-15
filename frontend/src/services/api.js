@@ -607,5 +607,11 @@ export const profilesAPI = {
   updateProfile: async (userId, data) => {
     const response = await axios.put(`${API}/profiles/${userId}`, data);
     return response.data;
+  },
+  
+  // Buscar perfis públicos por nome (mínimo 3 caracteres)
+  search: async (query) => {
+    const response = await axios.get(`${API}/profiles/search`, { params: { q: query } });
+    return response.data;
   }
 };
