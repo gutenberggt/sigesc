@@ -1,16 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/Modal';
 import { useAuth } from '@/contexts/AuthContext';
-import { profilesAPI, uploadAPI } from '@/services/api';
+import { profilesAPI, uploadAPI, connectionsAPI } from '@/services/api';
+import { ConnectionsList, ChatBox } from '@/components/messaging';
 import { 
   Home, User, Edit, Plus, Trash2, MapPin, Phone, Mail, Globe, Linkedin,
   Briefcase, GraduationCap, Award, Star, Camera, Lock, Unlock, Save, X,
   Calendar, Building2, CheckCircle, AlertCircle, Search, Facebook, Instagram,
-  MessageCircle, Upload
+  MessageCircle, Upload, UserPlus, UserCheck, Clock, Users
 } from 'lucide-react';
 
 // Mapa de roles para exibição
