@@ -2725,7 +2725,11 @@ class SIGESCTester:
         success = True
         
         try:
-            # MAIN FOCUS: Test Learning Objects Full Feature (NEW REVIEW REQUEST)
+            # MAIN FOCUS: Test Profile Image Upload (NEW REVIEW REQUEST)
+            if not self.test_profile_image_upload():
+                success = False
+            
+            # Test Learning Objects Full Feature
             if not self.test_learning_objects_full_feature():
                 success = False
             
