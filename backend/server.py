@@ -3667,6 +3667,385 @@ async def cleanup_expired_logs(request: Request):
     
     return {"message": f"{result.deleted_count} log(s) expirado(s) removido(s)"}
 
+# ============= ANNOUNCEMENT ENDPOINTS =============
+
+def can_user_create_announcement(user: dict, recipient: dict) -> bool:
+    """Verifica se o usuário pode criar um aviso para os destinatários especificados"""
+    user_role = user.get('role', '')
+    user_school_links = user.get('school_links', [])
+    user_school_ids = [link['school_id'] for link in user_school_links]
+    
+    recipient_type = recipient.get('type', '')
+    
+    # Admin pode enviar para qualquer um
+    if user_role == 'admin':
+        return True
+    
+    # Secretário, Diretor, Coordenador - limitado à escola
+    if user_role in ['secretario', 'diretor', 'coordenador']:
+        if recipient_type == 'school':
+            # Só pode enviar para escolas vinculadas
+            target_schools = recipient.get('school_ids', [])
+            return all(s in user_school_ids for s in target_schools)
+        elif recipient_type == 'class':
+            # Classes precisam ser da escola vinculada (verificar no momento da criação)
+            return True
+        elif recipient_type == 'individual':
+            # Pode enviar para usuários da escola
+            return True
+        elif recipient_type == 'role':
+            # Pode enviar para roles dentro da escola
+            return True
+    
+    # Professor - limitado às turmas
+    if user_role == 'professor':
+        if recipient_type in ['class', 'individual']:
+            # Verificar se as turmas são vinculadas ao professor
+            return True
+        return False
+    
+    return False
+
+async def get_announcement_target_users(db, recipient: dict, sender: dict) -> List[str]:
+    """Obtém a lista de user_ids que devem receber o aviso"""
+    target_user_ids = []
+    recipient_type = recipient.get('type', '')
+    sender_role = sender.get('role', '')
+    sender_school_ids = [link['school_id'] for link in sender.get('school_links', [])]
+    
+    if recipient_type == 'individual':
+        # Usuários específicos
+        target_user_ids = recipient.get('user_ids', [])
+    
+    elif recipient_type == 'role':
+        # Todos os usuários com os papéis especificados
+        target_roles = recipient.get('target_roles', [])
+        query = {'role': {'$in': target_roles}, 'status': 'active'}
+        
+        # Se não for admin, limitar à escola
+        if sender_role != 'admin':
+            query['school_links.school_id'] = {'$in': sender_school_ids}
+        
+        users = await db.users.find(query, {'_id': 0, 'id': 1}).to_list(10000)
+        target_user_ids = [u['id'] for u in users]
+    
+    elif recipient_type == 'school':
+        # Todos os usuários das escolas
+        school_ids = recipient.get('school_ids', [])
+        users = await db.users.find(
+            {'school_links.school_id': {'$in': school_ids}, 'status': 'active'},
+            {'_id': 0, 'id': 1}
+        ).to_list(10000)
+        target_user_ids = [u['id'] for u in users]
+    
+    elif recipient_type == 'class':
+        # Alunos/responsáveis das turmas (via matrículas)
+        class_ids = recipient.get('class_ids', [])
+        enrollments = await db.enrollments.find(
+            {'class_id': {'$in': class_ids}, 'status': 'active'},
+            {'_id': 0, 'student_id': 1}
+        ).to_list(10000)
+        
+        student_ids = [e['student_id'] for e in enrollments]
+        
+        # Buscar usuários dos alunos (se houver) e responsáveis
+        students = await db.students.find(
+            {'id': {'$in': student_ids}},
+            {'_id': 0, 'user_id': 1, 'guardian_id': 1}
+        ).to_list(10000)
+        
+        for student in students:
+            if student.get('user_id'):
+                target_user_ids.append(student['user_id'])
+            # Buscar usuário do responsável
+            if student.get('guardian_id'):
+                guardian = await db.guardians.find_one(
+                    {'id': student['guardian_id']},
+                    {'_id': 0, 'user_id': 1}
+                )
+                if guardian and guardian.get('user_id'):
+                    target_user_ids.append(guardian['user_id'])
+    
+    return list(set(target_user_ids))  # Remover duplicatas
+
+@api_router.post("/announcements", response_model=AnnouncementResponse, status_code=status.HTTP_201_CREATED)
+async def create_announcement(announcement_data: AnnouncementCreate, request: Request):
+    """Criar um novo aviso"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    # Verificar permissão
+    if not can_user_create_announcement(current_user, announcement_data.recipient.model_dump()):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Você não tem permissão para enviar avisos para esses destinatários"
+        )
+    
+    # Buscar foto do remetente
+    profile = await db.user_profiles.find_one({'user_id': current_user['id']}, {'_id': 0})
+    sender_foto = profile.get('foto_url') if profile else None
+    
+    # Criar aviso
+    announcement = {
+        'id': str(uuid.uuid4()),
+        'title': announcement_data.title,
+        'content': announcement_data.content,
+        'recipient': announcement_data.recipient.model_dump(),
+        'sender_id': current_user['id'],
+        'sender_name': current_user['full_name'],
+        'sender_role': current_user['role'],
+        'sender_foto_url': sender_foto,
+        'created_at': datetime.now(timezone.utc).isoformat(),
+        'updated_at': None
+    }
+    
+    # Obter lista de usuários destinatários para facilitar buscas
+    target_users = await get_announcement_target_users(db, announcement_data.recipient.model_dump(), current_user)
+    announcement['target_user_ids'] = target_users
+    
+    await db.announcements.insert_one(announcement)
+    
+    # Notificar via WebSocket
+    for user_id in target_users:
+        await connection_manager.send_notification(user_id, {
+            'type': 'new_announcement',
+            'announcement': {
+                'id': announcement['id'],
+                'title': announcement['title'],
+                'sender_name': announcement['sender_name']
+            }
+        })
+    
+    return AnnouncementResponse(
+        id=announcement['id'],
+        title=announcement['title'],
+        content=announcement['content'],
+        recipient=announcement_data.recipient,
+        sender_id=announcement['sender_id'],
+        sender_name=announcement['sender_name'],
+        sender_role=announcement['sender_role'],
+        sender_foto_url=sender_foto,
+        created_at=datetime.fromisoformat(announcement['created_at']),
+        updated_at=None,
+        is_read=False,
+        read_at=None
+    )
+
+@api_router.get("/announcements", response_model=List[AnnouncementResponse])
+async def list_announcements(request: Request, skip: int = 0, limit: int = 50):
+    """Listar avisos do usuário atual"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    user_id = current_user['id']
+    
+    # Buscar avisos onde o usuário é destinatário ou remetente
+    announcements = await db.announcements.find(
+        {'$or': [
+            {'target_user_ids': user_id},
+            {'sender_id': user_id}
+        ]},
+        {'_id': 0}
+    ).sort('created_at', -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Buscar status de leitura
+    read_statuses = await db.announcement_reads.find(
+        {'user_id': user_id},
+        {'_id': 0}
+    ).to_list(1000)
+    
+    read_map = {r['announcement_id']: r['read_at'] for r in read_statuses}
+    
+    result = []
+    for ann in announcements:
+        is_read = ann['id'] in read_map
+        read_at = read_map.get(ann['id'])
+        
+        result.append(AnnouncementResponse(
+            id=ann['id'],
+            title=ann['title'],
+            content=ann['content'],
+            recipient=AnnouncementRecipient(**ann['recipient']),
+            sender_id=ann['sender_id'],
+            sender_name=ann['sender_name'],
+            sender_role=ann['sender_role'],
+            sender_foto_url=ann.get('sender_foto_url'),
+            created_at=datetime.fromisoformat(ann['created_at']) if isinstance(ann['created_at'], str) else ann['created_at'],
+            updated_at=datetime.fromisoformat(ann['updated_at']) if ann.get('updated_at') and isinstance(ann['updated_at'], str) else ann.get('updated_at'),
+            is_read=is_read,
+            read_at=datetime.fromisoformat(read_at) if read_at and isinstance(read_at, str) else read_at
+        ))
+    
+    return result
+
+@api_router.get("/announcements/{announcement_id}", response_model=AnnouncementResponse)
+async def get_announcement(announcement_id: str, request: Request):
+    """Obter detalhes de um aviso"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    user_id = current_user['id']
+    
+    announcement = await db.announcements.find_one(
+        {'id': announcement_id},
+        {'_id': 0}
+    )
+    
+    if not announcement:
+        raise HTTPException(status_code=404, detail="Aviso não encontrado")
+    
+    # Verificar se o usuário tem acesso
+    if user_id not in announcement.get('target_user_ids', []) and user_id != announcement['sender_id']:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    # Buscar status de leitura
+    read_status = await db.announcement_reads.find_one(
+        {'announcement_id': announcement_id, 'user_id': user_id},
+        {'_id': 0}
+    )
+    
+    return AnnouncementResponse(
+        id=announcement['id'],
+        title=announcement['title'],
+        content=announcement['content'],
+        recipient=AnnouncementRecipient(**announcement['recipient']),
+        sender_id=announcement['sender_id'],
+        sender_name=announcement['sender_name'],
+        sender_role=announcement['sender_role'],
+        sender_foto_url=announcement.get('sender_foto_url'),
+        created_at=datetime.fromisoformat(announcement['created_at']) if isinstance(announcement['created_at'], str) else announcement['created_at'],
+        updated_at=datetime.fromisoformat(announcement['updated_at']) if announcement.get('updated_at') and isinstance(announcement['updated_at'], str) else announcement.get('updated_at'),
+        is_read=read_status is not None,
+        read_at=datetime.fromisoformat(read_status['read_at']) if read_status and isinstance(read_status.get('read_at'), str) else read_status.get('read_at') if read_status else None
+    )
+
+@api_router.put("/announcements/{announcement_id}", response_model=AnnouncementResponse)
+async def update_announcement(announcement_id: str, update_data: AnnouncementUpdate, request: Request):
+    """Atualizar um aviso (apenas o remetente pode editar)"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    announcement = await db.announcements.find_one({'id': announcement_id}, {'_id': 0})
+    
+    if not announcement:
+        raise HTTPException(status_code=404, detail="Aviso não encontrado")
+    
+    if announcement['sender_id'] != current_user['id'] and current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Apenas o remetente pode editar o aviso")
+    
+    # Atualizar campos
+    update_fields = {}
+    if update_data.title is not None:
+        update_fields['title'] = update_data.title
+    if update_data.content is not None:
+        update_fields['content'] = update_data.content
+    if update_data.recipient is not None:
+        update_fields['recipient'] = update_data.recipient.model_dump()
+        # Recalcular destinatários
+        target_users = await get_announcement_target_users(db, update_data.recipient.model_dump(), current_user)
+        update_fields['target_user_ids'] = target_users
+    
+    update_fields['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    await db.announcements.update_one(
+        {'id': announcement_id},
+        {'$set': update_fields}
+    )
+    
+    # Buscar aviso atualizado
+    updated = await db.announcements.find_one({'id': announcement_id}, {'_id': 0})
+    
+    return AnnouncementResponse(
+        id=updated['id'],
+        title=updated['title'],
+        content=updated['content'],
+        recipient=AnnouncementRecipient(**updated['recipient']),
+        sender_id=updated['sender_id'],
+        sender_name=updated['sender_name'],
+        sender_role=updated['sender_role'],
+        sender_foto_url=updated.get('sender_foto_url'),
+        created_at=datetime.fromisoformat(updated['created_at']) if isinstance(updated['created_at'], str) else updated['created_at'],
+        updated_at=datetime.fromisoformat(updated['updated_at']) if updated.get('updated_at') and isinstance(updated['updated_at'], str) else updated.get('updated_at'),
+        is_read=False,
+        read_at=None
+    )
+
+@api_router.delete("/announcements/{announcement_id}")
+async def delete_announcement(announcement_id: str, request: Request):
+    """Excluir um aviso (apenas o remetente ou admin pode excluir)"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    announcement = await db.announcements.find_one({'id': announcement_id}, {'_id': 0})
+    
+    if not announcement:
+        raise HTTPException(status_code=404, detail="Aviso não encontrado")
+    
+    if announcement['sender_id'] != current_user['id'] and current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Apenas o remetente ou admin pode excluir o aviso")
+    
+    # Excluir aviso e leituras relacionadas
+    await db.announcements.delete_one({'id': announcement_id})
+    await db.announcement_reads.delete_many({'announcement_id': announcement_id})
+    
+    return {"message": "Aviso excluído com sucesso"}
+
+@api_router.post("/announcements/{announcement_id}/read")
+async def mark_announcement_read(announcement_id: str, request: Request):
+    """Marcar um aviso como lido"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    user_id = current_user['id']
+    
+    announcement = await db.announcements.find_one({'id': announcement_id}, {'_id': 0})
+    
+    if not announcement:
+        raise HTTPException(status_code=404, detail="Aviso não encontrado")
+    
+    # Verificar se o usuário tem acesso
+    if user_id not in announcement.get('target_user_ids', []) and user_id != announcement['sender_id']:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    # Verificar se já foi lido
+    existing = await db.announcement_reads.find_one(
+        {'announcement_id': announcement_id, 'user_id': user_id}
+    )
+    
+    if not existing:
+        await db.announcement_reads.insert_one({
+            'id': str(uuid.uuid4()),
+            'announcement_id': announcement_id,
+            'user_id': user_id,
+            'read_at': datetime.now(timezone.utc).isoformat()
+        })
+    
+    return {"message": "Aviso marcado como lido"}
+
+@api_router.get("/notifications/unread-count", response_model=NotificationCount)
+async def get_unread_count(request: Request):
+    """Obter contagem de notificações não lidas (mensagens + avisos)"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    user_id = current_user['id']
+    
+    # Contar mensagens não lidas
+    unread_messages = await db.messages.count_documents({
+        'receiver_id': user_id,
+        'is_read': False
+    })
+    
+    # Contar avisos não lidos
+    # Primeiro, buscar IDs de avisos já lidos
+    read_announcements = await db.announcement_reads.find(
+        {'user_id': user_id},
+        {'_id': 0, 'announcement_id': 1}
+    ).to_list(10000)
+    
+    read_announcement_ids = [r['announcement_id'] for r in read_announcements]
+    
+    # Contar avisos destinados ao usuário que não foram lidos
+    unread_announcements = await db.announcements.count_documents({
+        'target_user_ids': user_id,
+        'id': {'$nin': read_announcement_ids}
+    })
+    
+    return NotificationCount(
+        unread_messages=unread_messages,
+        unread_announcements=unread_announcements,
+        total=unread_messages + unread_announcements
+    )
+
 # ============= FIM USER PROFILE ENDPOINTS =============
 
 # Include the router in the main app
