@@ -3155,8 +3155,7 @@ class SIGESCTester:
             self.log("6️⃣ Testing PUT /api/announcements/{id} - Update announcement...")
             update_data = {
                 "title": "Reunião Pedagógica Importante - ATUALIZADA",
-                "content": "ATUALIZAÇÃO: A reunião pedagógica foi reagendada para o dia 21/12/2025 às 15h no auditório principal. Assuntos: planejamento 2026, avaliações e metodologias ativas. Por favor, confirmem presença.",
-                "priority": "urgent"
+                "content": "ATUALIZAÇÃO: A reunião pedagógica foi reagendada para o dia 21/12/2025 às 15h no auditório principal. Assuntos: planejamento 2026, avaliações e metodologias ativas. Por favor, confirmem presença."
             }
             
             response = requests.put(
