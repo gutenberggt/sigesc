@@ -516,18 +516,20 @@ export const Guardians = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <Home size={18} />
-          <span>Início</span>
-        </button>
-
+        {/* Header */}
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Responsáveis</h1>
-            <p className="text-gray-600 mt-1">Gerencie os responsáveis dos alunos</p>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <Home size={18} />
+              <span>Início</span>
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Responsáveis</h1>
+              <p className="text-gray-600 text-sm">Gerencie os responsáveis dos alunos</p>
+            </div>
           </div>
           {canEdit && (
             <button
