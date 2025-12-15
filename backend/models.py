@@ -238,6 +238,37 @@ class ConversationResponse(BaseModel):
     last_message_at: Optional[datetime] = None
     unread_count: int = 0
 
+# ============= MESSAGE LOG MODELS =============
+
+class MessageLog(BaseModel):
+    """Log permanente de mensagens para compliance (retenção 30 dias após exclusão)"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    original_message_id: str
+    connection_id: str
+    sender_id: str
+    sender_name: str
+    sender_email: str
+    receiver_id: str
+    receiver_name: str
+    receiver_email: str
+    content: Optional[str] = None
+    attachments: Optional[List[dict]] = []  # URLs dos arquivos preservados
+    created_at: datetime  # Data original da mensagem
+    logged_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    deleted_at: Optional[datetime] = None  # Quando foi excluída (se aplicável)
+    expires_at: Optional[datetime] = None  # 30 dias após exclusão
+
+class ConversationLog(BaseModel):
+    """Log de uma conversa completa"""
+    user_id: str
+    user_name: str
+    user_email: str
+    conversations: List[dict] = []  # Lista de conversas com seus participantes
+    total_messages: int = 0
+    total_attachments: int = 0
+    date_range: Optional[dict] = None  # { start: date, end: date }
+
 # ============= SCHOOL MODELS =============
 
 class SchoolBase(BaseModel):
