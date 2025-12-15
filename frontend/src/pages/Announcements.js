@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Bell, Plus, Edit2, Trash2, Check, X, Search, 
-  Users, Building, BookOpen, User, ChevronDown, Filter
+  Users, Building, BookOpen, User, ChevronDown, Filter, Home
 } from 'lucide-react';
-import { announcementsAPI, schoolsAPI, classesAPI, staffAPI } from '@/services/api';
+import { announcementsAPI, schoolsAPI, classesAPI, usersAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Modal } from '@/components/Modal';
 
 const Announcements = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const highlightId = searchParams.get('id');
   
