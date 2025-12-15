@@ -538,7 +538,7 @@ export const UserProfile = () => {
             <div className="relative">
               {profile.foto_url || profile.user?.avatar_url ? (
                 <img 
-                  src={profile.foto_url || profile.user?.avatar_url}
+                  src={uploadAPI.getUrl(profile.foto_url || profile.user?.avatar_url)}
                   alt="Avatar"
                   className="w-32 h-32 rounded-full border-4 border-white object-cover bg-white"
                 />
