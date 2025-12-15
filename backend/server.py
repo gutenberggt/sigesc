@@ -2836,6 +2836,44 @@ async def update_profile_by_admin(user_id: str, profile_data: UserProfileUpdate,
     updated_profile = await db.user_profiles.find_one({"user_id": user_id}, {"_id": 0})
     return updated_profile
 
+@api_router.get("/profiles/search")
+async def search_public_profiles(q: str = "", request: Request = None):
+    """Busca perfis públicos pelo nome do usuário (mínimo 3 caracteres)"""
+    # Validar mínimo de 3 caracteres
+    if len(q) < 3:
+        return []
+    
+    # Buscar usuários cujo nome começa com a query (case insensitive)
+    import re
+    regex_pattern = f"^{re.escape(q)}"
+    
+    users = await db.users.find(
+        {"full_name": {"$regex": regex_pattern, "$options": "i"}},
+        {"_id": 0, "password_hash": 0}
+    ).to_list(20)
+    
+    results = []
+    for user in users:
+        # Verificar se o perfil é público
+        profile = await db.user_profiles.find_one({"user_id": user['id']}, {"_id": 0})
+        
+        # Se não tem perfil, considera como público (padrão)
+        is_public = True
+        if profile:
+            is_public = profile.get('is_public', True)
+        
+        if is_public:
+            results.append({
+                "user_id": user['id'],
+                "full_name": user.get('full_name', ''),
+                "email": user.get('email', ''),
+                "role": user.get('role', ''),
+                "headline": profile.get('headline') if profile else None,
+                "foto_url": profile.get('foto_url') if profile else user.get('avatar_url')
+            })
+    
+    return results
+
 # ============= FIM USER PROFILE ENDPOINTS =============
 
 # Include the router in the main app
