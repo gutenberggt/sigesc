@@ -156,6 +156,88 @@ class UserProfile(UserProfileBase):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
 
+# ============= CONNECTION MODELS =============
+
+class ConnectionBase(BaseModel):
+    """Conexão entre dois usuários"""
+    requester_id: str  # Quem enviou o convite
+    receiver_id: str   # Quem recebeu o convite
+    status: Literal['pending', 'accepted', 'rejected'] = 'pending'
+    message: Optional[str] = None  # Mensagem opcional no convite
+
+class ConnectionCreate(BaseModel):
+    receiver_id: str
+    message: Optional[str] = None
+
+class Connection(ConnectionBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+class ConnectionResponse(BaseModel):
+    """Resposta de conexão com dados do usuário"""
+    id: str
+    user_id: str
+    full_name: str
+    email: str
+    role: str
+    headline: Optional[str] = None
+    foto_url: Optional[str] = None
+    status: str
+    connected_at: Optional[datetime] = None
+
+# ============= MESSAGE MODELS =============
+
+class MessageAttachment(BaseModel):
+    """Anexo de mensagem (PDF ou imagem)"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    type: Literal['image', 'pdf']
+    url: str
+    filename: str
+    size: Optional[int] = None
+
+class MessageBase(BaseModel):
+    """Mensagem entre usuários conectados"""
+    sender_id: str
+    receiver_id: str
+    content: Optional[str] = None  # Texto da mensagem
+    attachments: Optional[List[MessageAttachment]] = []
+    is_read: bool = False
+
+class MessageCreate(BaseModel):
+    receiver_id: str
+    content: Optional[str] = None
+    attachments: Optional[List[dict]] = []
+
+class Message(MessageBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class MessageResponse(BaseModel):
+    """Resposta de mensagem com dados do remetente"""
+    id: str
+    sender_id: str
+    sender_name: str
+    sender_foto_url: Optional[str] = None
+    receiver_id: str
+    content: Optional[str] = None
+    attachments: Optional[List[MessageAttachment]] = []
+    is_read: bool
+    created_at: datetime
+
+class ConversationResponse(BaseModel):
+    """Resumo de uma conversa"""
+    connection_id: str
+    user_id: str
+    full_name: str
+    foto_url: Optional[str] = None
+    headline: Optional[str] = None
+    last_message: Optional[str] = None
+    last_message_at: Optional[datetime] = None
+    unread_count: int = 0
+
 # ============= SCHOOL MODELS =============
 
 class SchoolBase(BaseModel):
