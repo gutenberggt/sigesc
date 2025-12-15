@@ -507,7 +507,7 @@ export const UserProfile = () => {
           <div 
             className="h-48 bg-gradient-to-r from-blue-600 to-blue-800 rounded-t-xl relative overflow-hidden"
             style={profile.foto_capa_url ? { 
-              backgroundImage: `url(${profile.foto_capa_url})`,
+              backgroundImage: `url(${uploadAPI.getUrl(profile.foto_capa_url)})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center'
             } : {}}
