@@ -2777,10 +2777,33 @@ class SIGESCTester:
             self.log(f"❌ Failed to get admin logs: {response.status_code} - {response.text}")
             return False
         
-        # Scenario 2: List messages and delete one
-        self.log("2️⃣ Scenario 2: Listing messages and deleting one...")
+        # Scenario 2: Create a test message and then delete it
+        self.log("2️⃣ Scenario 2: Creating test message and then deleting it...")
         
-        # First, list messages in the conversation
+        # First, create a test message to delete
+        self.log("   Creating test message for deletion test...")
+        test_message_data = {
+            "receiver_id": ricleide_user_id,
+            "content": "Test message for deletion system testing",
+            "connection_id": connection_id
+        }
+        
+        response = requests.post(
+            f"{API_BASE}/messages",
+            json=test_message_data,
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        message_to_delete = None
+        if response.status_code == 200 or response.status_code == 201:
+            message_to_delete = response.json()
+            self.log(f"✅ Test message created: {message_to_delete.get('id')}")
+            self.log(f"   Message content: {message_to_delete.get('content')}")
+        else:
+            self.log(f"❌ Failed to create test message: {response.status_code} - {response.text}")
+            return False
+        
+        # List messages in the conversation to verify it exists
         self.log(f"   Listing messages in conversation {connection_id}...")
         response = requests.get(
             f"{API_BASE}/messages/{connection_id}",
@@ -2788,28 +2811,16 @@ class SIGESCTester:
         )
         
         messages_before = []
-        message_to_delete = None
-        
         if response.status_code == 200:
             messages_before = response.json()
             self.log(f"✅ Found {len(messages_before)} messages in conversation")
             
-            if messages_before:
-                # Find a message sent by admin to delete
-                for msg in messages_before:
-                    if msg.get('sender_id') == admin_user_id:
-                        message_to_delete = msg
-                        break
-                
-                if message_to_delete:
-                    self.log(f"   Selected message to delete: {message_to_delete.get('id')}")
-                    self.log(f"   Message content: {message_to_delete.get('content', '')[:50]}...")
-                else:
-                    self.log("❌ No message from admin found to delete")
-                    return False
+            # Verify our test message is in the list
+            test_msg_found = any(msg.get('id') == message_to_delete['id'] for msg in messages_before)
+            if test_msg_found:
+                self.log("✅ Test message found in conversation")
             else:
-                self.log("❌ No messages found in conversation")
-                return False
+                self.log("❌ Test message not found in conversation")
         else:
             self.log(f"❌ Failed to list messages: {response.status_code} - {response.text}")
             return False
