@@ -3168,13 +3168,12 @@ class SIGESCTester:
                 updated_announcement = response.json()
                 self.log(f"✅ Announcement updated successfully")
                 self.log(f"   New title: {updated_announcement.get('title')}")
-                self.log(f"   New priority: {updated_announcement.get('priority')}")
                 
                 # Verify changes were saved
                 if "ATUALIZADA" in updated_announcement.get('title', ''):
                     self.log("✅ Title update verified")
-                if updated_announcement.get('priority') == 'urgent':
-                    self.log("✅ Priority update verified")
+                if "ATUALIZAÇÃO" in updated_announcement.get('content', ''):
+                    self.log("✅ Content update verified")
             else:
                 self.log(f"❌ Failed to update announcement: {response.status_code} - {response.text}")
                 return False
