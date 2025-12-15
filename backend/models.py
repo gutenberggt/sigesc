@@ -60,6 +60,94 @@ class TokenResponse(BaseModel):
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
+# ============= USER PROFILE MODELS =============
+
+class ProfileExperience(BaseModel):
+    """Experiência profissional do usuário"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    titulo: str
+    instituicao: str
+    local: Optional[str] = None
+    data_inicio: Optional[str] = None  # YYYY-MM
+    data_fim: Optional[str] = None  # YYYY-MM ou None se atual
+    atual: bool = False
+    descricao: Optional[str] = None
+
+class ProfileEducation(BaseModel):
+    """Formação acadêmica do usuário"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    instituicao: str
+    grau: str  # Graduação, Pós-graduação, Mestrado, Doutorado, etc.
+    area: Optional[str] = None
+    data_inicio: Optional[str] = None  # YYYY
+    data_fim: Optional[str] = None  # YYYY
+    descricao: Optional[str] = None
+
+class ProfileSkill(BaseModel):
+    """Competência/Habilidade do usuário"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    nome: str
+    nivel: Optional[Literal['basico', 'intermediario', 'avancado', 'especialista']] = None
+
+class ProfileCertification(BaseModel):
+    """Certificação do usuário"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    nome: str
+    organizacao: str
+    data_emissao: Optional[str] = None  # YYYY-MM
+    data_validade: Optional[str] = None  # YYYY-MM
+    url: Optional[str] = None
+
+class UserProfileBase(BaseModel):
+    """Perfil do usuário - similar ao LinkedIn"""
+    # Informações Básicas (header)
+    headline: Optional[str] = None  # Título profissional
+    sobre: Optional[str] = None  # Sobre mim / Resumo
+    localizacao: Optional[str] = None  # Cidade/Estado
+    
+    # Contato
+    telefone: Optional[str] = None
+    website: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    
+    # Foto de capa e avatar
+    foto_capa_url: Optional[str] = None
+    foto_url: Optional[str] = None
+    
+    # Visibilidade
+    is_public: bool = True  # Perfil público por padrão
+    
+    # Dados profissionais
+    experiencias: List[ProfileExperience] = []
+    formacoes: List[ProfileEducation] = []
+    competencias: List[ProfileSkill] = []
+    certificacoes: List[ProfileCertification] = []
+
+class UserProfileCreate(UserProfileBase):
+    user_id: str
+
+class UserProfileUpdate(BaseModel):
+    headline: Optional[str] = None
+    sobre: Optional[str] = None
+    localizacao: Optional[str] = None
+    telefone: Optional[str] = None
+    website: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    foto_capa_url: Optional[str] = None
+    foto_url: Optional[str] = None
+    is_public: Optional[bool] = None
+    experiencias: Optional[List[ProfileExperience]] = None
+    formacoes: Optional[List[ProfileEducation]] = None
+    competencias: Optional[List[ProfileSkill]] = None
+    certificacoes: Optional[List[ProfileCertification]] = None
+
+class UserProfile(UserProfileBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
 # ============= SCHOOL MODELS =============
 
 class SchoolBase(BaseModel):
