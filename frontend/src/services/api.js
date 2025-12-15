@@ -753,6 +753,56 @@ export const messageLogsAPI = {
   }
 };
 
+// ============= ANNOUNCEMENTS API =============
+export const announcementsAPI = {
+  // Criar aviso
+  create: async (data) => {
+    const response = await axios.post(`${API}/announcements`, data);
+    return response.data;
+  },
+  
+  // Listar avisos
+  list: async (skip = 0, limit = 50) => {
+    const response = await axios.get(`${API}/announcements`, {
+      params: { skip, limit }
+    });
+    return response.data;
+  },
+  
+  // Obter aviso específico
+  get: async (id) => {
+    const response = await axios.get(`${API}/announcements/${id}`);
+    return response.data;
+  },
+  
+  // Atualizar aviso
+  update: async (id, data) => {
+    const response = await axios.put(`${API}/announcements/${id}`, data);
+    return response.data;
+  },
+  
+  // Excluir aviso
+  delete: async (id) => {
+    const response = await axios.delete(`${API}/announcements/${id}`);
+    return response.data;
+  },
+  
+  // Marcar como lido
+  markAsRead: async (id) => {
+    const response = await axios.post(`${API}/announcements/${id}/read`);
+    return response.data;
+  }
+};
+
+// ============= NOTIFICATIONS API =============
+export const notificationsAPI = {
+  // Obter contagem de não lidas
+  getUnreadCount: async () => {
+    const response = await axios.get(`${API}/notifications/unread-count`);
+    return response.data;
+  }
+};
+
 // WebSocket URL
 export const getWebSocketUrl = () => {
   const token = getToken();
