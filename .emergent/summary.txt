@@ -1,60 +1,71 @@
 <analysis>**original_problem_statement:**
-O usuário está desenvolvendo um **SIGESC (Sistema Integrado de Gestão Escolar)**, um projeto full-stack (React/FastAPI/MongoDB). As solicitações mais recentes incluíram:
+O usuário está desenvolvendo um **SIGESC (Sistema Integrado de Gestão Escolar)**, um projeto full-stack (React/FastAPI/MongoDB). O trabalho recente focou-se em:
 
-1.  **[CONCLUÍDO]** Vários ajustes de UX/UI na funcionalidade de **Gestão de Servidores**, como a implementação de uma interface de multi-seleção para lotação/alocação e a validação da carga horária do professor para não exceder o limite cadastrado.
-2.  **[CONCLUÍDO]** A criação da **FASE 6 - Portal do Professor**. Isso envolveu a criação de um dashboard dedicado, a implementação da criação automática de usuários para novos professores (com a senha sendo os 6 primeiros dígitos do CPF) e a configuração de permissões para que os professores vejam apenas suas turmas.
-3.  **[EM ANDAMENTO]** A criação de uma nova página chamada **Objetos de Conhecimento**, que permitirá aos professores registrar o conteúdo ministrado diariamente. A estrutura desta página deve ser semelhante à da aba Lançamento do Controle de Frequência.
+1.  **[CONCLUÍDO]** Implementação da página **Objetos de Conhecimento**.
+2.  **[CONCLUÍDO]** Várias melhorias de UI/UX, incluindo a substituição do botão Voltar ao Dashboard por um ícone Home e texto Início posicionado à esquerda do título da página.
+3.  **[CONCLUÍDO]** Habilitação do acesso do professor ao seu diário (Frequência, Notas, Objetos de Conhecimento), corrigindo um bug onde as turmas/escolas alocadas não eram carregadas corretamente.
+4.  **[CONCLUÍDO]** Aprimoramento do Dashboard do Administrador para se assemelhar ao do professor, com uma barra de identificação e foto.
+5.  **[EM ANDAMENTO]** Criação e aprimoramento de uma página de **Perfil de Usuário** no estilo do LinkedIn, com as seguintes funcionalidades:
+    *   Campos para foto de perfil e de capa.
+    *   Links para redes sociais (Website, LinkedIn, Facebook, Instagram, WhatsApp).
+    *   Formatação do número de telefone.
+    *   Uma barra de busca para encontrar outros perfis públicos no sistema.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-Uma aplicação full-stack com autenticação JWT e RBAC. Os módulos para gestão de Escolas, Usuários, Alunos, Turmas, Notas, Calendário, Frequência e Servidores estão funcionais. A **Fase 6 - Portal do Professor** foi totalmente implementada, incluindo um dashboard funcional em  e a lógica de criação automática de usuários no backend.
+Uma aplicação full-stack (React/FastAPI/MongoDB) funcional com autenticação JWT e RBAC (Role-Based Access Control). A maioria dos módulos principais (Gestão de Escolas, Usuários, Alunos, Professores, etc.) está implementada.
 
-O trabalho na página **Objetos de Conhecimento** foi iniciado:
-*   **Backend:** Foram criados os modelos Pydantic () e os endpoints CRUD () em  e .
-*   **Frontend:** Foi criado o arquivo da página (), a rota foi adicionada em , as chamadas de API foram incluídas em  e um card de navegação foi adicionado ao .
+Recentemente, foram concluídas:
+*   A funcionalidade completa de Objetos de Conhecimento.
+*   Correções de bugs e melhorias de UI, incluindo o acesso restrito do professor aos seus próprios dados e a padronização dos cabeçalhos das páginas.
+*   A primeira versão da página de Perfil do Usuário foi criada.
+*   O Dashboard do Administrador foi redesenhado.
+
+O trabalho atual foca-se na última solicitação do usuário: aprimorar a página de Perfil do Usuário. O backend foi atualizado com novos campos no modelo e um endpoint de busca. O frontend () foi reescrito para incluir os novos elementos de UI: busca de perfis, placeholders para upload de imagens, links de redes sociais e formatação de telefone.
 
 **Last working item**:
-- **Last item agent was working:** O agente estava iniciando a implementação da funcionalidade **Objetos de Conhecimento**. Ele finalizou toda a configuração do backend (modelos e endpoints) e a estrutura inicial do frontend (arquivo da página, rota, API e card de navegação). A próxima etapa era construir a interface de usuário (UI) da página.
-- **Status:** IN PROGRESS
-- **Agent Testing Done:** N
+- **Last item agent was working:** O agente estava finalizando a implementação das melhorias na página de Perfil do Usuário. Ele atualizou os modelos e endpoints do backend e reescreveu a página de frontend () para incluir uma barra de busca, placeholders para upload de fotos, mais links de redes sociais e formatação de telefone.
+- **Status:** USER VERIFICATION PENDING
+- **Agent Testing Done:** N (Apenas verificação visual via screenshot foi realizada. A funcionalidade de busca e upload não foi testada.)
 - **Which testing method agent to use?** both
 - **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
-Nenhum. O trabalho atual é uma nova tarefa, não um problema.
+Nenhum problema pendente.
 
 **In progress Task List**:
-- **Task 1: Implementar a UI da página Objetos de Conhecimento (P0)**
-    - **Where to resume:** O agente deve começar a desenvolver o arquivo . Este arquivo está atualmente vazio (é um esqueleto de componente React).
-    - **What will be achieved with this?** A página permitirá que os professores selecionem data, turma e componente curricular, e registrem o conteúdo ensinado (Objeto de Conhecimento) e a metodologia utilizada. A interface deve ser semelhante à da página de lançamento de frequência ().
+- **Task 1: Testar e Finalizar as Melhorias da Página de Perfil (P0)**
+    - **Where to resume:** A UI e o backend básicos estão prontos. É necessário testar exaustivamente as novas funcionalidades.
+    - **What will be achieved with this?** Garantir que a busca de perfis, o upload de imagens (backend precisa ser implementado) e a edição de novos campos funcionem corretamente.
     - **Status:** IN PROGRESS
     - **Should Test frontend/backend/both after fix?** both
-    - **Blocked on something:** None
+    - **Blocked on something:** A funcionalidade de upload de fotos de perfil e capa está bloqueada, pois o backend para receber e armazenar os arquivos ainda não foi implementado.
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-    - **P0: Testar a funcionalidade Objetos de Conhecimento:** Após a implementação da UI, realizar testes completos no fluxo de criação, visualização e edição dos registros.
+    - **P0: Implementar o backend para upload de imagens:** Criar os endpoints e a lógica para lidar com o upload da foto de perfil e da foto de capa na página de Perfil do Usuário.
+    - **P1: Refatorar :** O arquivo  tem mais de 2.100 linhas e precisa ser dividido em componentes menores para melhorar a manutenibilidade.
 - **Future Tasks:**
-    - **P1: FASE 7 - Sistema de Comunicação:** CRUD de Avisos.
-    - **P2: FASE 8 - Geração de Documentos:** Funcionalidade para gerar PDFs (Boletim, Declarações).
+    - **P2: FASE 7 - Sistema de Comunicação:** CRUD de Avisos.
+    - **P3: FASE 8 - Geração de Documentos:** Funcionalidade para gerar PDFs (Boletim, Declarações).
+    - **P4: Refatorar  e **.
 
 **Completed work in this session**
-- **Fase 5.5 - Melhorias na Gestão de Servidores:**
-    - Finalizada a UI de multi-seleção para Lotação e Alocação.
-    - Implementada a exibição e exclusão de alocações/lotações existentes nos modais.
-    - Corrigida a fórmula de cálculo da carga horária semanal para  e ajustada a exibição de dados existentes.
-    - Implementada a validação que impede a alocação de carga horária superior à cadastrada para o professor, desabilitando o botão de salvar.
-    - Corrigido um bug que impedia a seção Adicionar Nova Alocação de aparecer para professores com lotação mas sem alocações.
-- **Fase 6 - Portal do Professor:**
-    - **Backend:** Adicionado campo  ao  e lógica para criar  automaticamente para professores no endpoint . Criados endpoints dedicados ().
-    - **Frontend:** Criada a página , adicionada a rota em  com redirecionamento para professores, e implementada a UI do dashboard.
-    - **Debug Crítico:** Resolvido um problema complexo de login que ocorria porque o agente estava atualizando o banco de dados  enquanto a aplicação usava o .
+- **Funcionalidade Objetos de Conhecimento**: Implementada e testada de ponta a ponta.
+- **Melhorias de Acesso do Professor**: Corrigido o bug que impedia professores de verem suas turmas e escolas. Rotas ,  e  foram habilitadas e agora carregam os dados corretamente.
+- **Padronização da UI**: O botão Voltar ao Dashboard foi substituído em mais de 10 páginas por um novo cabeçalho com o botão Início e ícone da Home, posicionado à esquerda do título da página.
+- **Página de Perfil do Usuário (Versão 2)**:
+    - Criada a página no estilo LinkedIn ().
+    - Backend foi estendido para incluir mais redes sociais, campos para URLs de imagens e um endpoint de busca ().
+    - Frontend foi aprimorado com uma barra de busca, placeholders para upload de imagens e formatação de telefone.
+- **Redesign do Dashboard do Administrador**: A página  foi redesenhada para ter um layout similar ao do professor, com uma barra de identificação azul, foto e links de acesso rápido.
+- **Correção de Bug no Nome do Perfil**: Corrigido um problema onde o nome do usuário não aparecia no perfil, ajustando o backend para buscar o  diretamente do banco de dados em vez de depender do token JWT.
 
 **Earlier issues found/mentioned but not fixed**
-- **Issue 1:** O arquivo  cresceu para mais de 2.100 linhas e precisa urgentemente de refatoração para ser dividido em componentes menores.
-- **Issue 2:** O arquivo  continua grande e precisa de refatoração.
-- **Issue 3:** O arquivo  pode ser dividido em componentes menores.
+- **Issue 1: Refatoração do **: O arquivo  é excessivamente grande (2.100+ linhas) e complexo, dificultando a manutenção.
+- **Issue 2: Refatoração do **: O arquivo também é muito grande e precisa ser refatorado.
+- **Issue 3: Refatoração do **: Pode ser dividido em componentes menores.
 
 **Known issue recurrence from previous fork**
 - None.
@@ -63,62 +74,62 @@ Nenhum. O trabalho atual é uma nova tarefa, não um problema.
 
 
 **Key Technical Concepts**
-- **Backend:** Lógica de negócios no endpoint de criação () para gerar entidades relacionadas ().
-- **Database:** A distinção entre diferentes bancos de dados ( usado pela aplicação vs.  usado para scripts manuais) foi um ponto crítico de depuração.
-- **Frontend:** Redirecionamento de rotas baseado no perfil do usuário () no  e .
+- **Data Fetching Condicional por Role**: Uso do hook  para verificar o  do usuário e chamar a API apropriada (ex:  para professores,  para admins).
+- **Backend Search Endpoint**: Criação de um endpoint () que utiliza expressões regulares () no MongoDB para busca textual case-insensitive.
+- **State Derivation no Frontend**: Uso de  e  para filtrar e derivar listas (escolas, turmas, componentes) com base nas seleções do usuário.
+- **Refatoração de UI**: Alteração em massa de mais de 10 componentes para padronizar o layout do cabeçalho da página.
 
 **key DB schema**
-- **staff:**  (Atualizado)
-- **knowledge_objects:**  (Novo)
-- **users:** 
+- **user_profiles:** 
 
 **changes in tech stack**
 - None.
 
 **All files of reference**
 - **Criados:**
-    - : Dashboard exclusivo para o perfil de professor.
-    - : Esqueleto da página para registro de objetos de conhecimento.
-- **Modificados:**
-    - : Fortemente modificado para implementar as melhorias de UX na lotação/alocação e validação de carga horária.
-    - : Adicionados  e  ao  e criados os modelos .
-    - : Adicionada lógica de criação automática de usuário e novos endpoints para o Portal do Professor e Objetos de Conhecimento.
-    - : Adicionadas novas funções de API para as novas funcionalidades.
-    - : Adicionadas rotas para  e .
-    - : Adicionada lógica de redirecionamento para professores e um novo card de navegação.
+    - : Página de perfil do usuário.
+- **Modificados (significativamente):**
+    - : Adicionados e expandidos os modelos .
+    - : Adicionados os endpoints CRUD e de busca para os perfis de usuário.
+    - : Adicionada a  com as novas chamadas.
+    - : Adicionadas as rotas para a página de perfil.
+    - : Redesign completo para se assemelhar ao dashboard do professor.
+    - , , : Modificados para carregar dados específicos do professor.
+    - Mais de 10 outros arquivos de página (ex: , , ) foram atualizados para o novo layout do cabeçalho.
 
 **Areas that need refactoring**:
-- : A complexidade e o tamanho do arquivo são críticos. A refatoração deve ser priorizada após a conclusão da tarefa atual.
-- : Continua sendo um candidato à refatoração.
+-  (Crítico)
+- 
 
 **key api endpoints**
--  (POST): Modificado para criar um usuário automaticamente se o cargo for 'professor'.
-- : (NOVOS) Conjunto de endpoints para o Portal do Professor.
-- : (NOVOS) Endpoints CRUD para os Objetos de Conhecimento.
+- **GET /api/profiles/search**: (NOVO) Busca perfis públicos por nome.
+- **GET /api/profiles/{user_id}**: (NOVO) Obtém um perfil de usuário específico.
+- **PUT /api/profiles/me**: (NOVO) Atualiza o perfil do usuário logado.
+- **GET /api/professor/turmas**: Endpoint crucial usado para carregar os dados corretos para o perfil de professor.
 
 **Critical Info for New Agent**
-- **Database:** A aplicação usa o banco de dados . Todas as manipulações manuais de dados ou scripts devem ser direcionadas a este banco, não a  ou qualquer outro, para evitar problemas de inconsistência de dados.
-- **Tarefa Atual:** O foco imediato é construir a interface do usuário no arquivo , baseando-se no layout e funcionalidade da página . O backend para esta funcionalidade já está pronto.
-- **Refatoração:** Esteja ciente de que o arquivo  é um grande débito técnico e sua refatoração deve ser planejada para o futuro próximo.
+- **Upload de Imagens Incompleto**: A UI para upload de fotos de perfil e capa foi criada no frontend, mas **não há implementação no backend** para processar esses uploads. Esta é a próxima etapa bloqueante para a tarefa do perfil.
+- **Lógica de Roles**: A aplicação distingue fortemente os papéis dos usuários (, , ). Sempre verifique o  do usuário com  antes de carregar dados para garantir que a API correta seja chamada.
+- **Refatoração Urgente**: O arquivo  é um débito técnico significativo. Planeje sua refatoração após concluir a tarefa atual.
 
 **documents created in this job**
 - None.
 
 **Last 10 User Messages and any pending user messages**
-1.  **user:** Pede para validar a carga horária do professor durante a alocação. -> **COMPLETED**
-2.  **user:** Especifica a mensagem de erro e pede para desabilitar o botão de salvar se a carga horária for excedida. -> **COMPLETED**
-3.  **user:** Ok. Continue o desenvolvimento do sistema. -> **COMPLETED**
-4.  **user:** Pede para criar o Portal do Professor (dashboard, criação automática de usuário, etc.). -> **COMPLETED**
-5.  **user:** Fornece o CPF da professora Ricleide. -> **COMPLETED**
-6.  **user:** Pede para criar o usuário da professora Ricleide com os 6 primeiros dígitos do CPF como senha. -> **COMPLETED**
-7.  **user:** Antes, preciso que você crie Dashboards específico para o perfil do Portal do Professor... (reforçando o pedido). -> **COMPLETED**
-8.  **user:** Pede para criar a página Objetos de Conhecimento com estrutura similar ao Controle de Frequência. -> **IN PROGRESS**
-9.  **user:** Podemos continuar? -> **PENDING** (Sinal para o agente continuar com a tarefa em andamento).
+1.  **user:** Pede para ajustar o layout do botão Início, reorganizar o dashboard do professor e criar a página de perfil. -> **IN PROGRESS**
+2.  **user:** Solicita aprimoramento do dashboard do administrador para ter um layout semelhante ao do professor. -> **COMPLETED**
+3.  **user:** Ok. -> **COMPLETED**
+4.  **user:** Vamos melhorar a estrutura do perfil... (pede busca de perfis, mais redes sociais, etc.). -> **IN PROGRESS** (Última tarefa em andamento)
+5.  **user:** Acesse como professora Ricleide e não carregou as escolas... -> **COMPLETED**
+6.  **user:** Ok. Vamos fazer alguns pequenos ajustes... (pede posicionamento do botão 'Início', etc.). -> **COMPLETED**
+7.  **user:** (Mensagem final da sessão anterior) Acesse como professora Ricleide e verifique... -> **COMPLETED**
+8.  **user:** Em todas as páginas que tiver Voltar ao Dashboard, colocar o ícone de Home e a palavra Início... -> **COMPLETED**
+9.  **user:** (Mensagem de confirmação) -> **COMPLETED**
 10. **user:** Ok. Continue o desenvolvimento do sistema. -> **COMPLETED**
 
 **Project Health Check:**
 - **Broken:** None.
-- **Mocked:** None.
+- **Mocked:** A funcionalidade de upload de imagens (perfil e capa) na página  está efetivamente mockada. Os botões existem na UI, mas não há um endpoint de backend para lidar com o upload de arquivos.
 
 **3rd Party Integrations**
 - None.
@@ -126,12 +137,12 @@ Nenhum. O trabalho atual é uma nova tarefa, não um problema.
 **Testing status**
 - **Testing agent used after significant changes:** YES
 - **Troubleshoot agent used after agent stuck in loop:** NO
-- **Test files created:** None.
-- **Known regressions:** Houve uma perda de dados de teste (servidores) que foram recriados. A causa raiz foi a depuração no banco de dados errado.
+- **Test files created:** None
+- **Known regressions:** None
 
 **Credentials to test flow:**
 - **Admin:**  / 
-- **Professor (Ricleide):**  / 
+- **Professor:**  / 
 
 **What agent forgot to execute**
-- Nenhuma tarefa solicitada foi esquecida. O agente está no meio da implementação do último pedido do usuário.</analysis>
+- O agente implementou a interface de usuário (UI) para upload de fotos de perfil e capa na página , mas esqueceu de implementar a lógica de backend necessária para receber, armazenar e associar esses arquivos ao perfil do usuário. A tarefa está incompleta sem essa parte crucial.</analysis>
