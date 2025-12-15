@@ -2,6 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import { NotificationBell, MessagesBadge } from '@/components/notifications';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
@@ -48,8 +49,16 @@ export const Layout = ({ children }) => {
               <h1 className="text-xl font-bold text-blue-600 hidden sm:block">SIGESC</h1>
             </div>
 
-            {/* User Info */}
-            <div className="flex items-center space-x-4">
+            {/* Notifications & User Info */}
+            <div className="flex items-center space-x-2">
+              {/* Ícones de Notificação */}
+              <MessagesBadge />
+              <NotificationBell />
+              
+              {/* Separador */}
+              <div className="hidden sm:block h-8 w-px bg-gray-200 mx-2" />
+              
+              {/* User Info */}
               <div className="hidden sm:block text-right">
                 <p className="text-sm font-medium text-gray-900" data-testid="user-name">{user?.full_name}</p>
                 <p className="text-xs text-gray-500" data-testid="user-role">{roleLabels[user?.role]}</p>
