@@ -34,7 +34,9 @@ from models import (
     CalendarEvent, CalendarEventCreate, CalendarEventUpdate,
     Staff, StaffCreate, StaffUpdate,
     SchoolAssignment, SchoolAssignmentCreate, SchoolAssignmentUpdate,
-    TeacherAssignment, TeacherAssignmentCreate, TeacherAssignmentUpdate
+    TeacherAssignment, TeacherAssignmentCreate, TeacherAssignmentUpdate,
+    Announcement, AnnouncementCreate, AnnouncementUpdate, AnnouncementResponse,
+    AnnouncementRecipient, AnnouncementReadStatus, NotificationCount
 )
 from auth_utils import (
     hash_password, verify_password, create_access_token, 
