@@ -19,6 +19,8 @@ from models import (
     LoginRequest, TokenResponse, RefreshTokenRequest,
     UserProfile, UserProfileCreate, UserProfileUpdate,
     ProfileExperience, ProfileEducation, ProfileSkill, ProfileCertification,
+    Connection, ConnectionCreate, ConnectionResponse,
+    Message, MessageCreate, MessageResponse, MessageAttachment, ConversationResponse,
     School, SchoolCreate, SchoolUpdate,
     Class, ClassCreate, ClassUpdate,
     Course, CourseCreate, CourseUpdate,
