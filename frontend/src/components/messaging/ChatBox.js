@@ -1,18 +1,23 @@
-import { useState, useEffect, useRef } from 'react';
-import { X, Send, Paperclip, Image, FileText, User } from 'lucide-react';
-import { messagesAPI, uploadAPI } from '@/services/api';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { X, Send, Paperclip, Image, FileText, User, Trash2, MoreVertical } from 'lucide-react';
+import { messagesAPI, uploadAPI, getWebSocketUrl } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 
-export const ChatBox = ({ connection, onClose, onNewMessage }) => {
+export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [deletingMessage, setDeletingMessage] = useState(null);
+  const [wsConnected, setWsConnected] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const wsRef = useRef(null);
+  const menuRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -29,25 +34,101 @@ export const ChatBox = ({ connection, onClose, onNewMessage }) => {
     }
   };
 
+  // Conectar WebSocket
+  const connectWebSocket = useCallback(() => {
+    try {
+      const wsUrl = getWebSocketUrl();
+      if (!wsUrl || wsUrl.includes('null')) return;
+
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log('ChatBox WebSocket: Conectado');
+        setWsConnected(true);
+      };
+
+      ws.onmessage = (event) => {
+        if (event.data === 'pong') return;
+
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.type === 'new_message' && data.message) {
+            // Verificar se a mensagem é para esta conversa
+            const msg = data.message;
+            if (
+              (msg.sender_id === connection.user_id || msg.receiver_id === connection.user_id) &&
+              msg.sender_id !== user?.id // Não duplicar mensagens enviadas por mim
+            ) {
+              setMessages(prev => [...prev, msg]);
+              onMessageReceived?.(msg);
+            }
+          } else if (data.type === 'message_deleted') {
+            // Remover mensagem excluída
+            setMessages(prev => prev.filter(m => m.id !== data.message_id));
+          } else if (data.type === 'conversation_deleted' && data.connection_id === connection.id) {
+            // Conversa excluída
+            setMessages([]);
+          }
+        } catch (error) {
+          console.error('ChatBox WebSocket: Erro ao parsear', error);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('ChatBox WebSocket: Desconectado');
+        setWsConnected(false);
+        // Tentar reconectar após 3 segundos
+        setTimeout(connectWebSocket, 3000);
+      };
+
+      ws.onerror = (error) => {
+        console.error('ChatBox WebSocket: Erro', error);
+      };
+
+      // Ping a cada 30 segundos
+      const pingInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send('ping');
+        }
+      }, 30000);
+
+      return () => {
+        clearInterval(pingInterval);
+        ws.close();
+      };
+    } catch (error) {
+      console.error('ChatBox WebSocket: Erro ao conectar', error);
+    }
+  }, [connection.id, connection.user_id, user?.id, onMessageReceived]);
+
   useEffect(() => {
     loadMessages();
-  }, [connection.id]);
+    const cleanup = connectWebSocket();
+    
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      cleanup?.();
+    };
+  }, [connection.id, connectWebSocket]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Adicionar nova mensagem recebida via WebSocket
-  const addMessage = (message) => {
-    setMessages(prev => [...prev, message]);
-  };
-
-  // Expor função para o componente pai
+  // Fechar menu ao clicar fora
   useEffect(() => {
-    if (onNewMessage) {
-      onNewMessage(addMessage);
-    }
-  }, [onNewMessage]);
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSend = async () => {
     if (!newMessage.trim()) return;
@@ -75,7 +156,6 @@ export const ChatBox = ({ connection, onClose, onNewMessage }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Verificar tipo
     const isImage = file.type.startsWith('image/');
     const isPDF = file.type === 'application/pdf';
 
@@ -86,10 +166,8 @@ export const ChatBox = ({ connection, onClose, onNewMessage }) => {
 
     setUploading(true);
     try {
-      // Upload do arquivo
       const uploadResult = await uploadAPI.upload(file);
       
-      // Enviar mensagem com anexo
       const attachment = {
         type: isImage ? 'image' : 'pdf',
         url: uploadResult.url,
@@ -111,6 +189,34 @@ export const ChatBox = ({ connection, onClose, onNewMessage }) => {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    if (!confirm('Excluir esta mensagem?')) return;
+    
+    setDeletingMessage(messageId);
+    try {
+      await messagesAPI.deleteMessage(messageId);
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+    } catch (error) {
+      console.error('Erro ao excluir mensagem:', error);
+      alert('Erro ao excluir mensagem');
+    } finally {
+      setDeletingMessage(null);
+    }
+  };
+
+  const handleDeleteConversation = async () => {
+    if (!confirm('Excluir toda a conversa? Esta ação não pode ser desfeita.')) return;
+    
+    try {
+      await messagesAPI.deleteConversation(connection.id);
+      setMessages([]);
+      setShowMenu(false);
+    } catch (error) {
+      console.error('Erro ao excluir conversa:', error);
+      alert('Erro ao excluir conversa');
     }
   };
 
@@ -161,8 +267,34 @@ export const ChatBox = ({ connection, onClose, onNewMessage }) => {
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm truncate">{connection.full_name}</p>
-          <p className="text-xs text-blue-100 truncate">{connection.headline || ''}</p>
+          <p className="text-xs text-blue-100 truncate flex items-center gap-1">
+            {connection.headline || ''}
+            {wsConnected && <span className="w-2 h-2 bg-green-400 rounded-full" title="Online"></span>}
+          </p>
         </div>
+        
+        {/* Menu */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-1 hover:bg-white/20 rounded transition-colors"
+          >
+            <MoreVertical size={18} />
+          </button>
+          
+          {showMenu && (
+            <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border py-1 min-w-[150px] z-10">
+              <button
+                onClick={handleDeleteConversation}
+                className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+              >
+                <Trash2 size={14} />
+                Excluir conversa
+              </button>
+            </div>
+          )}
+        </div>
+        
         <button
           onClick={onClose}
           className="p-1 hover:bg-white/20 rounded transition-colors"
@@ -196,51 +328,69 @@ export const ChatBox = ({ connection, onClose, onNewMessage }) => {
                   return (
                     <div
                       key={msg.id}
-                      className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+                      className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}
                     >
-                      <div
-                        className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                          isMe
-                            ? 'bg-blue-600 text-white rounded-br-none'
-                            : 'bg-white text-gray-800 rounded-bl-none shadow-sm'
-                        }`}
-                      >
-                        {/* Anexos */}
-                        {msg.attachments?.length > 0 && (
-                          <div className="mb-1">
-                            {msg.attachments.map((att, idx) => (
-                              <div key={idx}>
-                                {att.type === 'image' ? (
-                                  <img
-                                    src={uploadAPI.getUrl(att.url)}
-                                    alt={att.filename}
-                                    className="max-w-full rounded cursor-pointer hover:opacity-90"
-                                    onClick={() => window.open(uploadAPI.getUrl(att.url), '_blank')}
-                                  />
-                                ) : (
-                                  <a
-                                    href={uploadAPI.getUrl(att.url)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={`flex items-center gap-2 p-2 rounded ${
-                                      isMe ? 'bg-blue-500 hover:bg-blue-400' : 'bg-gray-100 hover:bg-gray-200'
-                                    }`}
-                                  >
-                                    <FileText size={16} />
-                                    <span className="text-xs truncate">{att.filename}</span>
-                                  </a>
-                                )}
-                              </div>
-                            ))}
-                          </div>
+                      <div className="relative">
+                        <div
+                          className={`max-w-[200px] rounded-lg px-3 py-2 ${
+                            isMe
+                              ? 'bg-blue-600 text-white rounded-br-none'
+                              : 'bg-white text-gray-800 rounded-bl-none shadow-sm'
+                          }`}
+                        >
+                          {/* Anexos */}
+                          {msg.attachments?.length > 0 && (
+                            <div className="mb-1">
+                              {msg.attachments.map((att, idx) => (
+                                <div key={idx}>
+                                  {att.type === 'image' ? (
+                                    <img
+                                      src={uploadAPI.getUrl(att.url)}
+                                      alt={att.filename}
+                                      className="max-w-full rounded cursor-pointer hover:opacity-90"
+                                      onClick={() => window.open(uploadAPI.getUrl(att.url), '_blank')}
+                                    />
+                                  ) : (
+                                    <a
+                                      href={uploadAPI.getUrl(att.url)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={`flex items-center gap-2 p-2 rounded ${
+                                        isMe ? 'bg-blue-500 hover:bg-blue-400' : 'bg-gray-100 hover:bg-gray-200'
+                                      }`}
+                                    >
+                                      <FileText size={16} />
+                                      <span className="text-xs truncate">{att.filename}</span>
+                                    </a>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {/* Texto */}
+                          {msg.content && (
+                            <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                          )}
+                          <p className={`text-xs mt-1 ${isMe ? 'text-blue-100' : 'text-gray-400'}`}>
+                            {formatTime(msg.created_at)}
+                          </p>
+                        </div>
+                        
+                        {/* Botão de excluir */}
+                        {isMe && (
+                          <button
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            disabled={deletingMessage === msg.id}
+                            className="absolute -left-6 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Excluir mensagem"
+                          >
+                            {deletingMessage === msg.id ? (
+                              <div className="w-4 h-4 border-2 border-gray-300 border-t-red-500 rounded-full animate-spin"></div>
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
+                          </button>
                         )}
-                        {/* Texto */}
-                        {msg.content && (
-                          <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
-                        )}
-                        <p className={`text-xs mt-1 ${isMe ? 'text-blue-100' : 'text-gray-400'}`}>
-                          {formatTime(msg.created_at)}
-                        </p>
                       </div>
                     </div>
                   );
