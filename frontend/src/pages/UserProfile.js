@@ -468,7 +468,7 @@ export const UserProfile = () => {
                     className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 border-b last:border-b-0 text-left"
                   >
                     {result.foto_url ? (
-                      <img src={result.foto_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                      <img src={uploadAPI.getUrl(result.foto_url)} alt="" className="w-10 h-10 rounded-full object-cover" />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
                         <User size={20} className="text-gray-400" />
