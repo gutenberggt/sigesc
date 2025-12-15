@@ -3015,9 +3015,275 @@ class SIGESCTester:
         self.log("✅ Message Deletion System testing completed!")
         return True
 
+    def test_announcement_system_fase7(self):
+        """Test SIGESC Announcement System (FASE 7 - Sistema de Avisos) as per review request"""
+        self.log("\n📢 Testing SIGESC Announcement System - FASE 7...")
+        
+        # Variables to store created IDs for cleanup
+        created_announcement_id = None
+        professor_token = None
+        
+        try:
+            # Step 1: Login as professor to test recipient functionality
+            self.log("1️⃣ Logging in as professor for recipient testing...")
+            professor_credentials = {
+                "email": "ricleidegoncalves@gmail.com",
+                "password": "007724"
+            }
+            
+            professor_token = self.login(professor_credentials, "Professor")
+            if not professor_token:
+                self.log("❌ Professor login failed - continuing with admin tests only")
+            
+            # Step 2: Test POST /api/announcements - Create announcement (Admin creates for Professors)
+            self.log("2️⃣ Testing POST /api/announcements - Admin creates announcement for Professors...")
+            announcement_data = {
+                "title": "Reunião Pedagógica Importante",
+                "content": "Convocamos todos os professores para reunião pedagógica no dia 20/12/2025 às 14h no auditório principal. Assuntos: planejamento 2026, avaliações e metodologias ativas.",
+                "recipient_type": "role",
+                "recipient_value": "professor",
+                "priority": "high",
+                "expires_at": "2025-12-31T23:59:59Z"
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/announcements",
+                json=announcement_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200 or response.status_code == 201:
+                announcement = response.json()
+                created_announcement_id = announcement['id']
+                self.log(f"✅ Announcement created successfully (ID: {created_announcement_id})")
+                self.log(f"   Title: {announcement.get('title')}")
+                self.log(f"   Recipient Type: {announcement.get('recipient_type')}")
+                self.log(f"   Recipient Value: {announcement.get('recipient_value')}")
+                self.log(f"   Priority: {announcement.get('priority')}")
+                self.log(f"   Sender: {announcement.get('sender_name', 'N/A')}")
+                
+                # Verify sender info is populated correctly
+                if announcement.get('sender_name'):
+                    self.log("✅ Sender information populated correctly")
+                else:
+                    self.log("❌ Sender information not populated")
+            else:
+                self.log(f"❌ Failed to create announcement: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 3: Test GET /api/announcements - List announcements
+            self.log("3️⃣ Testing GET /api/announcements - List all announcements...")
+            response = requests.get(
+                f"{API_BASE}/announcements",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                announcements = response.json()
+                self.log(f"✅ Successfully retrieved {len(announcements)} announcements")
+                
+                # Verify our created announcement appears in the list
+                found_created = any(a['id'] == created_announcement_id for a in announcements)
+                if found_created:
+                    self.log("✅ Created announcement found in list")
+                else:
+                    self.log("❌ Created announcement NOT found in list")
+                
+                # Check announcement structure
+                if announcements:
+                    first_announcement = announcements[0]
+                    expected_fields = ['id', 'title', 'content', 'recipient_type', 'recipient_value', 'priority', 'sender_name', 'created_at']
+                    for field in expected_fields:
+                        if field in first_announcement:
+                            self.log(f"   ✅ Field '{field}' present")
+                        else:
+                            self.log(f"   ❌ Field '{field}' missing")
+            else:
+                self.log(f"❌ Failed to list announcements: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 4: Test GET /api/announcements/{id} - Get announcement details
+            self.log("4️⃣ Testing GET /api/announcements/{id} - Get announcement details...")
+            response = requests.get(
+                f"{API_BASE}/announcements/{created_announcement_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                announcement_details = response.json()
+                self.log(f"✅ Announcement details retrieved successfully")
+                self.log(f"   Title: {announcement_details.get('title')}")
+                self.log(f"   Content length: {len(announcement_details.get('content', ''))}")
+                self.log(f"   Priority: {announcement_details.get('priority')}")
+                self.log(f"   Created at: {announcement_details.get('created_at')}")
+            else:
+                self.log(f"❌ Failed to get announcement details: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 5: Test POST /api/announcements/{id}/read - Mark as read (Professor perspective)
+            if professor_token:
+                self.log("5️⃣ Testing POST /api/announcements/{id}/read - Professor marks as read...")
+                response = requests.post(
+                    f"{API_BASE}/announcements/{created_announcement_id}/read",
+                    headers=self.get_headers(professor_token)
+                )
+                
+                if response.status_code == 200:
+                    read_response = response.json()
+                    self.log(f"✅ Announcement marked as read successfully")
+                    self.log(f"   Message: {read_response.get('message', 'N/A')}")
+                    
+                    # Verify is_read status
+                    if read_response.get('is_read'):
+                        self.log("✅ is_read status correctly set to true")
+                    else:
+                        self.log("❌ is_read status not set correctly")
+                else:
+                    self.log(f"❌ Failed to mark as read: {response.status_code} - {response.text}")
+            else:
+                self.log("5️⃣ Skipping mark as read test (no professor token)")
+            
+            # Step 6: Test PUT /api/announcements/{id} - Update announcement
+            self.log("6️⃣ Testing PUT /api/announcements/{id} - Update announcement...")
+            update_data = {
+                "title": "Reunião Pedagógica Importante - ATUALIZADA",
+                "content": "ATUALIZAÇÃO: A reunião pedagógica foi reagendada para o dia 21/12/2025 às 15h no auditório principal. Assuntos: planejamento 2026, avaliações e metodologias ativas. Por favor, confirmem presença.",
+                "priority": "urgent"
+            }
+            
+            response = requests.put(
+                f"{API_BASE}/announcements/{created_announcement_id}",
+                json=update_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                updated_announcement = response.json()
+                self.log(f"✅ Announcement updated successfully")
+                self.log(f"   New title: {updated_announcement.get('title')}")
+                self.log(f"   New priority: {updated_announcement.get('priority')}")
+                
+                # Verify changes were saved
+                if "ATUALIZADA" in updated_announcement.get('title', ''):
+                    self.log("✅ Title update verified")
+                if updated_announcement.get('priority') == 'urgent':
+                    self.log("✅ Priority update verified")
+            else:
+                self.log(f"❌ Failed to update announcement: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 7: Test GET /api/notifications/unread-count - Get unread count
+            if professor_token:
+                self.log("7️⃣ Testing GET /api/notifications/unread-count - Get unread count...")
+                response = requests.get(
+                    f"{API_BASE}/notifications/unread-count",
+                    headers=self.get_headers(professor_token)
+                )
+                
+                if response.status_code == 200:
+                    unread_count = response.json()
+                    self.log(f"✅ Unread count retrieved successfully")
+                    self.log(f"   Messages: {unread_count.get('messages', 0)}")
+                    self.log(f"   Announcements: {unread_count.get('announcements', 0)}")
+                    
+                    # Verify structure
+                    if 'messages' in unread_count and 'announcements' in unread_count:
+                        self.log("✅ Unread count structure is correct")
+                    else:
+                        self.log("❌ Unread count structure is incorrect")
+                else:
+                    self.log(f"❌ Failed to get unread count: {response.status_code} - {response.text}")
+            else:
+                self.log("7️⃣ Skipping unread count test (no professor token)")
+            
+            # Step 8: Test filtering announcements by recipient
+            self.log("8️⃣ Testing announcement filtering by recipient...")
+            response = requests.get(
+                f"{API_BASE}/announcements?recipient_type=role&recipient_value=professor",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                filtered_announcements = response.json()
+                self.log(f"✅ Successfully filtered announcements for professors")
+                self.log(f"   Found {len(filtered_announcements)} announcements for professors")
+                
+                # Verify our announcement is in the filtered results
+                found_in_filter = any(a['id'] == created_announcement_id for a in filtered_announcements)
+                if found_in_filter:
+                    self.log("✅ Created announcement found in filtered results")
+                else:
+                    self.log("❌ Created announcement NOT found in filtered results")
+            else:
+                self.log(f"❌ Failed to filter announcements: {response.status_code} - {response.text}")
+            
+            # Step 9: Test DELETE /api/announcements/{id} - Delete announcement
+            self.log("9️⃣ Testing DELETE /api/announcements/{id} - Delete announcement...")
+            response = requests.delete(
+                f"{API_BASE}/announcements/{created_announcement_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200 or response.status_code == 204:
+                self.log(f"✅ Announcement deleted successfully")
+                
+                # Verify deletion by trying to get the announcement
+                verify_response = requests.get(
+                    f"{API_BASE}/announcements/{created_announcement_id}",
+                    headers=self.get_headers(self.admin_token)
+                )
+                
+                if verify_response.status_code == 404:
+                    self.log("✅ Announcement deletion verified (404 on get)")
+                    created_announcement_id = None  # Mark as deleted for cleanup
+                else:
+                    self.log(f"❌ Announcement still exists after deletion: {verify_response.status_code}")
+            else:
+                self.log(f"❌ Failed to delete announcement: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 10: Verify announcement is removed from list
+            self.log("🔟 Verifying announcement is removed from list...")
+            response = requests.get(
+                f"{API_BASE}/announcements",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                final_announcements = response.json()
+                found_deleted = any(a['id'] == created_announcement_id for a in final_announcements) if created_announcement_id else False
+                
+                if not found_deleted:
+                    self.log("✅ Deleted announcement not found in final list")
+                else:
+                    self.log("❌ Deleted announcement still appears in list")
+            
+            self.log("✅ SIGESC Announcement System (FASE 7) testing completed successfully!")
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Error during announcement system testing: {str(e)}")
+            return False
+            
+        finally:
+            # Cleanup: Delete announcement if it still exists
+            if created_announcement_id:
+                self.log("🧹 Cleaning up announcement test data...")
+                try:
+                    response = requests.delete(
+                        f"{API_BASE}/announcements/{created_announcement_id}",
+                        headers=self.get_headers(self.admin_token)
+                    )
+                    if response.status_code in [200, 204, 404]:
+                        self.log("✅ Test announcement cleaned up")
+                    else:
+                        self.log(f"❌ Failed to cleanup announcement: {response.status_code}")
+                except Exception as cleanup_error:
+                    self.log(f"❌ Cleanup error: {str(cleanup_error)}")
+
     def run_all_tests(self):
         """Run all backend tests"""
-        self.log("🚀 Starting SIGESC Backend API Tests - CONNECTIONS AND MESSAGES TESTING")
+        self.log("🚀 Starting SIGESC Backend API Tests - ANNOUNCEMENT SYSTEM TESTING")
         self.log(f"🌐 Backend URL: {BACKEND_URL}")
         
         # Login as admin
@@ -3038,7 +3304,11 @@ class SIGESCTester:
         success = True
         
         try:
-            # MAIN FOCUS: Test Message Deletion System (NEW REVIEW REQUEST)
+            # MAIN FOCUS: Test SIGESC Announcement System (FASE 7) - PRIMARY TEST as per review request
+            if not self.test_announcement_system_fase7():
+                success = False
+            
+            # Test Message Deletion System
             if not self.test_message_deletion_system():
                 success = False
             
@@ -3061,7 +3331,7 @@ class SIGESCTester:
         self.log("\n" + "="*50)
         if success:
             self.log("🎉 All backend tests completed successfully!")
-            self.log("✅ CONNECTIONS AND MESSAGES SYSTEM FULLY TESTED")
+            self.log("✅ SIGESC ANNOUNCEMENT SYSTEM (FASE 7) FULLY TESTED")
         else:
             self.log("❌ Some tests failed - check logs above")
         self.log("="*50)
