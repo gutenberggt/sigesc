@@ -635,6 +635,47 @@ export const UserProfile = () => {
               </Button>
             </div>
           )}
+          
+          {/* Botões de Conexão para perfil de outros usuários */}
+          {!isOwnProfile && connectionStatus && (
+            <div className="absolute top-4 right-4 flex gap-2">
+              {connectionStatus.status === 'none' && (
+                <Button 
+                  onClick={handleSendInvite}
+                  disabled={loadingConnection}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <UserPlus size={16} className="mr-1" />
+                  {loadingConnection ? 'Enviando...' : 'Conectar'}
+                </Button>
+              )}
+              {connectionStatus.status === 'pending' && (
+                <Button 
+                  variant="outline"
+                  disabled
+                  className="bg-white/90"
+                >
+                  <Clock size={16} className="mr-1" />
+                  {connectionStatus.is_requester ? 'Convite Enviado' : 'Convite Recebido'}
+                </Button>
+              )}
+              {connectionStatus.status === 'accepted' && (
+                <Button 
+                  onClick={() => handleOpenChat({
+                    id: connectionStatus.connection_id,
+                    user_id: userId,
+                    full_name: profile.user?.full_name,
+                    foto_url: profile.foto_url,
+                    headline: profile.headline
+                  })}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <MessageCircle size={16} className="mr-1" />
+                  Mensagem
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Informações Principais */}
