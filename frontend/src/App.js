@@ -17,6 +17,7 @@ import { LearningObjects } from '@/pages/LearningObjects';
 import { UserProfile } from '@/pages/UserProfile';
 import ProfessorDashboard from '@/pages/ProfessorDashboard';
 import MessageLogs from '@/pages/MessageLogs';
+import Announcements from '@/pages/Announcements';
 import '@/App.css';
 
 function App() {
