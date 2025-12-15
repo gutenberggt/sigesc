@@ -132,9 +132,6 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
           console.error('ChatBox WebSocket: Erro ao parsear', error);
         }
       };
-          console.error('ChatBox WebSocket: Erro ao parsear', error);
-        }
-      };
 
       ws.onclose = (event) => {
         console.log('ChatBox WebSocket: Desconectado, código:', event.code);
