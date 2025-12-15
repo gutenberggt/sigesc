@@ -2643,7 +2643,7 @@ async def get_professor_turma_frequencia(class_id: str, course_id: str, request:
 @api_router.get("/profiles/me")
 async def get_my_profile(request: Request):
     """Retorna o perfil do usuário logado"""
-    current_user = await AuthMiddleware.require_auth(request)
+    current_user = await AuthMiddleware.get_current_user(request)
     
     profile = await db.user_profiles.find_one({"user_id": current_user['id']}, {"_id": 0})
     
@@ -2686,7 +2686,7 @@ async def get_profile_by_user_id(user_id: str, request: Request):
     """Retorna o perfil de um usuário específico"""
     current_user = None
     try:
-        current_user = await AuthMiddleware.require_auth(request)
+        current_user = await AuthMiddleware.get_current_user(request)
     except:
         pass
     
@@ -2743,7 +2743,7 @@ async def get_profile_by_user_id(user_id: str, request: Request):
 @api_router.put("/profiles/me")
 async def update_my_profile(profile_data: UserProfileUpdate, request: Request):
     """Atualiza o perfil do usuário logado"""
-    current_user = await AuthMiddleware.require_auth(request)
+    current_user = await AuthMiddleware.get_current_user(request)
     
     # Verificar se perfil existe
     profile = await db.user_profiles.find_one({"user_id": current_user['id']})
