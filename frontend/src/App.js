@@ -204,7 +204,26 @@ function App() {
             path="/professor/perfil"
             element={
               <ProtectedRoute allowedRoles={['professor']}>
-                <ProfessorDashboard />
+                <UserProfile />
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* Perfil do Usuário - Rotas para todos */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <UserProfile />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/profile/:userId"
+            element={
+              <ProtectedRoute>
+                <UserProfile />
               </ProtectedRoute>
             }
           />
