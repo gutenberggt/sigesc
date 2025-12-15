@@ -140,6 +140,62 @@ export default function ProfessorDashboard() {
           </Card>
         </div>
 
+        {/* Menu de Acesso Rápido - Segunda linha de blocos */}
+        <div>
+          <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <Card 
+              className="cursor-pointer hover:bg-blue-50 transition-colors"
+              onClick={() => navigate('/professor/notas')}
+            >
+              <CardContent className="p-4 text-center">
+                <ClipboardList className="mx-auto mb-2 text-blue-600" size={32} />
+                <p className="font-medium">Lançar Notas</p>
+              </CardContent>
+            </Card>
+
+            <Card 
+              className="cursor-pointer hover:bg-green-50 transition-colors"
+              onClick={() => navigate('/professor/frequencia')}
+            >
+              <CardContent className="p-4 text-center">
+                <CheckSquare className="mx-auto mb-2 text-green-600" size={32} />
+                <p className="font-medium">Frequência</p>
+              </CardContent>
+            </Card>
+
+            <Card 
+              className="cursor-pointer hover:bg-purple-50 transition-colors"
+              onClick={() => navigate('/professor/objetos-conhecimento')}
+            >
+              <CardContent className="p-4 text-center">
+                <BookOpen className="mx-auto mb-2 text-purple-600" size={32} />
+                <p className="font-medium">Objetos de Conhecimento</p>
+              </CardContent>
+            </Card>
+
+            <Card 
+              className="cursor-pointer hover:bg-indigo-50 transition-colors"
+              onClick={() => navigate('/professor/calendario')}
+            >
+              <CardContent className="p-4 text-center">
+                <Calendar className="mx-auto mb-2 text-indigo-600" size={32} />
+                <p className="font-medium">Calendário</p>
+              </CardContent>
+            </Card>
+
+            <Card 
+              className="cursor-pointer hover:bg-orange-50 transition-colors"
+              onClick={() => navigate('/professor/perfil')}
+            >
+              <CardContent className="p-4 text-center">
+                <User className="mx-auto mb-2 text-orange-600" size={32} />
+                <p className="font-medium">Meu Perfil</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
         {/* Carga Horária */}
         {profile?.carga_horaria_semanal && (
           <Card>
@@ -228,62 +284,6 @@ export default function ProfessorDashboard() {
               ))}
             </div>
           )}
-        </div>
-
-        {/* Menu de Acesso Rápido */}
-        <div>
-          <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <Card 
-              className="cursor-pointer hover:bg-blue-50 transition-colors"
-              onClick={() => navigate('/professor/notas')}
-            >
-              <CardContent className="p-4 text-center">
-                <ClipboardList className="mx-auto mb-2 text-blue-600" size={32} />
-                <p className="font-medium">Lançar Notas</p>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className="cursor-pointer hover:bg-green-50 transition-colors"
-              onClick={() => navigate('/professor/frequencia')}
-            >
-              <CardContent className="p-4 text-center">
-                <CheckSquare className="mx-auto mb-2 text-green-600" size={32} />
-                <p className="font-medium">Frequência</p>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className="cursor-pointer hover:bg-purple-50 transition-colors"
-              onClick={() => navigate('/professor/objetos-conhecimento')}
-            >
-              <CardContent className="p-4 text-center">
-                <BookOpen className="mx-auto mb-2 text-purple-600" size={32} />
-                <p className="font-medium">Objetos de Conhecimento</p>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className="cursor-pointer hover:bg-indigo-50 transition-colors"
-              onClick={() => navigate('/professor/calendario')}
-            >
-              <CardContent className="p-4 text-center">
-                <Calendar className="mx-auto mb-2 text-indigo-600" size={32} />
-                <p className="font-medium">Calendário</p>
-              </CardContent>
-            </Card>
-
-            <Card 
-              className="cursor-pointer hover:bg-orange-50 transition-colors"
-              onClick={() => navigate('/professor/perfil')}
-            >
-              <CardContent className="p-4 text-center">
-                <User className="mx-auto mb-2 text-orange-600" size={32} />
-                <p className="font-medium">Meu Perfil</p>
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </div>
     </Layout>
