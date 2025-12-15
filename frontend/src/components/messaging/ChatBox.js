@@ -179,7 +179,7 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
         wsRef.current = null;
       }
     };
-  }, [connection.id, connection.user_id, user?.id]); // Reconectar se a conexão mudar
+  }, [connection.id]); // Só reconectar se mudar de conversa (connection.id)
 
   useEffect(() => {
     scrollToBottom();
