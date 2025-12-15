@@ -405,18 +405,22 @@ export function Grades() {
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <button
-          onClick={() => navigate(user?.role === 'professor' ? '/professor' : '/dashboard')}
-          className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <Home size={18} />
-          <span>Início</span>
-        </button>
-        
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Lançamento de Notas</h1>
-            <p className="text-gray-600 mt-1">Gerencie as notas dos alunos por turma ou individualmente</p>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate(user?.role === 'professor' ? '/professor' : '/dashboard')}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <Home size={18} />
+              <span>Início</span>
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <BookOpen className="text-blue-600" />
+                Lançamento de Notas
+              </h1>
+              <p className="text-gray-600 text-sm">Gerencie as notas dos alunos por turma ou individualmente</p>
+            </div>
           </div>
           
           {/* Seletor de Ano Letivo */}
