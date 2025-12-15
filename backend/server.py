@@ -3672,7 +3672,7 @@ app.include_router(api_router)
 
 # ============= WEBSOCKET ENDPOINT =============
 
-@app.websocket("/ws/{token}")
+@app.websocket("/api/ws/{token}")
 async def websocket_endpoint(websocket: WebSocket, token: str):
     """Endpoint WebSocket para mensagens em tempo real"""
     try:
