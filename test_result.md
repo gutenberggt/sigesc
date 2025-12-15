@@ -426,3 +426,15 @@ agent_communication:
       - working: true
         agent: "main"
         comment: "✅ Refatoração concluída. Staff.js reduzido de 2.392 para 289 linhas. Criados: useStaff.js (hook de lógica), constants.js (constantes), StaffTable.js, LotacoesTable.js, AlocacoesTable.js, StaffModal.js, LotacaoModal.js, AlocacaoModal.js, StaffDetailModal.js, DeleteConfirmModal.js. Screenshot confirmou funcionamento correto."
+
+  - task: "Sistema de Conexões e Mensagens entre Perfis"
+    implemented: true
+    working: true
+    file: "backend/server.py, backend/models.py, frontend/src/pages/UserProfile.js, frontend/src/components/messaging/*.js, frontend/src/services/api.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "✅ Sistema completo implementado: Conexões (convidar, aceitar, rejeitar, listar), Mensagens (enviar texto/imagem/PDF, histórico), Layout 75%/25% na página de perfil, ChatBox estilo LinkedIn, WebSocket para tempo real. Endpoints: /api/connections/*, /api/messages/*. Testado via curl e screenshots."
