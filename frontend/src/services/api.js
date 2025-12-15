@@ -582,3 +582,30 @@ export const learningObjectsAPI = {
     return response.data;
   }
 };
+
+// ============= PROFILES API =============
+export const profilesAPI = {
+  // Obter meu perfil
+  getMyProfile: async () => {
+    const response = await axios.get(`${API}/profiles/me`);
+    return response.data;
+  },
+  
+  // Obter perfil por ID do usuário
+  getByUserId: async (userId) => {
+    const response = await axios.get(`${API}/profiles/${userId}`);
+    return response.data;
+  },
+  
+  // Atualizar meu perfil
+  updateMyProfile: async (data) => {
+    const response = await axios.put(`${API}/profiles/me`, data);
+    return response.data;
+  },
+  
+  // Admin: Atualizar perfil de outro usuário
+  updateProfile: async (userId, data) => {
+    const response = await axios.put(`${API}/profiles/${userId}`, data);
+    return response.data;
+  }
+};
