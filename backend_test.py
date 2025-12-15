@@ -3057,9 +3057,9 @@ class SIGESCTester:
                 created_announcement_id = announcement['id']
                 self.log(f"✅ Announcement created successfully (ID: {created_announcement_id})")
                 self.log(f"   Title: {announcement.get('title')}")
-                self.log(f"   Recipient Type: {announcement.get('recipient_type')}")
-                self.log(f"   Recipient Value: {announcement.get('recipient_value')}")
-                self.log(f"   Priority: {announcement.get('priority')}")
+                recipient = announcement.get('recipient', {})
+                self.log(f"   Recipient Type: {recipient.get('type')}")
+                self.log(f"   Target Roles: {recipient.get('target_roles')}")
                 self.log(f"   Sender: {announcement.get('sender_name', 'N/A')}")
                 
                 # Verify sender info is populated correctly
