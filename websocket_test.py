@@ -147,19 +147,15 @@ class WebSocketTester:
         self.log("🔍 Finding Ricleide's user_id from connections...")
         
         for conn in connections:
-            # Check if admin is user1 or user2, then get the other user
-            if conn.get('user1_id') == admin_user_id:
-                ricleide_id = conn.get('user2_id')
-                ricleide_name = conn.get('user2_name')
-                connection_id = conn.get('id')
-                self.log(f"✅ Found Ricleide: {ricleide_name} (ID: {ricleide_id})")
-                return ricleide_id, connection_id
-            elif conn.get('user2_id') == admin_user_id:
-                ricleide_id = conn.get('user1_id')
-                ricleide_name = conn.get('user1_name')
-                connection_id = conn.get('id')
-                self.log(f"✅ Found Ricleide: {ricleide_name} (ID: {ricleide_id})")
-                return ricleide_id, connection_id
+            # The connections API returns the connected user info directly
+            user_id = conn.get('user_id')
+            full_name = conn.get('full_name')
+            connection_id = conn.get('id')
+            
+            # Check if this is Ricleide (not the admin)
+            if user_id != admin_user_id and 'RICLEIDE' in full_name.upper():
+                self.log(f"✅ Found Ricleide: {full_name} (ID: {user_id})")
+                return user_id, connection_id
         
         self.log("❌ Ricleide not found in connections")
         return None, None
