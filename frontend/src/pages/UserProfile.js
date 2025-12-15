@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,8 @@ import { profilesAPI, uploadAPI } from '@/services/api';
 import { 
   Home, User, Edit, Plus, Trash2, MapPin, Phone, Mail, Globe, Linkedin,
   Briefcase, GraduationCap, Award, Star, Camera, Lock, Unlock, Save, X,
-  Calendar, Building2, CheckCircle, AlertCircle
+  Calendar, Building2, CheckCircle, AlertCircle, Search, Facebook, Instagram,
+  MessageCircle, Upload
 } from 'lucide-react';
 
 // Mapa de roles para exibição
@@ -22,15 +23,40 @@ const ROLE_LABELS = {
   semed: 'SEMED'
 };
 
+// Formatar telefone brasileiro
+const formatPhone = (phone) => {
+  if (!phone) return '';
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.length === 11) {
+    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+  } else if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
+  }
+  return phone;
+};
+
+// Gerar link do WhatsApp
+const getWhatsAppLink = (number) => {
+  if (!number) return '';
+  const cleaned = number.replace(/\D/g, '');
+  // Adiciona código do Brasil se não tiver
+  const fullNumber = cleaned.startsWith('55') ? cleaned : `55${cleaned}`;
+  return `https://wa.me/${fullNumber}`;
+};
+
 export const UserProfile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { userId } = useParams(); // Se tiver userId na URL, é perfil de outro usuário
+  const { userId } = useParams();
   
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState(null);
+  
+  // Refs para upload de arquivos
+  const coverInputRef = useRef(null);
+  const avatarInputRef = useRef(null);
   
   // Modals
   const [showEditModal, setShowEditModal] = useState(false);
@@ -43,7 +69,14 @@ export const UserProfile = () => {
   const [editData, setEditData] = useState({});
   const [editingItem, setEditingItem] = useState(null);
   
-  // Verificar se é o próprio perfil ou admin
+  // Busca de perfis
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const searchInputRef = useRef(null);
+  
+  // Verificar permissões
   const isOwnProfile = !userId || userId === user?.id;
   const isAdmin = user?.role === 'admin';
   const canEdit = isOwnProfile || isAdmin;
@@ -51,6 +84,40 @@ export const UserProfile = () => {
   useEffect(() => {
     loadProfile();
   }, [userId]);
+
+  // Busca de perfis com debounce
+  useEffect(() => {
+    const delaySearch = setTimeout(async () => {
+      if (searchQuery.length >= 3) {
+        setSearching(true);
+        try {
+          const results = await profilesAPI.search(searchQuery);
+          setSearchResults(results);
+          setShowSearchResults(true);
+        } catch (error) {
+          console.error('Erro na busca:', error);
+        } finally {
+          setSearching(false);
+        }
+      } else {
+        setSearchResults([]);
+        setShowSearchResults(false);
+      }
+    }, 300);
+    
+    return () => clearTimeout(delaySearch);
+  }, [searchQuery]);
+
+  // Fechar dropdown de busca ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchInputRef.current && !searchInputRef.current.contains(event.target)) {
+        setShowSearchResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const loadProfile = async () => {
     try {
@@ -73,6 +140,47 @@ export const UserProfile = () => {
   const showAlert = (type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 4000);
+  };
+
+  // Upload de imagem
+  const handleImageUpload = async (event, type) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validar tipo
+    if (!file.type.startsWith('image/')) {
+      showAlert('error', 'Por favor, selecione uma imagem válida');
+      return;
+    }
+    
+    // Validar tamanho (máx 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showAlert('error', 'A imagem deve ter no máximo 5MB');
+      return;
+    }
+    
+    try {
+      setSaving(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await uploadAPI.uploadFile(formData);
+      const imageUrl = response.url;
+      
+      // Atualizar perfil com a nova URL
+      const fieldName = type === 'cover' ? 'foto_capa_url' : 'foto_url';
+      const updatedProfile = isOwnProfile 
+        ? await profilesAPI.updateMyProfile({ [fieldName]: imageUrl })
+        : await profilesAPI.updateProfile(userId, { [fieldName]: imageUrl });
+      
+      setProfile({ ...profile, ...updatedProfile });
+      showAlert('success', 'Imagem atualizada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error);
+      showAlert('error', 'Erro ao fazer upload da imagem');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -104,7 +212,7 @@ export const UserProfile = () => {
     }
   };
 
-  // Experiência
+  // Handlers para Experiência, Formação, Competências e Certificações
   const handleSaveExperience = async () => {
     try {
       setSaving(true);
@@ -148,7 +256,6 @@ export const UserProfile = () => {
     }
   };
 
-  // Formação
   const handleSaveEducation = async () => {
     try {
       setSaving(true);
@@ -192,7 +299,6 @@ export const UserProfile = () => {
     }
   };
 
-  // Competências
   const handleSaveSkill = async () => {
     try {
       setSaving(true);
@@ -236,7 +342,6 @@ export const UserProfile = () => {
     }
   };
 
-  // Certificações
   const handleSaveCertification = async () => {
     try {
       setSaving(true);
@@ -314,36 +419,123 @@ export const UserProfile = () => {
           </div>
         )}
 
-        {/* Header com botão Início */}
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate(user?.role === 'professor' ? '/professor' : '/dashboard')}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <Home size={18} />
-            <span>Início</span>
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <User className="text-blue-600" />
-              {isOwnProfile ? 'Meu Perfil' : 'Perfil do Usuário'}
-            </h1>
+        {/* Header com botão Início e Busca */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate(user?.role === 'professor' ? '/professor' : '/dashboard')}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <Home size={18} />
+              <span>Início</span>
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <User className="text-blue-600" />
+                {isOwnProfile ? 'Meu Perfil' : 'Perfil'}
+              </h1>
+            </div>
+          </div>
+          
+          {/* Campo de Busca de Perfis */}
+          <div className="relative flex-1 max-w-md" ref={searchInputRef}>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar perfis (mínimo 3 letras)..."
+                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              {searching && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                </div>
+              )}
+            </div>
+            
+            {/* Dropdown de Resultados */}
+            {showSearchResults && searchResults.length > 0 && (
+              <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                {searchResults.map((result) => (
+                  <button
+                    key={result.user_id}
+                    onClick={() => {
+                      navigate(`/profile/${result.user_id}`);
+                      setSearchQuery('');
+                      setShowSearchResults(false);
+                    }}
+                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 border-b last:border-b-0 text-left"
+                  >
+                    {result.foto_url ? (
+                      <img src={result.foto_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                        <User size={20} className="text-gray-400" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium text-gray-900">{result.full_name}</p>
+                      <p className="text-sm text-gray-500">
+                        {result.headline || ROLE_LABELS[result.role] || result.role}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {showSearchResults && searchQuery.length >= 3 && searchResults.length === 0 && !searching && (
+              <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg p-4 text-center text-gray-500">
+                Nenhum perfil público encontrado
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Banner/Cover - Similar ao LinkedIn */}
+        {/* Banner/Cover */}
         <div className="relative">
+          {/* Input escondido para upload de capa */}
+          <input
+            type="file"
+            ref={coverInputRef}
+            onChange={(e) => handleImageUpload(e, 'cover')}
+            accept="image/*"
+            className="hidden"
+          />
+          
           <div 
-            className="h-48 bg-gradient-to-r from-blue-600 to-blue-800 rounded-t-xl"
+            className="h-48 bg-gradient-to-r from-blue-600 to-blue-800 rounded-t-xl relative overflow-hidden"
             style={profile.foto_capa_url ? { 
               backgroundImage: `url(${profile.foto_capa_url})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center'
             } : {}}
-          />
+          >
+            {canEdit && (
+              <button 
+                onClick={() => coverInputRef.current?.click()}
+                className="absolute bottom-4 right-4 bg-white/90 hover:bg-white text-gray-800 px-3 py-2 rounded-lg flex items-center gap-2 text-sm transition-colors"
+                disabled={saving}
+              >
+                <Camera size={16} />
+                {profile.foto_capa_url ? 'Alterar capa' : 'Adicionar capa'}
+              </button>
+            )}
+          </div>
           
           {/* Avatar */}
           <div className="absolute -bottom-16 left-8">
+            {/* Input escondido para upload de avatar */}
+            <input
+              type="file"
+              ref={avatarInputRef}
+              onChange={(e) => handleImageUpload(e, 'avatar')}
+              accept="image/*"
+              className="hidden"
+            />
+            
             <div className="relative">
               {profile.foto_url || profile.user?.avatar_url ? (
                 <img 
@@ -358,11 +550,9 @@ export const UserProfile = () => {
               )}
               {canEdit && (
                 <button 
-                  className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700"
-                  onClick={() => {
-                    setEditData({ ...profile });
-                    setShowEditModal(true);
-                  }}
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors"
+                  disabled={saving}
                 >
                   <Camera size={16} />
                 </button>
@@ -397,7 +587,7 @@ export const UserProfile = () => {
           )}
         </div>
 
-        {/* Informações Principais - Card */}
+        {/* Informações Principais */}
         <Card className="pt-20">
           <CardContent className="space-y-4">
             <div>
@@ -424,33 +614,66 @@ export const UserProfile = () => {
                 {profile.telefone && (
                   <span className="flex items-center gap-1">
                     <Phone size={14} />
-                    {profile.telefone}
+                    {formatPhone(profile.telefone)}
                   </span>
                 )}
               </div>
               
-              {/* Links */}
-              <div className="flex gap-3 mt-3">
+              {/* Redes Sociais */}
+              <div className="flex flex-wrap gap-3 mt-4">
                 {profile.website && (
                   <a 
-                    href={profile.website} 
+                    href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700 text-sm transition-colors"
                   >
-                    <Globe size={16} />
+                    <Globe size={14} />
                     Website
                   </a>
                 )}
                 {profile.linkedin_url && (
                   <a 
-                    href={profile.linkedin_url} 
+                    href={profile.linkedin_url.startsWith('http') ? profile.linkedin_url : `https://${profile.linkedin_url}`} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-700 text-sm transition-colors"
                   >
-                    <Linkedin size={16} />
+                    <Linkedin size={14} />
                     LinkedIn
+                  </a>
+                )}
+                {profile.facebook_url && (
+                  <a 
+                    href={profile.facebook_url.startsWith('http') ? profile.facebook_url : `https://facebook.com/${profile.facebook_url}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 hover:bg-blue-200 rounded-full text-blue-800 text-sm transition-colors"
+                  >
+                    <Facebook size={14} />
+                    Facebook
+                  </a>
+                )}
+                {profile.instagram_url && (
+                  <a 
+                    href={profile.instagram_url.startsWith('http') ? profile.instagram_url : `https://instagram.com/${profile.instagram_url}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-pink-100 hover:bg-pink-200 rounded-full text-pink-700 text-sm transition-colors"
+                  >
+                    <Instagram size={14} />
+                    Instagram
+                  </a>
+                )}
+                {profile.whatsapp && (
+                  <a 
+                    href={getWhatsAppLink(profile.whatsapp)} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-green-100 hover:bg-green-200 rounded-full text-green-700 text-sm transition-colors"
+                  >
+                    <MessageCircle size={14} />
+                    WhatsApp
                   </a>
                 )}
               </div>
@@ -786,7 +1009,7 @@ export const UserProfile = () => {
           onClose={() => setShowEditModal(false)}
           title="Editar Perfil"
         >
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Título Profissional</label>
               <input
@@ -828,29 +1051,75 @@ export const UserProfile = () => {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-                <input
-                  type="url"
-                  value={editData.website || ''}
-                  onChange={(e) => setEditData({ ...editData, website: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn</label>
-                <input
-                  type="url"
-                  value={editData.linkedin_url || ''}
-                  onChange={(e) => setEditData({ ...editData, linkedin_url: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://linkedin.com/in/..."
-                />
+            
+            {/* Redes Sociais */}
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Redes Sociais</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <Globe size={14} /> Website
+                  </label>
+                  <input
+                    type="url"
+                    value={editData.website || ''}
+                    onChange={(e) => setEditData({ ...editData, website: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://seusite.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <Linkedin size={14} className="text-blue-600" /> LinkedIn
+                  </label>
+                  <input
+                    type="url"
+                    value={editData.linkedin_url || ''}
+                    onChange={(e) => setEditData({ ...editData, linkedin_url: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://linkedin.com/in/seuperfil"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <Facebook size={14} className="text-blue-700" /> Facebook
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.facebook_url || ''}
+                    onChange={(e) => setEditData({ ...editData, facebook_url: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://facebook.com/seuperfil ou @seuperfil"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <Instagram size={14} className="text-pink-600" /> Instagram
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.instagram_url || ''}
+                    onChange={(e) => setEditData({ ...editData, instagram_url: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="@seuinstagram"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <MessageCircle size={14} className="text-green-600" /> WhatsApp
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.whatsapp || ''}
+                    onChange={(e) => setEditData({ ...editData, whatsapp: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="(00) 00000-0000"
+                  />
+                </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-4">
+            
+            <div className="flex justify-end gap-2 pt-4 border-t">
               <Button variant="outline" onClick={() => setShowEditModal(false)}>Cancelar</Button>
               <Button onClick={handleSaveProfile} disabled={saving}>
                 <Save size={16} className="mr-1" />
