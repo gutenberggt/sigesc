@@ -60,7 +60,7 @@ const Announcements = () => {
       const [schoolsData, classesData, usersData] = await Promise.all([
         schoolsAPI.list(),
         classesAPI.list(),
-        usersAPI.list()
+        usersAPI.getAll()
       ]);
       setSchools(schoolsData);
       setClasses(classesData);
