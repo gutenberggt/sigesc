@@ -1,5 +1,5 @@
 import { Building2, Plus, Minus } from 'lucide-react';
-import Modal from '@/components/Modal';
+import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { CARGOS, FUNCOES, TURNOS } from './constants';
 

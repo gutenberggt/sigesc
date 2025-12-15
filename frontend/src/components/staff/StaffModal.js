@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { Camera, Plus, Minus } from 'lucide-react';
-import Modal from '@/components/Modal';
+import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { CARGOS, STATUS_SERVIDOR, TIPOS_VINCULO, SEXOS, COR_RACA } from './constants';
 

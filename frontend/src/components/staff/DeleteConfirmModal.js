@@ -1,5 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
-import Modal from '@/components/Modal';
+import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 
 export const DeleteConfirmModal = ({
