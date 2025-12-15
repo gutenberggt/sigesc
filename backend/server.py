@@ -3773,8 +3773,13 @@ async def create_announcement(announcement_data: AnnouncementCreate, request: Re
     """Criar um novo aviso"""
     current_user = await AuthMiddleware.get_current_user(request)
     
+    # Buscar dados completos do usuário
+    user_data = await db.users.find_one({'id': current_user['id']}, {'_id': 0})
+    if not user_data:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
     # Verificar permissão
-    if not can_user_create_announcement(current_user, announcement_data.recipient.model_dump()):
+    if not can_user_create_announcement(user_data, announcement_data.recipient.model_dump()):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Você não tem permissão para enviar avisos para esses destinatários"
@@ -3791,15 +3796,15 @@ async def create_announcement(announcement_data: AnnouncementCreate, request: Re
         'content': announcement_data.content,
         'recipient': announcement_data.recipient.model_dump(),
         'sender_id': current_user['id'],
-        'sender_name': current_user['full_name'],
-        'sender_role': current_user['role'],
+        'sender_name': user_data.get('full_name', 'Usuário'),
+        'sender_role': user_data.get('role', current_user['role']),
         'sender_foto_url': sender_foto,
         'created_at': datetime.now(timezone.utc).isoformat(),
         'updated_at': None
     }
     
     # Obter lista de usuários destinatários para facilitar buscas
-    target_users = await get_announcement_target_users(db, announcement_data.recipient.model_dump(), current_user)
+    target_users = await get_announcement_target_users(db, announcement_data.recipient.model_dump(), user_data)
     announcement['target_user_ids'] = target_users
     
     await db.announcements.insert_one(announcement)
