@@ -623,27 +623,33 @@ const Announcements = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Selecione os usuários
               </label>
-              <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
-                {staff.map(person => (
-                  <label
-                    key={person.id}
-                    className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.userIds.includes(person.user_id)}
-                      onChange={(e) => {
-                        const newIds = e.target.checked
-                          ? [...formData.userIds, person.user_id]
-                          : formData.userIds.filter(id => id !== person.user_id);
-                        setFormData({ ...formData, userIds: newIds });
-                      }}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm">{person.full_name} - {roleLabels[person.role] || person.role}</span>
-                  </label>
-                ))}
-              </div>
+              {allUsers.length === 0 ? (
+                <p className="text-sm text-gray-500 p-4 border border-gray-200 rounded-lg">
+                  Nenhum usuário disponível
+                </p>
+              ) : (
+                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
+                  {allUsers.map(person => (
+                    <label
+                      key={person.id}
+                      className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.userIds.includes(person.id)}
+                        onChange={(e) => {
+                          const newIds = e.target.checked
+                            ? [...formData.userIds, person.id]
+                            : formData.userIds.filter(id => id !== person.id);
+                          setFormData({ ...formData, userIds: newIds });
+                        }}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm">{person.full_name} - {roleLabels[person.role] || person.role}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
