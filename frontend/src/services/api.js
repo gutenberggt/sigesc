@@ -619,3 +619,104 @@ export const profilesAPI = {
     return response.data;
   }
 };
+
+// ============= CONNECTIONS API =============
+export const connectionsAPI = {
+  // Listar conexões aceitas
+  list: async () => {
+    const response = await axios.get(`${API}/connections`);
+    return response.data;
+  },
+  
+  // Listar convites pendentes recebidos
+  listPending: async () => {
+    const response = await axios.get(`${API}/connections/pending`);
+    return response.data;
+  },
+  
+  // Listar convites enviados pendentes
+  listSent: async () => {
+    const response = await axios.get(`${API}/connections/sent`);
+    return response.data;
+  },
+  
+  // Verificar status de conexão com um usuário
+  getStatus: async (userId) => {
+    const response = await axios.get(`${API}/connections/status/${userId}`);
+    return response.data;
+  },
+  
+  // Enviar convite de conexão
+  invite: async (receiverId, message = null) => {
+    const response = await axios.post(`${API}/connections/invite`, { 
+      receiver_id: receiverId, 
+      message 
+    });
+    return response.data;
+  },
+  
+  // Aceitar convite
+  accept: async (connectionId) => {
+    const response = await axios.post(`${API}/connections/${connectionId}/accept`);
+    return response.data;
+  },
+  
+  // Rejeitar convite
+  reject: async (connectionId) => {
+    const response = await axios.post(`${API}/connections/${connectionId}/reject`);
+    return response.data;
+  },
+  
+  // Remover conexão
+  remove: async (connectionId) => {
+    await axios.delete(`${API}/connections/${connectionId}`);
+  }
+};
+
+// ============= MESSAGES API =============
+export const messagesAPI = {
+  // Enviar mensagem
+  send: async (receiverId, content, attachments = []) => {
+    const response = await axios.post(`${API}/messages`, {
+      receiver_id: receiverId,
+      content,
+      attachments
+    });
+    return response.data;
+  },
+  
+  // Listar mensagens de uma conexão
+  getMessages: async (connectionId, limit = 50, before = null) => {
+    const params = { limit };
+    if (before) params.before = before;
+    const response = await axios.get(`${API}/messages/${connectionId}`, { params });
+    return response.data;
+  },
+  
+  // Listar todas as conversas
+  listConversations: async () => {
+    const response = await axios.get(`${API}/messages/conversations/list`);
+    return response.data;
+  },
+  
+  // Marcar mensagem como lida
+  markAsRead: async (messageId) => {
+    const response = await axios.post(`${API}/messages/${messageId}/read`);
+    return response.data;
+  },
+  
+  // Obter contagem de não lidas
+  getUnreadCount: async () => {
+    const response = await axios.get(`${API}/messages/unread/count`);
+    return response.data;
+  }
+};
+
+// WebSocket URL
+export const getWebSocketUrl = () => {
+  const token = getToken();
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = new URL(BACKEND_URL).host;
+  return `${wsProtocol}//${host}/ws/${token}`;
+};
+
