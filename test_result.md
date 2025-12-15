@@ -203,8 +203,9 @@ metadata:
 
 test_plan:
   current_focus:
+    - "User Profile Image Upload (Foto de Perfil e Capa) - COMPLETED"
+  stuck_tasks: 
     - "Staff Management - Workload Validation Feature Testing"
-  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
