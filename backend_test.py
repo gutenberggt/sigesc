@@ -2425,6 +2425,283 @@ class SIGESCTester:
                 except:
                     pass
 
+    def test_profile_image_upload(self):
+        """Test User Profile Image Upload functionality as per review request"""
+        self.log("\n📸 Testing User Profile Image Upload (Foto de Perfil e Capa)...")
+        
+        # Test credentials from review request
+        admin_credentials = {"email": "admin@sigesc.com", "password": "password"}
+        professor_credentials = {"email": "ricleidegoncalves@gmail.com", "password": "007724"}
+        
+        # Login as admin for testing
+        admin_token = self.login(admin_credentials, "Admin for Profile Test")
+        if not admin_token:
+            self.log("❌ Cannot proceed without admin login for profile test")
+            return False
+        
+        # Variables to store uploaded file info
+        uploaded_profile_filename = None
+        uploaded_cover_filename = None
+        
+        try:
+            # Scenario 1: Upload valid PNG image
+            self.log("1️⃣ Scenario 1: Upload valid PNG image...")
+            
+            # Create a simple PNG image in base64 (1x1 pixel transparent PNG)
+            import base64
+            import io
+            
+            # Minimal PNG data (1x1 transparent pixel)
+            png_data = base64.b64decode(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAI9jU8'
+                'AAABJRU5ErkJggg=='
+            )
+            
+            # Test POST /api/upload
+            files = {'file': ('test_profile.png', png_data, 'image/png')}
+            headers = {"Authorization": f"Bearer {admin_token}"}
+            
+            response = requests.post(
+                f"{API_BASE}/upload",
+                files=files,
+                headers=headers
+            )
+            
+            if response.status_code == 200:
+                upload_result = response.json()
+                uploaded_profile_filename = upload_result.get('filename')
+                
+                self.log(f"✅ PNG image uploaded successfully")
+                self.log(f"   Filename: {upload_result.get('filename')}")
+                self.log(f"   Original name: {upload_result.get('original_name')}")
+                self.log(f"   URL: {upload_result.get('url')}")
+                self.log(f"   Size: {upload_result.get('size')} bytes")
+                
+                # Verify URL format
+                expected_url = f"/api/uploads/{uploaded_profile_filename}"
+                if upload_result.get('url') == expected_url:
+                    self.log("✅ URL format is correct (/api/uploads/{filename})")
+                else:
+                    self.log(f"❌ URL format incorrect. Expected: {expected_url}, Got: {upload_result.get('url')}")
+                
+                # Verify file types are allowed
+                allowed_types = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx']
+                file_ext = '.' + uploaded_profile_filename.split('.')[-1].lower()
+                if file_ext in allowed_types:
+                    self.log(f"✅ File type {file_ext} is in allowed types")
+                else:
+                    self.log(f"❌ File type {file_ext} not in allowed types: {allowed_types}")
+                    
+            else:
+                self.log(f"❌ Failed to upload PNG image: {response.status_code} - {response.text}")
+                return False
+            
+            # Test GET /api/uploads/{filename} - Verify file can be accessed
+            self.log("2️⃣ Testing GET /api/uploads/{filename} - Verify file access...")
+            
+            response = requests.get(f"{API_BASE}/uploads/{uploaded_profile_filename}")
+            
+            if response.status_code == 200:
+                self.log("✅ Uploaded file can be accessed via GET")
+                
+                # Check content-type header
+                content_type = response.headers.get('content-type', '')
+                if content_type.startswith('image/png'):
+                    self.log(f"✅ Content-Type is correct: {content_type}")
+                else:
+                    self.log(f"❌ Content-Type incorrect. Expected: image/png, Got: {content_type}")
+                    
+            else:
+                self.log(f"❌ Failed to access uploaded file: {response.status_code}")
+                return False
+            
+            # Scenario 2: Update profile with foto_url
+            self.log("3️⃣ Scenario 2: Update profile with foto_url...")
+            
+            profile_update_data = {
+                "foto_url": f"/api/uploads/{uploaded_profile_filename}"
+            }
+            
+            response = requests.put(
+                f"{API_BASE}/profiles/me",
+                json=profile_update_data,
+                headers={"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
+            )
+            
+            if response.status_code == 200:
+                updated_profile = response.json()
+                self.log("✅ Profile updated with foto_url successfully")
+                self.log(f"   Foto URL: {updated_profile.get('foto_url')}")
+            else:
+                self.log(f"❌ Failed to update profile with foto_url: {response.status_code} - {response.text}")
+                return False
+            
+            # Scenario 3: Upload another image for cover photo
+            self.log("4️⃣ Scenario 3: Upload image for cover photo...")
+            
+            # Create another PNG for cover
+            files = {'file': ('test_cover.png', png_data, 'image/png')}
+            
+            response = requests.post(
+                f"{API_BASE}/upload",
+                files=files,
+                headers=headers
+            )
+            
+            if response.status_code == 200:
+                cover_upload_result = response.json()
+                uploaded_cover_filename = cover_upload_result.get('filename')
+                self.log(f"✅ Cover image uploaded successfully: {uploaded_cover_filename}")
+            else:
+                self.log(f"❌ Failed to upload cover image: {response.status_code} - {response.text}")
+                return False
+            
+            # Update profile with foto_capa_url
+            self.log("5️⃣ Updating profile with foto_capa_url...")
+            
+            cover_update_data = {
+                "foto_capa_url": f"/api/uploads/{uploaded_cover_filename}"
+            }
+            
+            response = requests.put(
+                f"{API_BASE}/profiles/me",
+                json=cover_update_data,
+                headers={"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
+            )
+            
+            if response.status_code == 200:
+                updated_profile = response.json()
+                self.log("✅ Profile updated with foto_capa_url successfully")
+                self.log(f"   Cover URL: {updated_profile.get('foto_capa_url')}")
+            else:
+                self.log(f"❌ Failed to update profile with foto_capa_url: {response.status_code} - {response.text}")
+                return False
+            
+            # Verify both URLs are saved correctly
+            self.log("6️⃣ Testing GET /api/profiles/me - Verify both URLs saved...")
+            
+            response = requests.get(
+                f"{API_BASE}/profiles/me",
+                headers={"Authorization": f"Bearer {admin_token}"}
+            )
+            
+            if response.status_code == 200:
+                profile = response.json()
+                self.log("✅ Profile retrieved successfully")
+                
+                foto_url = profile.get('foto_url')
+                foto_capa_url = profile.get('foto_capa_url')
+                
+                self.log(f"   Foto URL: {foto_url}")
+                self.log(f"   Foto Capa URL: {foto_capa_url}")
+                
+                # Verify URLs are correct
+                expected_foto_url = f"/api/uploads/{uploaded_profile_filename}"
+                expected_capa_url = f"/api/uploads/{uploaded_cover_filename}"
+                
+                if foto_url == expected_foto_url:
+                    self.log("✅ Profile foto_url saved correctly")
+                else:
+                    self.log(f"❌ Profile foto_url incorrect. Expected: {expected_foto_url}, Got: {foto_url}")
+                
+                if foto_capa_url == expected_capa_url:
+                    self.log("✅ Profile foto_capa_url saved correctly")
+                else:
+                    self.log(f"❌ Profile foto_capa_url incorrect. Expected: {expected_capa_url}, Got: {foto_capa_url}")
+                    
+            else:
+                self.log(f"❌ Failed to retrieve profile: {response.status_code} - {response.text}")
+                return False
+            
+            # Scenario 4: Validation tests
+            self.log("7️⃣ Scenario 4: Validation tests...")
+            
+            # Test upload without authentication
+            self.log("   Testing upload without authentication...")
+            files = {'file': ('test_no_auth.png', png_data, 'image/png')}
+            
+            response = requests.post(f"{API_BASE}/upload", files=files)
+            
+            if response.status_code == 401:
+                self.log("✅ Upload correctly denied without authentication (401)")
+            else:
+                self.log(f"❌ Upload should require authentication. Got: {response.status_code}")
+            
+            # Test file size limit (create a large file simulation)
+            self.log("   Testing file size limit (5MB)...")
+            
+            # Create a large file (simulate > 5MB)
+            large_data = b'x' * (6 * 1024 * 1024)  # 6MB
+            files = {'file': ('large_file.png', large_data, 'image/png')}
+            
+            response = requests.post(
+                f"{API_BASE}/upload",
+                files=files,
+                headers=headers
+            )
+            
+            if response.status_code == 400:
+                self.log("✅ Large file correctly rejected (400)")
+                if "muito grande" in response.text.lower() or "5mb" in response.text.lower():
+                    self.log("✅ Error message mentions size limit")
+            else:
+                self.log(f"❌ Large file should be rejected. Got: {response.status_code}")
+            
+            # Test invalid file type
+            self.log("   Testing invalid file type...")
+            
+            files = {'file': ('test.exe', b'fake exe content', 'application/octet-stream')}
+            
+            response = requests.post(
+                f"{API_BASE}/upload",
+                files=files,
+                headers=headers
+            )
+            
+            if response.status_code == 400:
+                self.log("✅ Invalid file type correctly rejected (400)")
+                if "não permitido" in response.text.lower() or "not allowed" in response.text.lower():
+                    self.log("✅ Error message mentions file type restriction")
+            else:
+                self.log(f"❌ Invalid file type should be rejected. Got: {response.status_code}")
+            
+            self.log("✅ Profile Image Upload testing completed successfully!")
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Error during profile image upload testing: {str(e)}")
+            return False
+            
+        finally:
+            # Cleanup uploaded files
+            self.log("🧹 Cleaning up uploaded test files...")
+            
+            if uploaded_profile_filename:
+                try:
+                    response = requests.delete(
+                        f"{API_BASE}/upload/{uploaded_profile_filename}",
+                        headers={"Authorization": f"Bearer {admin_token}"}
+                    )
+                    if response.status_code == 200:
+                        self.log(f"✅ Cleaned up profile image: {uploaded_profile_filename}")
+                    else:
+                        self.log(f"⚠️ Could not clean up profile image: {response.status_code}")
+                except:
+                    self.log(f"⚠️ Error cleaning up profile image")
+            
+            if uploaded_cover_filename:
+                try:
+                    response = requests.delete(
+                        f"{API_BASE}/upload/{uploaded_cover_filename}",
+                        headers={"Authorization": f"Bearer {admin_token}"}
+                    )
+                    if response.status_code == 200:
+                        self.log(f"✅ Cleaned up cover image: {uploaded_cover_filename}")
+                    else:
+                        self.log(f"⚠️ Could not clean up cover image: {response.status_code}")
+                except:
+                    self.log(f"⚠️ Error cleaning up cover image")
+
     def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting SIGESC Backend API Tests - LEARNING OBJECTS TESTING")
