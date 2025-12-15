@@ -16,6 +16,7 @@ import Staff from '@/pages/Staff';
 import { LearningObjects } from '@/pages/LearningObjects';
 import { UserProfile } from '@/pages/UserProfile';
 import ProfessorDashboard from '@/pages/ProfessorDashboard';
+import MessageLogs from '@/pages/MessageLogs';
 import '@/App.css';
 
 function App() {
