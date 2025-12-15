@@ -3414,6 +3414,55 @@ async def get_unread_count(request: Request):
 # Include the router in the main app
 app.include_router(api_router)
 
+# ============= WEBSOCKET ENDPOINT =============
+
+@app.websocket("/ws/{token}")
+async def websocket_endpoint(websocket: WebSocket, token: str):
+    """Endpoint WebSocket para mensagens em tempo real"""
+    try:
+        # Decodificar token para obter user_id
+        payload = decode_token(token)
+        if not payload:
+            await websocket.close(code=4001)
+            return
+        
+        user_id = payload.get('user_id')
+        if not user_id:
+            await websocket.close(code=4001)
+            return
+        
+        # Conectar
+        await connection_manager.connect(websocket, user_id)
+        
+        try:
+            while True:
+                # Aguardar mensagens do cliente (ping/pong ou comandos)
+                data = await websocket.receive_text()
+                
+                # Se receber ping, responder com pong
+                if data == "ping":
+                    await websocket.send_text("pong")
+                else:
+                    # Processar outros comandos se necessário
+                    try:
+                        message = json.loads(data)
+                        # Aqui pode processar comandos específicos
+                        if message.get('type') == 'mark_read':
+                            # Marcar mensagens como lidas
+                            pass
+                    except json.JSONDecodeError:
+                        pass
+                        
+        except WebSocketDisconnect:
+            connection_manager.disconnect(websocket, user_id)
+            
+    except Exception as e:
+        logger.error(f"Erro no WebSocket: {e}")
+        try:
+            await websocket.close(code=4000)
+        except:
+            pass
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
