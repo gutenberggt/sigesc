@@ -38,8 +38,12 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
   const connectWebSocket = useCallback(() => {
     try {
       const wsUrl = getWebSocketUrl();
-      if (!wsUrl || wsUrl.includes('null')) return;
+      if (!wsUrl || wsUrl.includes('null')) {
+        console.log('ChatBox WebSocket: URL inválida');
+        return;
+      }
 
+      console.log('ChatBox WebSocket: Tentando conectar...');
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
@@ -53,27 +57,33 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
 
         try {
           const data = JSON.parse(event.data);
-          console.log('ChatBox WebSocket: Mensagem recebida', data);
+          console.log('ChatBox WebSocket: Dados recebidos:', data.type);
           
           if (data.type === 'new_message' && data.message) {
-            // Verificar se a mensagem é para esta conversa
             const msg = data.message;
-            // A mensagem pertence a esta conversa se:
-            // - Foi enviada pelo outro usuário (connection.user_id) para mim, OU
-            // - Foi enviada por mim para o outro usuário (já adicionada localmente, ignorar)
+            console.log('ChatBox WebSocket: Nova mensagem recebida');
+            console.log('  - sender_id:', msg.sender_id);
+            console.log('  - receiver_id:', msg.receiver_id);
+            console.log('  - connection.user_id:', connection.user_id);
+            console.log('  - user.id:', user?.id);
+            
+            // A mensagem pertence a esta conversa se foi enviada pelo outro usuário para mim
             const isFromOtherUser = msg.sender_id === connection.user_id;
             const isToMe = msg.receiver_id === user?.id;
             
+            console.log('  - isFromOtherUser:', isFromOtherUser);
+            console.log('  - isToMe:', isToMe);
+            
             if (isFromOtherUser && isToMe) {
-              // Mensagem recebida do outro usuário
+              console.log('ChatBox WebSocket: Adicionando mensagem ao chat!');
               setMessages(prev => [...prev, msg]);
               onMessageReceived?.(msg);
+            } else {
+              console.log('ChatBox WebSocket: Mensagem ignorada (não é para este chat)');
             }
           } else if (data.type === 'message_deleted') {
-            // Remover mensagem excluída
             setMessages(prev => prev.filter(m => m.id !== data.message_id));
           } else if (data.type === 'conversation_deleted' && data.connection_id === connection.id) {
-            // Conversa excluída
             setMessages([]);
           }
         } catch (error) {
