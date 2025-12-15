@@ -3040,10 +3040,10 @@ class SIGESCTester:
             announcement_data = {
                 "title": "Reunião Pedagógica Importante",
                 "content": "Convocamos todos os professores para reunião pedagógica no dia 20/12/2025 às 14h no auditório principal. Assuntos: planejamento 2026, avaliações e metodologias ativas.",
-                "recipient_type": "role",
-                "recipient_value": "professor",
-                "priority": "high",
-                "expires_at": "2025-12-31T23:59:59Z"
+                "recipient": {
+                    "type": "role",
+                    "target_roles": ["professor"]
+                }
             }
             
             response = requests.post(
