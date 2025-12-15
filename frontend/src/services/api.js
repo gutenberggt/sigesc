@@ -709,6 +709,47 @@ export const messagesAPI = {
   getUnreadCount: async () => {
     const response = await axios.get(`${API}/messages/unread/count`);
     return response.data;
+  },
+  
+  // Excluir uma mensagem
+  deleteMessage: async (messageId) => {
+    const response = await axios.delete(`${API}/messages/${messageId}`);
+    return response.data;
+  },
+  
+  // Excluir toda a conversa
+  deleteConversation: async (connectionId) => {
+    const response = await axios.delete(`${API}/messages/conversation/${connectionId}`);
+    return response.data;
+  }
+};
+
+// ============= MESSAGE LOGS API (ADMIN) =============
+export const messageLogsAPI = {
+  // Listar usuários com logs
+  listUsers: async () => {
+    const response = await axios.get(`${API}/admin/message-logs/users`);
+    return response.data;
+  },
+  
+  // Obter logs de um usuário específico
+  getUserLogs: async (userId) => {
+    const response = await axios.get(`${API}/admin/message-logs/user/${userId}`);
+    return response.data;
+  },
+  
+  // Listar todos os logs (com filtro opcional)
+  list: async (userId = null, limit = 100) => {
+    const params = { limit };
+    if (userId) params.user_id = userId;
+    const response = await axios.get(`${API}/admin/message-logs`, { params });
+    return response.data;
+  },
+  
+  // Limpar logs expirados
+  cleanupExpired: async () => {
+    const response = await axios.delete(`${API}/admin/message-logs/expired`);
+    return response.data;
   }
 };
 
