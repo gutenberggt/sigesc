@@ -138,6 +138,9 @@ class UserProfileUpdate(BaseModel):
     telefone: Optional[str] = None
     website: Optional[str] = None
     linkedin_url: Optional[str] = None
+    facebook_url: Optional[str] = None
+    instagram_url: Optional[str] = None
+    whatsapp: Optional[str] = None
     foto_capa_url: Optional[str] = None
     foto_url: Optional[str] = None
     is_public: Optional[bool] = None
