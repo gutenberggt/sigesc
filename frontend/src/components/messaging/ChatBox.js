@@ -18,6 +18,8 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
   const fileInputRef = useRef(null);
   const wsRef = useRef(null);
   const menuRef = useRef(null);
+  const isMountedRef = useRef(true);
+  const reconnectTimeoutRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -34,52 +36,61 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
     }
   };
 
-  // Conectar WebSocket
-  const connectWebSocket = useCallback(() => {
-    try {
+  // WebSocket setup - executado uma vez quando o componente monta
+  useEffect(() => {
+    isMountedRef.current = true;
+    let ws = null;
+    let pingInterval = null;
+    
+    const connect = () => {
+      if (!isMountedRef.current) return;
+      
       const wsUrl = getWebSocketUrl();
       if (!wsUrl || wsUrl.includes('null')) {
         console.log('ChatBox WebSocket: URL inválida');
         return;
       }
 
-      console.log('ChatBox WebSocket: Tentando conectar...');
-      const ws = new WebSocket(wsUrl);
+      console.log('ChatBox WebSocket: Conectando...');
+      ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('ChatBox WebSocket: Conectado');
+        if (!isMountedRef.current) {
+          ws.close();
+          return;
+        }
+        console.log('ChatBox WebSocket: Conectado!');
         setWsConnected(true);
+        
+        // Iniciar ping para manter conexão viva
+        pingInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send('ping');
+          }
+        }, 25000); // Ping a cada 25 segundos (antes do timeout de 30s)
       };
 
       ws.onmessage = (event) => {
+        if (!isMountedRef.current) return;
         if (event.data === 'pong') return;
 
         try {
           const data = JSON.parse(event.data);
-          console.log('ChatBox WebSocket: Dados recebidos:', data.type);
+          console.log('ChatBox WebSocket: Mensagem recebida:', data.type);
           
           if (data.type === 'new_message' && data.message) {
             const msg = data.message;
-            console.log('ChatBox WebSocket: Nova mensagem recebida');
-            console.log('  - sender_id:', msg.sender_id);
-            console.log('  - receiver_id:', msg.receiver_id);
-            console.log('  - connection.user_id:', connection.user_id);
-            console.log('  - user.id:', user?.id);
-            
-            // A mensagem pertence a esta conversa se foi enviada pelo outro usuário para mim
+            // Verificar se a mensagem é do outro usuário para mim
             const isFromOtherUser = msg.sender_id === connection.user_id;
             const isToMe = msg.receiver_id === user?.id;
             
-            console.log('  - isFromOtherUser:', isFromOtherUser);
-            console.log('  - isToMe:', isToMe);
+            console.log('ChatBox WebSocket: isFromOtherUser:', isFromOtherUser, 'isToMe:', isToMe);
             
             if (isFromOtherUser && isToMe) {
               console.log('ChatBox WebSocket: Adicionando mensagem ao chat!');
               setMessages(prev => [...prev, msg]);
               onMessageReceived?.(msg);
-            } else {
-              console.log('ChatBox WebSocket: Mensagem ignorada (não é para este chat)');
             }
           } else if (data.type === 'message_deleted') {
             setMessages(prev => prev.filter(m => m.id !== data.message_id));
@@ -91,44 +102,53 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
         }
       };
 
-      ws.onclose = () => {
-        console.log('ChatBox WebSocket: Desconectado');
+      ws.onclose = (event) => {
+        console.log('ChatBox WebSocket: Desconectado, código:', event.code);
         setWsConnected(false);
-        // Tentar reconectar após 3 segundos
-        setTimeout(connectWebSocket, 3000);
+        wsRef.current = null;
+        
+        if (pingInterval) {
+          clearInterval(pingInterval);
+          pingInterval = null;
+        }
+        
+        // Reconectar apenas se o componente ainda está montado e não foi fechamento intencional
+        if (isMountedRef.current && event.code !== 1000) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            console.log('ChatBox WebSocket: Reconectando...');
+            connect();
+          }, 3000);
+        }
       };
 
       ws.onerror = (error) => {
         console.error('ChatBox WebSocket: Erro', error);
       };
-
-      // Ping a cada 30 segundos
-      const pingInterval = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send('ping');
-        }
-      }, 30000);
-
-      return () => {
-        clearInterval(pingInterval);
-        ws.close();
-      };
-    } catch (error) {
-      console.error('ChatBox WebSocket: Erro ao conectar', error);
-    }
-  }, [connection.id, connection.user_id, user?.id, onMessageReceived]);
-
-  useEffect(() => {
-    loadMessages();
-    const cleanup = connectWebSocket();
-    
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-      cleanup?.();
     };
-  }, [connection.id, connectWebSocket]);
+
+    // Carregar mensagens e conectar WebSocket
+    loadMessages();
+    connect();
+
+    // Cleanup quando o componente desmonta
+    return () => {
+      console.log('ChatBox: Desmontando componente');
+      isMountedRef.current = false;
+      
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      
+      if (pingInterval) {
+        clearInterval(pingInterval);
+      }
+      
+      if (wsRef.current) {
+        wsRef.current.close(1000); // Fechamento normal
+        wsRef.current = null;
+      }
+    };
+  }, [connection.id, connection.user_id, user?.id]); // Reconectar se a conexão mudar
 
   useEffect(() => {
     scrollToBottom();
