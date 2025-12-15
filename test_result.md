@@ -400,3 +400,15 @@ agent_communication:
       - working: true
         agent: "main"
         comment: "✅ Implementado upload de imagens para perfil (foto e capa). Criado endpoint GET /api/uploads/{filename} para servir arquivos com MIME type correto. Corrigido bug de frontend (uploadAPI.uploadFile -> uploadAPI.upload). Corrigido getUrl() para converter URLs antigas /uploads/ para /api/uploads/. Testado via curl e screenshot - imagem aparece corretamente no perfil."
+
+  - task: "Staff.js Refactoring - Split into modular components"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/Staff.js, frontend/src/hooks/useStaff.js, frontend/src/components/staff/*.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "✅ Refatoração concluída. Staff.js reduzido de 2.392 para 289 linhas. Criados: useStaff.js (hook de lógica), constants.js (constantes), StaffTable.js, LotacoesTable.js, AlocacoesTable.js, StaffModal.js, LotacaoModal.js, AlocacaoModal.js, StaffDetailModal.js, DeleteConfirmModal.js. Screenshot confirmou funcionamento correto."
