@@ -1155,6 +1155,31 @@ async def delete_file(filename: str, request: Request):
     
     return {"message": "Arquivo removido com sucesso"}
 
+
+@api_router.get("/uploads/{filename}")
+async def serve_uploaded_file(filename: str):
+    """Serve arquivos de upload com o content-type correto"""
+    import mimetypes
+    
+    file_path = UPLOADS_DIR / filename
+    
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Arquivo não encontrado"
+        )
+    
+    # Detecta o tipo MIME com base na extensão
+    mime_type, _ = mimetypes.guess_type(str(file_path))
+    if not mime_type:
+        mime_type = "application/octet-stream"
+    
+    return FileResponse(
+        path=str(file_path),
+        media_type=mime_type,
+        filename=filename
+    )
+
 # ============= HEALTH CHECK =============
 
 @api_router.get("/")
