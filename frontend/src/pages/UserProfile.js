@@ -161,10 +161,9 @@ export const UserProfile = () => {
     
     try {
       setSaving(true);
-      const formData = new FormData();
-      formData.append('file', file);
       
-      const response = await uploadAPI.uploadFile(formData);
+      // Faz upload do arquivo
+      const response = await uploadAPI.upload(file);
       const imageUrl = response.url;
       
       // Atualizar perfil com a nova URL
