@@ -504,3 +504,28 @@ agent_communication:
       - working: true
         agent: "main"
         comment: "✅ Implementado: 1) WebSocket no ChatBox para mensagens instantâneas, 2) Exclusão de mensagens individuais e conversas completas, 3) Sistema de Log de Conversas para compliance com retenção de 30 dias, 4) Página /admin/logs acessível apenas por admin. Endpoints: DELETE /api/messages/{id}, DELETE /api/messages/conversation/{id}, GET /api/admin/message-logs/*"
+
+## WebSocket Real-Time Messaging Fix (2025-12-15)
+
+### Changes Made:
+1. Fixed WebSocket route path from `/ws/{token}` to `/api/ws/{token}` in backend
+2. Fixed `getWebSocketUrl()` in frontend to use correct path `/api/ws/{token}`  
+3. Fixed protocol detection to use `wss://` when BACKEND_URL uses `https://`
+4. Fixed token parsing bug: changed `payload.get('user_id')` to `payload.get('sub')` (JWT uses 'sub' for user ID)
+5. Installed `uvicorn[standard]` for proper WebSocket support
+
+### Test Cases for WebSocket Messaging:
+1. Login as admin@sigesc.com / password
+2. Go to "Meu Perfil" page
+3. Click on the message icon (blue chat bubble) next to a connection
+4. Verify the green indicator appears next to the user name (WebSocket connected)
+5. Send a message and verify it appears immediately
+6. Open another browser window with another user (ricleidegoncalves@gmail.com / 007724)
+7. Verify messages sent by one user appear instantly in the other user's chat
+
+### Admin Credentials:
+- admin@sigesc.com / password
+
+### Professor Credentials:
+- ricleidegoncalves@gmail.com / 007724
+
