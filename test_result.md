@@ -371,3 +371,15 @@ agent_communication:
         agent: "testing"
         comment: "🎉 PROFESSOR PORTAL TESTING COMPLETED SUCCESSFULLY! Comprehensive testing of the Professor Portal (Dashboard) for SIGESC verified all functionality as requested: ✅ PROFESSOR LOGIN & DASHBOARD: Successfully logged in with ricleidegoncalves@gmail.com/007724, correctly redirected to /professor, Dashboard displays welcome message 'Olá, RICLEIDE!', Stats show: 1 Turma, 3 Componentes, 1 Escola, Carga Horária Semanal: 40h correctly displayed, ✅ MINHAS TURMAS SECTION: Found '3º Ano A' class card with school 'EMEIEF SORRISO DO ARAGUAIA', All components present: Matemática, Língua Portuguesa, Arte, Action buttons working: Diário, Alunos, ✅ QUICK ACCESS SECTION: All items present and functional: Lançar Notas, Frequência, Calendário, Meu Perfil, ✅ ACCESS CONTROL VERIFIED: Professor correctly denied access to admin routes (/admin/schools, /admin/users, /admin/staff) with proper 'Acesso Negado' error page, ✅ ADMIN SEPARATION VERIFIED: Admin login (admin@sigesc.com/password) correctly goes to admin dashboard (not professor portal), Admin can access all admin routes, Professor consistently redirected to professor portal, ✅ BACKEND APIS WORKING: Professor profile API (/api/professor/me) returns correct data (RICLEIDE DA SILVA GONÇALVES, matricula: 202500002, 40h workload), Professor turmas API (/api/professor/turmas) returns 3º Ano A with 3 components. All requested test scenarios completed successfully - Professor Portal is fully functional and secure!"
 
+
+  - task: "User Profile Image Upload - Backend and Frontend"
+    implemented: true
+    working: true
+    file: "backend/server.py, frontend/src/pages/UserProfile.js, frontend/src/services/api.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "✅ Implementado upload de imagens para perfil (foto e capa). Criado endpoint GET /api/uploads/{filename} para servir arquivos com MIME type correto. Corrigido bug de frontend (uploadAPI.uploadFile -> uploadAPI.upload). Corrigido getUrl() para converter URLs antigas /uploads/ para /api/uploads/. Testado via curl e screenshot - imagem aparece corretamente no perfil."
