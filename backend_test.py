@@ -3092,12 +3092,20 @@ class SIGESCTester:
                 # Check announcement structure
                 if announcements:
                     first_announcement = announcements[0]
-                    expected_fields = ['id', 'title', 'content', 'recipient_type', 'recipient_value', 'priority', 'sender_name', 'created_at']
+                    expected_fields = ['id', 'title', 'content', 'recipient', 'sender_name', 'created_at']
                     for field in expected_fields:
                         if field in first_announcement:
                             self.log(f"   ✅ Field '{field}' present")
                         else:
                             self.log(f"   ❌ Field '{field}' missing")
+                    
+                    # Check recipient structure
+                    if 'recipient' in first_announcement:
+                        recipient = first_announcement['recipient']
+                        if 'type' in recipient:
+                            self.log(f"   ✅ Recipient type present: {recipient['type']}")
+                        if 'target_roles' in recipient:
+                            self.log(f"   ✅ Target roles present: {recipient['target_roles']}")
             else:
                 self.log(f"❌ Failed to list announcements: {response.status_code} - {response.text}")
                 return False
