@@ -3189,11 +3189,12 @@ class SIGESCTester:
                 if response.status_code == 200:
                     unread_count = response.json()
                     self.log(f"✅ Unread count retrieved successfully")
-                    self.log(f"   Messages: {unread_count.get('messages', 0)}")
-                    self.log(f"   Announcements: {unread_count.get('announcements', 0)}")
+                    self.log(f"   Unread Messages: {unread_count.get('unread_messages', 0)}")
+                    self.log(f"   Unread Announcements: {unread_count.get('unread_announcements', 0)}")
+                    self.log(f"   Total: {unread_count.get('total', 0)}")
                     
                     # Verify structure
-                    if 'messages' in unread_count and 'announcements' in unread_count:
+                    if 'unread_messages' in unread_count and 'unread_announcements' in unread_count:
                         self.log("✅ Unread count structure is correct")
                     else:
                         self.log("❌ Unread count structure is incorrect")
