@@ -1,71 +1,67 @@
 <analysis>**original_problem_statement:**
-O usuário está desenvolvendo um **SIGESC (Sistema Integrado de Gestão Escolar)**, um projeto full-stack (React/FastAPI/MongoDB). O trabalho recente focou-se em:
+O usuário está desenvolvendo um **SIGESC (Sistema Integrado de Gestão Escolar)**. As solicitações recentes evoluíram em várias etapas:
 
-1.  **[CONCLUÍDO]** Implementação da página **Objetos de Conhecimento**.
-2.  **[CONCLUÍDO]** Várias melhorias de UI/UX, incluindo a substituição do botão Voltar ao Dashboard por um ícone Home e texto Início posicionado à esquerda do título da página.
-3.  **[CONCLUÍDO]** Habilitação do acesso do professor ao seu diário (Frequência, Notas, Objetos de Conhecimento), corrigindo um bug onde as turmas/escolas alocadas não eram carregadas corretamente.
-4.  **[CONCLUÍDO]** Aprimoramento do Dashboard do Administrador para se assemelhar ao do professor, com uma barra de identificação e foto.
-5.  **[EM ANDAMENTO]** Criação e aprimoramento de uma página de **Perfil de Usuário** no estilo do LinkedIn, com as seguintes funcionalidades:
-    *   Campos para foto de perfil e de capa.
-    *   Links para redes sociais (Website, LinkedIn, Facebook, Instagram, WhatsApp).
-    *   Formatação do número de telefone.
-    *   Uma barra de busca para encontrar outros perfis públicos no sistema.
+1.  **[CONCLUÍDO]** Melhorar a página de **Perfil de Usuário** para um estilo LinkedIn, incluindo upload de fotos, mais links sociais e uma barra de busca de perfis.
+2.  **[CONCLUÍDO]** Corrigir um bug na busca de perfis públicos que não retornava resultados devido a um erro de ordenamento de rotas no FastAPI.
+3.  **[CONCLUÍDO]** Refatorar o componente massivo  (com mais de 2.300 linhas) em componentes menores e mais gerenciáveis.
+4.  **[CONCLUÍDO]** Implementar um sistema de **conexão entre perfis**, permitindo que usuários enviem e aceitem convites.
+5.  **[CONCLUÍDO]** Criar um sistema de **mensagens privadas** entre perfis conectados, com uma interface de chat no estilo LinkedIn.
+6.  **[EM ANDAMENTO/PENDENTE DE VERIFICAÇÃO]** Melhorar o sistema de mensagens para incluir:
+    *   **Mensagens em tempo real** usando WebSockets, para que os usuários não precisem recarregar a página para ver novas mensagens.
+    *   Funcionalidade para **excluir mensagens individuais ou conversas inteiras**.
+    *   Um **log de conversas** para administradores, que armazena todas as mensagens excluídas por 30 dias para fins de compliance. Este log deve ser acessível através de um novo item no menu de administração.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-Uma aplicação full-stack (React/FastAPI/MongoDB) funcional com autenticação JWT e RBAC (Role-Based Access Control). A maioria dos módulos principais (Gestão de Escolas, Usuários, Alunos, Professores, etc.) está implementada.
+Uma aplicação full-stack (React/FastAPI/MongoDB) funcional com autenticação JWT e RBAC. O trabalho recente focou em funcionalidades sociais e de comunicação:
 
-Recentemente, foram concluídas:
-*   A funcionalidade completa de Objetos de Conhecimento.
-*   Correções de bugs e melhorias de UI, incluindo o acesso restrito do professor aos seus próprios dados e a padronização dos cabeçalhos das páginas.
-*   A primeira versão da página de Perfil do Usuário foi criada.
-*   O Dashboard do Administrador foi redesenhado.
-
-O trabalho atual foca-se na última solicitação do usuário: aprimorar a página de Perfil do Usuário. O backend foi atualizado com novos campos no modelo e um endpoint de busca. O frontend () foi reescrito para incluir os novos elementos de UI: busca de perfis, placeholders para upload de imagens, links de redes sociais e formatação de telefone.
+*   **Página de Perfil**: A página de perfil no estilo LinkedIn está completa, incluindo busca de usuários, upload de fotos de perfil/capa e edição de informações.
+*   **Refatoração do **: O componente foi refatorado com sucesso, melhorando a manutenibilidade do código.
+*   **Sistema de Mensagens**: Um sistema de comunicação completo foi implementado, incluindo:
+    *   **Backend**: Endpoints para gerenciar conexões (convidar, aceitar), enviar/listar mensagens, um endpoint WebSocket () para comunicação em tempo real, e endpoints para exclusão e log de mensagens.
+    *   **Frontend**: A página de perfil agora tem um layout de duas colunas (75% perfil, 25% lista de conexões). Um componente de chat () permite a troca de mensagens em tempo real.
+    *   **Log de Admin**: Uma nova página () foi criada para que administradores possam visualizar e gerenciar logs de conversas excluídas, garantindo compliance.
 
 **Last working item**:
-- **Last item agent was working:** O agente estava finalizando a implementação das melhorias na página de Perfil do Usuário. Ele atualizou os modelos e endpoints do backend e reescreveu a página de frontend () para incluir uma barra de busca, placeholders para upload de fotos, mais links de redes sociais e formatação de telefone.
+- **Last item agent was working:** Finalizando a implementação das melhorias no sistema de mensagens: mensagens em tempo real com WebSockets, exclusão de mensagens/conversas e a criação do log de conversas para administradores. O agente implementou o backend e o frontend para todas essas funcionalidades.
 - **Status:** USER VERIFICATION PENDING
-- **Agent Testing Done:** N (Apenas verificação visual via screenshot foi realizada. A funcionalidade de busca e upload não foi testada.)
+- **Agent Testing Done:** Y
 - **Which testing method agent to use?** both
 - **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
-Nenhum problema pendente.
+Nenhum problema pendente. A última tarefa está aguardando a verificação do usuário.
 
 **In progress Task List**:
-- **Task 1: Testar e Finalizar as Melhorias da Página de Perfil (P0)**
-    - **Where to resume:** A UI e o backend básicos estão prontos. É necessário testar exaustivamente as novas funcionalidades.
-    - **What will be achieved with this?** Garantir que a busca de perfis, o upload de imagens (backend precisa ser implementado) e a edição de novos campos funcionem corretamente.
-    - **Status:** IN PROGRESS
+- **Task 1: Testar e Finalizar as Melhorias do Sistema de Mensagens (P0)**
+    - **Where to resume:** A implementação está completa. É necessário verificar se as mensagens são trocadas em tempo real, se a exclusão de mensagens funciona e se os logs são criados corretamente na página de administração.
+    - **What will be achieved with this?** Uma experiência de chat fluida e em tempo real, com funcionalidades de gerenciamento e compliance.
+    - **Status:** USER VERIFICATION PENDING
     - **Should Test frontend/backend/both after fix?** both
-    - **Blocked on something:** A funcionalidade de upload de fotos de perfil e capa está bloqueada, pois o backend para receber e armazenar os arquivos ainda não foi implementado.
+    - **Blocked on something:** N/A
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-    - **P0: Implementar o backend para upload de imagens:** Criar os endpoints e a lógica para lidar com o upload da foto de perfil e da foto de capa na página de Perfil do Usuário.
-    - **P1: Refatorar :** O arquivo  tem mais de 2.100 linhas e precisa ser dividido em componentes menores para melhorar a manutenibilidade.
+    - **P1: FASE 7 - Sistema de Comunicação:** CRUD de Avisos.
+    - **P2: FASE 8 - Geração de Documentos:** Funcionalidade para gerar PDFs (Boletim, Declarações).
 - **Future Tasks:**
-    - **P2: FASE 7 - Sistema de Comunicação:** CRUD de Avisos.
-    - **P3: FASE 8 - Geração de Documentos:** Funcionalidade para gerar PDFs (Boletim, Declarações).
-    - **P4: Refatorar  e **.
+    - **P3: Refatorar  e **.
 
 **Completed work in this session**
-- **Funcionalidade Objetos de Conhecimento**: Implementada e testada de ponta a ponta.
-- **Melhorias de Acesso do Professor**: Corrigido o bug que impedia professores de verem suas turmas e escolas. Rotas ,  e  foram habilitadas e agora carregam os dados corretamente.
-- **Padronização da UI**: O botão Voltar ao Dashboard foi substituído em mais de 10 páginas por um novo cabeçalho com o botão Início e ícone da Home, posicionado à esquerda do título da página.
-- **Página de Perfil do Usuário (Versão 2)**:
-    - Criada a página no estilo LinkedIn ().
-    - Backend foi estendido para incluir mais redes sociais, campos para URLs de imagens e um endpoint de busca ().
-    - Frontend foi aprimorado com uma barra de busca, placeholders para upload de imagens e formatação de telefone.
-- **Redesign do Dashboard do Administrador**: A página  foi redesenhada para ter um layout similar ao do professor, com uma barra de identificação azul, foto e links de acesso rápido.
-- **Correção de Bug no Nome do Perfil**: Corrigido um problema onde o nome do usuário não aparecia no perfil, ajustando o backend para buscar o  diretamente do banco de dados em vez de depender do token JWT.
+- **Correção da Busca de Perfis**: Resolvido o bug na busca de perfis públicos () ao reordenar as rotas no  do FastAPI.
+- **Refatoração do **: O arquivo de 2.392 linhas foi dividido em 12 arquivos menores (componentes e hooks), reduzindo drasticamente a complexidade e melhorando a organização do código. A funcionalidade foi validada com testes de regressão.
+- **Sistema de Mensagens e Conexões**:
+    - Implementada a lógica de backend e frontend para enviar, aceitar e listar conexões entre usuários.
+    - Criada a interface de chat, o layout 75%/25% na página de perfil e a lógica para troca de mensagens.
+- **Melhorias Avançadas de Mensagens**:
+    - **Tempo Real**: Integração de WebSockets no backend () e frontend () para chat instantâneo.
+    - **Exclusão e Log**: Implementados endpoints  para mensagens e conversas, com uma lógica de backend que move o conteúdo excluído para uma coleção .
+    - **Página de Logs**: Criada a página  para que administradores possam consultar as conversas excluídas, com um link de acesso no dashboard principal.
 
 **Earlier issues found/mentioned but not fixed**
-- **Issue 1: Refatoração do **: O arquivo  é excessivamente grande (2.100+ linhas) e complexo, dificultando a manutenção.
-- **Issue 2: Refatoração do **: O arquivo também é muito grande e precisa ser refatorado.
-- **Issue 3: Refatoração do **: Pode ser dividido em componentes menores.
+- **Issue 1: Refatoração do **: Precisa ser dividido em componentes menores.
+- **Issue 2: Refatoração do **: Precisa ser dividido em componentes menores.
 
 **Known issue recurrence from previous fork**
 - None.
@@ -74,62 +70,73 @@ Nenhum problema pendente.
 
 
 **Key Technical Concepts**
-- **Data Fetching Condicional por Role**: Uso do hook  para verificar o  do usuário e chamar a API apropriada (ex:  para professores,  para admins).
-- **Backend Search Endpoint**: Criação de um endpoint () que utiliza expressões regulares () no MongoDB para busca textual case-insensitive.
-- **State Derivation no Frontend**: Uso de  e  para filtrar e derivar listas (escolas, turmas, componentes) com base nas seleções do usuário.
-- **Refatoração de UI**: Alteração em massa de mais de 10 componentes para padronizar o layout do cabeçalho da página.
+- **FastAPI WebSocket**: Uso de uma classe  para gerenciar conexões ativas e um endpoint  para comunicação bidirecional em tempo real.
+- **Component-Based Refactoring**: Desmontagem de um componente monolítico () em componentes de UI especializados e um custom hook () para isolar a lógica de estado, seguindo as melhores práticas do React.
+- **FastAPI Route Ordering**: Identificação e correção de um bug onde uma rota com path parameter () interceptava uma rota estática (), reforçando a importância da ordem de declaração de rotas.
+- **Admin-Specific Features**: Criação de uma rota e componente protegidos () acessíveis apenas para o  de administrador, demonstrando a implementação de funcionalidades de compliance e auditoria.
 
 **key DB schema**
 - **user_profiles:** 
+- **connections:** 
+- **messages:** 
+- **message_logs:** 
 
 **changes in tech stack**
 - None.
 
 **All files of reference**
 - **Criados:**
-    - : Página de perfil do usuário.
+  - 
+  - 
+  -  (diretório com , )
+  - 
+  -  (diretório com 11 arquivos de componentes refatorados)
 - **Modificados (significativamente):**
-    - : Adicionados e expandidos os modelos .
-    - : Adicionados os endpoints CRUD e de busca para os perfis de usuário.
-    - : Adicionada a  com as novas chamadas.
-    - : Adicionadas as rotas para a página de perfil.
-    - : Redesign completo para se assemelhar ao dashboard do professor.
-    - , , : Modificados para carregar dados específicos do professor.
-    - Mais de 10 outros arquivos de página (ex: , , ) foram atualizados para o novo layout do cabeçalho.
+  - : Adicionados WebSockets, endpoints de conexão, mensagens, logs e upload de arquivos.
+  - : Adicionados os modelos ,  e .
+  - : Reestruturado com layout 75%/25% e integração de componentes de mensagens.
+  - : Completamente refatorado para usar os novos componentes e hook.
+  - : Adicionadas ,  e .
+  - : Adicionada a rota .
+  - : Adicionado link para Log de Conversas.
 
 **Areas that need refactoring**:
--  (Crítico)
+- 
 - 
 
 **key api endpoints**
-- **GET /api/profiles/search**: (NOVO) Busca perfis públicos por nome.
-- **GET /api/profiles/{user_id}**: (NOVO) Obtém um perfil de usuário específico.
-- **PUT /api/profiles/me**: (NOVO) Atualiza o perfil do usuário logado.
-- **GET /api/professor/turmas**: Endpoint crucial usado para carregar os dados corretos para o perfil de professor.
+- **POST /api/connections/send-request**: Envia um convite de conexão.
+- **POST /api/connections/{connection_id}/accept**: Aceita um convite.
+- **GET /api/connections**: Lista as conexões do usuário.
+- **POST /api/messages**: Envia uma mensagem em uma conexão.
+- **GET /api/messages/{connection_id}**: Obtém o histórico de mensagens.
+- **DELETE /api/messages/{message_id}**: Exclui uma mensagem (e cria um log).
+- **GET /api/logs/messages**: (Admin) Obtém os logs de conversas.
+- **WS /ws/{token}**: Endpoint WebSocket para comunicação em tempo real.
 
 **Critical Info for New Agent**
-- **Upload de Imagens Incompleto**: A UI para upload de fotos de perfil e capa foi criada no frontend, mas **não há implementação no backend** para processar esses uploads. Esta é a próxima etapa bloqueante para a tarefa do perfil.
-- **Lógica de Roles**: A aplicação distingue fortemente os papéis dos usuários (, , ). Sempre verifique o  do usuário com  antes de carregar dados para garantir que a API correta seja chamada.
-- **Refatoração Urgente**: O arquivo  é um débito técnico significativo. Planeje sua refatoração após concluir a tarefa atual.
+- **Mensagens em Tempo Real**: O sistema de chat agora é totalmente em tempo real. O frontend usa o hook  para se conectar ao backend. Qualquer alteração no chat deve considerar essa arquitetura.
+- **Lógica de Logs**: A exclusão de mensagens não é um  físico, mas sim um movimento para a coleção . Esta é uma regra de negócio crítica para a funcionalidade de compliance.
+- **Acesso de Admin**: A página de Log de Conversas () é exclusiva para o  de administrador.
 
 **documents created in this job**
 - None.
 
 **Last 10 User Messages and any pending user messages**
-1.  **user:** Pede para ajustar o layout do botão Início, reorganizar o dashboard do professor e criar a página de perfil. -> **IN PROGRESS**
-2.  **user:** Solicita aprimoramento do dashboard do administrador para ter um layout semelhante ao do professor. -> **COMPLETED**
-3.  **user:** Ok. -> **COMPLETED**
-4.  **user:** Vamos melhorar a estrutura do perfil... (pede busca de perfis, mais redes sociais, etc.). -> **IN PROGRESS** (Última tarefa em andamento)
-5.  **user:** Acesse como professora Ricleide e não carregou as escolas... -> **COMPLETED**
-6.  **user:** Ok. Vamos fazer alguns pequenos ajustes... (pede posicionamento do botão 'Início', etc.). -> **COMPLETED**
-7.  **user:** (Mensagem final da sessão anterior) Acesse como professora Ricleide e verifique... -> **COMPLETED**
-8.  **user:** Em todas as páginas que tiver Voltar ao Dashboard, colocar o ícone de Home e a palavra Início... -> **COMPLETED**
-9.  **user:** (Mensagem de confirmação) -> **COMPLETED**
-10. **user:** Ok. Continue o desenvolvimento do sistema. -> **COMPLETED**
+1.  **user:** Vamos agora a: P1: Refatorar Staff.js... -> **COMPLETED**
+2.  **agent:** Apresenta plano de refatoração.
+3.  **user:** sim -> **COMPLETED**
+4.  **agent:** Executa a refatoração e testes.
+5.  **user:** Temos 2 perfis públicos... e a busca por perfis públicos não funcionou -> **COMPLETED**
+6.  **agent:** Investiga e corrige o bug da busca.
+7.  **user:** Vamos criar um sistema conexão entre perfis... (pede chat e layout 75/25) -> **COMPLETED**
+8.  **agent:** Apresenta plano e opções de implementação.
+9.  **user:** 1. Ok, 2. b (confirma plano com WebSocket) -> **COMPLETED**
+10. **user:** Sobre as mensagens, não estão sendo instantâneas... Há a necessidade de possibilitar a exclusão... crie um log de registro... -> **IN PROGRESS (IMPLEMENTED, PENDING VERIFICATION)**
 
 **Project Health Check:**
-- **Broken:** None.
-- **Mocked:** A funcionalidade de upload de imagens (perfil e capa) na página  está efetivamente mockada. Os botões existem na UI, mas não há um endpoint de backend para lidar com o upload de arquivos.
+- **Broken:** None
+- **Mocked:** None
 
 **3rd Party Integrations**
 - None.
@@ -145,4 +152,4 @@ Nenhum problema pendente.
 - **Professor:**  / 
 
 **What agent forgot to execute**
-- O agente implementou a interface de usuário (UI) para upload de fotos de perfil e capa na página , mas esqueceu de implementar a lógica de backend necessária para receber, armazenar e associar esses arquivos ao perfil do usuário. A tarefa está incompleta sem essa parte crucial.</analysis>
+- Nothing was forgotten. O agente respondeu a todas as solicitações do usuário, incluindo a correção de bugs, refatoração de código e a implementação de múltiplas funcionalidades complexas no sistema de perfil e mensagens.</analysis>
