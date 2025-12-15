@@ -14,6 +14,7 @@ import { Events } from '@/pages/Events';
 import { Attendance } from '@/pages/Attendance';
 import { Staff } from '@/pages/Staff';
 import { LearningObjects } from '@/pages/LearningObjects';
+import { UserProfile } from '@/pages/UserProfile';
 import ProfessorDashboard from '@/pages/ProfessorDashboard';
 import '@/App.css';
 
