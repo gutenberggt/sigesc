@@ -341,6 +341,15 @@ export const Dashboard = () => {
                 <Briefcase className="text-amber-600" size={24} />
                 <span className="font-medium text-gray-900">Servidores</span>
               </button>
+              
+              <button
+                onClick={() => navigate('/admin/logs')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all"
+                data-testid="nav-logs-button"
+              >
+                <FileText className="text-red-600" size={24} />
+                <span className="font-medium text-gray-900">Log de Conversas</span>
+              </button>
             </div>
           </div>
         )}
