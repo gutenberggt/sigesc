@@ -52,7 +52,9 @@ export const NotificationBell = () => {
         if (data.type === 'new_announcement' || data.type === 'new_message') {
           fetchCounts();
         }
-      } catch (e) {}
+      } catch (error) {
+        // Ignorar erros de parsing
+      }
     };
 
     ws.onopen = () => {

@@ -54,7 +54,9 @@ export const MessagesBadge = () => {
         if (data.type === 'new_message') {
           fetchUnreadCount();
         }
-      } catch (e) {}
+      } catch (error) {
+        // Ignorar erros de parsing
+      }
     };
 
     ws.onopen = () => {
