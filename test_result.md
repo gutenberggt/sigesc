@@ -478,3 +478,15 @@ agent_communication:
       - working: true
         agent: "main"
         comment: "✅ Sistema completo implementado: Conexões (convidar, aceitar, rejeitar, listar), Mensagens (enviar texto/imagem/PDF, histórico), Layout 75%/25% na página de perfil, ChatBox estilo LinkedIn, WebSocket para tempo real. Endpoints: /api/connections/*, /api/messages/*. Testado via curl e screenshots."
+
+  - task: "Mensagens em Tempo Real, Exclusão e Logs de Conversas"
+    implemented: true
+    working: true
+    file: "backend/server.py, frontend/src/components/messaging/ChatBox.js, frontend/src/pages/MessageLogs.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "✅ Implementado: 1) WebSocket no ChatBox para mensagens instantâneas, 2) Exclusão de mensagens individuais e conversas completas, 3) Sistema de Log de Conversas para compliance com retenção de 30 dias, 4) Página /admin/logs acessível apenas por admin. Endpoints: DELETE /api/messages/{id}, DELETE /api/messages/conversation/{id}, GET /api/admin/message-logs/*"
