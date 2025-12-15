@@ -147,6 +147,16 @@ function App() {
             }
           />
           
+          {/* Avisos - todos os usuários autenticados */}
+          <Route
+            path="/avisos"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel', 'semed']}>
+                <Announcements />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* Rotas do Professor */}
           <Route
             path="/professor"
