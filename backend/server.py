@@ -2901,6 +2901,461 @@ async def update_profile_by_admin(user_id: str, profile_data: UserProfileUpdate,
     updated_profile = await db.user_profiles.find_one({"user_id": user_id}, {"_id": 0})
     return updated_profile
 
+# ============= CONNECTION ENDPOINTS =============
+
+@api_router.post("/connections/invite")
+async def send_connection_invite(data: ConnectionCreate, request: Request):
+    """Envia um convite de conexão para outro usuário"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    requester_id = current_user['id']
+    receiver_id = data.receiver_id
+    
+    # Não pode se conectar consigo mesmo
+    if requester_id == receiver_id:
+        raise HTTPException(status_code=400, detail="Não é possível se conectar consigo mesmo")
+    
+    # Verificar se já existe conexão ou convite pendente
+    existing = await db.connections.find_one({
+        "$or": [
+            {"requester_id": requester_id, "receiver_id": receiver_id},
+            {"requester_id": receiver_id, "receiver_id": requester_id}
+        ]
+    })
+    
+    if existing:
+        if existing['status'] == 'accepted':
+            raise HTTPException(status_code=400, detail="Vocês já estão conectados")
+        elif existing['status'] == 'pending':
+            raise HTTPException(status_code=400, detail="Já existe um convite pendente")
+    
+    # Criar o convite
+    connection = {
+        "id": str(uuid.uuid4()),
+        "requester_id": requester_id,
+        "receiver_id": receiver_id,
+        "status": "pending",
+        "message": data.message,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": None
+    }
+    
+    await db.connections.insert_one(connection)
+    
+    # Notificar via WebSocket
+    await connection_manager.send_notification(receiver_id, {
+        "type": "connection_invite",
+        "from_user_id": requester_id,
+        "from_user_name": current_user.get('full_name', ''),
+        "connection_id": connection['id'],
+        "message": data.message
+    })
+    
+    return {"message": "Convite enviado com sucesso", "connection_id": connection['id']}
+
+@api_router.post("/connections/{connection_id}/accept")
+async def accept_connection(connection_id: str, request: Request):
+    """Aceita um convite de conexão"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    connection = await db.connections.find_one({"id": connection_id}, {"_id": 0})
+    if not connection:
+        raise HTTPException(status_code=404, detail="Convite não encontrado")
+    
+    # Só o destinatário pode aceitar
+    if connection['receiver_id'] != current_user['id']:
+        raise HTTPException(status_code=403, detail="Você não tem permissão para aceitar este convite")
+    
+    if connection['status'] != 'pending':
+        raise HTTPException(status_code=400, detail="Este convite já foi processado")
+    
+    await db.connections.update_one(
+        {"id": connection_id},
+        {"$set": {"status": "accepted", "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    # Notificar o solicitante via WebSocket
+    await connection_manager.send_notification(connection['requester_id'], {
+        "type": "connection_accepted",
+        "by_user_id": current_user['id'],
+        "by_user_name": current_user.get('full_name', ''),
+        "connection_id": connection_id
+    })
+    
+    return {"message": "Conexão aceita com sucesso"}
+
+@api_router.post("/connections/{connection_id}/reject")
+async def reject_connection(connection_id: str, request: Request):
+    """Rejeita um convite de conexão"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    connection = await db.connections.find_one({"id": connection_id}, {"_id": 0})
+    if not connection:
+        raise HTTPException(status_code=404, detail="Convite não encontrado")
+    
+    # Só o destinatário pode rejeitar
+    if connection['receiver_id'] != current_user['id']:
+        raise HTTPException(status_code=403, detail="Você não tem permissão para rejeitar este convite")
+    
+    if connection['status'] != 'pending':
+        raise HTTPException(status_code=400, detail="Este convite já foi processado")
+    
+    await db.connections.update_one(
+        {"id": connection_id},
+        {"$set": {"status": "rejected", "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"message": "Convite rejeitado"}
+
+@api_router.delete("/connections/{connection_id}")
+async def remove_connection(connection_id: str, request: Request):
+    """Remove uma conexão existente"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    connection = await db.connections.find_one({"id": connection_id}, {"_id": 0})
+    if not connection:
+        raise HTTPException(status_code=404, detail="Conexão não encontrada")
+    
+    # Qualquer um dos dois pode remover a conexão
+    if connection['requester_id'] != current_user['id'] and connection['receiver_id'] != current_user['id']:
+        raise HTTPException(status_code=403, detail="Você não faz parte desta conexão")
+    
+    await db.connections.delete_one({"id": connection_id})
+    
+    return {"message": "Conexão removida"}
+
+@api_router.get("/connections")
+async def list_connections(request: Request):
+    """Lista todas as conexões aceitas do usuário"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    user_id = current_user['id']
+    
+    # Buscar conexões aceitas
+    connections = await db.connections.find({
+        "$or": [
+            {"requester_id": user_id, "status": "accepted"},
+            {"receiver_id": user_id, "status": "accepted"}
+        ]
+    }, {"_id": 0}).to_list(100)
+    
+    results = []
+    for conn in connections:
+        # Determinar o ID do outro usuário
+        other_user_id = conn['receiver_id'] if conn['requester_id'] == user_id else conn['requester_id']
+        
+        # Buscar dados do outro usuário
+        other_user = await db.users.find_one({"id": other_user_id}, {"_id": 0, "password_hash": 0})
+        if not other_user:
+            continue
+            
+        # Buscar perfil do outro usuário
+        profile = await db.user_profiles.find_one({"user_id": other_user_id}, {"_id": 0})
+        
+        results.append({
+            "id": conn['id'],
+            "user_id": other_user_id,
+            "full_name": other_user.get('full_name', ''),
+            "email": other_user.get('email', ''),
+            "role": other_user.get('role', ''),
+            "headline": profile.get('headline') if profile else None,
+            "foto_url": profile.get('foto_url') if profile else other_user.get('avatar_url'),
+            "status": conn['status'],
+            "connected_at": conn.get('updated_at') or conn.get('created_at')
+        })
+    
+    return results
+
+@api_router.get("/connections/pending")
+async def list_pending_connections(request: Request):
+    """Lista convites de conexão pendentes recebidos"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    # Buscar convites pendentes recebidos
+    connections = await db.connections.find({
+        "receiver_id": current_user['id'],
+        "status": "pending"
+    }, {"_id": 0}).to_list(50)
+    
+    results = []
+    for conn in connections:
+        # Buscar dados do solicitante
+        requester = await db.users.find_one({"id": conn['requester_id']}, {"_id": 0, "password_hash": 0})
+        if not requester:
+            continue
+            
+        profile = await db.user_profiles.find_one({"user_id": conn['requester_id']}, {"_id": 0})
+        
+        results.append({
+            "id": conn['id'],
+            "user_id": conn['requester_id'],
+            "full_name": requester.get('full_name', ''),
+            "email": requester.get('email', ''),
+            "role": requester.get('role', ''),
+            "headline": profile.get('headline') if profile else None,
+            "foto_url": profile.get('foto_url') if profile else requester.get('avatar_url'),
+            "message": conn.get('message'),
+            "created_at": conn.get('created_at')
+        })
+    
+    return results
+
+@api_router.get("/connections/sent")
+async def list_sent_connections(request: Request):
+    """Lista convites de conexão enviados pendentes"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    connections = await db.connections.find({
+        "requester_id": current_user['id'],
+        "status": "pending"
+    }, {"_id": 0}).to_list(50)
+    
+    results = []
+    for conn in connections:
+        receiver = await db.users.find_one({"id": conn['receiver_id']}, {"_id": 0, "password_hash": 0})
+        if not receiver:
+            continue
+            
+        profile = await db.user_profiles.find_one({"user_id": conn['receiver_id']}, {"_id": 0})
+        
+        results.append({
+            "id": conn['id'],
+            "user_id": conn['receiver_id'],
+            "full_name": receiver.get('full_name', ''),
+            "headline": profile.get('headline') if profile else None,
+            "foto_url": profile.get('foto_url') if profile else receiver.get('avatar_url'),
+            "created_at": conn.get('created_at')
+        })
+    
+    return results
+
+@api_router.get("/connections/status/{user_id}")
+async def get_connection_status(user_id: str, request: Request):
+    """Verifica o status da conexão com um usuário específico"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    if current_user['id'] == user_id:
+        return {"status": "self"}
+    
+    connection = await db.connections.find_one({
+        "$or": [
+            {"requester_id": current_user['id'], "receiver_id": user_id},
+            {"requester_id": user_id, "receiver_id": current_user['id']}
+        ]
+    }, {"_id": 0})
+    
+    if not connection:
+        return {"status": "none", "connection_id": None}
+    
+    # Verificar se o convite foi enviado por mim ou recebido
+    is_requester = connection['requester_id'] == current_user['id']
+    
+    return {
+        "status": connection['status'],
+        "connection_id": connection['id'],
+        "is_requester": is_requester
+    }
+
+# ============= MESSAGE ENDPOINTS =============
+
+@api_router.post("/messages")
+async def send_message(data: MessageCreate, request: Request):
+    """Envia uma mensagem para um usuário conectado"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    sender_id = current_user['id']
+    receiver_id = data.receiver_id
+    
+    # Verificar se estão conectados
+    connection = await db.connections.find_one({
+        "$or": [
+            {"requester_id": sender_id, "receiver_id": receiver_id, "status": "accepted"},
+            {"requester_id": receiver_id, "receiver_id": sender_id, "status": "accepted"}
+        ]
+    })
+    
+    if not connection:
+        raise HTTPException(status_code=403, detail="Vocês não estão conectados")
+    
+    # Validar que tem conteúdo ou anexo
+    if not data.content and not data.attachments:
+        raise HTTPException(status_code=400, detail="Mensagem deve ter texto ou anexo")
+    
+    # Criar a mensagem
+    message = {
+        "id": str(uuid.uuid4()),
+        "connection_id": connection['id'],
+        "sender_id": sender_id,
+        "receiver_id": receiver_id,
+        "content": data.content,
+        "attachments": data.attachments or [],
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.messages.insert_one(message)
+    
+    # Buscar dados do remetente para a resposta
+    sender_profile = await db.user_profiles.find_one({"user_id": sender_id}, {"_id": 0})
+    
+    message_response = {
+        "id": message['id'],
+        "sender_id": sender_id,
+        "sender_name": current_user.get('full_name', ''),
+        "sender_foto_url": sender_profile.get('foto_url') if sender_profile else current_user.get('avatar_url'),
+        "receiver_id": receiver_id,
+        "content": message['content'],
+        "attachments": message['attachments'],
+        "is_read": message['is_read'],
+        "created_at": message['created_at']
+    }
+    
+    # Notificar via WebSocket
+    await connection_manager.send_message(receiver_id, {
+        "type": "new_message",
+        "message": message_response
+    })
+    
+    return message_response
+
+@api_router.get("/messages/{connection_id}")
+async def get_messages(connection_id: str, request: Request, limit: int = 50, before: str = None):
+    """Lista mensagens de uma conexão"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    # Verificar se o usuário faz parte da conexão
+    connection = await db.connections.find_one({"id": connection_id}, {"_id": 0})
+    if not connection:
+        raise HTTPException(status_code=404, detail="Conexão não encontrada")
+    
+    if connection['requester_id'] != current_user['id'] and connection['receiver_id'] != current_user['id']:
+        raise HTTPException(status_code=403, detail="Você não faz parte desta conexão")
+    
+    # Buscar mensagens
+    query = {"connection_id": connection_id}
+    if before:
+        query["created_at"] = {"$lt": before}
+    
+    messages = await db.messages.find(
+        query, {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    # Marcar mensagens como lidas
+    await db.messages.update_many(
+        {"connection_id": connection_id, "receiver_id": current_user['id'], "is_read": False},
+        {"$set": {"is_read": True}}
+    )
+    
+    # Buscar dados dos usuários
+    user_ids = set()
+    for msg in messages:
+        user_ids.add(msg['sender_id'])
+    
+    users_data = {}
+    for uid in user_ids:
+        user = await db.users.find_one({"id": uid}, {"_id": 0, "password_hash": 0})
+        profile = await db.user_profiles.find_one({"user_id": uid}, {"_id": 0})
+        if user:
+            users_data[uid] = {
+                "name": user.get('full_name', ''),
+                "foto_url": profile.get('foto_url') if profile else user.get('avatar_url')
+            }
+    
+    # Formatar resposta
+    results = []
+    for msg in reversed(messages):  # Reverter para ordem cronológica
+        results.append({
+            "id": msg['id'],
+            "sender_id": msg['sender_id'],
+            "sender_name": users_data.get(msg['sender_id'], {}).get('name', ''),
+            "sender_foto_url": users_data.get(msg['sender_id'], {}).get('foto_url'),
+            "receiver_id": msg['receiver_id'],
+            "content": msg.get('content'),
+            "attachments": msg.get('attachments', []),
+            "is_read": msg.get('is_read', False),
+            "created_at": msg['created_at']
+        })
+    
+    return results
+
+@api_router.get("/messages/conversations/list")
+async def list_conversations(request: Request):
+    """Lista todas as conversas do usuário"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    user_id = current_user['id']
+    
+    # Buscar conexões aceitas
+    connections = await db.connections.find({
+        "$or": [
+            {"requester_id": user_id, "status": "accepted"},
+            {"receiver_id": user_id, "status": "accepted"}
+        ]
+    }, {"_id": 0}).to_list(100)
+    
+    results = []
+    for conn in connections:
+        other_user_id = conn['receiver_id'] if conn['requester_id'] == user_id else conn['requester_id']
+        
+        # Buscar dados do outro usuário
+        other_user = await db.users.find_one({"id": other_user_id}, {"_id": 0, "password_hash": 0})
+        if not other_user:
+            continue
+        
+        profile = await db.user_profiles.find_one({"user_id": other_user_id}, {"_id": 0})
+        
+        # Buscar última mensagem
+        last_message = await db.messages.find_one(
+            {"connection_id": conn['id']},
+            {"_id": 0}
+        , sort=[("created_at", -1)])
+        
+        # Contar mensagens não lidas
+        unread_count = await db.messages.count_documents({
+            "connection_id": conn['id'],
+            "receiver_id": user_id,
+            "is_read": False
+        })
+        
+        results.append({
+            "connection_id": conn['id'],
+            "user_id": other_user_id,
+            "full_name": other_user.get('full_name', ''),
+            "foto_url": profile.get('foto_url') if profile else other_user.get('avatar_url'),
+            "headline": profile.get('headline') if profile else None,
+            "last_message": last_message.get('content') if last_message else None,
+            "last_message_at": last_message.get('created_at') if last_message else None,
+            "unread_count": unread_count
+        })
+    
+    # Ordenar por última mensagem
+    results.sort(key=lambda x: x['last_message_at'] or '', reverse=True)
+    
+    return results
+
+@api_router.post("/messages/{message_id}/read")
+async def mark_message_read(message_id: str, request: Request):
+    """Marca uma mensagem como lida"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    result = await db.messages.update_one(
+        {"id": message_id, "receiver_id": current_user['id']},
+        {"$set": {"is_read": True}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Mensagem não encontrada")
+    
+    return {"message": "Mensagem marcada como lida"}
+
+@api_router.get("/messages/unread/count")
+async def get_unread_count(request: Request):
+    """Retorna o total de mensagens não lidas"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    count = await db.messages.count_documents({
+        "receiver_id": current_user['id'],
+        "is_read": False
+    })
+    
+    return {"unread_count": count}
+
 # ============= FIM USER PROFILE ENDPOINTS =============
 
 # Include the router in the main app
