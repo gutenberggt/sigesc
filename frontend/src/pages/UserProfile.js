@@ -231,6 +231,37 @@ export const UserProfile = () => {
     }
   };
 
+  // Handlers para Conexões
+  const handleSendInvite = async () => {
+    if (!userId) return;
+    
+    setLoadingConnection(true);
+    try {
+      await connectionsAPI.invite(userId);
+      setConnectionStatus({ status: 'pending', is_requester: true });
+      showAlert('success', 'Convite de conexão enviado!');
+    } catch (error) {
+      console.error('Erro ao enviar convite:', error);
+      showAlert('error', error.response?.data?.detail || 'Erro ao enviar convite');
+    } finally {
+      setLoadingConnection(false);
+    }
+  };
+
+  const handleOpenChat = (connection) => {
+    setActiveChat(connection);
+  };
+
+  const handleCloseChat = () => {
+    setActiveChat(null);
+  };
+
+  const handleSelectConnection = (connection) => {
+    setSelectedConnection(connection);
+    // Navegar para o perfil da conexão selecionada
+    navigate(`/profile/${connection.user_id}`);
+  };
+
   // Handlers para Experiência, Formação, Competências e Certificações
   const handleSaveExperience = async () => {
     try {
