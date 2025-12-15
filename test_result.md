@@ -549,3 +549,30 @@ agent_communication:
 ### Professor Credentials:
 - ricleidegoncalves@gmail.com / 007724
 
+
+## FASE 7 - Sistema de Avisos (2025-12-15)
+
+### Features Implemented:
+1. **Backend**: CRUD completo de avisos com permissões hierárquicas
+2. **Frontend**: Página de avisos com filtros e busca
+3. **Notificações**: Ícones no header (envelope e sininho) com badges
+4. **Dropdown**: Lista de avisos recentes ao clicar no sininho
+
+### API Endpoints:
+- POST /api/announcements - Criar aviso
+- GET /api/announcements - Listar avisos
+- GET /api/announcements/{id} - Detalhes do aviso
+- PUT /api/announcements/{id} - Editar aviso
+- DELETE /api/announcements/{id} - Excluir aviso
+- POST /api/announcements/{id}/read - Marcar como lido
+- GET /api/notifications/unread-count - Contar não lidas
+
+### Test Cases:
+1. Admin criar aviso para Professor/Coordenador - OK
+2. Listar avisos - OK
+3. Dropdown de notificações - OK
+4. Badge de contagem - OK
+
+### Admin Credentials:
+- admin@sigesc.com / password
+
