@@ -757,8 +757,9 @@ export const messageLogsAPI = {
 export const getWebSocketUrl = () => {
   const token = getToken();
   if (!token) return null;
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = new URL(BACKEND_URL).host;
-  return `${wsProtocol}//${host}/api/ws/${token}`;
+  // Determinar protocolo WebSocket baseado no BACKEND_URL
+  const backendUrl = new URL(BACKEND_URL);
+  const wsProtocol = backendUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${wsProtocol}//${backendUrl.host}/api/ws/${token}`;
 };
 
