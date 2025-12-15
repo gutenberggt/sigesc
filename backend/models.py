@@ -269,6 +269,76 @@ class ConversationLog(BaseModel):
     total_attachments: int = 0
     date_range: Optional[dict] = None  # { start: date, end: date }
 
+# ============= ANNOUNCEMENT MODELS =============
+
+class AnnouncementRecipient(BaseModel):
+    """Destinatário de um aviso"""
+    type: Literal['role', 'school', 'class', 'individual']  # Tipo de destinatário
+    # Para type='role': target_roles contém os papéis (ex: ['professor', 'secretario'])
+    # Para type='school': school_ids contém IDs das escolas
+    # Para type='class': class_ids contém IDs das turmas
+    # Para type='individual': user_ids contém IDs dos usuários
+    target_roles: Optional[List[str]] = []
+    school_ids: Optional[List[str]] = []
+    class_ids: Optional[List[str]] = []
+    user_ids: Optional[List[str]] = []
+
+class AnnouncementBase(BaseModel):
+    """Aviso/comunicado"""
+    title: str
+    content: str
+    recipient: AnnouncementRecipient
+
+class AnnouncementCreate(AnnouncementBase):
+    """Criação de aviso"""
+    pass
+
+class AnnouncementUpdate(BaseModel):
+    """Atualização de aviso"""
+    title: Optional[str] = None
+    content: Optional[str] = None
+    recipient: Optional[AnnouncementRecipient] = None
+
+class Announcement(AnnouncementBase):
+    """Aviso completo"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    sender_id: str
+    sender_name: str
+    sender_role: str
+    sender_foto_url: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+class AnnouncementResponse(BaseModel):
+    """Resposta de aviso com status de leitura"""
+    id: str
+    title: str
+    content: str
+    recipient: AnnouncementRecipient
+    sender_id: str
+    sender_name: str
+    sender_role: str
+    sender_foto_url: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    is_read: bool = False
+    read_at: Optional[datetime] = None
+
+class AnnouncementReadStatus(BaseModel):
+    """Status de leitura de um aviso por um usuário"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    announcement_id: str
+    user_id: str
+    read_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class NotificationCount(BaseModel):
+    """Contagem de notificações não lidas"""
+    unread_messages: int = 0
+    unread_announcements: int = 0
+    total: int = 0
+
 # ============= SCHOOL MODELS =============
 
 class SchoolBase(BaseModel):
