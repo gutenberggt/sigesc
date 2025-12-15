@@ -3027,7 +3027,11 @@ class SIGESCTester:
         success = True
         
         try:
-            # MAIN FOCUS: Test Connections and Messages System (NEW REVIEW REQUEST)
+            # MAIN FOCUS: Test Message Deletion System (NEW REVIEW REQUEST)
+            if not self.test_message_deletion_system():
+                success = False
+            
+            # Test Connections and Messages System
             if not self.test_connections_system():
                 success = False
             
