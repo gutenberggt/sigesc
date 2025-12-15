@@ -2702,6 +2702,308 @@ class SIGESCTester:
                 except:
                     self.log(f"⚠️ Error cleaning up cover image")
 
+    def test_message_deletion_system(self):
+        """Test Sistema de Exclusão de Mensagens e Logs de Conversas as per review request"""
+        self.log("\n💬 Testing Message Deletion System (Sistema de Exclusão de Mensagens e Logs)...")
+        
+        # Test credentials from review request
+        PROFESSOR_CREDENTIALS = {
+            "email": "ricleidegoncalves@gmail.com",
+            "password": "007724"
+        }
+        
+        # Login as professor (Ricleide)
+        professor_token = self.login(PROFESSOR_CREDENTIALS, "Professor Ricleide")
+        if not professor_token:
+            self.log("❌ Failed to login as Professor Ricleide")
+            return False
+        
+        # Test data from review request
+        connection_id = "11faaa15-32cd-4712-a435-281f5bb5e28c"  # Admin-Ricleide connection
+        admin_user_id = "5edcfabe-3a6d-44f4-93e3-61b16c7d78e6"
+        ricleide_user_id = "b97578dd-bc66-446c-88d7-686b423af399"
+        
+        # Scenario 1: Verify existing logs
+        self.log("1️⃣ Scenario 1: Verifying existing logs...")
+        
+        # Test GET /api/admin/message-logs/users (admin only)
+        self.log("   Testing GET /api/admin/message-logs/users...")
+        response = requests.get(
+            f"{API_BASE}/admin/message-logs/users",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            users_with_logs = response.json()
+            self.log(f"✅ Successfully retrieved users with logs: {len(users_with_logs)} users")
+            
+            # Check if Gutenberg and Ricleide are in the list
+            gutenberg_found = any(u.get('user_id') == admin_user_id for u in users_with_logs)
+            ricleide_found = any(u.get('user_id') == ricleide_user_id for u in users_with_logs)
+            
+            if gutenberg_found:
+                self.log("✅ Gutenberg (Admin) found in users with logs")
+            else:
+                self.log("❌ Gutenberg (Admin) not found in users with logs")
+            
+            if ricleide_found:
+                self.log("✅ Ricleide found in users with logs")
+            else:
+                self.log("❌ Ricleide not found in users with logs")
+                
+        else:
+            self.log(f"❌ Failed to get users with logs: {response.status_code} - {response.text}")
+            return False
+        
+        # Test GET /api/admin/message-logs/user/{admin_user_id}
+        self.log(f"   Testing GET /api/admin/message-logs/user/{admin_user_id}...")
+        response = requests.get(
+            f"{API_BASE}/admin/message-logs/user/{admin_user_id}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            admin_logs = response.json()
+            self.log(f"✅ Successfully retrieved admin logs")
+            self.log(f"   User: {admin_logs.get('user_name')}")
+            self.log(f"   Total messages: {admin_logs.get('total_messages', 0)}")
+            self.log(f"   Total attachments: {admin_logs.get('total_attachments', 0)}")
+            
+            if admin_logs.get('total_messages', 0) >= 1:
+                self.log("✅ Admin has at least 1 logged message as expected")
+            else:
+                self.log("❌ Admin should have at least 1 logged message")
+        else:
+            self.log(f"❌ Failed to get admin logs: {response.status_code} - {response.text}")
+            return False
+        
+        # Scenario 2: List messages and delete one
+        self.log("2️⃣ Scenario 2: Listing messages and deleting one...")
+        
+        # First, list messages in the conversation
+        self.log(f"   Listing messages in conversation {connection_id}...")
+        response = requests.get(
+            f"{API_BASE}/messages/{connection_id}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        messages_before = []
+        message_to_delete = None
+        
+        if response.status_code == 200:
+            messages_before = response.json()
+            self.log(f"✅ Found {len(messages_before)} messages in conversation")
+            
+            if messages_before:
+                # Find a message sent by admin to delete
+                for msg in messages_before:
+                    if msg.get('sender_id') == admin_user_id:
+                        message_to_delete = msg
+                        break
+                
+                if message_to_delete:
+                    self.log(f"   Selected message to delete: {message_to_delete.get('id')}")
+                    self.log(f"   Message content: {message_to_delete.get('content', '')[:50]}...")
+                else:
+                    self.log("❌ No message from admin found to delete")
+                    return False
+            else:
+                self.log("❌ No messages found in conversation")
+                return False
+        else:
+            self.log(f"❌ Failed to list messages: {response.status_code} - {response.text}")
+            return False
+        
+        # Delete the selected message
+        if message_to_delete:
+            self.log(f"   Deleting message {message_to_delete['id']}...")
+            response = requests.delete(
+                f"{API_BASE}/messages/{message_to_delete['id']}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                delete_result = response.json()
+                self.log(f"✅ Message deleted successfully: {delete_result.get('message')}")
+            else:
+                self.log(f"❌ Failed to delete message: {response.status_code} - {response.text}")
+                return False
+        
+        # Verify message was removed from list
+        self.log("   Verifying message was removed from conversation...")
+        response = requests.get(
+            f"{API_BASE}/messages/{connection_id}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            messages_after = response.json()
+            self.log(f"✅ Messages after deletion: {len(messages_after)}")
+            
+            if len(messages_after) == len(messages_before) - 1:
+                self.log("✅ Message count decreased by 1 as expected")
+            else:
+                self.log(f"❌ Expected {len(messages_before) - 1} messages, got {len(messages_after)}")
+            
+            # Verify the specific message is not in the list
+            deleted_msg_found = any(msg.get('id') == message_to_delete['id'] for msg in messages_after)
+            if not deleted_msg_found:
+                self.log("✅ Deleted message no longer appears in conversation")
+            else:
+                self.log("❌ Deleted message still appears in conversation")
+        else:
+            self.log(f"❌ Failed to verify message deletion: {response.status_code}")
+        
+        # Verify log was created
+        self.log("   Verifying log was created for deleted message...")
+        response = requests.get(
+            f"{API_BASE}/admin/message-logs",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            all_logs = response.json()
+            self.log(f"✅ Retrieved {len(all_logs)} total logs")
+            
+            # Look for the log of our deleted message
+            deleted_msg_log = None
+            for log in all_logs:
+                if log.get('original_message_id') == message_to_delete['id']:
+                    deleted_msg_log = log
+                    break
+            
+            if deleted_msg_log:
+                self.log("✅ Log created for deleted message")
+                self.log(f"   Log ID: {deleted_msg_log.get('id')}")
+                self.log(f"   Deleted by: {deleted_msg_log.get('deleted_by')}")
+                self.log(f"   Expires at: {deleted_msg_log.get('expires_at')}")
+            else:
+                self.log("❌ No log found for deleted message")
+        else:
+            self.log(f"❌ Failed to retrieve logs: {response.status_code}")
+        
+        # Scenario 3: Test validation (unauthorized access)
+        self.log("3️⃣ Scenario 3: Testing validations...")
+        
+        # Test non-admin trying to access logs (should fail)
+        self.log("   Testing non-admin access to logs (should fail)...")
+        response = requests.get(
+            f"{API_BASE}/admin/message-logs",
+            headers=self.get_headers(professor_token)
+        )
+        
+        if response.status_code == 403:
+            self.log("✅ Non-admin correctly denied access to logs (403)")
+        else:
+            self.log(f"❌ Non-admin should be denied access to logs: {response.status_code}")
+        
+        # Test trying to delete message without being sender/receiver
+        # First, create a test message between admin and ricleide
+        self.log("   Creating test message for unauthorized deletion test...")
+        test_message_data = {
+            "receiver_id": ricleide_user_id,
+            "content": "Test message for unauthorized deletion test",
+            "connection_id": connection_id
+        }
+        
+        response = requests.post(
+            f"{API_BASE}/messages",
+            json=test_message_data,
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        test_message_id = None
+        if response.status_code == 200 or response.status_code == 201:
+            test_message = response.json()
+            test_message_id = test_message.get('id')
+            self.log(f"✅ Test message created: {test_message_id}")
+        else:
+            self.log(f"❌ Failed to create test message: {response.status_code}")
+        
+        # Now try to delete with SEMED user (should fail)
+        if test_message_id and self.semed_token:
+            self.log("   Testing unauthorized message deletion (should fail)...")
+            response = requests.delete(
+                f"{API_BASE}/messages/{test_message_id}",
+                headers=self.get_headers(self.semed_token)
+            )
+            
+            if response.status_code == 403:
+                self.log("✅ Unauthorized user correctly denied message deletion (403)")
+            else:
+                self.log(f"❌ Unauthorized user should be denied message deletion: {response.status_code}")
+        
+        # Test other admin endpoints
+        self.log("4️⃣ Testing other admin endpoints...")
+        
+        # Test GET /api/admin/message-logs (list all logs)
+        self.log("   Testing GET /api/admin/message-logs...")
+        response = requests.get(
+            f"{API_BASE}/admin/message-logs?limit=50",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            logs = response.json()
+            self.log(f"✅ Successfully retrieved {len(logs)} logs")
+            
+            if logs:
+                first_log = logs[0]
+                expected_fields = ['id', 'original_message_id', 'sender_id', 'receiver_id', 'content', 'logged_at', 'deleted_at', 'expires_at']
+                for field in expected_fields:
+                    if field in first_log:
+                        self.log(f"   ✅ Log field '{field}' present")
+                    else:
+                        self.log(f"   ❌ Log field '{field}' missing")
+        else:
+            self.log(f"❌ Failed to list all logs: {response.status_code}")
+        
+        # Test DELETE /api/admin/message-logs/expired
+        self.log("   Testing DELETE /api/admin/message-logs/expired...")
+        response = requests.delete(
+            f"{API_BASE}/admin/message-logs/expired",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            cleanup_result = response.json()
+            self.log(f"✅ Expired logs cleanup successful: {cleanup_result.get('message')}")
+        else:
+            self.log(f"❌ Failed to cleanup expired logs: {response.status_code}")
+        
+        # Test conversation deletion
+        self.log("5️⃣ Testing conversation deletion...")
+        
+        # First check how many messages are in the conversation
+        response = requests.get(
+            f"{API_BASE}/messages/{connection_id}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        messages_count_before_conv_delete = 0
+        if response.status_code == 200:
+            messages_count_before_conv_delete = len(response.json())
+            self.log(f"   Messages in conversation before deletion: {messages_count_before_conv_delete}")
+        
+        # Note: We won't actually delete the entire conversation as it would affect other tests
+        # Instead, we'll test the endpoint validation
+        self.log("   Testing conversation deletion validation...")
+        
+        # Test with invalid connection_id (should fail)
+        invalid_connection_id = "invalid-connection-id"
+        response = requests.delete(
+            f"{API_BASE}/messages/conversation/{invalid_connection_id}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 404:
+            self.log("✅ Invalid connection_id correctly returns 404")
+        else:
+            self.log(f"❌ Invalid connection_id should return 404: {response.status_code}")
+        
+        self.log("✅ Message Deletion System testing completed!")
+        return True
+
     def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting SIGESC Backend API Tests - CONNECTIONS AND MESSAGES TESTING")
