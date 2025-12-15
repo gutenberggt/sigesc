@@ -108,7 +108,12 @@ class UserProfileBase(BaseModel):
     # Contato
     telefone: Optional[str] = None
     website: Optional[str] = None
+    
+    # Redes Sociais
     linkedin_url: Optional[str] = None
+    facebook_url: Optional[str] = None
+    instagram_url: Optional[str] = None
+    whatsapp: Optional[str] = None  # Número do WhatsApp
     
     # Foto de capa e avatar
     foto_capa_url: Optional[str] = None
