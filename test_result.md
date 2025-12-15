@@ -239,7 +239,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "User Profile Image Upload (Foto de Perfil e Capa) - COMPLETED"
+    - "Message Deletion System and Compliance Logs - COMPLETED"
   stuck_tasks: 
     - "Staff Management - Workload Validation Feature Testing"
   test_all: false
