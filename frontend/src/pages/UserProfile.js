@@ -77,14 +77,33 @@ export const UserProfile = () => {
   const [searching, setSearching] = useState(false);
   const searchInputRef = useRef(null);
   
+  // Estados para conexões e chat
+  const [connectionStatus, setConnectionStatus] = useState(null);
+  const [loadingConnection, setLoadingConnection] = useState(false);
+  const [activeChat, setActiveChat] = useState(null);
+  const [selectedConnection, setSelectedConnection] = useState(null);
+  
   // Verificar permissões
   const isOwnProfile = !userId || userId === user?.id;
   const isAdmin = user?.role === 'admin';
   const canEdit = isOwnProfile || isAdmin;
 
+  // Carregar status de conexão quando visualizar perfil de outro usuário
+  const loadConnectionStatus = useCallback(async () => {
+    if (!userId || isOwnProfile) return;
+    
+    try {
+      const status = await connectionsAPI.getStatus(userId);
+      setConnectionStatus(status);
+    } catch (error) {
+      console.error('Erro ao carregar status de conexão:', error);
+    }
+  }, [userId, isOwnProfile]);
+
   useEffect(() => {
     loadProfile();
-  }, [userId]);
+    loadConnectionStatus();
+  }, [userId, loadConnectionStatus]);
 
   // Busca de perfis com debounce
   useEffect(() => {
