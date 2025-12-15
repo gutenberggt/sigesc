@@ -2645,6 +2645,9 @@ async def get_my_profile(request: Request):
     """Retorna o perfil do usuário logado"""
     current_user = await AuthMiddleware.get_current_user(request)
     
+    # Busca dados completos do usuário no banco
+    user_data = await db.users.find_one({"id": current_user['id']}, {"_id": 0, "password_hash": 0})
+    
     profile = await db.user_profiles.find_one({"user_id": current_user['id']}, {"_id": 0})
     
     if not profile:
@@ -2659,7 +2662,7 @@ async def get_my_profile(request: Request):
             "website": None,
             "linkedin_url": None,
             "foto_capa_url": None,
-            "foto_url": current_user.get('avatar_url'),
+            "foto_url": user_data.get('avatar_url') if user_data else None,
             "is_public": True,
             "experiencias": [],
             "formacoes": [],
@@ -2674,9 +2677,9 @@ async def get_my_profile(request: Request):
     # Adicionar dados do usuário
     profile['user'] = {
         'id': current_user['id'],
-        'full_name': current_user.get('full_name', ''),
-        'email': current_user.get('email', ''),
-        'role': current_user.get('role', '')
+        'full_name': user_data.get('full_name', '') if user_data else '',
+        'email': user_data.get('email', '') if user_data else current_user.get('email', ''),
+        'role': user_data.get('role', '') if user_data else current_user.get('role', '')
     }
     
     return profile
