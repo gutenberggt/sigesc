@@ -331,7 +331,10 @@ export const Courses = () => {
         >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Escola *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Escola
+                <span className="text-gray-500 font-normal ml-2">(opcional)</span>
+              </label>
               <select
                 value={formData.school_id}
                 onChange={(e) => setFormData({ ...formData, school_id: e.target.value })}
