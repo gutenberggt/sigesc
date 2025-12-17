@@ -4,9 +4,9 @@ import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { Tabs } from '@/components/Tabs';
-import { schoolsAPI, classesAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, schoolAssignmentAPI, staffAPI, uploadAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, AlertCircle, CheckCircle, Home } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, Users, Phone } from 'lucide-react';
 
 export function SchoolsComplete() {
   const navigate = useNavigate();
