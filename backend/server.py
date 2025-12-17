@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Request, UploadFile, File, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -43,6 +43,11 @@ from auth_utils import (
     create_refresh_token, decode_token, get_school_ids_from_links
 )
 from auth_middleware import AuthMiddleware
+from pdf_generator import (
+    generate_boletim_pdf,
+    generate_declaracao_matricula_pdf,
+    generate_declaracao_frequencia_pdf
+)
 from grade_calculator import calculate_and_update_grade
 
 ROOT_DIR = Path(__file__).parent
