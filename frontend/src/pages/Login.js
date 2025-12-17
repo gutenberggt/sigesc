@@ -110,12 +110,6 @@ export const Login = () => {
             </button>
           </form>
 
-          {/* Informações de teste */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-xs text-gray-600 font-medium mb-2">⚡ Acesso de teste:</p>
-            <p className="text-xs text-gray-600">E-mail: admin@sigesc.com</p>
-            <p className="text-xs text-gray-600">Senha: password</p>
-          </div>
         </div>
       </div>
     </div>
