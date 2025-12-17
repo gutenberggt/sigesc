@@ -335,17 +335,21 @@ export const Courses = () => {
               <select
                 value={formData.school_id}
                 onChange={(e) => setFormData({ ...formData, school_id: e.target.value })}
-                required
                 disabled={viewMode}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
               >
-                <option value="">Selecione uma escola</option>
+                <option value="">Todas as escolas (global)</option>
                 {schools.map((school) => (
                   <option key={school.id} value={school.id}>
                     {school.name}
                   </option>
                 ))}
               </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.school_id 
+                  ? '✓ Componente exclusivo para a escola selecionada'
+                  : '✓ Componente disponível para todas as escolas'}
+              </p>
             </div>
 
             <div>
