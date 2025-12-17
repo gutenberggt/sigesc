@@ -576,12 +576,21 @@ export const UserProfile = () => {
           
           <div 
             className="h-48 bg-gradient-to-r from-blue-600 to-blue-800 rounded-t-xl relative overflow-hidden"
-            style={profile.foto_capa_url ? { 
+            style={profile.foto_capa_url && !coverImageError ? { 
               backgroundImage: `url(${uploadAPI.getUrl(profile.foto_capa_url)})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center'
             } : {}}
           >
+            {/* Imagem oculta para detectar erro de carregamento da capa */}
+            {profile.foto_capa_url && !coverImageError && (
+              <img 
+                src={uploadAPI.getUrl(profile.foto_capa_url)} 
+                alt="" 
+                className="hidden"
+                onError={() => setCoverImageError(true)}
+              />
+            )}
             {canEdit && (
               <button 
                 onClick={() => coverInputRef.current?.click()}
@@ -589,7 +598,7 @@ export const UserProfile = () => {
                 disabled={saving}
               >
                 <Camera size={16} />
-                {profile.foto_capa_url ? 'Alterar capa' : 'Adicionar capa'}
+                {profile.foto_capa_url && !coverImageError ? 'Alterar capa' : 'Adicionar capa'}
               </button>
             )}
           </div>
