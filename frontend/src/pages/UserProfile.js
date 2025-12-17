@@ -161,6 +161,7 @@ export const UserProfile = () => {
   const loadProfile = async () => {
     try {
       setLoading(true);
+      setCoverImageError(false); // Reset estado de erro da capa
       let data;
       if (userId && userId !== user?.id) {
         data = await profilesAPI.getByUserId(userId);
