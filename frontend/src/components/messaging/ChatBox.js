@@ -115,7 +115,15 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
             
             if (isFromOtherUser && isToMe) {
               console.log('ChatBox WebSocket: ✓ Adicionando mensagem ao chat!');
-              setMessages(prev => [...prev, msg]);
+              // Verificar se a mensagem já existe para evitar duplicatas
+              setMessages(prev => {
+                const exists = prev.some(m => m.id === msg.id);
+                if (exists) {
+                  console.log('ChatBox WebSocket: Mensagem já existe, ignorando duplicata');
+                  return prev;
+                }
+                return [...prev, msg];
+              });
               onMessageReceivedRef.current?.(msg);
             } else {
               console.log('ChatBox WebSocket: ✗ Mensagem filtrada (não é para este chat)');
