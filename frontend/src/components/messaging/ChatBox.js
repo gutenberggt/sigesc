@@ -210,7 +210,12 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
     setSending(true);
     try {
       const message = await messagesAPI.send(connection.user_id, newMessage.trim());
-      setMessages(prev => [...prev, message]);
+      // Verificar se a mensagem já existe para evitar duplicatas
+      setMessages(prev => {
+        const exists = prev.some(m => m.id === message.id);
+        if (exists) return prev;
+        return [...prev, message];
+      });
       setNewMessage('');
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
