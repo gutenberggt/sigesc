@@ -6,7 +6,8 @@ import { Modal } from '@/components/Modal';
 import { Tabs } from '@/components/Tabs';
 import { studentsAPI, schoolsAPI, classesAPI, uploadAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer } from 'lucide-react';
+import { DocumentGeneratorModal } from '@/components/documents';
 
 // Estados brasileiros
 const STATES = [
