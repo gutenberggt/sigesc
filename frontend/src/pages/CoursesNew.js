@@ -212,6 +212,8 @@ export const Courses = () => {
     try {
       const dataToSend = {
         ...formData,
+        // Se school_id estiver vazio, envia null (componente para todas as escolas)
+        school_id: formData.school_id || null,
         workload: formData.workload ? parseInt(formData.workload) : null,
         atendimento_programa: formData.atendimento_programa || null
       };
