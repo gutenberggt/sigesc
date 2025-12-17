@@ -257,6 +257,15 @@ export const Courses = () => {
         if (!row.grade_levels || row.grade_levels.length === 0) {
           return <span className="text-gray-500 italic">Todas do nível</span>;
         }
+        // Verifica se todas as séries do nível estão selecionadas
+        const allGradesForLevel = GRADE_LEVELS_BY_EDUCATION[row.nivel_ensino] || [];
+        if (allGradesForLevel.length > 0 && row.grade_levels.length >= allGradesForLevel.length) {
+          // Verifica se realmente todas estão selecionadas
+          const allSelected = allGradesForLevel.every(g => row.grade_levels.includes(g.value));
+          if (allSelected) {
+            return <span className="text-gray-500 italic">Todas do nível</span>;
+          }
+        }
         return row.grade_levels.join(', ');
       }
     },
