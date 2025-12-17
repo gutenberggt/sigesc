@@ -3703,16 +3703,26 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
             "student_id": student_id
         }, {"_id": 0})
     
+    # Se não houver matrícula, usar dados do próprio aluno
     if not enrollment:
-        raise HTTPException(status_code=404, detail="Matrícula não encontrada")
+        enrollment = {
+            "student_id": student_id,
+            "class_id": student.get("class_id"),
+            "registration_number": student.get("enrollment_number", "N/A"),
+            "status": "active",
+            "academic_year": academic_year
+        }
     
-    # Buscar turma
-    class_info = await db.classes.find_one({"id": enrollment.get("class_id")}, {"_id": 0})
+    # Buscar turma (do enrollment ou do aluno)
+    class_id = enrollment.get("class_id") or student.get("class_id")
+    class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
     if not class_info:
-        raise HTTPException(status_code=404, detail="Turma não encontrada")
+        # Criar turma padrão se não existir
+        class_info = {"name": "Turma não informada", "shift": "N/A", "school_id": student.get("school_id")}
     
     # Buscar escola
-    school = await db.schools.find_one({"id": class_info.get("school_id")}, {"_id": 0})
+    school_id = class_info.get("school_id") or student.get("school_id")
+    school = await db.schools.find_one({"id": school_id}, {"_id": 0})
     if not school:
         school = {"name": "Escola Municipal", "cnpj": "N/A", "phone": "N/A", "city": "Município"}
     
@@ -3724,7 +3734,7 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
     
     # Buscar disciplinas da turma
     courses = await db.courses.find({
-        "class_id": enrollment.get("class_id")
+        "class_id": class_id
     }, {"_id": 0}).to_list(50)
     
     # Se não houver disciplinas específicas da turma, buscar todas
