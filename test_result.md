@@ -257,11 +257,22 @@ metadata:
 
 test_plan:
   current_focus:
-    - "SIGESC Real-Time WebSocket Messaging System - COMPLETED"
-  stuck_tasks: 
-    - "Staff Management - Workload Validation Feature Testing"
+    - "Phase 8 - PDF Document Generation (Boletim, Declaração de Matrícula, Declaração de Frequência)"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+  - task: "Phase 8 - PDF Document Generation"
+    implemented: true
+    working: "pending"
+    file: "backend/server.py, backend/pdf_generator.py, frontend/src/components/documents/DocumentGeneratorModal.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "pending"
+        agent: "main"
+        comment: "Backend endpoints created at /api/documents/boletim/{student_id}, /api/documents/declaracao-matricula/{student_id}, /api/documents/declaracao-frequencia/{student_id}. PDF generation module created with reportlab. Frontend modal added to StudentsComplete.js. Needs full e2e testing."
 
   - task: "Learning Objects (Objetos de Conhecimento) - Full Feature Testing"
     implemented: true
