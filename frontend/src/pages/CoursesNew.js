@@ -82,7 +82,8 @@ export const Courses = () => {
     'aee': 'Atendimento Educacional Especializado - AEE',
     'atendimento_integral': 'Atendimento Integral',
     'reforco_escolar': 'Reforço Escolar',
-    'aulas_complementares': 'Aulas Complementares'
+    'aulas_complementares': 'Aulas Complementares',
+    'recomposicao_aprendizagem': 'Recomposição de Aprendizagem'
   };
 
   const [reloadTrigger, setReloadTrigger] = useState(0);
