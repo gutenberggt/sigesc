@@ -116,6 +116,9 @@ export const Courses = () => {
   };
 
   const getSchoolName = (schoolId) => {
+    if (!schoolId) {
+      return <span className="text-blue-600 font-medium">Todas as escolas</span>;
+    }
     const school = schools.find(s => s.id === schoolId);
     return school?.name || '-';
   };
