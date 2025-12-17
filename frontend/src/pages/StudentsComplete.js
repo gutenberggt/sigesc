@@ -1638,6 +1638,17 @@ export function StudentsComplete() {
             </div>
           </form>
         </Modal>
+        
+        {/* Modal de Documentos */}
+        <DocumentGeneratorModal
+          isOpen={showDocumentsModal}
+          onClose={() => {
+            setShowDocumentsModal(false);
+            setDocumentStudent(null);
+          }}
+          student={documentStudent}
+          academicYear="2025"
+        />
       </div>
     </Layout>
   );
