@@ -238,7 +238,13 @@ export const Courses = () => {
 
   const columns = [
     { header: 'Nome', accessor: 'name' },
-    { header: 'Código', accessor: 'code', render: (row) => row.code || '-' },
+    { 
+      header: 'Atendimento/Programa', 
+      accessor: 'atendimento_programa',
+      render: (row) => row.atendimento_programa 
+        ? atendimentosProgramas[row.atendimento_programa] || row.atendimento_programa
+        : <span className="text-gray-500 italic">Regular</span>
+    },
     { 
       header: 'Escola', 
       accessor: 'school_id',
@@ -260,7 +266,7 @@ export const Courses = () => {
       }
     },
     { 
-      header: 'Carga Horária', 
+      header: 'CH', 
       accessor: 'workload',
       render: (row) => row.workload ? `${row.workload}h` : '-'
     }
