@@ -226,6 +226,12 @@ export function StudentsComplete() {
     setIsModalOpen(true);
   };
 
+  // Abrir modal de documentos
+  const handleOpenDocuments = (student) => {
+    setDocumentStudent(student);
+    setShowDocumentsModal(true);
+  };
+
   const handleDelete = async (student) => {
     if (window.confirm(`Tem certeza que deseja excluir o aluno "${student.full_name || student.enrollment_number}"?`)) {
       try {
