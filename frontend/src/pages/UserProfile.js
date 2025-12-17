@@ -45,6 +45,24 @@ const getWhatsAppLink = (number) => {
   return `https://wa.me/${fullNumber}`;
 };
 
+// Componente de imagem com fallback para erro de carregamento
+const SafeImage = ({ src, alt, className, fallback }) => {
+  const [error, setError] = useState(false);
+  
+  if (error || !src) {
+    return fallback || null;
+  }
+  
+  return (
+    <img 
+      src={src} 
+      alt={alt} 
+      className={className}
+      onError={() => setError(true)}
+    />
+  );
+};
+
 export const UserProfile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
