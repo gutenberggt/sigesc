@@ -235,6 +235,7 @@ export function SchoolsComplete() {
   const handleCreate = () => {
     setEditingSchool(null);
     setViewMode(false);
+    setSchoolStaff([]); // Limpa lista de servidores
     // Reset form with default values
     setFormData({
       name: '',
