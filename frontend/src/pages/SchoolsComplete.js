@@ -1525,13 +1525,179 @@ export function SchoolsComplete() {
     );
   };
 
+  // Função para renderizar o Quadro de Servidores
+  const renderQuadroServidores = () => {
+    const formatCargo = (cargo) => {
+      const cargos = {
+        'professor': 'Professor(a)',
+        'diretor': 'Diretor(a)',
+        'coordenador': 'Coordenador(a)',
+        'secretario': 'Secretário(a)',
+        'auxiliar_secretaria': 'Aux. Secretaria',
+        'auxiliar': 'Auxiliar',
+        'merendeira': 'Merendeira',
+        'zelador': 'Zelador(a)',
+        'vigia': 'Vigia',
+        'outro': 'Outro'
+      };
+      return cargos[cargo] || cargo;
+    };
+
+    const formatVinculo = (vinculo) => {
+      const vinculos = {
+        'efetivo': 'Efetivo',
+        'contratado': 'Contratado',
+        'temporario': 'Temporário',
+        'comissionado': 'Comissionado'
+      };
+      return vinculos[vinculo] || vinculo;
+    };
+
+    // Calcula CH Mensal (CH semanal * 4)
+    const calcularCHMensal = (staff) => {
+      // Prioriza a CH da lotação, se não tiver usa a CH do servidor
+      const chSemanal = staff.lotacao?.carga_horaria || staff.carga_horaria_semanal || 0;
+      return chSemanal * 4; // 4 semanas por mês
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <Users className="text-blue-600" size={20} />
+            <h4 className="text-md font-semibold text-gray-900">Quadro de Servidores</h4>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/staff')}
+            className="text-sm text-blue-600 hover:text-blue-800 underline"
+          >
+            Gestão de Servidores
+          </button>
+        </div>
+
+        {loadingStaff ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-gray-500">Carregando servidores...</span>
+          </div>
+        ) : schoolStaff.length === 0 ? (
+          <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <Users className="mx-auto text-gray-400 mb-2" size={40} />
+            <p className="text-gray-500">Nenhum servidor lotado nesta escola</p>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/staff')}
+              className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
+            >
+              Cadastrar lotação
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 border rounded-lg">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Foto</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cargo</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vínculo</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">CH Men</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Celular</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {schoolStaff.map((staff, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    {/* Foto */}
+                    <td className="px-4 py-3">
+                      {staff.foto_url ? (
+                        <img
+                          src={uploadAPI.getUrl(staff.foto_url)}
+                          alt={staff.nome}
+                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center border-2 border-gray-200">
+                          <span className="text-blue-600 font-semibold text-sm">
+                            {staff.nome?.charAt(0)?.toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                    </td>
+                    {/* Nome */}
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{staff.nome}</td>
+                    {/* Cargo */}
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      {formatCargo(staff.cargo)}
+                      {staff.cargo_especifico && (
+                        <span className="block text-xs text-gray-500">{staff.cargo_especifico}</span>
+                      )}
+                    </td>
+                    {/* Vínculo */}
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        staff.tipo_vinculo === 'efetivo' 
+                          ? 'bg-green-100 text-green-800' 
+                          : staff.tipo_vinculo === 'contratado'
+                          ? 'bg-blue-100 text-blue-800'
+                          : staff.tipo_vinculo === 'temporario'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-purple-100 text-purple-800'
+                      }`}>
+                        {formatVinculo(staff.tipo_vinculo)}
+                      </span>
+                    </td>
+                    {/* CH Mensal */}
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-sm font-semibold text-gray-900">
+                        {calcularCHMensal(staff)}h
+                      </span>
+                    </td>
+                    {/* Celular */}
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      {staff.celular ? (
+                        <a 
+                          href={`https://wa.me/55${staff.celular.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-green-600 hover:text-green-800"
+                        >
+                          <Phone size={14} />
+                          {staff.celular}
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            {/* Resumo */}
+            <div className="mt-4 flex justify-between items-center bg-blue-50 rounded-lg p-3 border border-blue-200">
+              <span className="text-sm font-medium text-blue-700">
+                Total de servidores: {schoolStaff.length}
+              </span>
+              <span className="text-sm text-blue-600">
+                CH Total: {schoolStaff.reduce((sum, s) => sum + (s.lotacao?.carga_horaria || s.carga_horaria_semanal || 0) * 4, 0)}h/mês
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const tabLabels = [
     'Dados Gerais',
     'Infraestrutura',
     'Dependências',
     'Equipamentos',
     'Dados do Ensino',
-    'Turmas'
+    'Turmas',
+    'Quadro de Servidores'
   ];
 
   const tabContents = [
@@ -1540,7 +1706,8 @@ export function SchoolsComplete() {
     renderDependencias(),
     renderEquipamentos(),
     renderDadosEnsino(),
-    renderTurmas()
+    renderTurmas(),
+    renderQuadroServidores()
   ];
 
   return (
