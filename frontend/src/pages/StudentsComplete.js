@@ -134,6 +134,10 @@ export function StudentsComplete() {
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [formData, setFormData] = useState(initialFormData);
   
+  // Estado para modal de documentos
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [documentStudent, setDocumentStudent] = useState(null);
+  
   // Estados para busca avançada
   const [searchName, setSearchName] = useState('');
   const [searchCpf, setSearchCpf] = useState('');
