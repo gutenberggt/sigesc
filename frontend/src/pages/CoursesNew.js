@@ -135,7 +135,7 @@ export const Courses = () => {
     setEditingCourse(null);
     setViewMode(false);
     setFormData({
-      school_id: schools.length > 0 ? schools[0].id : '',
+      school_id: '', // Vazio = componente para todas as escolas
       nivel_ensino: '',
       grade_levels: [],
       atendimento_programa: '',
