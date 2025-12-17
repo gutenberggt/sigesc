@@ -3526,7 +3526,7 @@ class SIGESCTester:
         self.log("\n" + "="*50)
         if success:
             self.log("🎉 All backend tests completed successfully!")
-            self.log("✅ SIGESC ANNOUNCEMENT SYSTEM (FASE 7) FULLY TESTED")
+            self.log("✅ PDF DOCUMENT GENERATION (PHASE 8) FULLY TESTED")
         else:
             self.log("❌ Some tests failed - check logs above")
         self.log("="*50)
