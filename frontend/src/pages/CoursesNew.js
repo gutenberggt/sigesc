@@ -246,11 +246,6 @@ export const Courses = () => {
         : <span className="text-gray-500 italic">Regular</span>
     },
     { 
-      header: 'Escola', 
-      accessor: 'school_id',
-      render: (row) => getSchoolName(row.school_id)
-    },
-    { 
       header: 'Nível de Ensino', 
       accessor: 'nivel_ensino',
       render: (row) => niveisEnsino[row.nivel_ensino] || row.nivel_ensino
