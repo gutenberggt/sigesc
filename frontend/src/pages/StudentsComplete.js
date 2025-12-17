@@ -409,6 +409,20 @@ export function StudentsComplete() {
           </span>
         );
       }
+    },
+    {
+      header: 'Documentos',
+      accessor: 'documents',
+      render: (row) => (
+        <button
+          onClick={() => handleOpenDocuments(row)}
+          className="flex items-center gap-1 px-2 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+          title="Gerar documentos"
+        >
+          <Printer size={16} />
+          <span className="hidden sm:inline">PDF</span>
+        </button>
+      )
     }
   ];
 
