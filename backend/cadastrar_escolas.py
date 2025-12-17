@@ -3,7 +3,7 @@ import httpx
 import json
 
 # URL da API
-API_URL = "https://sigesc-school-1.preview.emergentagent.com/api"
+API_URL = "https://schoolpdf-gen.preview.emergentagent.com/api"
 
 # Escolas extraídas da imagem
 ESCOLAS = [
@@ -193,7 +193,7 @@ ESCOLAS = [
 
 async def login():
     """Fazer login e obter token"""
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             f"{API_URL}/auth/login",
             json={"email": "admin@sigesc.com", "password": "password"}
@@ -206,7 +206,7 @@ async def login():
 
 async def criar_escola(token, escola):
     """Criar uma escola"""
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             f"{API_URL}/schools",
             json=escola,
