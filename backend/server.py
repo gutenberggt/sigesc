@@ -3800,16 +3800,25 @@ async def generate_declaracao_matricula(
             "student_id": student_id
         }, {"_id": 0})
     
+    # Se não houver matrícula, usar dados do próprio aluno
     if not enrollment:
-        raise HTTPException(status_code=404, detail="Matrícula não encontrada")
+        enrollment = {
+            "student_id": student_id,
+            "class_id": student.get("class_id"),
+            "registration_number": student.get("enrollment_number", "N/A"),
+            "status": "active",
+            "academic_year": academic_year
+        }
     
     # Buscar turma
-    class_info = await db.classes.find_one({"id": enrollment.get("class_id")}, {"_id": 0})
+    class_id = enrollment.get("class_id") or student.get("class_id")
+    class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
     if not class_info:
-        raise HTTPException(status_code=404, detail="Turma não encontrada")
+        class_info = {"name": "Turma não informada", "shift": "N/A", "school_id": student.get("school_id")}
     
     # Buscar escola
-    school = await db.schools.find_one({"id": class_info.get("school_id")}, {"_id": 0})
+    school_id = class_info.get("school_id") or student.get("school_id")
+    school = await db.schools.find_one({"id": school_id}, {"_id": 0})
     if not school:
         school = {
             "name": "Escola Municipal", 
