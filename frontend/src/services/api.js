@@ -803,6 +803,32 @@ export const notificationsAPI = {
   }
 };
 
+// ============= DOCUMENTS API =============
+export const documentsAPI = {
+  // Gerar Boletim Escolar (retorna URL do PDF)
+  getBoletimUrl: (studentId, academicYear = '2025') => {
+    return `${BACKEND_URL}/api/documents/boletim/${studentId}?academic_year=${academicYear}`;
+  },
+  
+  // Gerar Declaração de Matrícula (retorna URL do PDF)
+  getDeclaracaoMatriculaUrl: (studentId, academicYear = '2025', purpose = 'fins comprobatórios') => {
+    return `${BACKEND_URL}/api/documents/declaracao-matricula/${studentId}?academic_year=${academicYear}&purpose=${encodeURIComponent(purpose)}`;
+  },
+  
+  // Gerar Declaração de Frequência (retorna URL do PDF)
+  getDeclaracaoFrequenciaUrl: (studentId, academicYear = '2025') => {
+    return `${BACKEND_URL}/api/documents/declaracao-frequencia/${studentId}?academic_year=${academicYear}`;
+  },
+  
+  // Baixar documento com autenticação
+  downloadDocument: async (url) => {
+    const response = await axios.get(url, {
+      responseType: 'blob'
+    });
+    return response.data;
+  }
+};
+
 // WebSocket URL
 export const getWebSocketUrl = () => {
   const token = getToken();
