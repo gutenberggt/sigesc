@@ -3495,7 +3495,11 @@ class SIGESCTester:
         success = True
         
         try:
-            # MAIN FOCUS: Test SIGESC Announcement System (FASE 7) - PRIMARY TEST as per review request
+            # MAIN FOCUS: Test PDF Document Generation (PHASE 8) - PRIMARY TEST as per review request
+            if not self.test_pdf_document_generation_phase8():
+                success = False
+            
+            # Test SIGESC Announcement System (FASE 7)
             if not self.test_announcement_system_fase7():
                 success = False
             
