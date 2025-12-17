@@ -212,6 +212,11 @@ export const UserProfile = () => {
         ? await profilesAPI.updateMyProfile({ [fieldName]: imageUrl })
         : await profilesAPI.updateProfile(userId, { [fieldName]: imageUrl });
       
+      // Reset estado de erro se for imagem de capa
+      if (type === 'cover') {
+        setCoverImageError(false);
+      }
+      
       setProfile({ ...profile, ...updatedProfile });
       showAlert('success', 'Imagem atualizada com sucesso!');
     } catch (error) {
