@@ -1,0 +1,1 @@
+export { DocumentGeneratorModal } from './DocumentGeneratorModal';
