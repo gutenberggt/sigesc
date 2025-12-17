@@ -251,11 +251,49 @@ export function SchoolsComplete() {
     setIsModalOpen(true);
   }
 
+  // Função para carregar servidores lotados na escola
+  async function loadSchoolStaff(schoolId) {
+    if (!schoolId) {
+      setSchoolStaff([]);
+      return;
+    }
+    setLoadingStaff(true);
+    try {
+      // Busca as lotações ativas da escola
+      const assignments = await schoolAssignmentAPI.list({ school_id: schoolId, status: 'ativo' });
+      
+      // Busca os dados completos de cada servidor
+      const staffDetails = await Promise.all(
+        assignments.map(async (assignment) => {
+          try {
+            const staff = await staffAPI.get(assignment.staff_id);
+            return {
+              ...staff,
+              lotacao: assignment
+            };
+          } catch (error) {
+            console.error(`Erro ao buscar servidor ${assignment.staff_id}:`, error);
+            return null;
+          }
+        })
+      );
+      
+      // Filtra nulos e ordena por nome
+      setSchoolStaff(staffDetails.filter(s => s !== null).sort((a, b) => a.nome.localeCompare(b.nome)));
+    } catch (error) {
+      console.error('Erro ao carregar servidores da escola:', error);
+      setSchoolStaff([]);
+    } finally {
+      setLoadingStaff(false);
+    }
+  }
+
   function handleView(school) {
     setEditingSchool(school);
     setViewMode(true);
     setFormData(school);
     setIsModalOpen(true);
+    loadSchoolStaff(school.id);
   }
 
   function handleEdit(school) {
@@ -263,6 +301,7 @@ export function SchoolsComplete() {
     setViewMode(false);
     setFormData(school);
     setIsModalOpen(true);
+    loadSchoolStaff(school.id);
   }
 
   async function handleDelete(school) {
