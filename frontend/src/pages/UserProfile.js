@@ -72,6 +72,7 @@ export const UserProfile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState(null);
+  const [coverImageError, setCoverImageError] = useState(false);
   
   // Refs para upload de arquivos
   const coverInputRef = useRef(null);
