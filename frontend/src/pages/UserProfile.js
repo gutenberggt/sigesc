@@ -606,10 +606,15 @@ export const UserProfile = () => {
             
             <div className="relative">
               {profile.foto_url || profile.user?.avatar_url ? (
-                <img 
+                <SafeImage 
                   src={uploadAPI.getUrl(profile.foto_url || profile.user?.avatar_url)}
                   alt="Avatar"
                   className="w-32 h-32 rounded-full border-4 border-white object-cover bg-white"
+                  fallback={
+                    <div className="w-32 h-32 rounded-full border-4 border-white bg-gray-200 flex items-center justify-center">
+                      <User size={48} className="text-gray-400" />
+                    </div>
+                  }
                 />
               ) : (
                 <div className="w-32 h-32 rounded-full border-4 border-white bg-gray-200 flex items-center justify-center">
