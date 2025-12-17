@@ -3288,6 +3288,190 @@ class SIGESCTester:
                 except Exception as cleanup_error:
                     self.log(f"❌ Cleanup error: {str(cleanup_error)}")
 
+    def test_pdf_document_generation_phase8(self):
+        """Test PDF Document Generation - Phase 8 as per review request"""
+        self.log("\n📄 Testing PDF Document Generation - Phase 8...")
+        
+        if not self.student_id:
+            self.log("❌ No student_id available for PDF testing")
+            return False
+        
+        academic_year = "2025"
+        
+        # Test 1: Boletim Escolar Generation
+        self.log("1️⃣ Testing GET /api/documents/boletim/{student_id}...")
+        response = requests.get(
+            f"{API_BASE}/documents/boletim/{self.student_id}?academic_year={academic_year}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            self.log("✅ Boletim Escolar PDF generated successfully")
+            
+            # Verify it's a PDF file
+            content_type = response.headers.get('content-type', '')
+            if 'application/pdf' in content_type:
+                self.log("✅ Response is a PDF file (Content-Type: application/pdf)")
+            else:
+                self.log(f"❌ Expected PDF, got Content-Type: {content_type}")
+                return False
+            
+            # Check content length
+            content_length = len(response.content)
+            self.log(f"   PDF size: {content_length} bytes")
+            if content_length > 1000:  # PDF should be at least 1KB
+                self.log("✅ PDF has reasonable size")
+            else:
+                self.log("❌ PDF seems too small")
+                return False
+                
+        else:
+            self.log(f"❌ Failed to generate Boletim Escolar: {response.status_code} - {response.text}")
+            return False
+        
+        # Test 2: Declaração de Matrícula Generation
+        self.log("2️⃣ Testing GET /api/documents/declaracao-matricula/{student_id}...")
+        response = requests.get(
+            f"{API_BASE}/documents/declaracao-matricula/{self.student_id}?academic_year={academic_year}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            self.log("✅ Declaração de Matrícula PDF generated successfully")
+            
+            # Verify it's a PDF file
+            content_type = response.headers.get('content-type', '')
+            if 'application/pdf' in content_type:
+                self.log("✅ Response is a PDF file (Content-Type: application/pdf)")
+            else:
+                self.log(f"❌ Expected PDF, got Content-Type: {content_type}")
+                return False
+            
+            # Check content length
+            content_length = len(response.content)
+            self.log(f"   PDF size: {content_length} bytes")
+            if content_length > 1000:
+                self.log("✅ PDF has reasonable size")
+            else:
+                self.log("❌ PDF seems too small")
+                return False
+                
+        else:
+            self.log(f"❌ Failed to generate Declaração de Matrícula: {response.status_code} - {response.text}")
+            return False
+        
+        # Test 3: Declaração de Frequência Generation
+        self.log("3️⃣ Testing GET /api/documents/declaracao-frequencia/{student_id}...")
+        response = requests.get(
+            f"{API_BASE}/documents/declaracao-frequencia/{self.student_id}?academic_year={academic_year}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            self.log("✅ Declaração de Frequência PDF generated successfully")
+            
+            # Verify it's a PDF file
+            content_type = response.headers.get('content-type', '')
+            if 'application/pdf' in content_type:
+                self.log("✅ Response is a PDF file (Content-Type: application/pdf)")
+            else:
+                self.log(f"❌ Expected PDF, got Content-Type: {content_type}")
+                return False
+            
+            # Check content length
+            content_length = len(response.content)
+            self.log(f"   PDF size: {content_length} bytes")
+            if content_length > 1000:
+                self.log("✅ PDF has reasonable size")
+            else:
+                self.log("❌ PDF seems too small")
+                return False
+                
+        else:
+            self.log(f"❌ Failed to generate Declaração de Frequência: {response.status_code} - {response.text}")
+            return False
+        
+        # Test 4: Error Handling - Non-existent student ID
+        self.log("4️⃣ Testing error handling with non-existent student ID...")
+        fake_student_id = "00000000-0000-0000-0000-000000000000"
+        
+        response = requests.get(
+            f"{API_BASE}/documents/boletim/{fake_student_id}?academic_year={academic_year}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 404:
+            self.log("✅ Non-existent student correctly returns 404")
+        else:
+            self.log(f"❌ Expected 404 for non-existent student, got: {response.status_code}")
+            return False
+        
+        # Test 5: Authentication Required
+        self.log("5️⃣ Testing authentication requirement...")
+        
+        # Test without token
+        response = requests.get(f"{API_BASE}/documents/boletim/{self.student_id}")
+        if response.status_code == 401:
+            self.log("✅ PDF endpoints correctly require authentication (401)")
+        else:
+            self.log(f"❌ Expected 401 without token, got: {response.status_code}")
+            return False
+        
+        # Test with invalid token
+        invalid_headers = {"Authorization": "Bearer invalid_token_here"}
+        response = requests.get(
+            f"{API_BASE}/documents/boletim/{self.student_id}",
+            headers=invalid_headers
+        )
+        if response.status_code == 401:
+            self.log("✅ Invalid token correctly rejected (401)")
+        else:
+            self.log(f"❌ Expected 401 for invalid token, got: {response.status_code}")
+            return False
+        
+        # Test 6: Test with custom purpose for Declaração de Matrícula
+        self.log("6️⃣ Testing Declaração de Matrícula with custom purpose...")
+        custom_purpose = "fins de transferência escolar"
+        response = requests.get(
+            f"{API_BASE}/documents/declaracao-matricula/{self.student_id}?academic_year={academic_year}&purpose={custom_purpose}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            self.log("✅ Declaração de Matrícula with custom purpose generated successfully")
+            content_type = response.headers.get('content-type', '')
+            if 'application/pdf' in content_type:
+                self.log("✅ Custom purpose PDF is valid")
+            else:
+                self.log(f"❌ Custom purpose PDF invalid Content-Type: {content_type}")
+                return False
+        else:
+            self.log(f"❌ Failed to generate custom purpose declaration: {response.status_code}")
+            return False
+        
+        # Test 7: Test different academic years
+        self.log("7️⃣ Testing different academic years...")
+        test_year = "2024"
+        response = requests.get(
+            f"{API_BASE}/documents/boletim/{self.student_id}?academic_year={test_year}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            self.log(f"✅ PDF generation works for academic year {test_year}")
+            content_type = response.headers.get('content-type', '')
+            if 'application/pdf' in content_type:
+                self.log("✅ Different year PDF is valid")
+            else:
+                self.log(f"❌ Different year PDF invalid Content-Type: {content_type}")
+                return False
+        else:
+            self.log(f"❌ Failed to generate PDF for year {test_year}: {response.status_code}")
+            return False
+        
+        self.log("✅ PDF Document Generation Phase 8 testing completed successfully!")
+        return True
+
     def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting SIGESC Backend API Tests - ANNOUNCEMENT SYSTEM TESTING")
