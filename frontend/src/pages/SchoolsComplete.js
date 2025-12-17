@@ -20,6 +20,8 @@ export function SchoolsComplete() {
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
+  const [schoolStaff, setSchoolStaff] = useState([]);
+  const [loadingStaff, setLoadingStaff] = useState(false);
 
   // SEMED pode visualizar tudo, mas não pode editar/excluir
   const canEdit = user?.role !== 'semed';
