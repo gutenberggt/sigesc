@@ -1163,7 +1163,11 @@ ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 @api_router.post("/upload")
-async def upload_file(request: Request, file: UploadFile = File(...), file_type: str = "default"):
+async def upload_file(
+    request: Request, 
+    file: UploadFile = File(...), 
+    file_type: Optional[str] = "default"
+):
     """Upload de arquivo (foto, documento, laudo, etc.) para servidor externo via FTP"""
     current_user = await AuthMiddleware.get_current_user(request)
     
