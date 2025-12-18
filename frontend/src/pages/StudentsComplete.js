@@ -144,6 +144,12 @@ export function StudentsComplete() {
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const [showCpfSuggestions, setShowCpfSuggestions] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  
+  // Filtros por Escola e Turma
+  const [filterSchoolId, setFilterSchoolId] = useState('');
+  const [filterClassId, setFilterClassId] = useState('');
+  const [showBatchPrintModal, setShowBatchPrintModal] = useState(false);
+  const [batchPrinting, setBatchPrinting] = useState(false);
   const nameInputRef = useRef(null);
   const cpfInputRef = useRef(null);
   
