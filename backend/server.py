@@ -48,6 +48,7 @@ from pdf_generator import (
     generate_declaracao_matricula_pdf,
     generate_declaracao_frequencia_pdf
 )
+from ftp_upload import upload_to_ftp, delete_from_ftp
 from grade_calculator import calculate_and_update_grade
 
 ROOT_DIR = Path(__file__).parent
