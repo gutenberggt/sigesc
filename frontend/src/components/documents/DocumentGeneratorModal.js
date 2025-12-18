@@ -113,6 +113,12 @@ export const DocumentGeneratorModal = ({
       icon: 'text-blue-600',
       button: 'bg-blue-600 hover:bg-blue-700'
     },
+    orange: {
+      bg: 'bg-orange-50 hover:bg-orange-100',
+      border: 'border-orange-200 hover:border-orange-400',
+      icon: 'text-orange-600',
+      button: 'bg-orange-600 hover:bg-orange-700'
+    },
     green: {
       bg: 'bg-green-50 hover:bg-green-100',
       border: 'border-green-200 hover:border-green-400',
