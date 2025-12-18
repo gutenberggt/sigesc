@@ -376,8 +376,24 @@ export function StudentsComplete() {
       ).slice(0, 10)
     : [];
 
-  // Dados exibidos na tabela (filtrado por seleção ou todos)
-  const displayedStudents = selectedStudent ? [selectedStudent] : students;
+  // Dados exibidos na tabela (filtrado por seleção, escola, turma ou todos)
+  const displayedStudents = (() => {
+    if (selectedStudent) return [selectedStudent];
+    
+    let result = students;
+    
+    // Filtrar por escola
+    if (filterSchoolId) {
+      result = result.filter(s => s.school_id === filterSchoolId);
+    }
+    
+    // Filtrar por turma
+    if (filterClassId) {
+      result = result.filter(s => s.class_id === filterClassId);
+    }
+    
+    return result;
+  })();
 
   const handleSelectStudent = (student) => {
     setSelectedStudent(student);
