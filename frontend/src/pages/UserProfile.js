@@ -202,8 +202,9 @@ export const UserProfile = () => {
     try {
       setSaving(true);
       
-      // Faz upload do arquivo
-      const response = await uploadAPI.upload(file);
+      // Faz upload do arquivo com o tipo correto (cover -> capa, avatar -> user)
+      const fileType = type === 'cover' ? 'cover' : 'profile';
+      const response = await uploadAPI.upload(file, fileType);
       const imageUrl = response.url;
       
       // Atualizar perfil com a nova URL
