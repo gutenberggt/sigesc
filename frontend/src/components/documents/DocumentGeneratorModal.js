@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Download, X, GraduationCap, ClipboardCheck, Calendar } from 'lucide-react';
+import { FileText, Download, X, GraduationCap, ClipboardCheck, Calendar, User } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { documentsAPI } from '@/services/api';
@@ -7,6 +7,7 @@ import { documentsAPI } from '@/services/api';
 /**
  * Modal para geração de documentos PDF do aluno
  * - Boletim Escolar
+ * - Ficha Individual
  * - Declaração de Matrícula
  * - Declaração de Frequência
  */
@@ -16,7 +17,7 @@ export const DocumentGeneratorModal = ({
   student,
   academicYear = '2025'
 }) => {
-  const [loading, setLoading] = useState(null); // 'boletim' | 'matricula' | 'frequencia' | null
+  const [loading, setLoading] = useState(null); // 'boletim' | 'ficha' | 'matricula' | 'frequencia' | null
   const [error, setError] = useState(null);
 
   const handleDownload = async (type) => {
@@ -36,6 +37,10 @@ export const DocumentGeneratorModal = ({
         case 'boletim':
           url = documentsAPI.getBoletimUrl(student.id, academicYear);
           filename = `boletim_${student.full_name?.replace(/\s/g, '_')}_${academicYear}.pdf`;
+          break;
+        case 'ficha':
+          url = documentsAPI.getFichaIndividualUrl(student.id, academicYear);
+          filename = `ficha_individual_${student.full_name?.replace(/\s/g, '_')}_${academicYear}.pdf`;
           break;
         case 'matricula':
           url = documentsAPI.getDeclaracaoMatriculaUrl(student.id, academicYear);
@@ -77,6 +82,13 @@ export const DocumentGeneratorModal = ({
       description: 'Notas e médias do aluno por disciplina',
       icon: GraduationCap,
       color: 'blue'
+    },
+    {
+      id: 'ficha',
+      title: 'Ficha Individual',
+      description: 'Notas, frequência e dados completos do aluno',
+      icon: User,
+      color: 'orange'
     },
     {
       id: 'matricula',
