@@ -926,17 +926,17 @@ def generate_ficha_individual_pdf(
         ]
         table_data.append(row)
     
-    # Larguras das colunas
+    # Larguras das colunas (Componentes Curriculares 25% maior: 3.5 * 1.25 = 4.375 ~ 4.4)
     col_widths = [
-        3.5*cm,  # Componente
-        0.7*cm,  # CH
-        0.7*cm, 0.7*cm, 0.7*cm, 0.7*cm,  # 1º Sem
-        0.7*cm, 0.7*cm, 0.7*cm, 0.7*cm,  # 2º Sem
-        0.8*cm, 0.8*cm, 0.8*cm, 0.8*cm,  # Proc. Pond.
-        1*cm,    # Total
-        0.9*cm,  # Média
-        0.8*cm,  # Faltas
-        1*cm     # %Freq
+        4.4*cm,  # Componente (25% maior)
+        0.65*cm,  # CH
+        0.65*cm, 0.65*cm, 0.65*cm, 0.65*cm,  # 1º Sem
+        0.65*cm, 0.65*cm, 0.65*cm, 0.65*cm,  # 2º Sem
+        0.75*cm, 0.75*cm, 0.75*cm, 0.75*cm,  # Proc. Pond.
+        0.9*cm,    # Total
+        0.85*cm,  # Média
+        0.75*cm,  # Faltas
+        0.9*cm     # %Freq
     ]
     
     grades_table = Table(table_data, colWidths=col_widths)
