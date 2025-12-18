@@ -359,6 +359,9 @@ export function StudentsComplete() {
   };
 
   const filteredClasses = classes.filter(c => c.school_id === formData.school_id);
+  
+  // Turmas filtradas para o filtro de busca
+  const filterClassOptions = classes.filter(c => c.school_id === filterSchoolId);
 
   // Lógica de sugestões de busca
   const nameSuggestions = searchName.length >= 3 
