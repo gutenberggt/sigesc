@@ -243,7 +243,7 @@ export function SchoolsComplete() {
       name: '',
       inep_code: '',
       tipo_unidade: 'sede',
-      escola_sede_id: '',
+      anexa_a: '',
       zona_localizacao: 'urbana',
       situacao_funcionamento: 'Ativa',
       dependencia_administrativa: 'Municipal',
