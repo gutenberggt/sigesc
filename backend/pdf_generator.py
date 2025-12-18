@@ -159,7 +159,7 @@ def generate_boletim_pdf(
     
     # ===== CABEÇALHO =====
     # Criar tabela do cabeçalho com logo à esquerda, texto ao centro e título à direita
-    logo = get_logo_image(width=1.8*cm, height=1.8*cm)
+    logo = get_logo_image(width=2.7*cm, height=1.8*cm)  # Largura 50% maior para não deformar
     
     header_text = """
     <b>Prefeitura Mun. de Floresta do Araguaia - PA</b><br/>
@@ -716,7 +716,7 @@ def generate_ficha_individual_pdf(
     attendance_data = attendance_data or {}
     
     # ===== CABEÇALHO =====
-    logo = get_logo_image(width=1.6*cm, height=1.6*cm)
+    logo = get_logo_image(width=2.4*cm, height=1.6*cm)  # Largura 50% maior para não deformar
     
     header_text = """
     <b>Prefeitura Mun. de Floresta do Araguaia - PA</b><br/>
