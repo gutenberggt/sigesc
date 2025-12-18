@@ -178,7 +178,7 @@ def generate_boletim_pdf(
     if logo:
         header_table = Table([
             [logo, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
-        ], colWidths=[3.2*cm, 7.5*cm, 7.3*cm])  # Logo +1cm para não sobrepor texto
+        ], colWidths=[3.2*cm, 8.5*cm, 6.3*cm])  # Texto +1cm para melhor estética
     else:
         header_table = Table([
             [Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
@@ -736,7 +736,7 @@ def generate_ficha_individual_pdf(
     if logo:
         header_table = Table([
             [logo, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
-        ], colWidths=[3*cm, 8*cm, 8*cm])  # Logo +1cm para não sobrepor texto
+        ], colWidths=[3*cm, 9*cm, 7*cm])  # Texto +1cm para melhor estética
     else:
         header_table = Table([
             [Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
