@@ -245,7 +245,9 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
 
     setUploading(true);
     try {
-      const uploadResult = await uploadAPI.upload(file);
+      // Determina o tipo de arquivo para o upload (imagem vai para /user, documento para /doc)
+      const fileType = isImage ? 'profile' : 'document';
+      const uploadResult = await uploadAPI.upload(file, fileType);
       
       const attachment = {
         type: isImage ? 'image' : 'pdf',
