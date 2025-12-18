@@ -1807,6 +1807,93 @@ export function StudentsComplete() {
           student={documentStudent}
           academicYear="2025"
         />
+        
+        {/* Modal de Impressão em Lote */}
+        <Modal
+          isOpen={showBatchPrintModal}
+          onClose={() => setShowBatchPrintModal(false)}
+          title={`Impressão em Lote - ${getClassName(filterClassId)}`}
+          size="md"
+        >
+          <div className="space-y-4">
+            <p className="text-gray-600">
+              Selecione o tipo de documento para gerar para todos os <strong>{displayedStudents.length} alunos</strong> da turma:
+            </p>
+            
+            <div className="space-y-3">
+              {/* Boletim */}
+              <button
+                onClick={() => handleBatchPrint('boletim')}
+                disabled={batchPrinting}
+                className="w-full flex items-center justify-between p-4 border-2 border-blue-200 rounded-lg hover:bg-blue-50 hover:border-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <FileText className="text-blue-600" size={20} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Boletim Escolar</p>
+                    <p className="text-sm text-gray-500">Notas e frequência do aluno</p>
+                  </div>
+                </div>
+                <Download size={20} className="text-blue-600" />
+              </button>
+              
+              {/* Ficha Individual */}
+              <button
+                onClick={() => handleBatchPrint('ficha_individual')}
+                disabled={batchPrinting}
+                className="w-full flex items-center justify-between p-4 border-2 border-green-200 rounded-lg hover:bg-green-50 hover:border-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                    <User className="text-green-600" size={20} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Ficha Individual</p>
+                    <p className="text-sm text-gray-500">Dados cadastrais do aluno</p>
+                  </div>
+                </div>
+                <Download size={20} className="text-green-600" />
+              </button>
+              
+              {/* Certificado */}
+              <button
+                onClick={() => handleBatchPrint('certificado')}
+                disabled={batchPrinting}
+                className="w-full flex items-center justify-between p-4 border-2 border-purple-200 rounded-lg hover:bg-purple-50 hover:border-purple-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <FileText className="text-purple-600" size={20} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Certificado</p>
+                    <p className="text-sm text-gray-500">Certificado de conclusão</p>
+                  </div>
+                </div>
+                <Download size={20} className="text-purple-600" />
+              </button>
+            </div>
+            
+            {batchPrinting && (
+              <div className="flex items-center justify-center gap-3 p-4 bg-blue-50 rounded-lg">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <span className="text-blue-600">Gerando documentos...</span>
+              </div>
+            )}
+            
+            <div className="flex justify-end pt-4 border-t">
+              <button
+                onClick={() => setShowBatchPrintModal(false)}
+                disabled={batchPrinting}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </Layout>
   );
