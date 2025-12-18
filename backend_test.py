@@ -3674,7 +3674,11 @@ class SIGESCTester:
         success = True
         
         try:
-            # MAIN FOCUS: Test PDF Document Generation (PHASE 8) - PRIMARY TEST as per review request
+            # MAIN FOCUS: Test Ficha Individual PDF Generation - PRIMARY TEST as per review request
+            if not self.test_ficha_individual_pdf_generation():
+                success = False
+            
+            # Test PDF Document Generation (PHASE 8) - SECONDARY TEST
             if not self.test_pdf_document_generation_phase8():
                 success = False
             
