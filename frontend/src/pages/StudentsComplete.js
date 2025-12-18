@@ -409,6 +409,8 @@ export function StudentsComplete() {
     setSelectedStudent(null);
     setShowNameSuggestions(false);
     setShowCpfSuggestions(false);
+    setFilterSchoolId('');
+    setFilterClassId('');
   };
 
   const columns = [
