@@ -457,13 +457,23 @@ def generate_declaracao_matricula_pdf(
     styles = get_styles()
     elements = []
     
+    # Logotipo centralizado
+    logo = get_logo_image(width=2.5*cm, height=2.5*cm)
+    if logo:
+        logo_table = Table([[logo]], colWidths=[16*cm])
+        logo_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ]))
+        elements.append(logo_table)
+        elements.append(Spacer(1, 10))
+    
     # Cabeçalho
+    elements.append(Paragraph("PREFEITURA MUNICIPAL DE FLORESTA DO ARAGUAIA", styles['CenterText']))
     elements.append(Paragraph("SECRETARIA MUNICIPAL DE EDUCAÇÃO", styles['CenterText']))
     elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
-    elements.append(Paragraph(f"CNPJ: {school.get('cnpj', 'N/A')}", styles['CenterText']))
     elements.append(Paragraph(f"Endereço: {school.get('address', 'N/A')}", styles['CenterText']))
     elements.append(Paragraph(f"Tel: {school.get('phone', 'N/A')}", styles['CenterText']))
-    elements.append(Spacer(1, 40))
+    elements.append(Spacer(1, 30))
     
     # Título
     elements.append(Paragraph("DECLARAÇÃO DE MATRÍCULA", styles['MainTitle']))
