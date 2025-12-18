@@ -351,6 +351,10 @@ class SchoolBase(BaseModel):
     cnpj: Optional[str] = None
     situacao_funcionamento: Optional[str] = 'Em atividade'
     
+    # Tipo de Unidade (Sede/Anexa)
+    tipo_unidade: Optional[Literal['sede', 'anexa']] = 'sede'
+    anexa_a: Optional[str] = None  # ID da escola sede (quando tipo_unidade = 'anexa')
+    
     # Dados Gerais - Localização
     cep: Optional[str] = None
     logradouro: Optional[str] = None
