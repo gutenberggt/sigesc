@@ -1602,13 +1602,73 @@ export function StudentsComplete() {
             </div>
 
             {/* Botão Limpar Consulta */}
-            {(searchName || searchCpf || selectedStudent) && (
+            {(searchName || searchCpf || selectedStudent || filterSchoolId || filterClassId) && (
               <button
                 onClick={handleClearSearch}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300"
               >
                 <X size={18} />
-                <span>Limpar Consulta</span>
+                <span>Limpar Filtros</span>
+              </button>
+            )}
+          </div>
+
+          {/* Filtros por Escola e Turma */}
+          <div className="flex flex-wrap items-end gap-4 mt-4 pt-4 border-t border-gray-200">
+            {/* Filtro por Escola */}
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Building2 size={14} className="inline mr-1" />
+                Filtrar por Escola
+              </label>
+              <select
+                value={filterSchoolId}
+                onChange={(e) => {
+                  setFilterSchoolId(e.target.value);
+                  setFilterClassId(''); // Limpa turma ao mudar escola
+                  setSelectedStudent(null);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Todas as escolas</option>
+                {schools.map(school => (
+                  <option key={school.id} value={school.id}>{school.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filtro por Turma */}
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Users size={14} className="inline mr-1" />
+                Filtrar por Turma
+              </label>
+              <select
+                value={filterClassId}
+                onChange={(e) => {
+                  setFilterClassId(e.target.value);
+                  setSelectedStudent(null);
+                }}
+                disabled={!filterSchoolId}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">Todas as turmas</option>
+                {filterClassOptions.map(classItem => (
+                  <option key={classItem.id} value={classItem.id}>
+                    {classItem.name} - {classItem.grade_level}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Botão Impressão em Lote (aparece quando uma turma é selecionada) */}
+            {filterClassId && displayedStudents.length > 0 && (
+              <button
+                onClick={() => setShowBatchPrintModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Printer size={18} />
+                <span>Imprimir Turma ({displayedStudents.length} alunos)</span>
               </button>
             )}
           </div>
@@ -1619,7 +1679,23 @@ export function StudentsComplete() {
               <span>Exibindo resultado para:</span>
               <strong>{selectedStudent.full_name}</strong>
               <span className="text-gray-400">|</span>
-              <span>Matrícula: {selectedStudent.enrollment_number}</span>
+              <span>CPF: {selectedStudent.cpf || '-'}</span>
+            </div>
+          )}
+          
+          {/* Indicador de filtro por escola/turma */}
+          {!selectedStudent && (filterSchoolId || filterClassId) && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
+              <span>Filtro ativo:</span>
+              {filterSchoolId && <strong>{getSchoolName(filterSchoolId)}</strong>}
+              {filterClassId && (
+                <>
+                  <span className="text-gray-400">→</span>
+                  <strong>{getClassName(filterClassId)}</strong>
+                </>
+              )}
+              <span className="text-gray-400">|</span>
+              <span>{displayedStudents.length} aluno(s)</span>
             </div>
           )}
         </div>
