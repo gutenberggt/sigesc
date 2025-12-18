@@ -1,156 +1,142 @@
 <analysis>**original_problem_statement:**
-O usuário está desenvolvendo um SIGESC (Sistema Integrado de Gestão Escolar). As solicitações evoluíram para:
-
-1.  **[RESOLVIDO]** Corrigir um bug crítico onde as mensagens de chat em tempo real (WebSocket) não atualizavam a interface do usuário sem recarregar a página.
-2.  **[RESOLVIDO]** Corrigir um bug onde as mensagens de chat apareciam duplicadas na interface.
-3.  **[CONCLUÍDO]** **FASE 7 - Sistema de Comunicação:** Implementar um sistema de CRUD de Avisos com as seguintes funcionalidades:
-    *   Adicionar ícones de notificação no cabeçalho: um envelope para mensagens não lidas e um sino para avisos.
-    *   O sino de avisos deve ter um dropdown mostrando os avisos recentes.
-    *   Criar uma página dedicada  para visualizar, criar, editar e excluir avisos.
-    *   Implementar um modal de criação de avisos com targeting por cargo, escola, turma ou individual.
-    *   Permissões de criação de avisos baseadas na hierarquia de cargos (Admin, Secretário, Diretor, Coordenador, Professor).
-    *   Permitir que perfis de Aluno e Pais acessem e visualizem os avisos.
-4.  **[EM ANDAMENTO]** **FASE 8 - Geração de Documentos:** Implementar a funcionalidade para gerar documentos em PDF para os alunos, incluindo:
-    *   Boletim escolar
-    *   Declaração de matrícula
-    *   Declaração de frequência
+O usuário solicitou uma série de funcionalidades e melhorias para o sistema SIGESC (Sistema Integrado de Gestão Escolar), incluindo:
+1.  **[CONCLUÍDO]** Testar e finalizar a Fase 8: Geração de Documentos em PDF (Boletim, Declaração de Matrícula, etc.).
+2.  **[CONCLUÍDO]** Cadastrar 16 novas escolas a partir de uma imagem fornecida.
+3.  **[CONCLUÍDO]** Adicionar uma aba Quadro de Servidores na visualização de escolas, listando os funcionários lotados nela.
+4.  **[CONCLUÍDO]** Fazer várias melhorias na UI de Componentes Curriculares, como tornar a escola opcional, adicionar novas opções, e ajustar as colunas da tabela.
+5.  **[CONCLUÍDO]** Atualizar as credenciais do administrador principal e remover a seção Acesso de teste da página de login.
+6.  **[CONCLUÍDO]** Resolver um problema crítico de imagens de perfil e capa que desapareciam, implementando uma solução de armazenamento persistente via FTP.
+7.  **[CONCLUÍDO]** Realizar diversos ajustes de layout na página de perfil do usuário e nas páginas de cadastro (escola, alunos, responsáveis), incluindo a formatação automática de campos como CEP e telefone.
+8.  **[CONCLUÍDO]** Adicionar filtros por escola e turma na listagem de alunos e um botão de impressão em lote.
+9.  **[CONCLUÍDO]** Corrigir um bug onde o status Inativa de uma escola não era refletido corretamente na listagem.
+10. **[CONCLUÍDO]** Redesenhar o layout do boletim em PDF com base em um modelo fornecido pelo usuário.
+11. **[EM ANDAMENTO]** Criar a funcionalidade de geração da Ficha Individual do Aluno em PDF, com base em um modelo e adicioná-la às opções de impressão.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-Uma aplicação full-stack (React/FastAPI/MongoDB) com um sistema de perfis, conexões e mensagens privadas em tempo real (WebSocket) agora totalmente funcional. O sistema de Avisos (Fase 7) foi implementado com sucesso, incluindo endpoints de backend, uma página de frontend para gerenciamento de avisos, e ícones de notificação no layout principal. A implementação da Geração de Documentos (Fase 8) foi iniciada, com a criação dos endpoints de backend, um módulo de geração de PDF () e a adição de um botão na interface da lista de alunos para acionar a funcionalidade.
+Um sistema de gestão escolar (SIGESC) full-stack (React/FastAPI/MongoDB) com funcionalidades de perfis, chat, avisos, e gerenciamento de escolas, alunos, servidores e componentes curriculares. O sistema agora utiliza um servidor FTP externo para armazenamento persistente de todas as imagens e documentos, resolvendo um problema de perda de dados. A geração de documentos PDF (boletim, declarações) está funcional, e o layout do boletim foi redesenhado conforme a especificação do usuário. Foram implementadas diversas melhorias de usabilidade e novos recursos nos formulários e listagens da aplicação.
 
 **Last working item**:
-- **Last item agent was working:** Implementação da Fase 8 - Geração de Documentos em PDF. O agente criou os endpoints no backend, um módulo  para criar os documentos e integrou um botão PDF na lista de alunos no frontend para acionar a geração.
-- **Status:** IN PROGRESS
-- **Agent Testing Done:** Y
+- **Last item agent was working:** O agente estava no início da implementação da Ficha Individual do Aluno. Ele analisou o PDF de inspiração fornecido pelo usuário para extrair a estrutura e os campos necessários. O próximo passo é criar a função de geração de PDF no backend e integrá-la ao frontend.
+- **Status:** NOT STARTED
+- **Agent Testing Done:** N
 - **Which testing method agent to use?** both
 - **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
-- **Issue 1: Testar o fluxo completo de Geração de Documentos (P0)**
-    - **Description:** A infraestrutura backend e o botão de UI estão prontos, mas o fluxo completo de ponta a ponta não foi testado. É preciso verificar se ao clicar no botão PDF, o modal de seleção de documento abre corretamente, a seleção funciona e o download do arquivo PDF é iniciado com sucesso no navegador.
-    - **Status:** TESTING PENDING
-    - **Should Test frontend/backend/both after fix?** both
+- **Issue 1: As lotações de servidores parecem estar associadas a IDs de escolas que não existem mais (P2)**
+    - **Description:** Durante o teste da aba Quadro de Servidores, o agente notou que as lotações existentes no banco de dados referiam-se a escolas antigas, forçando a criação de uma nova lotação para o teste. Isso sugere que pode haver dados órfãos no banco que precisam de limpeza.
+    - **Status:** NOT STARTED
+    - **Should Test frontend/backend/both after fix?** backend
 
 **In progress Task List**:
-- **Task 1: Finalizar a implementação e teste da Geração de Documentos (Fase 8) (P0)**
-    - **Where to resume:** A página  foi modificada para incluir o botão de geração de PDF e o componente modal (). O próximo passo é realizar um teste e2e para garantir que clicar no botão PDF abre o modal, permite selecionar um tipo de documento e baixa o PDF gerado pelo backend.
-    - **What will be achieved with this?** Conclusão da Fase 8, permitindo que os usuários gerem documentos oficiais para os alunos diretamente da plataforma.
+- **Task 1: Implementar a geração da Ficha Individual do Aluno (P0)**
+    - **Where to resume:** O agente já analisou o modelo do PDF. O próximo passo é editar o arquivo  e implementar a lógica dentro da função , que atualmente é um placeholder. Depois, é preciso garantir que o frontend possa chamar o novo endpoint.
+    - **What will be achieved with this?** Os usuários poderão gerar e imprimir a Ficha Individual completa para cada aluno, conforme solicitado.
     - **Status:** IN PROGRESS
     - **Should Test frontend/backend/both after fix?** both
     - **Blocked on something:** N/A
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-    - Nenhuma tarefa iminente, pois o foco é finalizar a Fase 8.
+    - **P1: Implementar a geração do Certificado do aluno:** Assim como a Ficha Individual, foi criado um endpoint e uma função placeholder () para a geração de certificados, que precisa ser implementada.
 - **Future Tasks:**
-    - **P1: Refatorar **: O arquivo cresceu consideravelmente e deve ser dividido em componentes menores.
-    - **P2: Refatorar **: Precisa ser dividido em componentes menores para melhor manutenibilidade.
+    - **P2: Refatorar **: O arquivo está muito grande e complexo, devendo ser dividido em componentes menores.
+    - **P3: Refatorar **: Precisa ser dividido para melhor manutenibilidade.
+    - **P4: Refatorar **: Também está crescendo em complexidade e seria um bom candidato para refatoração.
 
 **Completed work in this session**
-- **Correção do WebSocket em Tempo Real**: Resolvido um problema complexo de **closure em React** que impedia a atualização da UI do chat em tempo real. A solução envolveu o uso de  para manter referências atualizadas do estado dentro do callback  do WebSocket.
-- **Correção da Duplicação de Mensagens**: Implementada uma verificação de ID para impedir que a mesma mensagem fosse adicionada várias vezes ao estado do chat.
-- **Implementação da Fase 7 (Sistema de Avisos)**:
-    - Criados endpoints CRUD no backend para gerenciar avisos e seus destinatários.
-    - Desenvolvida a página  no frontend com funcionalidades de listagem, filtros, busca e um modal para criação/edição.
-    - Adicionados componentes de notificação no cabeçalho ( e ) com badges de contagem de itens não lidos.
-- **Correção de Bugs nos Avisos**:
-    - Adicionado um breadcrumb Home na página de Avisos.
-    - Corrigido o link Ver todas as mensagens para apontar para .
-    - Corrigida a funcionalidade de seleção de usuário individual no modal de avisos, que não estava carregando a lista de usuários.
-- **Início da Implementação da Fase 8 (Geração de Documentos)**:
-    - Instalada a dependência .
-    - Criado o módulo  para a lógica de criação de PDFs.
-    - Adicionados os endpoints no  para gerar boletins e declarações.
-    - Adicionado um botão PDF na tabela de alunos e o modal correspondente no frontend.
+- **Integração de Armazenamento FTP**: Implementada uma solução robusta para uploads de arquivos, que agora são enviados para um servidor FTP externo, garantindo persistência. As pastas são organizadas por tipo de arquivo (, , ).
+- **Finalização da Fase 8 (Geração de Documentos)**: Testado e validado o fluxo de geração de PDF, e o layout do boletim foi completamente redesenhado com base em um modelo do usuário.
+- **Aba Quadro de Servidores**: Adicionada uma nova aba ao modal de escolas para listar os funcionários lotados, com suas informações e carga horária.
+- **Melhorias nos Formulários**:
+    - **Escolas**: Adicionadas opções Sede/Anexa, situação Ativa/Inativa, e o campo condicional Anexa a:.
+    - **Componentes Curriculares**: O campo de escola tornou-se opcional para criar componentes globais, e a UI foi melhorada.
+- **Formatação de Campos**: Criado um utilitário  e aplicado máscaras de formatação para campos de Telefone e CEP em toda a aplicação.
+- **Melhorias na Listagem de Alunos**: A coluna Matrícula foi removida, e foram adicionados filtros funcionais por Escola e Turma.
+- **Credenciais de Admin**: O nome e a senha do usuário administrador foram atualizados, e a seção de Acesso de teste foi removida da tela de login.
+- **Correção de Bugs**: Corrigido um bug visual que fazia o status Inativa de uma escola não ser exibido corretamente na listagem.
 
 **Earlier issues found/mentioned but not fixed**
-- **Issue 1: Refatoração do **: Precisa ser dividido em componentes menores.
-- **Issue 2: Refatoração do **: Precisa ser dividido em componentes menores.
+- **Issue 1: Refatoração do **: Precisa ser dividido em componentes menores. Status: NOT STARTED.
+- **Issue 2: Refatoração do **: Precisa ser dividido para melhor manutenibilidade. Status: NOT STARTED.
 
 **Known issue recurrence from previous fork**
 - None.
 
 **Code Architecture**
-
+file_type
 
 **Key Technical Concepts**
-- **React Closures**: O problema do chat em tempo real foi causado por um closure no  do WebSocket, que capturava valores antigos de  e . A solução foi usar  para manter uma referência mutável e sempre atualizada desses valores, acessível dentro do callback .
-- **PDF Generation (Backend)**: Utilização da biblioteca  para gerar dinamicamente documentos PDF a partir dos dados do banco.
-- **FastAPI Endpoints for File Response**: Implementação de endpoints que retornam  com o header  para permitir o download de arquivos no frontend.
-- **UI/UX Refinements**: Adição de breadcrumbs para melhor navegação e ícones de notificação com badges para melhorar a experiência do usuário.
+- **Armazenamento Externo (FTP)**: A aplicação foi migrada de um armazenamento local volátil para um servidor FTP persistente para todos os uploads de imagens e documentos.
+- **Geração Dinâmica de PDF**: Uso avançado da biblioteca  no backend para criar layouts complexos de PDF (como o novo boletim), com tabelas, cabeçalhos, rodapés e imagens.
+- **Reutilização de Código no Frontend**: Criação de um módulo de utilidades () para centralizar a lógica de formatação de campos, seguindo o princípio DRY.
+- **Manipulação de Estado Condicional**: Implementação de lógica complexa no React para exibir/ocultar campos de formulário com base nas seleções do usuário (ex: campo Anexa a: no cadastro de escolas).
 
 **key DB schema**
-- **announcements:** 
-- **announcement_recipients:** 
+- **schools:** Adicionados campos  ('sede'/'anexa'),  (ID da escola sede), e  ('Ativa'/'Inativa').
+- **users:** Nenhuma mudança de schema.
+- **profiles:** Nenhuma mudança de schema.
+- **announcements:** Nenhuma mudança de schema.
 
 **changes in tech stack**
-- **Adicionada:**  e  como dependências do backend.
+- Nenhuma nova dependência foi adicionada. A principal mudança foi a integração com um serviço externo (servidor FTP).
 
 **All files of reference**
 - **Criados:**
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - : Contém a lógica para conectar e fazer upload de arquivos para o servidor FTP externo.
+  - : Centraliza as funções de formatação de strings (CEP, telefone, CNPJ).
 - **Modificados (significativamente):**
-  - : Adicionados endpoints para Avisos e Geração de Documentos.
-  - : Adicionados modelos para Avisos.
-  - : Refatorado extensivamente para corrigir o bug de tempo real e o de duplicação.
-  - : Adicionada a coluna Documentos e o modal para geração de PDF.
-  - : Integrados os novos ícones de notificação.
-  - : Adicionadas as APIs para  e .
-  - : Adicionada a rota para a página .
-  - : Adicionado link para a página de Avisos.
+  - : Os endpoints de upload (, ) foram reescritos para usar o módulo . Novos endpoints de documentos (, ) foram adicionados.
+  - : A função  foi completamente redesenhada. Funções placeholder para  e  foram criadas.
+  - : Reformulado para incluir as novas opções (Sede/Anexa), situação, campo condicional e formatação de campos.
+  - : A tabela de alunos foi alterada, e filtros por escola/turma foram adicionados, juntamente com a lógica para um modal de impressão em lote.
+  - : Implementado fallback para imagens quebradas e lógica para posicionamento de botões na capa.
+  - : A função  foi atualizada para aceitar um parâmetro .
 
 **Areas that need refactoring**:
--  (agora com ~1700 linhas)
+- 
+- 
 - 
 
 **key api endpoints**
-- **POST /api/announcements**: Cria um novo aviso.
-- **GET /api/announcements**: Lista os avisos para o usuário logado.
-- **PUT /api/announcements/{announcement_id}**: Atualiza um aviso.
-- **DELETE /api/announcements/{announcement_id}**: Exclui um aviso.
-- **POST /api/announcements/{announcement_id}/read**: Marca um aviso como lido.
-- **GET /api/documents/report-card/{student_id}**: Gera o boletim em PDF.
-- **GET /api/documents/enrollment-declaration/{student_id}**: Gera a declaração de matrícula em PDF.
-- **GET /api/documents/attendance-declaration/{student_id}**: Gera a declaração de frequência em PDF.
+- **POST /api/upload**: Faz upload de um arquivo. Agora recebe um  (profile, cover, document, etc.) e salva o arquivo no servidor FTP.
+- **GET /api/documents/individual-record/{student_id}**: (NOVO) Endpoint para gerar a Ficha Individual do Aluno.
+- **GET /api/documents/certificate/{student_id}**: (NOVO) Endpoint para gerar o Certificado do Aluno.
+- **GET /api/documents/report-card/{student_id}**: Endpoint existente, agora gera um novo layout de boletim.
 
 **Critical Info for New Agent**
-- O bug mais crítico do chat em tempo real foi resolvido usando  para contornar um problema de closure do React em . Qualquer modificação futura no chat deve ter cuidado para não reintroduzir esse problema.
-- A geração de PDF é feita no backend com . A lógica está isolada em .
-- O componente  está muito grande e complexo, sendo um candidato principal para refatoração após a conclusão da Fase 8.
+- **O armazenamento de arquivos agora é via FTP.** Todos os uploads são gerenciados pelo . As credenciais de FTP estão hardcoded neste arquivo. As URLs das imagens/documentos salvas no banco de dados são agora URLs externas completas (ex: ).
+- **Problema de banco de dados resolvido.** O agente anterior encontrou e resolveu uma discrepância entre o nome do banco de dados no  () e o usado pela aplicação (), o que causava falhas de login. O agente atualizou os dados no banco correto () para resolver o problema. Esteja ciente dessa configuração.
+- **Placeholder de documentos.** As funções para gerar a Ficha Individual e o Certificado em  já existem, mas estão vazias. A tarefa é preencher a lógica delas.
 
 **documents created in this job**
 - None.
 
 **Last 10 User Messages and any pending user messages**
-1.  **user:** Pede para ir para a Fase 7 (Avisos). (COMPLETED)
-2.  **user:** Fornece requisitos detalhados para os Avisos (dropdown, CRUD, permissões). (COMPLETED)
-3.  **user:** Aponta 3 bugs na implementação dos Avisos (link Home, link de mensagens, seletor individual). (COMPLETED)
-4.  **user:** Aponta um bug de duplicação de mensagens no chat. (COMPLETED)
-5.  **user:** Testado e aprovado. Vamos seguir em frente. (COMPLETED)
-6.  **agent:** Pergunta qual tarefa seguir (refatorar, docs PDF, etc.).
-7.  **user:** Escolhe d (geração de documentos PDF). (IN PROGRESS)
-8.  **agent:** Implementa a geração de PDF (Fase 8).
-9.  **agent:** Apresenta um resumo da implementação e pede para o usuário testar. (PENDING)
-10. **(No user response yet)**
+1.  **user:** Pede para ajustar a posição do botão Mensagem no perfil. (COMPLETED)
+2.  **user:** Pede para remover a coluna Matrícula e adicionar filtros de escola/turma na lista de alunos, com um botão de impressão em lote. (COMPLETED)
+3.  **user:** Pede várias alterações no formulário de escolas (Sede/Anexa, Situação, formatação de CEP/telefone). (COMPLETED)
+4.  **user:** Reporta que a escola MONTEIRO LOBATO continua Ativa após ser editada para Inativa. (COMPLETED)
+5.  **user:** Pede para verificar se os anexos dos alunos estão sendo salvos nas pastas FTP corretas. (COMPLETED)
+6.  **user:** Pede para redesenhar o boletim PDF com base em um modelo anexado. (COMPLETED)
+7.  **user:** Fornece um modelo para a Ficha Individual do Aluno e pede para criá-la e adicioná-la às opções de impressão. (IN PROGRESS)
+8.  **user:** Fornece credenciais FTP. (COMPLETED)
+9.  **user:** Fornece mais detalhes sobre as credenciais FTP. (COMPLETED)
+10. **user:** Esclarece que salvar em servidor FTP é a opção preferida. (COMPLETED)
 
 **Project Health Check:**
 - **Broken:** None
 - **Mocked:** None
 
 **3rd Party Integrations**
-- **reportlab:** Usado no backend para geração de PDFs.
+- **reportlab**: Usado no backend para geração de PDFs.
+- **Servidor FTP Externo ()**: Usado para armazenamento persistente de todos os arquivos enviados pelos usuários.
 
 **Testing status**
-- **Testing agent used after significant changes:** YES (usado para validar a Fase 7 e a correção do chat).
-- **Troubleshoot agent used after agent stuck in loop:** YES (usado com sucesso para identificar o problema de closure no WebSocket).
+- **Testing agent used after significant changes:** YES (para a validação inicial da Fase 8).
+- **Troubleshoot agent used after agent stuck in loop:** NO
 - **Test files created:** None.
 - **Known regressions:** None.
 
@@ -159,4 +145,4 @@ Uma aplicação full-stack (React/FastAPI/MongoDB) com um sistema de perfis, con
 - **Professor:**  / 
 
 **What agent forgot to execute**
-- O agente não esqueceu de nada. Ele abordou sistematicamente os bugs reportados pelo usuário, implementou a complexa Fase 7, corrigiu os bugs subsequentes e iniciou a Fase 8 conforme solicitado.</analysis>
+O agente seguiu todas as solicitações do usuário. Não há tarefas esquecidas. A implementação da Ficha Individual e Certificado foi deixada como placeholders, que é o ponto de partida para a próxima tarefa.</analysis>
