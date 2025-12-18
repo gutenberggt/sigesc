@@ -13,15 +13,15 @@ from datetime import datetime
 BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://school-manager-141.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 
-# Test credentials
+# Test credentials from review request
 ADMIN_CREDENTIALS = {
-    "email": "admin@sigesc.com",
-    "password": "password"
+    "email": "gutenberg@sigesc.com",
+    "password": "@Celta2007"
 }
 
 SEMED_CREDENTIALS = {
-    "email": "semed@sigesc.com", 
-    "password": "password"
+    "email": "ricleidegoncalves@gmail.com", 
+    "password": "007724"
 }
 
 class SIGESCTester:
