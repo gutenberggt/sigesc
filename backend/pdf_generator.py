@@ -498,3 +498,248 @@ def generate_declaracao_frequencia_pdf(
     doc.build(elements)
     buffer.seek(0)
     return buffer
+
+
+def generate_ficha_individual_pdf(
+    student: Dict[str, Any],
+    school: Dict[str, Any],
+    class_info: Dict[str, Any],
+    enrollment: Dict[str, Any],
+    academic_year: int
+) -> BytesIO:
+    """
+    Gera a Ficha Individual do Aluno em PDF.
+    """
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=2*cm,
+        leftMargin=2*cm,
+        topMargin=2*cm,
+        bottomMargin=2*cm
+    )
+    
+    styles = get_styles()
+    elements = []
+    
+    # Cabeçalho
+    elements.append(Paragraph("SECRETARIA MUNICIPAL DE EDUCAÇÃO", styles['CenterText']))
+    elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
+    elements.append(Spacer(1, 20))
+    
+    # Título
+    elements.append(Paragraph("FICHA INDIVIDUAL DO ALUNO", styles['MainTitle']))
+    elements.append(Paragraph(f"Ano Letivo: {academic_year}", styles['CenterText']))
+    elements.append(Spacer(1, 20))
+    
+    # Dados do Aluno
+    elements.append(Paragraph("DADOS PESSOAIS", styles['Subtitle']))
+    elements.append(Spacer(1, 10))
+    
+    dados_pessoais = [
+        ['Nome Completo:', student.get('full_name', 'N/A')],
+        ['Data de Nascimento:', student.get('birth_date', 'N/A')],
+        ['Naturalidade:', f"{student.get('city_of_birth', 'N/A')} - {student.get('state_of_birth', 'N/A')}"],
+        ['Sexo:', student.get('sex', 'N/A')],
+        ['CPF:', student.get('cpf', 'N/A')],
+        ['RG:', student.get('rg', 'N/A')],
+        ['NIS:', student.get('nis', 'N/A')],
+    ]
+    
+    table = Table(dados_pessoais, colWidths=[5*cm, 12*cm])
+    table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 20))
+    
+    # Dados de Matrícula
+    elements.append(Paragraph("DADOS DE MATRÍCULA", styles['Subtitle']))
+    elements.append(Spacer(1, 10))
+    
+    dados_matricula = [
+        ['Nº Matrícula:', enrollment.get('registration_number', student.get('enrollment_number', 'N/A'))],
+        ['Turma:', class_info.get('name', 'N/A')],
+        ['Série/Ano:', class_info.get('grade_level', 'N/A')],
+        ['Turno:', class_info.get('shift', 'N/A')],
+        ['Escola:', school.get('name', 'N/A')],
+    ]
+    
+    table2 = Table(dados_matricula, colWidths=[5*cm, 12*cm])
+    table2.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+    ]))
+    elements.append(table2)
+    elements.append(Spacer(1, 20))
+    
+    # Filiação
+    elements.append(Paragraph("FILIAÇÃO", styles['Subtitle']))
+    elements.append(Spacer(1, 10))
+    
+    filiacao = [
+        ['Pai:', student.get('father_name', 'N/A')],
+        ['Mãe:', student.get('mother_name', 'N/A')],
+        ['Responsável:', student.get('guardian_name', 'N/A')],
+        ['Tel. Responsável:', student.get('guardian_phone', 'N/A')],
+    ]
+    
+    table3 = Table(filiacao, colWidths=[5*cm, 12*cm])
+    table3.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+    ]))
+    elements.append(table3)
+    elements.append(Spacer(1, 20))
+    
+    # Endereço
+    elements.append(Paragraph("ENDEREÇO", styles['Subtitle']))
+    elements.append(Spacer(1, 10))
+    
+    endereco = [
+        ['Endereço:', student.get('address', 'N/A')],
+        ['Bairro:', student.get('neighborhood', 'N/A')],
+        ['Cidade/UF:', f"{student.get('city', 'N/A')} - {student.get('state', 'N/A')}"],
+        ['CEP:', student.get('zip_code', 'N/A')],
+    ]
+    
+    table4 = Table(endereco, colWidths=[5*cm, 12*cm])
+    table4.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+    ]))
+    elements.append(table4)
+    elements.append(Spacer(1, 30))
+    
+    # Data e local
+    today = format_date_pt(date.today())
+    city = school.get('city', school.get('municipio', 'Município'))
+    elements.append(Paragraph(f"{city}, {today}.", styles['CenterText']))
+    elements.append(Spacer(1, 40))
+    
+    # Assinatura
+    elements.append(Paragraph("_" * 50, styles['CenterText']))
+    elements.append(Paragraph("Secretário(a) Escolar", styles['CenterText']))
+    
+    # Gerar PDF
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+
+def generate_certificado_pdf(
+    student: Dict[str, Any],
+    school: Dict[str, Any],
+    class_info: Dict[str, Any],
+    enrollment: Dict[str, Any],
+    academic_year: int,
+    course_name: str = "Ensino Fundamental"
+) -> BytesIO:
+    """
+    Gera o Certificado de Conclusão em PDF.
+    """
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=2*cm,
+        leftMargin=2*cm,
+        topMargin=3*cm,
+        bottomMargin=2*cm
+    )
+    
+    styles = get_styles()
+    elements = []
+    
+    # Cabeçalho
+    elements.append(Paragraph("PREFEITURA MUNICIPAL", styles['CenterText']))
+    elements.append(Paragraph("SECRETARIA MUNICIPAL DE EDUCAÇÃO", styles['CenterText']))
+    elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['Subtitle']))
+    elements.append(Spacer(1, 40))
+    
+    # Título do Certificado
+    cert_style = ParagraphStyle(
+        'CertTitle',
+        parent=styles['MainTitle'],
+        fontSize=24,
+        textColor=colors.HexColor('#1e40af'),
+        spaceAfter=30
+    )
+    elements.append(Paragraph("CERTIFICADO", cert_style))
+    elements.append(Spacer(1, 30))
+    
+    # Corpo do Certificado
+    student_name = student.get('full_name', 'N/A').upper()
+    birth_date = student.get('birth_date', 'N/A')
+    grade_level = class_info.get('grade_level', 'N/A')
+    
+    # Determinar o nível com base na série
+    if '9' in str(grade_level):
+        nivel = "Anos Finais do Ensino Fundamental"
+    elif '5' in str(grade_level):
+        nivel = "Anos Iniciais do Ensino Fundamental"
+    else:
+        nivel = "Ensino Fundamental"
+    
+    text = f"""
+    Certificamos que <b>{student_name}</b>, nascido(a) em <b>{birth_date}</b>,
+    concluiu com aproveitamento o <b>{nivel}</b>, nesta Unidade de Ensino,
+    no ano letivo de <b>{academic_year}</b>, estando apto(a) a prosseguir seus estudos.
+    """
+    
+    elements.append(Paragraph(text, styles['JustifyText']))
+    elements.append(Spacer(1, 40))
+    
+    # Data e local
+    today = format_date_pt(date.today())
+    city = school.get('city', school.get('municipio', 'Município'))
+    state = school.get('state', school.get('estado', 'PA'))
+    elements.append(Paragraph(f"{city} - {state}, {today}.", styles['CenterText']))
+    elements.append(Spacer(1, 60))
+    
+    # Assinaturas
+    sig_data = [
+        ['_' * 30, '_' * 30],
+        ['Secretário(a) Escolar', 'Diretor(a)'],
+    ]
+    
+    sig_table = Table(sig_data, colWidths=[8*cm, 8*cm])
+    sig_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TOPPADDING', (0, 1), (-1, 1), 5),
+    ]))
+    elements.append(sig_table)
+    elements.append(Spacer(1, 40))
+    
+    # Registro
+    reg_number = enrollment.get('registration_number', student.get('enrollment_number', 'N/A'))
+    elements.append(Paragraph(f"Registro nº: {reg_number}", styles['SmallText']))
+    elements.append(Paragraph(f"Livro: _____ Folha: _____", styles['SmallText']))
+    
+    # Gerar PDF
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
