@@ -430,15 +430,44 @@ export function SchoolsComplete() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Sigla</label>
-            <input
-              type="text"
-              value={formData.sigla || ''}
-              onChange={(e) => updateFormData('sigla', e.target.value)}
-              disabled={viewMode}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              placeholder="Ex: CMEI"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Unidade</label>
+            <div className="flex gap-4 mt-2">
+              <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 cursor-pointer transition-colors ${
+                formData.tipo_unidade === 'sede' 
+                  ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                  : 'border-gray-300 hover:border-gray-400'
+              } ${viewMode ? 'cursor-not-allowed opacity-60' : ''}`}>
+                <input
+                  type="radio"
+                  name="tipo_unidade"
+                  value="sede"
+                  checked={formData.tipo_unidade === 'sede'}
+                  onChange={(e) => {
+                    updateFormData('tipo_unidade', e.target.value);
+                    updateFormData('escola_sede_id', '');
+                  }}
+                  disabled={viewMode}
+                  className="text-blue-600"
+                />
+                <span className="font-medium">Sede</span>
+              </label>
+              <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 cursor-pointer transition-colors ${
+                formData.tipo_unidade === 'anexa' 
+                  ? 'border-orange-500 bg-orange-50 text-orange-700' 
+                  : 'border-gray-300 hover:border-gray-400'
+              } ${viewMode ? 'cursor-not-allowed opacity-60' : ''}`}>
+                <input
+                  type="radio"
+                  name="tipo_unidade"
+                  value="anexa"
+                  checked={formData.tipo_unidade === 'anexa'}
+                  onChange={(e) => updateFormData('tipo_unidade', e.target.value)}
+                  disabled={viewMode}
+                  className="text-orange-600"
+                />
+                <span className="font-medium">Anexa</span>
+              </label>
+            </div>
           </div>
           
           <div>
@@ -479,15 +508,40 @@ export function SchoolsComplete() {
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Situação de Funcionamento</label>
-            <input
-              type="text"
-              value={formData.situacao_funcionamento || ''}
+            <select
+              value={formData.situacao_funcionamento || 'Ativa'}
               onChange={(e) => updateFormData('situacao_funcionamento', e.target.value)}
               disabled={viewMode}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              placeholder="Ex: Em atividade"
-            />
+            >
+              <option value="Ativa">Ativa</option>
+              <option value="Inativa">Inativa</option>
+            </select>
           </div>
+          
+          {/* Campo Anexa a: - aparece apenas quando tipo_unidade é 'anexa' */}
+          {formData.tipo_unidade === 'anexa' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Anexa a: <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.escola_sede_id || ''}
+                onChange={(e) => updateFormData('escola_sede_id', e.target.value)}
+                disabled={viewMode}
+                required={formData.tipo_unidade === 'anexa'}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">Selecione a escola sede</option>
+                {schools
+                  .filter(s => s.id !== editingSchool?.id && s.tipo_unidade !== 'anexa')
+                  .map(school => (
+                    <option key={school.id} value={school.id}>{school.name}</option>
+                  ))
+                }
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
