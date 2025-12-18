@@ -5,6 +5,7 @@ import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { Tabs } from '@/components/Tabs';
 import { schoolsAPI, classesAPI, schoolAssignmentAPI, staffAPI, uploadAPI } from '@/services/api';
+import { formatPhone, formatCEP } from '@/utils/formatters';
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus, AlertCircle, CheckCircle, Home, Users, Phone } from 'lucide-react';
 
