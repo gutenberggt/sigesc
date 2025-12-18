@@ -1163,8 +1163,8 @@ ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 @api_router.post("/upload")
-async def upload_file(request: Request, file: UploadFile = File(...)):
-    """Upload de arquivo (foto, documento, laudo, etc.)"""
+async def upload_file(request: Request, file: UploadFile = File(...), file_type: str = "default"):
+    """Upload de arquivo (foto, documento, laudo, etc.) para servidor externo via FTP"""
     current_user = await AuthMiddleware.get_current_user(request)
     
     # Verifica extensão
@@ -1183,22 +1183,35 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
             detail="Arquivo muito grande. Máximo: 5MB"
         )
     
-    # Gera nome único
-    unique_filename = f"{uuid.uuid4()}{file_ext}"
-    file_path = UPLOADS_DIR / unique_filename
+    # Faz upload via FTP para servidor externo
+    success, result, filename = upload_to_ftp(content, file.filename, file_type)
     
-    # Salva arquivo
-    with open(file_path, "wb") as buffer:
-        buffer.write(content)
+    if not success:
+        # Fallback: salva localmente se FTP falhar
+        logger.warning(f"Upload FTP falhou, salvando localmente: {result}")
+        unique_filename = f"{uuid.uuid4()}{file_ext}"
+        file_path = UPLOADS_DIR / unique_filename
+        
+        with open(file_path, "wb") as buffer:
+            buffer.write(content)
+        
+        file_url = f"/api/uploads/{unique_filename}"
+        
+        return {
+            "filename": unique_filename,
+            "original_name": file.filename,
+            "url": file_url,
+            "size": len(content),
+            "storage": "local"
+        }
     
-    # Retorna URL do arquivo através da API (garante CORS e headers corretos)
-    file_url = f"/api/uploads/{unique_filename}"
-    
+    # Retorna URL do servidor externo
     return {
-        "filename": unique_filename,
+        "filename": filename,
         "original_name": file.filename,
-        "url": file_url,
-        "size": len(content)
+        "url": result,  # URL completa do servidor externo
+        "size": len(content),
+        "storage": "external"
     }
 
 @api_router.delete("/upload/{filename}")
