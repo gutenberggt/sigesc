@@ -1303,7 +1303,7 @@ export function StudentsComplete() {
                   const file = e.target.files[0];
                   if (file) {
                     try {
-                      const result = await uploadAPI.upload(file);
+                      const result = await uploadAPI.upload(file, 'laudo');
                       updateFormData('medical_report_url', result.url);
                       showAlert('success', 'Laudo enviado com sucesso');
                     } catch (error) {
