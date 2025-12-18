@@ -430,7 +430,7 @@ export function SchoolsComplete() {
                   checked={formData.tipo_unidade === 'sede'}
                   onChange={(e) => {
                     updateFormData('tipo_unidade', e.target.value);
-                    updateFormData('escola_sede_id', '');
+                    updateFormData('anexa_a', '');
                   }}
                   disabled={viewMode}
                   className="text-blue-600"
