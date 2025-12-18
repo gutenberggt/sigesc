@@ -1854,7 +1854,7 @@ export function StudentsComplete() {
                   </div>
                   <div className="text-left">
                     <p className="font-medium text-gray-900">Ficha Individual</p>
-                    <p className="text-sm text-gray-500">Dados cadastrais do aluno</p>
+                    <p className="text-sm text-gray-500">Notas, frequência e dados completos</p>
                   </div>
                 </div>
                 <Download size={20} className="text-green-600" />
