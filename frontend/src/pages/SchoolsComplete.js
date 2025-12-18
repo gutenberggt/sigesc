@@ -257,8 +257,10 @@ export function SchoolsComplete() {
     setFormData({
       name: '',
       inep_code: '',
+      tipo_unidade: 'sede',
+      escola_sede_id: '',
       zona_localizacao: 'urbana',
-      situacao_funcionamento: 'Em atividade',
+      situacao_funcionamento: 'Ativa',
       dependencia_administrativa: 'Municipal',
       anos_letivos_ativos: [new Date().getFullYear()],
       niveis_ensino_oferecidos: [],
