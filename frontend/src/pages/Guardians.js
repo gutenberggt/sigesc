@@ -7,6 +7,7 @@ import { Tabs } from '@/components/Tabs';
 import { guardiansAPI, studentsAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus, AlertCircle, CheckCircle, Home, UserPlus } from 'lucide-react';
+import { formatPhone, formatCEP } from '@/utils/formatters';
 
 const STATES = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
