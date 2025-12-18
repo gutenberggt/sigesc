@@ -610,3 +610,15 @@ agent_communication:
 ### Admin Credentials:
 - admin@sigesc.com / password
 
+
+  - task: "Ficha Individual do Aluno - PDF Generation"
+    implemented: true
+    working: pending
+    file: "backend/pdf_generator.py, backend/server.py, frontend/src/components/documents/DocumentGeneratorModal.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "pending"
+        agent: "main"
+        comment: "Implemented complete Ficha Individual PDF generation following Floresta do Araguaia model. Features: header with school info, student data (name, sex, INEP, birth date), class info (grade, class name, shift, workload, school days), academic performance table with all bi-monthly grades, semester recoveries, weighted calculations (1°x2, 2°x3, 3°x2, 4°x3), total points, annual average, absences and frequency percentage per component. Added 'Ficha Individual' option to DocumentGeneratorModal with orange color scheme. Backend endpoint fetches grades, courses, and attendance data. Needs testing for: 1) PDF generation with real student data, 2) Table rendering with grades, 3) Download functionality from modal."
