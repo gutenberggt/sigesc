@@ -27,22 +27,6 @@ export function SchoolsComplete() {
   const canEdit = user?.role !== 'semed';
   const canDelete = user?.role !== 'semed';
 
-  // Funções de formatação
-  const formatPhone = (value) => {
-    if (!value) return '';
-    const numbers = value.replace(/\D/g, '');
-    if (numbers.length <= 2) return `(${numbers}`;
-    if (numbers.length <= 7) return `(${numbers.slice(0, 2)})${numbers.slice(2)}`;
-    return `(${numbers.slice(0, 2)})${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
-  };
-
-  const formatCEP = (value) => {
-    if (!value) return '';
-    const numbers = value.replace(/\D/g, '');
-    if (numbers.length <= 5) return numbers;
-    return `${numbers.slice(0, 5)}-${numbers.slice(5, 8)}`;
-  };
-
   // Estado do formulário com valores padrão
   const [formData, setFormData] = useState({
     // Dados Gerais - Identificação
