@@ -238,6 +238,62 @@ export function StudentsComplete() {
     setShowDocumentsModal(true);
   };
 
+  // Função para impressão em lote de documentos da turma
+  const handleBatchPrint = async (documentType) => {
+    if (displayedStudents.length === 0) return;
+    
+    setBatchPrinting(true);
+    let successCount = 0;
+    let errorCount = 0;
+    
+    try {
+      for (const student of displayedStudents) {
+        try {
+          let blob;
+          const academicYear = new Date().getFullYear();
+          
+          if (documentType === 'boletim') {
+            blob = await documentsAPI.getBoletim(student.id, academicYear);
+          } else if (documentType === 'ficha_individual') {
+            blob = await documentsAPI.getFichaIndividual(student.id, academicYear);
+          } else if (documentType === 'certificado') {
+            blob = await documentsAPI.getCertificado(student.id, academicYear);
+          }
+          
+          // Criar link para download
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${documentType}_${student.full_name?.replace(/\s+/g, '_') || student.id}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+          
+          successCount++;
+          
+          // Pequeno delay entre downloads para não sobrecarregar
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error(`Erro ao gerar documento para ${student.full_name}:`, error);
+          errorCount++;
+        }
+      }
+      
+      if (successCount > 0) {
+        showAlert('success', `${successCount} documento(s) gerado(s) com sucesso!${errorCount > 0 ? ` (${errorCount} erro(s))` : ''}`);
+      } else {
+        showAlert('error', 'Erro ao gerar documentos');
+      }
+    } catch (error) {
+      showAlert('error', 'Erro ao processar impressão em lote');
+      console.error(error);
+    } finally {
+      setBatchPrinting(false);
+      setShowBatchPrintModal(false);
+    }
+  };
+
   const handleDelete = async (student) => {
     if (window.confirm(`Tem certeza que deseja excluir o aluno "${student.full_name || student.enrollment_number}"?`)) {
       try {
