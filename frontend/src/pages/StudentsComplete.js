@@ -1362,7 +1362,7 @@ export function StudentsComplete() {
                 const file = e.target.files[0];
                 if (file) {
                   try {
-                    const result = await uploadAPI.upload(file);
+                    const result = await uploadAPI.upload(file, 'document');
                     updateFormData('documents_urls', [...formData.documents_urls, result.url]);
                     showAlert('success', 'Documento enviado com sucesso');
                   } catch (error) {
