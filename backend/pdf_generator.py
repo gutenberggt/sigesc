@@ -3,6 +3,7 @@ Módulo para geração de documentos PDF do SIGESC
 - Boletim Escolar
 - Declaração de Matrícula
 - Declaração de Frequência
+- Ficha Individual
 """
 
 from reportlab.lib.pagesizes import A4
@@ -15,6 +16,12 @@ from io import BytesIO
 from datetime import datetime, date
 from typing import List, Dict, Any, Optional
 import locale
+import urllib.request
+import tempfile
+import os
+
+# URL do logotipo da prefeitura
+LOGO_URL = "https://aprenderdigital.top/imagens/logotipo/logoprefeitura.jpg"
 
 # Tentar configurar locale para português
 try:
@@ -24,6 +31,30 @@ except:
         locale.setlocale(locale.LC_TIME, 'Portuguese_Brazil.1252')
     except:
         pass
+
+
+def get_logo_image(width=2*cm, height=2*cm):
+    """
+    Baixa e retorna o logotipo da prefeitura como um objeto Image do reportlab.
+    Retorna None se não conseguir baixar.
+    """
+    try:
+        # Baixar a imagem
+        with urllib.request.urlopen(LOGO_URL, timeout=5) as response:
+            image_data = response.read()
+        
+        # Salvar em arquivo temporário
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+        temp_file.write(image_data)
+        temp_file.close()
+        
+        # Criar objeto Image
+        logo = Image(temp_file.name, width=width, height=height)
+        
+        return logo
+    except Exception as e:
+        print(f"Erro ao carregar logotipo: {e}")
+        return None
 
 
 def format_date_pt(d: date) -> str:
