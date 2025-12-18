@@ -1249,7 +1249,7 @@ export function StudentsComplete() {
                   const file = e.target.files[0];
                   if (file) {
                     try {
-                      const result = await uploadAPI.upload(file);
+                      const result = await uploadAPI.upload(file, 'student');
                       updateFormData('photo_url', result.url);
                       showAlert('success', 'Foto enviada com sucesso');
                     } catch (error) {
