@@ -3472,6 +3472,185 @@ class SIGESCTester:
         self.log("✅ PDF Document Generation Phase 8 testing completed successfully!")
         return True
 
+    def test_ficha_individual_pdf_generation(self):
+        """Test Ficha Individual do Aluno PDF generation as per review request"""
+        self.log("\n📄 Testing Ficha Individual PDF Generation...")
+        
+        # Use credentials from review request
+        gutenberg_credentials = {
+            "email": "gutenberg@sigesc.com",
+            "password": "@Celta2007"
+        }
+        
+        professor_credentials = {
+            "email": "ricleidegoncalves@gmail.com", 
+            "password": "007724"
+        }
+        
+        # Login as admin (Gutenberg)
+        self.log("🔐 Logging in as Gutenberg (Admin)...")
+        gutenberg_token = self.login(gutenberg_credentials, "Gutenberg (Admin)")
+        if not gutenberg_token:
+            self.log("❌ Gutenberg login failed")
+            return False
+        
+        # Login as professor (Ricleide)
+        self.log("🔐 Logging in as Ricleide (Professor)...")
+        professor_token = self.login(professor_credentials, "Ricleide (Professor)")
+        if not professor_token:
+            self.log("❌ Ricleide login failed")
+            return False
+        
+        # Get students to test with
+        self.log("1️⃣ Getting students for testing...")
+        response = requests.get(
+            f"{API_BASE}/students",
+            headers=self.get_headers(gutenberg_token)
+        )
+        
+        if response.status_code != 200:
+            self.log(f"❌ Failed to get students: {response.status_code}")
+            return False
+        
+        students = response.json()
+        if not students:
+            self.log("❌ No students found for testing")
+            return False
+        
+        test_student = students[0]
+        student_id = test_student['id']
+        student_name = test_student.get('full_name', 'N/A')
+        self.log(f"✅ Using test student: {student_name} (ID: {student_id})")
+        
+        # Test 1: GET /api/documents/ficha-individual/{student_id}?academic_year=2025
+        self.log("2️⃣ Testing GET /api/documents/ficha-individual/{student_id}?academic_year=2025...")
+        response = requests.get(
+            f"{API_BASE}/documents/ficha-individual/{student_id}?academic_year=2025",
+            headers=self.get_headers(gutenberg_token)
+        )
+        
+        if response.status_code == 200:
+            self.log("✅ Ficha Individual PDF generated successfully")
+            
+            # Verify Content-Type
+            content_type = response.headers.get('Content-Type')
+            if content_type == 'application/pdf':
+                self.log("✅ Correct Content-Type: application/pdf")
+            else:
+                self.log(f"❌ Incorrect Content-Type: {content_type}")
+                return False
+            
+            # Verify PDF size (should be reasonable)
+            pdf_size = len(response.content)
+            self.log(f"✅ PDF size: {pdf_size} bytes")
+            if pdf_size > 1000:  # At least 1KB
+                self.log("✅ PDF size is reasonable")
+            else:
+                self.log("❌ PDF size too small - may be corrupted")
+                return False
+            
+            # Verify filename in Content-Disposition
+            content_disposition = response.headers.get('Content-Disposition', '')
+            if 'ficha_individual_' in content_disposition and '.pdf' in content_disposition:
+                self.log("✅ Correct filename format in Content-Disposition")
+            else:
+                self.log(f"❌ Incorrect Content-Disposition: {content_disposition}")
+        else:
+            self.log(f"❌ Failed to generate Ficha Individual PDF: {response.status_code} - {response.text}")
+            return False
+        
+        # Test 2: Test with different academic year (2024)
+        self.log("3️⃣ Testing with academic year 2024...")
+        response = requests.get(
+            f"{API_BASE}/documents/ficha-individual/{student_id}?academic_year=2024",
+            headers=self.get_headers(gutenberg_token)
+        )
+        
+        if response.status_code == 200:
+            self.log("✅ Ficha Individual PDF generated for 2024")
+            pdf_size_2024 = len(response.content)
+            self.log(f"✅ PDF size for 2024: {pdf_size_2024} bytes")
+        else:
+            self.log(f"❌ Failed to generate PDF for 2024: {response.status_code}")
+            return False
+        
+        # Test 3: Test error handling - invalid student ID
+        self.log("4️⃣ Testing error handling with invalid student ID...")
+        response = requests.get(
+            f"{API_BASE}/documents/ficha-individual/invalid-student-id?academic_year=2025",
+            headers=self.get_headers(gutenberg_token)
+        )
+        
+        if response.status_code == 404:
+            self.log("✅ Correctly returns 404 for invalid student ID")
+        else:
+            self.log(f"❌ Expected 404, got: {response.status_code}")
+            return False
+        
+        # Test 4: Test authentication requirement
+        self.log("5️⃣ Testing authentication requirement...")
+        response = requests.get(
+            f"{API_BASE}/documents/ficha-individual/{student_id}?academic_year=2025"
+        )
+        
+        if response.status_code == 401:
+            self.log("✅ Correctly requires authentication (401)")
+        else:
+            self.log(f"❌ Expected 401 for missing auth, got: {response.status_code}")
+        
+        # Test 5: Test professor access
+        self.log("6️⃣ Testing professor access to Ficha Individual...")
+        response = requests.get(
+            f"{API_BASE}/documents/ficha-individual/{student_id}?academic_year=2025",
+            headers=self.get_headers(professor_token)
+        )
+        
+        if response.status_code == 200:
+            self.log("✅ Professor can access Ficha Individual PDF")
+            professor_pdf_size = len(response.content)
+            self.log(f"✅ Professor PDF size: {professor_pdf_size} bytes")
+        else:
+            self.log(f"❌ Professor cannot access PDF: {response.status_code}")
+            return False
+        
+        # Test 6: Verify PDF contains expected content structure
+        self.log("7️⃣ Verifying PDF content structure...")
+        
+        # Get student details for verification
+        response = requests.get(
+            f"{API_BASE}/students/{student_id}",
+            headers=self.get_headers(gutenberg_token)
+        )
+        
+        if response.status_code == 200:
+            student_details = response.json()
+            self.log("✅ Retrieved student details for verification")
+            self.log(f"   Student name: {student_details.get('full_name')}")
+            self.log(f"   INEP code: {student_details.get('inep_code', 'N/A')}")
+            self.log(f"   Sex: {student_details.get('sex', 'N/A')}")
+            self.log(f"   Birth date: {student_details.get('birth_date', 'N/A')}")
+        
+        # Test 7: Test multiple students (batch scenario)
+        self.log("8️⃣ Testing multiple students (batch scenario)...")
+        test_students = students[:3]  # Test with first 3 students
+        
+        for i, student in enumerate(test_students):
+            sid = student['id']
+            sname = student.get('full_name', f'Student_{i}')
+            
+            response = requests.get(
+                f"{API_BASE}/documents/ficha-individual/{sid}?academic_year=2025",
+                headers=self.get_headers(gutenberg_token)
+            )
+            
+            if response.status_code == 200:
+                self.log(f"✅ Batch test {i+1}/3: {sname} - PDF generated ({len(response.content)} bytes)")
+            else:
+                self.log(f"❌ Batch test {i+1}/3: {sname} - Failed ({response.status_code})")
+        
+        self.log("✅ Ficha Individual PDF Generation testing completed!")
+        return True
+
     def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting SIGESC Backend API Tests - ANNOUNCEMENT SYSTEM TESTING")
