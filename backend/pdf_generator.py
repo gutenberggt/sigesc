@@ -158,11 +158,13 @@ def generate_boletim_pdf(
     elements = []
     
     # ===== CABEÇALHO =====
-    # Criar tabela do cabeçalho com logo à esquerda e título à direita
-    header_left = """
+    # Criar tabela do cabeçalho com logo à esquerda, texto ao centro e título à direita
+    logo = get_logo_image(width=1.8*cm, height=1.8*cm)
+    
+    header_text = """
     <b>Prefeitura Mun. de Floresta do Araguaia - PA</b><br/>
     <font size="9">Secretaria Municipal de Educação</font><br/>
-    <font size="8" color="#666666">"Cuidar do povo é nosso amor"</font>
+    <font size="8" color="#666666">"Cuidar do povo é nossa prioridade"</font>
     """
     
     header_right = """
@@ -170,14 +172,20 @@ def generate_boletim_pdf(
     <font size="10">ENSINO FUNDAMENTAL</font>
     """
     
-    header_style_left = ParagraphStyle('HeaderLeft', fontSize=10, alignment=TA_LEFT, leading=14)
+    header_style_text = ParagraphStyle('HeaderText', fontSize=10, alignment=TA_LEFT, leading=14)
     header_style_right = ParagraphStyle('HeaderRight', fontSize=10, alignment=TA_RIGHT, leading=16)
     
-    header_table = Table([
-        [Paragraph(header_left, header_style_left), Paragraph(header_right, header_style_right)]
-    ], colWidths=[10*cm, 8*cm])
+    if logo:
+        header_table = Table([
+            [logo, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
+        ], colWidths=[2.2*cm, 8*cm, 7.8*cm])
+    else:
+        header_table = Table([
+            [Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
+        ], colWidths=[10*cm, 8*cm])
+    
     header_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
     ]))
     elements.append(header_table)
