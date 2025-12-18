@@ -46,7 +46,9 @@ from auth_middleware import AuthMiddleware
 from pdf_generator import (
     generate_boletim_pdf,
     generate_declaracao_matricula_pdf,
-    generate_declaracao_frequencia_pdf
+    generate_declaracao_frequencia_pdf,
+    generate_ficha_individual_pdf,
+    generate_certificado_pdf
 )
 from ftp_upload import upload_to_ftp, delete_from_ftp
 from grade_calculator import calculate_and_update_grade
