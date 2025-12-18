@@ -279,10 +279,11 @@ export const gradesAPI = {
 
 // ============= FILE UPLOAD =============
 export const uploadAPI = {
-  upload: async (file) => {
+  upload: async (file, fileType = 'default') => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await axios.post(`${API}/upload`, formData, {
+    // Envia file_type como query parameter para garantir que seja interpretado corretamente
+    const response = await axios.post(`${API}/upload?file_type=${fileType}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
