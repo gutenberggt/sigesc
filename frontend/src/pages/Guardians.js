@@ -315,9 +315,10 @@ export const Guardians = () => {
           <label className="block text-sm font-medium text-gray-700 mb-1">CEP</label>
           <input
             type="text"
-            value={formData.zip_code}
-            onChange={(e) => updateFormData('zip_code', e.target.value)}
+            value={formatCEP(formData.zip_code || '')}
+            onChange={(e) => updateFormData('zip_code', e.target.value.replace(/\D/g, '').slice(0, 8))}
             disabled={viewMode}
+            maxLength={9}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             placeholder="00000-000"
           />
