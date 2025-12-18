@@ -34,7 +34,7 @@ export function SchoolsComplete() {
     name: '',
     inep_code: '',
     tipo_unidade: 'sede', // 'sede' ou 'anexa'
-    escola_sede_id: '', // ID da escola sede (quando for anexa)
+    anexa_a: '', // ID da escola sede (quando for anexa)
     caracteristica_escolar: '',
     zona_localizacao: 'urbana',
     cnpj: '',
