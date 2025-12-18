@@ -821,11 +821,42 @@ export const documentsAPI = {
     return `${BACKEND_URL}/api/documents/declaracao-frequencia/${studentId}?academic_year=${academicYear}`;
   },
   
+  // Gerar Ficha Individual (retorna URL do PDF)
+  getFichaIndividualUrl: (studentId, academicYear = '2025') => {
+    return `${BACKEND_URL}/api/documents/ficha-individual/${studentId}?academic_year=${academicYear}`;
+  },
+  
+  // Gerar Certificado (retorna URL do PDF)
+  getCertificadoUrl: (studentId, academicYear = '2025') => {
+    return `${BACKEND_URL}/api/documents/certificado/${studentId}?academic_year=${academicYear}`;
+  },
+  
   // Baixar documento com autenticação
   downloadDocument: async (url) => {
     const response = await axios.get(url, {
       responseType: 'blob'
     });
+    return response.data;
+  },
+  
+  // Baixar Boletim (retorna blob)
+  getBoletim: async (studentId, academicYear = '2025') => {
+    const url = `${BACKEND_URL}/api/documents/boletim/${studentId}?academic_year=${academicYear}`;
+    const response = await axios.get(url, { responseType: 'blob' });
+    return response.data;
+  },
+  
+  // Baixar Ficha Individual (retorna blob)
+  getFichaIndividual: async (studentId, academicYear = '2025') => {
+    const url = `${BACKEND_URL}/api/documents/ficha-individual/${studentId}?academic_year=${academicYear}`;
+    const response = await axios.get(url, { responseType: 'blob' });
+    return response.data;
+  },
+  
+  // Baixar Certificado (retorna blob)
+  getCertificado: async (studentId, academicYear = '2025') => {
+    const url = `${BACKEND_URL}/api/documents/certificado/${studentId}?academic_year=${academicYear}`;
+    const response = await axios.get(url, { responseType: 'blob' });
     return response.data;
   }
 };
