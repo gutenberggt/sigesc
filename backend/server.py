@@ -2136,7 +2136,7 @@ async def delete_staff(staff_id: str, request: Request):
 
 @api_router.post("/staff/{staff_id}/photo")
 async def upload_staff_photo(staff_id: str, request: Request, file: UploadFile = File(...)):
-    """Upload de foto do servidor"""
+    """Upload de foto do servidor para servidor externo via FTP"""
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
     
     existing = await db.staff.find_one({"id": staff_id})
@@ -2147,20 +2147,29 @@ async def upload_staff_photo(staff_id: str, request: Request, file: UploadFile =
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="Arquivo deve ser uma imagem")
     
-    # Salvar arquivo
-    file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
-    filename = f"staff_{staff_id}.{file_ext}"
-    filepath = f"/app/backend/uploads/staff/{filename}"
+    # Ler conteúdo do arquivo
+    content = await file.read()
     
-    # Criar diretório se não existir
-    os.makedirs("/app/backend/uploads/staff", exist_ok=True)
+    # Upload via FTP
+    success, result, filename = upload_to_ftp(content, file.filename, "staff")
     
-    with open(filepath, "wb") as f:
-        content = await file.read()
-        f.write(content)
+    if success:
+        foto_url = result  # URL completa do servidor externo
+    else:
+        # Fallback: salva localmente se FTP falhar
+        logger.warning(f"Upload FTP falhou, salvando localmente: {result}")
+        file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"staff_{staff_id}.{file_ext}"
+        filepath = f"/app/backend/uploads/staff/{filename}"
+        
+        os.makedirs("/app/backend/uploads/staff", exist_ok=True)
+        
+        with open(filepath, "wb") as f:
+            f.write(content)
+        
+        foto_url = f"/api/uploads/staff/{filename}"
     
     # Atualizar URL da foto no banco
-    foto_url = f"/api/uploads/staff/{filename}"
     await db.staff.update_one(
         {"id": staff_id},
         {"$set": {"foto_url": foto_url, "updated_at": datetime.now(timezone.utc).isoformat()}}
