@@ -736,7 +736,7 @@ def generate_ficha_individual_pdf(
     if logo:
         header_table = Table([
             [logo, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
-        ], colWidths=[2*cm, 8.5*cm, 8.5*cm])
+        ], colWidths=[3*cm, 8*cm, 8*cm])  # Logo +1cm para não sobrepor texto
     else:
         header_table = Table([
             [Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
@@ -745,6 +745,7 @@ def generate_ficha_individual_pdf(
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (1, 0), (1, 0), 10),  # Padding extra no texto
     ]))
     elements.append(header_table)
     elements.append(Spacer(1, 5))
