@@ -321,8 +321,8 @@ def generate_boletim_pdf(
         
         total_geral_faltas += total_faltas
     
-    # Larguras das colunas
-    col_widths = [4*cm, 0.9*cm, 0.9*cm, 0.9*cm, 0.9*cm, 0.9*cm, 0.9*cm, 0.9*cm, 0.9*cm, 1.3*cm, 1.3*cm, 1.2*cm]
+    # Larguras das colunas (Componentes Curriculares 25% maior)
+    col_widths = [5*cm, 0.85*cm, 0.85*cm, 0.85*cm, 0.85*cm, 0.85*cm, 0.85*cm, 0.85*cm, 0.85*cm, 1.2*cm, 1.2*cm, 1.1*cm]
     
     grades_table = Table(table_data, colWidths=col_widths)
     grades_table.setStyle(TableStyle([
