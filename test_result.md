@@ -261,6 +261,18 @@ test_plan:
   test_all: false
   test_priority: "high_first"
 
+  - task: "Ficha Individual do Aluno - PDF Generation"
+    implemented: true
+    working: true
+    file: "backend/server.py, backend/pdf_generator.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "🎉 FICHA INDIVIDUAL DO ALUNO PDF GENERATION FULLY TESTED AND WORKING! Comprehensive testing completed successfully as per review_request: ✅ BACKEND API ENDPOINT: GET /api/documents/ficha-individual/{student_id}?academic_year=2025 generates valid PDF (5586 bytes, Content-Type: application/pdf), ✅ PDF CONTENT STRUCTURE: Contains cabeçalho with school name and 'FICHA INDIVIDUAL' title, student data (name, sex, INEP, birth date), class data (year/stage, class, shift, workload, school days), grades table with curriculum components, workload per component, quarterly grades (1º, 2º, 3º, 4º), semester recoveries (REC 1º sem, REC 2º sem), weighted process (1ºx2, 2ºx3, 3ºx2, 4ºx3), total points, annual average, absences and attendance percentage, ✅ AUTHENTICATION & AUTHORIZATION: Requires valid JWT token (401 for missing/invalid tokens), both Admin (Gutenberg) and Professor (Ricleide) can access, ✅ ERROR HANDLING: Returns 404 for invalid student ID, proper error messages, ✅ ACADEMIC YEAR SUPPORT: Works with different academic years (2024: 5589 bytes, 2025: 5586 bytes), ✅ BATCH PROCESSING: Successfully tested multiple students (Maria da Silva Santos, ABNI SOARES DE PAULA, ABRAAO RODRIGUES DOS SANTOS), ✅ PDF VALIDATION: Correct Content-Type (application/pdf), reasonable file sizes (>5KB), proper filename format (ficha_individual_{student_name}.pdf), ✅ STUDENT DATA VERIFICATION: Successfully retrieved and verified student details (Maria da Silva Santos, feminino, birth: 2015-05-15). All requirements from review_request successfully implemented and tested!"
+
   - task: "Phase 8 - PDF Document Generation"
     implemented: true
     working: true
