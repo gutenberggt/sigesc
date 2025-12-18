@@ -387,7 +387,6 @@ export function StudentsComplete() {
   };
 
   const columns = [
-    { header: 'Matrícula', accessor: 'enrollment_number' },
     { header: 'Nome', accessor: 'full_name', render: (row) => row.full_name || '-' },
     { header: 'Escola', accessor: 'school_id', render: (row) => getSchoolName(row.school_id) },
     { header: 'Turma', accessor: 'class_id', render: (row) => getClassName(row.class_id) },
