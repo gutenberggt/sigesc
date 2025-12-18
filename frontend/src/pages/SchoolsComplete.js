@@ -512,8 +512,8 @@ export function SchoolsComplete() {
                 Anexa a: <span className="text-red-500">*</span>
               </label>
               <select
-                value={formData.escola_sede_id || ''}
-                onChange={(e) => updateFormData('escola_sede_id', e.target.value)}
+                value={formData.anexa_a || ''}
+                onChange={(e) => updateFormData('anexa_a', e.target.value)}
                 disabled={viewMode}
                 required={formData.tipo_unidade === 'anexa'}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
