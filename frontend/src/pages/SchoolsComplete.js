@@ -367,18 +367,19 @@ export function SchoolsComplete() {
     },
     {
       header: 'Status',
-      accessor: 'status',
-      render: (row) => (
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            row.status === 'active'
-              ? 'bg-green-100 text-green-800'
-              : 'bg-gray-100 text-gray-800'
-          }`}
-        >
-          {row.status === 'active' ? 'Ativa' : 'Inativa'}
-        </span>
-      )
+      accessor: 'situacao_funcionamento',
+      render: (row) => {
+        const isAtiva = row.situacao_funcionamento === 'Ativa' || row.situacao_funcionamento === 'Em atividade' || (!row.situacao_funcionamento && row.status === 'active');
+        return (
+          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+              isAtiva
+                ? 'bg-green-100 text-green-800'
+                : 'bg-red-100 text-red-800'
+            }`}>
+            {isAtiva ? 'Ativa' : 'Inativa'}
+          </span>
+        );
+      }
     }
   ];
 
