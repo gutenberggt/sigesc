@@ -719,7 +719,7 @@ export const UserProfile = () => {
         </div>
 
         {/* Informações Principais */}
-        <Card className="pt-20">
+        <Card className="pt-24 mt-2">
           <CardContent className="space-y-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
