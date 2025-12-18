@@ -98,7 +98,7 @@ def generate_boletim_pdf(
     academic_year: str
 ) -> BytesIO:
     """
-    Gera o PDF do Boletim Escolar
+    Gera o PDF do Boletim Escolar - Modelo Floresta do Araguaia
     
     Args:
         student: Dados do aluno
@@ -112,51 +112,91 @@ def generate_boletim_pdf(
     Returns:
         BytesIO com o PDF gerado
     """
+    from reportlab.platypus import KeepTogether
+    
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        rightMargin=2*cm,
-        leftMargin=2*cm,
-        topMargin=2*cm,
-        bottomMargin=2*cm
+        rightMargin=1.5*cm,
+        leftMargin=1.5*cm,
+        topMargin=1*cm,
+        bottomMargin=1*cm
     )
     
-    styles = get_styles()
     elements = []
     
-    # Cabeçalho
-    elements.append(Paragraph("SECRETARIA MUNICIPAL DE EDUCAÇÃO", styles['CenterText']))
-    elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
-    elements.append(Paragraph(f"CNPJ: {school.get('cnpj', 'N/A')} - Tel: {school.get('phone', 'N/A')}", styles['CenterText']))
-    elements.append(Spacer(1, 20))
+    # ===== CABEÇALHO =====
+    # Criar tabela do cabeçalho com logo à esquerda e título à direita
+    header_left = """
+    <b>Prefeitura Mun. de Floresta do Araguaia - PA</b><br/>
+    <font size="9">Secretaria Municipal de Educação</font><br/>
+    <font size="8" color="#666666">"Cuidar do povo é nosso amor"</font>
+    """
     
-    # Título do documento
-    elements.append(Paragraph("BOLETIM ESCOLAR", styles['MainTitle']))
-    elements.append(Paragraph(f"Ano Letivo: {academic_year}", styles['SubTitle']))
+    header_right = """
+    <font size="16" color="#1e40af"><b>BOLETIM ESCOLAR</b></font><br/>
+    <font size="10">ENSINO FUNDAMENTAL</font>
+    """
+    
+    header_style_left = ParagraphStyle('HeaderLeft', fontSize=10, alignment=TA_LEFT, leading=14)
+    header_style_right = ParagraphStyle('HeaderRight', fontSize=10, alignment=TA_RIGHT, leading=16)
+    
+    header_table = Table([
+        [Paragraph(header_left, header_style_left), Paragraph(header_right, header_style_right)]
+    ], colWidths=[10*cm, 8*cm])
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 10))
+    
+    # ===== INFORMAÇÕES DA ESCOLA E ALUNO =====
+    school_name = school.get('name', 'Escola Municipal')
+    grade_level = class_info.get('grade_level', 'N/A')
+    class_name = class_info.get('name', 'N/A')
+    student_number = enrollment.get('registration_number', student.get('enrollment_number', '1'))
+    student_name = student.get('full_name', 'N/A').upper()
+    
+    # Linha 1: Escola e Ano Letivo
+    info_row1 = Table([
+        [
+            Paragraph(f"<b>Nome/escola:</b> {school_name}", ParagraphStyle('Info', fontSize=9)),
+            Paragraph(f"<b>ANO LETIVO:</b> {academic_year}", ParagraphStyle('Info', fontSize=9, alignment=TA_CENTER)),
+            Paragraph(f"<b>N°</b> {student_number}", ParagraphStyle('Info', fontSize=9, alignment=TA_RIGHT))
+        ]
+    ], colWidths=[10*cm, 4*cm, 4*cm])
+    info_row1.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+    ]))
+    elements.append(info_row1)
+    
+    # Linha 2: Nome do aluno, Ano/Etapa e Turma
+    info_row2 = Table([
+        [
+            Paragraph(f"<b>NOME:</b> {student_name}", ParagraphStyle('Info', fontSize=9)),
+            Paragraph(f"<b>ANO/ETAPA:</b> {grade_level}", ParagraphStyle('Info', fontSize=9, alignment=TA_CENTER)),
+            Paragraph(f"<b>TURMA:</b> {class_name}", ParagraphStyle('Info', fontSize=9, alignment=TA_CENTER))
+        ]
+    ], colWidths=[10*cm, 4*cm, 4*cm])
+    info_row2.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+    ]))
+    elements.append(info_row2)
     elements.append(Spacer(1, 15))
     
-    # Dados do aluno
-    student_data = [
-        ['Aluno(a):', student.get('full_name', 'N/A')],
-        ['Matrícula:', enrollment.get('registration_number', 'N/A')],
-        ['Turma:', class_info.get('name', 'N/A')],
-        ['Turno:', class_info.get('shift', 'N/A')],
-        ['Nascimento:', student.get('birth_date', 'N/A')]
-    ]
-    
-    student_table = Table(student_data, colWidths=[4*cm, 12*cm])
-    student_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
-        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-    ]))
-    elements.append(student_table)
-    elements.append(Spacer(1, 20))
-    
-    # Tabela de notas
+    # ===== TABELA DE NOTAS E FALTAS =====
     # Criar mapa de notas por disciplina
     grades_by_course = {}
     for grade in grades:
@@ -166,100 +206,173 @@ def generate_boletim_pdf(
         period = grade.get('period', 'P1')
         grades_by_course[course_id][period] = grade
     
-    # Cabeçalho da tabela de notas
-    header = ['Disciplina', '1º Bim', '2º Bim', '3º Bim', '4º Bim', 'Rec 1', 'Rec 2', 'Média', 'Situação']
-    table_data = [header]
+    # Cabeçalho da tabela - Modelo com Faltas por bimestre
+    header_row1 = [
+        'COMPONENTES\nCURRICULARES',
+        '1ª', 'Faltas',
+        '2°', 'Faltas',
+        '3°', 'Faltas',
+        '4°', 'Faltas',
+        'Total de\npontos',
+        'Total de\nfaltas',
+        'Média'
+    ]
+    
+    table_data = [header_row1]
+    
+    total_geral_pontos = 0
+    total_geral_faltas = 0
     
     for course in courses:
         course_grades = grades_by_course.get(course.get('id'), {})
         
-        # Obter notas de cada período
-        n1 = course_grades.get('P1', {}).get('grade', '-')
-        n2 = course_grades.get('P2', {}).get('grade', '-')
-        n3 = course_grades.get('P3', {}).get('grade', '-')
-        n4 = course_grades.get('P4', {}).get('grade', '-')
-        rec1 = course_grades.get('REC1', {}).get('grade', '-')
-        rec2 = course_grades.get('REC2', {}).get('grade', '-')
+        # Obter notas e faltas de cada período
+        n1 = course_grades.get('P1', {}).get('grade', '')
+        f1 = course_grades.get('P1', {}).get('absences', '')
+        n2 = course_grades.get('P2', {}).get('grade', '')
+        f2 = course_grades.get('P2', {}).get('absences', '')
+        n3 = course_grades.get('P3', {}).get('grade', '')
+        f3 = course_grades.get('P3', {}).get('absences', '')
+        n4 = course_grades.get('P4', {}).get('grade', '')
+        f4 = course_grades.get('P4', {}).get('absences', '')
         
-        # Calcular média (simplificado)
+        # Calcular total de pontos e faltas
         valid_grades = []
         for g in [n1, n2, n3, n4]:
             if isinstance(g, (int, float)):
                 valid_grades.append(g)
         
-        if valid_grades:
-            media = sum(valid_grades) / len(valid_grades)
-            media_str = f"{media:.1f}"
-            situacao = 'Aprovado' if media >= 6 else 'Em Recuperação' if media >= 4 else 'Reprovado'
-        else:
-            media_str = '-'
-            situacao = '-'
+        total_pontos = sum(valid_grades) if valid_grades else 0
         
-        # Formatar notas
-        def fmt(v):
+        valid_faltas = []
+        for f in [f1, f2, f3, f4]:
+            if isinstance(f, (int, float)):
+                valid_faltas.append(f)
+        total_faltas = sum(valid_faltas) if valid_faltas else 0
+        
+        # Calcular média
+        if valid_grades:
+            media = total_pontos / len(valid_grades)
+            media_str = f"{media:.1f}"
+        else:
+            media_str = ''
+        
+        # Formatar valores
+        def fmt_grade(v):
             if isinstance(v, (int, float)):
                 return f"{v:.1f}"
-            return str(v) if v else '-'
+            return str(v) if v else ''
+        
+        def fmt_int(v):
+            if isinstance(v, (int, float)):
+                return str(int(v))
+            return str(v) if v else ''
         
         row = [
             course.get('name', 'N/A'),
-            fmt(n1), fmt(n2), fmt(n3), fmt(n4),
-            fmt(rec1), fmt(rec2),
-            media_str,
-            situacao
+            fmt_grade(n1), fmt_int(f1),
+            fmt_grade(n2), fmt_int(f2),
+            fmt_grade(n3), fmt_int(f3),
+            fmt_grade(n4), fmt_int(f4),
+            f"{total_pontos:.1f}" if total_pontos else '',
+            fmt_int(total_faltas) if total_faltas else '',
+            media_str
         ]
         table_data.append(row)
+        
+        total_geral_faltas += total_faltas
     
-    # Criar tabela
-    col_widths = [4*cm, 1.5*cm, 1.5*cm, 1.5*cm, 1.5*cm, 1.5*cm, 1.5*cm, 1.5*cm, 2.5*cm]
+    # Larguras das colunas
+    col_widths = [4*cm, 0.9*cm, 0.9*cm, 0.9*cm, 0.9*cm, 0.9*cm, 0.9*cm, 0.9*cm, 0.9*cm, 1.3*cm, 1.3*cm, 1.2*cm]
+    
     grades_table = Table(table_data, colWidths=col_widths)
     grades_table.setStyle(TableStyle([
         # Cabeçalho
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e40af')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e5e7eb')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('FONTSIZE', (0, 0), (-1, 0), 7),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
         
         # Corpo
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
         ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
         ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+        ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
         
         # Grid
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        
+        # Padding
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
         
         # Alternar cores das linhas
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3f4f6')]),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
     ]))
     elements.append(grades_table)
+    elements.append(Spacer(1, 20))
+    
+    # ===== RESULTADO FINAL =====
+    # Calcular resultado geral do aluno
+    all_medias = []
+    for course in courses:
+        course_grades = grades_by_course.get(course.get('id'), {})
+        valid_grades = []
+        for period in ['P1', 'P2', 'P3', 'P4']:
+            g = course_grades.get(period, {}).get('grade')
+            if isinstance(g, (int, float)):
+                valid_grades.append(g)
+        if valid_grades:
+            all_medias.append(sum(valid_grades) / len(valid_grades))
+    
+    if all_medias:
+        media_geral = sum(all_medias) / len(all_medias)
+        if media_geral >= 6:
+            resultado = "APROVADO"
+            resultado_color = colors.HexColor('#16a34a')  # Verde
+        elif media_geral >= 4:
+            resultado = "EM RECUPERAÇÃO"
+            resultado_color = colors.HexColor('#ca8a04')  # Amarelo
+        else:
+            resultado = "REPROVADO"
+            resultado_color = colors.HexColor('#dc2626')  # Vermelho
+    else:
+        resultado = "EM ANDAMENTO"
+        resultado_color = colors.HexColor('#2563eb')  # Azul
+    
+    result_style = ParagraphStyle('Result', fontSize=12, alignment=TA_LEFT)
+    result_value_style = ParagraphStyle('ResultValue', fontSize=14, alignment=TA_LEFT, textColor=resultado_color)
+    
+    result_table = Table([
+        [
+            Paragraph("<b>RESULTADO:</b>", result_style),
+            Paragraph(f"<b>{resultado}</b>", result_value_style)
+        ]
+    ], colWidths=[3*cm, 15*cm])
+    result_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    elements.append(result_table)
     elements.append(Spacer(1, 30))
     
-    # Legenda
-    elements.append(Paragraph(
-        "<b>Legenda:</b> Média para aprovação: 6,0 | Rec = Recuperação",
-        styles['Normal']
-    ))
-    elements.append(Spacer(1, 40))
+    # ===== ASSINATURAS =====
+    sig_data = [
+        ['_' * 35, '_' * 35],
+        ['SECRETÁRIO(A)', 'DIRETOR(A)']
+    ]
     
-    # Data e assinatura
-    today = format_date_pt(date.today())
-    city = school.get('city', 'Município')
-    elements.append(Paragraph(f"{city}, {today}", styles['CenterText']))
-    elements.append(Spacer(1, 40))
-    
-    # Linha de assinatura
-    sig_data = [['_' * 40, '_' * 40]]
-    sig_names = [['Secretário(a) Escolar', 'Diretor(a)']]
-    
-    sig_table = Table(sig_data + sig_names, colWidths=[8*cm, 8*cm])
+    sig_table = Table(sig_data, colWidths=[8.5*cm, 8.5*cm])
     sig_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('FONTSIZE', (0, 1), (-1, 1), 9),
+        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
         ('TOPPADDING', (0, 1), (-1, 1), 5),
     ]))
     elements.append(sig_table)
