@@ -548,6 +548,10 @@ class SchoolUpdate(BaseModel):
     zona_localizacao: Optional[Literal['urbana', 'rural']] = None
     cnpj: Optional[str] = None
     situacao_funcionamento: Optional[str] = None
+    
+    # Tipo de Unidade
+    tipo_unidade: Optional[Literal['sede', 'anexa']] = None
+    anexa_a: Optional[str] = None
     cep: Optional[str] = None
     logradouro: Optional[str] = None
     numero: Optional[str] = None
