@@ -3994,6 +3994,119 @@ async def generate_declaracao_frequencia(
         logger.error(f"Erro ao gerar declaração de frequência: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
+
+@api_router.get("/documents/ficha-individual/{student_id}")
+async def get_ficha_individual(
+    student_id: str,
+    academic_year: int = 2025,
+    request: Request = None
+):
+    """Gera a Ficha Individual do Aluno em PDF"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    # Buscar aluno
+    student = await db.students.find_one({"id": student_id}, {"_id": 0})
+    if not student:
+        raise HTTPException(status_code=404, detail="Aluno não encontrado")
+    
+    # Buscar escola
+    school = await db.schools.find_one({"id": student.get("school_id")}, {"_id": 0})
+    if not school:
+        school = {"name": "Escola Municipal", "city": "Município"}
+    
+    # Buscar turma
+    class_info = await db.classes.find_one({"id": student.get("class_id")}, {"_id": 0})
+    if not class_info:
+        class_info = {"name": "N/A", "grade_level": "N/A", "shift": "N/A"}
+    
+    # Buscar matrícula
+    enrollment = await db.enrollments.find_one(
+        {"student_id": student_id, "academic_year": academic_year},
+        {"_id": 0}
+    )
+    if not enrollment:
+        enrollment = {"registration_number": student.get("enrollment_number", "N/A")}
+    
+    # Gerar PDF
+    try:
+        pdf_buffer = generate_ficha_individual_pdf(
+            student=student,
+            school=school,
+            class_info=class_info,
+            enrollment=enrollment,
+            academic_year=academic_year
+        )
+        
+        filename = f"ficha_individual_{student.get('full_name', 'aluno').replace(' ', '_')}.pdf"
+        
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+    except Exception as e:
+        logger.error(f"Erro ao gerar ficha individual: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+
+
+@api_router.get("/documents/certificado/{student_id}")
+async def get_certificado(
+    student_id: str,
+    academic_year: int = 2025,
+    request: Request = None
+):
+    """Gera o Certificado de Conclusão em PDF"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    # Buscar aluno
+    student = await db.students.find_one({"id": student_id}, {"_id": 0})
+    if not student:
+        raise HTTPException(status_code=404, detail="Aluno não encontrado")
+    
+    # Buscar escola
+    school = await db.schools.find_one({"id": student.get("school_id")}, {"_id": 0})
+    if not school:
+        school = {"name": "Escola Municipal", "city": "Município"}
+    
+    # Buscar turma
+    class_info = await db.classes.find_one({"id": student.get("class_id")}, {"_id": 0})
+    if not class_info:
+        class_info = {"name": "N/A", "grade_level": "N/A", "shift": "N/A"}
+    
+    # Buscar matrícula
+    enrollment = await db.enrollments.find_one(
+        {"student_id": student_id, "academic_year": academic_year},
+        {"_id": 0}
+    )
+    if not enrollment:
+        enrollment = {"registration_number": student.get("enrollment_number", "N/A")}
+    
+    # Gerar PDF
+    try:
+        pdf_buffer = generate_certificado_pdf(
+            student=student,
+            school=school,
+            class_info=class_info,
+            enrollment=enrollment,
+            academic_year=academic_year
+        )
+        
+        filename = f"certificado_{student.get('full_name', 'aluno').replace(' ', '_')}.pdf"
+        
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+    except Exception as e:
+        logger.error(f"Erro ao gerar certificado: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+
+
 # ============= ANNOUNCEMENT ENDPOINTS =============
 
 def can_user_create_announcement(user: dict, recipient: dict) -> bool:
