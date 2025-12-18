@@ -458,7 +458,7 @@ def generate_declaracao_matricula_pdf(
     elements = []
     
     # Logotipo centralizado
-    logo = get_logo_image(width=2.5*cm, height=2.5*cm)
+    logo = get_logo_image(width=3.75*cm, height=2.5*cm)  # Largura 50% maior para não deformar
     if logo:
         logo_table = Table([[logo]], colWidths=[16*cm])
         logo_table.setStyle(TableStyle([
@@ -568,7 +568,7 @@ def generate_declaracao_frequencia_pdf(
     elements = []
     
     # Logotipo centralizado
-    logo = get_logo_image(width=2.5*cm, height=2.5*cm)
+    logo = get_logo_image(width=3.75*cm, height=2.5*cm)  # Largura 50% maior para não deformar
     if logo:
         logo_table = Table([[logo]], colWidths=[16*cm])
         logo_table.setStyle(TableStyle([
@@ -1122,7 +1122,7 @@ def generate_certificado_pdf(
     elements = []
     
     # Logotipo centralizado
-    logo = get_logo_image(width=2.5*cm, height=2.5*cm)
+    logo = get_logo_image(width=3.75*cm, height=2.5*cm)  # Largura 50% maior para não deformar
     if logo:
         logo_table = Table([[logo]], colWidths=[16*cm])
         logo_table.setStyle(TableStyle([
