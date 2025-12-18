@@ -4027,6 +4027,87 @@ async def get_ficha_individual(
     if not enrollment:
         enrollment = {"registration_number": student.get("enrollment_number", "N/A")}
     
+    # Buscar notas do aluno
+    grades = await db.grades.find(
+        {"student_id": student_id, "academic_year": academic_year},
+        {"_id": 0}
+    ).to_list(100)
+    
+    # Buscar componentes curriculares da turma/escola
+    # Filtrar por nível de ensino da turma
+    nivel_ensino = class_info.get('nivel_ensino', 'fundamental_anos_iniciais')
+    school_id = student.get('school_id')
+    
+    # Buscar componentes: globais (sem school_id) OU específicos da escola
+    courses_filter = {
+        "$and": [
+            {"nivel_ensino": nivel_ensino},
+            {"$or": [
+                {"school_id": {"$exists": False}},
+                {"school_id": None},
+                {"school_id": ""},
+                {"school_id": school_id}
+            ]}
+        ]
+    }
+    courses = await db.courses.find(courses_filter, {"_id": 0}).to_list(100)
+    
+    # Se não encontrar componentes, buscar todos do nível
+    if not courses:
+        courses = await db.courses.find({"nivel_ensino": nivel_ensino}, {"_id": 0}).to_list(100)
+    
+    # Buscar dados de frequência por componente
+    attendance_data = {}
+    for course in courses:
+        course_id = course.get('id')
+        
+        # Buscar frequência do componente (se houver registros específicos)
+        att_records = await db.attendance.find(
+            {
+                "student_id": student_id,
+                "course_id": course_id,
+                "academic_year": academic_year
+            },
+            {"_id": 0}
+        ).to_list(100)
+        
+        if att_records:
+            total_classes = sum(a.get('total_classes', 0) for a in att_records)
+            total_absences = sum(a.get('absences', 0) for a in att_records)
+            if total_classes > 0:
+                freq_pct = ((total_classes - total_absences) / total_classes) * 100
+            else:
+                freq_pct = 100.0
+            attendance_data[course_id] = {
+                'total_classes': total_classes,
+                'absences': total_absences,
+                'frequency_percentage': freq_pct
+            }
+        else:
+            # Buscar frequência geral do aluno
+            general_att = await db.attendance.find(
+                {"student_id": student_id, "academic_year": academic_year},
+                {"_id": 0}
+            ).to_list(100)
+            
+            if general_att:
+                total_classes = sum(a.get('total_classes', 0) for a in general_att)
+                total_absences = sum(a.get('absences', 0) for a in general_att)
+                if total_classes > 0:
+                    freq_pct = ((total_classes - total_absences) / total_classes) * 100
+                else:
+                    freq_pct = 100.0
+            else:
+                total_classes = 0
+                total_absences = 0
+                freq_pct = 100.0
+            
+            attendance_data[course_id] = {
+                'total_classes': total_classes,
+                'absences': total_absences,
+                'frequency_percentage': freq_pct
+            }
+    
     # Gerar PDF
     try:
         pdf_buffer = generate_ficha_individual_pdf(
@@ -4034,7 +4115,10 @@ async def get_ficha_individual(
             school=school,
             class_info=class_info,
             enrollment=enrollment,
-            academic_year=academic_year
+            academic_year=academic_year,
+            grades=grades,
+            courses=courses,
+            attendance_data=attendance_data
         )
         
         filename = f"ficha_individual_{student.get('full_name', 'aluno').replace(' ', '_')}.pdf"
