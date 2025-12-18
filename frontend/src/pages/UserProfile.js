@@ -678,7 +678,7 @@ export const UserProfile = () => {
           
           {/* Botões de Conexão para perfil de outros usuários */}
           {!isOwnProfile && connectionStatus && (
-            <div className="absolute top-4 right-4 flex gap-2">
+            <div className="absolute top-4 left-4 flex gap-2">
               {connectionStatus.status === 'none' && (
                 <Button 
                   onClick={handleSendInvite}
