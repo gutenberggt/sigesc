@@ -284,6 +284,7 @@ function App() {
           />
         </Routes>
       </BrowserRouter>
+      </MantenedoraProvider>
     </AuthProvider>
   );
 }
