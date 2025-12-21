@@ -36,7 +36,7 @@ const EDUCATION_LEVEL_LABELS = {
 
 // Tipos de frequência por nível
 const getAttendanceType = (educationLevel, period) => {
-  // Para Atendimento Integral e Aulas Complementares, sempre por componente
+  // Para Componentes Integradores e Aulas Complementares, sempre por componente
   if (period === 'integral' || period === 'complementar') {
     return 'by_component';
   }
@@ -516,7 +516,7 @@ export const Attendance = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="regular">Regular</option>
-                      <option value="integral">Atendimento Integral</option>
+                      <option value="integral">Componentes Integradores</option>
                       <option value="complementar">Aulas Complementares</option>
                     </select>
                   </div>

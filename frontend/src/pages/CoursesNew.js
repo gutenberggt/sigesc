@@ -80,7 +80,7 @@ export const Courses = () => {
 
   const atendimentosProgramas = {
     'aee': 'Atendimento Educacional Especializado - AEE',
-    'atendimento_integral': 'Atendimento Integral',
+    'atendimento_integral': 'Componentes Integradores',
     'reforco_escolar': 'Reforço Escolar',
     'aulas_complementares': 'Aulas Complementares',
     'recomposicao_aprendizagem': 'Recomposição de Aprendizagem'

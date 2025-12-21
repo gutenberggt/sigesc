@@ -1607,7 +1607,7 @@ async def get_attendance_by_class(
     else:
         attendance_type = 'by_component'
     
-    # Para Atendimento Integral e Aulas Complementares, sempre por componente
+    # Para Componentes Integradores e Aulas Complementares, sempre por componente
     if period in ['integral', 'complementar']:
         attendance_type = 'by_component'
     
