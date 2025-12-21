@@ -201,7 +201,7 @@ export const DocumentGeneratorModal = ({
                     </div>
                   </div>
                   <Button
-                    onClick={() => handleDownload(doc.id)}
+                    onClick={() => handleOpenPdf(doc.id)}
                     disabled={isLoading || !student}
                     className={`${colors.button} text-white flex items-center gap-2`}
                   >
@@ -212,8 +212,8 @@ export const DocumentGeneratorModal = ({
                       </>
                     ) : (
                       <>
-                        <Download size={16} />
-                        Baixar PDF
+                        <ExternalLink size={16} />
+                        Abrir PDF
                       </>
                     )}
                   </Button>
