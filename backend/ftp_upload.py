@@ -26,6 +26,7 @@ FILE_TYPE_FOLDERS = {
     "cover": "capa",        # Fotos de capa
     "document": "doc",      # Documentos (PDFs, etc.)
     "laudo": "doc",         # Laudos médicos
+    "logotipo": "logotipo", # Logotipos (mantenedora, escolas)
     "default": "user"       # Padrão
 }
 
