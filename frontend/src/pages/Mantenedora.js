@@ -35,6 +35,7 @@ export default function Mantenedora() {
     celular: '',
     email: '',
     site: '',
+    contato_nome: '',
     
     // Responsável Legal
     responsavel_nome: '',
