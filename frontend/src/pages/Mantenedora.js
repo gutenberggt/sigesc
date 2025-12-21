@@ -1,22 +1,25 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Building2, Save, MapPin, Phone, Mail, User, FileText, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Building2, Save, MapPin, Phone, User, Loader2, Upload, Image, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { mantenedoraAPI } from '@/services/api';
+import { mantenedoraAPI, uploadAPI } from '@/services/api';
 import { formatCEP, formatPhone, formatCPF, formatCNPJ } from '@/utils/formatters';
 
 export default function Mantenedora() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [alert, setAlert] = useState(null);
+  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
     // Identificação
     nome: '',
     cnpj: '',
     codigo_inep: '',
     natureza_juridica: 'Pública Municipal',
+    logotipo_url: '',
     
     // Endereço
     cep: '',
