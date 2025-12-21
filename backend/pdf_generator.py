@@ -761,9 +761,10 @@ def generate_ficha_individual_pdf(
     # Usar cidade/estado da mantenedora
     mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
     mant_estado = mantenedora.get('estado', 'PA')
+    mant_nome = mantenedora.get('nome', f'Prefeitura Municipal de {mant_municipio}')
     
     header_text = f"""
-    <b>Prefeitura Mun. de {mant_municipio} - {mant_estado}</b><br/>
+    <b>{mant_nome}</b><br/>
     <font size="9">Secretaria Municipal de Educação</font><br/>
     <font size="8" color="#666666">"Cuidar do povo é nossa prioridade"</font>
     """
