@@ -3793,7 +3793,7 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
             pdf_buffer,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
+                "Content-Disposition": f'inline; filename="{filename}"'
             }
         )
     except Exception as e:
@@ -3883,7 +3883,7 @@ async def generate_declaracao_matricula(
             pdf_buffer,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
+                "Content-Disposition": f'inline; filename="{filename}"'
             }
         )
     except Exception as e:
@@ -4000,7 +4000,7 @@ async def generate_declaracao_frequencia(
             pdf_buffer,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
+                "Content-Disposition": f'inline; filename="{filename}"'
             }
         )
     except Exception as e:
@@ -4144,7 +4144,7 @@ async def get_ficha_individual(
             pdf_buffer,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
+                "Content-Disposition": f'inline; filename="{filename}"'
             }
         )
     except Exception as e:
@@ -4200,7 +4200,7 @@ async def get_certificado(
             pdf_buffer,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
+                "Content-Disposition": f'inline; filename="{filename}"'
             }
         )
     except Exception as e:
