@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Building2, Save, MapPin, Phone, User, Loader2, Upload, Image, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Building2, Save, MapPin, Phone, User, Loader2, Upload, Image, X, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import { formatCEP, formatPhone, formatCPF, formatCNPJ } from '@/utils/formatter
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 
 export default function Mantenedora() {
+  const navigate = useNavigate();
   const { refreshMantenedora } = useMantenedora();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
