@@ -158,6 +158,8 @@ export default function Mantenedora() {
     try {
       setSaving(true);
       await mantenedoraAPI.update(formData);
+      // Atualiza o contexto global da mantenedora
+      refreshMantenedora();
       showAlert('success', 'Dados salvos com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar:', error);
