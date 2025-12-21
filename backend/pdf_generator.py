@@ -133,7 +133,8 @@ def generate_boletim_pdf(
     class_info: Dict[str, Any],
     grades: List[Dict[str, Any]],
     courses: List[Dict[str, Any]],
-    academic_year: str
+    academic_year: str,
+    mantenedora: Dict[str, Any] = None
 ) -> BytesIO:
     """
     Gera o PDF do Boletim Escolar - Modelo Floresta do Araguaia
@@ -146,6 +147,7 @@ def generate_boletim_pdf(
         grades: Lista de notas do aluno
         courses: Lista de disciplinas
         academic_year: Ano letivo
+        mantenedora: Dados da mantenedora (logotipo, cidade, estado)
     
     Returns:
         BytesIO com o PDF gerado
@@ -163,13 +165,19 @@ def generate_boletim_pdf(
     )
     
     elements = []
+    mantenedora = mantenedora or {}
     
     # ===== CABEÇALHO =====
-    # Criar tabela do cabeçalho com logo à esquerda, texto ao centro e título à direita
-    logo = get_logo_image(width=2.7*cm, height=1.8*cm)  # Largura 50% maior para não deformar
+    # Usar logotipo da mantenedora se disponível
+    logo_url = mantenedora.get('logotipo_url')
+    logo = get_logo_image(width=2.7*cm, height=1.8*cm, logo_url=logo_url)
     
-    header_text = """
-    <b>Prefeitura Mun. de Floresta do Araguaia - PA</b><br/>
+    # Usar cidade/estado da mantenedora
+    mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
+    mant_estado = mantenedora.get('estado', 'PA')
+    
+    header_text = f"""
+    <b>Prefeitura Mun. de {mant_municipio} - {mant_estado}</b><br/>
     <font size="9">Secretaria Municipal de Educação</font><br/>
     <font size="8" color="#666666">"Cuidar do povo é nossa prioridade"</font>
     """
