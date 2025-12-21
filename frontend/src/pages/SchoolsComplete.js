@@ -243,7 +243,7 @@ export function SchoolsComplete() {
     setEditingSchool(null);
     setViewMode(false);
     setSchoolStaff([]); // Limpa lista de servidores
-    // Reset form with default values
+    // Reset form with default values (usando dados da mantenedora)
     setFormData({
       name: '',
       inep_code: '',
@@ -256,7 +256,9 @@ export function SchoolsComplete() {
       niveis_ensino_oferecidos: [],
       turnos_funcionamento: [],
       participa_programas_governamentais: [],
-      status: 'active'
+      status: 'active',
+      municipio: defaultLocation.municipio,
+      estado: defaultLocation.estado
     });
     setIsModalOpen(true);
   }
