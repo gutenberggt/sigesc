@@ -36,7 +36,8 @@ from models import (
     SchoolAssignment, SchoolAssignmentCreate, SchoolAssignmentUpdate,
     TeacherAssignment, TeacherAssignmentCreate, TeacherAssignmentUpdate,
     Announcement, AnnouncementCreate, AnnouncementUpdate, AnnouncementResponse,
-    AnnouncementRecipient, AnnouncementReadStatus, NotificationCount
+    AnnouncementRecipient, AnnouncementReadStatus, NotificationCount,
+    Mantenedora, MantenedoraUpdate
 )
 from auth_utils import (
     hash_password, verify_password, create_access_token, 
