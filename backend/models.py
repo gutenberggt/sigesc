@@ -1586,6 +1586,7 @@ class MantenedoraBase(BaseModel):
     celular: Optional[str] = None
     email: Optional[str] = None
     site: Optional[str] = None
+    contato_nome: Optional[str] = None  # Nome da pessoa de contato
     
     # Responsável Legal
     responsavel_nome: Optional[str] = None
@@ -1612,8 +1613,7 @@ class MantenedoraUpdate(BaseModel):
     celular: Optional[str] = None
     email: Optional[str] = None
     site: Optional[str] = None
-    
-    responsavel_nome: Optional[str] = None
+    contato_nome: Optional[str] = None
     responsavel_cargo: Optional[str] = None
     responsavel_cpf: Optional[str] = None
 
