@@ -13,6 +13,7 @@ import { Plus, AlertCircle, CheckCircle, Home, Users, Phone } from 'lucide-react
 export function SchoolsComplete() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { getDefaultLocation } = useMantenedora();
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +29,9 @@ export function SchoolsComplete() {
   // SEMED pode visualizar tudo, mas não pode editar/excluir
   const canEdit = user?.role !== 'semed';
   const canDelete = user?.role !== 'semed';
+  
+  // Dados padrão da mantenedora
+  const defaultLocation = getDefaultLocation();
 
   // Estado do formulário com valores padrão
   const [formData, setFormData] = useState({
@@ -47,7 +51,7 @@ export function SchoolsComplete() {
     numero: '',
     complemento: '',
     bairro: '',
-    municipio: '',
+    municipio: defaultLocation.municipio,
     distrito: '',
     estado: '',
     ddd_telefone: '',
