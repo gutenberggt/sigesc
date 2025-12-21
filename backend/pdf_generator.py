@@ -444,7 +444,8 @@ def generate_declaracao_matricula_pdf(
     enrollment: Dict[str, Any],
     class_info: Dict[str, Any],
     academic_year: str,
-    purpose: str = "fins comprobatórios"
+    purpose: str = "fins comprobatórios",
+    mantenedora: Dict[str, Any] = None
 ) -> BytesIO:
     """
     Gera o PDF da Declaração de Matrícula
@@ -456,6 +457,7 @@ def generate_declaracao_matricula_pdf(
         class_info: Dados da turma
         academic_year: Ano letivo
         purpose: Finalidade da declaração
+        mantenedora: Dados da mantenedora (logotipo, cidade, estado)
     
     Returns:
         BytesIO com o PDF gerado
@@ -472,9 +474,11 @@ def generate_declaracao_matricula_pdf(
     
     styles = get_styles()
     elements = []
+    mantenedora = mantenedora or {}
     
-    # Logotipo centralizado
-    logo = get_logo_image(width=3.75*cm, height=2.5*cm)  # Largura 50% maior para não deformar
+    # Usar logotipo da mantenedora se disponível
+    logo_url = mantenedora.get('logotipo_url')
+    logo = get_logo_image(width=3.75*cm, height=2.5*cm, logo_url=logo_url)
     if logo:
         logo_table = Table([[logo]], colWidths=[16*cm])
         logo_table.setStyle(TableStyle([
@@ -483,8 +487,12 @@ def generate_declaracao_matricula_pdf(
         elements.append(logo_table)
         elements.append(Spacer(1, 10))
     
+    # Usar cidade/estado da mantenedora
+    mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
+    mant_estado = mantenedora.get('estado', 'PA')
+    
     # Cabeçalho
-    elements.append(Paragraph("PREFEITURA MUNICIPAL DE FLORESTA DO ARAGUAIA", styles['CenterText']))
+    elements.append(Paragraph(f"PREFEITURA MUNICIPAL DE {mant_municipio.upper()}", styles['CenterText']))
     elements.append(Paragraph("SECRETARIA MUNICIPAL DE EDUCAÇÃO", styles['CenterText']))
     elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
     elements.append(Paragraph(f"Endereço: {school.get('address', 'N/A')}", styles['CenterText']))
