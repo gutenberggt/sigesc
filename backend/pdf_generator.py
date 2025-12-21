@@ -172,12 +172,13 @@ def generate_boletim_pdf(
     logo_url = mantenedora.get('logotipo_url')
     logo = get_logo_image(width=2.7*cm, height=1.8*cm, logo_url=logo_url)
     
-    # Usar cidade/estado da mantenedora
+    # Usar dados da mantenedora
     mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
     mant_estado = mantenedora.get('estado', 'PA')
+    mant_nome = mantenedora.get('nome', f'Prefeitura Municipal de {mant_municipio}')
     
     header_text = f"""
-    <b>Prefeitura Mun. de {mant_municipio} - {mant_estado}</b><br/>
+    <b>{mant_nome}</b><br/>
     <font size="9">Secretaria Municipal de Educação</font><br/>
     <font size="8" color="#666666">"Cuidar do povo é nossa prioridade"</font>
     """
