@@ -69,6 +69,7 @@ export default function Mantenedora() {
         celular: data.celular || '',
         email: data.email || '',
         site: data.site || '',
+        contato_nome: data.contato_nome || '',
         responsavel_nome: data.responsavel_nome || '',
         responsavel_cargo: data.responsavel_cargo || '',
         responsavel_cpf: data.responsavel_cpf || ''
