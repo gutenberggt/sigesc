@@ -3862,6 +3862,9 @@ async def generate_declaracao_matricula(
             "address": "Endereço não informado"
         }
     
+    # Buscar dados da mantenedora
+    mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+    
     # Gerar PDF
     try:
         pdf_buffer = generate_declaracao_matricula_pdf(
@@ -3870,7 +3873,8 @@ async def generate_declaracao_matricula(
             enrollment=enrollment,
             class_info=class_info,
             academic_year=academic_year,
-            purpose=purpose
+            purpose=purpose,
+            mantenedora=mantenedora
         )
         
         filename = f"declaracao_matricula_{student.get('full_name', 'aluno').replace(' ', '_')}.pdf"
