@@ -36,6 +36,7 @@ export default function Mantenedora() {
     email: '',
     site: '',
     contato_nome: '',
+    contato_cargo: '',
     
     // Responsável Legal
     responsavel_nome: '',
@@ -70,6 +71,7 @@ export default function Mantenedora() {
         email: data.email || '',
         site: data.site || '',
         contato_nome: data.contato_nome || '',
+        contato_cargo: data.contato_cargo || '',
         responsavel_nome: data.responsavel_nome || '',
         responsavel_cargo: data.responsavel_cargo || '',
         responsavel_cpf: data.responsavel_cpf || ''
