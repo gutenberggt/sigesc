@@ -687,9 +687,9 @@ def generate_declaracao_frequencia_pdf(
     elements.append(Paragraph(text2, styles['JustifyText']))
     elements.append(Spacer(1, 50))
     
-    # Data e local
+    # Data e local - usar município da mantenedora
     today = format_date_pt(date.today())
-    city = school.get('city', 'Município')
+    city = mant_municipio  # Usar município da mantenedora
     elements.append(Paragraph(f"{city}, {today}.", styles['CenterText']))
     elements.append(Spacer(1, 60))
     
