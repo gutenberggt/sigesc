@@ -53,7 +53,7 @@ export function SchoolsComplete() {
     bairro: '',
     municipio: defaultLocation.municipio,
     distrito: '',
-    estado: '',
+    estado: defaultLocation.estado,
     ddd_telefone: '',
     telefone: '',
     celular: '',
