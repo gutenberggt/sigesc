@@ -4121,6 +4121,9 @@ async def get_ficha_individual(
                 'frequency_percentage': freq_pct
             }
     
+    # Buscar dados da mantenedora
+    mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+    
     # Gerar PDF
     try:
         pdf_buffer = generate_ficha_individual_pdf(
@@ -4131,7 +4134,8 @@ async def get_ficha_individual(
             academic_year=academic_year,
             grades=grades,
             courses=courses,
-            attendance_data=attendance_data
+            attendance_data=attendance_data,
+            mantenedora=mantenedora
         )
         
         filename = f"ficha_individual_{student.get('full_name', 'aluno').replace(' ', '_')}.pdf"
