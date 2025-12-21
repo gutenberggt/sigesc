@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { NotificationBell, MessagesBadge } from '@/components/notifications';
+import { useMantenedora } from '@/contexts/MantenedoraContext';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
+  const { mantenedora } = useMantenedora();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -31,7 +33,7 @@ export const Layout = ({ children }) => {
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo */}
+            {/* Logo e Mantenedora */}
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -40,13 +42,35 @@ export const Layout = ({ children }) => {
               >
                 {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
+              
+              {/* Brasão da Mantenedora */}
+              {mantenedora?.logotipo_url && (
+                <img
+                  src={mantenedora.logotipo_url}
+                  alt="Brasão"
+                  className="h-10 w-auto object-contain"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              )}
+              
+              {/* Nome da Mantenedora */}
+              <div className="hidden md:block border-r border-gray-200 pr-4">
+                <p className="text-xs font-medium text-gray-700 leading-tight">
+                  {mantenedora?.nome || 'Prefeitura Municipal'}
+                </p>
+              </div>
+              
+              {/* Logo SIGESC */}
               <img
                 src="https://aprenderdigital.top/imagens/logotipo/logosigesc.png"
                 alt="SIGESC Logo"
                 className="h-10"
                 data-testid="sigesc-logo"
               />
-              <h1 className="text-xl font-bold text-blue-600 hidden sm:block">SIGESC</h1>
+              <div className="hidden sm:block">
+                <h1 className="text-xl font-bold text-blue-600 leading-tight">SIGESC</h1>
+                <p className="text-[10px] text-gray-500 leading-tight">SISTEMA INTEGRADO DE GESTÃO ESCOLAR</p>
+              </div>
             </div>
 
             {/* Notifications & User Info */}
