@@ -696,7 +696,8 @@ def generate_ficha_individual_pdf(
     academic_year: int,
     grades: List[Dict[str, Any]] = None,
     courses: List[Dict[str, Any]] = None,
-    attendance_data: Dict[str, Any] = None
+    attendance_data: Dict[str, Any] = None,
+    mantenedora: Dict[str, Any] = None
 ) -> BytesIO:
     """
     Gera a Ficha Individual do Aluno em PDF - Modelo Floresta do Araguaia.
@@ -710,6 +711,7 @@ def generate_ficha_individual_pdf(
         grades: Lista de notas do aluno por componente
         courses: Lista de componentes curriculares
         attendance_data: Dados de frequência por componente
+        mantenedora: Dados da mantenedora (logotipo, cidade, estado)
     
     Returns:
         BytesIO com o PDF gerado
@@ -730,12 +732,19 @@ def generate_ficha_individual_pdf(
     grades = grades or []
     courses = courses or []
     attendance_data = attendance_data or {}
+    mantenedora = mantenedora or {}
     
     # ===== CABEÇALHO =====
-    logo = get_logo_image(width=2.4*cm, height=1.6*cm)  # Largura 50% maior para não deformar
+    # Usar logotipo da mantenedora se disponível
+    logo_url = mantenedora.get('logotipo_url')
+    logo = get_logo_image(width=2.4*cm, height=1.6*cm, logo_url=logo_url)
     
-    header_text = """
-    <b>Prefeitura Mun. de Floresta do Araguaia - PA</b><br/>
+    # Usar cidade/estado da mantenedora
+    mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
+    mant_estado = mantenedora.get('estado', 'PA')
+    
+    header_text = f"""
+    <b>Prefeitura Mun. de {mant_municipio} - {mant_estado}</b><br/>
     <font size="9">Secretaria Municipal de Educação</font><br/>
     <font size="8" color="#666666">"Cuidar do povo é nossa prioridade"</font>
     """
