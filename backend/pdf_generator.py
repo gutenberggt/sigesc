@@ -1062,10 +1062,10 @@ def generate_ficha_individual_pdf(
     elements.append(Spacer(1, 10))
     
     # ===== RODAPÉ =====
-    # Data e local
+    # Data e local - usar município da mantenedora
     today = format_date_pt(date.today())
-    city = school.get('city', school.get('municipio', 'Floresta do Araguaia'))
-    state = school.get('state', school.get('estado', 'PA'))
+    city = mant_municipio  # Usar município da mantenedora
+    state = mant_estado  # Usar estado da mantenedora
     
     date_style = ParagraphStyle('DateStyle', fontSize=8, alignment=TA_LEFT)
     elements.append(Paragraph(f"{city} - {state}, {today}.", date_style))
