@@ -56,6 +56,7 @@ export default function Mantenedora() {
         cnpj: data.cnpj || '',
         codigo_inep: data.codigo_inep || '',
         natureza_juridica: data.natureza_juridica || 'Pública Municipal',
+        logotipo_url: data.logotipo_url || '',
         cep: data.cep || '',
         logradouro: data.logradouro || '',
         numero: data.numero || '',
@@ -82,6 +83,46 @@ export default function Mantenedora() {
   useEffect(() => {
     loadMantenedora();
   }, [loadMantenedora]);
+
+  // Upload do logotipo
+  const handleLogoUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validar tipo de arquivo
+    if (!file.type.startsWith('image/')) {
+      showAlert('error', 'Por favor, selecione uma imagem');
+      return;
+    }
+
+    // Validar tamanho (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showAlert('error', 'A imagem deve ter no máximo 5MB');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const result = await uploadAPI.upload(file, 'logotipo');
+      
+      if (result.url) {
+        setFormData(prev => ({ ...prev, logotipo_url: result.url }));
+        showAlert('success', 'Logotipo enviado com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro ao enviar logotipo:', error);
+      showAlert('error', 'Erro ao enviar logotipo');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setFormData(prev => ({ ...prev, logotipo_url: '' }));
+  };
 
   const handleInputChange = (field, value) => {
     // Aplicar formatação automática
