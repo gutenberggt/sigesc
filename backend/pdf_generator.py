@@ -487,12 +487,13 @@ def generate_declaracao_matricula_pdf(
         elements.append(logo_table)
         elements.append(Spacer(1, 10))
     
-    # Usar cidade/estado da mantenedora
+    # Usar dados da mantenedora
     mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
     mant_estado = mantenedora.get('estado', 'PA')
+    mant_nome = mantenedora.get('nome', f'Prefeitura Municipal de {mant_municipio}')
     
-    # Cabeçalho
-    elements.append(Paragraph(f"PREFEITURA MUNICIPAL DE {mant_municipio.upper()}", styles['CenterText']))
+    # Cabeçalho - usar nome da mantenedora
+    elements.append(Paragraph(mant_nome.upper(), styles['CenterText']))
     elements.append(Paragraph("SECRETARIA MUNICIPAL DE EDUCAÇÃO", styles['CenterText']))
     elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
     elements.append(Paragraph(f"Endereço: {school.get('address', 'N/A')}", styles['CenterText']))
