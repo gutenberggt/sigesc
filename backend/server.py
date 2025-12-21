@@ -3771,6 +3771,9 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
     if not courses:
         courses = await db.courses.find({}, {"_id": 0}).to_list(50)
     
+    # Buscar dados da mantenedora
+    mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+    
     # Gerar PDF
     try:
         pdf_buffer = generate_boletim_pdf(
@@ -3780,7 +3783,8 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
             class_info=class_info,
             grades=grades,
             courses=courses,
-            academic_year=academic_year
+            academic_year=academic_year,
+            mantenedora=mantenedora
         )
         
         filename = f"boletim_{student.get('full_name', 'aluno').replace(' ', '_')}_{academic_year}.pdf"
