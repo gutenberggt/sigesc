@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { FileText, Download, X, GraduationCap, ClipboardCheck, Calendar, User } from 'lucide-react';
+import { FileText, ExternalLink, X, GraduationCap, ClipboardCheck, Calendar, User } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
-import { documentsAPI } from '@/services/api';
+import { documentsAPI, getToken } from '@/services/api';
 
 /**
  * Modal para geração de documentos PDF do aluno
@@ -10,6 +10,9 @@ import { documentsAPI } from '@/services/api';
  * - Ficha Individual
  * - Declaração de Matrícula
  * - Declaração de Frequência
+ * 
+ * Os PDFs abrem em nova aba do navegador para visualização.
+ * O usuário pode salvar ou imprimir diretamente do visualizador.
  */
 export const DocumentGeneratorModal = ({ 
   isOpen, 
@@ -17,10 +20,10 @@ export const DocumentGeneratorModal = ({
   student,
   academicYear = '2025'
 }) => {
-  const [loading, setLoading] = useState(null); // 'boletim' | 'ficha' | 'matricula' | 'frequencia' | null
+  const [loading, setLoading] = useState(null);
   const [error, setError] = useState(null);
 
-  const handleDownload = async (type) => {
+  const handleOpenPdf = async (type) => {
     if (!student?.id) {
       setError('Aluno não selecionado');
       return;
@@ -31,45 +34,55 @@ export const DocumentGeneratorModal = ({
 
     try {
       let url;
-      let filename;
 
       switch (type) {
         case 'boletim':
           url = documentsAPI.getBoletimUrl(student.id, academicYear);
-          filename = `boletim_${student.full_name?.replace(/\s/g, '_')}_${academicYear}.pdf`;
           break;
         case 'ficha':
           url = documentsAPI.getFichaIndividualUrl(student.id, academicYear);
-          filename = `ficha_individual_${student.full_name?.replace(/\s/g, '_')}_${academicYear}.pdf`;
           break;
         case 'matricula':
           url = documentsAPI.getDeclaracaoMatriculaUrl(student.id, academicYear);
-          filename = `declaracao_matricula_${student.full_name?.replace(/\s/g, '_')}.pdf`;
           break;
         case 'frequencia':
           url = documentsAPI.getDeclaracaoFrequenciaUrl(student.id, academicYear);
-          filename = `declaracao_frequencia_${student.full_name?.replace(/\s/g, '_')}.pdf`;
           break;
         default:
           throw new Error('Tipo de documento inválido');
       }
 
-      // Baixar o PDF
-      const blob = await documentsAPI.downloadDocument(url);
+      // Obter o token de autenticação
+      const token = getToken();
       
-      // Criar link de download
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
+      // Buscar o PDF como blob para criar uma URL temporária
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erro ao gerar documento');
+      }
+      
+      const blob = await response.blob();
+      
+      // Criar URL temporária do blob e abrir em nova aba
+      const blobUrl = window.URL.createObjectURL(blob);
+      const newWindow = window.open(blobUrl, '_blank');
+      
+      // Limpar a URL do blob quando a janela for fechada
+      // O navegador libera o recurso automaticamente ao fechar a aba
+      if (newWindow) {
+        newWindow.onbeforeunload = () => {
+          window.URL.revokeObjectURL(blobUrl);
+        };
+      }
 
     } catch (err) {
       console.error('Erro ao gerar documento:', err);
-      setError(err.response?.data?.detail || 'Erro ao gerar documento. Verifique se o aluno possui matrícula ativa.');
+      setError(err.message || 'Erro ao gerar documento. Verifique se o aluno possui matrícula ativa.');
     } finally {
       setLoading(null);
     }
