@@ -33,18 +33,25 @@ except:
         pass
 
 
-def get_logo_image(width=2*cm, height=2*cm):
+def get_logo_image(width=2*cm, height=2*cm, logo_url=None):
     """
-    Baixa e retorna o logotipo da prefeitura como um objeto Image do reportlab.
+    Baixa e retorna o logotipo como um objeto Image do reportlab.
+    Se logo_url não for fornecido, usa a URL padrão.
     Retorna None se não conseguir baixar.
     """
+    url = logo_url if logo_url else LOGO_URL
+    
+    if not url:
+        return None
+    
     try:
         # Baixar a imagem
-        with urllib.request.urlopen(LOGO_URL, timeout=5) as response:
+        with urllib.request.urlopen(url, timeout=5) as response:
             image_data = response.read()
         
         # Salvar em arquivo temporário
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+        suffix = '.jpg' if '.jpg' in url.lower() or '.jpeg' in url.lower() else '.png'
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
         temp_file.write(image_data)
         temp_file.close()
         
@@ -53,7 +60,7 @@ def get_logo_image(width=2*cm, height=2*cm):
         
         return logo
     except Exception as e:
-        print(f"Erro ao carregar logotipo: {e}")
+        print(f"Erro ao carregar logotipo de {url}: {e}")
         return None
 
 
