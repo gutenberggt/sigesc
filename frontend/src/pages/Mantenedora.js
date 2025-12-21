@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { mantenedoraAPI, uploadAPI } from '@/services/api';
 import { formatCEP, formatPhone, formatCPF, formatCNPJ } from '@/utils/formatters';
+import { useMantenedora } from '@/contexts/MantenedoraContext';
 
 export default function Mantenedora() {
+  const { refreshMantenedora } = useMantenedora();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
