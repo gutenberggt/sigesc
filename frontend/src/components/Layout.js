@@ -43,6 +43,18 @@ export const Layout = ({ children }) => {
                 {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
               
+              {/* Logo SIGESC */}
+              <img
+                src="https://aprenderdigital.top/imagens/logotipo/logosigesc.png"
+                alt="SIGESC Logo"
+                className="h-10"
+                data-testid="sigesc-logo"
+              />
+              <div className="hidden sm:block border-r border-gray-200 pr-4">
+                <h1 className="text-xl font-bold text-blue-600 leading-tight">SIGESC</h1>
+                <p className="text-[10px] text-gray-500 leading-tight">SISTEMA INTEGRADO DE GESTÃO ESCOLAR</p>
+              </div>
+              
               {/* Brasão da Mantenedora */}
               {mantenedora?.logotipo_url && (
                 <img
@@ -54,22 +66,10 @@ export const Layout = ({ children }) => {
               )}
               
               {/* Nome da Mantenedora */}
-              <div className="hidden md:block border-r border-gray-200 pr-4">
+              <div className="hidden md:block">
                 <p className="text-xs font-medium text-gray-700 leading-tight">
                   {mantenedora?.nome || 'Prefeitura Municipal'}
                 </p>
-              </div>
-              
-              {/* Logo SIGESC */}
-              <img
-                src="https://aprenderdigital.top/imagens/logotipo/logosigesc.png"
-                alt="SIGESC Logo"
-                className="h-10"
-                data-testid="sigesc-logo"
-              />
-              <div className="hidden sm:block">
-                <h1 className="text-xl font-bold text-blue-600 leading-tight">SIGESC</h1>
-                <p className="text-[10px] text-gray-500 leading-tight">SISTEMA INTEGRADO DE GESTÃO ESCOLAR</p>
               </div>
             </div>
 
