@@ -343,6 +343,15 @@ export const Dashboard = () => {
               </button>
               
               <button
+                onClick={() => navigate('/admin/mantenedora')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
+                data-testid="nav-mantenedora-button"
+              >
+                <School className="text-indigo-600" size={24} />
+                <span className="font-medium text-gray-900">Mantenedora</span>
+              </button>
+              
+              <button
                 onClick={() => navigate('/avisos')}
                 className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all"
                 data-testid="nav-avisos-button"
