@@ -4,7 +4,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 // Configura interceptor para incluir token
-const getToken = () => localStorage.getItem('accessToken');
+export const getToken = () => localStorage.getItem('accessToken');
 
 axios.interceptors.request.use(
   (config) => {
