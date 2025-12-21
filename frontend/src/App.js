@@ -18,6 +18,7 @@ import { UserProfile } from '@/pages/UserProfile';
 import ProfessorDashboard from '@/pages/ProfessorDashboard';
 import MessageLogs from '@/pages/MessageLogs';
 import Announcements from '@/pages/Announcements';
+import Mantenedora from '@/pages/Mantenedora';
 import '@/App.css';
 
 function App() {
