@@ -3978,6 +3978,9 @@ async def generate_declaracao_frequencia(
         "frequency_percentage": frequency_percentage
     }
     
+    # Buscar dados da mantenedora
+    mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+    
     # Gerar PDF
     try:
         pdf_buffer = generate_declaracao_frequencia_pdf(
@@ -3987,7 +3990,8 @@ async def generate_declaracao_frequencia(
             class_info=class_info,
             attendance_data=attendance_data,
             academic_year=academic_year,
-            period=f"ano letivo de {academic_year}"
+            period=f"ano letivo de {academic_year}",
+            mantenedora=mantenedora
         )
         
         filename = f"declaracao_frequencia_{student.get('full_name', 'aluno').replace(' ', '_')}.pdf"
