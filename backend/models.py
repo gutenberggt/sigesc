@@ -1570,6 +1570,7 @@ class MantenedoraBase(BaseModel):
     cnpj: Optional[str] = None
     codigo_inep: Optional[str] = None
     natureza_juridica: Optional[str] = None  # Pública Municipal, Pública Estadual, Privada, etc.
+    logotipo_url: Optional[str] = None  # URL do logotipo
     
     # Endereço
     cep: Optional[str] = None
@@ -1597,6 +1598,7 @@ class MantenedoraUpdate(BaseModel):
     cnpj: Optional[str] = None
     codigo_inep: Optional[str] = None
     natureza_juridica: Optional[str] = None
+    logotipo_url: Optional[str] = None
     
     cep: Optional[str] = None
     logradouro: Optional[str] = None
