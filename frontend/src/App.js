@@ -140,6 +140,15 @@ function App() {
           />
           
           <Route
+            path="/admin/mantenedora"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'semed']}>
+                <Mantenedora />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
             path="/admin/logs"
             element={
               <ProtectedRoute allowedRoles={['admin']}>
