@@ -1,99 +1,88 @@
 <analysis>**original_problem_statement:**
-O usuário solicitou uma série de funcionalidades e melhorias para o sistema SIGESC (Sistema Integrado de Gestão Escolar), incluindo:
-1.  **[CONCLUÍDO]** Testar e finalizar a Fase 8: Geração de Documentos em PDF (Boletim, Declaração de Matrícula, etc.).
-2.  **[CONCLUÍDO]** Cadastrar 16 novas escolas a partir de uma imagem fornecida.
-3.  **[CONCLUÍDO]** Adicionar uma aba Quadro de Servidores na visualização de escolas, listando os funcionários lotados nela.
-4.  **[CONCLUÍDO]** Fazer várias melhorias na UI de Componentes Curriculares, como tornar a escola opcional, adicionar novas opções, e ajustar as colunas da tabela.
-5.  **[CONCLUÍDO]** Atualizar as credenciais do administrador principal e remover a seção Acesso de teste da página de login.
-6.  **[CONCLUÍDO]** Resolver um problema crítico de imagens de perfil e capa que desapareciam, implementando uma solução de armazenamento persistente via FTP.
-7.  **[CONCLUÍDO]** Realizar diversos ajustes de layout na página de perfil do usuário e nas páginas de cadastro (escola, alunos, responsáveis), incluindo a formatação automática de campos como CEP e telefone.
-8.  **[CONCLUÍDO]** Adicionar filtros por escola e turma na listagem de alunos e um botão de impressão em lote.
-9.  **[CONCLUÍDO]** Corrigir um bug onde o status Inativa de uma escola não era refletido corretamente na listagem.
-10. **[CONCLUÍDO]** Redesenhar o layout do boletim em PDF com base em um modelo fornecido pelo usuário.
-11. **[EM ANDAMENTO]** Criar a funcionalidade de geração da Ficha Individual do Aluno em PDF, com base em um modelo e adicioná-la às opções de impressão.
+O usuário iniciou a tarefa com o objetivo de criar a funcionalidade de geração da Ficha Individual do Aluno em PDF. Durante o desenvolvimento, o usuário expandiu o escopo com uma série de solicitações de melhoria e novas funcionalidades:
+1.  **[CONCLUÍDO]** Implementar a geração da Ficha Individual do Aluno em PDF, com base em um modelo fornecido, e integrá-la aos modais de impressão individual e em lote.
+2.  **[CONCLUÍDO]** Realizar múltiplos ajustes de layout em todos os documentos PDF (Boletim, Ficha Individual, Declarações), incluindo a adição de um logotipo, alteração de frases, ajuste de largura de colunas, correção de dimensões de imagem e ajuste de espaçamento para evitar sobreposição de texto.
+3.  **[CONCLUÍDO]** Corrigir um bug crítico no formulário de escolas, onde os campos Tipo de Unidade (Sede/Anexa) e Anexa a: não estavam sendo salvos no banco de dados.
+4.  **[CONCLUÍDO]** Criar uma nova página de gerenciamento para a Unidade Mantenedora, uma entidade única que mantém as escolas. A página permite editar dados de identificação, endereço, contato e responsável legal.
+5.  **[CONCLUÍDO]** Adicionar a funcionalidade de upload de logotipo para a Unidade Mantenedora, utilizando o sistema de armazenamento FTP existente.
+6.  **[CONCLUÍDO]** Adicionar campos para Nome do Contato e Cargo na página da Unidade Mantenedora.
+7.  **[EM ANDAMENTO]** Centralizar o uso dos dados da Unidade Mantenedora em todo o sistema. Isso inclui usar o logotipo e nome da mantenedora no cabeçalho principal da aplicação e em todos os documentos PDF, e usar a cidade e o estado da mantenedora como valores padrão (editáveis) nos formulários de cadastro.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-Um sistema de gestão escolar (SIGESC) full-stack (React/FastAPI/MongoDB) com funcionalidades de perfis, chat, avisos, e gerenciamento de escolas, alunos, servidores e componentes curriculares. O sistema agora utiliza um servidor FTP externo para armazenamento persistente de todas as imagens e documentos, resolvendo um problema de perda de dados. A geração de documentos PDF (boletim, declarações) está funcional, e o layout do boletim foi redesenhado conforme a especificação do usuário. Foram implementadas diversas melhorias de usabilidade e novos recursos nos formulários e listagens da aplicação.
+Um sistema de gestão escolar (SIGESC) full-stack (React/FastAPI/MongoDB) que agora centraliza informações importantes na nova entidade Unidade Mantenedora. Os dados desta entidade (logotipo, nome, cidade, estado) são gerenciados em uma nova página de administração () e são usados dinamicamente em todo o sistema, incluindo o cabeçalho principal da aplicação e todos os documentos PDF gerados. A funcionalidade de Ficha Individual do Aluno foi implementada e está funcional. Um bug crítico no formulário de cadastro de escolas foi corrigido.
 
 **Last working item**:
-- **Last item agent was working:** O agente estava no início da implementação da Ficha Individual do Aluno. Ele analisou o PDF de inspiração fornecido pelo usuário para extrair a estrutura e os campos necessários. O próximo passo é criar a função de geração de PDF no backend e integrá-la ao frontend.
-- **Status:** NOT STARTED
-- **Agent Testing Done:** N
-- **Which testing method agent to use?** both
+- **Last item agent was working:** O agente estava finalizando a tarefa de centralização dos dados da Unidade Mantenedora. Especificamente, estava atualizando todas as funções de geração de PDF () para que o nome e o município da mantenedora fossem inseridos dinamicamente nos cabeçalhos e rodapés dos documentos, substituindo textos estáticos.
+- **Status:** IN PROGRESS
+- **Agent Testing Done:** N (As modificações nos arquivos Python foram concluídas, mas o teste para verificar o resultado nos PDFs gerados ainda não foi executado.)
+- **Which testing method agent to use?** backend testing agent (Para invocar os endpoints de geração de cada um dos 4 tipos de documento e validar que os dados da mantenedora aparecem corretamente).
 - **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
 - **Issue 1: As lotações de servidores parecem estar associadas a IDs de escolas que não existem mais (P2)**
-    - **Description:** Durante o teste da aba Quadro de Servidores, o agente notou que as lotações existentes no banco de dados referiam-se a escolas antigas, forçando a criação de uma nova lotação para o teste. Isso sugere que pode haver dados órfãos no banco que precisam de limpeza.
+    - **Description:** Durante o teste da aba Quadro de Servidores em um job anterior, foi notado que as lotações existentes no banco de dados referiam-se a escolas antigas. Isso sugere que pode haver dados órfãos no banco que precisam de limpeza.
     - **Status:** NOT STARTED
     - **Should Test frontend/backend/both after fix?** backend
 
 **In progress Task List**:
-- **Task 1: Implementar a geração da Ficha Individual do Aluno (P0)**
-    - **Where to resume:** O agente já analisou o modelo do PDF. O próximo passo é editar o arquivo  e implementar a lógica dentro da função , que atualmente é um placeholder. Depois, é preciso garantir que o frontend possa chamar o novo endpoint.
-    - **What will be achieved with this?** Os usuários poderão gerar e imprimir a Ficha Individual completa para cada aluno, conforme solicitado.
+- **Task 1: Validar a centralização de dados da Mantenedora nos PDFs (P0)**
+    - **Where to resume:** O agente acabou de modificar o arquivo  para buscar os dados da mantenedora e passá-los para as funções de geração de PDF em . O próximo passo é executar testes (usando  ou o agente de testes) nos endpoints de documentos (, , etc.) para confirmar que o nome e a cidade da mantenedora estão sendo corretamente impressos nos PDFs.
+    - **What will be achieved with this?** Garantir que todos os documentos gerados pelo sistema sejam padronizados e utilizem as informações oficiais da Unidade Mantenedora, eliminando dados estáticos e inconsistências.
     - **Status:** IN PROGRESS
-    - **Should Test frontend/backend/both after fix?** both
+    - **Should Test frontend/backend/both after fix?** backend
     - **Blocked on something:** N/A
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-    - **P1: Implementar a geração do Certificado do aluno:** Assim como a Ficha Individual, foi criado um endpoint e uma função placeholder () para a geração de certificados, que precisa ser implementada.
+    - **P1: Implementar a lógica do Certificado do aluno:** A função  em  e seu endpoint existem, mas a lógica para gerar o conteúdo do certificado ainda é um placeholder.
 - **Future Tasks:**
-    - **P2: Refatorar **: O arquivo está muito grande e complexo, devendo ser dividido em componentes menores.
+    - **P2: Refatorar **: O arquivo é grande e complexo, devendo ser dividido em componentes menores.
     - **P3: Refatorar **: Precisa ser dividido para melhor manutenibilidade.
     - **P4: Refatorar **: Também está crescendo em complexidade e seria um bom candidato para refatoração.
 
 **Completed work in this session**
-- **Integração de Armazenamento FTP**: Implementada uma solução robusta para uploads de arquivos, que agora são enviados para um servidor FTP externo, garantindo persistência. As pastas são organizadas por tipo de arquivo (, , ).
-- **Finalização da Fase 8 (Geração de Documentos)**: Testado e validado o fluxo de geração de PDF, e o layout do boletim foi completamente redesenhado com base em um modelo do usuário.
-- **Aba Quadro de Servidores**: Adicionada uma nova aba ao modal de escolas para listar os funcionários lotados, com suas informações e carga horária.
-- **Melhorias nos Formulários**:
-    - **Escolas**: Adicionadas opções Sede/Anexa, situação Ativa/Inativa, e o campo condicional Anexa a:.
-    - **Componentes Curriculares**: O campo de escola tornou-se opcional para criar componentes globais, e a UI foi melhorada.
-- **Formatação de Campos**: Criado um utilitário  e aplicado máscaras de formatação para campos de Telefone e CEP em toda a aplicação.
-- **Melhorias na Listagem de Alunos**: A coluna Matrícula foi removida, e foram adicionados filtros funcionais por Escola e Turma.
-- **Credenciais de Admin**: O nome e a senha do usuário administrador foram atualizados, e a seção de Acesso de teste foi removida da tela de login.
-- **Correção de Bugs**: Corrigido um bug visual que fazia o status Inativa de uma escola não ser exibido corretamente na listagem.
+- **Implementação da Ficha Individual do Aluno**: Criada a lógica de backend em  e a integração no frontend para gerar o documento completo, incluindo a tabela de notas.
+- **Criação da página Unidade Mantenedora**: Implementado um CRUD completo (modelo, API e página React) para gerenciar os dados da instituição mantenedora, incluindo upload de logotipo.
+- **Correção do Bug de Cadastro de Escolas**: Resolvido o problema que impedia o salvamento dos campos  e . A causa era uma inconsistência de nomenclatura entre o frontend () e o backend ().
+- **Centralização de Dados da Mantenedora**:
+    - O cabeçalho principal da aplicação () agora exibe dinamicamente o logotipo e o nome da mantenedora.
+    - O formulário de novas escolas () pré-preenche os campos de município e estado com base nos dados da mantenedora.
+    - Criado um  para disponibilizar os dados globalmente no frontend.
+- **Ajustes de Layout nos PDFs**: Realizadas diversas iterações de ajustes visuais nos documentos PDF (logo, slogan, espaçamento, largura de colunas) conforme solicitações do usuário.
+- **Melhorias na UI**: Adicionado um atalho Início na página da Mantenedora e reorganizado o cabeçalho principal para incluir informações da mantenedora.
 
 **Earlier issues found/mentioned but not fixed**
-- **Issue 1: Refatoração do **: Precisa ser dividido em componentes menores. Status: NOT STARTED.
-- **Issue 2: Refatoração do **: Precisa ser dividido para melhor manutenibilidade. Status: NOT STARTED.
+- **Issue 1: Dados órfãos de lotação de servidores:** Lotações de servidores podem estar vinculadas a IDs de escolas que não existem mais. Status: NOT STARTED.
+- **Issue 2: Refatoração de componentes grandes:**  e  foram mencionados na handover inicial como necessitando de refatoração. Status: NOT STARTED.
 
 **Known issue recurrence from previous fork**
 - None.
 
 **Code Architecture**
-file_type
+
 
 **Key Technical Concepts**
-- **Armazenamento Externo (FTP)**: A aplicação foi migrada de um armazenamento local volátil para um servidor FTP persistente para todos os uploads de imagens e documentos.
-- **Geração Dinâmica de PDF**: Uso avançado da biblioteca  no backend para criar layouts complexos de PDF (como o novo boletim), com tabelas, cabeçalhos, rodapés e imagens.
-- **Reutilização de Código no Frontend**: Criação de um módulo de utilidades () para centralizar a lógica de formatação de campos, seguindo o princípio DRY.
-- **Manipulação de Estado Condicional**: Implementação de lógica complexa no React para exibir/ocultar campos de formulário com base nas seleções do usuário (ex: campo Anexa a: no cadastro de escolas).
+- **Global State Management (React Context):** Foi introduzido um  para fornecer os dados da instituição mantenedora a múltiplos componentes (Layout, SchoolsComplete) de forma eficiente, sem .
+- **Single Source of Truth:** A aplicação foi refatorada para usar a entidade Unidade Mantenedora como a fonte única de verdade para informações como logotipo, nome oficial, cidade e estado, garantindo consistência em toda a UI e nos documentos gerados.
+- **Dynamic PDF Generation:** A geração de PDFs com  foi aprimorada para buscar e incorporar dinamicamente dados de uma nova coleção do banco de dados (a ) em tempo de execução.
 
 **key DB schema**
-- **schools:** Adicionados campos  ('sede'/'anexa'),  (ID da escola sede), e  ('Ativa'/'Inativa').
-- **users:** Nenhuma mudança de schema.
-- **profiles:** Nenhuma mudança de schema.
-- **announcements:** Nenhuma mudança de schema.
+- **schools:** Os campos  (string: 'sede' ou 'anexa') e  (string, ID da escola sede) foram adicionados aos modelos Pydantic e estão sendo salvos corretamente.
+- **mantenedora:** (NOVA COLEÇÃO) Uma coleção que armazena um único documento com os dados da instituição mantenedora. Campos incluem , , , , , , , etc.
 
 **changes in tech stack**
-- Nenhuma nova dependência foi adicionada. A principal mudança foi a integração com um serviço externo (servidor FTP).
+- Nenhuma.
 
 **All files of reference**
-- **Criados:**
-  - : Contém a lógica para conectar e fazer upload de arquivos para o servidor FTP externo.
-  - : Centraliza as funções de formatação de strings (CEP, telefone, CNPJ).
-- **Modificados (significativamente):**
-  - : Os endpoints de upload (, ) foram reescritos para usar o módulo . Novos endpoints de documentos (, ) foram adicionados.
-  - : A função  foi completamente redesenhada. Funções placeholder para  e  foram criadas.
-  - : Reformulado para incluir as novas opções (Sede/Anexa), situação, campo condicional e formatação de campos.
-  - : A tabela de alunos foi alterada, e filtros por escola/turma foram adicionados, juntamente com a lógica para um modal de impressão em lote.
-  - : Implementado fallback para imagens quebradas e lógica para posicionamento de botões na capa.
-  - : A função  foi atualizada para aceitar um parâmetro .
+- **/app/frontend/src/pages/Mantenedora.js**: (NOVO) Página React para gerenciar os dados da Unidade Mantenedora.
+- **/app/frontend/src/contexts/MantenedoraContext.js**: (NOVO) Contexto React para compartilhar os dados da mantenedora globalmente.
+- **/app/backend/models.py**: (MODIFICADO) Adicionado o modelo  e corrigido os modelos  e .
+- **/app/backend/server.py**: (MODIFICADO) Adicionados os endpoints  e . Os endpoints de documentos foram atualizados para passar os dados da mantenedora.
+- **/app/backend/pdf_generator.py**: (MODIFICADO) Implementada a  e atualizados todos os documentos para usar dados dinâmicos da mantenedora.
+- **/app/frontend/src/components/Layout.js**: (MODIFICADO) O cabeçalho superior foi atualizado para exibir o logotipo e o nome da mantenedora.
+- **/app/frontend/src/pages/SchoolsComplete.js**: (MODIFICADO) Corrigido o bug de salvamento e implementado o preenchimento automático de cidade/estado.
 
 **Areas that need refactoring**:
 - 
@@ -101,30 +90,32 @@ file_type
 - 
 
 **key api endpoints**
-- **POST /api/upload**: Faz upload de um arquivo. Agora recebe um  (profile, cover, document, etc.) e salva o arquivo no servidor FTP.
-- **GET /api/documents/individual-record/{student_id}**: (NOVO) Endpoint para gerar a Ficha Individual do Aluno.
-- **GET /api/documents/certificate/{student_id}**: (NOVO) Endpoint para gerar o Certificado do Aluno.
-- **GET /api/documents/report-card/{student_id}**: Endpoint existente, agora gera um novo layout de boletim.
+- **GET **: (NOVO) Retorna o documento único da Unidade Mantenedora.
+- **PUT **: (NOVO) Atualiza o documento da Unidade Mantenedora.
+- **GET **: (MODIFICADO) Agora usa dados da mantenedora.
+- **GET **: (MODIFICADO) Agora usa dados da mantenedora.
+- **GET **: (MODIFICADO) Agora usa dados da mantenedora.
+- **GET **: (MODIFICADO) Agora usa dados da mantenedora.
 
 **Critical Info for New Agent**
-- **O armazenamento de arquivos agora é via FTP.** Todos os uploads são gerenciados pelo . As credenciais de FTP estão hardcoded neste arquivo. As URLs das imagens/documentos salvas no banco de dados são agora URLs externas completas (ex: ).
-- **Problema de banco de dados resolvido.** O agente anterior encontrou e resolveu uma discrepância entre o nome do banco de dados no  () e o usado pela aplicação (), o que causava falhas de login. O agente atualizou os dados no banco correto () para resolver o problema. Esteja ciente dessa configuração.
-- **Placeholder de documentos.** As funções para gerar a Ficha Individual e o Certificado em  já existem, mas estão vazias. A tarefa é preencher a lógica delas.
+- **Unidade Mantenedora é a Fonte da Verdade:** A lógica do sistema agora depende da entidade Unidade Mantenedora. Seus dados (logo, nome, cidade, estado) são usados no cabeçalho global, nos padrões de formulários e em todos os PDFs. A página de gerenciamento é .
+- **Contexto Global no Frontend:** Os dados da mantenedora são carregados no  em . Componentes que precisam desses dados devem usar o hook .
+- **Bug da Escola Corrigido:** O problema onde  e  não salvavam foi resolvido. A correção envolveu alinhar o nome do campo no estado do formulário do frontend ( -> ) para corresponder ao modelo do backend.
 
-**documents created in this job**
+**documents and test_reports created in this job**
 - None.
 
-**Last 10 User Messages and any pending user messages**
-1.  **user:** Pede para ajustar a posição do botão Mensagem no perfil. (COMPLETED)
-2.  **user:** Pede para remover a coluna Matrícula e adicionar filtros de escola/turma na lista de alunos, com um botão de impressão em lote. (COMPLETED)
-3.  **user:** Pede várias alterações no formulário de escolas (Sede/Anexa, Situação, formatação de CEP/telefone). (COMPLETED)
-4.  **user:** Reporta que a escola MONTEIRO LOBATO continua Ativa após ser editada para Inativa. (COMPLETED)
-5.  **user:** Pede para verificar se os anexos dos alunos estão sendo salvos nas pastas FTP corretas. (COMPLETED)
-6.  **user:** Pede para redesenhar o boletim PDF com base em um modelo anexado. (COMPLETED)
-7.  **user:** Fornece um modelo para a Ficha Individual do Aluno e pede para criá-la e adicioná-la às opções de impressão. (IN PROGRESS)
-8.  **user:** Fornece credenciais FTP. (COMPLETED)
-9.  **user:** Fornece mais detalhes sobre as credenciais FTP. (COMPLETED)
-10. **user:** Esclarece que salvar em servidor FTP é a opção preferida. (COMPLETED)
+**Last 10 User Messages and any pending HUMAN messages**
+1.  **user:** Pede para substituir Município pelo município da mantenedora e usar o nome da mantenedora em vez de textos estáticos nos PDFs.
+2.  **user:** Pede para inverter a ordem do logo SIGESC e da mantenedora no cabeçalho principal.
+3.  **user:** Pede para adicionar o brasão e o nome da mantenedora no cabeçalho principal, ao lado do logo SIGESC.
+4.  **user:** Pede para adicionar um atalho Início na página da Mantenedora.
+5.  **user:** Solicita que o logotipo, cidade e estado da mantenedora sejam usados como padrão em todo o projeto (PDFs, formulários).
+6.  **user:** Pede para dividir a linha do formulário para ter Nome do Contato e Cargo lado a lado.
+7.  **user:** Pede para adicionar o nome da pessoa de contato no card de contato da Mantenedora.
+8.  **user:** Pede para confirmar e/ou alterar o caminho de salvamento do logotipo da mantenedora para .
+9.  **user:** Pede para adicionar o campo de Logotipo na página da Mantenedora.
+10. **user:** Solicita a criação da página da Unidade Mantenedora, informando que haverá apenas uma.
 
 **Project Health Check:**
 - **Broken:** None
@@ -132,10 +123,10 @@ file_type
 
 **3rd Party Integrations**
 - **reportlab**: Usado no backend para geração de PDFs.
-- **Servidor FTP Externo ()**: Usado para armazenamento persistente de todos os arquivos enviados pelos usuários.
+- **Servidor FTP Externo ()**: Usado para armazenamento persistente de todos os arquivos enviados pelos usuários (fotos de perfil, capas, documentos, logotipos).
 
 **Testing status**
-- **Testing agent used after significant changes:** YES (para a validação inicial da Fase 8).
+- **Testing agent used after significant changes:** YES (para a validação da Ficha Individual).
 - **Troubleshoot agent used after agent stuck in loop:** NO
 - **Test files created:** None.
 - **Known regressions:** None.
@@ -145,4 +136,4 @@ file_type
 - **Professor:**  / 
 
 **What agent forgot to execute**
-O agente seguiu todas as solicitações do usuário. Não há tarefas esquecidas. A implementação da Ficha Individual e Certificado foi deixada como placeholders, que é o ponto de partida para a próxima tarefa.</analysis>
+O agente seguiu todas as solicitações do usuário na sessão atual. As tarefas pendentes (refatoração, limpeza de dados de lotação) foram herdadas do job anterior e ainda não foram priorizadas.</analysis>
