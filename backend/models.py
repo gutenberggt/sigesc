@@ -1614,6 +1614,8 @@ class MantenedoraUpdate(BaseModel):
     email: Optional[str] = None
     site: Optional[str] = None
     contato_nome: Optional[str] = None
+    
+    responsavel_nome: Optional[str] = None
     responsavel_cargo: Optional[str] = None
     responsavel_cpf: Optional[str] = None
 
