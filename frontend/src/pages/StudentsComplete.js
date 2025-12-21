@@ -7,6 +7,7 @@ import { Tabs } from '@/components/Tabs';
 import { studentsAPI, schoolsAPI, classesAPI, uploadAPI, documentsAPI } from '@/services/api';
 import { formatPhone, formatCEP } from '@/utils/formatters';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, Download } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
 
