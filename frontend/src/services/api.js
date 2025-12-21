@@ -861,6 +861,19 @@ export const documentsAPI = {
   }
 };
 
+// ============= MANTENEDORA =============
+export const mantenedoraAPI = {
+  get: async () => {
+    const response = await axios.get(`${API}/mantenedora`);
+    return response.data;
+  },
+  
+  update: async (data) => {
+    const response = await axios.put(`${API}/mantenedora`, data);
+    return response.data;
+  }
+};
+
 // WebSocket URL
 export const getWebSocketUrl = () => {
   const token = getToken();
