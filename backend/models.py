@@ -1558,3 +1558,66 @@ class TeacherAssignment(TeacherAssignmentBase):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
 
+
+
+# ============= UNIDADE MANTENEDORA MODELS =============
+
+class MantenedoraBase(BaseModel):
+    """Unidade Mantenedora - Instituição que mantém as escolas"""
+    
+    # Identificação
+    nome: str
+    cnpj: Optional[str] = None
+    codigo_inep: Optional[str] = None
+    natureza_juridica: Optional[str] = None  # Pública Municipal, Pública Estadual, Privada, etc.
+    
+    # Endereço
+    cep: Optional[str] = None
+    logradouro: Optional[str] = None
+    numero: Optional[str] = None
+    complemento: Optional[str] = None
+    bairro: Optional[str] = None
+    municipio: Optional[str] = None
+    estado: Optional[str] = None
+    
+    # Contato
+    telefone: Optional[str] = None
+    celular: Optional[str] = None
+    email: Optional[str] = None
+    site: Optional[str] = None
+    
+    # Responsável Legal
+    responsavel_nome: Optional[str] = None
+    responsavel_cargo: Optional[str] = None
+    responsavel_cpf: Optional[str] = None
+
+class MantenedoraUpdate(BaseModel):
+    """Modelo para atualização da Mantenedora"""
+    nome: Optional[str] = None
+    cnpj: Optional[str] = None
+    codigo_inep: Optional[str] = None
+    natureza_juridica: Optional[str] = None
+    
+    cep: Optional[str] = None
+    logradouro: Optional[str] = None
+    numero: Optional[str] = None
+    complemento: Optional[str] = None
+    bairro: Optional[str] = None
+    municipio: Optional[str] = None
+    estado: Optional[str] = None
+    
+    telefone: Optional[str] = None
+    celular: Optional[str] = None
+    email: Optional[str] = None
+    site: Optional[str] = None
+    
+    responsavel_nome: Optional[str] = None
+    responsavel_cargo: Optional[str] = None
+    responsavel_cpf: Optional[str] = None
+
+class Mantenedora(MantenedoraBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
