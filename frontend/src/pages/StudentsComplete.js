@@ -136,7 +136,7 @@ const calculateAge = (birthDate) => {
 
 // Função para calcular a série ideal baseada na idade
 // Data de corte: 31 de março do ano letivo (conforme MEC)
-// A criança deve completar a idade mínima até 31/03 do ano da matrícula
+// A criança deve completar a idade mínima ATÉ 31/03 do ano da matrícula
 const calculateIdealGrade = (birthDate) => {
   if (!birthDate) return null;
   
@@ -146,68 +146,64 @@ const calculateIdealGrade = (birthDate) => {
   // Data de corte: 31 de março do ano letivo atual
   const cutoffDate = new Date(currentYear, 2, 31); // Março = 2 (0-indexed)
   
-  // Calcular idade em anos e meses na data de corte
-  let ageYears = currentYear - birth.getFullYear();
-  let ageMonths = 2 - birth.getMonth(); // Março = 2
+  // Calcular a idade que a criança terá/teve em 31 de março do ano atual
+  let ageAtCutoff = currentYear - birth.getFullYear();
   
-  // Ajustar se o dia de nascimento é depois do dia 31
-  if (birth.getDate() > 31) {
-    ageMonths--;
+  // Se o aniversário é DEPOIS de 31 de março, a criança ainda não completou anos
+  // Então reduzimos 1 ano da idade na data de corte
+  if (birth.getMonth() > 2 || (birth.getMonth() === 2 && birth.getDate() > 31)) {
+    ageAtCutoff--;
   }
   
-  // Ajustar anos e meses
-  if (ageMonths < 0) {
-    ageYears--;
-    ageMonths += 12;
+  // Calcular idade em meses na data de corte (para berçário)
+  let ageInMonths = ageAtCutoff * 12;
+  if (ageAtCutoff === 0) {
+    // Para bebês, calcular meses mais precisamente
+    ageInMonths = (2 - birth.getMonth()) + 12; // Meses desde nascimento até março
+    if (birth.getFullYear() === currentYear) {
+      ageInMonths = 2 - birth.getMonth(); // Nasceu este ano
+    } else {
+      ageInMonths = (12 - birth.getMonth()) + 3; // Meses até março do próximo ano
+    }
   }
   
-  // Se a data de nascimento é depois de 31/03, reduzir um ano
-  const birthThisYear = new Date(currentYear, birth.getMonth(), birth.getDate());
-  if (birthThisYear > cutoffDate) {
-    ageYears--;
-  }
+  // Educação Infantil - Creche (faixas específicas conforme MEC)
+  // Berçário: 4 meses até 1 ano e 11 meses
+  if (ageAtCutoff < 0) return 'Idade insuficiente';
+  if (ageAtCutoff === 0) return 'Berçário';
+  if (ageAtCutoff === 1) return 'Berçário';
   
-  // Calcular idade total em meses para a faixa de creche
-  const totalMonths = (ageYears * 12) + (cutoffDate.getMonth() - birth.getMonth());
-  const adjustedMonths = birthThisYear > cutoffDate ? totalMonths : (ageYears * 12) + ageMonths;
+  // Maternal I: a partir de 2 anos (completos até 31/03)
+  if (ageAtCutoff === 2) return 'Maternal I';
   
-  // Educação Infantil - Creche (faixas específicas)
-  // Berçário: 4 meses até 1 ano e 11 meses (4 a 23 meses)
-  if (ageYears < 0 || (ageYears === 0 && adjustedMonths < 4)) return 'Idade insuficiente';
-  if (ageYears === 0 || (ageYears === 1 && birthThisYear > cutoffDate)) return 'Berçário';
-  if (ageYears === 1) return 'Berçário';
+  // Maternal II: a partir de 3 anos (completos até 31/03)
+  if (ageAtCutoff === 3) return 'Maternal II';
   
-  // Maternal I: a partir de 2 anos
-  if (ageYears === 2) return 'Maternal I';
+  // Pré I: a partir de 4 anos (completos até 31/03)
+  if (ageAtCutoff === 4) return 'Pré I';
   
-  // Maternal II: a partir de 3 anos
-  if (ageYears === 3) return 'Maternal II';
-  
-  // Pré I: a partir de 4 anos
-  if (ageYears === 4) return 'Pré I';
-  
-  // Pré II: a partir de 5 anos
-  if (ageYears === 5) return 'Pré II';
+  // Pré II: a partir de 5 anos (completos até 31/03)
+  if (ageAtCutoff === 5) return 'Pré II';
   
   // Ensino Fundamental - Anos Iniciais
-  if (ageYears === 6) return '1º Ano';
-  if (ageYears === 7) return '2º Ano';
-  if (ageYears === 8) return '3º Ano';
-  if (ageYears === 9) return '4º Ano';
-  if (ageYears === 10) return '5º Ano';
+  if (ageAtCutoff === 6) return '1º Ano';
+  if (ageAtCutoff === 7) return '2º Ano';
+  if (ageAtCutoff === 8) return '3º Ano';
+  if (ageAtCutoff === 9) return '4º Ano';
+  if (ageAtCutoff === 10) return '5º Ano';
   
   // Ensino Fundamental - Anos Finais
-  if (ageYears === 11) return '6º Ano';
-  if (ageYears === 12) return '7º Ano';
-  if (ageYears === 13) return '8º Ano';
-  if (ageYears === 14) return '9º Ano';
+  if (ageAtCutoff === 11) return '6º Ano';
+  if (ageAtCutoff === 12) return '7º Ano';
+  if (ageAtCutoff === 13) return '8º Ano';
+  if (ageAtCutoff === 14) return '9º Ano';
   
   // Ensino Médio
-  if (ageYears === 15) return '1ª Série EM';
-  if (ageYears === 16) return '2ª Série EM';
-  if (ageYears === 17) return '3ª Série EM';
+  if (ageAtCutoff === 15) return '1ª Série EM';
+  if (ageAtCutoff === 16) return '2ª Série EM';
+  if (ageAtCutoff === 17) return '3ª Série EM';
   
-  if (ageYears >= 18) return 'Ensino Superior/EJA';
+  if (ageAtCutoff >= 18) return 'Ensino Superior/EJA';
   
   return null;
 };
