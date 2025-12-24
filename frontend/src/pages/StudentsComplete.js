@@ -121,6 +121,66 @@ const initialFormData = {
   status: 'active'
 };
 
+// Função para calcular a idade a partir da data de nascimento
+const calculateAge = (birthDate) => {
+  if (!birthDate) return null;
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+// Função para calcular a série ideal baseada na idade
+// Considerando que a criança deve ter a idade completa até 31 de março do ano letivo
+const calculateIdealGrade = (birthDate) => {
+  if (!birthDate) return null;
+  
+  const birth = new Date(birthDate);
+  const currentYear = new Date().getFullYear();
+  
+  // Data de corte: 31 de março do ano letivo atual
+  const cutoffDate = new Date(currentYear, 2, 31); // Março = 2 (0-indexed)
+  
+  // Calcular idade que a criança terá/teve em 31 de março
+  let ageAtCutoff = currentYear - birth.getFullYear();
+  const birthMonthDay = new Date(currentYear, birth.getMonth(), birth.getDate());
+  if (birthMonthDay > cutoffDate) {
+    ageAtCutoff--;
+  }
+  
+  // Mapear idade para série ideal
+  // Educação Infantil
+  if (ageAtCutoff < 4) return 'Creche';
+  if (ageAtCutoff === 4) return 'Pré I';
+  if (ageAtCutoff === 5) return 'Pré II';
+  
+  // Ensino Fundamental - Anos Iniciais
+  if (ageAtCutoff === 6) return '1º Ano';
+  if (ageAtCutoff === 7) return '2º Ano';
+  if (ageAtCutoff === 8) return '3º Ano';
+  if (ageAtCutoff === 9) return '4º Ano';
+  if (ageAtCutoff === 10) return '5º Ano';
+  
+  // Ensino Fundamental - Anos Finais
+  if (ageAtCutoff === 11) return '6º Ano';
+  if (ageAtCutoff === 12) return '7º Ano';
+  if (ageAtCutoff === 13) return '8º Ano';
+  if (ageAtCutoff === 14) return '9º Ano';
+  
+  // Ensino Médio
+  if (ageAtCutoff === 15) return '1ª Série EM';
+  if (ageAtCutoff === 16) return '2ª Série EM';
+  if (ageAtCutoff === 17) return '3ª Série EM';
+  
+  if (ageAtCutoff >= 18) return 'Ensino Superior/EJA';
+  
+  return null;
+};
+
 export function StudentsComplete() {
   const navigate = useNavigate();
   const { user } = useAuth();
