@@ -629,15 +629,37 @@ export function StudentsComplete() {
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
-          <input
-            type="date"
-            value={formData.birth_date}
-            onChange={(e) => updateFormData('birth_date', e.target.value)}
-            disabled={viewMode}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-          />
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
+            <input
+              type="date"
+              value={formData.birth_date}
+              onChange={(e) => updateFormData('birth_date', e.target.value)}
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Idade</label>
+            <input
+              type="text"
+              value={formData.birth_date ? `${calculateAge(formData.birth_date)} anos` : ''}
+              disabled
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+              placeholder="Automático"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Série Ideal</label>
+            <input
+              type="text"
+              value={calculateIdealGrade(formData.birth_date) || ''}
+              disabled
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+              placeholder="Automático"
+            />
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
