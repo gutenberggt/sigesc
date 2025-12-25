@@ -83,21 +83,44 @@ const Staff = () => {
         
         {/* Abas */}
         <div className="bg-white rounded-lg shadow-sm border mb-6">
-          <div className="flex border-b">
-            {TABS.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => staff.setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
-                  staff.activeTab === tab.id
-                    ? 'border-b-2 border-blue-600 text-blue-600 bg-blue-50'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <tab.icon size={18} />
-                {tab.label}
-              </button>
-            ))}
+          <div className="flex border-b items-center justify-between">
+            <div className="flex">
+              {TABS.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => staff.setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
+                    staff.activeTab === tab.id
+                      ? 'border-b-2 border-blue-600 text-blue-600 bg-blue-50'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <tab.icon size={18} />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div className="px-6 py-3 text-sm text-gray-600">
+              Total: <span className="font-semibold text-gray-900">
+                {staff.activeTab === 'servidores' 
+                  ? staff.filteredStaff.length 
+                  : staff.activeTab === 'lotacoes'
+                    ? staff.lotacoes.filter(l => 
+                        (!staff.searchTerm || 
+                          l.staff_name?.toLowerCase().includes(staff.searchTerm.toLowerCase()) ||
+                          l.staff_matricula?.toLowerCase().includes(staff.searchTerm.toLowerCase())
+                        ) &&
+                        (!staff.filterSchool || l.school_id === staff.filterSchool)
+                      ).length
+                    : staff.alocacoes.filter(a =>
+                        (!staff.searchTerm ||
+                          a.staff_name?.toLowerCase().includes(staff.searchTerm.toLowerCase())
+                        ) &&
+                        (!staff.filterSchool || a.school_id === staff.filterSchool)
+                      ).length
+                }
+              </span> registros
+            </div>
           </div>
           
           {/* Filtros */}
