@@ -36,7 +36,7 @@ const EDUCATION_LEVEL_LABELS = {
 
 // Tipos de frequência por nível
 const getAttendanceType = (educationLevel, period) => {
-  // Para Componentes Integradores e Aulas Complementares, sempre por componente
+  // Para Escola Integral e Aulas Complementares, sempre por componente
   if (period === 'integral' || period === 'complementar') {
     return 'by_component';
   }
