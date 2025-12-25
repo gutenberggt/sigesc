@@ -1505,7 +1505,7 @@ export function SchoolsComplete() {
               disabled={viewMode}
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <span className="text-sm text-gray-700">Componentes Integradores</span>
+            <span className="text-sm text-gray-700">Escola Integral</span>
           </label>
           
           <label className="flex items-center space-x-2">
