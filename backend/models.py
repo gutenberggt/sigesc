@@ -1372,7 +1372,7 @@ class StaffBase(BaseModel):
     email: Optional[str] = None
     
     # Dados Funcionais (matrícula será gerada automaticamente)
-    cargo: Literal['professor', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'auxiliar', 'merendeira', 'zelador', 'vigia', 'outro']
+    cargo: Literal['auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
     cargo_especifico: Optional[str] = None  # Descrição específica do cargo
     
     # Vínculo Empregatício
