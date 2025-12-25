@@ -528,7 +528,8 @@ export const useStaff = () => {
       for (const escola of lotacaoEscolas) {
         const data = {
           ...lotacaoForm,
-          school_id: escola.id
+          school_id: escola.id,
+          funcao: escola.funcao || lotacaoForm.funcao  // Usar a função salva na escola
         };
         
         try {
