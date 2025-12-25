@@ -1428,7 +1428,7 @@ class StaffUpdate(BaseModel):
     cor_raca: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarado']] = None
     celular: Optional[str] = None
     email: Optional[str] = None
-    cargo: Optional[Literal['professor', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'auxiliar', 'merendeira', 'zelador', 'vigia', 'outro']] = None
+    cargo: Optional[Literal['auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']] = None
     cargo_especifico: Optional[str] = None
     tipo_vinculo: Optional[Literal['efetivo', 'contratado', 'temporario', 'comissionado']] = None
     data_admissao: Optional[str] = None
