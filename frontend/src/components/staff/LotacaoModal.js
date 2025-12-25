@@ -106,10 +106,17 @@ export const LotacaoModal = ({
                 >
                   <option value="">Selecione a escola</option>
                   {schools
-                    .filter(s => 
-                      !lotacaoEscolas.find(e => e.id === s.id) && 
-                      !existingLotacoes.find(l => l.school_id === s.id)
-                    )
+                    .filter(s => {
+                      // Verificar se já está na lista de escolas a serem adicionadas com a mesma função
+                      const jaAdicionadaMesmaFuncao = lotacaoEscolas.find(
+                        e => e.id === s.id && e.funcao === lotacaoForm.funcao
+                      );
+                      // Verificar se já existe lotação ativa com a mesma função nessa escola
+                      const jaLotadoMesmaFuncao = existingLotacoes.find(
+                        l => l.school_id === s.id && l.funcao === lotacaoForm.funcao && l.status === 'ativo'
+                      );
+                      return !jaAdicionadaMesmaFuncao && !jaLotadoMesmaFuncao;
+                    })
                     .map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))
@@ -123,13 +130,16 @@ export const LotacaoModal = ({
               {/* Lista de escolas a serem adicionadas */}
               {lotacaoEscolas.length > 0 && (
                 <div className="mt-2 space-y-1">
-                  {lotacaoEscolas.map(escola => (
-                    <div key={escola.id} className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded border border-green-200">
+                  {lotacaoEscolas.map((escola, index) => (
+                    <div key={`${escola.id}-${index}`} className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded border border-green-200">
                       <Building2 size={16} className="text-green-600" />
-                      <span className="flex-1 text-sm font-medium">{escola.name}</span>
+                      <span className="flex-1 text-sm font-medium">
+                        {escola.name}
+                        {escola.funcao && <span className="text-xs text-gray-500 ml-2">({FUNCOES[escola.funcao]})</span>}
+                      </span>
                       <button 
                         type="button"
-                        onClick={() => onRemoveEscola(escola.id)}
+                        onClick={() => onRemoveEscola(escola.id, escola.funcao)}
                         className="text-red-500 hover:text-red-700"
                       >
                         <Minus size={16} />
