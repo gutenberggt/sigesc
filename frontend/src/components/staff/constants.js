@@ -1,15 +1,17 @@
 // Constantes para o módulo de Gestão de Servidores
 
 export const CARGOS = {
-  professor: 'Professor',
-  diretor: 'Diretor',
-  coordenador: 'Coordenador',
-  secretario: 'Secretário',
-  auxiliar_secretaria: 'Auxiliar de Secretaria',
   auxiliar: 'Auxiliar Administrativo',
+  auxiliar_secretaria: 'Auxiliar de Secretaria',
+  auxiliar_servicos_gerais: 'Auxiliar de Serviços Gerais',
+  coordenador: 'Coordenador',
+  diretor: 'Diretor',
+  mediador: 'Mediador',
   merendeira: 'Merendeira',
-  zelador: 'Zelador',
+  professor: 'Professor',
+  secretario: 'Secretário',
   vigia: 'Vigia',
+  zelador: 'Zelador',
   outro: 'Outro'
 };
 
