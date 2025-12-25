@@ -87,19 +87,43 @@ export const StaffModal = ({
           />
         </div>
         
-        {/* Matrícula (apenas visualização se editando) */}
-        {editingStaff && (
+        {/* CPF e Matrícula */}
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Matrícula</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
             <input
               type="text"
-              value={editingStaff.matricula}
-              disabled
-              className="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-600"
+              value={staffForm.cpf || ''}
+              onChange={(e) => {
+                // Formatar CPF: 000.000.000-00
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 11) value = value.slice(0, 11);
+                if (value.length > 9) {
+                  value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+                } else if (value.length > 6) {
+                  value = value.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+                } else if (value.length > 3) {
+                  value = value.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+                }
+                setStaffForm({ ...staffForm, cpf: value });
+              }}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="000.000.000-00"
             />
-            <p className="text-xs text-gray-500 mt-1">Matrícula gerada automaticamente</p>
           </div>
-        )}
+          {editingStaff && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Matrícula</label>
+              <input
+                type="text"
+                value={editingStaff.matricula}
+                disabled
+                className="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-600"
+              />
+              <p className="text-xs text-gray-500 mt-1">Gerada automaticamente</p>
+            </div>
+          )}
+        </div>
         
         {/* Dados pessoais */}
         <div className="grid grid-cols-3 gap-4">
