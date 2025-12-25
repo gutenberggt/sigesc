@@ -2249,15 +2249,17 @@ async def create_school_assignment(assignment: SchoolAssignmentCreate, request: 
     if not school:
         raise HTTPException(status_code=404, detail="Escola não encontrada")
     
-    # Verifica se já existe lotação ativa para mesma escola/ano
+    # Verifica se já existe lotação ativa para mesma escola/ano/função
+    # Permite múltiplas funções na mesma escola
     existing = await db.school_assignments.find_one({
         "staff_id": assignment.staff_id,
         "school_id": assignment.school_id,
         "academic_year": assignment.academic_year,
+        "funcao": assignment.funcao,
         "status": "ativo"
     })
     if existing:
-        raise HTTPException(status_code=400, detail="Servidor já possui lotação ativa nesta escola para este ano")
+        raise HTTPException(status_code=400, detail="Servidor já possui lotação ativa com esta função nesta escola para este ano")
     
     new_assignment = SchoolAssignment(**assignment.model_dump())
     await db.school_assignments.insert_one(new_assignment.model_dump())
