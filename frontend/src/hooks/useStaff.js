@@ -502,17 +502,19 @@ export const useStaff = () => {
     const escola = schools.find(s => s.id === selectedLotacaoSchool);
     if (!escola) return;
     
-    if (lotacaoEscolas.find(e => e.id === escola.id)) {
-      showAlertMessage('error', 'Escola já adicionada');
+    // Verificar se já existe uma entrada com a mesma escola E mesma função
+    if (lotacaoEscolas.find(e => e.id === escola.id && e.funcao === lotacaoForm.funcao)) {
+      showAlertMessage('error', 'Esta escola já foi adicionada com esta função');
       return;
     }
     
-    setLotacaoEscolas(prev => [...prev, escola]);
+    // Adicionar escola com a função selecionada
+    setLotacaoEscolas(prev => [...prev, { ...escola, funcao: lotacaoForm.funcao }]);
     setSelectedLotacaoSchool('');
-  }, [selectedLotacaoSchool, schools, lotacaoEscolas, showAlertMessage]);
+  }, [selectedLotacaoSchool, schools, lotacaoEscolas, lotacaoForm.funcao, showAlertMessage]);
   
-  const removeEscolaLotacao = useCallback((schoolId) => {
-    setLotacaoEscolas(prev => prev.filter(e => e.id !== schoolId));
+  const removeEscolaLotacao = useCallback((schoolId, funcao) => {
+    setLotacaoEscolas(prev => prev.filter(e => !(e.id === schoolId && e.funcao === funcao)));
   }, []);
   
   const handleSaveLotacao = useCallback(async () => {
