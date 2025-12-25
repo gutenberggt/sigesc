@@ -1274,7 +1274,7 @@ class AttendanceBase(BaseModel):
     # Se attendance_type = 'by_component', indica o componente curricular
     course_id: Optional[str] = None
     
-    # Período (para Componentes Integradores e Aulas Complementares)
+    # Período (para Escola Integral e Aulas Complementares)
     period: Literal['regular', 'integral', 'complementar'] = 'regular'
     
     # Lista de registros de frequência dos alunos
