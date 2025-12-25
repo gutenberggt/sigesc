@@ -331,18 +331,31 @@ async def update_user(user_id: str, user_update: UserUpdate, request: Request):
 
 @api_router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(user_id: str, request: Request):
-    """Deleta usuário (soft delete - muda status para inactive)"""
+    """Deleta usuário definitivamente do sistema"""
     current_user = await AuthMiddleware.require_roles(['admin'])(request)
     
-    result = await db.users.update_one(
-        {"id": user_id},
-        {"$set": {"status": "inactive"}}
-    )
-    
-    if result.matched_count == 0:
+    # Verificar se o usuário existe
+    user = await db.users.find_one({"id": user_id})
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuário não encontrado"
+        )
+    
+    # Não permitir excluir o próprio usuário
+    if user_id == current_user['id']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Não é possível excluir seu próprio usuário"
+        )
+    
+    # Excluir definitivamente o usuário
+    result = await db.users.delete_one({"id": user_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao excluir usuário"
         )
     
     return None
