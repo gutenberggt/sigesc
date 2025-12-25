@@ -516,7 +516,7 @@ export const Attendance = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="regular">Regular</option>
-                      <option value="integral">Componentes Integradores</option>
+                      <option value="integral">Escola Integral</option>
                       <option value="complementar">Aulas Complementares</option>
                     </select>
                   </div>
