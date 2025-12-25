@@ -1406,7 +1406,7 @@ class StaffCreate(BaseModel):
     cor_raca: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarado']] = None
     celular: Optional[str] = None
     email: Optional[str] = None
-    cargo: Literal['professor', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'auxiliar', 'merendeira', 'zelador', 'vigia', 'outro']
+    cargo: Literal['auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
     cargo_especifico: Optional[str] = None
     tipo_vinculo: Literal['efetivo', 'contratado', 'temporario', 'comissionado'] = 'efetivo'
     data_admissao: Optional[str] = None
