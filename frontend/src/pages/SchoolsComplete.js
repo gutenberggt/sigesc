@@ -1130,7 +1130,7 @@ export function SchoolsComplete() {
       // Atendimentos ativos
       const atendimentosAtivos = [];
       if (formData.aee) atendimentosAtivos.push('Atendimento Educacional Especializado - AEE');
-      if (formData.atendimento_integral) atendimentosAtivos.push('Componentes Integradores');
+      if (formData.atendimento_integral) atendimentosAtivos.push('Escola Integral');
       if (formData.reforco_escolar) atendimentosAtivos.push('Reforço Escolar');
       if (formData.aulas_complementares) atendimentosAtivos.push('Aulas Complementares');
       
