@@ -70,6 +70,7 @@ export const TABS = [
 
 export const INITIAL_STAFF_FORM = {
   nome: '',
+  cpf: '',
   foto_url: '',
   data_nascimento: '',
   sexo: '',
