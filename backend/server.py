@@ -273,7 +273,7 @@ async def get_current_user_info(request: Request):
 # ============= USER ROUTES (Admin only) =============
 
 @api_router.get("/users", response_model=List[UserResponse])
-async def list_users(request: Request, skip: int = 0, limit: int = 100):
+async def list_users(request: Request, skip: int = 0, limit: int = 1000):
     """Lista usuários (apenas admin e semed)"""
     current_user = await AuthMiddleware.require_roles(['admin', 'semed'])(request)
     
