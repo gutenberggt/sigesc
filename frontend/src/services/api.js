@@ -831,6 +831,11 @@ export const documentsAPI = {
     return `${BACKEND_URL}/api/documents/certificado/${studentId}?academic_year=${academicYear}`;
   },
   
+  // Gerar documentos em lote (PDF consolidado da turma)
+  getBatchDocumentsUrl: (classId, documentType, academicYear = '2025') => {
+    return `${BACKEND_URL}/api/documents/batch/${classId}/${documentType}?academic_year=${academicYear}`;
+  },
+  
   // Baixar documento com autenticação
   downloadDocument: async (url) => {
     const response = await axios.get(url, {
@@ -856,6 +861,13 @@ export const documentsAPI = {
   // Baixar Certificado (retorna blob)
   getCertificado: async (studentId, academicYear = '2025') => {
     const url = `${BACKEND_URL}/api/documents/certificado/${studentId}?academic_year=${academicYear}`;
+    const response = await axios.get(url, { responseType: 'blob' });
+    return response.data;
+  },
+  
+  // Baixar documentos em lote (retorna blob)
+  getBatchDocuments: async (classId, documentType, academicYear = '2025') => {
+    const url = `${BACKEND_URL}/api/documents/batch/${classId}/${documentType}?academic_year=${academicYear}`;
     const response = await axios.get(url, { responseType: 'blob' });
     return response.data;
   }
