@@ -329,49 +329,27 @@ export function StudentsComplete() {
 
   // Função para impressão em lote de documentos da turma
   const handleBatchPrint = async (documentType) => {
-    if (displayedStudents.length === 0) return;
+    if (!filterClassId || displayedStudents.length === 0) return;
     
     setBatchPrinting(true);
-    let successCount = 0;
-    let errorCount = 0;
     
     try {
       const academicYear = new Date().getFullYear();
       
-      for (const student of displayedStudents) {
-        try {
-          let url;
-          
-          // Obter URL do documento
-          if (documentType === 'boletim') {
-            url = documentsAPI.getBoletimUrl(student.id, academicYear);
-          } else if (documentType === 'ficha_individual') {
-            url = documentsAPI.getFichaIndividualUrl(student.id, academicYear);
-          } else if (documentType === 'certificado') {
-            url = documentsAPI.getCertificadoUrl(student.id, academicYear);
-          }
-          
-          // Abrir PDF em nova aba (como na impressão individual)
-          window.open(url, '_blank');
-          
-          successCount++;
-          
-          // Pequeno delay entre aberturas para não sobrecarregar o navegador
-          await new Promise(resolve => setTimeout(resolve, 300));
-        } catch (error) {
-          console.error(`Erro ao gerar documento para ${student.full_name}:`, error);
-          errorCount++;
-        }
-      }
+      // Obter o blob do PDF consolidado
+      const blob = await documentsAPI.getBatchDocuments(filterClassId, documentType, academicYear);
       
-      if (successCount > 0) {
-        showAlert('success', `${successCount} documento(s) aberto(s) em novas abas!${errorCount > 0 ? ` (${errorCount} erro(s))` : ''}`);
-      } else {
-        showAlert('error', 'Erro ao gerar documentos');
-      }
+      // Criar URL do blob e abrir em nova aba
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      
+      // Limpar URL do blob após um tempo
+      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+      
+      showAlert('success', `PDF com ${displayedStudents.length} documento(s) gerado com sucesso!`);
     } catch (error) {
-      showAlert('error', 'Erro ao processar impressão em lote');
-      console.error(error);
+      console.error('Erro ao gerar documentos em lote:', error);
+      showAlert('error', error.response?.data?.detail || 'Erro ao gerar PDF em lote');
     } finally {
       setBatchPrinting(false);
       setShowBatchPrintModal(false);
