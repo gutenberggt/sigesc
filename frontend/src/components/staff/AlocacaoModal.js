@@ -226,19 +226,28 @@ export const AlocacaoModal = ({
                   value={selectedAlocacaoComponent}
                   onChange={(e) => setSelectedAlocacaoComponent(e.target.value)}
                   className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                  disabled={alocacaoTurmas.length === 0}
                 >
-                  <option value="">Selecione o componente</option>
-                  <option value="TODOS" className="font-bold">TODOS</option>
-                  {courses.filter(c => !alocacaoComponentes.find(ac => ac.id === c.id)).map(c => (
+                  <option value="">{alocacaoTurmas.length === 0 ? 'Selecione uma turma primeiro' : 'Selecione o componente'}</option>
+                  {alocacaoTurmas.length > 0 && filteredCourses.length > 0 && (
+                    <option value="TODOS" className="font-bold">TODOS ({filteredCourses.length} componentes)</option>
+                  )}
+                  {filteredCourses.filter(c => !alocacaoComponentes.find(ac => ac.id === c.id)).map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name} {c.workload ? `(${c.workload}h)` : ''}
                     </option>
                   ))}
                 </select>
-                <Button type="button" onClick={onAddComponente} disabled={!selectedAlocacaoComponent}>
+                <Button type="button" onClick={onAddComponente} disabled={!selectedAlocacaoComponent || alocacaoTurmas.length === 0}>
                   <Plus size={16} />
                 </Button>
               </div>
+              
+              {alocacaoTurmas.length > 0 && filteredCourses.length === 0 && (
+                <p className="text-sm text-amber-600 mt-2">
+                  Nenhum componente curricular disponível para as turmas selecionadas.
+                </p>
+              )}
               
               {alocacaoComponentes.length > 0 && (
                 <div className="mt-2 space-y-1">
