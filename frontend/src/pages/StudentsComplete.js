@@ -8,7 +8,7 @@ import { studentsAPI, schoolsAPI, classesAPI, uploadAPI, documentsAPI } from '@/
 import { formatPhone, formatCEP } from '@/utils/formatters';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
-import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, Download } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
 
 // Estados brasileiros
