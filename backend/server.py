@@ -1636,11 +1636,28 @@ async def get_attendance_by_class(
     
     attendance = await db.attendance.find_one(query, {"_id": 0})
     
-    # Busca alunos da turma
-    students = await db.students.find(
-        {"class_id": class_id, "status": "active"},
-        {"_id": 0}
-    ).sort("full_name", 1).to_list(1000)
+    # Busca alunos matriculados na turma através da coleção enrollments
+    # Extrai o ano letivo da data selecionada
+    academic_year = int(date.split("-")[0])
+    
+    # Busca matrículas ativas na turma
+    enrollments = await db.enrollments.find(
+        {"class_id": class_id, "status": "active", "academic_year": academic_year},
+        {"_id": 0, "student_id": 1, "enrollment_number": 1}
+    ).to_list(1000)
+    
+    # Coleta IDs dos alunos matriculados
+    student_ids = [e['student_id'] for e in enrollments]
+    enrollment_numbers = {e['student_id']: e.get('enrollment_number') for e in enrollments}
+    
+    # Busca dados dos alunos matriculados
+    students = []
+    if student_ids:
+        students_cursor = await db.students.find(
+            {"id": {"$in": student_ids}, "status": "active"},
+            {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1}
+        ).sort("full_name", 1).to_list(1000)
+        students = students_cursor
     
     # Monta resposta com alunos e seus status de frequência
     records_map = {}
@@ -1662,7 +1679,7 @@ async def get_attendance_by_class(
             {
                 "id": s['id'],
                 "full_name": s['full_name'],
-                "enrollment_number": s.get('enrollment_number'),
+                "enrollment_number": enrollment_numbers.get(s['id']) or s.get('enrollment_number'),
                 "status": records_map.get(s['id'], None)  # None = não lançado
             }
             for s in students
