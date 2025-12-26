@@ -688,7 +688,7 @@ export const useStaff = () => {
     if (!selectedAlocacaoComponent) return;
     
     if (selectedAlocacaoComponent === 'TODOS') {
-      const novosComponentes = courses.filter(c => !alocacaoComponentes.find(ac => ac.id === c.id));
+      const novosComponentes = filteredCourses.filter(c => !alocacaoComponentes.find(ac => ac.id === c.id));
       if (novosComponentes.length > 0) {
         const todosComponentes = [...alocacaoComponentes, ...novosComponentes];
         setAlocacaoComponentes(todosComponentes);
@@ -698,7 +698,7 @@ export const useStaff = () => {
       return;
     }
     
-    const componente = courses.find(c => c.id === selectedAlocacaoComponent);
+    const componente = filteredCourses.find(c => c.id === selectedAlocacaoComponent);
     if (!componente) return;
     
     if (alocacaoComponentes.find(c => c.id === componente.id)) {
@@ -710,7 +710,7 @@ export const useStaff = () => {
     setAlocacaoComponentes(novosComponentes);
     calcularCargaHoraria(novosComponentes);
     setSelectedAlocacaoComponent('');
-  }, [selectedAlocacaoComponent, courses, alocacaoComponentes, calcularCargaHoraria, showAlertMessage]);
+  }, [selectedAlocacaoComponent, filteredCourses, alocacaoComponentes, calcularCargaHoraria, showAlertMessage]);
   
   const removeComponenteAlocacao = useCallback((courseId) => {
     const novosComponentes = alocacaoComponentes.filter(c => c.id !== courseId);
