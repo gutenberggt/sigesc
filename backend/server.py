@@ -1651,10 +1651,11 @@ async def get_attendance_by_class(
     enrollment_numbers = {e['student_id']: e.get('enrollment_number') for e in enrollments}
     
     # Busca dados dos alunos matriculados
+    # Não filtra por status do aluno pois a matrícula ativa já indica que está estudando
     students = []
     if student_ids:
         students_cursor = await db.students.find(
-            {"id": {"$in": student_ids}, "status": "active"},
+            {"id": {"$in": student_ids}},
             {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1}
         ).sort("full_name", 1).to_list(1000)
         students = students_cursor
