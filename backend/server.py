@@ -4310,6 +4310,163 @@ async def get_certificado(
         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
 
+@api_router.get("/documents/batch/{class_id}/{document_type}")
+async def get_batch_documents(
+    class_id: str,
+    document_type: str,
+    academic_year: int = 2025,
+    request: Request = None
+):
+    """
+    Gera um único PDF consolidado com todos os documentos da turma.
+    
+    document_type: 'boletim', 'ficha_individual', 'certificado'
+    """
+    from PyPDF2 import PdfMerger
+    
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    # Validar tipo de documento
+    valid_types = ['boletim', 'ficha_individual', 'certificado']
+    if document_type not in valid_types:
+        raise HTTPException(status_code=400, detail=f"Tipo de documento inválido. Use: {', '.join(valid_types)}")
+    
+    # Buscar turma
+    class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
+    if not class_info:
+        raise HTTPException(status_code=404, detail="Turma não encontrada")
+    
+    # Buscar escola da turma
+    school = await db.schools.find_one({"id": class_info.get("school_id")}, {"_id": 0})
+    if not school:
+        school = {"name": "Escola Municipal"}
+    
+    # Buscar mantenedora
+    mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+    
+    # Buscar alunos matriculados na turma
+    enrollments = await db.enrollments.find(
+        {"class_id": class_id, "status": "active", "academic_year": academic_year},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    if not enrollments:
+        raise HTTPException(status_code=404, detail="Nenhum aluno matriculado nesta turma")
+    
+    student_ids = [e['student_id'] for e in enrollments]
+    enrollment_map = {e['student_id']: e for e in enrollments}
+    
+    # Buscar dados dos alunos
+    students = await db.students.find(
+        {"id": {"$in": student_ids}},
+        {"_id": 0}
+    ).sort("full_name", 1).to_list(1000)
+    
+    if not students:
+        raise HTTPException(status_code=404, detail="Alunos não encontrados")
+    
+    # Buscar componentes curriculares para o boletim
+    courses = []
+    if document_type in ['boletim', 'ficha_individual']:
+        courses = await db.courses.find({}, {"_id": 0}).to_list(100)
+    
+    # Criar merger para juntar os PDFs
+    merger = PdfMerger()
+    
+    try:
+        for student in students:
+            enrollment = enrollment_map.get(student['id'], {})
+            
+            # Buscar notas do aluno se necessário
+            grades = []
+            if document_type in ['boletim', 'ficha_individual']:
+                grades = await db.grades.find(
+                    {"student_id": student['id'], "academic_year": academic_year},
+                    {"_id": 0}
+                ).to_list(100)
+            
+            # Gerar PDF individual
+            if document_type == 'boletim':
+                pdf_buffer = generate_boletim_pdf(
+                    student=student,
+                    school=school,
+                    enrollment=enrollment,
+                    class_info=class_info,
+                    grades=grades,
+                    courses=courses,
+                    academic_year=str(academic_year),
+                    mantenedora=mantenedora
+                )
+            elif document_type == 'ficha_individual':
+                # Buscar frequência do aluno
+                attendances = await db.attendance.find(
+                    {"class_id": class_id, "academic_year": academic_year, "records.student_id": student['id']},
+                    {"_id": 0}
+                ).to_list(1000)
+                
+                attendance_summary = {"present": 0, "absent": 0, "justified": 0, "total": 0}
+                for att in attendances:
+                    for record in att.get('records', []):
+                        if record['student_id'] == student['id']:
+                            attendance_summary['total'] += 1
+                            if record['status'] == 'P':
+                                attendance_summary['present'] += 1
+                            elif record['status'] == 'F':
+                                attendance_summary['absent'] += 1
+                            elif record['status'] == 'J':
+                                attendance_summary['justified'] += 1
+                
+                pdf_buffer = generate_ficha_individual_pdf(
+                    student=student,
+                    school=school,
+                    enrollment=enrollment,
+                    class_info=class_info,
+                    grades=grades,
+                    courses=courses,
+                    attendance_summary=attendance_summary,
+                    academic_year=str(academic_year),
+                    mantenedora=mantenedora
+                )
+            elif document_type == 'certificado':
+                pdf_buffer = generate_certificado_pdf(
+                    student=student,
+                    school=school,
+                    class_info=class_info,
+                    enrollment=enrollment,
+                    academic_year=academic_year
+                )
+            
+            # Adicionar ao merger
+            merger.append(pdf_buffer)
+        
+        # Gerar PDF final consolidado
+        output_buffer = BytesIO()
+        merger.write(output_buffer)
+        merger.close()
+        output_buffer.seek(0)
+        
+        # Nome do arquivo
+        class_name = class_info.get('name', 'turma').replace(' ', '_')
+        type_names = {
+            'boletim': 'Boletins',
+            'ficha_individual': 'Fichas_Individuais',
+            'certificado': 'Certificados'
+        }
+        filename = f"{type_names.get(document_type, document_type)}_{class_name}_{academic_year}.pdf"
+        
+        return StreamingResponse(
+            output_buffer,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'inline; filename="{filename}"'
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar documentos em lote: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+
+
 # ============= ANNOUNCEMENT ENDPOINTS =============
 
 def can_user_create_announcement(user: dict, recipient: dict) -> bool:
