@@ -1,4 +1,4 @@
-import { User, Phone, GraduationCap, Building2, Briefcase } from 'lucide-react';
+import { User, Phone, GraduationCap, Building2, Briefcase, CreditCard } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { CARGOS, STATUS_SERVIDOR, TIPOS_VINCULO, SEXOS, FUNCOES, TURNOS } from './constants';
