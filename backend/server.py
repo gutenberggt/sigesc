@@ -910,18 +910,39 @@ async def update_enrollment(enrollment_id: str, enrollment_update: EnrollmentUpd
     """Atualiza matrícula"""
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
     
+    # Busca matrícula atual para obter student_id
+    existing_enrollment = await db.enrollments.find_one({"id": enrollment_id}, {"_id": 0})
+    if not existing_enrollment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Matrícula não encontrada"
+        )
+    
     update_data = enrollment_update.model_dump(exclude_unset=True)
     
     if update_data:
-        result = await db.enrollments.update_one(
+        await db.enrollments.update_one(
             {"id": enrollment_id},
             {"$set": update_data}
         )
         
-        if result.matched_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Matrícula não encontrada"
+        # Sincroniza dados do aluno se school_id, class_id ou status mudaram
+        student_update = {}
+        if 'school_id' in update_data:
+            student_update['school_id'] = update_data['school_id']
+        if 'class_id' in update_data:
+            student_update['class_id'] = update_data['class_id']
+        if 'status' in update_data:
+            # Se matrícula foi cancelada/transferida, atualiza status do aluno
+            if update_data['status'] in ['cancelled', 'transferred']:
+                student_update['status'] = 'transferred'
+            elif update_data['status'] == 'active':
+                student_update['status'] = 'active'
+        
+        if student_update:
+            await db.students.update_one(
+                {"id": existing_enrollment['student_id']},
+                {"$set": student_update}
             )
     
     updated_enrollment = await db.enrollments.find_one({"id": enrollment_id}, {"_id": 0})
