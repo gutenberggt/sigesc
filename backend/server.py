@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 from typing import List, Optional, Dict
 from datetime import datetime, timezone
+from io import BytesIO
 
 # Import models and utilities
 from models import (
