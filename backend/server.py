@@ -863,6 +863,16 @@ async def create_enrollment(enrollment_data: EnrollmentCreate, request: Request)
     
     await db.enrollments.insert_one(doc)
     
+    # Sincroniza dados do aluno com a matrícula (school_id, class_id, status)
+    await db.students.update_one(
+        {"id": enrollment_data.student_id},
+        {"$set": {
+            "school_id": enrollment_data.school_id,
+            "class_id": enrollment_data.class_id,
+            "status": "active"
+        }}
+    )
+    
     return enrollment_obj
 
 @api_router.get("/enrollments", response_model=List[Enrollment])
