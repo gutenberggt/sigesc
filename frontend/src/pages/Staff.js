@@ -266,7 +266,7 @@ const Staff = () => {
           professorSchools={staff.professorSchools}
           loadingProfessorSchools={staff.loadingProfessorSchools}
           filteredClasses={staff.filteredClasses}
-          courses={staff.courses}
+          filteredCourses={staff.filteredCourses}
           alocacaoTurmas={staff.alocacaoTurmas}
           alocacaoComponentes={staff.alocacaoComponentes}
           selectedAlocacaoClass={staff.selectedAlocacaoClass}
