@@ -834,6 +834,7 @@ export const useStaff = () => {
     filteredStaff,
     professors,
     filteredClasses,
+    filteredCourses,
     groupedAlocacoes,
     
     // Modais
