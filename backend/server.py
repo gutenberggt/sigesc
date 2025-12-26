@@ -4405,17 +4405,17 @@ async def get_batch_documents(
                     {"_id": 0}
                 ).to_list(1000)
                 
-                attendance_summary = {"present": 0, "absent": 0, "justified": 0, "total": 0}
+                attendance_data = {"present": 0, "absent": 0, "justified": 0, "total": 0}
                 for att in attendances:
                     for record in att.get('records', []):
                         if record['student_id'] == student['id']:
-                            attendance_summary['total'] += 1
+                            attendance_data['total'] += 1
                             if record['status'] == 'P':
-                                attendance_summary['present'] += 1
+                                attendance_data['present'] += 1
                             elif record['status'] == 'F':
-                                attendance_summary['absent'] += 1
+                                attendance_data['absent'] += 1
                             elif record['status'] == 'J':
-                                attendance_summary['justified'] += 1
+                                attendance_data['justified'] += 1
                 
                 pdf_buffer = generate_ficha_individual_pdf(
                     student=student,
@@ -4424,8 +4424,8 @@ async def get_batch_documents(
                     class_info=class_info,
                     grades=grades,
                     courses=courses,
-                    attendance_summary=attendance_summary,
-                    academic_year=str(academic_year),
+                    attendance_data=attendance_data,
+                    academic_year=academic_year,
                     mantenedora=mantenedora
                 )
             elif document_type == 'certificado':
