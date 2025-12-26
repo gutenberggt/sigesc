@@ -968,11 +968,22 @@ async def get_grades_by_class(class_id: str, course_id: str, request: Request, a
     if not academic_year:
         academic_year = datetime.now().year
     
-    # Busca alunos da turma
-    students = await db.students.find(
-        {"class_id": class_id, "status": "active"},
-        {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1}
-    ).sort("full_name", 1).to_list(1000)
+    # Busca alunos matriculados na turma através da coleção enrollments
+    enrollments = await db.enrollments.find(
+        {"class_id": class_id, "status": "active", "academic_year": academic_year},
+        {"_id": 0, "student_id": 1, "enrollment_number": 1}
+    ).to_list(1000)
+    
+    student_ids = [e['student_id'] for e in enrollments]
+    enrollment_numbers = {e['student_id']: e.get('enrollment_number') for e in enrollments}
+    
+    # Busca dados dos alunos matriculados
+    students = []
+    if student_ids:
+        students = await db.students.find(
+            {"id": {"$in": student_ids}},
+            {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1}
+        ).sort("full_name", 1).to_list(1000)
     
     # Busca notas existentes
     grades = await db.grades.find(
@@ -995,8 +1006,14 @@ async def get_grades_by_class(class_id: str, course_id: str, request: Request, a
             'rec_s1': None, 'rec_s2': None,
             'recovery': None, 'final_average': None, 'status': 'cursando'
         })
+        # Adiciona enrollment_number da matrícula se disponível
+        student_data = {
+            'id': student['id'],
+            'full_name': student['full_name'],
+            'enrollment_number': enrollment_numbers.get(student['id']) or student.get('enrollment_number')
+        }
         result.append({
-            'student': student,
+            'student': student_data,
             'grade': grade
         })
     
