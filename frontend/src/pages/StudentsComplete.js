@@ -336,33 +336,28 @@ export function StudentsComplete() {
     let errorCount = 0;
     
     try {
+      const academicYear = new Date().getFullYear();
+      
       for (const student of displayedStudents) {
         try {
-          let blob;
-          const academicYear = new Date().getFullYear();
+          let url;
           
+          // Obter URL do documento
           if (documentType === 'boletim') {
-            blob = await documentsAPI.getBoletim(student.id, academicYear);
+            url = documentsAPI.getBoletimUrl(student.id, academicYear);
           } else if (documentType === 'ficha_individual') {
-            blob = await documentsAPI.getFichaIndividual(student.id, academicYear);
+            url = documentsAPI.getFichaIndividualUrl(student.id, academicYear);
           } else if (documentType === 'certificado') {
-            blob = await documentsAPI.getCertificado(student.id, academicYear);
+            url = documentsAPI.getCertificadoUrl(student.id, academicYear);
           }
           
-          // Criar link para download
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `${documentType}_${student.full_name?.replace(/\s+/g, '_') || student.id}.pdf`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
+          // Abrir PDF em nova aba (como na impressão individual)
+          window.open(url, '_blank');
           
           successCount++;
           
-          // Pequeno delay entre downloads para não sobrecarregar
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Pequeno delay entre aberturas para não sobrecarregar o navegador
+          await new Promise(resolve => setTimeout(resolve, 300));
         } catch (error) {
           console.error(`Erro ao gerar documento para ${student.full_name}:`, error);
           errorCount++;
@@ -370,7 +365,7 @@ export function StudentsComplete() {
       }
       
       if (successCount > 0) {
-        showAlert('success', `${successCount} documento(s) gerado(s) com sucesso!${errorCount > 0 ? ` (${errorCount} erro(s))` : ''}`);
+        showAlert('success', `${successCount} documento(s) aberto(s) em novas abas!${errorCount > 0 ? ` (${errorCount} erro(s))` : ''}`);
       } else {
         showAlert('error', 'Erro ao gerar documentos');
       }
