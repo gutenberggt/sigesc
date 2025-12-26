@@ -4,13 +4,14 @@ Módulo para geração de documentos PDF do SIGESC
 - Declaração de Matrícula
 - Declaração de Frequência
 - Ficha Individual
+- Impressão em Lote (consolidado)
 """
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm, mm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY, TA_RIGHT
 from io import BytesIO
 from datetime import datetime, date
