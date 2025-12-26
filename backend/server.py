@@ -1949,11 +1949,21 @@ async def get_attendance_alerts(
     all_alerts = []
     
     for turma in classes:
-        # Busca alunos da turma
-        students = await db.students.find(
-            {"class_id": turma['id'], "status": "active"},
-            {"_id": 0}
+        # Busca alunos matriculados na turma através da coleção enrollments
+        enrollments = await db.enrollments.find(
+            {"class_id": turma['id'], "status": "active", "academic_year": academic_year},
+            {"_id": 0, "student_id": 1}
         ).to_list(1000)
+        
+        student_ids = [e['student_id'] for e in enrollments]
+        
+        # Busca dados dos alunos matriculados
+        students = []
+        if student_ids:
+            students = await db.students.find(
+                {"id": {"$in": student_ids}},
+                {"_id": 0, "id": 1, "full_name": 1}
+            ).to_list(1000)
         
         # Busca frequências da turma
         attendances = await db.attendance.find(
