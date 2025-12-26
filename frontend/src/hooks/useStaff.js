@@ -265,6 +265,45 @@ export const useStaff = () => {
     return classes.filter(c => c.school_id === alocacaoForm.school_id);
   }, [classes, alocacaoForm.school_id]);
   
+  // Filtrar componentes curriculares com base nas turmas selecionadas e escola
+  const filteredCourses = useMemo(() => {
+    // Se não há turmas selecionadas, não mostrar componentes
+    if (alocacaoTurmas.length === 0) return [];
+    
+    // Obter a escola selecionada para verificar se tem "Escola Integral"
+    const selectedSchool = schools.find(s => s.id === alocacaoForm.school_id);
+    const escolaTemIntegral = selectedSchool?.atendimento_integral === true;
+    
+    // Obter níveis de ensino e séries das turmas selecionadas
+    const niveisEnsino = new Set();
+    const seriesTurmas = new Set();
+    
+    alocacaoTurmas.forEach(turma => {
+      if (turma.education_level) niveisEnsino.add(turma.education_level);
+      if (turma.grade_level) seriesTurmas.add(turma.grade_level);
+    });
+    
+    return courses.filter(curso => {
+      // Se for componente de "Escola Integral", só mostrar se a escola tiver essa opção
+      if (curso.atendimento_programa === 'atendimento_integral') {
+        if (!escolaTemIntegral) return false;
+      }
+      
+      // Verificar se o nível de ensino do componente corresponde às turmas
+      if (curso.nivel_ensino && !niveisEnsino.has(curso.nivel_ensino)) {
+        return false;
+      }
+      
+      // Se o componente tiver séries específicas, verificar se corresponde às turmas
+      if (curso.grade_levels && curso.grade_levels.length > 0) {
+        const temSerieCorrespondente = curso.grade_levels.some(serie => seriesTurmas.has(serie));
+        if (!temSerieCorrespondente) return false;
+      }
+      
+      return true;
+    });
+  }, [courses, alocacaoTurmas, alocacaoForm.school_id, schools]);
+
   const groupedAlocacoes = useMemo(() => {
     const grouped = {};
     existingAlocacoes.forEach(aloc => {
