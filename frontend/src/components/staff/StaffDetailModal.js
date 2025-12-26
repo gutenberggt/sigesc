@@ -43,6 +43,12 @@ export const StaffDetailModal = ({
           <div>
             <h3 className="font-bold text-lg text-gray-900">{selectedStaff.nome}</h3>
             <p className="text-gray-600">Matrícula: {selectedStaff.matricula}</p>
+            {selectedStaff.cpf && (
+              <p className="text-gray-600 flex items-center gap-1">
+                <CreditCard size={14} />
+                CPF: {selectedStaff.cpf}
+              </p>
+            )}
             <div className="mt-2 flex gap-2 flex-wrap">
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_SERVIDOR[selectedStaff.status]?.color}`}>
                 {STATUS_SERVIDOR[selectedStaff.status]?.label}
