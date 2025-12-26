@@ -1944,7 +1944,7 @@ export function StudentsComplete() {
                     <p className="text-sm text-gray-500">Notas e frequência do aluno</p>
                   </div>
                 </div>
-                <Download size={20} className="text-blue-600" />
+                <ExternalLink size={20} className="text-blue-600" />
               </button>
               
               {/* Ficha Individual */}
@@ -1962,7 +1962,7 @@ export function StudentsComplete() {
                     <p className="text-sm text-gray-500">Notas, frequência e dados completos</p>
                   </div>
                 </div>
-                <Download size={20} className="text-green-600" />
+                <ExternalLink size={20} className="text-green-600" />
               </button>
               
               {/* Certificado */}
@@ -1980,7 +1980,7 @@ export function StudentsComplete() {
                     <p className="text-sm text-gray-500">Certificado de conclusão</p>
                   </div>
                 </div>
-                <Download size={20} className="text-purple-600" />
+                <ExternalLink size={20} className="text-purple-600" />
               </button>
             </div>
             
