@@ -10,7 +10,7 @@ export const AlocacaoModal = ({
   professorSchools,
   loadingProfessorSchools,
   filteredClasses,
-  courses,
+  filteredCourses,
   alocacaoTurmas,
   alocacaoComponentes,
   selectedAlocacaoClass,
