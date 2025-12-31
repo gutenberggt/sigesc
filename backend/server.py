@@ -2275,7 +2275,8 @@ async def get_attendance_by_class(
 @api_router.post("/attendance")
 async def save_attendance(attendance: AttendanceCreate, request: Request):
     """Salva ou atualiza frequência de uma turma"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor'])(request)
+    # Coordenador PODE editar frequência (área do diário)
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
     
     # Verifica se pode lançar nessa data
     date_check = await check_attendance_date(attendance.date, request)
@@ -2330,7 +2331,8 @@ async def save_attendance(attendance: AttendanceCreate, request: Request):
 @api_router.delete("/attendance/{attendance_id}")
 async def delete_attendance(attendance_id: str, request: Request):
     """Remove um registro de frequência"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor'])(request)
+    # Coordenador PODE editar frequência (área do diário)
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
     
     # Verifica se existe
     existing = await db.attendance.find_one({"id": attendance_id})
