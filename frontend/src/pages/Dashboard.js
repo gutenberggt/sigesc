@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { schoolsAPI, usersAPI, classesAPI, profilesAPI } from '@/services/api';
+import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI } from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 
 export const Dashboard = () => {
@@ -25,15 +25,16 @@ export const Dashboard = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [schoolsData, usersData, classesData, profileData] = await Promise.all([
+        const [schoolsData, usersData, classesData, studentsData, profileData] = await Promise.all([
           schoolsAPI.getAll().catch(() => []),
           usersAPI.getAll().catch(() => []),
           classesAPI.getAll().catch(() => []),
+          studentsAPI.getAll().catch(() => []),
           profilesAPI.getMyProfile().catch(() => null)
         ]);
 
-        // Conta alunos (usuários com role 'aluno')
-        const studentsCount = usersData.filter(u => u.role === 'aluno').length;
+        // Conta alunos ativos da coleção students
+        const activeStudentsCount = studentsData.filter(s => s.status === 'active').length;
 
         setStats({
           schools: schoolsData.length,
