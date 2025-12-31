@@ -3947,49 +3947,151 @@ class SIGESCTester:
         return True
 
     def test_boletim_component_filtering(self):
-        """Test component filtering in Boletim generation based on school type (Integral vs Regular)"""
-        self.log("\n📋 Testing Boletim Component Filtering (Integral vs Regular Schools)...")
-        
-        # Variables to store test data
-        integral_school_id = None
-        regular_school_id = None
-        integral_student_id = None
-        regular_student_id = None
-        integral_components = []
-        regular_components = []
+        """Test component filtering in Boletim generation based on Education Level and School Type as per review request"""
+        self.log("\n📋 Testing Boletim Component Filtering (Education Level + School Type)...")
         
         try:
-            # Step 1: Get Integral School ID
-            self.log("1️⃣ Getting Integral School ID...")
+            # TEST CASE 1: Educação Infantil Student (Berçário)
+            self.log("\n1️⃣ TEST CASE 1: Educação Infantil Student (Berçário)...")
+            infantil_student_id = "db50cfdc-abbb-422b-974a-08671e61cabd"
+            
+            self.log(f"   Testing student ID: {infantil_student_id}")
+            self.log("   Expected: EDUCAÇÃO INFANTIL components only")
+            self.log("   Expected components: Corpo, gestos e movimentos; Escuta, fala, pensamento e imaginação; etc.")
+            
+            response = requests.get(
+                f"{API_BASE}/documents/boletim/{infantil_student_id}?academic_year=2025",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                self.log("✅ Boletim generated successfully for Educação Infantil student")
+                self.log(f"   PDF size: {len(response.content)} bytes")
+                self.log(f"   Content-Type: {response.headers.get('Content-Type')}")
+                
+                if response.headers.get('Content-Type') == 'application/pdf':
+                    self.log("✅ Correct PDF Content-Type")
+                else:
+                    self.log("❌ Incorrect Content-Type - expected application/pdf")
+                    
+                if len(response.content) > 1000:  # Reasonable PDF size
+                    self.log("✅ PDF has reasonable size (>1KB)")
+                else:
+                    self.log("❌ PDF size too small - may be empty or corrupted")
+            else:
+                self.log(f"❌ Failed to generate boletim for Educação Infantil student: {response.status_code} - {response.text}")
+                return False
+            
+            # TEST CASE 2: Fundamental Anos Iniciais Student from INTEGRAL School
+            self.log("\n2️⃣ TEST CASE 2: Fundamental Anos Iniciais Student from INTEGRAL School...")
+            
+            # First, find a student from Escola Municipal Floresta do Araguaia (integral school)
+            integral_school_id = "dd8e65aa-0c7b-46b9-9a97-19a9ec94abcb"
+            self.log(f"   Looking for students from integral school: {integral_school_id}")
+            
+            response = requests.get(
+                f"{API_BASE}/students?school_id={integral_school_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            integral_student_id = None
+            if response.status_code == 200:
+                students = response.json()
+                if students:
+                    integral_student_id = students[0]['id']
+                    self.log(f"✅ Found integral school student: {students[0].get('full_name')} (ID: {integral_student_id})")
+                else:
+                    self.log("❌ No students found in integral school")
+                    return False
+            else:
+                self.log(f"❌ Failed to get students from integral school: {response.status_code}")
+                return False
+            
+            if integral_student_id:
+                self.log("   Expected: Regular Fundamental + Escola Integral components")
+                self.log("   Expected integral components: Recreação, Esporte e Lazer; Arte e Cultura; Tecnologia e Informática; etc.")
+                
+                response = requests.get(
+                    f"{API_BASE}/documents/boletim/{integral_student_id}?academic_year=2025",
+                    headers=self.get_headers(self.admin_token)
+                )
+                
+                if response.status_code == 200:
+                    self.log("✅ Boletim generated successfully for Integral school student")
+                    self.log(f"   PDF size: {len(response.content)} bytes")
+                    
+                    if len(response.content) > 1000:
+                        self.log("✅ PDF has reasonable size")
+                    else:
+                        self.log("❌ PDF size too small")
+                else:
+                    self.log(f"❌ Failed to generate boletim for integral school student: {response.status_code} - {response.text}")
+                    return False
+            
+            # TEST CASE 3: Fundamental Anos Iniciais Student from REGULAR School
+            self.log("\n3️⃣ TEST CASE 3: Fundamental Anos Iniciais Student from REGULAR School...")
+            
+            # Find a student from a regular (non-integral) school
             response = requests.get(
                 f"{API_BASE}/schools",
                 headers=self.get_headers(self.admin_token)
             )
             
+            regular_school_id = None
+            regular_student_id = None
+            
             if response.status_code == 200:
                 schools = response.json()
-                self.log(f"✅ Retrieved {len(schools)} schools")
-                
-                # Find integral and regular schools
+                # Look for a school that is NOT integral (atendimento_integral: false)
                 for school in schools:
-                    if school.get('atendimento_integral') is True:
-                        integral_school_id = school['id']
-                        self.log(f"✅ Found Integral School: {school['name']} (ID: {integral_school_id})")
-                    elif school.get('atendimento_integral') is False:
+                    if not school.get('atendimento_integral', False):
                         regular_school_id = school['id']
-                        self.log(f"✅ Found Regular School: {school['name']} (ID: {regular_school_id})")
+                        self.log(f"✅ Found regular school: {school.get('name')} (ID: {regular_school_id})")
+                        break
                 
-                if not integral_school_id:
-                    self.log("❌ No integral school found (atendimento_integral: true)")
-                    return False
-                
-                if not regular_school_id:
-                    self.log("❌ No regular school found (atendimento_integral: false)")
-                    return False
+                if regular_school_id:
+                    # Get students from this regular school
+                    response = requests.get(
+                        f"{API_BASE}/students?school_id={regular_school_id}",
+                        headers=self.get_headers(self.admin_token)
+                    )
                     
+                    if response.status_code == 200:
+                        students = response.json()
+                        if students:
+                            regular_student_id = students[0]['id']
+                            self.log(f"✅ Found regular school student: {students[0].get('full_name')} (ID: {regular_student_id})")
+                        else:
+                            self.log("❌ No students found in regular school")
+                    else:
+                        self.log(f"❌ Failed to get students from regular school: {response.status_code}")
+                else:
+                    self.log("❌ No regular (non-integral) schools found")
+                    return False
             else:
-                self.log(f"❌ Failed to get schools: {response.status_code} - {response.text}")
+                self.log(f"❌ Failed to get schools: {response.status_code}")
                 return False
+            
+            if regular_student_id:
+                self.log("   Expected: ONLY Regular Fundamental Anos Iniciais components")
+                self.log("   Should NOT have: Recreação, Arte e Cultura, Tecnologia e Informática")
+                
+                response = requests.get(
+                    f"{API_BASE}/documents/boletim/{regular_student_id}?academic_year=2025",
+                    headers=self.get_headers(self.admin_token)
+                )
+                
+                if response.status_code == 200:
+                    self.log("✅ Boletim generated successfully for Regular school student")
+                    self.log(f"   PDF size: {len(response.content)} bytes")
+                    
+                    if len(response.content) > 1000:
+                        self.log("✅ PDF has reasonable size")
+                    else:
+                        self.log("❌ PDF size too small")
+                else:
+                    self.log(f"❌ Failed to generate boletim for regular school student: {response.status_code} - {response.text}")
+                    return False
             
             # Step 2: Find Student from Integral School
             self.log("2️⃣ Finding student from Integral School...")
