@@ -379,31 +379,33 @@ export const Dashboard = () => {
           </div>
         )}
 
-        {/* Info de desenvolvimento */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <BarChart3 className="text-blue-600" size={24} />
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-900">Sistema em Desenvolvimento - Fase 5.5 Em Andamento</h3>
-              <div className="mt-2 text-sm text-blue-700">
-                <p>✅ Autenticação JWT implementada</p>
-                <p>✅ Sistema de papéis (RBAC) funcionando</p>
-                <p>✅ Dashboard por papel configurado</p>
-                <p>✅ CRUD de Escolas, Usuários, Turmas e Disciplinas</p>
-                <p>✅ Gestão completa de Alunos (6 abas)</p>
-                <p>✅ Busca avançada por Nome e CPF</p>
-                <p>✅ Sistema de Notas (lançamento por turma e por aluno)</p>
-                <p>✅ Calendário Letivo (visualização Anual, Mensal, Semanal, Diária)</p>
-                <p>✅ Gestão de Eventos (feriados, sábados letivos, etc.)</p>
-                <p>✅ Controle de Frequência (lançamento e relatórios)</p>
-                <p>✅ Gestão de Servidores (cadastro, lotação, alocação de professores)</p>
-                <p className="mt-2 font-medium">Próxima fase: Portais de Visualização</p>
+        {/* Info de desenvolvimento - apenas para admin */}
+        {user?.role === 'admin' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <BarChart3 className="text-blue-600" size={24} />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-900">Sistema em Desenvolvimento - Fase 5.5 Em Andamento</h3>
+                <div className="mt-2 text-sm text-blue-700">
+                  <p>✅ Autenticação JWT implementada</p>
+                  <p>✅ Sistema de papéis (RBAC) funcionando</p>
+                  <p>✅ Dashboard por papel configurado</p>
+                  <p>✅ CRUD de Escolas, Usuários, Turmas e Disciplinas</p>
+                  <p>✅ Gestão completa de Alunos (6 abas)</p>
+                  <p>✅ Busca avançada por Nome e CPF</p>
+                  <p>✅ Sistema de Notas (lançamento por turma e por aluno)</p>
+                  <p>✅ Calendário Letivo (visualização Anual, Mensal, Semanal, Diária)</p>
+                  <p>✅ Gestão de Eventos (feriados, sábados letivos, etc.)</p>
+                  <p>✅ Controle de Frequência (lançamento e relatórios)</p>
+                  <p>✅ Gestão de Servidores (cadastro, lotação, alocação de professores)</p>
+                  <p className="mt-2 font-medium">Próxima fase: Portais de Visualização</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </Layout>
   );
