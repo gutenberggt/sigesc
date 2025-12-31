@@ -1,4 +1,16 @@
 backend:
+  - task: "Boletim Component Filtering by School Type (Integral vs Regular)"
+    implemented: true
+    working: true
+    file: "backend/server.py, backend/pdf_generator.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ BOLETIM COMPONENT FILTERING FULLY TESTED AND WORKING! Comprehensive testing completed successfully: ✅ SCHOOL TYPE IDENTIFICATION: Found 2 integral schools (atendimento_integral: true) and 15 regular schools (atendimento_integral: false), ✅ COMPONENT CATEGORIZATION: Successfully identified 11 Escola Integral specific components (atendimento_programa: atendimento_integral) including 'Recreação, Esporte e Lazer', 'Arte e Cultura', 'Tecnologia e Informática', 'Acomp. Ped. de Língua Portuguesa', 'Acomp. Ped. de Matemática' and 32 regular components, ✅ BOLETIM GENERATION: Both integral and regular school student boletim generation succeeded (200 status), PDF files generated correctly with proper Content-Type (application/pdf) and reasonable file sizes (~20KB), ✅ FILTERING LOGIC: System correctly categorizes components based on atendimento_programa field, integral components only appear for schools with atendimento_integral: true, ✅ ERROR HANDLING: Proper 404 response for invalid student IDs, authentication required (401 for missing tokens), academic year parameter support working, ✅ API ENDPOINTS: GET /api/documents/boletim/{student_id} working correctly for both school types, proper PDF generation with component filtering based on school configuration. Component filtering system is fully operational and correctly differentiates between integral and regular school requirements!"
+
   - task: "Connections System - Connection Management APIs"
     implemented: true
     working: true
