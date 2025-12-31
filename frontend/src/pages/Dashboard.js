@@ -379,6 +379,190 @@ export const Dashboard = () => {
           </div>
         )}
 
+        {/* Menu de Acesso Rápido - Coordenador */}
+        {user?.role === 'coordenador' && (
+          <div>
+            <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <Card 
+                className="cursor-pointer hover:bg-purple-50 transition-colors"
+                onClick={() => navigate('/admin/classes')}
+              >
+                <CardContent className="p-4 text-center">
+                  <BookOpen className="mx-auto mb-2 text-purple-600" size={32} />
+                  <p className="font-medium text-sm">Turmas</p>
+                  <span className="text-xs text-gray-500">Visualização</span>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:bg-orange-50 transition-colors"
+                onClick={() => navigate('/admin/students')}
+              >
+                <CardContent className="p-4 text-center">
+                  <GraduationCap className="mx-auto mb-2 text-orange-600" size={32} />
+                  <p className="font-medium text-sm">Alunos</p>
+                  <span className="text-xs text-gray-500">Visualização</span>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:bg-teal-50 transition-colors"
+                onClick={() => navigate('/admin/grades')}
+              >
+                <CardContent className="p-4 text-center">
+                  <ClipboardList className="mx-auto mb-2 text-teal-600" size={32} />
+                  <p className="font-medium text-sm">Notas</p>
+                  <span className="text-xs text-green-600 font-medium">Edição</span>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:bg-indigo-50 transition-colors"
+                onClick={() => navigate('/admin/calendar')}
+              >
+                <CardContent className="p-4 text-center">
+                  <Calendar className="mx-auto mb-2 text-indigo-600" size={32} />
+                  <p className="font-medium text-sm">Calendário</p>
+                  <span className="text-xs text-gray-500">Visualização</span>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:bg-cyan-50 transition-colors"
+                onClick={() => navigate('/admin/attendance')}
+              >
+                <CardContent className="p-4 text-center">
+                  <ClipboardCheck className="mx-auto mb-2 text-cyan-600" size={32} />
+                  <p className="font-medium text-sm">Frequência</p>
+                  <span className="text-xs text-green-600 font-medium">Edição</span>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:bg-blue-50 transition-colors"
+                onClick={() => navigate('/admin/learning-objects')}
+              >
+                <CardContent className="p-4 text-center">
+                  <BookOpen className="mx-auto mb-2 text-blue-600" size={32} />
+                  <p className="font-medium text-sm">Conteúdos</p>
+                  <span className="text-xs text-green-600 font-medium">Edição</span>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Menu de Navegação Completo - Coordenador */}
+        {user?.role === 'coordenador' && (
+          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Menu de Navegação</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <button
+                onClick={() => navigate('/admin/classes')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-all"
+              >
+                <BookOpen className="text-purple-600" size={24} />
+                <div className="text-left">
+                  <span className="font-medium text-gray-900 block">Turmas</span>
+                  <span className="text-xs text-gray-500">Visualizar turmas da escola</span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/students')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all"
+              >
+                <GraduationCap className="text-orange-600" size={24} />
+                <div className="text-left">
+                  <span className="font-medium text-gray-900 block">Alunos</span>
+                  <span className="text-xs text-gray-500">Visualizar dados dos alunos</span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/grades')}
+                className="flex items-center space-x-3 p-4 border border-green-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all bg-green-50"
+              >
+                <ClipboardList className="text-teal-600" size={24} />
+                <div className="text-left">
+                  <span className="font-medium text-gray-900 block">Notas</span>
+                  <span className="text-xs text-green-600">✏️ Lançar e editar notas</span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/calendar')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
+              >
+                <Calendar className="text-indigo-600" size={24} />
+                <div className="text-left">
+                  <span className="font-medium text-gray-900 block">Calendário Letivo</span>
+                  <span className="text-xs text-gray-500">Visualizar calendário escolar</span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/attendance')}
+                className="flex items-center space-x-3 p-4 border border-green-200 rounded-lg hover:bg-cyan-50 hover:border-cyan-300 transition-all bg-green-50"
+              >
+                <ClipboardCheck className="text-cyan-600" size={24} />
+                <div className="text-left">
+                  <span className="font-medium text-gray-900 block">Frequência</span>
+                  <span className="text-xs text-green-600">✏️ Lançar e editar frequência</span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/learning-objects')}
+                className="flex items-center space-x-3 p-4 border border-green-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all bg-green-50"
+              >
+                <BookOpen className="text-blue-600" size={24} />
+                <div className="text-left">
+                  <span className="font-medium text-gray-900 block">Objetos de Conhecimento</span>
+                  <span className="text-xs text-green-600">✏️ Registrar conteúdos</span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => navigate('/avisos')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all"
+              >
+                <Bell className="text-orange-600" size={24} />
+                <div className="text-left">
+                  <span className="font-medium text-gray-900 block">Avisos</span>
+                  <span className="text-xs text-gray-500">Ver avisos e notificações</span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => navigate('/profile')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
+              >
+                <User className="text-indigo-600" size={24} />
+                <div className="text-left">
+                  <span className="font-medium text-gray-900 block">Meu Perfil</span>
+                  <span className="text-xs text-gray-500">Gerenciar seu perfil</span>
+                </div>
+              </button>
+            </div>
+            
+            {/* Legenda */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-500 flex items-center gap-4">
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded bg-green-100 border border-green-300"></span>
+                  Permite edição
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded bg-gray-100 border border-gray-300"></span>
+                  Somente visualização
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Info de desenvolvimento - apenas para admin */}
         {user?.role === 'admin' && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
