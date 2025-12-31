@@ -3986,7 +3986,7 @@ class SIGESCTester:
             self.log("\n2️⃣ TEST CASE 2: Fundamental Anos Iniciais Student from INTEGRAL School...")
             
             # First, find a student from Escola Municipal Floresta do Araguaia (integral school)
-            integral_school_id = "dd8e65aa-0c7b-46b9-9a97-19a9ec94abcb"
+            integral_school_id = "dd8e65aa-ec50-48b9-b8f8-21f32fc29250"  # Updated correct ID
             self.log(f"   Looking for students from integral school: {integral_school_id}")
             
             response = requests.get(
