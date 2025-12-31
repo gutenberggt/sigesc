@@ -17,6 +17,19 @@ axios.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// ============= AUTH & PERMISSIONS =============
+export const authAPI = {
+  getPermissions: async () => {
+    const response = await axios.get(`${API}/auth/permissions`);
+    return response.data;
+  },
+  
+  getMe: async () => {
+    const response = await axios.get(`${API}/auth/me`);
+    return response.data;
+  }
+};
+
 // ============= SCHOOLS =============
 export const schoolsAPI = {
   list: async () => {
