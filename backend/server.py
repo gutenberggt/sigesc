@@ -1622,7 +1622,8 @@ async def get_grades_by_student(student_id: str, request: Request, academic_year
 @api_router.post("/grades", response_model=Grade)
 async def create_grade(grade_data: GradeCreate, request: Request):
     """Cria ou atualiza nota de um aluno"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor'])(request)
+    # Coordenador PODE editar notas (área do diário)
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
     
     # Verifica se já existe nota para este aluno/turma/componente/ano
     existing = await db.grades.find_one({
@@ -1666,7 +1667,8 @@ async def create_grade(grade_data: GradeCreate, request: Request):
 @api_router.put("/grades/{grade_id}", response_model=Grade)
 async def update_grade(grade_id: str, grade_update: GradeUpdate, request: Request):
     """Atualiza notas de um aluno"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor'])(request)
+    # Coordenador PODE editar notas (área do diário)
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
     
     grade = await db.grades.find_one({"id": grade_id}, {"_id": 0})
     if not grade:
@@ -1688,7 +1690,8 @@ async def update_grade(grade_id: str, grade_update: GradeUpdate, request: Reques
 @api_router.post("/grades/batch")
 async def update_grades_batch(request: Request, grades: List[dict]):
     """Atualiza notas em lote (por turma)"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor'])(request)
+    # Coordenador PODE editar notas (área do diário)
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
     
     results = []
     for grade_data in grades:
