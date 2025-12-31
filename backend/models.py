@@ -958,6 +958,32 @@ class Student(StudentBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+
+# ============= STUDENT HISTORY MODELS =============
+
+class StudentHistoryBase(BaseModel):
+    """Histórico de movimentações do aluno"""
+    student_id: str
+    school_id: str
+    school_name: str
+    class_id: Optional[str] = None
+    class_name: Optional[str] = None
+    enrollment_id: Optional[str] = None
+    action_type: Literal['matricula', 'remanejamento', 'transferencia_saida', 'transferencia_entrada', 'mudanca_status', 'edicao'] = 'matricula'
+    previous_status: Optional[str] = None
+    new_status: str
+    observations: Optional[str] = None
+    user_id: str
+    user_name: str
+    action_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class StudentHistoryCreate(StudentHistoryBase):
+    pass
+
+class StudentHistory(StudentHistoryBase):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+
+
 # ============= GUARDIAN MODELS =============
 
 class GuardianBase(BaseModel):
