@@ -40,7 +40,7 @@ export const Dashboard = () => {
           schools: schoolsData.length,
           users: usersData.length,
           classes: classesData.length,
-          students: studentsCount
+          students: activeStudentsCount
         });
         
         setProfile(profileData);
