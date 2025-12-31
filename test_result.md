@@ -636,3 +636,15 @@ agent_communication:
       - working: "pending"
         agent: "main"
         comment: "Implemented complete Ficha Individual PDF generation following Floresta do Araguaia model. Features: header with school info, student data (name, sex, INEP, birth date), class info (grade, class name, shift, workload, school days), academic performance table with all bi-monthly grades, semester recoveries, weighted calculations (1°x2, 2°x3, 3°x2, 4°x3), total points, annual average, absences and frequency percentage per component. Added 'Ficha Individual' option to DocumentGeneratorModal with orange color scheme. Backend endpoint fetches grades, courses, and attendance data. Needs testing for: 1) PDF generation with real student data, 2) Table rendering with grades, 3) Download functionality from modal."
+
+  - task: "Coordinator Permissions - Role-based Access Control"
+    implemented: true
+    working: true
+    file: "backend/auth_middleware.py, backend/server.py, frontend/src/pages/*.js, frontend/src/hooks/usePermissions.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "✅ Implemented coordinator permissions. Coordinators can VIEW all school data but can only EDIT grades, attendance, and learning objects (diary). Backend: Added require_roles_with_coordinator_edit() method to AuthMiddleware, added /api/auth/permissions endpoint, updated student update endpoint to block coordinators. Frontend: Created usePermissions hook, updated StudentsComplete.js and Classes.js to hide edit/delete buttons for coordinators, added coordinator to grades route. Manual testing via curl and screenshots confirmed: coordenador role returned correctly on login, permissions endpoint returns correct flags, student edit blocked with proper message, coordinator can access grades/attendance/learning-objects pages."
