@@ -95,6 +95,11 @@ export const classesAPI = {
     return response.data;
   },
   
+  getDetails: async (id) => {
+    const response = await axios.get(`${API}/classes/${id}/details`);
+    return response.data;
+  },
+  
   create: async (data) => {
     const response = await axios.post(`${API}/classes`, data);
     return response.data;
