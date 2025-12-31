@@ -187,6 +187,48 @@ export const Classes = () => {
     setIsModalOpen(true);
   };
 
+  const handleView = async (classItem) => {
+    setViewingClass(classItem);
+    setIsViewModalOpen(true);
+    setLoadingDetails(true);
+    
+    try {
+      const details = await classesAPI.getDetails(classItem.id);
+      setClassDetails(details);
+    } catch (error) {
+      console.error('Erro ao carregar detalhes:', error);
+      showAlert('error', 'Erro ao carregar detalhes da turma');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const formatPhone = (phone) => {
+    if (!phone) return '';
+    return phone.replace(/\D/g, '');
+  };
+
+  const formatPhoneDisplay = (phone) => {
+    if (!phone) return '-';
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 11) {
+      return `(${cleaned.slice(0,2)}) ${cleaned.slice(2,7)}-${cleaned.slice(7)}`;
+    }
+    return phone;
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('pt-BR');
+  };
+
+  const handleOpenPDF = (studentId) => {
+    const academicYear = viewingClass?.academic_year || new Date().getFullYear();
+    const url = documentsAPI.getBoletimUrl(studentId, academicYear);
+    window.open(url, '_blank');
+  };
+
   const handleDelete = async (classItem) => {
     if (window.confirm(`Tem certeza que deseja excluir a turma "${classItem.name}"?`)) {
       try {
