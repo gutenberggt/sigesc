@@ -1032,8 +1032,14 @@ async def update_student(student_id: str, student_update: StudentUpdate, request
     - Edição de dados básicos
     - Remanejamento (mudança de turma na mesma escola)
     - Preparação para transferência (mudança de status)
+    
+    NOTA: Coordenadores NÃO podem editar alunos (apenas visualizar).
     """
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'coordenador'])(request)
+    # Coordenador não pode editar alunos - apenas visualizar
+    current_user = await AuthMiddleware.require_roles_with_coordinator_edit(
+        ['admin', 'secretario', 'coordenador'], 
+        'students'
+    )(request)
     
     # Busca aluno
     student_doc = await db.students.find_one({"id": student_id}, {"_id": 0})
