@@ -360,7 +360,7 @@ export const Classes = () => {
 
         <DataTable
           columns={columns}
-          data={classes}
+          data={filteredClasses}
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDelete}
