@@ -1322,10 +1322,10 @@ def generate_class_details_pdf(
     
     # Tentar carregar logo da mantenedora
     if mantenedora and mantenedora.get('logo_url'):
-        logo = load_image_from_url(mantenedora.get('logo_url'), width=2.5*cm, height=2.5*cm)
+        logo = get_logo_image(mantenedora.get('logo_url'), width=2.5*cm, height=2.5*cm)
     
     if not logo:
-        logo = load_image_from_url(LOGO_URL, width=2.5*cm, height=2.5*cm)
+        logo = get_logo_image(LOGO_URL, width=2.5*cm, height=2.5*cm)
     
     # Texto do cabeçalho
     mantenedora_nome = mantenedora.get('nome', 'Secretaria Municipal de Educação') if mantenedora else 'Secretaria Municipal de Educação'
