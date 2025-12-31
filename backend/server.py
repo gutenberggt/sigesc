@@ -366,7 +366,7 @@ async def refresh_token(refresh_request: RefreshTokenRequest):
 
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_current_user_info(request: Request):
-    """Retorna informações do usuário autenticado"""
+    """Retorna informações do usuário autenticado com role efetivo"""
     current_user = await AuthMiddleware.get_current_user(request)
     
     user_doc = await db.users.find_one({"id": current_user['id']}, {"_id": 0})
@@ -375,6 +375,9 @@ async def get_current_user_info(request: Request):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuário não encontrado"
         )
+    
+    # Substitui o role do banco pelo role efetivo do token (que já considera lotações)
+    user_doc['role'] = current_user.get('role', user_doc.get('role'))
     
     return UserResponse(**user_doc)
 
