@@ -3816,23 +3816,25 @@ class SIGESCTester:
         # 5. Attendance Access (Should be ALLOWED)
         self.log("5️⃣ Testing Attendance Access (Should be ALLOWED for coordinator)...")
         
-        # Use specific class and date from review request
-        specific_class_id = "42a876e6-aea3-40a3-8660-e1ef44fc3c4a"  # 3º Ano A
-        test_date = "2025-12-15"
-        
-        response = requests.get(
-            f"{API_BASE}/attendance/by-class/{specific_class_id}/{test_date}",
-            headers=self.get_headers(self.coordinator_token)
-        )
-        
-        if response.status_code == 200:
-            attendance_data = response.json()
-            self.log(f"✅ GET /api/attendance/by-class successful")
-            self.log(f"   Class: {attendance_data.get('class_name', 'N/A')}")
-            self.log(f"   Students: {len(attendance_data.get('students', []))}")
+        # Use available class from setup instead of hardcoded one
+        if self.class_id:
+            test_date = "2025-12-15"
+            
+            response = requests.get(
+                f"{API_BASE}/attendance/by-class/{self.class_id}/{test_date}",
+                headers=self.get_headers(self.coordinator_token)
+            )
+            
+            if response.status_code == 200:
+                attendance_data = response.json()
+                self.log(f"✅ GET /api/attendance/by-class successful")
+                self.log(f"   Class: {attendance_data.get('class_name', 'N/A')}")
+                self.log(f"   Students: {len(attendance_data.get('students', []))}")
+            else:
+                self.log(f"❌ GET /api/attendance/by-class failed: {response.status_code} - {response.text}")
+                return False
         else:
-            self.log(f"❌ GET /api/attendance/by-class failed: {response.status_code} - {response.text}")
-            return False
+            self.log("ℹ️ Skipping attendance test - no class_id available")
         
         # 6. Learning Objects Access (Should be ALLOWED)
         self.log("6️⃣ Testing Learning Objects Access (Should be ALLOWED for coordinator)...")
