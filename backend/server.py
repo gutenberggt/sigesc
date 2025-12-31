@@ -378,6 +378,16 @@ async def get_current_user_info(request: Request):
     
     return UserResponse(**user_doc)
 
+@api_router.get("/auth/permissions")
+async def get_user_permissions(request: Request):
+    """Retorna as permissões do usuário autenticado baseado no seu role"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    permissions = AuthMiddleware.get_user_permissions(current_user)
+    permissions['school_ids'] = current_user.get('school_ids', [])
+    
+    return permissions
+
 # ============= USER ROUTES (Admin only) =============
 
 @api_router.get("/users", response_model=List[UserResponse])
