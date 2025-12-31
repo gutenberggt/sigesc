@@ -410,11 +410,195 @@ export const Classes = () => {
           columns={columns}
           data={filteredClasses}
           loading={loading}
+          onView={handleView}
           onEdit={handleEdit}
           onDelete={handleDelete}
           canEdit={canEdit}
           canDelete={canDelete}
         />
+
+        {/* Modal de Visualização de Detalhes */}
+        <Modal
+          isOpen={isViewModalOpen}
+          onClose={() => {
+            setIsViewModalOpen(false);
+            setClassDetails(null);
+          }}
+          title={`Detalhes da Turma: ${viewingClass?.name || ''}`}
+          size="xl"
+        >
+          {loadingDetails ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-3 text-gray-600">Carregando...</span>
+            </div>
+          ) : classDetails ? (
+            <div className="space-y-6">
+              {/* Dados da Turma */}
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h3 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                  <School size={18} />
+                  Dados da Turma
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">Nome:</span>
+                    <p className="font-medium">{classDetails.class?.name}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Escola:</span>
+                    <p className="font-medium">{classDetails.school?.name}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Ano Letivo:</span>
+                    <p className="font-medium">{classDetails.class?.academic_year}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Nível de Ensino:</span>
+                    <p className="font-medium">{getEducationLevelLabel(classDetails.class?.education_level)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Série/Etapa:</span>
+                    <p className="font-medium">{classDetails.class?.grade_level || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Turno:</span>
+                    <p className="font-medium">{shiftLabels[classDetails.class?.shift] || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Professores Alocados */}
+              <div className="bg-green-50 rounded-lg p-4">
+                <h3 className="font-semibold text-green-900 mb-3 flex items-center gap-2">
+                  <User size={18} />
+                  Professor(es) Alocado(s)
+                </h3>
+                {classDetails.teachers?.length > 0 ? (
+                  <div className="space-y-2">
+                    {classDetails.teachers.map((teacher, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-white rounded p-2 text-sm">
+                        <div>
+                          <span className="font-medium">{teacher.nome}</span>
+                          {teacher.componente && (
+                            <span className="ml-2 text-gray-500">({teacher.componente})</span>
+                          )}
+                        </div>
+                        {teacher.celular && (
+                          <a
+                            href={`https://wa.me/55${formatPhone(teacher.celular)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-green-600 hover:text-green-800 flex items-center gap-1"
+                          >
+                            <Phone size={14} />
+                            {formatPhoneDisplay(teacher.celular)}
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">Nenhum professor alocado</p>
+                )}
+              </div>
+
+              {/* Lista de Alunos */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Users size={18} />
+                  Alunos Matriculados ({classDetails.total_students || 0})
+                </h3>
+                {classDetails.students?.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-200">
+                          <th className="px-3 py-2 text-left font-medium">#</th>
+                          <th className="px-3 py-2 text-left font-medium">Aluno</th>
+                          <th className="px-3 py-2 text-left font-medium">Data Nasc.</th>
+                          <th className="px-3 py-2 text-left font-medium">Responsável</th>
+                          <th className="px-3 py-2 text-left font-medium">Celular</th>
+                          <th className="px-3 py-2 text-center font-medium">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {classDetails.students.map((student, idx) => (
+                          <tr key={student.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-3 py-2">{idx + 1}</td>
+                            <td className="px-3 py-2 font-medium">{student.full_name}</td>
+                            <td className="px-3 py-2">{formatDate(student.birth_date)}</td>
+                            <td className="px-3 py-2">{student.guardian_name}</td>
+                            <td className="px-3 py-2">
+                              {student.guardian_phone ? (
+                                <a
+                                  href={`https://wa.me/55${formatPhone(student.guardian_phone)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-green-600 hover:text-green-800 flex items-center gap-1"
+                                >
+                                  <Phone size={14} />
+                                  {formatPhoneDisplay(student.guardian_phone)}
+                                </a>
+                              ) : '-'}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <button
+                                onClick={() => handleOpenPDF(student.id)}
+                                className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
+                                title="Abrir Boletim"
+                              >
+                                <FileText size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">Nenhum aluno matriculado</p>
+                )}
+              </div>
+
+              {/* Botão para PDF da Turma */}
+              {classDetails.students?.length > 0 && (
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <button
+                    onClick={() => {
+                      const url = documentsAPI.getBatchDocumentsUrl(
+                        viewingClass.id,
+                        'boletim',
+                        viewingClass.academic_year
+                      );
+                      window.open(url, '_blank');
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <FileText size={18} />
+                    Boletins da Turma (PDF)
+                  </button>
+                  <button
+                    onClick={() => {
+                      const url = documentsAPI.getBatchDocumentsUrl(
+                        viewingClass.id,
+                        'ficha_individual',
+                        viewingClass.academic_year
+                      );
+                      window.open(url, '_blank');
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <FileText size={18} />
+                    Fichas Individuais (PDF)
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-8">Erro ao carregar detalhes</p>
+          )}
+        </Modal>
 
         <Modal
           isOpen={isModalOpen}
