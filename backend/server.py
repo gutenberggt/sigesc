@@ -4404,14 +4404,69 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
         "academic_year": academic_year
     }, {"_id": 0}).to_list(100)
     
-    # Buscar disciplinas da turma
-    courses = await db.courses.find({
-        "class_id": class_id
-    }, {"_id": 0}).to_list(50)
+    # ===== FILTRAR COMPONENTES CURRICULARES =====
+    # Determinar nível de ensino e série da turma
+    nivel_ensino = class_info.get('nivel_ensino')
+    grade_level = class_info.get('grade_level', '')
     
-    # Se não houver disciplinas específicas da turma, buscar todas
-    if not courses:
-        courses = await db.courses.find({}, {"_id": 0}).to_list(50)
+    # Determinar se a escola oferece atendimento integral
+    escola_integral = school.get('atendimento_integral', False)
+    
+    # Construir query para buscar componentes curriculares
+    courses_query = {}
+    
+    # Filtrar por nível de ensino
+    if nivel_ensino:
+        courses_query['nivel_ensino'] = nivel_ensino
+    
+    # Buscar componentes do nível de ensino
+    all_courses = await db.courses.find(courses_query, {"_id": 0}).to_list(100)
+    
+    # Filtrar componentes baseado no atendimento/programa
+    filtered_courses = []
+    for course in all_courses:
+        atendimento = course.get('atendimento_programa')
+        course_grade_levels = course.get('grade_levels', [])
+        
+        # Verificar se o componente é específico de Escola Integral
+        if atendimento == 'atendimento_integral':
+            # Só incluir se a escola é integral
+            if not escola_integral:
+                continue
+        
+        # Verificar se o componente é de outro atendimento (AEE, reforço, etc)
+        if atendimento and atendimento != 'atendimento_integral':
+            # Verificar se a escola oferece esse atendimento
+            escola_oferece = school.get(atendimento, False)
+            if not escola_oferece:
+                continue
+        
+        # Verificar se o componente é específico para certas séries
+        if course_grade_levels:
+            # Se o componente tem séries específicas, verificar se a turma é de uma delas
+            if grade_level and grade_level not in course_grade_levels:
+                continue
+        
+        filtered_courses.append(course)
+    
+    # Ordenar por nome
+    filtered_courses.sort(key=lambda x: x.get('name', ''))
+    
+    # Se não houver componentes após filtragem, buscar todos do nível
+    if not filtered_courses:
+        if nivel_ensino:
+            filtered_courses = await db.courses.find({
+                "nivel_ensino": nivel_ensino,
+                "$or": [
+                    {"atendimento_programa": None},
+                    {"atendimento_programa": {"$exists": False}}
+                ]
+            }, {"_id": 0}).to_list(50)
+        else:
+            # Fallback: buscar todos
+            filtered_courses = await db.courses.find({}, {"_id": 0}).to_list(50)
+    
+    courses = filtered_courses
     
     # Buscar dados da mantenedora
     mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
