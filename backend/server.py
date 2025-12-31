@@ -136,6 +136,73 @@ class ConnectionManager:
 # Instância global do gerenciador de conexões
 connection_manager = ConnectionManager()
 
+# Hierarquia de roles (maior valor = maior permissão)
+ROLE_HIERARCHY = {
+    'diretor': 5,
+    'coordenador': 4,
+    'secretario': 3,
+    'professor': 2,
+    'aluno': 1,
+    'responsavel': 1
+}
+
+async def get_effective_role_from_lotacoes(user_email: str, base_role: str) -> tuple:
+    """
+    Determina o role efetivo do usuário baseado nas suas lotações.
+    Retorna (effective_role, school_links)
+    
+    Hierarquia: diretor > coordenador > secretario > professor
+    """
+    # Busca servidor vinculado ao email do usuário
+    staff = await db.staff.find_one(
+        {"email": {"$regex": f"^{user_email}$", "$options": "i"}},
+        {"_id": 0, "id": 1, "full_name": 1}
+    )
+    
+    if not staff:
+        # Tenta buscar pelo nome do usuário
+        user = await db.users.find_one({"email": user_email}, {"_id": 0, "full_name": 1})
+        if user and user.get('full_name'):
+            staff = await db.staff.find_one(
+                {"full_name": {"$regex": f"^{user['full_name']}$", "$options": "i"}},
+                {"_id": 0, "id": 1, "full_name": 1}
+            )
+    
+    if not staff:
+        return base_role, []
+    
+    # Busca todas as lotações ativas do servidor
+    lotacoes = await db.school_assignments.find(
+        {"staff_id": staff['id'], "status": "ativo"},
+        {"_id": 0, "school_id": 1, "funcao": 1}
+    ).to_list(100)
+    
+    if not lotacoes:
+        return base_role, []
+    
+    # Determina o role de maior hierarquia e coleta school_links
+    highest_role = base_role
+    highest_priority = ROLE_HIERARCHY.get(base_role, 0)
+    school_links = []
+    
+    for lotacao in lotacoes:
+        funcao = lotacao.get('funcao', 'professor')
+        school_id = lotacao.get('school_id')
+        
+        # Adiciona aos school_links com a função específica
+        school_links.append({
+            "school_id": school_id,
+            "role": funcao
+        })
+        
+        # Verifica se é o role de maior hierarquia
+        role_priority = ROLE_HIERARCHY.get(funcao, 0)
+        if role_priority > highest_priority:
+            highest_priority = role_priority
+            highest_role = funcao
+    
+    return highest_role, school_links
+
 # ============= AUTH ROUTES =============
 
 @api_router.post("/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
