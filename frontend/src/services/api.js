@@ -100,6 +100,13 @@ export const classesAPI = {
     return response.data;
   },
   
+  getDetailsPdf: async (id) => {
+    const response = await axios.get(`${API}/classes/${id}/details/pdf`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+  
   create: async (data) => {
     const response = await axios.post(`${API}/classes`, data);
     return response.data;
