@@ -281,6 +281,11 @@ export const Classes = () => {
   const availableEducationLevels = getAvailableEducationLevels();
   const availableGradeLevels = getAvailableGradeLevels();
 
+  // Filtra as turmas por escola selecionada
+  const filteredClasses = filterSchoolId 
+    ? classes.filter(c => c.school_id === filterSchoolId)
+    : classes;
+
   return (
     <Layout>
       <div className="space-y-6">
