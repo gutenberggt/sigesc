@@ -322,22 +322,36 @@ async def refresh_token(refresh_request: RefreshTokenRequest):
             detail="Usuário inativo"
         )
     
-    # Cria novos tokens
-    school_ids = get_school_ids_from_links(user.school_links)
+    # Determina role efetivo baseado nas lotações
+    effective_role = user.role
+    effective_school_links = user.school_links or []
+    
+    if user.role in ['professor', 'secretario', 'coordenador', 'diretor']:
+        effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.email, user.role)
+        if lotacao_school_links:
+            effective_school_links = lotacao_school_links
+    
+    # Cria novos tokens com role efetivo
+    school_ids = [link.get('school_id') for link in effective_school_links if link.get('school_id')]
     token_data = {
         "sub": user.id,
         "email": user.email,
-        "role": user.role,
+        "role": effective_role,
         "school_ids": school_ids
     }
     
     access_token = create_access_token(token_data)
     new_refresh_token = create_refresh_token({"sub": user.id})
     
+    # Retorna usuário com role efetivo
+    user_response_data = user.model_dump(exclude={'password_hash'})
+    user_response_data['role'] = effective_role
+    user_response_data['school_links'] = effective_school_links
+    
     return TokenResponse(
         access_token=access_token,
         refresh_token=new_refresh_token,
-        user=UserResponse(**user.model_dump(exclude={'password_hash'}))
+        user=UserResponse(**user_response_data)
     )
 
 @api_router.get("/auth/me", response_model=UserResponse)
