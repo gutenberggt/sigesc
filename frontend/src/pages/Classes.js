@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
-import { classesAPI, schoolsAPI } from '@/services/api';
-import { Plus, AlertCircle, CheckCircle, Home } from 'lucide-react';
+import { classesAPI, schoolsAPI, documentsAPI } from '@/services/api';
+import { Plus, AlertCircle, CheckCircle, Home, Eye, Phone, FileText, User, Users, School, Calendar, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Mapeamento de níveis de ensino para séries/etapas
