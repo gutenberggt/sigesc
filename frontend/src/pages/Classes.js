@@ -71,9 +71,16 @@ export const Classes = () => {
     teacher_ids: []
   });
   
-  // SEMED pode visualizar tudo, mas não pode editar/excluir
-  const canEdit = user?.role !== 'semed';
-  const canDelete = user?.role !== 'semed';
+  // Permissões de edição:
+  // - SEMED: apenas visualização (não pode editar/excluir)
+  // - Coordenador: apenas visualização de turmas (não pode editar/excluir)
+  // - Outros roles com acesso: podem editar/excluir
+  const canEditClasses = user?.role !== 'semed' && user?.role !== 'coordenador';
+  const canDeleteClasses = user?.role !== 'semed' && user?.role !== 'coordenador';
+  
+  // Mantém variáveis originais para compatibilidade
+  const canEdit = canEditClasses;
+  const canDelete = canDeleteClasses;
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
