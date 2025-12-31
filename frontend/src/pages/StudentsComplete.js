@@ -246,9 +246,16 @@ export function StudentsComplete() {
   const nameInputRef = useRef(null);
   const cpfInputRef = useRef(null);
   
-  // SEMED pode visualizar tudo, mas não pode editar/excluir
-  const canEdit = user?.role !== 'semed';
-  const canDelete = user?.role !== 'semed';
+  // Permissões de edição:
+  // - SEMED: apenas visualização (não pode editar/excluir)
+  // - Coordenador: apenas visualização de alunos (não pode editar/excluir)
+  // - Outros roles com acesso: podem editar/excluir
+  const canEditStudents = user?.role !== 'semed' && user?.role !== 'coordenador';
+  const canDeleteStudents = user?.role !== 'semed' && user?.role !== 'coordenador';
+  
+  // Mantém variáveis originais para compatibilidade
+  const canEdit = canEditStudents;
+  const canDelete = canDeleteStudents;
 
   useEffect(() => {
     const fetchData = async () => {
