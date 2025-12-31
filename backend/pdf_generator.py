@@ -390,7 +390,8 @@ def generate_boletim_pdf(
     
     # Larguras das colunas (13 colunas: Componentes + CH + 8 notas/faltas + totais + média)
     # Total aproximado: 18cm (A4 com margens)
-    col_widths = [4.0*cm, 0.8*cm, 0.75*cm, 0.75*cm, 0.75*cm, 0.75*cm, 0.75*cm, 0.75*cm, 0.75*cm, 0.75*cm, 1.0*cm, 1.0*cm, 0.9*cm]
+    # Componentes Curriculares com largura dobrada (8cm) para nomes longos
+    col_widths = [8.0*cm, 0.7*cm, 0.6*cm, 0.6*cm, 0.6*cm, 0.6*cm, 0.6*cm, 0.6*cm, 0.6*cm, 0.6*cm, 0.8*cm, 0.8*cm, 0.8*cm]
     
     grades_table = Table(table_data, colWidths=col_widths)
     grades_table.setStyle(TableStyle([
