@@ -178,6 +178,39 @@ def generate_boletim_pdf(
     mant_estado = mantenedora.get('estado', 'PA')
     mant_nome = mantenedora.get('nome', f'Prefeitura Municipal de {mant_municipio}')
     
+    # ===== DETERMINAR NÍVEL DE ENSINO =====
+    # Mapa de níveis para exibição
+    NIVEL_ENSINO_LABELS = {
+        'educacao_infantil': 'EDUCAÇÃO INFANTIL',
+        'fundamental_anos_iniciais': 'ENSINO FUNDAMENTAL - ANOS INICIAIS',
+        'fundamental_anos_finais': 'ENSINO FUNDAMENTAL - ANOS FINAIS',
+        'ensino_medio': 'ENSINO MÉDIO',
+        'eja': 'EJA - ANOS INICIAIS',
+        'eja_final': 'EJA - ANOS FINAIS'
+    }
+    
+    # Inferir nível de ensino da turma
+    nivel_ensino = class_info.get('nivel_ensino')
+    grade_level = class_info.get('grade_level', '').lower()
+    
+    # Se não tem nivel_ensino definido, inferir pelo grade_level
+    if not nivel_ensino:
+        if any(x in grade_level for x in ['berçário', 'bercario', 'maternal', 'pré', 'pre']):
+            nivel_ensino = 'educacao_infantil'
+        elif any(x in grade_level for x in ['1º ano', '2º ano', '3º ano', '4º ano', '5º ano', '1 ano', '2 ano', '3 ano', '4 ano', '5 ano']):
+            nivel_ensino = 'fundamental_anos_iniciais'
+        elif any(x in grade_level for x in ['6º ano', '7º ano', '8º ano', '9º ano', '6 ano', '7 ano', '8 ano', '9 ano']):
+            nivel_ensino = 'fundamental_anos_finais'
+        elif any(x in grade_level for x in ['eja', 'etapa']):
+            if any(x in grade_level for x in ['3', '4', 'final']):
+                nivel_ensino = 'eja_final'
+            else:
+                nivel_ensino = 'eja'
+        else:
+            nivel_ensino = 'fundamental_anos_iniciais'  # Fallback
+    
+    nivel_ensino_label = NIVEL_ENSINO_LABELS.get(nivel_ensino, 'ENSINO FUNDAMENTAL')
+    
     header_text = f"""
     <b>{mant_nome}</b><br/>
     <font size="9">Secretaria Municipal de Educação</font><br/>
