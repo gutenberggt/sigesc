@@ -238,6 +238,10 @@ export function StudentsComplete() {
   const [filterSchoolId, setFilterSchoolId] = useState('');
   const [filterClassId, setFilterClassId] = useState('');
   const [showBatchPrintModal, setShowBatchPrintModal] = useState(false);
+  
+  // Histórico do aluno
+  const [studentHistory, setStudentHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [batchPrinting, setBatchPrinting] = useState(false);
   const nameInputRef = useRef(null);
   const cpfInputRef = useRef(null);
