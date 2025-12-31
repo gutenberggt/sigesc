@@ -337,6 +337,27 @@ export const Classes = () => {
           </div>
         )}
 
+        {/* Filtro por Escola */}
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-gray-700">Filtrar por Escola:</label>
+            <select
+              value={filterSchoolId}
+              onChange={(e) => setFilterSchoolId(e.target.value)}
+              className="flex-1 max-w-md border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              data-testid="filter-school-select"
+            >
+              <option value="">Todas as escolas</option>
+              {schools.map(school => (
+                <option key={school.id} value={school.id}>{school.name}</option>
+              ))}
+            </select>
+            <span className="text-sm text-gray-500">
+              {filteredClasses.length} turma(s) encontrada(s)
+            </span>
+          </div>
+        </div>
+
         <DataTable
           columns={columns}
           data={classes}
