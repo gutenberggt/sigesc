@@ -1617,6 +1617,84 @@ export function StudentsComplete() {
         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
         placeholder="Anotações adicionais sobre o aluno..."
       />
+
+      {/* Histórico do Aluno */}
+      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-8 flex items-center gap-2">
+        <Calendar size={18} />
+        Histórico do Aluno
+      </h3>
+      {loadingHistory ? (
+        <div className="flex items-center justify-center py-4">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-500">Carregando histórico...</span>
+        </div>
+      ) : studentHistory.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="px-3 py-2 text-left font-medium">Data/Hora</th>
+                <th className="px-3 py-2 text-left font-medium">Ação</th>
+                <th className="px-3 py-2 text-left font-medium">Escola</th>
+                <th className="px-3 py-2 text-left font-medium">Turma</th>
+                <th className="px-3 py-2 text-left font-medium">Status</th>
+                <th className="px-3 py-2 text-left font-medium">Responsável</th>
+              </tr>
+            </thead>
+            <tbody>
+              {studentHistory.map((item, idx) => (
+                <tr key={item.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    {new Date(item.action_date).toLocaleString('pt-BR', { 
+                      day: '2-digit', 
+                      month: '2-digit', 
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      item.action_type === 'matricula' ? 'bg-green-100 text-green-700' :
+                      item.action_type === 'remanejamento' ? 'bg-blue-100 text-blue-700' :
+                      item.action_type === 'transferencia_saida' ? 'bg-orange-100 text-orange-700' :
+                      item.action_type === 'transferencia_entrada' ? 'bg-purple-100 text-purple-700' :
+                      item.action_type === 'mudanca_status' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {item.action_type === 'matricula' ? 'Matrícula' :
+                       item.action_type === 'remanejamento' ? 'Remanejamento' :
+                       item.action_type === 'transferencia_saida' ? 'Transf. Saída' :
+                       item.action_type === 'transferencia_entrada' ? 'Transf. Entrada' :
+                       item.action_type === 'mudanca_status' ? 'Mudança Status' :
+                       'Edição'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2">{item.school_name || '-'}</td>
+                  <td className="px-3 py-2">{item.class_name || '-'}</td>
+                  <td className="px-3 py-2">
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      item.new_status === 'active' ? 'bg-green-100 text-green-700' :
+                      item.new_status === 'transferred' ? 'bg-orange-100 text-orange-700' :
+                      item.new_status === 'inactive' ? 'bg-gray-100 text-gray-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {item.new_status === 'active' ? 'Ativo' :
+                       item.new_status === 'transferred' ? 'Transferido' :
+                       item.new_status === 'inactive' ? 'Inativo' :
+                       item.new_status === 'dropout' ? 'Desistente' :
+                       item.new_status}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-gray-600">{item.user_name || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-gray-500 text-sm py-4">Nenhum histórico registrado para este aluno.</p>
+      )}
     </div>
   );
 
