@@ -350,13 +350,14 @@ def generate_boletim_pdf(
     # Adicionar linha de total de carga horária
     total_row = [
         'TOTAL GERAL',
-        fmt_int(total_carga_horaria) if total_carga_horaria else '',
+        str(total_carga_horaria) if total_carga_horaria else '',
         '', '', '', '', '', '', '', '', '', ''
     ]
     table_data.append(total_row)
     
-    # Larguras das colunas (Componentes Curriculares + CH)
-    col_widths = [4.2*cm, 0.8*cm, 0.8*cm, 0.8*cm, 0.8*cm, 0.8*cm, 0.8*cm, 0.8*cm, 0.8*cm, 0.8*cm, 1.1*cm, 1.1*cm, 1.0*cm]
+    # Larguras das colunas (13 colunas: Componentes + CH + 8 notas/faltas + totais + média)
+    # Total aproximado: 18cm (A4 com margens)
+    col_widths = [4.0*cm, 0.8*cm, 0.75*cm, 0.75*cm, 0.75*cm, 0.75*cm, 0.75*cm, 0.75*cm, 0.75*cm, 0.75*cm, 1.0*cm, 1.0*cm, 0.9*cm]
     
     grades_table = Table(table_data, colWidths=col_widths)
     grades_table.setStyle(TableStyle([
@@ -364,29 +365,33 @@ def generate_boletim_pdf(
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e5e7eb')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 7),
+        ('FONTSIZE', (0, 0), (-1, 0), 6),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
         
         # Corpo
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('FONTNAME', (0, 1), (-1, -2), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -2), 7),
         ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
         ('ALIGN', (0, 1), (0, -1), 'LEFT'),
         ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
+        
+        # Linha de total
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e5e7eb')),
         
         # Grid
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.grey),
         
         # Padding
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('LEFTPADDING', (0, 0), (-1, -1), 3),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
         
-        # Alternar cores das linhas
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
+        # Alternar cores das linhas (exceto total)
+        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f9fafb')]),
     ]))
     elements.append(grades_table)
     elements.append(Spacer(1, 20))
