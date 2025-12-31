@@ -4408,6 +4408,24 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
     # Determinar nível de ensino e série da turma
     nivel_ensino = class_info.get('nivel_ensino')
     grade_level = class_info.get('grade_level', '')
+    grade_level_lower = grade_level.lower() if grade_level else ''
+    
+    # Se não tem nivel_ensino definido, inferir pelo grade_level
+    if not nivel_ensino:
+        if any(x in grade_level_lower for x in ['berçário', 'bercario', 'maternal', 'pré', 'pre']):
+            nivel_ensino = 'educacao_infantil'
+        elif any(x in grade_level_lower for x in ['1º ano', '2º ano', '3º ano', '4º ano', '5º ano', '1 ano', '2 ano', '3 ano', '4 ano', '5 ano']):
+            nivel_ensino = 'fundamental_anos_iniciais'
+        elif any(x in grade_level_lower for x in ['6º ano', '7º ano', '8º ano', '9º ano', '6 ano', '7 ano', '8 ano', '9 ano']):
+            nivel_ensino = 'fundamental_anos_finais'
+        elif any(x in grade_level_lower for x in ['eja', 'etapa']):
+            if any(x in grade_level_lower for x in ['3', '4', 'final']):
+                nivel_ensino = 'eja_final'
+            else:
+                nivel_ensino = 'eja'
+    
+    # Log para debug
+    logger.info(f"Boletim: grade_level={grade_level}, nivel_ensino inferido={nivel_ensino}")
     
     # Determinar se a escola oferece atendimento integral
     escola_integral = school.get('atendimento_integral', False)
@@ -4415,7 +4433,7 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
     # Construir query para buscar componentes curriculares
     courses_query = {}
     
-    # Filtrar por nível de ensino
+    # Filtrar por nível de ensino (OBRIGATÓRIO se temos um nível)
     if nivel_ensino:
         courses_query['nivel_ensino'] = nivel_ensino
     
