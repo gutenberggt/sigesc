@@ -19,7 +19,7 @@ ADMIN_CREDENTIALS = {
     "password": "@Celta2007"
 }
 
-SEMED_CREDENTIALS = {
+COORDINATOR_CREDENTIALS = {
     "email": "ricleidegoncalves@gmail.com", 
     "password": "007724"
 }
