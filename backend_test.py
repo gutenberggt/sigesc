@@ -4191,7 +4191,7 @@ class SIGESCTester:
 
     def run_all_tests(self):
         """Run all backend tests"""
-        self.log("🚀 Starting SIGESC Backend API Tests - COORDINATOR PERMISSIONS TESTING")
+        self.log("🚀 Starting SIGESC Backend API Tests - BOLETIM COMPONENT FILTERING TESTING")
         self.log(f"🌐 Backend URL: {BACKEND_URL}")
         
         # Login as admin
@@ -4212,15 +4212,20 @@ class SIGESCTester:
         success = True
         
         try:
-            # MAIN FOCUS: Test Coordinator Permissions System - PRIMARY TEST as per review request
+            # MAIN FOCUS: Test Boletim Component Filtering - PRIMARY TEST as per review request
+            if not self.test_boletim_component_filtering():
+                success = False
+            
+            # SECONDARY TESTS
+            # Test Coordinator Permissions System
             if not self.test_coordinator_permissions_system():
                 success = False
             
-            # Test Ficha Individual PDF Generation - SECONDARY TEST
+            # Test Ficha Individual PDF Generation
             if not self.test_ficha_individual_pdf_generation():
                 success = False
             
-            # Test PDF Document Generation (PHASE 8) - SECONDARY TEST
+            # Test PDF Document Generation (PHASE 8)
             if not self.test_pdf_document_generation_phase8():
                 success = False
             
@@ -4251,6 +4256,8 @@ class SIGESCTester:
         self.log("\n" + "="*50)
         if success:
             self.log("🎉 All backend tests completed successfully!")
+            self.log("✅ BOLETIM COMPONENT FILTERING FULLY TESTED")
+            self.log("✅ COORDINATOR PERMISSIONS SYSTEM FULLY TESTED")
             self.log("✅ FICHA INDIVIDUAL PDF GENERATION FULLY TESTED")
             self.log("✅ PDF DOCUMENT GENERATION (PHASE 8) FULLY TESTED")
         else:
