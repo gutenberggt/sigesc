@@ -2932,7 +2932,7 @@ class SIGESCTester:
             self.log(f"❌ Failed to create test message: {response.status_code}")
         
         # Now try to delete with SEMED user (should fail)
-        if test_message_id and self.semed_token:
+        if test_message_id and self.coordinator_token:
             self.log("   Testing unauthorized message deletion (should fail)...")
             response = requests.delete(
                 f"{API_BASE}/messages/{test_message_id}",
