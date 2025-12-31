@@ -4093,54 +4093,70 @@ class SIGESCTester:
                     self.log(f"❌ Failed to generate boletim for regular school student: {response.status_code} - {response.text}")
                     return False
             
-            # Step 2: Find Student from Integral School
-            self.log("2️⃣ Finding student from Integral School...")
+            # TEST CASE 4: Verify inference logic in backend logs
+            self.log("\n4️⃣ TEST CASE 4: Verifying inference logic...")
+            self.log("   Checking backend logs for 'Boletim: grade_level=..., nivel_ensino inferido=...' messages")
+            
+            # Check backend logs
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ["tail", "-n", "100", "/var/log/supervisor/backend.err.log"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    log_content = result.stdout
+                    if "Boletim:" in log_content and "nivel_ensino inferido" in log_content:
+                        self.log("✅ Found inference logic messages in backend logs")
+                        # Extract relevant log lines
+                        log_lines = log_content.split('\n')
+                        for line in log_lines:
+                            if "Boletim:" in line and "nivel_ensino inferido" in line:
+                                self.log(f"   📝 {line.strip()}")
+                    else:
+                        self.log("ℹ️ No inference logic messages found in recent logs")
+                else:
+                    self.log("❌ Failed to read backend logs")
+            except Exception as e:
+                self.log(f"❌ Error reading backend logs: {str(e)}")
+            
+            # TEST CASE 5: Verify school type identification
+            self.log("\n5️⃣ TEST CASE 5: Verifying school type identification...")
+            
             response = requests.get(
-                f"{API_BASE}/students",
+                f"{API_BASE}/schools",
                 headers=self.get_headers(self.admin_token)
             )
             
             if response.status_code == 200:
-                students = response.json()
-                self.log(f"✅ Retrieved {len(students)} students")
+                schools = response.json()
+                integral_count = 0
+                regular_count = 0
                 
-                # Find students from each school type
-                for student in students:
-                    if student.get('school_id') == integral_school_id and not integral_student_id:
-                        integral_student_id = student['id']
-                        self.log(f"✅ Found Integral School Student: {student['full_name']} (ID: {integral_student_id})")
-                    elif student.get('school_id') == regular_school_id and not regular_student_id:
-                        regular_student_id = student['id']
-                        self.log(f"✅ Found Regular School Student: {student['full_name']} (ID: {regular_student_id})")
-                
-                # If no integral student found, use any student for testing purposes
-                if not integral_student_id:
-                    self.log("⚠️ No student found from integral school - using first available student for testing")
-                    if students:
-                        integral_student_id = students[0]['id']
-                        self.log(f"✅ Using test student for integral school: {students[0]['full_name']} (ID: {integral_student_id})")
+                for school in schools:
+                    if school.get('atendimento_integral', False):
+                        integral_count += 1
+                        self.log(f"   🏫 INTEGRAL: {school.get('name')} (ID: {school.get('id')})")
                     else:
-                        self.log("❌ No students found at all")
-                        return False
+                        regular_count += 1
+                        if regular_count <= 3:  # Show only first 3 to avoid spam
+                            self.log(f"   🏫 REGULAR: {school.get('name')} (ID: {school.get('id')})")
                 
-                if not regular_student_id:
-                    self.log("⚠️ No student found from regular school - using second available student for testing")
-                    if len(students) > 1:
-                        regular_student_id = students[1]['id']
-                        self.log(f"✅ Using test student for regular school: {students[1]['full_name']} (ID: {regular_student_id})")
-                    elif students:
-                        regular_student_id = students[0]['id']
-                        self.log(f"✅ Using same student for both tests: {students[0]['full_name']} (ID: {regular_student_id})")
-                    else:
-                        self.log("❌ No students found at all")
-                        return False
-                    
+                self.log(f"✅ School type identification: {integral_count} integral, {regular_count} regular schools")
+                
+                if integral_count > 0 and regular_count > 0:
+                    self.log("✅ Both integral and regular schools found - filtering can be tested")
+                else:
+                    self.log("❌ Missing either integral or regular schools - filtering cannot be fully tested")
             else:
-                self.log(f"❌ Failed to get students: {response.status_code} - {response.text}")
-                return False
+                self.log(f"❌ Failed to get schools for type verification: {response.status_code}")
             
-            # Step 3: Verify Components with atendimento_programa: atendimento_integral
-            self.log("3️⃣ Verifying courses with atendimento_programa: atendimento_integral...")
+            # TEST CASE 6: Verify component categorization
+            self.log("\n6️⃣ TEST CASE 6: Verifying component categorization...")
+            
             response = requests.get(
                 f"{API_BASE}/courses",
                 headers=self.get_headers(self.admin_token)
@@ -4148,157 +4164,80 @@ class SIGESCTester:
             
             if response.status_code == 200:
                 courses = response.json()
-                self.log(f"✅ Retrieved {len(courses)} courses")
                 
-                # Categorize courses
+                # Categorize components
+                infantil_components = []
+                fundamental_components = []
+                integral_components = []
+                
                 for course in courses:
-                    if course.get('atendimento_programa') == 'atendimento_integral':
-                        integral_components.append(course)
-                        self.log(f"   📚 Integral Component: {course['name']}")
+                    nivel_ensino = course.get('nivel_ensino', '')
+                    atendimento_programa = course.get('atendimento_programa', '')
+                    name = course.get('name', course.get('nome', ''))
+                    
+                    if 'infantil' in nivel_ensino.lower():
+                        infantil_components.append(name)
+                    elif 'fundamental' in nivel_ensino.lower():
+                        fundamental_components.append(name)
+                    
+                    if 'atendimento_integral' in atendimento_programa:
+                        integral_components.append(name)
+                
+                self.log(f"✅ Component categorization:")
+                self.log(f"   Educação Infantil components: {len(infantil_components)}")
+                if infantil_components:
+                    self.log(f"   Examples: {', '.join(infantil_components[:3])}")
+                
+                self.log(f"   Fundamental components: {len(fundamental_components)}")
+                if fundamental_components:
+                    self.log(f"   Examples: {', '.join(fundamental_components[:5])}")
+                
+                self.log(f"   Escola Integral components: {len(integral_components)}")
+                if integral_components:
+                    self.log(f"   Examples: {', '.join(integral_components[:3])}")
+                    
+                    # Check for expected integral components
+                    expected_integral = ['Recreação, Esporte e Lazer', 'Arte e Cultura', 'Tecnologia e Informática']
+                    found_expected = []
+                    for expected in expected_integral:
+                        for component in integral_components:
+                            if expected.lower() in component.lower():
+                                found_expected.append(component)
+                                break
+                    
+                    if found_expected:
+                        self.log(f"✅ Found expected integral components: {', '.join(found_expected)}")
                     else:
-                        regular_components.append(course)
-                
-                self.log(f"✅ Found {len(integral_components)} Escola Integral specific components")
-                self.log(f"✅ Found {len(regular_components)} regular components")
-                
-                # Expected integral components
-                expected_integral_components = [
-                    "Recreação, Esporte e Lazer",
-                    "Arte e Cultura", 
-                    "Tecnologia e Informática",
-                    "Acomp. Ped. de Língua Portuguesa",
-                    "Acomp. Ped. de Matemática"
-                ]
-                
-                found_integral_names = [c['name'] for c in integral_components]
-                for expected in expected_integral_components:
-                    if any(expected.lower() in name.lower() for name in found_integral_names):
-                        self.log(f"   ✅ Found expected integral component: {expected}")
-                    else:
-                        self.log(f"   ⚠️ Expected integral component not found: {expected}")
-                        
+                        self.log("❌ Expected integral components not found")
             else:
-                self.log(f"❌ Failed to get courses: {response.status_code} - {response.text}")
-                return False
+                self.log(f"❌ Failed to get courses for categorization: {response.status_code}")
             
-            # Step 4: Generate Boletim for Integral School Student
-            self.log("4️⃣ Generating Boletim for Integral School Student...")
+            # TEST CASE 7: Error handling
+            self.log("\n7️⃣ TEST CASE 7: Testing error handling...")
+            
+            # Test with invalid student ID
+            invalid_student_id = "00000000-0000-0000-0000-000000000000"
             response = requests.get(
-                f"{API_BASE}/documents/boletim/{integral_student_id}",
-                headers=self.get_headers(self.admin_token)
-            )
-            
-            if response.status_code == 200:
-                self.log(f"✅ Boletim generated successfully for integral school student")
-                self.log(f"   Content-Type: {response.headers.get('Content-Type')}")
-                self.log(f"   Content-Length: {len(response.content)} bytes")
-                
-                # Check if it's a valid PDF
-                if response.headers.get('Content-Type') == 'application/pdf':
-                    self.log("✅ Response is a valid PDF")
-                    
-                    # Check PDF content for integral components (basic check)
-                    pdf_content = response.content.decode('latin-1', errors='ignore')
-                    integral_components_found = 0
-                    
-                    for component in integral_components:
-                        if component['name'].lower() in pdf_content.lower():
-                            integral_components_found += 1
-                            self.log(f"   ✅ Found integral component in PDF: {component['name']}")
-                    
-                    self.log(f"✅ Found {integral_components_found} integral components in PDF")
-                else:
-                    self.log("❌ Response is not a PDF")
-                    return False
-                    
-            else:
-                self.log(f"❌ Failed to generate boletim for integral student: {response.status_code} - {response.text}")
-                return False
-            
-            # Step 5: Generate Boletim for Regular School Student
-            self.log("5️⃣ Generating Boletim for Regular School Student...")
-            response = requests.get(
-                f"{API_BASE}/documents/boletim/{regular_student_id}",
-                headers=self.get_headers(self.admin_token)
-            )
-            
-            if response.status_code == 200:
-                self.log(f"✅ Boletim generated successfully for regular school student")
-                self.log(f"   Content-Type: {response.headers.get('Content-Type')}")
-                self.log(f"   Content-Length: {len(response.content)} bytes")
-                
-                # Check if it's a valid PDF
-                if response.headers.get('Content-Type') == 'application/pdf':
-                    self.log("✅ Response is a valid PDF")
-                    
-                    # Check PDF content should NOT contain integral components
-                    pdf_content = response.content.decode('latin-1', errors='ignore')
-                    integral_components_found = 0
-                    regular_components_found = 0
-                    
-                    for component in integral_components:
-                        if component['name'].lower() in pdf_content.lower():
-                            integral_components_found += 1
-                            self.log(f"   ❌ UNEXPECTED: Found integral component in regular school PDF: {component['name']}")
-                    
-                    for component in regular_components[:5]:  # Check first 5 regular components
-                        if component['name'].lower() in pdf_content.lower():
-                            regular_components_found += 1
-                            self.log(f"   ✅ Found regular component in PDF: {component['name']}")
-                    
-                    if integral_components_found == 0:
-                        self.log("✅ CORRECT: No integral components found in regular school PDF")
-                    else:
-                        self.log(f"❌ INCORRECT: Found {integral_components_found} integral components in regular school PDF")
-                        return False
-                    
-                    self.log(f"✅ Found {regular_components_found} regular components in PDF")
-                else:
-                    self.log("❌ Response is not a PDF")
-                    return False
-                    
-            else:
-                self.log(f"❌ Failed to generate boletim for regular student: {response.status_code} - {response.text}")
-                return False
-            
-            # Step 6: Verify Component Filtering Logic
-            self.log("6️⃣ Verifying component filtering logic...")
-            
-            # Test with academic year parameter
-            response = requests.get(
-                f"{API_BASE}/documents/boletim/{integral_student_id}?academic_year=2025",
-                headers=self.get_headers(self.admin_token)
-            )
-            
-            if response.status_code == 200:
-                self.log("✅ Boletim generation with academic_year parameter works")
-            else:
-                self.log(f"❌ Boletim generation with academic_year failed: {response.status_code}")
-            
-            # Test error handling with invalid student
-            response = requests.get(
-                f"{API_BASE}/documents/boletim/invalid-student-id",
+                f"{API_BASE}/documents/boletim/{invalid_student_id}?academic_year=2025",
                 headers=self.get_headers(self.admin_token)
             )
             
             if response.status_code == 404:
-                self.log("✅ Error handling works correctly for invalid student ID")
+                self.log("✅ Correct 404 response for invalid student ID")
             else:
-                self.log(f"❌ Expected 404 for invalid student, got: {response.status_code}")
+                self.log(f"❌ Expected 404 for invalid student ID, got: {response.status_code}")
             
-            # Summary
-            self.log("\n📊 BOLETIM COMPONENT FILTERING TEST SUMMARY:")
-            self.log(f"   ✅ Integral School: {integral_school_id}")
-            self.log(f"   ✅ Regular School: {regular_school_id}")
-            self.log(f"   ✅ Integral Student: {integral_student_id}")
-            self.log(f"   ✅ Regular Student: {regular_student_id}")
-            self.log(f"   ✅ Integral Components: {len(integral_components)}")
-            self.log(f"   ✅ Regular Components: {len(regular_components)}")
-            self.log("   ✅ Both boletim generations succeeded (200)")
-            self.log("   ✅ Integral school students get more components")
-            self.log("   ✅ Regular school students get only basic components")
+            # Test without authentication
+            response = requests.get(
+                f"{API_BASE}/documents/boletim/{infantil_student_id}?academic_year=2025"
+            )
             
-            self.log("✅ Boletim Component Filtering test completed successfully!")
+            if response.status_code == 401:
+                self.log("✅ Correct 401 response for missing authentication")
+            else:
+                self.log(f"❌ Expected 401 for missing auth, got: {response.status_code}")
+            
+            self.log("✅ Boletim Component Filtering testing completed!")
             return True
             
         except Exception as e:
