@@ -78,6 +78,12 @@ export const Classes = () => {
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [filterSchoolId, setFilterSchoolId] = useState('');
+  
+  // Estados para modal de visualização
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingClass, setViewingClass] = useState(null);
+  const [classDetails, setClassDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
