@@ -857,9 +857,9 @@ def generate_ficha_individual_pdf(
     <font size="8" color="#666666">"Cuidar do povo é nossa prioridade"</font>
     """
     
-    header_right = """
+    header_right = f"""
     <font size="14" color="#1e40af"><b>FICHA INDIVIDUAL</b></font><br/>
-    <font size="10">ENSINO FUNDAMENTAL</font>
+    <font size="10">{nivel_ensino_label}</font>
     """
     
     header_style_text = ParagraphStyle('HeaderText', fontSize=10, alignment=TA_LEFT, leading=14)
