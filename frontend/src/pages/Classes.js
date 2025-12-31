@@ -591,28 +591,14 @@ export const Classes = () => {
               {classDetails.students?.length > 0 && (
                 <div className="flex justify-end gap-3 pt-4 border-t">
                   <button
-                    onClick={() => {
-                      const url = documentsAPI.getBatchDocumentsUrl(
-                        viewingClass.id,
-                        'boletim',
-                        viewingClass.academic_year
-                      );
-                      window.open(url, '_blank');
-                    }}
+                    onClick={() => handleOpenBatchPDF('boletim')}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     <FileText size={18} />
                     Boletins da Turma (PDF)
                   </button>
                   <button
-                    onClick={() => {
-                      const url = documentsAPI.getBatchDocumentsUrl(
-                        viewingClass.id,
-                        'ficha_individual',
-                        viewingClass.academic_year
-                      );
-                      window.open(url, '_blank');
-                    }}
+                    onClick={() => handleOpenBatchPDF('ficha_individual')}
                     className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                   >
                     <FileText size={18} />
