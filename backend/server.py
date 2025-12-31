@@ -1120,6 +1120,150 @@ async def update_student(student_id: str, student_update: StudentUpdate, request
     updated_student = await db.students.find_one({"id": student_id}, {"_id": 0})
     return Student(**updated_student)
 
+
+@api_router.get("/students/{student_id}/history")
+async def get_student_history(student_id: str, request: Request):
+    """Retorna o histórico de movimentações do aluno"""
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    # Verifica se aluno existe
+    student = await db.students.find_one({"id": student_id}, {"_id": 0, "school_id": 1})
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aluno não encontrado"
+        )
+    
+    # Busca histórico ordenado por data (mais recente primeiro)
+    history = await db.student_history.find(
+        {"student_id": student_id},
+        {"_id": 0}
+    ).sort("action_date", -1).to_list(100)
+    
+    return history
+
+
+@api_router.post("/students/{student_id}/transfer")
+async def transfer_student(student_id: str, request: Request):
+    """
+    Transfere aluno para outra escola.
+    Requer que o aluno esteja com status 'transferred' na escola de origem.
+    """
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    
+    body = await request.json()
+    new_school_id = body.get('school_id')
+    new_class_id = body.get('class_id')
+    academic_year = body.get('academic_year', datetime.now().year)
+    
+    if not new_school_id or not new_class_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="school_id e class_id são obrigatórios"
+        )
+    
+    # Busca aluno
+    student = await db.students.find_one({"id": student_id}, {"_id": 0})
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aluno não encontrado"
+        )
+    
+    # Verifica se aluno está marcado como transferido
+    if student.get('status') != 'transferred':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="O aluno precisa estar com status 'Transferido' na escola de origem para ser matriculado em outra escola"
+        )
+    
+    # Verifica se a escola de destino é diferente da atual
+    if student.get('school_id') == new_school_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A escola de destino deve ser diferente da escola atual. Para mudança de turma na mesma escola, use o remanejamento."
+        )
+    
+    # Busca informações da nova escola e turma
+    new_school = await db.schools.find_one({"id": new_school_id}, {"_id": 0, "name": 1})
+    new_class = await db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
+    
+    if not new_school or not new_class:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Escola ou turma de destino não encontrada"
+        )
+    
+    # Gera número de matrícula
+    last_enrollment = await db.enrollments.find_one(
+        {"academic_year": academic_year},
+        sort=[("enrollment_number", -1)]
+    )
+    if last_enrollment and last_enrollment.get('enrollment_number'):
+        try:
+            last_num = int(str(last_enrollment['enrollment_number'])[-5:])
+            new_enrollment_number = f"{academic_year}{str(last_num + 1).zfill(5)}"
+        except:
+            new_enrollment_number = f"{academic_year}00001"
+    else:
+        new_enrollment_number = f"{academic_year}00001"
+    
+    # Cria nova matrícula
+    enrollment_id = str(uuid.uuid4())
+    new_enrollment = {
+        "id": enrollment_id,
+        "student_id": student_id,
+        "school_id": new_school_id,
+        "class_id": new_class_id,
+        "academic_year": academic_year,
+        "enrollment_number": new_enrollment_number,
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.enrollments.insert_one(new_enrollment)
+    
+    # Atualiza dados do aluno
+    old_school_id = student.get('school_id')
+    old_class_id = student.get('class_id')
+    
+    await db.students.update_one(
+        {"id": student_id},
+        {"$set": {
+            "school_id": new_school_id,
+            "class_id": new_class_id,
+            "status": "active"
+        }}
+    )
+    
+    # Registra no histórico
+    history_entry = {
+        "id": str(uuid.uuid4()),
+        "student_id": student_id,
+        "school_id": new_school_id,
+        "school_name": new_school.get('name'),
+        "class_id": new_class_id,
+        "class_name": new_class.get('name'),
+        "enrollment_id": enrollment_id,
+        "action_type": "transferencia_entrada",
+        "previous_status": "transferred",
+        "new_status": "active",
+        "observations": f"Transferido da escola anterior. Nova matrícula: {new_enrollment_number}",
+        "user_id": current_user.get('id'),
+        "user_name": current_user.get('full_name') or current_user.get('email'),
+        "action_date": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.student_history.insert_one(history_entry)
+    
+    updated_student = await db.students.find_one({"id": student_id}, {"_id": 0})
+    return {
+        "message": "Aluno transferido com sucesso",
+        "student": updated_student,
+        "enrollment": new_enrollment
+    }
+
+
 @api_router.delete("/students/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_student(student_id: str, request: Request):
     """Deleta aluno"""
