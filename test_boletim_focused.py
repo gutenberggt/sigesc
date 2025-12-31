@@ -268,9 +268,9 @@ def test_boletim_component_filtering():
             integral_components = []
             
             for course in courses:
-                nivel_ensino = course.get('nivel_ensino', '')
-                atendimento_programa = course.get('atendimento_programa', '')
-                name = course.get('name', course.get('nome', ''))
+                nivel_ensino = course.get('nivel_ensino', '') or ''
+                atendimento_programa = course.get('atendimento_programa', '') or ''
+                name = course.get('name', course.get('nome', '')) or ''
                 
                 if 'infantil' in nivel_ensino.lower():
                     infantil_components.append(name)
