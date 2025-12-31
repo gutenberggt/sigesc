@@ -375,6 +375,20 @@ export const Classes = () => {
         >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Ano Letivo *</label>
+              <input
+                type="number"
+                value={formData.academic_year}
+                onChange={(e) => setFormData({ ...formData, academic_year: parseInt(e.target.value) })}
+                required
+                min="2020"
+                max="2030"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                data-testid="class-year-input"
+              />
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Escola *</label>
               <select
                 value={formData.school_id}
@@ -402,20 +416,6 @@ export const Classes = () => {
                 placeholder="Ex: Turma A"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 data-testid="class-name-input"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Ano Letivo *</label>
-              <input
-                type="number"
-                value={formData.academic_year}
-                onChange={(e) => setFormData({ ...formData, academic_year: parseInt(e.target.value) })}
-                required
-                min="2020"
-                max="2030"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                data-testid="class-year-input"
               />
             </div>
 
