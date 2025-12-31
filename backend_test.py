@@ -3946,7 +3946,7 @@ class SIGESCTester:
 
     def run_all_tests(self):
         """Run all backend tests"""
-        self.log("🚀 Starting SIGESC Backend API Tests - ANNOUNCEMENT SYSTEM TESTING")
+        self.log("🚀 Starting SIGESC Backend API Tests - COORDINATOR PERMISSIONS TESTING")
         self.log(f"🌐 Backend URL: {BACKEND_URL}")
         
         # Login as admin
@@ -3955,10 +3955,10 @@ class SIGESCTester:
             self.log("❌ Cannot proceed without admin login")
             return False
         
-        # Login as SEMED
-        self.semed_token = self.login(SEMED_CREDENTIALS, "SEMED")
-        if not self.semed_token:
-            self.log("⚠️ SEMED login failed - skipping permission tests")
+        # Login as Coordinator
+        self.coordinator_token = self.login(COORDINATOR_CREDENTIALS, "Coordinator")
+        if not self.coordinator_token:
+            self.log("⚠️ Coordinator login failed - skipping permission tests")
         
         # Setup test data
         self.setup_test_data()
@@ -3967,7 +3967,11 @@ class SIGESCTester:
         success = True
         
         try:
-            # MAIN FOCUS: Test Ficha Individual PDF Generation - PRIMARY TEST as per review request
+            # MAIN FOCUS: Test Coordinator Permissions System - PRIMARY TEST as per review request
+            if not self.test_coordinator_permissions_system():
+                success = False
+            
+            # Test Ficha Individual PDF Generation - SECONDARY TEST
             if not self.test_ficha_individual_pdf_generation():
                 success = False
             
