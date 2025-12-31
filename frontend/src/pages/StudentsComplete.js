@@ -311,18 +311,37 @@ export function StudentsComplete() {
     setIsModalOpen(true);
   };
 
-  const handleView = (student) => {
+  const handleView = async (student) => {
     setEditingStudent(student);
     setViewMode(true);
     setFormData({ ...initialFormData, ...student });
     setIsModalOpen(true);
+    
+    // Carrega histórico do aluno
+    loadStudentHistory(student.id);
   };
 
-  const handleEdit = (student) => {
+  const handleEdit = async (student) => {
     setEditingStudent(student);
     setViewMode(false);
     setFormData({ ...initialFormData, ...student });
     setIsModalOpen(true);
+    
+    // Carrega histórico do aluno
+    loadStudentHistory(student.id);
+  };
+  
+  const loadStudentHistory = async (studentId) => {
+    setLoadingHistory(true);
+    try {
+      const history = await studentsAPI.getHistory(studentId);
+      setStudentHistory(history);
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error);
+      setStudentHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   // Abrir modal de documentos
