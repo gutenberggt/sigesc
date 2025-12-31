@@ -263,9 +263,10 @@ def generate_boletim_pdf(
         period = grade.get('period', 'P1')
         grades_by_course[course_id][period] = grade
     
-    # Cabeçalho da tabela - Modelo com Faltas por bimestre
+    # Cabeçalho da tabela - Modelo com Carga Horária e Faltas por bimestre
     header_row1 = [
         'COMPONENTES\nCURRICULARES',
+        'CH',  # Carga Horária Anual
         '1ª', 'Faltas',
         '2°', 'Faltas',
         '3°', 'Faltas',
@@ -279,9 +280,15 @@ def generate_boletim_pdf(
     
     total_geral_pontos = 0
     total_geral_faltas = 0
+    total_carga_horaria = 0
     
     for course in courses:
         course_grades = grades_by_course.get(course.get('id'), {})
+        
+        # Obter carga horária do componente
+        carga_horaria = course.get('workload', '')
+        if carga_horaria:
+            total_carga_horaria += carga_horaria
         
         # Obter notas e faltas de cada período
         n1 = course_grades.get('P1', {}).get('grade', '')
@@ -327,6 +334,7 @@ def generate_boletim_pdf(
         
         row = [
             course.get('name', 'N/A'),
+            fmt_int(carga_horaria) if carga_horaria else '',
             fmt_grade(n1), fmt_int(f1),
             fmt_grade(n2), fmt_int(f2),
             fmt_grade(n3), fmt_int(f3),
@@ -339,8 +347,16 @@ def generate_boletim_pdf(
         
         total_geral_faltas += total_faltas
     
-    # Larguras das colunas (Componentes Curriculares 25% maior)
-    col_widths = [5*cm, 0.85*cm, 0.85*cm, 0.85*cm, 0.85*cm, 0.85*cm, 0.85*cm, 0.85*cm, 0.85*cm, 1.2*cm, 1.2*cm, 1.1*cm]
+    # Adicionar linha de total de carga horária
+    total_row = [
+        'TOTAL GERAL',
+        fmt_int(total_carga_horaria) if total_carga_horaria else '',
+        '', '', '', '', '', '', '', '', '', ''
+    ]
+    table_data.append(total_row)
+    
+    # Larguras das colunas (Componentes Curriculares + CH)
+    col_widths = [4.2*cm, 0.8*cm, 0.8*cm, 0.8*cm, 0.8*cm, 0.8*cm, 0.8*cm, 0.8*cm, 0.8*cm, 0.8*cm, 1.1*cm, 1.1*cm, 1.0*cm]
     
     grades_table = Table(table_data, colWidths=col_widths)
     grades_table.setStyle(TableStyle([
