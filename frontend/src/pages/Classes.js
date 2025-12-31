@@ -465,7 +465,21 @@ export const Classes = () => {
             setIsViewModalOpen(false);
             setClassDetails(null);
           }}
-          title={`Detalhes da Turma: ${viewingClass?.name || ''}`}
+          title={
+            <div className="flex items-center justify-between w-full pr-8">
+              <span>Detalhes da Turma: {viewingClass?.name || ''}</span>
+              {classDetails && !loadingDetails && (
+                <button
+                  onClick={handleOpenDetailsPDF}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
+                  title="Gerar PDF dos detalhes"
+                >
+                  <FileText size={16} />
+                  Gerar PDF
+                </button>
+              )}
+            </div>
+          }
           size="xl"
         >
           {loadingDetails ? (
