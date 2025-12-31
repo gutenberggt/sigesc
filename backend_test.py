@@ -381,7 +381,7 @@ class SIGESCTester:
         self.log("1️⃣ Testing SEMED can list guardians...")
         response = requests.get(
             f"{API_BASE}/guardians",
-            headers=self.get_headers(self.semed_token)
+            headers=self.get_headers(self.coordinator_token)
         )
         
         if response.status_code == 200:
@@ -393,7 +393,7 @@ class SIGESCTester:
         self.log("2️⃣ Testing SEMED can list enrollments...")
         response = requests.get(
             f"{API_BASE}/enrollments",
-            headers=self.get_headers(self.semed_token)
+            headers=self.get_headers(self.coordinator_token)
         )
         
         if response.status_code == 200:
@@ -411,7 +411,7 @@ class SIGESCTester:
         response = requests.post(
             f"{API_BASE}/guardians",
             json=guardian_data,
-            headers=self.get_headers(self.semed_token)
+            headers=self.get_headers(self.coordinator_token)
         )
         
         if response.status_code == 403:
@@ -433,7 +433,7 @@ class SIGESCTester:
         response = requests.post(
             f"{API_BASE}/enrollments",
             json=enrollment_data,
-            headers=self.get_headers(self.semed_token)
+            headers=self.get_headers(self.coordinator_token)
         )
         
         if response.status_code == 403:
@@ -2936,7 +2936,7 @@ class SIGESCTester:
             self.log("   Testing unauthorized message deletion (should fail)...")
             response = requests.delete(
                 f"{API_BASE}/messages/{test_message_id}",
-                headers=self.get_headers(self.semed_token)
+                headers=self.get_headers(self.coordinator_token)
             )
             
             if response.status_code == 403:
