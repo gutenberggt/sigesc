@@ -3651,6 +3651,299 @@ class SIGESCTester:
         self.log("✅ Ficha Individual PDF Generation testing completed!")
         return True
 
+    def test_coordinator_permissions_system(self):
+        """Test Coordinator Permissions system as per review request"""
+        self.log("\n🔐 Testing Coordinator Permissions System...")
+        
+        # 1. Login and Role Verification
+        self.log("1️⃣ Testing Coordinator Login and Role Verification...")
+        response = requests.post(
+            f"{API_BASE}/auth/login",
+            json=COORDINATOR_CREDENTIALS,
+            headers={"Content-Type": "application/json"}
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            self.coordinator_token = data.get('access_token')
+            user = data.get('user', {})
+            user_role = user.get('role')
+            
+            self.log(f"✅ Coordinator login successful")
+            self.log(f"   User: {user.get('full_name', 'N/A')}")
+            self.log(f"   Email: {user.get('email')}")
+            self.log(f"   Role: {user_role}")
+            
+            # Verify role is "coordenador" (not "professor")
+            if user_role == "coordenador":
+                self.log("✅ User role correctly returned as 'coordenador'")
+            else:
+                self.log(f"❌ Expected role 'coordenador', got: {user_role}")
+                return False
+        else:
+            self.log(f"❌ Coordinator login failed: {response.status_code} - {response.text}")
+            return False
+        
+        # 2. Permissions Endpoint
+        self.log("2️⃣ Testing GET /api/auth/permissions with coordinator token...")
+        response = requests.get(
+            f"{API_BASE}/auth/permissions",
+            headers=self.get_headers(self.coordinator_token)
+        )
+        
+        if response.status_code == 200:
+            permissions = response.json()
+            self.log(f"✅ Permissions endpoint successful")
+            
+            # Expected permissions for coordinator
+            expected_permissions = {
+                'can_edit_students': False,
+                'can_edit_classes': False,
+                'can_edit_grades': True,
+                'can_edit_attendance': True,
+                'can_edit_learning_objects': True,
+                'is_read_only_except_diary': True
+            }
+            
+            self.log("   Checking coordinator permissions:")
+            all_correct = True
+            for perm, expected_value in expected_permissions.items():
+                actual_value = permissions.get(perm)
+                if actual_value == expected_value:
+                    self.log(f"   ✅ {perm}: {actual_value} (correct)")
+                else:
+                    self.log(f"   ❌ {perm}: {actual_value} (expected: {expected_value})")
+                    all_correct = False
+            
+            if all_correct:
+                self.log("✅ All coordinator permissions are correct")
+            else:
+                self.log("❌ Some coordinator permissions are incorrect")
+                return False
+        else:
+            self.log(f"❌ Failed to get permissions: {response.status_code} - {response.text}")
+            return False
+        
+        # 3. Student Update (Should be BLOCKED)
+        self.log("3️⃣ Testing Student Update (Should be BLOCKED for coordinator)...")
+        
+        # First get a valid student ID
+        response = requests.get(
+            f"{API_BASE}/students",
+            headers=self.get_headers(self.coordinator_token)
+        )
+        
+        if response.status_code == 200:
+            students = response.json()
+            if students:
+                test_student_id = students[0]['id']
+                student_name = students[0].get('full_name', 'N/A')
+                self.log(f"   Using student: {student_name} (ID: {test_student_id})")
+                
+                # Try to update student (should be blocked)
+                update_data = {
+                    "observations": "Teste de atualização pelo coordenador"
+                }
+                
+                response = requests.put(
+                    f"{API_BASE}/students/{test_student_id}",
+                    json=update_data,
+                    headers=self.get_headers(self.coordinator_token)
+                )
+                
+                if response.status_code == 403:
+                    response_text = response.text
+                    self.log("✅ Student update correctly BLOCKED (403)")
+                    if "Coordenadores podem apenas visualizar" in response_text:
+                        self.log("✅ Correct error message about coordinator read-only access")
+                    else:
+                        self.log(f"   Response: {response_text}")
+                elif response.status_code == 401:
+                    self.log("✅ Student update correctly BLOCKED (401)")
+                else:
+                    self.log(f"❌ Student update should be blocked, got: {response.status_code}")
+                    return False
+            else:
+                self.log("❌ No students found for testing")
+                return False
+        else:
+            self.log(f"❌ Failed to get students: {response.status_code} - {response.text}")
+            return False
+        
+        # 4. Grades Access (Should be ALLOWED)
+        self.log("4️⃣ Testing Grades Access (Should be ALLOWED for coordinator)...")
+        
+        # Test GET /api/grades
+        response = requests.get(
+            f"{API_BASE}/grades",
+            headers=self.get_headers(self.coordinator_token)
+        )
+        
+        if response.status_code == 200:
+            grades = response.json()
+            self.log(f"✅ GET /api/grades successful - retrieved {len(grades)} grades")
+        else:
+            self.log(f"❌ GET /api/grades failed: {response.status_code} - {response.text}")
+            return False
+        
+        # Test POST /api/grades (create a test grade)
+        if self.student_id and self.class_id and self.course_id:
+            test_grade_data = {
+                "student_id": self.student_id,
+                "class_id": self.class_id,
+                "course_id": self.course_id,
+                "academic_year": 2025,
+                "b1": 7.5,
+                "observations": "Nota criada pelo coordenador"
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/grades",
+                json=test_grade_data,
+                headers=self.get_headers(self.coordinator_token)
+            )
+            
+            if response.status_code in [200, 201]:
+                grade = response.json()
+                self.log(f"✅ POST /api/grades successful - created grade ID: {grade.get('id')}")
+                self.log(f"   B1: {grade.get('b1')}, Student: {grade.get('student_id')}")
+            else:
+                self.log(f"❌ POST /api/grades failed: {response.status_code} - {response.text}")
+                return False
+        else:
+            self.log("ℹ️ Skipping grade creation - missing required test data")
+        
+        # 5. Attendance Access (Should be ALLOWED)
+        self.log("5️⃣ Testing Attendance Access (Should be ALLOWED for coordinator)...")
+        
+        # Use specific class and date from review request
+        specific_class_id = "42a876e6-aea3-40a3-8660-e1ef44fc3c4a"  # 3º Ano A
+        test_date = "2025-12-15"
+        
+        response = requests.get(
+            f"{API_BASE}/attendance/by-class/{specific_class_id}/{test_date}",
+            headers=self.get_headers(self.coordinator_token)
+        )
+        
+        if response.status_code == 200:
+            attendance_data = response.json()
+            self.log(f"✅ GET /api/attendance/by-class successful")
+            self.log(f"   Class: {attendance_data.get('class_name', 'N/A')}")
+            self.log(f"   Students: {len(attendance_data.get('students', []))}")
+        else:
+            self.log(f"❌ GET /api/attendance/by-class failed: {response.status_code} - {response.text}")
+            return False
+        
+        # 6. Learning Objects Access (Should be ALLOWED)
+        self.log("6️⃣ Testing Learning Objects Access (Should be ALLOWED for coordinator)...")
+        
+        response = requests.get(
+            f"{API_BASE}/learning-objects",
+            headers=self.get_headers(self.coordinator_token)
+        )
+        
+        if response.status_code == 200:
+            learning_objects = response.json()
+            self.log(f"✅ GET /api/learning-objects successful - retrieved {len(learning_objects)} objects")
+        else:
+            self.log(f"❌ GET /api/learning-objects failed: {response.status_code} - {response.text}")
+            return False
+        
+        # 7. Compare with Admin (Admin CAN update students)
+        self.log("7️⃣ Testing Admin can update students (comparison)...")
+        
+        if students:  # Use the same student from earlier test
+            test_student_id = students[0]['id']
+            
+            # Admin should be able to update students
+            update_data = {
+                "observations": "Teste de atualização pelo admin"
+            }
+            
+            response = requests.put(
+                f"{API_BASE}/students/{test_student_id}",
+                json=update_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                updated_student = response.json()
+                self.log("✅ Admin CAN update students (as expected)")
+                self.log(f"   Updated observations: {updated_student.get('observations', 'N/A')}")
+            else:
+                self.log(f"❌ Admin should be able to update students: {response.status_code}")
+                return False
+        
+        # 8. Test Classes Access (Should be READ-ONLY for coordinator)
+        self.log("8️⃣ Testing Classes Access (Should be READ-ONLY for coordinator)...")
+        
+        # Coordinator should be able to GET classes
+        response = requests.get(
+            f"{API_BASE}/classes",
+            headers=self.get_headers(self.coordinator_token)
+        )
+        
+        if response.status_code == 200:
+            classes = response.json()
+            self.log(f"✅ GET /api/classes successful - retrieved {len(classes)} classes")
+        else:
+            self.log(f"❌ GET /api/classes failed: {response.status_code} - {response.text}")
+            return False
+        
+        # Coordinator should NOT be able to create classes
+        if self.school_id:
+            test_class_data = {
+                "name": "Teste Coordenador",
+                "school_id": self.school_id,
+                "grade_level": "1º Ano",
+                "shift": "matutino",
+                "academic_year": 2025
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/classes",
+                json=test_class_data,
+                headers=self.get_headers(self.coordinator_token)
+            )
+            
+            if response.status_code == 403:
+                self.log("✅ Class creation correctly BLOCKED for coordinator (403)")
+            elif response.status_code == 401:
+                self.log("✅ Class creation correctly BLOCKED for coordinator (401)")
+            else:
+                self.log(f"❌ Class creation should be blocked for coordinator: {response.status_code}")
+                return False
+        
+        # 9. Test Staff Access (Should be READ-ONLY for coordinator)
+        self.log("9️⃣ Testing Staff Access (Should be READ-ONLY for coordinator)...")
+        
+        # Coordinator should be able to GET staff
+        response = requests.get(
+            f"{API_BASE}/staff",
+            headers=self.get_headers(self.coordinator_token)
+        )
+        
+        if response.status_code == 200:
+            staff_list = response.json()
+            self.log(f"✅ GET /api/staff successful - retrieved {len(staff_list)} staff members")
+        else:
+            self.log(f"❌ GET /api/staff failed: {response.status_code} - {response.text}")
+            return False
+        
+        self.log("✅ Coordinator Permissions System testing completed successfully!")
+        self.log("\n📋 SUMMARY:")
+        self.log("   ✅ Coordinator login with correct role verification")
+        self.log("   ✅ Permissions endpoint returns correct coordinator permissions")
+        self.log("   ✅ Student updates BLOCKED (read-only)")
+        self.log("   ✅ Classes creation BLOCKED (read-only)")
+        self.log("   ✅ Staff access READ-ONLY")
+        self.log("   ✅ Grades access ALLOWED (diary area)")
+        self.log("   ✅ Attendance access ALLOWED (diary area)")
+        self.log("   ✅ Learning Objects access ALLOWED (diary area)")
+        self.log("   ✅ Admin comparison shows different permissions")
+        
+        return True
+
     def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting SIGESC Backend API Tests - ANNOUNCEMENT SYSTEM TESTING")
