@@ -183,23 +183,32 @@ async def get_effective_role_from_lotacoes(user_email: str, base_role: str) -> t
     # Determina o role de maior hierarquia e coleta school_links
     highest_role = base_role
     highest_priority = ROLE_HIERARCHY.get(base_role, 0)
-    school_links = []
     
+    # Agrupa lotações por escola
+    school_roles = {}
     for lotacao in lotacoes:
         funcao = lotacao.get('funcao', 'professor')
         school_id = lotacao.get('school_id')
         
-        # Adiciona aos school_links com a função específica
-        school_links.append({
-            "school_id": school_id,
-            "role": funcao
-        })
+        if school_id not in school_roles:
+            school_roles[school_id] = []
+        school_roles[school_id].append(funcao)
         
         # Verifica se é o role de maior hierarquia
         role_priority = ROLE_HIERARCHY.get(funcao, 0)
         if role_priority > highest_priority:
             highest_priority = role_priority
             highest_role = funcao
+    
+    # Monta school_links no formato correto (SchoolLink)
+    school_links = [
+        {
+            "school_id": school_id,
+            "roles": roles,
+            "class_ids": []
+        }
+        for school_id, roles in school_roles.items()
+    ]
     
     return highest_role, school_links
 
