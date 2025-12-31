@@ -4746,7 +4746,11 @@ async def get_ficha_individual(
     # Buscar componentes curriculares da turma/escola
     # Filtrar por nível de ensino da turma
     nivel_ensino = class_info.get('nivel_ensino', 'fundamental_anos_iniciais')
+    grade_level = class_info.get('grade_level', '')
     school_id = student.get('school_id')
+    
+    # Verificar se a escola oferece atendimento integral
+    escola_integral = school.get('atendimento_integral', False)
     
     # Buscar componentes: globais (sem school_id) OU específicos da escola
     courses_filter = {
@@ -4760,11 +4764,46 @@ async def get_ficha_individual(
             ]}
         ]
     }
-    courses = await db.courses.find(courses_filter, {"_id": 0}).to_list(100)
+    all_courses = await db.courses.find(courses_filter, {"_id": 0}).to_list(100)
     
-    # Se não encontrar componentes, buscar todos do nível
-    if not courses:
-        courses = await db.courses.find({"nivel_ensino": nivel_ensino}, {"_id": 0}).to_list(100)
+    # Filtrar componentes baseado no atendimento/programa
+    filtered_courses = []
+    for course in all_courses:
+        atendimento = course.get('atendimento_programa')
+        course_grade_levels = course.get('grade_levels', [])
+        
+        # Verificar se o componente é específico de Escola Integral
+        if atendimento == 'atendimento_integral':
+            if not escola_integral:
+                continue
+        
+        # Verificar se o componente é de outro atendimento (AEE, reforço, etc)
+        if atendimento and atendimento != 'atendimento_integral':
+            escola_oferece = school.get(atendimento, False)
+            if not escola_oferece:
+                continue
+        
+        # Verificar se o componente é específico para certas séries
+        if course_grade_levels:
+            if grade_level and grade_level not in course_grade_levels:
+                continue
+        
+        filtered_courses.append(course)
+    
+    # Ordenar por nome
+    filtered_courses.sort(key=lambda x: x.get('name', ''))
+    
+    # Se não encontrar componentes após filtragem, buscar todos do nível sem atendimento específico
+    if not filtered_courses:
+        filtered_courses = await db.courses.find({
+            "nivel_ensino": nivel_ensino,
+            "$or": [
+                {"atendimento_programa": None},
+                {"atendimento_programa": {"$exists": False}}
+            ]
+        }, {"_id": 0}).to_list(100)
+    
+    courses = filtered_courses
     
     # Buscar dados de frequência por componente
     attendance_data = {}
