@@ -343,14 +343,17 @@ export const Dashboard = () => {
                 <span className="font-medium text-gray-900">Servidores</span>
               </button>
               
-              <button
-                onClick={() => navigate('/admin/mantenedora')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
-                data-testid="nav-mantenedora-button"
-              >
-                <School className="text-indigo-600" size={24} />
-                <span className="font-medium text-gray-900">Mantenedora</span>
-              </button>
+              {/* Mantenedora - apenas para admin */}
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => navigate('/admin/mantenedora')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
+                  data-testid="nav-mantenedora-button"
+                >
+                  <School className="text-indigo-600" size={24} />
+                  <span className="font-medium text-gray-900">Mantenedora</span>
+                </button>
+              )}
               
               <button
                 onClick={() => navigate('/avisos')}
@@ -361,14 +364,17 @@ export const Dashboard = () => {
                 <span className="font-medium text-gray-900">Avisos</span>
               </button>
               
-              <button
-                onClick={() => navigate('/admin/logs')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all"
-                data-testid="nav-logs-button"
-              >
-                <FileText className="text-red-600" size={24} />
-                <span className="font-medium text-gray-900">Log de Conversas</span>
-              </button>
+              {/* Log de Conversas - apenas para admin */}
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => navigate('/admin/logs')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all"
+                  data-testid="nav-logs-button"
+                >
+                  <FileText className="text-red-600" size={24} />
+                  <span className="font-medium text-gray-900">Log de Conversas</span>
+                </button>
+              )}
             </div>
           </div>
         )}
