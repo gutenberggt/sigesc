@@ -223,10 +223,36 @@ export const Classes = () => {
     return date.toLocaleDateString('pt-BR');
   };
 
-  const handleOpenPDF = (studentId) => {
-    const academicYear = viewingClass?.academic_year || new Date().getFullYear();
-    const url = documentsAPI.getBoletimUrl(studentId, academicYear);
-    window.open(url, '_blank');
+  const handleOpenPDF = async (studentId) => {
+    try {
+      const academicYear = viewingClass?.academic_year || new Date().getFullYear();
+      // Baixa o PDF com autenticação
+      const blob = await documentsAPI.getBoletim(studentId, academicYear);
+      // Cria URL do blob e abre em nova aba
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      // Limpa URL após um tempo
+      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+    } catch (error) {
+      console.error('Erro ao abrir PDF:', error);
+      showAlert('error', 'Erro ao gerar PDF do aluno');
+    }
+  };
+
+  const handleOpenBatchPDF = async (documentType) => {
+    try {
+      const academicYear = viewingClass?.academic_year || new Date().getFullYear();
+      // Baixa o PDF em lote com autenticação
+      const blob = await documentsAPI.getBatchDocuments(viewingClass.id, documentType, academicYear);
+      // Cria URL do blob e abre em nova aba
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      // Limpa URL após um tempo
+      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+    } catch (error) {
+      console.error('Erro ao abrir PDF em lote:', error);
+      showAlert('error', 'Erro ao gerar PDF da turma');
+    }
   };
 
   const handleDelete = async (classItem) => {
