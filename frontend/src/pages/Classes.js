@@ -77,6 +77,7 @@ export const Classes = () => {
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
+  const [filterSchoolId, setFilterSchoolId] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
