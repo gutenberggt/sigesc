@@ -156,16 +156,16 @@ async def get_effective_role_from_lotacoes(user_email: str, base_role: str) -> t
     # Busca servidor vinculado ao email do usuário
     staff = await db.staff.find_one(
         {"email": {"$regex": f"^{user_email}$", "$options": "i"}},
-        {"_id": 0, "id": 1, "full_name": 1}
+        {"_id": 0, "id": 1, "nome": 1, "full_name": 1}
     )
     
     if not staff:
-        # Tenta buscar pelo nome do usuário
-        user = await db.users.find_one({"email": user_email}, {"_id": 0, "full_name": 1})
-        if user and user.get('full_name'):
+        # Tenta buscar pelo user_id
+        user = await db.users.find_one({"email": user_email}, {"_id": 0, "id": 1, "full_name": 1})
+        if user:
             staff = await db.staff.find_one(
-                {"full_name": {"$regex": f"^{user['full_name']}$", "$options": "i"}},
-                {"_id": 0, "id": 1, "full_name": 1}
+                {"user_id": user['id']},
+                {"_id": 0, "id": 1, "nome": 1, "full_name": 1}
             )
     
     if not staff:
