@@ -183,6 +183,16 @@ export const studentsAPI = {
   
   delete: async (id) => {
     await axios.delete(`${API}/students/${id}`);
+  },
+  
+  getHistory: async (id) => {
+    const response = await axios.get(`${API}/students/${id}/history`);
+    return response.data;
+  },
+  
+  transfer: async (id, data) => {
+    const response = await axios.post(`${API}/students/${id}/transfer`, data);
+    return response.data;
   }
 };
 
