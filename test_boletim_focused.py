@@ -148,7 +148,7 @@ def test_boletim_component_filtering():
         log("\n3️⃣ TEST CASE 3: Fundamental Anos Iniciais Student from REGULAR School...")
         
         # Use a known regular school
-        regular_school_id = "44bde9d5-67c0-4aeb-98b9-f74b3896dca6"  # E M E F 22 DE ABRIL
+        regular_school_id = "ef2f28d3-a42d-4e08-923e-76b6eda5dc04"  # E M E F MONSENHOR AUGUSTO DIAS DE BRITO
         log(f"   Using regular school: {regular_school_id}")
         
         response = requests.get(
