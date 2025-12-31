@@ -663,6 +663,95 @@ async def delete_class(class_id: str, request: Request):
     
     return None
 
+
+@api_router.get("/classes/{class_id}/details")
+async def get_class_details(class_id: str, request: Request):
+    """
+    Busca detalhes completos da turma incluindo:
+    - Dados cadastrais da turma
+    - Escola
+    - Professor(es) alocado(s)
+    - Lista de alunos matriculados com responsáveis
+    """
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    # Busca turma
+    class_doc = await db.classes.find_one({"id": class_id}, {"_id": 0})
+    if not class_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Turma não encontrada"
+        )
+    
+    # Busca escola
+    school = await db.schools.find_one({"id": class_doc.get('school_id')}, {"_id": 0, "id": 1, "name": 1})
+    
+    # Busca professores alocados na turma
+    alocacoes = await db.teacher_allocations.find(
+        {"class_id": class_id, "status": "active"},
+        {"_id": 0}
+    ).to_list(100)
+    
+    teachers = []
+    for alocacao in alocacoes:
+        staff = await db.staff.find_one(
+            {"id": alocacao.get('staff_id')},
+            {"_id": 0, "id": 1, "nome": 1, "full_name": 1, "email": 1, "celular": 1}
+        )
+        if staff:
+            # Busca componente curricular
+            course = await db.courses.find_one(
+                {"id": alocacao.get('course_id')},
+                {"_id": 0, "id": 1, "nome": 1}
+            )
+            teachers.append({
+                "staff_id": staff.get('id'),
+                "nome": staff.get('nome') or staff.get('full_name'),
+                "email": staff.get('email'),
+                "celular": staff.get('celular'),
+                "componente": course.get('nome') if course else None
+            })
+    
+    # Busca alunos matriculados
+    academic_year = class_doc.get('academic_year', datetime.now().year)
+    enrollments = await db.enrollments.find(
+        {"class_id": class_id, "status": "active", "academic_year": academic_year},
+        {"_id": 0, "student_id": 1, "enrollment_number": 1}
+    ).to_list(1000)
+    
+    student_ids = [e['student_id'] for e in enrollments]
+    enrollment_map = {e['student_id']: e.get('enrollment_number') for e in enrollments}
+    
+    students_list = []
+    if student_ids:
+        students = await db.students.find(
+            {"id": {"$in": student_ids}},
+            {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "guardian_name": 1, "guardian_phone": 1, "guardian_relationship": 1, "mother_name": 1, "mother_phone": 1, "father_name": 1, "father_phone": 1}
+        ).sort("full_name", 1).to_list(1000)
+        
+        for student in students:
+            # Determina responsável principal
+            guardian_name = student.get('guardian_name') or student.get('mother_name') or student.get('father_name') or '-'
+            guardian_phone = student.get('guardian_phone') or student.get('mother_phone') or student.get('father_phone') or ''
+            
+            students_list.append({
+                "id": student.get('id'),
+                "full_name": student.get('full_name'),
+                "enrollment_number": enrollment_map.get(student.get('id')),
+                "birth_date": student.get('birth_date'),
+                "guardian_name": guardian_name,
+                "guardian_phone": guardian_phone
+            })
+    
+    return {
+        "class": class_doc,
+        "school": school,
+        "teachers": teachers,
+        "students": students_list,
+        "total_students": len(students_list)
+    }
+
+
 # ============= COURSE (COMPONENTE CURRICULAR) ROUTES =============
 
 @api_router.post("/courses", response_model=Course, status_code=status.HTTP_201_CREATED)
