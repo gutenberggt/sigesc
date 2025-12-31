@@ -1017,8 +1017,13 @@ async def get_student(student_id: str, request: Request):
 
 @api_router.put("/students/{student_id}", response_model=Student)
 async def update_student(student_id: str, student_update: StudentUpdate, request: Request):
-    """Atualiza aluno"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+    """
+    Atualiza aluno com suporte a:
+    - Edição de dados básicos
+    - Remanejamento (mudança de turma na mesma escola)
+    - Preparação para transferência (mudança de status)
+    """
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'coordenador'])(request)
     
     # Busca aluno
     student_doc = await db.students.find_one({"id": student_id}, {"_id": 0})
@@ -1028,16 +1033,89 @@ async def update_student(student_id: str, student_update: StudentUpdate, request
             detail="Aluno não encontrado"
         )
     
-    # Verifica acesso
-    await AuthMiddleware.verify_school_access(request, student_doc['school_id'])
+    # Verifica se o usuário tem acesso à escola do aluno
+    user_school_ids = current_user.get('school_ids', [])
+    current_school_id = student_doc.get('school_id')
+    
+    # Admin e SEMED têm acesso a todas as escolas
+    if current_user.get('role') not in ['admin', 'semed']:
+        if current_school_id and current_school_id not in user_school_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você não tem permissão para editar alunos desta escola"
+            )
     
     update_data = student_update.model_dump(exclude_unset=True)
     
-    if update_data:
-        await db.students.update_one(
-            {"id": student_id},
-            {"$set": update_data}
+    if not update_data:
+        return Student(**student_doc)
+    
+    # Detecta tipo de operação
+    old_class_id = student_doc.get('class_id')
+    old_school_id = student_doc.get('school_id')
+    old_status = student_doc.get('status')
+    new_class_id = update_data.get('class_id', old_class_id)
+    new_school_id = update_data.get('school_id', old_school_id)
+    new_status = update_data.get('status', old_status)
+    
+    action_type = 'edicao'
+    history_obs = None
+    
+    # Verifica se é mudança de turma (remanejamento)
+    if new_class_id and new_class_id != old_class_id and new_school_id == old_school_id:
+        action_type = 'remanejamento'
+        
+        # Atualiza matrícula ativa
+        academic_year = datetime.now().year
+        await db.enrollments.update_one(
+            {"student_id": student_id, "school_id": old_school_id, "status": "active", "academic_year": academic_year},
+            {"$set": {"class_id": new_class_id}}
         )
+        
+        # Busca nome da nova turma
+        new_class = await db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
+        history_obs = f"Remanejado para turma: {new_class.get('name') if new_class else new_class_id}"
+    
+    # Verifica se é mudança de status para transferência
+    if new_status != old_status:
+        if new_status == 'transferred':
+            action_type = 'transferencia_saida'
+            history_obs = "Aluno marcado para transferência"
+            
+            # Atualiza matrícula para transferida
+            await db.enrollments.update_many(
+                {"student_id": student_id, "status": "active"},
+                {"$set": {"status": "transferred"}}
+            )
+    
+    # Atualiza o aluno
+    await db.students.update_one(
+        {"id": student_id},
+        {"$set": update_data}
+    )
+    
+    # Busca dados para o histórico
+    school = await db.schools.find_one({"id": new_school_id or old_school_id}, {"_id": 0, "name": 1})
+    class_info = await db.classes.find_one({"id": new_class_id or old_class_id}, {"_id": 0, "name": 1})
+    
+    # Registra no histórico
+    history_entry = {
+        "id": str(uuid.uuid4()),
+        "student_id": student_id,
+        "school_id": new_school_id or old_school_id,
+        "school_name": school.get('name') if school else 'N/A',
+        "class_id": new_class_id or old_class_id,
+        "class_name": class_info.get('name') if class_info else 'N/A',
+        "action_type": action_type,
+        "previous_status": old_status,
+        "new_status": new_status,
+        "observations": history_obs,
+        "user_id": current_user.get('id'),
+        "user_name": current_user.get('full_name') or current_user.get('email'),
+        "action_date": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.student_history.insert_one(history_entry)
     
     updated_student = await db.students.find_one({"id": student_id}, {"_id": 0})
     return Student(**updated_student)
