@@ -1163,10 +1163,10 @@ def generate_ficha_individual_pdf(
         ]
         table_data.append(row)
     
-    # Larguras das colunas - Total: 18cm (alinhado com tabela superior)
-    # COMPONENTES CURRICULARES aumentada para ocupar espaço extra
+    # Larguras das colunas - Total: 19cm (alinhado com tabela superior)
+    # COMPONENTES CURRICULARES aumentada para igualar largura da tabela de informações
     col_widths = [
-        5.3*cm,  # Componente (aumentada para alinhar com 18cm total)
+        6.75*cm,  # Componente (aumentada para alinhar com 19cm total)
         0.65*cm,  # CH
         0.65*cm, 0.65*cm, 0.65*cm, 0.65*cm,  # 1º Sem
         0.65*cm, 0.65*cm, 0.65*cm, 0.65*cm,  # 2º Sem
