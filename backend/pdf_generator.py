@@ -1000,7 +1000,7 @@ def generate_ficha_individual_pdf(
             Paragraph(f"<b>NOME DA ESCOLA:</b> {school_name}", info_style),
             Paragraph(f"<b>ANO LETIVO:</b> {academic_year}", info_style),
         ]
-    ], colWidths=[16.5*cm, 2.5*cm])
+    ], colWidths=[16.0*cm, 3.0*cm])
     info_row1.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
@@ -1018,7 +1018,7 @@ def generate_ficha_individual_pdf(
             Paragraph(f"<b>SEXO:</b> {student_sex}", info_style),
             Paragraph(f"<b>Nº INEP:</b> {inep_number}", info_style),
         ]
-    ], colWidths=[14*cm, 2.5*cm, 2.5*cm])
+    ], colWidths=[13.0*cm, 2.5*cm, 3.5*cm])
     info_row2.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
@@ -1039,7 +1039,7 @@ def generate_ficha_individual_pdf(
             Paragraph(f"<b>DIAS LET.:</b> {dias_letivos}", info_style),
             Paragraph(f"<b>NASC.:</b> {birth_date}", info_style),
         ]
-    ], colWidths=[3.5*cm, 6.9*cm, 2.5*cm, 1.6*cm, 2.0*cm, 2.5*cm])
+    ], colWidths=[3.5*cm, 6.0*cm, 2.5*cm, 2.0*cm, 2.5*cm, 2.5*cm])
     info_row3.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
