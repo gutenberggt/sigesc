@@ -8,7 +8,7 @@ import { schoolsAPI, classesAPI, schoolAssignmentAPI, staffAPI, uploadAPI } from
 import { formatPhone, formatCEP } from '@/utils/formatters';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
-import { Plus, AlertCircle, CheckCircle, Home, Users, Phone } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, Users, Phone, Clock } from 'lucide-react';
 
 export function SchoolsComplete() {
   const navigate = useNavigate();
