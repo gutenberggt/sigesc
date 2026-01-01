@@ -225,6 +225,13 @@ async def calculate_and_update_grade(db, grade_id: str) -> dict:
     """
     Calcula e atualiza a média de uma nota no banco de dados.
     
+    Para Educação Infantil:
+    - Usa o MAIOR conceito alcançado como média
+    - Aprovação automática
+    
+    Para outros níveis:
+    - Usa média ponderada com recuperações
+    
     Args:
         db: Conexão com MongoDB
         grade_id: ID da nota a ser atualizada
@@ -238,24 +245,46 @@ async def calculate_and_update_grade(db, grade_id: str) -> dict:
     if not grade:
         return None
     
-    # Calcula média com suporte a ambos os formatos de recuperação
-    # Campos vazios são tratados como 0
-    average, details = calculate_weighted_average(
-        grade.get('b1'),
-        grade.get('b2'),
-        grade.get('b3'),
-        grade.get('b4'),
-        grade.get('rec_s1'),
-        grade.get('rec_s2'),
-        grade.get('recovery')
+    # Busca informações da turma para verificar se é Educação Infantil
+    class_info = await db.classes.find_one(
+        {"id": grade.get('class_id')}, 
+        {"_id": 0, "grade_level": 1, "nivel_ensino": 1, "education_level": 1}
     )
     
-    # Busca frequência do aluno (se existir)
-    attendance_percentage = None
-    # TODO: Implementar busca de frequência quando o módulo de frequência estiver pronto
+    grade_level = class_info.get('grade_level', '') if class_info else ''
+    nivel_ensino = class_info.get('nivel_ensino') or class_info.get('education_level', '') if class_info else ''
     
-    # Determina status
-    status = determine_status(average, attendance_percentage)
+    # Verifica se é Educação Infantil
+    ed_infantil = is_educacao_infantil(grade_level, nivel_ensino)
+    
+    if ed_infantil:
+        # EDUCAÇÃO INFANTIL: Média = Maior conceito alcançado
+        average = calculate_maior_conceito(
+            grade.get('b1'),
+            grade.get('b2'),
+            grade.get('b3'),
+            grade.get('b4')
+        )
+        # Aprovação automática para Educação Infantil
+        status = 'aprovado'
+    else:
+        # OUTROS NÍVEIS: Média ponderada com recuperações
+        average, details = calculate_weighted_average(
+            grade.get('b1'),
+            grade.get('b2'),
+            grade.get('b3'),
+            grade.get('b4'),
+            grade.get('rec_s1'),
+            grade.get('rec_s2'),
+            grade.get('recovery')
+        )
+        
+        # Busca frequência do aluno (se existir)
+        attendance_percentage = None
+        # TODO: Implementar busca de frequência quando o módulo de frequência estiver pronto
+        
+        # Determina status
+        status = determine_status(average, attendance_percentage)
     
     # Atualiza no banco
     update_data = {
