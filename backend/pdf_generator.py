@@ -134,10 +134,10 @@ ORDEM_COMPONENTES_EDUCACAO_INFANTIL = [
     "Escuta, fala, pensamento e imaginação",
     "Traço, sons, cores e formas",
     "Traços, sons, cores e formas",  # Variação do nome
+    "Espaços, tempos, quantidades, relações e transformações",
     "Educação Ambiental e Clima",
     "Contação de Histórias e Iniciação Musical",
     "Arte e Cultura",
-    "Espaços, tempos, quantidades, relações e transformações",
     "Higiene e Saúde",
     "Linguagem Recreativa com Práticas de Esporte e Lazer",
     "Recreação, Esporte e Lazer",  # Variação do nome
