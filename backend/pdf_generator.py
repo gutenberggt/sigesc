@@ -398,8 +398,9 @@ def generate_boletim_pdf(
     table_data.append(total_row)
     
     # Larguras das colunas (8 colunas simplificadas)
-    # Total aproximado: 18cm (A4 com margens)
-    col_widths = [8.0*cm, 1.0*cm, 1.5*cm, 1.5*cm, 1.5*cm, 1.5*cm, 1.2*cm, 1.2*cm]
+    # Total: 18cm para alinhar com a tabela de informações do aluno
+    # COMPONENTES CURRICULARES: 8.6cm (aumentada para alinhar)
+    col_widths = [8.6*cm, 1.0*cm, 1.4*cm, 1.4*cm, 1.4*cm, 1.4*cm, 1.4*cm, 1.4*cm]
     
     grades_table = Table(table_data, colWidths=col_widths)
     grades_table.setStyle(TableStyle([
