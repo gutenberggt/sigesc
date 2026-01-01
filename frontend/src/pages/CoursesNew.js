@@ -84,7 +84,8 @@ export const Courses = () => {
     'atendimento_integral': 'Escola Integral',
     'reforco_escolar': 'Reforço Escolar',
     'aulas_complementares': 'Aulas Complementares',
-    'recomposicao_aprendizagem': 'Recomposição de Aprendizagem'
+    'recomposicao_aprendizagem': 'Recomposição de Aprendizagem',
+    'transversal_formativa': 'Transversal/Formativa'
   };
 
   const [reloadTrigger, setReloadTrigger] = useState(0);
