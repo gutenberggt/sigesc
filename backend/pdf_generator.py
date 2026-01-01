@@ -455,15 +455,16 @@ def generate_boletim_pdf(
         resultado = "EM ANDAMENTO"
         resultado_color = colors.HexColor('#2563eb')  # Azul
     
-    result_style = ParagraphStyle('Result', fontSize=12, alignment=TA_LEFT)
-    result_value_style = ParagraphStyle('ResultValue', fontSize=14, alignment=TA_LEFT, textColor=resultado_color)
+    # Estilos do resultado (+20% no tamanho)
+    result_style = ParagraphStyle('Result', fontSize=14, alignment=TA_LEFT)
+    result_value_style = ParagraphStyle('ResultValue', fontSize=17, alignment=TA_LEFT, textColor=resultado_color)
     
     result_table = Table([
         [
             Paragraph("<b>RESULTADO:</b>", result_style),
             Paragraph(f"<b>{resultado}</b>", result_value_style)
         ]
-    ], colWidths=[3*cm, 15*cm])
+    ], colWidths=[3.6*cm, 14.4*cm])  # Largura do RESULTADO aumentada em 20%
     result_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
