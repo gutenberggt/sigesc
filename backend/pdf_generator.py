@@ -1000,7 +1000,7 @@ def generate_ficha_individual_pdf(
             Paragraph(f"<b>NOME DA ESCOLA:</b> {school_name}", info_style),
             Paragraph(f"<b>ANO LETIVO:</b> {academic_year}", info_style),
         ]
-    ], colWidths=[16*cm, 3*cm])
+    ], colWidths=[16.5*cm, 2.5*cm])
     info_row1.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
@@ -1011,14 +1011,14 @@ def generate_ficha_individual_pdf(
     ]))
     elements.append(info_row1)
     
-    # Linha 2: Nome aluno, sexo, INEP (coluna ID removida e espaço incorporado ao NOME)
+    # Linha 2: Nome aluno, sexo, INEP
     info_row2 = Table([
         [
             Paragraph(f"<b>NOME DO(A) ALUNO(A):</b> {student_name}", info_style),
             Paragraph(f"<b>SEXO:</b> {student_sex}", info_style),
             Paragraph(f"<b>Nº INEP:</b> {inep_number}", info_style),
         ]
-    ], colWidths=[12.5*cm, 3.35*cm, 3.15*cm])
+    ], colWidths=[14*cm, 2.5*cm, 2.5*cm])
     info_row2.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
@@ -1030,7 +1030,6 @@ def generate_ficha_individual_pdf(
     elements.append(info_row2)
     
     # Linha 3: Ano/Etapa, Turma, Turno, Carga Horária, Dias Letivos, Data Nascimento
-    # ANO/ETAPA aumentada, NASC. reduzida
     info_row3 = Table([
         [
             Paragraph(f"<b>ANO/ETAPA:</b> {grade_level}", info_style),
@@ -1040,7 +1039,7 @@ def generate_ficha_individual_pdf(
             Paragraph(f"<b>DIAS LET.:</b> {dias_letivos}", info_style),
             Paragraph(f"<b>NASC.:</b> {birth_date}", info_style),
         ]
-    ], colWidths=[4.5*cm, 3*cm, 3*cm, 2.5*cm, 3*cm, 3*cm])
+    ], colWidths=[3.5*cm, 6.9*cm, 2.5*cm, 1.6*cm, 2.0*cm, 2.5*cm])
     info_row3.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
