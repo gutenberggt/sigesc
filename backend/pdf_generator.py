@@ -1064,14 +1064,14 @@ def generate_ficha_individual_pdf(
         grades_by_course[course_id] = grade
     
     # Cabeçalho da tabela de notas - Modelo Ficha Individual
-    # Estrutura: Componente | CH | 1º Sem (1º, 2º, Rec, Falt) | 2º Sem (3º, 4º, Rec, Falt) | Resultado (1ºx2, 2ºx3, 3ºx2, 4ºx3, Total, Média, Faltas, %Freq)
+    # Estrutura: Componente | CH | 1º Sem (1º, 2º, Rec) | 2º Sem (3º, 4º, Rec) | Resultado (1ºx2, 2ºx3, 3ºx2, 4ºx3, Total, Média, Faltas, %Freq)
     
     # Cabeçalho principal (primeira linha)
     header_row1 = [
         'COMPONENTES\nCURRICULARES',
         'C.H.',
-        '1º SEMESTRE', '', '', '',
-        '2º SEMESTRE', '', '', '',
+        '1º SEMESTRE', '', '',
+        '2º SEMESTRE', '', '',
         'PROC. PONDERADO', '', '', '',
         'TOTAL\nPONTOS',
         'MÉDIA\nANUAL',
@@ -1082,8 +1082,8 @@ def generate_ficha_individual_pdf(
     # Cabeçalho secundário (segunda linha)
     header_row2 = [
         '', '',
-        '1º', '2º', 'REC', 'FLT',
-        '3º', '4º', 'REC', 'FLT',
+        '1º', '2º', 'REC',
+        '3º', '4º', 'REC',
         '1ºx2', '2ºx3', '3ºx2', '4ºx3',
         '', '', '', ''
     ]
