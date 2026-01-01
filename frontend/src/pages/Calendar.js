@@ -98,7 +98,7 @@ const EventBadge = ({ event, compact = false, onClick }) => {
 };
 
 // Componente de célula do dia
-const DayCell = ({ date, events, isToday, isCurrentMonth, onClick, onEventClick, academicYear }) => {
+const DayCell = ({ date, events, isToday, isCurrentMonth, onClick, onEventClick, academicYear, periodosBimestrais }) => {
   const dayEvents = events.filter(e => {
     return date >= e.start_date && date <= e.end_date;
   });
@@ -108,11 +108,49 @@ const DayCell = ({ date, events, isToday, isCurrentMonth, onClick, onEventClick,
   const dayOfWeek = dateObj.getDay();
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
   
-  // Verifica se está dentro dos períodos letivos (2026)
-  const isInSchoolPeriod = (
-    (date >= '2026-02-09' && date <= '2026-06-30') ||
-    (date >= '2026-08-03' && date <= '2026-12-18')
-  );
+  // Verifica se está dentro dos períodos letivos (usando períodos bimestrais se disponíveis)
+  let isInSchoolPeriod = false;
+  let bimestreAtual = null;
+  
+  if (periodosBimestrais && Object.keys(periodosBimestrais).some(k => periodosBimestrais[k])) {
+    // Usa os períodos configurados
+    for (let i = 1; i <= 4; i++) {
+      const inicio = periodosBimestrais[`bimestre_${i}_inicio`];
+      const fim = periodosBimestrais[`bimestre_${i}_fim`];
+      if (inicio && fim && date >= inicio && date <= fim) {
+        isInSchoolPeriod = true;
+        bimestreAtual = i;
+        break;
+      }
+    }
+  } else {
+    // Fallback para períodos padrão
+    const year = academicYear || new Date().getFullYear();
+    isInSchoolPeriod = (
+      (date >= `${year}-02-09` && date <= `${year}-06-30`) ||
+      (date >= `${year}-08-03` && date <= `${year}-12-18`)
+    );
+  }
+  
+  // Verifica se é início ou fim de bimestre
+  let isBimestreStart = false;
+  let isBimestreEnd = false;
+  let bimestreInfo = null;
+  
+  if (periodosBimestrais) {
+    for (let i = 1; i <= 4; i++) {
+      const inicio = periodosBimestrais[`bimestre_${i}_inicio`];
+      const fim = periodosBimestrais[`bimestre_${i}_fim`];
+      if (date === inicio) {
+        isBimestreStart = true;
+        bimestreInfo = `Início ${i}º Bim`;
+      }
+      if (date === fim) {
+        isBimestreEnd = true;
+        bimestreInfo = `Fim ${i}º Bim`;
+      }
+    }
+  }
   
   // Verifica eventos
   const hasNonSchoolDay = dayEvents.some(e => !e.is_school_day);
