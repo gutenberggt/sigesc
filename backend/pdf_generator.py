@@ -287,12 +287,12 @@ def generate_boletim_pdf(
     student_number = enrollment.get('registration_number', student.get('enrollment_number', '1'))
     student_name = student.get('full_name', 'N/A').upper()
     
-    # Linha 1: Escola e Ano Letivo
+    # Linha 1: Escola, Ano Letivo e Ano/Etapa
     info_row1 = Table([
         [
             Paragraph(f"<b>Nome/escola:</b> {school_name}", ParagraphStyle('Info', fontSize=7)),
             Paragraph(f"<b>ANO LETIVO:</b> {academic_year}", ParagraphStyle('Info', fontSize=7, alignment=TA_CENTER)),
-            Paragraph(f"<b>N°</b> {student_number}", ParagraphStyle('Info', fontSize=7, alignment=TA_RIGHT))
+            Paragraph(f"<b>ANO/ETAPA:</b> {grade_level}", ParagraphStyle('Info', fontSize=7, alignment=TA_CENTER))
         ]
     ], colWidths=[10*cm, 4*cm, 4*cm])
     info_row1.setStyle(TableStyle([
@@ -305,14 +305,13 @@ def generate_boletim_pdf(
     ]))
     elements.append(info_row1)
     
-    # Linha 2: Nome do aluno, Ano/Etapa e Turma
+    # Linha 2: Nome do aluno e Turma
     info_row2 = Table([
         [
             Paragraph(f"<b>NOME:</b> {student_name}", ParagraphStyle('Info', fontSize=7)),
-            Paragraph(f"<b>ANO/ETAPA:</b> {grade_level}", ParagraphStyle('Info', fontSize=7, alignment=TA_CENTER)),
             Paragraph(f"<b>TURMA:</b> {class_name}", ParagraphStyle('Info', fontSize=7, alignment=TA_CENTER))
         ]
-    ], colWidths=[10*cm, 4*cm, 4*cm])
+    ], colWidths=[10*cm, 8*cm])
     info_row2.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOX', (0, 0), (-1, -1), 1, colors.black),
