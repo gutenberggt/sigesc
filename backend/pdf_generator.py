@@ -127,6 +127,39 @@ def get_styles():
     return styles
 
 
+# Ordem personalizada dos componentes curriculares para Educação Infantil
+ORDEM_COMPONENTES_EDUCACAO_INFANTIL = [
+    "O eu, o outro e nós",
+    "Corpo, gestos e movimentos",
+    "Escuta, fala, pensamento e imaginação",
+    "Traço, sons, cores e formas",
+    "Traços, sons, cores e formas",  # Variação do nome
+    "Educação Ambiental e Clima",
+    "Contação de Histórias e Iniciação Musical",
+    "Arte e Cultura",
+    "Espaços, tempos, quantidades, relações e transformações",
+    "Higiene e Saúde",
+    "Linguagem Recreativa com Práticas de Esporte e Lazer",
+    "Recreação, Esporte e Lazer",  # Variação do nome
+]
+
+def ordenar_componentes_educacao_infantil(courses: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Ordena os componentes curriculares da Educação Infantil na ordem específica definida.
+    Componentes não listados aparecem no final, em ordem alfabética.
+    """
+    def get_ordem(course):
+        nome = course.get('name', '')
+        # Procurar o nome na lista de ordem (ignorando case e variações)
+        for i, nome_ordem in enumerate(ORDEM_COMPONENTES_EDUCACAO_INFANTIL):
+            if nome_ordem.lower() in nome.lower() or nome.lower() in nome_ordem.lower():
+                return i
+        # Se não encontrar, colocar no final (ordem alfabética)
+        return len(ORDEM_COMPONENTES_EDUCACAO_INFANTIL) + ord(nome[0].lower()) if nome else 999
+    
+    return sorted(courses, key=get_ordem)
+
+
 def generate_boletim_pdf(
     student: Dict[str, Any],
     school: Dict[str, Any],
