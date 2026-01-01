@@ -434,8 +434,13 @@ def generate_boletim_pdf(
     
     # ===== RESULTADO FINAL =====
     # Calcular resultado geral do aluno
+    # NOTA: Componentes optativos NÃO entram no cálculo da média final
     all_medias = []
     for course in courses:
+        # Pular componentes optativos no cálculo da média
+        if course.get('optativo', False):
+            continue
+            
         course_grades = grades_by_course.get(course.get('id'), {})
         valid_grades = []
         for period in ['P1', 'P2', 'P3', 'P4']:
