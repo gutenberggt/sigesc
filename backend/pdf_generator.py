@@ -223,16 +223,18 @@ def generate_boletim_pdf(
     """
     
     header_style_text = ParagraphStyle('HeaderText', fontSize=10, alignment=TA_LEFT, leading=14)
-    header_style_right = ParagraphStyle('HeaderRight', fontSize=10, alignment=TA_RIGHT, leading=21)  # Leading +30%
+    header_style_right = ParagraphStyle('HeaderRight', fontSize=10, alignment=TA_RIGHT, leading=16)
     
     if logo:
+        # Coluna do nível de ensino (header_right): 6.3cm + 30% = 8.2cm
         header_table = Table([
             [logo, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
-        ], colWidths=[3.2*cm, 8.5*cm, 6.3*cm])  # Texto +1cm para melhor estética
+        ], colWidths=[3.2*cm, 6.6*cm, 8.2*cm])  # Coluna direita +30%
     else:
+        # Coluna do nível de ensino: 8cm + 30% = 10.4cm
         header_table = Table([
             [Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
-        ], colWidths=[10*cm, 8*cm])
+        ], colWidths=[7.6*cm, 10.4*cm])  # Coluna direita +30%
     
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
