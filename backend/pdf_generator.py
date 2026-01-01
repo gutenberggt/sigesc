@@ -211,10 +211,14 @@ def generate_boletim_pdf(
     
     nivel_ensino_label = NIVEL_ENSINO_LABELS.get(nivel_ensino, 'ENSINO FUNDAMENTAL')
     
+    # Buscar slogan da mantenedora
+    slogan = mantenedora.get('slogan', '') if mantenedora else ''
+    slogan_html = f'<font size="8" color="#666666">"{slogan}"</font>' if slogan else ''
+    
     header_text = f"""
     <b>{mant_nome}</b><br/>
     <font size="9">Secretaria Municipal de Educação</font><br/>
-    <font size="8" color="#666666">"Cuidar do povo é nossa prioridade"</font>
+    {slogan_html}
     """
     
     header_right = f"""
