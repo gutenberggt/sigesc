@@ -24,6 +24,7 @@ export default function Mantenedora() {
     codigo_inep: '',
     natureza_juridica: 'Pública Municipal',
     logotipo_url: '',
+    slogan: '',  // Slogan para cabeçalhos dos documentos
     
     // Endereço
     cep: '',
