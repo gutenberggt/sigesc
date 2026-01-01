@@ -1169,32 +1169,51 @@ def generate_ficha_individual_pdf(
         course_id = grade.get('course_id')
         grades_by_course[course_id] = grade
     
-    # Cabeçalho da tabela de notas - Modelo Ficha Individual
-    # Estrutura: Componente | CH | 1º Sem (1º, 2º, Rec) | 2º Sem (3º, 4º, Rec) | Resultado (1ºx2, 2ºx3, 3ºx2, 4ºx3, Total, Média, Faltas, %Freq)
+    # Verificar se é Educação Infantil (avaliação conceitual)
+    is_educacao_infantil = nivel_ensino == 'educacao_infantil'
     
-    # Cabeçalho principal (primeira linha)
-    header_row1 = [
-        'COMPONENTES\nCURRICULARES',
-        'C.H.',
-        '1º SEMESTRE', '', '',
-        '2º SEMESTRE', '', '',
-        'PROC. PONDERADO', '', '', '',
-        'TOTAL\nPONTOS',
-        'MÉDIA\nANUAL',
-        'FALTAS',
-        '%\nFREQ'
-    ]
-    
-    # Cabeçalho secundário (segunda linha)
-    header_row2 = [
-        '', '',
-        '1º', '2º', 'REC',
-        '3º', '4º', 'REC',
-        '1ºx2', '2ºx3', '3ºx2', '4ºx3',
-        '', '', '', ''
-    ]
-    
-    table_data = [header_row1, header_row2]
+    if is_educacao_infantil:
+        # EDUCAÇÃO INFANTIL: Tabela simplificada com conceitos
+        header_row1 = [
+            'COMPONENTES\nCURRICULARES',
+            'C.H.',
+            '1º Bim.',
+            '2º Bim.',
+            '3º Bim.',
+            '4º Bim.',
+            'CONCEITO\nFINAL',
+            'FALTAS',
+            '%\nFREQ'
+        ]
+        table_data = [header_row1]
+    else:
+        # OUTROS NÍVEIS: Tabela completa com processo ponderado
+        # Cabeçalho da tabela de notas - Modelo Ficha Individual
+        # Estrutura: Componente | CH | 1º Sem (1º, 2º, Rec) | 2º Sem (3º, 4º, Rec) | Resultado (1ºx2, 2ºx3, 3ºx2, 4ºx3, Total, Média, Faltas, %Freq)
+        
+        # Cabeçalho principal (primeira linha)
+        header_row1 = [
+            'COMPONENTES\nCURRICULARES',
+            'C.H.',
+            '1º SEMESTRE', '', '',
+            '2º SEMESTRE', '', '',
+            'PROC. PONDERADO', '', '', '',
+            'TOTAL\nPONTOS',
+            'MÉDIA\nANUAL',
+            'FALTAS',
+            '%\nFREQ'
+        ]
+        
+        # Cabeçalho secundário (segunda linha)
+        header_row2 = [
+            '', '',
+            '1º', '2º', 'REC',
+            '3º', '4º', 'REC',
+            '1ºx2', '2ºx3', '3ºx2', '4ºx3',
+            '', '', '', ''
+        ]
+        
+        table_data = [header_row1, header_row2]
     
     def fmt_grade(v):
         """Formata nota como string"""
@@ -1202,6 +1221,14 @@ def generate_ficha_individual_pdf(
             return '-'
         if isinstance(v, (int, float)):
             return f"{v:.1f}".replace('.', ',')
+        return str(v) if v else '-'
+    
+    def fmt_grade_conceitual(v):
+        """Formata nota como conceito para Educação Infantil"""
+        if v is None:
+            return '-'
+        if isinstance(v, (int, float)):
+            return valor_para_conceito(v)
         return str(v) if v else '-'
     
     def fmt_int(v):
@@ -1214,7 +1241,7 @@ def generate_ficha_individual_pdf(
     
     # Ordenar componentes curriculares
     # Para Educação Infantil, usa ordem específica
-    if nivel_ensino == 'educacao_infantil':
+    if is_educacao_infantil:
         courses = ordenar_componentes_educacao_infantil(courses)
     else:
         # Para outros níveis, ordenar alfabeticamente
