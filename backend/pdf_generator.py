@@ -395,17 +395,33 @@ def generate_boletim_pdf(
         period = grade.get('period', 'P1')
         grades_by_course[course_id][period] = grade
     
+    # Verificar se é Educação Infantil (avaliação conceitual)
+    is_educacao_infantil = nivel_ensino == 'educacao_infantil'
+    
     # Cabeçalho da tabela - Modelo simplificado
-    header_row1 = [
-        'COMPONENTES CURRICULARES',
-        'CH',
-        '1º Bim.',
-        '2º Bim.',
-        '3º Bim.',
-        '4º Bim.',
-        'Faltas',
-        'Média'
-    ]
+    # Para Educação Infantil, não tem coluna de Recuperação
+    if is_educacao_infantil:
+        header_row1 = [
+            'COMPONENTES CURRICULARES',
+            'CH',
+            '1º Bim.',
+            '2º Bim.',
+            '3º Bim.',
+            '4º Bim.',
+            'Faltas',
+            'Conceito'
+        ]
+    else:
+        header_row1 = [
+            'COMPONENTES CURRICULARES',
+            'CH',
+            '1º Bim.',
+            '2º Bim.',
+            '3º Bim.',
+            '4º Bim.',
+            'Faltas',
+            'Média'
+        ]
     
     table_data = [header_row1]
     
@@ -414,7 +430,7 @@ def generate_boletim_pdf(
     
     # Ordenar componentes curriculares
     # Para Educação Infantil, usa ordem específica
-    if nivel_ensino == 'educacao_infantil':
+    if is_educacao_infantil:
         courses = ordenar_componentes_educacao_infantil(courses)
     else:
         # Para outros níveis, ordenar alfabeticamente
@@ -449,20 +465,31 @@ def generate_boletim_pdf(
         
         total_geral_faltas += total_faltas
         
-        # Calcular média
+        # Calcular média/conceito
         valid_grades = []
         for g in [n1, n2, n3, n4]:
             if isinstance(g, (int, float)):
                 valid_grades.append(g)
         
-        if valid_grades:
-            media = sum(valid_grades) / len(valid_grades)
-            media_str = f"{media:.1f}"
+        if is_educacao_infantil:
+            # Educação Infantil: média é o MAIOR conceito alcançado
+            if valid_grades:
+                media = max(valid_grades)
+                media_str = valor_para_conceito(media)
+            else:
+                media_str = '-'
         else:
-            media_str = ''
+            # Outros níveis: média aritmética
+            if valid_grades:
+                media = sum(valid_grades) / len(valid_grades)
+                media_str = f"{media:.1f}"
+            else:
+                media_str = ''
         
         # Formatar valores
         def fmt_grade(v):
+            if is_educacao_infantil:
+                return formatar_nota_conceitual(v, True) if isinstance(v, (int, float)) else (str(v) if v else '-')
             if isinstance(v, (int, float)):
                 return f"{v:.1f}"
             return str(v) if v else ''
