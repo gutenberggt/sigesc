@@ -569,41 +569,60 @@ def generate_boletim_pdf(
     elements.append(Spacer(1, 20))
     
     # ===== RESULTADO FINAL =====
-    # Calcular resultado geral do aluno
-    # Componentes optativos: se NÃO têm notas, não interferem na aprovação
-    # Se têm notas, entram normalmente no cálculo
-    all_medias = []
-    for course in courses:
-        is_optativo = course.get('optativo', False)
-        course_grades = grades_by_course.get(course.get('id'), {})
-        valid_grades = []
-        for period in ['P1', 'P2', 'P3', 'P4']:
-            g = course_grades.get(period, {}).get('grade')
-            if isinstance(g, (int, float)):
-                valid_grades.append(g)
-        
-        # Se for optativo e NÃO tem notas, não entra no cálculo
-        # Se for optativo e TEM notas, entra normalmente
-        if is_optativo and not valid_grades:
-            continue
-        
-        if valid_grades:
-            all_medias.append(sum(valid_grades) / len(valid_grades))
+    # Obter status da matrícula para verificar casos especiais
+    enrollment_status = enrollment.get('status', 'active')
     
-    if all_medias:
-        media_geral = sum(all_medias) / len(all_medias)
-        if media_geral >= 6:
+    if is_educacao_infantil:
+        # EDUCAÇÃO INFANTIL: Aprovação automática, exceto casos especiais
+        if enrollment_status in ['desistencia', 'desistente', 'falecimento', 'falecido', 'transferencia', 'transferido']:
+            if enrollment_status in ['desistencia', 'desistente']:
+                resultado = "DESISTENTE"
+                resultado_color = colors.HexColor('#dc2626')  # Vermelho
+            elif enrollment_status in ['falecimento', 'falecido']:
+                resultado = "FALECIDO"
+                resultado_color = colors.HexColor('#6b7280')  # Cinza
+            else:
+                resultado = "TRANSFERIDO"
+                resultado_color = colors.HexColor('#f59e0b')  # Laranja
+        else:
             resultado = "APROVADO"
             resultado_color = colors.HexColor('#16a34a')  # Verde
-        elif media_geral >= 4:
-            resultado = "EM RECUPERAÇÃO"
-            resultado_color = colors.HexColor('#ca8a04')  # Amarelo
-        else:
-            resultado = "REPROVADO"
-            resultado_color = colors.HexColor('#dc2626')  # Vermelho
     else:
-        resultado = "EM ANDAMENTO"
-        resultado_color = colors.HexColor('#2563eb')  # Azul
+        # OUTROS NÍVEIS: Cálculo normal de aprovação
+        # Componentes optativos: se NÃO têm notas, não interferem na aprovação
+        # Se têm notas, entram normalmente no cálculo
+        all_medias = []
+        for course in courses:
+            is_optativo = course.get('optativo', False)
+            course_grades = grades_by_course.get(course.get('id'), {})
+            valid_grades = []
+            for period in ['P1', 'P2', 'P3', 'P4']:
+                g = course_grades.get(period, {}).get('grade')
+                if isinstance(g, (int, float)):
+                    valid_grades.append(g)
+            
+            # Se for optativo e NÃO tem notas, não entra no cálculo
+            # Se for optativo e TEM notas, entra normalmente
+            if is_optativo and not valid_grades:
+                continue
+            
+            if valid_grades:
+                all_medias.append(sum(valid_grades) / len(valid_grades))
+        
+        if all_medias:
+            media_geral = sum(all_medias) / len(all_medias)
+            if media_geral >= 6:
+                resultado = "APROVADO"
+                resultado_color = colors.HexColor('#16a34a')  # Verde
+            elif media_geral >= 4:
+                resultado = "EM RECUPERAÇÃO"
+                resultado_color = colors.HexColor('#ca8a04')  # Amarelo
+            else:
+                resultado = "REPROVADO"
+                resultado_color = colors.HexColor('#dc2626')  # Vermelho
+        else:
+            resultado = "EM ANDAMENTO"
+            resultado_color = colors.HexColor('#2563eb')  # Azul
     
     # Estilos do resultado (fonte original, largura +20%)
     result_style = ParagraphStyle('Result', fontSize=12, alignment=TA_LEFT)
