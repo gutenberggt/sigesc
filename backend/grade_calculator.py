@@ -8,10 +8,16 @@ Recuperação por semestre:
 - Rec. 1º Sem: substitui a menor nota entre B1 e B2 (se for maior)
 - Rec. 2º Sem: substitui a menor nota entre B3 e B4 (se for maior)
 
+EDUCAÇÃO INFANTIL (Avaliação Conceitual):
+- Sem recuperação
+- Média = Maior conceito alcançado nos 4 bimestres
+- Aprovação automática (exceto desistência, falecimento, transferência)
+- Conceitos: OD=10.0, DP=7.5, ND=5.0, NT=0.0
+
 IMPORTANTE: Campos vazios são tratados como 0 para exibir a média desde a 1ª nota.
 """
 
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple, List
 
 # Pesos dos bimestres
 WEIGHTS = {
@@ -24,6 +30,43 @@ WEIGHTS = {
 # Constantes
 MIN_AVERAGE = 5.0
 MIN_ATTENDANCE = 75.0
+
+# Séries/Anos da Educação Infantil
+SERIES_EDUCACAO_INFANTIL = [
+    'Berçário', 'Berçário I', 'Berçário II',
+    'Maternal', 'Maternal I', 'Maternal II',
+    'Pré', 'Pré I', 'Pré II', 'Pré-Escola',
+    'Creche', 'Jardim', 'Jardim I', 'Jardim II'
+]
+
+# Conceitos para Educação Infantil
+CONCEITOS_EDUCACAO_INFANTIL = {
+    'OD': 10.0,  # Objetivo Desenvolvido
+    'DP': 7.5,   # Desenvolvido Parcialmente
+    'ND': 5.0,   # Não Desenvolvido
+    'NT': 0.0,   # Não Trabalhado
+}
+
+
+def is_educacao_infantil(grade_level: str, nivel_ensino: str = None) -> bool:
+    """Verifica se é série da Educação Infantil"""
+    if nivel_ensino == 'educacao_infantil':
+        return True
+    if not grade_level:
+        return False
+    return any(serie.lower() in grade_level.lower() for serie in SERIES_EDUCACAO_INFANTIL)
+
+
+def calculate_maior_conceito(b1: Optional[float], b2: Optional[float], 
+                             b3: Optional[float], b4: Optional[float]) -> Optional[float]:
+    """
+    Calcula o maior conceito alcançado (para Educação Infantil).
+    A média é o MAIOR valor entre os 4 bimestres.
+    """
+    valores = [v for v in [b1, b2, b3, b4] if v is not None and v != 0]
+    if not valores:
+        return None
+    return max(valores)
 
 
 def calculate_weighted_average(b1: Optional[float], b2: Optional[float], 
