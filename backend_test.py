@@ -4431,6 +4431,276 @@ class SIGESCTester:
         self.log("✅ Ficha Individual PDF generation testing completed!")
         return True
 
+    def test_bug_fix_professores_alocados(self):
+        """Test Bug Fix: Professores alocados não apareciam na turma"""
+        self.log("\n🐛 Testing Bug Fix: Professores alocados não apareciam na turma...")
+        
+        # Test data from review request
+        class_id = "dbf2fc89-0d43-44df-8394-f5cd38a278e8"  # Berçário A
+        expected_teacher = "ABADIA ALVES MARTINS"
+        
+        # Test GET /api/classes/{class_id}/details
+        self.log(f"1️⃣ Testing GET /api/classes/{class_id}/details...")
+        response = requests.get(
+            f"{API_BASE}/classes/{class_id}/details",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            class_details = response.json()
+            self.log(f"✅ Class details retrieved successfully")
+            
+            # Check class information
+            class_info = class_details.get('class', {})
+            self.log(f"   Class: {class_info.get('name', 'N/A')}")
+            self.log(f"   Grade Level: {class_info.get('grade_level', 'N/A')}")
+            
+            # Check school information
+            school_info = class_details.get('school', {})
+            self.log(f"   School: {school_info.get('name', 'N/A')}")
+            
+            # Check teachers list
+            teachers = class_details.get('teachers', [])
+            self.log(f"   Number of teachers: {len(teachers)}")
+            
+            if teachers:
+                self.log("   Teachers found:")
+                teacher_found = False
+                for teacher in teachers:
+                    teacher_name = teacher.get('nome', 'N/A')
+                    components = teacher.get('componente', 'N/A')
+                    self.log(f"     - {teacher_name} (Components: {components})")
+                    
+                    # Check if expected teacher is found
+                    if expected_teacher in teacher_name:
+                        teacher_found = True
+                        self.log(f"✅ Expected teacher '{expected_teacher}' found!")
+                
+                if not teacher_found:
+                    self.log(f"❌ Expected teacher '{expected_teacher}' NOT found in teachers list")
+                    return False
+                else:
+                    self.log("✅ Bug fix verified: Teachers are now appearing in class details")
+            else:
+                self.log("❌ No teachers found in class details")
+                return False
+            
+            # Check students
+            students = class_details.get('students', [])
+            self.log(f"   Number of students: {len(students)}")
+            
+            return True
+            
+        elif response.status_code == 404:
+            self.log(f"❌ Class not found: {class_id}")
+            return False
+        else:
+            self.log(f"❌ Failed to get class details: {response.status_code} - {response.text}")
+            return False
+
+    def test_sistema_avaliacao_conceitual_educacao_infantil(self):
+        """Test Sistema de Avaliação Conceitual para Educação Infantil"""
+        self.log("\n🎯 Testing Sistema de Avaliação Conceitual para Educação Infantil...")
+        
+        # Test data - find a Berçário class and student
+        bercario_class_id = "dbf2fc89-0d43-44df-8394-f5cd38a278e8"  # Berçário A from review request
+        
+        # First, get class details to find a student
+        self.log("1️⃣ Getting Berçário A class details to find a student...")
+        response = requests.get(
+            f"{API_BASE}/classes/{bercario_class_id}/details",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code != 200:
+            self.log(f"❌ Failed to get Berçário class details: {response.status_code}")
+            return False
+        
+        class_details = response.json()
+        students = class_details.get('students', [])
+        
+        if not students:
+            self.log("❌ No students found in Berçário A class")
+            return False
+        
+        # Use first student for testing
+        test_student = students[0]
+        student_id = test_student.get('id')
+        student_name = test_student.get('full_name', 'N/A')
+        
+        self.log(f"   Using student: {student_name} (ID: {student_id})")
+        
+        # Get a course for Educação Infantil
+        self.log("2️⃣ Getting courses for Educação Infantil...")
+        response = requests.get(
+            f"{API_BASE}/courses?nivel_ensino=educacao_infantil",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code != 200:
+            self.log(f"❌ Failed to get courses: {response.status_code}")
+            return False
+        
+        courses = response.json()
+        if not courses:
+            self.log("❌ No courses found for Educação Infantil")
+            return False
+        
+        course_id = courses[0]['id']
+        course_name = courses[0].get('name', 'N/A')
+        self.log(f"   Using course: {course_name} (ID: {course_id})")
+        
+        # Test conceptual values for Educação Infantil
+        conceptual_values = {
+            "OD": 10.0,  # Objetivo Desenvolvido
+            "DP": 7.5,   # Desenvolvido Parcialmente
+            "ND": 5.0,   # Não Desenvolvido
+            "NT": 0.0    # Não Trabalhado
+        }
+        
+        self.log("3️⃣ Testing conceptual grade values for Educação Infantil...")
+        
+        # Test each conceptual value
+        for concept, value in conceptual_values.items():
+            self.log(f"   Testing {concept} = {value}...")
+            
+            grade_data = {
+                "student_id": student_id,
+                "class_id": bercario_class_id,
+                "course_id": course_id,
+                "academic_year": 2025,
+                "b1": value,
+                "b2": value,
+                "b3": value,
+                "b4": value
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/grades",
+                json=grade_data,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code in [200, 201]:
+                grade = response.json()
+                self.log(f"   ✅ {concept} ({value}) grade accepted successfully")
+                
+                # For Educação Infantil, final average should be the HIGHEST concept (not arithmetic average)
+                final_average = grade.get('final_average')
+                self.log(f"   Final average: {final_average}")
+                
+                # Since all quarters have the same value, final average should equal that value
+                if final_average == value:
+                    self.log(f"   ✅ Final average correctly set to {value} for {concept}")
+                else:
+                    self.log(f"   ❌ Final average should be {value}, got {final_average}")
+                
+                # Check status - Educação Infantil should have automatic approval
+                status = grade.get('status', 'N/A')
+                self.log(f"   Status: {status}")
+                
+                # For Educação Infantil, approval should be automatic regardless of grade
+                if status in ['aprovado', 'cursando']:
+                    self.log(f"   ✅ Status correctly set for Educação Infantil: {status}")
+                else:
+                    self.log(f"   ❌ Unexpected status for Educação Infantil: {status}")
+                    
+            else:
+                self.log(f"   ❌ Failed to create {concept} grade: {response.status_code} - {response.text}")
+                return False
+        
+        # Test mixed conceptual values (highest should be final average)
+        self.log("4️⃣ Testing mixed conceptual values (highest concept rule)...")
+        
+        mixed_grade_data = {
+            "student_id": student_id,
+            "class_id": bercario_class_id,
+            "course_id": course_id,
+            "academic_year": 2025,
+            "b1": 5.0,   # ND
+            "b2": 10.0,  # OD
+            "b3": 7.5,   # DP
+            "b4": 0.0    # NT
+        }
+        
+        response = requests.post(
+            f"{API_BASE}/grades",
+            json=mixed_grade_data,
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code in [200, 201]:
+            mixed_grade = response.json()
+            final_average = mixed_grade.get('final_average')
+            
+            # For Educação Infantil, final average should be the HIGHEST value (10.0)
+            expected_highest = max([5.0, 10.0, 7.5, 0.0])  # Should be 10.0
+            
+            self.log(f"   Mixed grades: B1=5.0(ND), B2=10.0(OD), B3=7.5(DP), B4=0.0(NT)")
+            self.log(f"   Expected highest concept: {expected_highest}")
+            self.log(f"   Actual final average: {final_average}")
+            
+            if final_average == expected_highest:
+                self.log("   ✅ Final average correctly calculated as HIGHEST concept for Educação Infantil")
+            else:
+                self.log(f"   ❌ Final average should be {expected_highest} (highest), got {final_average}")
+                
+            # Status should still be approved for Educação Infantil
+            status = mixed_grade.get('status', 'N/A')
+            if status in ['aprovado', 'cursando']:
+                self.log(f"   ✅ Automatic approval working for Educação Infantil: {status}")
+            else:
+                self.log(f"   ❌ Expected automatic approval, got: {status}")
+                
+        else:
+            self.log(f"   ❌ Failed to create mixed grade: {response.status_code} - {response.text}")
+            return False
+        
+        # Test that numeric values are accepted (not just conceptual names)
+        self.log("5️⃣ Testing that numeric values are accepted...")
+        
+        numeric_grade_data = {
+            "student_id": student_id,
+            "class_id": bercario_class_id,
+            "course_id": course_id,
+            "academic_year": 2025,
+            "b1": 10,    # Integer 10 (should be accepted as 10.0)
+            "b2": 7.5,   # Float 7.5
+            "b3": 5,     # Integer 5 (should be accepted as 5.0)
+            "b4": 0      # Integer 0 (should be accepted as 0.0)
+        }
+        
+        response = requests.post(
+            f"{API_BASE}/grades",
+            json=numeric_grade_data,
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code in [200, 201]:
+            numeric_grade = response.json()
+            self.log("   ✅ Numeric values (10, 7.5, 5, 0) accepted successfully")
+            
+            # Verify values are stored correctly
+            b1 = numeric_grade.get('b1')
+            b2 = numeric_grade.get('b2')
+            b3 = numeric_grade.get('b3')
+            b4 = numeric_grade.get('b4')
+            
+            self.log(f"   Stored values: B1={b1}, B2={b2}, B3={b3}, B4={b4}")
+            
+            # Check if values match expected conceptual values
+            if b1 == 10.0 and b2 == 7.5 and b3 == 5.0 and b4 == 0.0:
+                self.log("   ✅ All numeric values stored correctly as conceptual values")
+            else:
+                self.log("   ❌ Some numeric values not stored correctly")
+                
+        else:
+            self.log(f"   ❌ Failed to accept numeric values: {response.status_code} - {response.text}")
+            return False
+        
+        self.log("✅ Sistema de Avaliação Conceitual para Educação Infantil testing completed!")
+        return True
+
     def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting SIGESC Backend API Tests - BOLETIM COMPONENT FILTERING TESTING")
