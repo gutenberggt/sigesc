@@ -1265,55 +1265,88 @@ def generate_ficha_individual_pdf(
         b3 = grade.get('b3')
         b4 = grade.get('b4')
         
-        # Recuperações por semestre
-        rec_s1 = grade.get('rec_s1', grade.get('recovery'))
-        rec_s2 = grade.get('rec_s2')
-        
-        # Faltas por semestre (assumindo distribuição igual)
+        # Faltas
         att = attendance_data.get(course_id, {})
         total_faltas = att.get('absences', 0)
-        faltas_s1 = total_faltas // 2
-        faltas_s2 = total_faltas - faltas_s1
-        
-        # Processo ponderado
-        b1_pond = (b1 or 0) * 2
-        b2_pond = (b2 or 0) * 3
-        b3_pond = (b3 or 0) * 2
-        b4_pond = (b4 or 0) * 3
-        
-        # Total de pontos e média
-        total_pontos = b1_pond + b2_pond + b3_pond + b4_pond
-        media_anual = total_pontos / 10 if total_pontos > 0 else 0
         
         # Frequência do componente
         freq_componente = att.get('frequency_percentage', 100.0)
         
-        row = [
-            course_name,
-            str(carga_horaria),
-            fmt_grade(b1), fmt_grade(b2), fmt_grade(rec_s1),
-            fmt_grade(b3), fmt_grade(b4), fmt_grade(rec_s2),
-            fmt_grade(b1_pond), fmt_grade(b2_pond), fmt_grade(b3_pond), fmt_grade(b4_pond),
-            fmt_grade(total_pontos),
-            fmt_grade(media_anual),
-            fmt_int(total_faltas),
-            f"{freq_componente:.2f}".replace('.', ',')
-        ]
+        if is_educacao_infantil:
+            # EDUCAÇÃO INFANTIL: Conceitos e maior conceito como média
+            valid_grades = [g for g in [b1, b2, b3, b4] if isinstance(g, (int, float))]
+            if valid_grades:
+                conceito_final = valor_para_conceito(max(valid_grades))
+            else:
+                conceito_final = '-'
+            
+            row = [
+                course_name,
+                str(carga_horaria),
+                fmt_grade_conceitual(b1),
+                fmt_grade_conceitual(b2),
+                fmt_grade_conceitual(b3),
+                fmt_grade_conceitual(b4),
+                conceito_final,
+                fmt_int(total_faltas),
+                f"{freq_componente:.2f}".replace('.', ',')
+            ]
+        else:
+            # OUTROS NÍVEIS: Processo ponderado completo
+            # Recuperações por semestre
+            rec_s1 = grade.get('rec_s1', grade.get('recovery'))
+            rec_s2 = grade.get('rec_s2')
+            
+            # Processo ponderado
+            b1_pond = (b1 or 0) * 2
+            b2_pond = (b2 or 0) * 3
+            b3_pond = (b3 or 0) * 2
+            b4_pond = (b4 or 0) * 3
+            
+            # Total de pontos e média
+            total_pontos = b1_pond + b2_pond + b3_pond + b4_pond
+            media_anual = total_pontos / 10 if total_pontos > 0 else 0
+            
+            row = [
+                course_name,
+                str(carga_horaria),
+                fmt_grade(b1), fmt_grade(b2), fmt_grade(rec_s1),
+                fmt_grade(b3), fmt_grade(b4), fmt_grade(rec_s2),
+                fmt_grade(b1_pond), fmt_grade(b2_pond), fmt_grade(b3_pond), fmt_grade(b4_pond),
+                fmt_grade(total_pontos),
+                fmt_grade(media_anual),
+                fmt_int(total_faltas),
+                f"{freq_componente:.2f}".replace('.', ',')
+            ]
         table_data.append(row)
     
-    # Larguras das colunas - Total: 19cm (alinhado com tabela superior)
-    # Espaço das 2 colunas FLT removidas (1.3cm) redistribuído nas outras colunas
-    col_widths = [
-        6.75*cm,  # Componente (mantido)
-        0.75*cm,  # CH
-        0.75*cm, 0.75*cm, 0.75*cm,  # 1º Sem (1º, 2º, REC)
-        0.75*cm, 0.75*cm, 0.75*cm,  # 2º Sem (3º, 4º, REC)
-        0.85*cm, 0.85*cm, 0.85*cm, 0.85*cm,  # Proc. Pond.
-        1.0*cm,   # Total
-        0.95*cm,  # Média
-        0.85*cm,  # Faltas
-        1.0*cm    # %Freq
-    ]
+    # Larguras das colunas
+    if is_educacao_infantil:
+        # Educação Infantil: 9 colunas - Total: 19cm
+        col_widths = [
+            7.5*cm,   # Componente
+            1.0*cm,   # CH
+            1.5*cm,   # 1º Bim
+            1.5*cm,   # 2º Bim
+            1.5*cm,   # 3º Bim
+            1.5*cm,   # 4º Bim
+            1.5*cm,   # Conceito Final
+            1.0*cm,   # Faltas
+            1.5*cm    # %Freq
+        ]
+    else:
+        # Outros níveis: 16 colunas - Total: 19cm
+        col_widths = [
+            6.75*cm,  # Componente (mantido)
+            0.75*cm,  # CH
+            0.75*cm, 0.75*cm, 0.75*cm,  # 1º Sem (1º, 2º, REC)
+            0.75*cm, 0.75*cm, 0.75*cm,  # 2º Sem (3º, 4º, REC)
+            0.85*cm, 0.85*cm, 0.85*cm, 0.85*cm,  # Proc. Pond.
+            1.0*cm,   # Total
+            0.95*cm,  # Média
+            0.85*cm,  # Faltas
+            1.0*cm    # %Freq
+        ]
     
     grades_table = Table(table_data, colWidths=col_widths)
     
