@@ -183,15 +183,30 @@ const DayCell = ({ date, events, isToday, isCurrentMonth, onClick, onEventClick,
       className={`min-h-[80px] p-1 border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors
         ${bgClass}
         ${isToday ? 'ring-2 ring-blue-500' : ''}
+        ${isBimestreStart ? 'border-l-4 border-l-green-500' : ''}
+        ${isBimestreEnd ? 'border-r-4 border-r-red-500' : ''}
       `}
       onClick={() => onClick(date)}
     >
       <div className={`text-sm font-medium mb-1 flex items-center justify-between ${isToday ? 'text-blue-600' : ''}`}>
         <span>{parseInt(date.split('-')[2])}</span>
-        {isCurrentMonth && isInSchoolPeriod && !isWeekend && !hasFeriado && !hasRecesso && (
-          <span className="w-2 h-2 rounded-full bg-green-500" title="Dia Letivo"></span>
-        )}
+        <div className="flex items-center gap-1">
+          {isBimestreStart && (
+            <span className="text-[9px] px-1 bg-green-500 text-white rounded" title={bimestreInfo}>▶</span>
+          )}
+          {isBimestreEnd && (
+            <span className="text-[9px] px-1 bg-red-500 text-white rounded" title={bimestreInfo}>◀</span>
+          )}
+          {isCurrentMonth && isInSchoolPeriod && !isWeekend && !hasFeriado && !hasRecesso && (
+            <span className="w-2 h-2 rounded-full bg-green-500" title="Dia Letivo"></span>
+          )}
+        </div>
       </div>
+      {bimestreInfo && isCurrentMonth && (
+        <div className={`text-[8px] mb-1 px-1 py-0.5 rounded text-center truncate ${isBimestreStart ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+          {bimestreInfo}
+        </div>
+      )}
       <div className="space-y-1">
         {dayEvents
           .filter(event => event.name !== 'Sábado' && event.name !== 'Domingo')
