@@ -138,6 +138,30 @@ const GradeInput = ({ value, onChange, disabled, placeholder = '0,0' }) => {
   );
 };
 
+// Componente de seleção de conceito (para Educação Infantil)
+const ConceitoSelect = ({ value, onChange, disabled }) => {
+  const conceito = valorParaConceito(value);
+  const corClasse = CONCEITOS_EDUCACAO_INFANTIL[conceito]?.cor || 'text-gray-500';
+  
+  return (
+    <select
+      value={conceito === '-' ? '' : conceito}
+      onChange={(e) => {
+        const novoConceito = e.target.value;
+        const novoValor = novoConceito ? conceitoParaValor(novoConceito) : null;
+        onChange(novoValor);
+      }}
+      disabled={disabled}
+      className={`w-20 px-2 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 font-bold ${corClasse}`}
+    >
+      <option value="">-</option>
+      {Object.entries(CONCEITOS_EDUCACAO_INFANTIL).map(([key, { descricao }]) => (
+        <option key={key} value={key} title={descricao}>{key}</option>
+      ))}
+    </select>
+  );
+};
+
 export function Grades() {
   const navigate = useNavigate();
   const { user } = useAuth();
