@@ -1433,48 +1433,67 @@ def generate_ficha_individual_pdf(
     elements.append(Spacer(1, 5))
     
     # ===== CALCULAR RESULTADO =====
-    # Calcular se aprovado ou reprovado
-    if grades:
-        medias = []
-        for course in courses:
-            is_optativo = course.get('optativo', False)
-            course_id = course.get('id')
-            grade = grades_by_course.get(course_id, {})
-            b1 = grade.get('b1')
-            b2 = grade.get('b2')
-            b3 = grade.get('b3')
-            b4 = grade.get('b4')
-            
-            # Verificar se tem notas válidas
-            valid_grades = [g for g in [b1, b2, b3, b4] if isinstance(g, (int, float))]
-            
-            # Componentes optativos: se NÃO têm notas, não interferem na aprovação
-            # Se têm notas, entram normalmente no cálculo (igual ao Boletim)
-            if is_optativo and not valid_grades:
-                continue
-            
-            b1 = b1 or 0
-            b2 = b2 or 0
-            b3 = b3 or 0
-            b4 = b4 or 0
-            total = (b1 * 2) + (b2 * 3) + (b3 * 2) + (b4 * 3)
-            media = total / 10
-            medias.append(media)
-        
-        if medias:
-            media_geral = sum(medias) / len(medias)
-            if media_geral >= 5 and frequencia_anual >= 75:
-                resultado = "APROVADO"
-                resultado_color = colors.HexColor('#16a34a')
+    # Obter status da matrícula para verificar casos especiais
+    enrollment_status = enrollment.get('status', 'active')
+    
+    if is_educacao_infantil:
+        # EDUCAÇÃO INFANTIL: Aprovação automática, exceto casos especiais
+        if enrollment_status in ['desistencia', 'desistente', 'falecimento', 'falecido', 'transferencia', 'transferido']:
+            if enrollment_status in ['desistencia', 'desistente']:
+                resultado = "DESISTENTE"
+                resultado_color = colors.HexColor('#dc2626')  # Vermelho
+            elif enrollment_status in ['falecimento', 'falecido']:
+                resultado = "FALECIDO"
+                resultado_color = colors.HexColor('#6b7280')  # Cinza
             else:
-                resultado = "REPROVADO"
-                resultado_color = colors.HexColor('#dc2626')
+                resultado = "TRANSFERIDO"
+                resultado_color = colors.HexColor('#f59e0b')  # Laranja
+        else:
+            resultado = "APROVADO"
+            resultado_color = colors.HexColor('#16a34a')  # Verde
+    else:
+        # OUTROS NÍVEIS: Cálculo normal
+        if grades:
+            medias = []
+            for course in courses:
+                is_optativo = course.get('optativo', False)
+                course_id = course.get('id')
+                grade = grades_by_course.get(course_id, {})
+                b1 = grade.get('b1')
+                b2 = grade.get('b2')
+                b3 = grade.get('b3')
+                b4 = grade.get('b4')
+                
+                # Verificar se tem notas válidas
+                valid_grades = [g for g in [b1, b2, b3, b4] if isinstance(g, (int, float))]
+                
+                # Componentes optativos: se NÃO têm notas, não interferem na aprovação
+                # Se têm notas, entram normalmente no cálculo (igual ao Boletim)
+                if is_optativo and not valid_grades:
+                    continue
+                
+                b1 = b1 or 0
+                b2 = b2 or 0
+                b3 = b3 or 0
+                b4 = b4 or 0
+                total = (b1 * 2) + (b2 * 3) + (b3 * 2) + (b4 * 3)
+                media = total / 10
+                medias.append(media)
+            
+            if medias:
+                media_geral = sum(medias) / len(medias)
+                if media_geral >= 5 and frequencia_anual >= 75:
+                    resultado = "APROVADO"
+                    resultado_color = colors.HexColor('#16a34a')
+                else:
+                    resultado = "REPROVADO"
+                    resultado_color = colors.HexColor('#dc2626')
+            else:
+                resultado = "EM ANDAMENTO"
+                resultado_color = colors.HexColor('#2563eb')
         else:
             resultado = "EM ANDAMENTO"
             resultado_color = colors.HexColor('#2563eb')
-    else:
-        resultado = "EM ANDAMENTO"
-        resultado_color = colors.HexColor('#2563eb')
     
     # ===== LINHA COM OBSERVAÇÃO E RESULTADO =====
     obs_style = ParagraphStyle('ObsStyle', fontSize=7, fontName='Helvetica-Oblique')
