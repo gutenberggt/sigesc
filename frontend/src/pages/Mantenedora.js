@@ -357,6 +357,20 @@ export default function Mantenedora() {
                   </Button>
                 </div>
               </div>
+
+              {/* Slogan */}
+              <div>
+                <Label htmlFor="slogan">Slogan</Label>
+                <Input
+                  id="slogan"
+                  value={formData.slogan}
+                  onChange={(e) => handleInputChange('slogan', e.target.value)}
+                  placeholder="Ex: Cuidar do povo é nossa prioridade"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Este texto aparecerá nos cabeçalhos dos documentos (boletins, fichas, etc.)
+                </p>
+              </div>
             </CardContent>
           </Card>
 
