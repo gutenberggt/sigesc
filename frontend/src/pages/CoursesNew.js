@@ -59,6 +59,7 @@ export const Courses = () => {
     grade_levels: [],
     atendimento_programa: '',
     name: '',
+    optativo: false,
     code: '',
     workload: ''
   });
