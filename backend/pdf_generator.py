@@ -1096,6 +1096,14 @@ def generate_ficha_individual_pdf(
             return str(int(v))
         return str(v) if v else '-'
     
+    # Ordenar componentes curriculares
+    # Para Educação Infantil, usa ordem específica
+    if nivel_ensino == 'educacao_infantil':
+        courses = ordenar_componentes_educacao_infantil(courses)
+    else:
+        # Para outros níveis, ordenar alfabeticamente
+        courses = sorted(courses, key=lambda x: x.get('name', ''))
+    
     for course in courses:
         course_id = course.get('id')
         course_name = course.get('name', 'N/A')
