@@ -1158,8 +1158,8 @@ def generate_ficha_individual_pdf(
         row = [
             course_name,
             str(carga_horaria),
-            fmt_grade(b1), fmt_grade(b2), fmt_grade(rec_s1), fmt_int(faltas_s1),
-            fmt_grade(b3), fmt_grade(b4), fmt_grade(rec_s2), fmt_int(faltas_s2),
+            fmt_grade(b1), fmt_grade(b2), fmt_grade(rec_s1),
+            fmt_grade(b3), fmt_grade(b4), fmt_grade(rec_s2),
             fmt_grade(b1_pond), fmt_grade(b2_pond), fmt_grade(b3_pond), fmt_grade(b4_pond),
             fmt_grade(total_pontos),
             fmt_grade(media_anual),
@@ -1169,17 +1169,17 @@ def generate_ficha_individual_pdf(
         table_data.append(row)
     
     # Larguras das colunas - Total: 19cm (alinhado com tabela superior)
-    # COMPONENTES CURRICULARES aumentada para igualar largura da tabela de informações
+    # Espaço das 2 colunas FLT removidas (1.3cm) redistribuído nas outras colunas
     col_widths = [
-        6.75*cm,  # Componente (aumentada para alinhar com 19cm total)
-        0.65*cm,  # CH
-        0.65*cm, 0.65*cm, 0.65*cm, 0.65*cm,  # 1º Sem
-        0.65*cm, 0.65*cm, 0.65*cm, 0.65*cm,  # 2º Sem
-        0.75*cm, 0.75*cm, 0.75*cm, 0.75*cm,  # Proc. Pond.
-        0.9*cm,    # Total
-        0.85*cm,  # Média
-        0.75*cm,  # Faltas
-        0.9*cm     # %Freq
+        6.75*cm,  # Componente (mantido)
+        0.75*cm,  # CH
+        0.75*cm, 0.75*cm, 0.75*cm,  # 1º Sem (1º, 2º, REC)
+        0.75*cm, 0.75*cm, 0.75*cm,  # 2º Sem (3º, 4º, REC)
+        0.85*cm, 0.85*cm, 0.85*cm, 0.85*cm,  # Proc. Pond.
+        1.0*cm,   # Total
+        0.95*cm,  # Média
+        0.85*cm,  # Faltas
+        1.0*cm    # %Freq
     ]
     
     grades_table = Table(table_data, colWidths=col_widths)
