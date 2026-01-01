@@ -316,15 +316,20 @@ def generate_boletim_pdf(
     table_data = [header_row1]
     
     total_geral_faltas = 0
+    total_geral_faltas_obrigatorios = 0  # Apenas componentes obrigatórios
     total_carga_horaria = 0
+    total_carga_horaria_obrigatorios = 0  # Apenas componentes obrigatórios
     
     for course in courses:
         course_grades = grades_by_course.get(course.get('id'), {})
+        is_optativo = course.get('optativo', False)
         
         # Obter carga horária do componente
         carga_horaria = course.get('workload', '')
         if carga_horaria:
             total_carga_horaria += carga_horaria
+            if not is_optativo:
+                total_carga_horaria_obrigatorios += carga_horaria
         
         # Obter notas de cada período
         n1 = course_grades.get('P1', {}).get('grade', '')
@@ -343,6 +348,10 @@ def generate_boletim_pdf(
         for f in [f1, f2, f3, f4]:
             if isinstance(f, (int, float)):
                 total_faltas += int(f)
+        
+        total_geral_faltas += total_faltas
+        if not is_optativo:
+            total_geral_faltas_obrigatorios += total_faltas
         
         # Calcular média
         valid_grades = []
@@ -367,8 +376,13 @@ def generate_boletim_pdf(
                 return str(int(v))
             return str(v) if v else ''
         
+        # Marcar componentes optativos com asterisco
+        course_name = course.get('name', 'N/A')
+        if is_optativo:
+            course_name = f"{course_name} *"
+        
         row = [
-            course.get('name', 'N/A'),
+            course_name,
             fmt_int(carga_horaria) if carga_horaria else '',
             fmt_grade(n1),
             fmt_grade(n2),
@@ -378,15 +392,13 @@ def generate_boletim_pdf(
             media_str
         ]
         table_data.append(row)
-        
-        total_geral_faltas += total_faltas
     
-    # Adicionar linha de total de carga horária
+    # Adicionar linha de total de carga horária (apenas obrigatórios)
     total_row = [
         'TOTAL GERAL',
-        str(total_carga_horaria) if total_carga_horaria else '',
+        str(total_carga_horaria_obrigatorios) if total_carga_horaria_obrigatorios else '',
         '', '', '', '',
-        str(total_geral_faltas) if total_geral_faltas else '',
+        str(total_geral_faltas_obrigatorios) if total_geral_faltas_obrigatorios else '',
         ''
     ]
     table_data.append(total_row)
