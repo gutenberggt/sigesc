@@ -655,18 +655,43 @@ export function Grades() {
                   </div>
                 ) : gradesData.length > 0 ? (
                   <div>
+                    {/* Indicador de Educação Infantil */}
+                    {isEdInfantil && (
+                      <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                        <p className="text-sm text-purple-800">
+                          <strong>Educação Infantil:</strong> Avaliação por conceitos. 
+                          <span className="ml-2">
+                            <strong>OD</strong>=Desenvolvido | <strong>DP</strong>=Parcialmente | <strong>ND</strong>=Não Desenvolvido | <strong>NT</strong>=Não Trabalhado
+                          </span>
+                        </p>
+                      </div>
+                    )}
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">B1 (×2)</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">B2 (×3)</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 1º</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">B3 (×2)</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">B4 (×3)</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 2º</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Média</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                              {isEdInfantil ? '1º Bim' : 'B1 (×2)'}
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                              {isEdInfantil ? '2º Bim' : 'B2 (×3)'}
+                            </th>
+                            {!isEdInfantil && (
+                              <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 1º</th>
+                            )}
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                              {isEdInfantil ? '3º Bim' : 'B3 (×2)'}
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                              {isEdInfantil ? '4º Bim' : 'B4 (×3)'}
+                            </th>
+                            {!isEdInfantil && (
+                              <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 2º</th>
+                            )}
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                              {isEdInfantil ? 'Conceito' : 'Média'}
+                            </th>
                             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
                           </tr>
                         </thead>
@@ -678,56 +703,99 @@ export function Grades() {
                                 <div className="text-xs text-gray-500">{item.student.enrollment_number}</div>
                               </td>
                               <td className="px-4 py-3 text-center">
-                                <GradeInput
-                                  value={item.grade.b1}
-                                  onChange={(v) => updateLocalGrade(index, 'b1', v)}
-                                  disabled={!canEdit}
-                                />
+                                {isEdInfantil ? (
+                                  <ConceitoSelect
+                                    value={item.grade.b1}
+                                    onChange={(v) => updateLocalGrade(index, 'b1', v)}
+                                    disabled={!canEdit}
+                                  />
+                                ) : (
+                                  <GradeInput
+                                    value={item.grade.b1}
+                                    onChange={(v) => updateLocalGrade(index, 'b1', v)}
+                                    disabled={!canEdit}
+                                  />
+                                )}
                               </td>
                               <td className="px-4 py-3 text-center">
-                                <GradeInput
-                                  value={item.grade.b2}
-                                  onChange={(v) => updateLocalGrade(index, 'b2', v)}
-                                  disabled={!canEdit}
-                                />
+                                {isEdInfantil ? (
+                                  <ConceitoSelect
+                                    value={item.grade.b2}
+                                    onChange={(v) => updateLocalGrade(index, 'b2', v)}
+                                    disabled={!canEdit}
+                                  />
+                                ) : (
+                                  <GradeInput
+                                    value={item.grade.b2}
+                                    onChange={(v) => updateLocalGrade(index, 'b2', v)}
+                                    disabled={!canEdit}
+                                  />
+                                )}
                               </td>
-                              <td className="px-4 py-3 text-center bg-blue-50">
-                                <GradeInput
-                                  value={item.grade.rec_s1}
-                                  onChange={(v) => updateLocalGrade(index, 'rec_s1', v)}
-                                  disabled={!canEdit}
-                                  placeholder="-"
-                                />
+                              {!isEdInfantil && (
+                                <td className="px-4 py-3 text-center bg-blue-50">
+                                  <GradeInput
+                                    value={item.grade.rec_s1}
+                                    onChange={(v) => updateLocalGrade(index, 'rec_s1', v)}
+                                    disabled={!canEdit}
+                                    placeholder="-"
+                                  />
+                                </td>
+                              )}
+                              <td className="px-4 py-3 text-center">
+                                {isEdInfantil ? (
+                                  <ConceitoSelect
+                                    value={item.grade.b3}
+                                    onChange={(v) => updateLocalGrade(index, 'b3', v)}
+                                    disabled={!canEdit}
+                                  />
+                                ) : (
+                                  <GradeInput
+                                    value={item.grade.b3}
+                                    onChange={(v) => updateLocalGrade(index, 'b3', v)}
+                                    disabled={!canEdit}
+                                  />
+                                )}
                               </td>
                               <td className="px-4 py-3 text-center">
-                                <GradeInput
-                                  value={item.grade.b3}
-                                  onChange={(v) => updateLocalGrade(index, 'b3', v)}
-                                  disabled={!canEdit}
-                                />
+                                {isEdInfantil ? (
+                                  <ConceitoSelect
+                                    value={item.grade.b4}
+                                    onChange={(v) => updateLocalGrade(index, 'b4', v)}
+                                    disabled={!canEdit}
+                                  />
+                                ) : (
+                                  <GradeInput
+                                    value={item.grade.b4}
+                                    onChange={(v) => updateLocalGrade(index, 'b4', v)}
+                                    disabled={!canEdit}
+                                  />
+                                )}
                               </td>
+                              {!isEdInfantil && (
+                                <td className="px-4 py-3 text-center bg-blue-50">
+                                  <GradeInput
+                                    value={item.grade.rec_s2}
+                                    onChange={(v) => updateLocalGrade(index, 'rec_s2', v)}
+                                    disabled={!canEdit}
+                                    placeholder="-"
+                                  />
+                                </td>
+                              )}
                               <td className="px-4 py-3 text-center">
-                                <GradeInput
-                                  value={item.grade.b4}
-                                  onChange={(v) => updateLocalGrade(index, 'b4', v)}
-                                  disabled={!canEdit}
-                                />
-                              </td>
-                              <td className="px-4 py-3 text-center bg-blue-50">
-                                <GradeInput
-                                  value={item.grade.rec_s2}
-                                  onChange={(v) => updateLocalGrade(index, 'rec_s2', v)}
-                                  disabled={!canEdit}
-                                  placeholder="-"
-                                />
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <span className={`font-bold ${
-                                  item.grade.final_average !== null
-                                    ? item.grade.final_average >= 5 ? 'text-green-600' : 'text-red-600'
-                                    : 'text-gray-400'
-                                }`}>
-                                  {item.grade.final_average !== null ? formatGrade(item.grade.final_average) : '-'}
+                                {isEdInfantil ? (
+                                  <span className={`font-bold ${CONCEITOS_EDUCACAO_INFANTIL[valorParaConceito(item.grade.final_average)]?.cor || 'text-gray-400'}`}>
+                                    {item.grade.final_average !== null ? valorParaConceito(item.grade.final_average) : '-'}
+                                  </span>
+                                ) : (
+                                  <span className={`font-bold ${
+                                    item.grade.final_average !== null
+                                      ? item.grade.final_average >= 5 ? 'text-green-600' : 'text-red-600'
+                                      : 'text-gray-400'
+                                  }`}>
+                                    {item.grade.final_average !== null ? formatGrade(item.grade.final_average) : '-'}
+                                  </span>
+                                )}
                                 </span>
                               </td>
                               <td className="px-4 py-3 text-center">
