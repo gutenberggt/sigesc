@@ -451,6 +451,12 @@ def generate_boletim_pdf(
             g = course_grades.get(period, {}).get('grade')
             if isinstance(g, (int, float)):
                 valid_grades.append(g)
+        
+        # Se for optativo e NÃO tem notas, não entra no cálculo
+        # Se for optativo e TEM notas, entra normalmente
+        if is_optativo and not valid_grades:
+            continue
+        
         if valid_grades:
             all_medias.append(sum(valid_grades) / len(valid_grades))
     
