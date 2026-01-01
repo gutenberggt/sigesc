@@ -504,14 +504,33 @@ export const Calendar = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [showEventModal, setShowEventModal] = useState(false);
+  const [showPeriodosModal, setShowPeriodosModal] = useState(false);
+  const [calendarioLetivo, setCalendarioLetivo] = useState(null);
+  const [savingPeriodos, setSavingPeriodos] = useState(false);
   const navigateTo = useNavigate();
   
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
   
+  // Estado para os períodos bimestrais
+  const [periodos, setPeriodos] = useState({
+    bimestre_1_inicio: '',
+    bimestre_1_fim: '',
+    bimestre_2_inicio: '',
+    bimestre_2_fim: '',
+    bimestre_3_inicio: '',
+    bimestre_3_fim: '',
+    bimestre_4_inicio: '',
+    bimestre_4_fim: '',
+    recesso_inicio: '',
+    recesso_fim: '',
+    dias_letivos_previstos: 200
+  });
+  
   // Carrega eventos
   useEffect(() => {
     loadEvents();
+    loadCalendarioLetivo();
   }, [currentYear]);
   
   const loadEvents = async () => {
@@ -525,6 +544,44 @@ export const Calendar = () => {
       setLoading(false);
     }
   };
+  
+  const loadCalendarioLetivo = async () => {
+    try {
+      const data = await calendarAPI.getCalendarioLetivo(currentYear);
+      setCalendarioLetivo(data);
+      setPeriodos({
+        bimestre_1_inicio: data.bimestre_1_inicio || '',
+        bimestre_1_fim: data.bimestre_1_fim || '',
+        bimestre_2_inicio: data.bimestre_2_inicio || '',
+        bimestre_2_fim: data.bimestre_2_fim || '',
+        bimestre_3_inicio: data.bimestre_3_inicio || '',
+        bimestre_3_fim: data.bimestre_3_fim || '',
+        bimestre_4_inicio: data.bimestre_4_inicio || '',
+        bimestre_4_fim: data.bimestre_4_fim || '',
+        recesso_inicio: data.recesso_inicio || '',
+        recesso_fim: data.recesso_fim || '',
+        dias_letivos_previstos: data.dias_letivos_previstos || 200
+      });
+    } catch (error) {
+      console.error('Erro ao carregar calendário letivo:', error);
+    }
+  };
+  
+  const handleSavePeriodos = async () => {
+    setSavingPeriodos(true);
+    try {
+      await calendarAPI.updateCalendarioLetivo(currentYear, periodos);
+      setShowPeriodosModal(false);
+      await loadCalendarioLetivo();
+    } catch (error) {
+      console.error('Erro ao salvar períodos:', error);
+      alert('Erro ao salvar períodos bimestrais');
+    } finally {
+      setSavingPeriodos(false);
+    }
+  };
+  
+  const canEditPeriodos = user?.role && ['admin', 'secretario', 'semed'].includes(user.role);
   
   // Navegação
   const navigate = (direction) => {
