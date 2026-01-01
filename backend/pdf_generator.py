@@ -351,6 +351,14 @@ def generate_boletim_pdf(
     total_geral_faltas = 0
     total_carga_horaria = 0
     
+    # Ordenar componentes curriculares
+    # Para Educação Infantil, usa ordem específica
+    if nivel_ensino == 'educacao_infantil':
+        courses = ordenar_componentes_educacao_infantil(courses)
+    else:
+        # Para outros níveis, ordenar alfabeticamente
+        courses = sorted(courses, key=lambda x: x.get('name', ''))
+    
     for course in courses:
         course_grades = grades_by_course.get(course.get('id'), {})
         is_optativo = course.get('optativo', False)
