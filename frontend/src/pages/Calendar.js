@@ -284,7 +284,7 @@ const AnnualView = ({ year, events, onDayClick, onEventClick }) => {
 };
 
 // Vista Mensal
-const MonthlyView = ({ year, month, events, onDayClick, onEventClick }) => {
+const MonthlyView = ({ year, month, events, onDayClick, onEventClick, periodosBimestrais }) => {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
   const today = new Date().toISOString().split('T')[0];
@@ -313,6 +313,7 @@ const MonthlyView = ({ year, month, events, onDayClick, onEventClick }) => {
         isCurrentMonth={false}
         onClick={onDayClick}
         onEventClick={onEventClick}
+        periodosBimestrais={periodosBimestrais}
       />
     );
   }
@@ -329,6 +330,7 @@ const MonthlyView = ({ year, month, events, onDayClick, onEventClick }) => {
         isCurrentMonth={true}
         onClick={onDayClick}
         onEventClick={onEventClick}
+        periodosBimestrais={periodosBimestrais}
       />
     );
   }
