@@ -811,22 +811,39 @@ async def get_class_details_pdf(class_id: str, request: Request):
         {"_id": 0}
     ).to_list(100)
     
-    teachers = []
+    # Agrupa por professor para evitar duplicação
+    teachers_map = {}
     for alocacao in alocacoes:
-        staff = await db.staff.find_one(
-            {"id": alocacao.get('staff_id')},
-            {"_id": 0, "id": 1, "nome": 1, "full_name": 1, "celular": 1}
-        )
-        if staff:
+        staff_id = alocacao.get('staff_id')
+        if staff_id not in teachers_map:
+            staff = await db.staff.find_one(
+                {"id": staff_id},
+                {"_id": 0, "id": 1, "nome": 1, "full_name": 1, "celular": 1}
+            )
+            if staff:
+                teachers_map[staff_id] = {
+                    "nome": staff.get('nome') or staff.get('full_name'),
+                    "celular": staff.get('celular'),
+                    "componentes": []
+                }
+        
+        # Adiciona componente se existir
+        if staff_id in teachers_map and alocacao.get('course_id'):
             course = await db.courses.find_one(
                 {"id": alocacao.get('course_id')},
-                {"_id": 0, "nome": 1}
+                {"_id": 0, "name": 1, "nome": 1}
             )
-            teachers.append({
-                "nome": staff.get('nome') or staff.get('full_name'),
-                "celular": staff.get('celular'),
-                "componente": course.get('nome') if course else None
-            })
+            if course:
+                comp_name = course.get('name') or course.get('nome')
+                if comp_name and comp_name not in teachers_map[staff_id]["componentes"]:
+                    teachers_map[staff_id]["componentes"].append(comp_name)
+    
+    # Formata lista de professores
+    teachers = []
+    for teacher_data in teachers_map.values():
+        componentes = teacher_data.pop("componentes", [])
+        teacher_data["componente"] = ", ".join(componentes) if componentes else None
+        teachers.append(teacher_data)
     
     # Busca alunos matriculados
     academic_year = class_doc.get('academic_year', datetime.now().year)
