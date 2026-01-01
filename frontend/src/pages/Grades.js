@@ -8,6 +8,60 @@ import {
   Search, X, Calculator, TrendingUp, TrendingDown
 } from 'lucide-react';
 
+// ===== SISTEMA DE AVALIAÇÃO CONCEITUAL - EDUCAÇÃO INFANTIL =====
+const CONCEITOS_EDUCACAO_INFANTIL = {
+  OD: { valor: 10.0, descricao: 'Objetivo Desenvolvido', cor: 'text-green-600' },
+  DP: { valor: 7.5, descricao: 'Desenvolvido Parcialmente', cor: 'text-blue-600' },
+  ND: { valor: 5.0, descricao: 'Não Desenvolvido', cor: 'text-yellow-600' },
+  NT: { valor: 0.0, descricao: 'Não Trabalhado', cor: 'text-gray-500' },
+};
+
+const VALOR_PARA_CONCEITO = {
+  10.0: 'OD',
+  7.5: 'DP',
+  5.0: 'ND',
+  0.0: 'NT',
+};
+
+// Lista de séries/anos da Educação Infantil
+const SERIES_EDUCACAO_INFANTIL = [
+  'Berçário', 'Berçário I', 'Berçário II',
+  'Maternal', 'Maternal I', 'Maternal II',
+  'Pré', 'Pré I', 'Pré II', 'Pré-Escola',
+  'Creche', 'Jardim', 'Jardim I', 'Jardim II'
+];
+
+// Verifica se é série de Educação Infantil
+const isEducacaoInfantil = (gradeLevel, nivelEnsino) => {
+  if (nivelEnsino === 'educacao_infantil') return true;
+  if (!gradeLevel) return false;
+  return SERIES_EDUCACAO_INFANTIL.some(serie => 
+    gradeLevel.toLowerCase().includes(serie.toLowerCase())
+  );
+};
+
+// Converte valor para conceito
+const valorParaConceito = (valor) => {
+  if (valor === null || valor === undefined || valor === '') return '-';
+  const num = Number(valor);
+  if (num >= 10) return 'OD';
+  if (num >= 7.5) return 'DP';
+  if (num >= 5) return 'ND';
+  return 'NT';
+};
+
+// Converte conceito para valor
+const conceitoParaValor = (conceito) => {
+  return CONCEITOS_EDUCACAO_INFANTIL[conceito]?.valor ?? null;
+};
+
+// Calcula o maior conceito (para Educação Infantil)
+const calcularMaiorConceito = (b1, b2, b3, b4) => {
+  const valores = [b1, b2, b3, b4].filter(v => v !== null && v !== undefined && v !== '');
+  if (valores.length === 0) return null;
+  return Math.max(...valores.map(Number));
+};
+
 // Formata número com vírgula
 const formatGrade = (value) => {
   if (value === null || value === undefined || value === '') return '';
