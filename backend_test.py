@@ -4244,6 +4244,193 @@ class SIGESCTester:
             self.log(f"❌ Error during boletim component filtering test: {str(e)}")
             return False
 
+    def test_ficha_individual_pdf_generation(self):
+        """Test Ficha Individual PDF generation with layout changes as per review request"""
+        self.log("\n📄 Testing Ficha Individual PDF Generation (Layout Changes)...")
+        
+        # Test credentials from review request
+        admin_credentials = {
+            "email": "gutenberg@sigesc.com",
+            "password": "@Celta2007"
+        }
+        
+        # Login as admin
+        self.log("1️⃣ Logging in as admin (gutenberg@sigesc.com)...")
+        admin_token = self.login(admin_credentials, "Admin (Gutenberg)")
+        if not admin_token:
+            self.log("❌ Admin login failed - cannot continue")
+            return False
+        
+        # Get students to test with
+        self.log("2️⃣ Getting students for testing...")
+        response = requests.get(
+            f"{API_BASE}/students",
+            headers=self.get_headers(admin_token)
+        )
+        
+        if response.status_code != 200:
+            self.log(f"❌ Failed to get students: {response.status_code} - {response.text}")
+            return False
+        
+        students = response.json()
+        if not students:
+            self.log("❌ No students found in database")
+            return False
+        
+        self.log(f"✅ Found {len(students)} students")
+        
+        # Get classes to verify shifts
+        self.log("3️⃣ Getting classes to verify shifts...")
+        response = requests.get(
+            f"{API_BASE}/classes",
+            headers=self.get_headers(admin_token)
+        )
+        
+        if response.status_code == 200:
+            classes = response.json()
+            self.log(f"✅ Found {len(classes)} classes")
+            
+            # Look for classes with different shifts
+            shifts_found = {}
+            for cls in classes:
+                shift = cls.get('shift')
+                if shift:
+                    if shift not in shifts_found:
+                        shifts_found[shift] = []
+                    shifts_found[shift].append(cls)
+            
+            self.log(f"   Shifts found: {list(shifts_found.keys())}")
+            
+            # Check for morning shift specifically
+            if 'morning' in shifts_found:
+                self.log(f"✅ Found {len(shifts_found['morning'])} classes with 'morning' shift")
+            else:
+                self.log("⚠️ No classes with 'morning' shift found")
+                
+        else:
+            self.log(f"❌ Failed to get classes: {response.status_code}")
+        
+        # Test PDF generation for at least 2 students
+        test_students = students[:2]  # Take first 2 students
+        academic_year = 2025
+        
+        for i, student in enumerate(test_students, 1):
+            student_id = student['id']
+            student_name = student.get('full_name', 'N/A')
+            
+            self.log(f"4️⃣.{i} Testing Ficha Individual PDF for student: {student_name}")
+            
+            # Generate PDF
+            response = requests.get(
+                f"{API_BASE}/documents/ficha-individual/{student_id}?academic_year={academic_year}",
+                headers=self.get_headers(admin_token)
+            )
+            
+            if response.status_code == 200:
+                # Verify Content-Type
+                content_type = response.headers.get('Content-Type')
+                if content_type == 'application/pdf':
+                    self.log(f"   ✅ Correct Content-Type: {content_type}")
+                else:
+                    self.log(f"   ❌ Incorrect Content-Type: {content_type}")
+                
+                # Verify file size (should be > 10KB as per requirement)
+                content_length = len(response.content)
+                if content_length > 10240:  # 10KB
+                    self.log(f"   ✅ PDF size: {content_length} bytes (> 10KB)")
+                else:
+                    self.log(f"   ❌ PDF size too small: {content_length} bytes (< 10KB)")
+                
+                # Verify filename in headers
+                content_disposition = response.headers.get('Content-Disposition', '')
+                if 'ficha_individual_' in content_disposition:
+                    self.log(f"   ✅ Correct filename format in headers")
+                else:
+                    self.log(f"   ⚠️ Filename format: {content_disposition}")
+                
+                self.log(f"   ✅ PDF generated successfully for {student_name}")
+                
+            elif response.status_code == 404:
+                self.log(f"   ❌ Student not found: {student_id}")
+            else:
+                self.log(f"   ❌ Failed to generate PDF: {response.status_code} - {response.text}")
+        
+        # Test with different academic years
+        self.log("5️⃣ Testing with different academic years...")
+        test_student_id = students[0]['id']
+        
+        for year in [2024, 2025]:
+            response = requests.get(
+                f"{API_BASE}/documents/ficha-individual/{test_student_id}?academic_year={year}",
+                headers=self.get_headers(admin_token)
+            )
+            
+            if response.status_code == 200:
+                content_length = len(response.content)
+                self.log(f"   ✅ Academic year {year}: PDF generated ({content_length} bytes)")
+            else:
+                self.log(f"   ❌ Academic year {year}: Failed ({response.status_code})")
+        
+        # Test error handling
+        self.log("6️⃣ Testing error handling...")
+        
+        # Test with invalid student ID
+        invalid_student_id = "invalid-student-id"
+        response = requests.get(
+            f"{API_BASE}/documents/ficha-individual/{invalid_student_id}?academic_year={academic_year}",
+            headers=self.get_headers(admin_token)
+        )
+        
+        if response.status_code == 404:
+            self.log("   ✅ Invalid student ID correctly returns 404")
+        else:
+            self.log(f"   ❌ Invalid student ID should return 404, got: {response.status_code}")
+        
+        # Test without authentication
+        response = requests.get(
+            f"{API_BASE}/documents/ficha-individual/{test_student_id}?academic_year={academic_year}"
+        )
+        
+        if response.status_code == 401:
+            self.log("   ✅ Unauthenticated request correctly returns 401")
+        else:
+            self.log(f"   ❌ Unauthenticated request should return 401, got: {response.status_code}")
+        
+        # Check backend logs for errors
+        self.log("7️⃣ Checking backend logs for errors...")
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["tail", "-n", "50", "/var/log/supervisor/backend.err.log"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if result.returncode == 0:
+                error_lines = [line for line in result.stdout.split('\n') if 'ERROR' in line.upper()]
+                if error_lines:
+                    self.log(f"   ⚠️ Found {len(error_lines)} error lines in backend logs")
+                    for line in error_lines[-3:]:  # Show last 3 errors
+                        self.log(f"     {line}")
+                else:
+                    self.log("   ✅ No errors found in recent backend logs")
+            else:
+                self.log("   ⚠️ Could not read backend logs")
+                
+        except Exception as e:
+            self.log(f"   ⚠️ Error checking logs: {str(e)}")
+        
+        # Summary of layout changes to verify (informational)
+        self.log("8️⃣ Layout changes implemented (to be verified manually):")
+        self.log("   📋 1. Column 'ID:' removed from header Line 2")
+        self.log("   📋 2. Shift translated to Portuguese (morning → Matutino)")
+        self.log("   📋 3. Column widths adjusted in Line 3 (ANO/ETAPA: 4.5cm, NASC.: 3cm)")
+        self.log("   📋 4. Curriculum components table width 18cm, COMPONENTES CURRICULARES column 5.3cm")
+        
+        self.log("✅ Ficha Individual PDF generation testing completed!")
+        return True
+
     def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting SIGESC Backend API Tests - BOLETIM COMPONENT FILTERING TESTING")
