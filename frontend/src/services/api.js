@@ -384,6 +384,25 @@ export const calendarAPI = {
   getSummary: async (academicYear) => {
     const response = await axios.get(`${API}/calendar/summary/${academicYear}`);
     return response.data;
+  },
+  
+  // ===== CALENDÁRIO LETIVO - PERÍODOS BIMESTRAIS =====
+  getCalendarioLetivo: async (anoLetivo, schoolId = null) => {
+    const params = schoolId ? `?school_id=${schoolId}` : '';
+    const response = await axios.get(`${API}/calendario-letivo/${anoLetivo}${params}`);
+    return response.data;
+  },
+  
+  updateCalendarioLetivo: async (anoLetivo, data, schoolId = null) => {
+    const params = schoolId ? `?school_id=${schoolId}` : '';
+    const response = await axios.put(`${API}/calendario-letivo/${anoLetivo}${params}`, data);
+    return response.data;
+  },
+  
+  getPeriodosBimestrais: async (anoLetivo, schoolId = null) => {
+    const params = schoolId ? `?school_id=${schoolId}` : '';
+    const response = await axios.get(`${API}/calendario-letivo/${anoLetivo}/periodos${params}`);
+    return response.data;
   }
 };
 
