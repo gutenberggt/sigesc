@@ -736,6 +736,10 @@ class CourseBase(BaseModel):
     # Nome do componente curricular
     name: str
     
+    # Componente Optativo - não interfere na aprovação, frequência ou carga horária da série
+    # Só pode ser marcado para componentes que NÃO são do atendimento "Regular" (atendimento_programa != None)
+    optativo: Optional[bool] = False
+    
     # Código (opcional)
     code: Optional[str] = None
     
@@ -751,6 +755,7 @@ class CourseUpdate(BaseModel):
     grade_levels: Optional[List[str]] = None
     atendimento_programa: Optional[Literal['aee', 'atendimento_integral', 'reforco_escolar', 'aulas_complementares']] = None
     name: Optional[str] = None
+    optativo: Optional[bool] = None
     code: Optional[str] = None
     workload: Optional[int] = None
 
