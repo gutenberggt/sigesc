@@ -1117,7 +1117,12 @@ def generate_ficha_individual_pdf(
     for course in courses:
         course_id = course.get('id')
         course_name = course.get('name', 'N/A')
+        is_optativo = course.get('optativo', False)
         carga_horaria = course.get('carga_horaria', course.get('workload', 80))
+        
+        # Marcar componentes optativos com "(Optativo)" - igual ao Boletim
+        if is_optativo:
+            course_name = f"{course_name} (Optativo)"
         
         grade = grades_by_course.get(course_id, {})
         
