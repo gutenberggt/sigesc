@@ -1973,7 +1973,8 @@ export function SchoolsComplete() {
     renderEquipamentos(),
     renderDadosEnsino(),
     renderTurmas(),
-    renderQuadroServidores()
+    renderQuadroServidores(),
+    renderPermissoes()
   ];
 
   return (
