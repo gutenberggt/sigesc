@@ -1350,50 +1350,83 @@ def generate_ficha_individual_pdf(
     
     grades_table = Table(table_data, colWidths=col_widths)
     
-    # Estilo da tabela
-    style_commands = [
-        # Cabeçalho principal - primeira linha
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#dbeafe')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('FONTNAME', (0, 0), (-1, 1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 1), 6),
-        ('ALIGN', (0, 0), (-1, 1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, 1), 'MIDDLE'),
-        
-        # Cabeçalho secundário
-        ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#eff6ff')),
-        
-        # Merge células do cabeçalho
-        ('SPAN', (0, 0), (0, 1)),  # Componentes
-        ('SPAN', (1, 0), (1, 1)),  # CH
-        ('SPAN', (2, 0), (4, 0)),  # 1º Semestre (3 colunas)
-        ('SPAN', (5, 0), (7, 0)),  # 2º Semestre (3 colunas)
-        ('SPAN', (8, 0), (11, 0)),  # Proc. Ponderado (4 colunas)
-        ('SPAN', (12, 0), (12, 1)),  # Total
-        ('SPAN', (13, 0), (13, 1)),  # Média
-        ('SPAN', (14, 0), (14, 1)),  # Faltas
-        ('SPAN', (15, 0), (15, 1)),  # %Freq
-        
-        # Corpo da tabela
-        ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 2), (-1, -1), 7),
-        ('ALIGN', (1, 2), (-1, -1), 'CENTER'),
-        ('ALIGN', (0, 2), (0, -1), 'LEFT'),
-        ('VALIGN', (0, 2), (-1, -1), 'MIDDLE'),
-        
-        # Grid
-        ('BOX', (0, 0), (-1, -1), 1, colors.black),
-        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        
-        # Padding
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-        ('TOPPADDING', (0, 0), (-1, -1), 2),
-        ('LEFTPADDING', (0, 0), (-1, -1), 2),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-        
-        # Alternar cores das linhas
-        ('ROWBACKGROUNDS', (0, 2), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
-    ]
+    # Estilo da tabela - diferente para Educação Infantil
+    if is_educacao_infantil:
+        # Educação Infantil: tabela simples sem merge de cabeçalho
+        style_commands = [
+            # Cabeçalho
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#dbeafe')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 7),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+            
+            # Corpo da tabela
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+            ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
+            
+            # Grid
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            
+            # Padding
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+            
+            # Alternar cores das linhas
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
+        ]
+    else:
+        # Outros níveis: tabela completa com merge de cabeçalho
+        style_commands = [
+            # Cabeçalho principal - primeira linha
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#dbeafe')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('FONTNAME', (0, 0), (-1, 1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 1), 6),
+            ('ALIGN', (0, 0), (-1, 1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, 1), 'MIDDLE'),
+            
+            # Cabeçalho secundário
+            ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#eff6ff')),
+            
+            # Merge células do cabeçalho
+            ('SPAN', (0, 0), (0, 1)),  # Componentes
+            ('SPAN', (1, 0), (1, 1)),  # CH
+            ('SPAN', (2, 0), (4, 0)),  # 1º Semestre (3 colunas)
+            ('SPAN', (5, 0), (7, 0)),  # 2º Semestre (3 colunas)
+            ('SPAN', (8, 0), (11, 0)),  # Proc. Ponderado (4 colunas)
+            ('SPAN', (12, 0), (12, 1)),  # Total
+            ('SPAN', (13, 0), (13, 1)),  # Média
+            ('SPAN', (14, 0), (14, 1)),  # Faltas
+            ('SPAN', (15, 0), (15, 1)),  # %Freq
+            
+            # Corpo da tabela
+            ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 2), (-1, -1), 7),
+            ('ALIGN', (1, 2), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 2), (0, -1), 'LEFT'),
+            ('VALIGN', (0, 2), (-1, -1), 'MIDDLE'),
+            
+            # Grid
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            
+            # Padding
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+            
+            # Alternar cores das linhas
+            ('ROWBACKGROUNDS', (0, 2), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
+        ]
     
     grades_table.setStyle(TableStyle(style_commands))
     elements.append(grades_table)
