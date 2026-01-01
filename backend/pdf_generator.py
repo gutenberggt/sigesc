@@ -219,11 +219,11 @@ def generate_boletim_pdf(
     
     header_right = f"""
     <font size="16" color="#1e40af"><b>BOLETIM ESCOLAR</b></font><br/>
-    <font size="10">{nivel_ensino_label}</font>
+    <font size="13">{nivel_ensino_label}</font>
     """
     
     header_style_text = ParagraphStyle('HeaderText', fontSize=10, alignment=TA_LEFT, leading=14)
-    header_style_right = ParagraphStyle('HeaderRight', fontSize=10, alignment=TA_RIGHT, leading=16)
+    header_style_right = ParagraphStyle('HeaderRight', fontSize=10, alignment=TA_RIGHT, leading=20)
     
     if logo:
         header_table = Table([
