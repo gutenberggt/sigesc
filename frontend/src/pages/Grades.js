@@ -796,7 +796,6 @@ export function Grades() {
                                     {item.grade.final_average !== null ? formatGrade(item.grade.final_average) : '-'}
                                   </span>
                                 )}
-                                </span>
                               </td>
                               <td className="px-4 py-3 text-center">
                                 {renderStatus(item.grade.status, null)}
