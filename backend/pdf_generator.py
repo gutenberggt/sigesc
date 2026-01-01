@@ -296,22 +296,20 @@ def generate_boletim_pdf(
         period = grade.get('period', 'P1')
         grades_by_course[course_id][period] = grade
     
-    # Cabeçalho da tabela - Modelo com Carga Horária e Faltas por bimestre
+    # Cabeçalho da tabela - Modelo simplificado
     header_row1 = [
-        'COMPONENTES\nCURRICULARES',
-        'CH',  # Carga Horária Anual
-        '1ª', 'Faltas',
-        '2°', 'Faltas',
-        '3°', 'Faltas',
-        '4°', 'Faltas',
-        'Total de\npontos',
-        'Total de\nfaltas',
+        'COMPONENTES CURRICULARES',
+        'CH',
+        '1º Bim.',
+        '2º Bim.',
+        '3º Bim.',
+        '4º Bim.',
+        'Faltas',
         'Média'
     ]
     
     table_data = [header_row1]
     
-    total_geral_pontos = 0
     total_geral_faltas = 0
     total_carga_horaria = 0
     
@@ -323,33 +321,32 @@ def generate_boletim_pdf(
         if carga_horaria:
             total_carga_horaria += carga_horaria
         
-        # Obter notas e faltas de cada período
+        # Obter notas de cada período
         n1 = course_grades.get('P1', {}).get('grade', '')
-        f1 = course_grades.get('P1', {}).get('absences', '')
         n2 = course_grades.get('P2', {}).get('grade', '')
-        f2 = course_grades.get('P2', {}).get('absences', '')
         n3 = course_grades.get('P3', {}).get('grade', '')
-        f3 = course_grades.get('P3', {}).get('absences', '')
         n4 = course_grades.get('P4', {}).get('grade', '')
-        f4 = course_grades.get('P4', {}).get('absences', '')
         
-        # Calcular total de pontos e faltas
+        # Obter faltas de cada período para calcular total
+        f1 = course_grades.get('P1', {}).get('absences', 0) or 0
+        f2 = course_grades.get('P2', {}).get('absences', 0) or 0
+        f3 = course_grades.get('P3', {}).get('absences', 0) or 0
+        f4 = course_grades.get('P4', {}).get('absences', 0) or 0
+        
+        # Calcular total de faltas
+        total_faltas = 0
+        for f in [f1, f2, f3, f4]:
+            if isinstance(f, (int, float)):
+                total_faltas += int(f)
+        
+        # Calcular média
         valid_grades = []
         for g in [n1, n2, n3, n4]:
             if isinstance(g, (int, float)):
                 valid_grades.append(g)
         
-        total_pontos = sum(valid_grades) if valid_grades else 0
-        
-        valid_faltas = []
-        for f in [f1, f2, f3, f4]:
-            if isinstance(f, (int, float)):
-                valid_faltas.append(f)
-        total_faltas = sum(valid_faltas) if valid_faltas else 0
-        
-        # Calcular média
         if valid_grades:
-            media = total_pontos / len(valid_grades)
+            media = sum(valid_grades) / len(valid_grades)
             media_str = f"{media:.1f}"
         else:
             media_str = ''
@@ -368,11 +365,10 @@ def generate_boletim_pdf(
         row = [
             course.get('name', 'N/A'),
             fmt_int(carga_horaria) if carga_horaria else '',
-            fmt_grade(n1), fmt_int(f1),
-            fmt_grade(n2), fmt_int(f2),
-            fmt_grade(n3), fmt_int(f3),
-            fmt_grade(n4), fmt_int(f4),
-            f"{total_pontos:.1f}" if total_pontos else '',
+            fmt_grade(n1),
+            fmt_grade(n2),
+            fmt_grade(n3),
+            fmt_grade(n4),
             fmt_int(total_faltas) if total_faltas else '',
             media_str
         ]
@@ -384,14 +380,15 @@ def generate_boletim_pdf(
     total_row = [
         'TOTAL GERAL',
         str(total_carga_horaria) if total_carga_horaria else '',
-        '', '', '', '', '', '', '', '', '', ''
+        '', '', '', '',
+        str(total_geral_faltas) if total_geral_faltas else '',
+        ''
     ]
     table_data.append(total_row)
     
-    # Larguras das colunas (13 colunas: Componentes + CH + 8 notas/faltas + totais + média)
+    # Larguras das colunas (8 colunas simplificadas)
     # Total aproximado: 18cm (A4 com margens)
-    # Componentes Curriculares com largura dobrada (8cm) para nomes longos
-    col_widths = [8.0*cm, 0.7*cm, 0.6*cm, 0.6*cm, 0.6*cm, 0.6*cm, 0.6*cm, 0.6*cm, 0.6*cm, 0.6*cm, 0.8*cm, 0.8*cm, 0.8*cm]
+    col_widths = [8.0*cm, 1.0*cm, 1.5*cm, 1.5*cm, 1.5*cm, 1.5*cm, 1.2*cm, 1.2*cm]
     
     grades_table = Table(table_data, colWidths=col_widths)
     grades_table.setStyle(TableStyle([
