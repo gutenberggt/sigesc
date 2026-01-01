@@ -191,6 +191,20 @@ export function SchoolsComplete() {
     possui_horta: false,
     possui_estacionamento: false,
     
+    // Permissão - Períodos Bimestrais e Data Limite de Lançamento
+    bimestre_1_inicio: '',
+    bimestre_1_fim: '',
+    bimestre_1_limite_lancamento: '',
+    bimestre_2_inicio: '',
+    bimestre_2_fim: '',
+    bimestre_2_limite_lancamento: '',
+    bimestre_3_inicio: '',
+    bimestre_3_fim: '',
+    bimestre_3_limite_lancamento: '',
+    bimestre_4_inicio: '',
+    bimestre_4_fim: '',
+    bimestre_4_limite_lancamento: '',
+    
     status: 'active'
   });
 
