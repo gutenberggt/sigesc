@@ -951,7 +951,18 @@ def generate_ficha_individual_pdf(
     school_name = school.get('name', 'Escola Municipal')
     grade_level = class_info.get('grade_level', 'N/A')
     class_name = class_info.get('name', 'N/A')
-    shift = class_info.get('shift', 'N/A')
+    
+    # Mapeamento de turnos para português
+    TURNOS_PT = {
+        'morning': 'Matutino',
+        'afternoon': 'Vespertino',
+        'evening': 'Noturno',
+        'full_time': 'Integral',
+        'night': 'Noturno'
+    }
+    shift_raw = class_info.get('shift', 'N/A')
+    shift = TURNOS_PT.get(shift_raw, shift_raw)  # Traduz ou mantém o valor original
+    
     student_name = student.get('full_name', 'N/A').upper()
     student_sex = student.get('sex', 'N/A')
     inep_number = student.get('inep_number', student.get('enrollment_number', 'N/A'))
@@ -1001,15 +1012,14 @@ def generate_ficha_individual_pdf(
     ]))
     elements.append(info_row1)
     
-    # Linha 2: Nome aluno, sexo, INEP, ID
+    # Linha 2: Nome aluno, sexo, INEP (coluna ID removida e espaço incorporado ao NOME)
     info_row2 = Table([
         [
             Paragraph(f"<b>NOME DO(A) ALUNO(A):</b> {student_name}", info_style),
             Paragraph(f"<b>SEXO:</b> {student_sex}", info_style),
             Paragraph(f"<b>Nº INEP:</b> {inep_number}", info_style),
-            Paragraph(f"<b>ID:</b> {student_id_num}", info_style),
         ]
-    ], colWidths=[8*cm, 2*cm, 4.5*cm, 4.5*cm])
+    ], colWidths=[12.5*cm, 2*cm, 4.5*cm])
     info_row2.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
@@ -1021,6 +1031,7 @@ def generate_ficha_individual_pdf(
     elements.append(info_row2)
     
     # Linha 3: Ano/Etapa, Turma, Turno, Carga Horária, Dias Letivos, Data Nascimento
+    # ANO/ETAPA aumentada, NASC. reduzida
     info_row3 = Table([
         [
             Paragraph(f"<b>ANO/ETAPA:</b> {grade_level}", info_style),
@@ -1030,7 +1041,7 @@ def generate_ficha_individual_pdf(
             Paragraph(f"<b>DIAS LET.:</b> {dias_letivos}", info_style),
             Paragraph(f"<b>NASC.:</b> {birth_date}", info_style),
         ]
-    ], colWidths=[3*cm, 3*cm, 3.5*cm, 2.5*cm, 3*cm, 4*cm])
+    ], colWidths=[4.5*cm, 3*cm, 3*cm, 2.5*cm, 3*cm, 3*cm])
     info_row3.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
@@ -1153,9 +1164,10 @@ def generate_ficha_individual_pdf(
         ]
         table_data.append(row)
     
-    # Larguras das colunas (Componentes Curriculares 25% maior: 3.5 * 1.25 = 4.375 ~ 4.4)
+    # Larguras das colunas - Total: 18cm (alinhado com tabela superior)
+    # COMPONENTES CURRICULARES aumentada para ocupar espaço extra
     col_widths = [
-        4.4*cm,  # Componente (25% maior)
+        5.3*cm,  # Componente (aumentada para alinhar com 18cm total)
         0.65*cm,  # CH
         0.65*cm, 0.65*cm, 0.65*cm, 0.65*cm,  # 1º Sem
         0.65*cm, 0.65*cm, 0.65*cm, 0.65*cm,  # 2º Sem
