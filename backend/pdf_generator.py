@@ -1250,11 +1250,11 @@ def generate_ficha_individual_pdf(
     
     # Assinaturas
     sig_data = [
-        ['_' * 25, '_' * 25, '_' * 25],
-        ['AUX. DE SECRETARIA', 'SECRETÁRIO(A)', 'DIRETOR(A)']
+        ['_' * 30, '_' * 30],
+        ['SECRETÁRIO(A)', 'DIRETOR(A)']
     ]
     
-    sig_table = Table(sig_data, colWidths=[6*cm, 6*cm, 6*cm])
+    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
     sig_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTSIZE', (0, 0), (-1, 0), 9),
