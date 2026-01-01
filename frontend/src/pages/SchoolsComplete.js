@@ -25,6 +25,7 @@ export function SchoolsComplete() {
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [schoolStaff, setSchoolStaff] = useState([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
+  const [calendarioLetivo, setCalendarioLetivo] = useState(null);
 
   // SEMED pode visualizar tudo, mas não pode editar/excluir
   const canEdit = user?.role !== 'semed';
@@ -32,6 +33,9 @@ export function SchoolsComplete() {
   
   // Dados padrão da mantenedora
   const defaultLocation = getDefaultLocation();
+  
+  // Ano letivo atual
+  const currentYear = new Date().getFullYear();
 
   // Estado do formulário com valores padrão
   const [formData, setFormData] = useState({
