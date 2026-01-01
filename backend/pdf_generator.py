@@ -1018,7 +1018,7 @@ def generate_ficha_individual_pdf(
             Paragraph(f"<b>SEXO:</b> {student_sex}", info_style),
             Paragraph(f"<b>Nº INEP:</b> {inep_number}", info_style),
         ]
-    ], colWidths=[12.5*cm, 2*cm, 4.5*cm])
+    ], colWidths=[12.5*cm, 3.35*cm, 3.15*cm])
     info_row2.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
