@@ -142,6 +142,7 @@ export const Courses = () => {
       grade_levels: [],
       atendimento_programa: '',
       name: '',
+      optativo: false,
       code: '',
       workload: ''
     });
@@ -157,6 +158,7 @@ export const Courses = () => {
       grade_levels: course.grade_levels || [],
       atendimento_programa: course.atendimento_programa || '',
       name: course.name || '',
+      optativo: course.optativo || false,
       code: course.code || '',
       workload: course.workload || ''
     });
@@ -172,6 +174,7 @@ export const Courses = () => {
       grade_levels: course.grade_levels || [],
       atendimento_programa: course.atendimento_programa || '',
       name: course.name || '',
+      optativo: course.optativo || false,
       code: course.code || '',
       workload: course.workload || ''
     });
