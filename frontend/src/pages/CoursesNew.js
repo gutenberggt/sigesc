@@ -220,7 +220,9 @@ export const Courses = () => {
         // Se school_id estiver vazio, envia null (componente para todas as escolas)
         school_id: formData.school_id || null,
         workload: formData.workload ? parseInt(formData.workload) : null,
-        atendimento_programa: formData.atendimento_programa || null
+        atendimento_programa: formData.atendimento_programa || null,
+        // Optativo só é válido para componentes que NÃO são Regular
+        optativo: formData.atendimento_programa ? formData.optativo : false
       };
       
       if (editingCourse) {
