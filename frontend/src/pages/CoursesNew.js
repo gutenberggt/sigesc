@@ -247,9 +247,21 @@ export const Courses = () => {
     { 
       header: 'Atendimento/Programa', 
       accessor: 'atendimento_programa',
-      render: (row) => row.atendimento_programa 
-        ? atendimentosProgramas[row.atendimento_programa] || row.atendimento_programa
-        : <span className="text-gray-500 italic">Regular</span>
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <span>
+            {row.atendimento_programa 
+              ? atendimentosProgramas[row.atendimento_programa] || row.atendimento_programa
+              : <span className="text-gray-500 italic">Regular</span>
+            }
+          </span>
+          {row.optativo && (
+            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-medium">
+              Optativo
+            </span>
+          )}
+        </div>
+      )
     },
     { 
       header: 'Nível de Ensino', 
