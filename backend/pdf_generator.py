@@ -1200,13 +1200,13 @@ def generate_ficha_individual_pdf(
         # Merge células do cabeçalho
         ('SPAN', (0, 0), (0, 1)),  # Componentes
         ('SPAN', (1, 0), (1, 1)),  # CH
-        ('SPAN', (2, 0), (5, 0)),  # 1º Semestre
-        ('SPAN', (6, 0), (9, 0)),  # 2º Semestre
-        ('SPAN', (10, 0), (13, 0)),  # Proc. Ponderado
-        ('SPAN', (14, 0), (14, 1)),  # Total
-        ('SPAN', (15, 0), (15, 1)),  # Média
-        ('SPAN', (16, 0), (16, 1)),  # Faltas
-        ('SPAN', (17, 0), (17, 1)),  # %Freq
+        ('SPAN', (2, 0), (4, 0)),  # 1º Semestre (3 colunas)
+        ('SPAN', (5, 0), (7, 0)),  # 2º Semestre (3 colunas)
+        ('SPAN', (8, 0), (11, 0)),  # Proc. Ponderado (4 colunas)
+        ('SPAN', (12, 0), (12, 1)),  # Total
+        ('SPAN', (13, 0), (13, 1)),  # Média
+        ('SPAN', (14, 0), (14, 1)),  # Faltas
+        ('SPAN', (15, 0), (15, 1)),  # %Freq
         
         # Corpo da tabela
         ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
