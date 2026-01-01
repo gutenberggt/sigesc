@@ -219,13 +219,15 @@ export function SchoolsComplete() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [schoolsData, classesData] = await Promise.all([
+        const [schoolsData, classesData, calendarioData] = await Promise.all([
           schoolsAPI.getAll(),
-          classesAPI.getAll()
+          classesAPI.getAll(),
+          calendarAPI.getCalendarioLetivo(currentYear).catch(() => null)
         ]);
         if (isMounted) {
           setSchools(schoolsData);
           setClasses(classesData);
+          setCalendarioLetivo(calendarioData);
         }
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
