@@ -392,7 +392,7 @@ def generate_boletim_pdf(
         'TOTAL GERAL',
         str(total_carga_horaria) if total_carga_horaria else '',
         '', '', '', '',
-        str(total_geral_faltas_obrigatorios) if total_geral_faltas_obrigatorios else '',
+        str(total_geral_faltas) if total_geral_faltas else '',
         ''
     ]
     table_data.append(total_row)
@@ -440,13 +440,11 @@ def generate_boletim_pdf(
     
     # ===== RESULTADO FINAL =====
     # Calcular resultado geral do aluno
-    # NOTA: Componentes optativos NÃO entram no cálculo da média final
+    # Componentes optativos: se NÃO têm notas, não interferem na aprovação
+    # Se têm notas, entram normalmente no cálculo
     all_medias = []
     for course in courses:
-        # Pular componentes optativos no cálculo da média
-        if course.get('optativo', False):
-            continue
-            
+        is_optativo = course.get('optativo', False)
         course_grades = grades_by_course.get(course.get('id'), {})
         valid_grades = []
         for period in ['P1', 'P2', 'P3', 'P4']:
