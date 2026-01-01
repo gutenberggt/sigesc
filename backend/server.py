@@ -701,8 +701,8 @@ async def get_class_details(class_id: str, request: Request):
     school = await db.schools.find_one({"id": class_doc.get('school_id')}, {"_id": 0, "id": 1, "name": 1})
     
     # Busca professores alocados na turma
-    alocacoes = await db.teacher_allocations.find(
-        {"class_id": class_id, "status": "active"},
+    alocacoes = await db.teacher_assignments.find(
+        {"class_id": class_id},
         {"_id": 0}
     ).to_list(100)
     
@@ -790,8 +790,8 @@ async def get_class_details_pdf(class_id: str, request: Request):
     mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
     
     # Busca professores alocados na turma
-    alocacoes = await db.teacher_allocations.find(
-        {"class_id": class_id, "status": "active"},
+    alocacoes = await db.teacher_assignments.find(
+        {"class_id": class_id},
         {"_id": 0}
     ).to_list(100)
     
