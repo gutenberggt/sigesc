@@ -1774,14 +1774,196 @@ export function SchoolsComplete() {
     );
   };
 
+  // Renderização da aba de Permissões
+  const renderPermissoes = () => (
+    <div className="space-y-6">
+      <div>
+        <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b flex items-center gap-2">
+          <Clock size={20} className="text-blue-600" />
+          Períodos Bimestrais e Permissões de Lançamento
+        </h4>
+        <p className="text-sm text-gray-600 mb-6">
+          Defina as datas de início e fim de cada bimestre, bem como a data limite para que os professores possam fazer lançamentos (notas, frequência, objetos de conhecimento) referentes a cada período.
+        </p>
+        
+        {/* 1º Bimestre */}
+        <div className="border rounded-lg p-4 mb-4 bg-blue-50">
+          <h5 className="font-medium text-blue-800 mb-4">1º Bimestre</h5>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Data Início</label>
+              <input
+                type="date"
+                value={formData.bimestre_1_inicio || ''}
+                onChange={(e) => updateFormData('bimestre_1_inicio', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Data Fim</label>
+              <input
+                type="date"
+                value={formData.bimestre_1_fim || ''}
+                onChange={(e) => updateFormData('bimestre_1_fim', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Data Limite para Lançamento</label>
+              <input
+                type="date"
+                value={formData.bimestre_1_limite_lancamento || ''}
+                onChange={(e) => updateFormData('bimestre_1_limite_lancamento', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 disabled:bg-gray-100"
+              />
+              <p className="text-xs text-orange-600 mt-1">Após esta data, professores não poderão mais fazer lançamentos do 1º bimestre</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 2º Bimestre */}
+        <div className="border rounded-lg p-4 mb-4 bg-green-50">
+          <h5 className="font-medium text-green-800 mb-4">2º Bimestre</h5>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Data Início</label>
+              <input
+                type="date"
+                value={formData.bimestre_2_inicio || ''}
+                onChange={(e) => updateFormData('bimestre_2_inicio', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Data Fim</label>
+              <input
+                type="date"
+                value={formData.bimestre_2_fim || ''}
+                onChange={(e) => updateFormData('bimestre_2_fim', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Data Limite para Lançamento</label>
+              <input
+                type="date"
+                value={formData.bimestre_2_limite_lancamento || ''}
+                onChange={(e) => updateFormData('bimestre_2_limite_lancamento', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 disabled:bg-gray-100"
+              />
+              <p className="text-xs text-orange-600 mt-1">Após esta data, professores não poderão mais fazer lançamentos do 2º bimestre</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 3º Bimestre */}
+        <div className="border rounded-lg p-4 mb-4 bg-yellow-50">
+          <h5 className="font-medium text-yellow-800 mb-4">3º Bimestre</h5>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Data Início</label>
+              <input
+                type="date"
+                value={formData.bimestre_3_inicio || ''}
+                onChange={(e) => updateFormData('bimestre_3_inicio', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 disabled:bg-gray-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Data Fim</label>
+              <input
+                type="date"
+                value={formData.bimestre_3_fim || ''}
+                onChange={(e) => updateFormData('bimestre_3_fim', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 disabled:bg-gray-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Data Limite para Lançamento</label>
+              <input
+                type="date"
+                value={formData.bimestre_3_limite_lancamento || ''}
+                onChange={(e) => updateFormData('bimestre_3_limite_lancamento', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 disabled:bg-gray-100"
+              />
+              <p className="text-xs text-orange-600 mt-1">Após esta data, professores não poderão mais fazer lançamentos do 3º bimestre</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 4º Bimestre */}
+        <div className="border rounded-lg p-4 mb-4 bg-purple-50">
+          <h5 className="font-medium text-purple-800 mb-4">4º Bimestre</h5>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Data Início</label>
+              <input
+                type="date"
+                value={formData.bimestre_4_inicio || ''}
+                onChange={(e) => updateFormData('bimestre_4_inicio', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Data Fim</label>
+              <input
+                type="date"
+                value={formData.bimestre_4_fim || ''}
+                onChange={(e) => updateFormData('bimestre_4_fim', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Data Limite para Lançamento</label>
+              <input
+                type="date"
+                value={formData.bimestre_4_limite_lancamento || ''}
+                onChange={(e) => updateFormData('bimestre_4_limite_lancamento', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 disabled:bg-gray-100"
+              />
+              <p className="text-xs text-orange-600 mt-1">Após esta data, professores não poderão mais fazer lançamentos do 4º bimestre</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Informativo */}
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
+            <div>
+              <h6 className="font-medium text-amber-800">Importante</h6>
+              <p className="text-sm text-amber-700 mt-1">
+                A data limite de lançamento determina até quando os professores podem registrar notas, frequências e objetos de conhecimento. 
+                Após essa data, apenas administradores e secretários poderão fazer alterações nos registros do período.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const tabLabels = [
-    'Dados Gerais',
+    'Geral',
     'Infraestrutura',
     'Dependências',
     'Equipamentos',
-    'Dados do Ensino',
+    'Ensino',
     'Turmas',
-    'Quadro de Servidores'
+    'Servidores',
+    'Permissão'
   ];
 
   const tabContents = [
