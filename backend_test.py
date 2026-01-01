@@ -4703,7 +4703,7 @@ class SIGESCTester:
 
     def run_all_tests(self):
         """Run all backend tests"""
-        self.log("🚀 Starting SIGESC Backend API Tests - BOLETIM COMPONENT FILTERING TESTING")
+        self.log("🚀 Starting SIGESC Backend API Tests - Review Request Testing")
         self.log(f"🌐 Backend URL: {BACKEND_URL}")
         
         # Login as admin
@@ -4718,6 +4718,76 @@ class SIGESCTester:
             self.log("⚠️ Coordinator login failed - skipping permission tests")
         
         # Setup test data
+        self.setup_test_data()
+        
+        # Run test suites
+        test_results = []
+        
+        try:
+            # Test the two specific functionalities from review request (PRIORITY)
+            test_results.append(("Bug Fix: Professores Alocados", self.test_bug_fix_professores_alocados()))
+            test_results.append(("Sistema Avaliação Conceitual EI", self.test_sistema_avaliacao_conceitual_educacao_infantil()))
+            
+            # Test authentication requirements
+            test_results.append(("Authentication", self.test_authentication_required()))
+            
+            # Test Courses endpoint (Fase 4)
+            test_results.append(("Courses Endpoint", self.test_courses_endpoint()))
+            
+            # Test Grades system (Sistema de Notas)
+            test_results.append(("Grades System", self.test_grades_system()))
+            
+            # Test specific class grades
+            test_results.append(("Grades by Class", self.test_grades_by_class_specific()))
+            
+            # Test Guardians CRUD
+            test_results.append(("Guardians CRUD", self.test_guardians_crud()))
+            
+            # Test Enrollments CRUD
+            test_results.append(("Enrollments CRUD", self.test_enrollments_crud()))
+            
+            # Test SEMED permissions
+            if self.coordinator_token:
+                test_results.append(("SEMED Permissions", self.test_semed_permissions()))
+            
+            # Test Attendance Control Phase 5
+            test_results.append(("Attendance Control Phase 5", self.test_attendance_control_phase5()))
+            
+            # Test Staff Management Phase 5.5
+            test_results.append(("Staff Management Phase 5.5", self.test_staff_management_phase55()))
+            
+        except Exception as e:
+            self.log(f"❌ Error during testing: {str(e)}")
+            test_results.append(("Error", False))
+        
+        finally:
+            # Cleanup
+            self.cleanup()
+        
+        # Print summary
+        self.log("\n📊 TEST SUMMARY:")
+        self.log("=" * 50)
+        
+        passed = 0
+        failed = 0
+        
+        for test_name, result in test_results:
+            status = "✅ PASS" if result else "❌ FAIL"
+            self.log(f"{test_name}: {status}")
+            if result:
+                passed += 1
+            else:
+                failed += 1
+        
+        self.log("=" * 50)
+        self.log(f"Total: {len(test_results)} | Passed: {passed} | Failed: {failed}")
+        
+        if failed == 0:
+            self.log("🎉 All tests passed!")
+            return True
+        else:
+            self.log(f"❌ {failed} test(s) failed")
+            return False
         self.setup_test_data()
         
         # Run tests
