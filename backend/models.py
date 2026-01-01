@@ -731,7 +731,7 @@ class CourseBase(BaseModel):
     grade_levels: List[str] = []  # Ex: ["6º Ano", "7º Ano"] ou vazio para todas
     
     # Atendimento/Programa (opcional)
-    atendimento_programa: Optional[Literal['aee', 'atendimento_integral', 'reforco_escolar', 'aulas_complementares', 'transversal_formativa']] = None
+    atendimento_programa: Optional[Literal['aee', 'atendimento_integral', 'reforco_escolar', 'aulas_complementares', 'transversal_formativa', 'recomposicao_aprendizagem']] = None
     
     # Nome do componente curricular
     name: str
@@ -753,7 +753,7 @@ class CourseUpdate(BaseModel):
     school_id: Optional[str] = None
     nivel_ensino: Optional[Literal['educacao_infantil', 'fundamental_anos_iniciais', 'fundamental_anos_finais', 'ensino_medio', 'eja', 'eja_final']] = None
     grade_levels: Optional[List[str]] = None
-    atendimento_programa: Optional[Literal['aee', 'atendimento_integral', 'reforco_escolar', 'aulas_complementares', 'transversal_formativa']] = None
+    atendimento_programa: Optional[Literal['aee', 'atendimento_integral', 'reforco_escolar', 'aulas_complementares', 'transversal_formativa', 'recomposicao_aprendizagem']] = None
     name: Optional[str] = None
     optativo: Optional[bool] = None
     code: Optional[str] = None
