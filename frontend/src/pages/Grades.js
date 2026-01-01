@@ -377,12 +377,20 @@ export function Grades() {
     const newData = [...gradesData];
     newData[index].grade[field] = value;
     
-    // Recalcula média com recuperações por semestre
     const g = newData[index].grade;
-    g.final_average = calculateAverage(g.b1, g.b2, g.b3, g.b4, g.rec_s1, g.rec_s2);
-    g.status = g.final_average !== null 
-      ? (g.final_average >= 5 ? 'aprovado' : 'reprovado_nota')
-      : 'cursando';
+    
+    if (isEdInfantil) {
+      // Educação Infantil: média é o MAIOR conceito alcançado
+      g.final_average = calcularMaiorConceito(g.b1, g.b2, g.b3, g.b4);
+      // Aprovação automática para Educação Infantil
+      g.status = 'aprovado';
+    } else {
+      // Outros níveis: Recalcula média com recuperações por semestre
+      g.final_average = calculateAverage(g.b1, g.b2, g.b3, g.b4, g.rec_s1, g.rec_s2);
+      g.status = g.final_average !== null 
+        ? (g.final_average >= 5 ? 'aprovado' : 'reprovado_nota')
+        : 'cursando';
+    }
     
     setGradesData(newData);
     setHasChanges(true);
