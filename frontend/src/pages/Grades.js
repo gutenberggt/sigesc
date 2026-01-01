@@ -281,6 +281,11 @@ export function Grades() {
     ? professorTurmas.find(t => t.id === selectedClass)
     : classes.find(c => c.id === selectedClass);
   
+  // Verifica se é Educação Infantil
+  const isEdInfantil = selectedClassData 
+    ? isEducacaoInfantil(selectedClassData.grade_level, selectedClassData.nivel_ensino || selectedClassData.education_level)
+    : false;
+  
   // Filtros derivados - para professor usa as turmas alocadas
   const filteredClasses = isProfessor
     ? professorTurmas.filter(t => t.school_id === selectedSchool)
