@@ -348,6 +348,7 @@ const MonthlyView = ({ year, month, events, onDayClick, onEventClick, periodosBi
         isCurrentMonth={false}
         onClick={onDayClick}
         onEventClick={onEventClick}
+        periodosBimestrais={periodosBimestrais}
       />
     );
   }
