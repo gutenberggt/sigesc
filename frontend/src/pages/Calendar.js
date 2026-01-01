@@ -873,6 +873,177 @@ export const Calendar = () => {
             </div>
           )}
         </Modal>
+        
+        {/* Modal de Períodos Bimestrais */}
+        <Modal
+          isOpen={showPeriodosModal}
+          onClose={() => setShowPeriodosModal(false)}
+          title={`Configurar Períodos Bimestrais - ${currentYear}`}
+          size="lg"
+        >
+          <div className="space-y-6">
+            <p className="text-sm text-gray-600">
+              Defina as datas de início e fim de cada bimestre do ano letivo.
+            </p>
+            
+            {/* 1º Bimestre */}
+            <div className="border rounded-lg p-4 bg-blue-50">
+              <h4 className="font-medium text-blue-800 mb-3">1º Bimestre</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Data Início</label>
+                  <input
+                    type="date"
+                    value={periodos.bimestre_1_inicio}
+                    onChange={(e) => setPeriodos({...periodos, bimestre_1_inicio: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Data Fim</label>
+                  <input
+                    type="date"
+                    value={periodos.bimestre_1_fim}
+                    onChange={(e) => setPeriodos({...periodos, bimestre_1_fim: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* 2º Bimestre */}
+            <div className="border rounded-lg p-4 bg-green-50">
+              <h4 className="font-medium text-green-800 mb-3">2º Bimestre</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Data Início</label>
+                  <input
+                    type="date"
+                    value={periodos.bimestre_2_inicio}
+                    onChange={(e) => setPeriodos({...periodos, bimestre_2_inicio: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Data Fim</label>
+                  <input
+                    type="date"
+                    value={periodos.bimestre_2_fim}
+                    onChange={(e) => setPeriodos({...periodos, bimestre_2_fim: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Recesso/Férias */}
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <h4 className="font-medium text-gray-800 mb-3">Recesso/Férias (entre semestres)</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Data Início</label>
+                  <input
+                    type="date"
+                    value={periodos.recesso_inicio}
+                    onChange={(e) => setPeriodos({...periodos, recesso_inicio: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Data Fim</label>
+                  <input
+                    type="date"
+                    value={periodos.recesso_fim}
+                    onChange={(e) => setPeriodos({...periodos, recesso_fim: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* 3º Bimestre */}
+            <div className="border rounded-lg p-4 bg-yellow-50">
+              <h4 className="font-medium text-yellow-800 mb-3">3º Bimestre</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Data Início</label>
+                  <input
+                    type="date"
+                    value={periodos.bimestre_3_inicio}
+                    onChange={(e) => setPeriodos({...periodos, bimestre_3_inicio: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Data Fim</label>
+                  <input
+                    type="date"
+                    value={periodos.bimestre_3_fim}
+                    onChange={(e) => setPeriodos({...periodos, bimestre_3_fim: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* 4º Bimestre */}
+            <div className="border rounded-lg p-4 bg-purple-50">
+              <h4 className="font-medium text-purple-800 mb-3">4º Bimestre</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Data Início</label>
+                  <input
+                    type="date"
+                    value={periodos.bimestre_4_inicio}
+                    onChange={(e) => setPeriodos({...periodos, bimestre_4_inicio: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Data Fim</label>
+                  <input
+                    type="date"
+                    value={periodos.bimestre_4_fim}
+                    onChange={(e) => setPeriodos({...periodos, bimestre_4_fim: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Dias Letivos Previstos */}
+            <div className="border rounded-lg p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Dias Letivos Previstos</label>
+              <input
+                type="number"
+                value={periodos.dias_letivos_previstos}
+                onChange={(e) => setPeriodos({...periodos, dias_letivos_previstos: parseInt(e.target.value) || 200})}
+                className="w-32 px-3 py-2 border rounded-md"
+                min="1"
+                max="365"
+              />
+              <p className="text-xs text-gray-500 mt-1">Normalmente 200 dias para o ano letivo</p>
+            </div>
+            
+            {/* Botões */}
+            <div className="flex gap-2 pt-4 border-t">
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={() => setShowPeriodosModal(false)}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                className="flex-1"
+                onClick={handleSavePeriodos}
+                disabled={savingPeriodos}
+              >
+                {savingPeriodos ? 'Salvando...' : 'Salvar Períodos'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </Layout>
   );
