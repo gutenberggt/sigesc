@@ -1232,44 +1232,7 @@ def generate_ficha_individual_pdf(
     elements.append(grades_table)
     elements.append(Spacer(1, 5))
     
-    # ===== OBSERVAÇÃO =====
-    obs_style = ParagraphStyle('ObsStyle', fontSize=7, fontName='Helvetica-Oblique')
-    elements.append(Paragraph("Este Documento não possui emendas nem rasuras.", obs_style))
-    elements.append(Spacer(1, 10))
-    
-    # ===== RODAPÉ =====
-    # Data e local - usar município da mantenedora
-    today = format_date_pt(date.today())
-    city = mant_municipio  # Usar município da mantenedora
-    state = mant_estado  # Usar estado da mantenedora
-    
-    date_style = ParagraphStyle('DateStyle', fontSize=8, alignment=TA_LEFT)
-    elements.append(Paragraph(f"{city} - {state}, {today}.", date_style))
-    elements.append(Spacer(1, 5))
-    
-    # Observações livres
-    obs_line_style = ParagraphStyle('ObsLineStyle', fontSize=8)
-    elements.append(Paragraph("<b>OBS.:</b> _______________________________________________", obs_line_style))
-    elements.append(Spacer(1, 15))
-    
-    # Assinaturas
-    sig_data = [
-        ['_' * 30, '_' * 30],
-        ['SECRETÁRIO(A)', 'DIRETOR(A)']
-    ]
-    
-    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
-    sig_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTSIZE', (0, 0), (-1, 0), 9),
-        ('FONTSIZE', (0, 1), (-1, 1), 7),
-        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
-        ('TOPPADDING', (0, 1), (-1, 1), 3),
-    ]))
-    elements.append(sig_table)
-    elements.append(Spacer(1, 10))
-    
-    # Resultado final
+    # ===== CALCULAR RESULTADO =====
     # Calcular se aprovado ou reprovado
     if grades:
         medias = []
@@ -1313,19 +1276,60 @@ def generate_ficha_individual_pdf(
         resultado = "EM ANDAMENTO"
         resultado_color = colors.HexColor('#2563eb')
     
+    # ===== LINHA COM OBSERVAÇÃO E RESULTADO =====
+    obs_style = ParagraphStyle('ObsStyle', fontSize=7, fontName='Helvetica-Oblique')
     result_style = ParagraphStyle('ResultStyle', fontSize=10, alignment=TA_CENTER)
-    result_table = Table([
+    
+    # Tabela com observação à esquerda e resultado à direita
+    obs_result_table = Table([
         [
-            Paragraph(f"<b>RESULTADO:</b>", result_style),
-            Paragraph(f"<b><font color='{resultado_color.hexval()}'>{resultado}</font></b>", result_style)
+            Paragraph("Este Documento não possui emendas nem rasuras.", obs_style),
+            Table([
+                [
+                    Paragraph(f"<b>RESULTADO:</b>", result_style),
+                    Paragraph(f"<b><font color='{resultado_color.hexval()}'>{resultado}</font></b>", result_style)
+                ]
+            ], colWidths=[3.5*cm, 5*cm])
         ]
-    ], colWidths=[4*cm, 6*cm])
-    result_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ], colWidths=[10.5*cm, 8.5*cm])
+    obs_result_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('BOX', (1, 0), (1, 0), 1, colors.black),
     ]))
-    elements.append(result_table)
+    elements.append(obs_result_table)
+    elements.append(Spacer(1, 10))
+    
+    # ===== RODAPÉ =====
+    # Data e local - usar município da mantenedora
+    today = format_date_pt(date.today())
+    city = mant_municipio  # Usar município da mantenedora
+    state = mant_estado  # Usar estado da mantenedora
+    
+    date_style = ParagraphStyle('DateStyle', fontSize=8, alignment=TA_LEFT)
+    elements.append(Paragraph(f"{city} - {state}, {today}.", date_style))
+    elements.append(Spacer(1, 5))
+    
+    # Observações livres
+    obs_line_style = ParagraphStyle('ObsLineStyle', fontSize=8)
+    elements.append(Paragraph("<b>OBS.:</b> _______________________________________________", obs_line_style))
+    elements.append(Spacer(1, 15))
+    
+    # Assinaturas
+    sig_data = [
+        ['_' * 30, '_' * 30],
+        ['SECRETÁRIO(A)', 'DIRETOR(A)']
+    ]
+    
+    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
+    sig_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('FONTSIZE', (0, 1), (-1, 1), 7),
+        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+        ('TOPPADDING', (0, 1), (-1, 1), 3),
+    ]))
+    elements.append(sig_table)
     
     # Gerar PDF
     doc.build(elements)
