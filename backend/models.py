@@ -1660,3 +1660,57 @@ class Mantenedora(MantenedoraBase):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
 
+
+
+# ============= CALENDÁRIO - PERÍODOS BIMESTRAIS =============
+
+class PeriodoBimestral(BaseModel):
+    """Modelo para um período bimestral"""
+    bimestre: int  # 1, 2, 3 ou 4
+    data_inicio: str  # Formato: YYYY-MM-DD
+    data_fim: str  # Formato: YYYY-MM-DD
+    
+class CalendarioLetivoBase(BaseModel):
+    """Modelo base para configuração do Calendário Letivo"""
+    ano_letivo: int
+    school_id: Optional[str] = None  # Se None, aplica a todas as escolas
+    
+    # Períodos bimestrais
+    bimestre_1_inicio: Optional[str] = None
+    bimestre_1_fim: Optional[str] = None
+    bimestre_2_inicio: Optional[str] = None
+    bimestre_2_fim: Optional[str] = None
+    bimestre_3_inicio: Optional[str] = None
+    bimestre_3_fim: Optional[str] = None
+    bimestre_4_inicio: Optional[str] = None
+    bimestre_4_fim: Optional[str] = None
+    
+    # Recesso/Férias entre semestres
+    recesso_inicio: Optional[str] = None
+    recesso_fim: Optional[str] = None
+    
+    # Dias letivos previstos
+    dias_letivos_previstos: Optional[int] = 200
+
+class CalendarioLetivoCreate(CalendarioLetivoBase):
+    pass
+
+class CalendarioLetivoUpdate(BaseModel):
+    """Modelo para atualização do Calendário Letivo"""
+    bimestre_1_inicio: Optional[str] = None
+    bimestre_1_fim: Optional[str] = None
+    bimestre_2_inicio: Optional[str] = None
+    bimestre_2_fim: Optional[str] = None
+    bimestre_3_inicio: Optional[str] = None
+    bimestre_3_fim: Optional[str] = None
+    bimestre_4_inicio: Optional[str] = None
+    bimestre_4_fim: Optional[str] = None
+    recesso_inicio: Optional[str] = None
+    recesso_fim: Optional[str] = None
+    dias_letivos_previstos: Optional[int] = None
+
+class CalendarioLetivo(CalendarioLetivoBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
