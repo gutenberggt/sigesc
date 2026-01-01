@@ -807,8 +807,49 @@ export const Calendar = () => {
               <XCircle size={14} className="text-red-500" />
               <span>Não Letivo</span>
             </div>
+            <div className="flex items-center gap-2 ml-4 pl-4 border-l">
+              <span className="text-[9px] px-1.5 py-0.5 bg-green-500 text-white rounded">▶</span>
+              <span>Início Bim.</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] px-1.5 py-0.5 bg-red-500 text-white rounded">◀</span>
+              <span>Fim Bim.</span>
+            </div>
           </div>
         </div>
+        
+        {/* Info dos Períodos Configurados */}
+        {calendarioLetivo && calendarioLetivo.bimestre_1_inicio && (
+          <div className="bg-white rounded-lg shadow-sm border p-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Períodos Bimestrais Configurados</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <div className="font-medium text-blue-800">1º Bimestre</div>
+                <div className="text-blue-600">
+                  {calendarioLetivo.bimestre_1_inicio && new Date(calendarioLetivo.bimestre_1_inicio + 'T12:00:00').toLocaleDateString('pt-BR')} a {calendarioLetivo.bimestre_1_fim && new Date(calendarioLetivo.bimestre_1_fim + 'T12:00:00').toLocaleDateString('pt-BR')}
+                </div>
+              </div>
+              <div className="p-2 bg-green-50 rounded-lg">
+                <div className="font-medium text-green-800">2º Bimestre</div>
+                <div className="text-green-600">
+                  {calendarioLetivo.bimestre_2_inicio && new Date(calendarioLetivo.bimestre_2_inicio + 'T12:00:00').toLocaleDateString('pt-BR')} a {calendarioLetivo.bimestre_2_fim && new Date(calendarioLetivo.bimestre_2_fim + 'T12:00:00').toLocaleDateString('pt-BR')}
+                </div>
+              </div>
+              <div className="p-2 bg-yellow-50 rounded-lg">
+                <div className="font-medium text-yellow-800">3º Bimestre</div>
+                <div className="text-yellow-600">
+                  {calendarioLetivo.bimestre_3_inicio && new Date(calendarioLetivo.bimestre_3_inicio + 'T12:00:00').toLocaleDateString('pt-BR')} a {calendarioLetivo.bimestre_3_fim && new Date(calendarioLetivo.bimestre_3_fim + 'T12:00:00').toLocaleDateString('pt-BR')}
+                </div>
+              </div>
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <div className="font-medium text-purple-800">4º Bimestre</div>
+                <div className="text-purple-600">
+                  {calendarioLetivo.bimestre_4_inicio && new Date(calendarioLetivo.bimestre_4_inicio + 'T12:00:00').toLocaleDateString('pt-BR')} a {calendarioLetivo.bimestre_4_fim && new Date(calendarioLetivo.bimestre_4_fim + 'T12:00:00').toLocaleDateString('pt-BR')}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Calendário */}
         {loading ? (
