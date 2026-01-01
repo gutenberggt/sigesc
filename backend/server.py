@@ -2103,6 +2103,131 @@ async def get_calendar_summary(academic_year: int, request: Request):
     
     return summary
 
+# ============= CALENDÁRIO LETIVO - PERÍODOS BIMESTRAIS =============
+
+@api_router.get("/calendario-letivo/{ano_letivo}")
+async def get_calendario_letivo(ano_letivo: int, request: Request, school_id: Optional[str] = None):
+    """
+    Obtém a configuração do calendário letivo com os períodos bimestrais.
+    Se school_id for fornecido, busca configuração específica da escola.
+    """
+    await AuthMiddleware.get_current_user(request)
+    
+    query = {"ano_letivo": ano_letivo}
+    if school_id:
+        query["school_id"] = school_id
+    else:
+        query["school_id"] = None  # Configuração global
+    
+    calendario = await db.calendario_letivo.find_one(query, {"_id": 0})
+    
+    if not calendario:
+        # Retorna configuração padrão vazia
+        return {
+            "ano_letivo": ano_letivo,
+            "school_id": school_id,
+            "bimestre_1_inicio": None,
+            "bimestre_1_fim": None,
+            "bimestre_2_inicio": None,
+            "bimestre_2_fim": None,
+            "bimestre_3_inicio": None,
+            "bimestre_3_fim": None,
+            "bimestre_4_inicio": None,
+            "bimestre_4_fim": None,
+            "recesso_inicio": None,
+            "recesso_fim": None,
+            "dias_letivos_previstos": 200
+        }
+    
+    return calendario
+
+
+@api_router.put("/calendario-letivo/{ano_letivo}")
+async def update_calendario_letivo(ano_letivo: int, request: Request, school_id: Optional[str] = None):
+    """
+    Cria ou atualiza a configuração do calendário letivo.
+    """
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'semed'])(request)
+    
+    body = await request.json()
+    
+    query = {"ano_letivo": ano_letivo}
+    if school_id:
+        query["school_id"] = school_id
+    else:
+        query["school_id"] = None
+    
+    existing = await db.calendario_letivo.find_one(query)
+    
+    update_data = {
+        "bimestre_1_inicio": body.get("bimestre_1_inicio"),
+        "bimestre_1_fim": body.get("bimestre_1_fim"),
+        "bimestre_2_inicio": body.get("bimestre_2_inicio"),
+        "bimestre_2_fim": body.get("bimestre_2_fim"),
+        "bimestre_3_inicio": body.get("bimestre_3_inicio"),
+        "bimestre_3_fim": body.get("bimestre_3_fim"),
+        "bimestre_4_inicio": body.get("bimestre_4_inicio"),
+        "bimestre_4_fim": body.get("bimestre_4_fim"),
+        "recesso_inicio": body.get("recesso_inicio"),
+        "recesso_fim": body.get("recesso_fim"),
+        "dias_letivos_previstos": body.get("dias_letivos_previstos", 200),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_by": current_user['id']
+    }
+    
+    if existing:
+        await db.calendario_letivo.update_one(query, {"$set": update_data})
+    else:
+        new_calendario = {
+            "id": str(uuid.uuid4()),
+            "ano_letivo": ano_letivo,
+            "school_id": school_id,
+            **update_data,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.calendario_letivo.insert_one(new_calendario)
+    
+    return await db.calendario_letivo.find_one(query, {"_id": 0})
+
+
+@api_router.get("/calendario-letivo/{ano_letivo}/periodos")
+async def get_periodos_bimestrais(ano_letivo: int, request: Request, school_id: Optional[str] = None):
+    """
+    Retorna os períodos bimestrais formatados de forma simplificada.
+    """
+    await AuthMiddleware.get_current_user(request)
+    
+    query = {"ano_letivo": ano_letivo}
+    if school_id:
+        query["school_id"] = school_id
+    else:
+        query["school_id"] = None
+    
+    calendario = await db.calendario_letivo.find_one(query, {"_id": 0})
+    
+    periodos = []
+    if calendario:
+        for i in range(1, 5):
+            inicio = calendario.get(f"bimestre_{i}_inicio")
+            fim = calendario.get(f"bimestre_{i}_fim")
+            if inicio and fim:
+                periodos.append({
+                    "bimestre": i,
+                    "nome": f"{i}º Bimestre",
+                    "data_inicio": inicio,
+                    "data_fim": fim
+                })
+    
+    return {
+        "ano_letivo": ano_letivo,
+        "periodos": periodos,
+        "recesso": {
+            "inicio": calendario.get("recesso_inicio") if calendario else None,
+            "fim": calendario.get("recesso_fim") if calendario else None
+        } if calendario else None
+    }
+
+
 # ============= ATTENDANCE (FREQUÊNCIA) =============
 
 @api_router.get("/attendance/settings/{academic_year}")
