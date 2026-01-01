@@ -677,10 +677,18 @@ export const Calendar = () => {
             </div>
           </div>
           
-          <Button onClick={() => navigateTo('/admin/events')}>
-            <Plus size={18} className="mr-2" />
-            Gerenciar Eventos
-          </Button>
+          <div className="flex gap-2">
+            {canEditPeriodos && (
+              <Button variant="outline" onClick={() => setShowPeriodosModal(true)}>
+                <Clock size={18} className="mr-2" />
+                Períodos Bimestrais
+              </Button>
+            )}
+            <Button onClick={() => navigateTo('/admin/events')}>
+              <Plus size={18} className="mr-2" />
+              Gerenciar Eventos
+            </Button>
+          </div>
         </div>
         
         {/* Controles */}
