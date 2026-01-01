@@ -1000,7 +1000,7 @@ def generate_ficha_individual_pdf(
             Paragraph(f"<b>NOME DA ESCOLA:</b> {school_name}", info_style),
             Paragraph(f"<b>ANO LETIVO:</b> {academic_year}", info_style),
         ]
-    ], colWidths=[13*cm, 6*cm])
+    ], colWidths=[16*cm, 3*cm])
     info_row1.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
