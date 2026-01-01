@@ -684,10 +684,12 @@ export const Calendar = () => {
                 Períodos Bimestrais
               </Button>
             )}
-            <Button onClick={() => navigateTo('/admin/events')}>
-              <Plus size={18} className="mr-2" />
-              Gerenciar Eventos
-            </Button>
+            {user?.role === 'admin' && (
+              <Button onClick={() => navigateTo('/admin/events')}>
+                <Plus size={18} className="mr-2" />
+                Gerenciar Eventos
+              </Button>
+            )}
           </div>
         </div>
         
