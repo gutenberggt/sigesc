@@ -143,6 +143,68 @@ ORDEM_COMPONENTES_EDUCACAO_INFANTIL = [
     "Recreação, Esporte e Lazer",  # Variação do nome
 ]
 
+# ===== SISTEMA DE AVALIAÇÃO CONCEITUAL - EDUCAÇÃO INFANTIL =====
+# Conceitos e seus valores numéricos
+CONCEITOS_EDUCACAO_INFANTIL = {
+    'OD': {'valor': 10.0, 'descricao': 'Objetivo Desenvolvido'},
+    'DP': {'valor': 7.5, 'descricao': 'Desenvolvido Parcialmente'},
+    'ND': {'valor': 5.0, 'descricao': 'Não Desenvolvido'},
+    'NT': {'valor': 0.0, 'descricao': 'Não Trabalhado'},
+}
+
+# Mapeamento inverso: valor para conceito
+VALOR_PARA_CONCEITO = {
+    10.0: 'OD',
+    7.5: 'DP',
+    5.0: 'ND',
+    0.0: 'NT',
+}
+
+def valor_para_conceito(valor):
+    """Converte um valor numérico para o conceito correspondente."""
+    if valor is None:
+        return '-'
+    # Encontrar o conceito mais próximo
+    for v, conceito in sorted(VALOR_PARA_CONCEITO.items(), reverse=True):
+        if valor >= v:
+            return conceito
+    return 'NT'
+
+def conceito_para_valor(conceito):
+    """Converte um conceito para seu valor numérico."""
+    if conceito in CONCEITOS_EDUCACAO_INFANTIL:
+        return CONCEITOS_EDUCACAO_INFANTIL[conceito]['valor']
+    return None
+
+def calcular_media_conceitual(notas):
+    """
+    Calcula a média conceitual para Educação Infantil.
+    A média é o MAIOR conceito alcançado nos 4 bimestres.
+    """
+    valores_validos = []
+    for nota in notas:
+        if nota is not None and isinstance(nota, (int, float)) and nota > 0:
+            valores_validos.append(nota)
+        elif isinstance(nota, str) and nota in CONCEITOS_EDUCACAO_INFANTIL:
+            valores_validos.append(CONCEITOS_EDUCACAO_INFANTIL[nota]['valor'])
+    
+    if valores_validos:
+        return max(valores_validos)  # Maior conceito alcançado
+    return None
+
+def formatar_nota_conceitual(valor, is_educacao_infantil=False):
+    """
+    Formata uma nota. Se for Educação Infantil, retorna o conceito.
+    Caso contrário, retorna o valor numérico formatado.
+    """
+    if valor is None:
+        return '-'
+    if is_educacao_infantil:
+        return valor_para_conceito(valor)
+    if isinstance(valor, (int, float)):
+        return f"{valor:.1f}".replace('.', ',')
+    return str(valor) if valor else '-'
+
 def ordenar_componentes_educacao_infantil(courses: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Ordena os componentes curriculares da Educação Infantil na ordem específica definida.
