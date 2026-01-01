@@ -1597,6 +1597,7 @@ class MantenedoraBase(BaseModel):
     codigo_inep: Optional[str] = None
     natureza_juridica: Optional[str] = None  # Pública Municipal, Pública Estadual, Privada, etc.
     logotipo_url: Optional[str] = None  # URL do logotipo
+    slogan: Optional[str] = None  # Slogan da instituição para cabeçalhos dos documentos
     
     # Endereço
     cep: Optional[str] = None
@@ -1627,6 +1628,7 @@ class MantenedoraUpdate(BaseModel):
     codigo_inep: Optional[str] = None
     natureza_juridica: Optional[str] = None
     logotipo_url: Optional[str] = None
+    slogan: Optional[str] = None  # Slogan da instituição
     
     cep: Optional[str] = None
     logradouro: Optional[str] = None
