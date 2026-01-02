@@ -727,3 +727,30 @@ agent_communication:
         comment: "✅ Implemented coordinator permissions. Coordinators can VIEW all school data but can only EDIT grades, attendance, and learning objects (diary). Backend: Added require_roles_with_coordinator_edit() method to AuthMiddleware, added /api/auth/permissions endpoint, updated student update endpoint to block coordinators. Frontend: Created usePermissions hook, updated StudentsComplete.js and Classes.js to hide edit/delete buttons for coordinators, added coordinator to grades route. Manual testing via curl and screenshots confirmed: coordenador role returned correctly on login, permissions endpoint returns correct flags, student edit blocked with proper message, coordinator can access grades/attendance/learning-objects pages."
   - agent: "testing"
     message: "🎯 FICHA INDIVIDUAL PDF LAYOUT CHANGES TESTING COMPLETED SUCCESSFULLY! Comprehensive testing of the 4 specific layout changes as per review_request verified complete functionality: ✅ ADMIN LOGIN: Successfully logged in with gutenberg@sigesc.com/@Celta2007 credentials as specified, ✅ STUDENT DATA: Found 3703 students for testing, successfully tested PDF generation for 2 students from different backgrounds, ✅ SHIFT VERIFICATION: Found 16 classes with morning shift for Portuguese translation testing (morning → Matutino), ✅ PDF GENERATION TESTING: Successfully generated Ficha Individual PDFs for Maria da Silva Santos (19,373 bytes) and ABNI SOARES DE PAULA (19,586 bytes), both exceeding 10KB requirement, ✅ CONTENT-TYPE VALIDATION: All PDFs have correct Content-Type (application/pdf), ✅ ACADEMIC YEAR SUPPORT: Successfully tested with both 2024 and 2025 academic years, ✅ ERROR HANDLING: Invalid student ID returns 404, unauthenticated requests return 401, ✅ BACKEND LOGS: No errors found in recent backend logs, ✅ LAYOUT CHANGES IMPLEMENTED: 1) Column ID: removed from header Line 2 (now only 3 columns: NOME DO(A) ALUNO(A), SEXO, Nº INEP), 2) Shift translated to Portuguese (morning → Matutino, afternoon → Vespertino, evening → Noturno, full_time → Integral), 3) Column widths adjusted in Line 3 (ANO/ETAPA: 4.5cm, NASC.: 3cm), 4) Curriculum components table with total width 18cm and COMPONENTES CURRICULARES column 5.3cm. All 4 layout changes have been successfully implemented and the PDF generation system is working perfectly according to specifications!"
+
+## Gerenciamento de Anos Letivos - Implementação Completa
+
+### Backend - Alterações Realizadas:
+1. **models.py**: Adicionado campo `anos_letivos: Optional[dict]` aos modelos `SchoolBase` e `SchoolUpdate`
+2. **models.py**: Adicionados campos `bimestre_X_limite_lancamento` para data limite de lançamento por bimestre
+3. **server.py**: Adicionada função `check_academic_year_open()` para verificar status do ano letivo
+4. **server.py**: Adicionada função `verify_academic_year_open_or_raise()` que lança exceção HTTP 403 se ano fechado
+5. **server.py**: Integrada verificação de ano letivo nos endpoints:
+   - `/api/grades/batch` (lançamento de notas)
+   - `/api/attendance` (lançamento de frequência)
+   - `/api/learning-objects` (objetos de conhecimento)
+
+### Frontend - Interface já existente:
+1. **SchoolsComplete.js**: Aba "Permissão" com gerenciamento de anos letivos
+2. Interface permite adicionar anos (2025-2030), definir status "Aberto" ou "Fechado"
+3. Informativo explica comportamento do bloqueio
+
+### Testes Realizados:
+1. ✅ Atualização de escola com `anos_letivos` via API - SUCESSO
+2. ✅ Bloqueio de notas para coordenador em ano fechado - SUCESSO (HTTP 403)
+3. ✅ Admin pode salvar em ano fechado - SUCESSO (bypass funciona)
+4. ✅ Interface frontend funcionando - Screenshots capturados
+
+### Próximos Passos:
+- Testar fluxo completo com agente de testes
+- Verificar bloqueio em frequência e objetos de conhecimento
