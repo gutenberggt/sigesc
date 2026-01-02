@@ -4922,7 +4922,7 @@ class SIGESCTester:
                     "student_id": test_student_id,
                     "class_id": target_class_id,
                     "course_id": test_course_id,
-                    "academic_year": 2026,  # Unconfigured year
+                    "academic_year": 2023,  # Use 2023 instead of 2026
                     "b1": 9.0,
                     "b2": 8.0,
                     "observations": "Teste de ano não configurado"
