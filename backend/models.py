@@ -634,6 +634,12 @@ class SchoolUpdate(BaseModel):
     qtd_extintores: Optional[int] = None
     qtd_cameras: Optional[int] = None
     
+    # Vinculação
+    dependencia_administrativa: Optional[str] = None
+    orgao_responsavel: Optional[str] = None
+    regulamentacao: Optional[str] = None  # Autorização ou Reconhecimento
+    esfera_administrativa: Optional[str] = None
+    
     # Recursos
     possui_material_didatico: Optional[bool] = None
     tamanho_acervo: Optional[int] = None
