@@ -4863,7 +4863,7 @@ class SIGESCTester:
             self.log("   Testing coordinator attendance access to closed year 2025...")
             attendance_data_2025 = {
                 "class_id": target_class_id,
-                "date": "2025-03-15",  # Date in closed year
+                "date": "2025-03-17",  # Date in closed year (Monday)
                 "academic_year": 2025,
                 "attendance_type": "daily",
                 "period": "regular",
