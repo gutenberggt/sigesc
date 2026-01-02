@@ -135,7 +135,15 @@ export const DocumentGeneratorModal = ({
       description: 'Percentual de frequência do aluno',
       icon: Calendar,
       color: 'purple'
-    }
+    },
+    // Certificado só aparece se a turma for elegível (9º Ano ou EJA 4ª Etapa)
+    ...(isEligibleForCertificate ? [{
+      id: 'certificado',
+      title: 'Certificado de Conclusão',
+      description: 'Certificado de conclusão do Ensino Fundamental',
+      icon: Award,
+      color: 'indigo'
+    }] : [])
   ];
 
   const colorClasses = {
@@ -162,6 +170,12 @@ export const DocumentGeneratorModal = ({
       border: 'border-purple-200 hover:border-purple-400',
       icon: 'text-purple-600',
       button: 'bg-purple-600 hover:bg-purple-700'
+    },
+    indigo: {
+      bg: 'bg-indigo-50 hover:bg-indigo-100',
+      border: 'border-indigo-200 hover:border-indigo-400',
+      icon: 'text-indigo-600',
+      button: 'bg-indigo-600 hover:bg-indigo-700'
     }
   };
 
