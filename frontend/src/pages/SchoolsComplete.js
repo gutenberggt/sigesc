@@ -2007,6 +2007,122 @@ export function SchoolsComplete() {
               </div>
             </div>
           </div>
+
+          {/* Gerenciamento de Anos Letivos */}
+          <div className="mt-8 pt-6 border-t">
+            <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <CheckCircle size={20} className="text-green-600" />
+              Gerenciamento de Anos Letivos
+            </h4>
+            <p className="text-sm text-gray-600 mb-4">
+              Adicione os anos letivos da escola e defina se estão <strong>Aberto</strong> (permite edição) ou <strong>Fechado</strong> (bloqueia todas as edições).
+            </p>
+            
+            {/* Adicionar Ano */}
+            {!viewMode && (
+              <div className="flex items-center gap-3 mb-4">
+                <select
+                  value={novoAnoLetivo}
+                  onChange={(e) => setNovoAnoLetivo(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Selecione o ano...</option>
+                  {anosDisponiveis
+                    .filter(ano => !formData.anos_letivos || !formData.anos_letivos[ano])
+                    .map(ano => (
+                      <option key={ano} value={ano}>{ano}</option>
+                    ))
+                  }
+                </select>
+                <button
+                  type="button"
+                  onClick={() => adicionarAnoLetivo(novoAnoLetivo)}
+                  disabled={!novoAnoLetivo}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  <Plus size={16} />
+                  Adicionar
+                </button>
+              </div>
+            )}
+            
+            {/* Lista de Anos */}
+            <div className="space-y-2">
+              {formData.anos_letivos && Object.keys(formData.anos_letivos).length > 0 ? (
+                Object.keys(formData.anos_letivos)
+                  .sort((a, b) => parseInt(b) - parseInt(a))
+                  .map(ano => (
+                    <div key={ano} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                      <span className="font-medium text-gray-800 text-lg">{ano}</span>
+                      <div className="flex items-center gap-4">
+                        {/* Toggle Aberto/Fechado */}
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`status-${ano}`}
+                              checked={formData.anos_letivos[ano]?.status === 'aberto'}
+                              onChange={() => alterarStatusAnoLetivo(ano, 'aberto')}
+                              disabled={viewMode || !isAdmin}
+                              className="w-4 h-4 text-green-600 focus:ring-green-500"
+                            />
+                            <span className={`text-sm ${formData.anos_letivos[ano]?.status === 'aberto' ? 'text-green-700 font-medium' : 'text-gray-500'}`}>
+                              Aberto
+                            </span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`status-${ano}`}
+                              checked={formData.anos_letivos[ano]?.status === 'fechado'}
+                              onChange={() => alterarStatusAnoLetivo(ano, 'fechado')}
+                              disabled={viewMode || !isAdmin}
+                              className="w-4 h-4 text-red-600 focus:ring-red-500"
+                            />
+                            <span className={`text-sm ${formData.anos_letivos[ano]?.status === 'fechado' ? 'text-red-700 font-medium' : 'text-gray-500'}`}>
+                              Fechado
+                            </span>
+                          </label>
+                        </div>
+                        
+                        {/* Botão Remover (apenas admin) */}
+                        {isAdmin && !viewMode && (
+                          <button
+                            type="button"
+                            onClick={() => removerAnoLetivo(ano)}
+                            className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                            title="Remover ano"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+              ) : (
+                <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-lg border border-dashed">
+                  <p>Nenhum ano letivo adicionado.</p>
+                  <p className="text-sm">Adicione um ano letivo para configurar as permissões.</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Informativo sobre Ano Fechado */}
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+                <div>
+                  <h6 className="font-medium text-red-800">Ano Letivo Fechado</h6>
+                  <p className="text-sm text-red-700 mt-1">
+                    Ao marcar um ano como <strong>"Fechado"</strong>, todas as informações referentes àquele ano (notas, frequências, matrículas, etc.) 
+                    ficam bloqueadas para edição por <strong>qualquer usuário</strong>. Apenas administradores podem alterar o status do ano.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
