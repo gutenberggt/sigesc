@@ -1653,6 +1653,7 @@ class MantenedoraUpdate(BaseModel):
     codigo_inep: Optional[str] = None
     natureza_juridica: Optional[str] = None
     logotipo_url: Optional[str] = None
+    brasao_url: Optional[str] = None  # URL do brasão
     slogan: Optional[str] = None  # Slogan da instituição
     
     cep: Optional[str] = None
