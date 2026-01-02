@@ -4947,7 +4947,7 @@ class SIGESCTester:
                 return False
             
             # Test coordinator trying to save attendance for unconfigured year 2026
-            self.log("   Testing coordinator attendance access to unconfigured year 2026...")
+            self.log("   Testing coordinator attendance access to unconfigured year 2023...")
             attendance_data_2026 = {
                 "class_id": target_class_id,
                 "date": "2023-03-16",  # Date in unconfigured year (past date, Monday)
