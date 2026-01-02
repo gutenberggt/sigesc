@@ -1,4 +1,16 @@
 backend:
+  - task: "Academic Year Management System (Sistema de Gerenciamento de Anos Letivos)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ ACADEMIC YEAR MANAGEMENT SYSTEM FULLY TESTED AND WORKING! Comprehensive testing completed successfully as per review request: ✅ ACADEMIC YEAR CONFIGURATION: PUT /api/schools/{school_id} successfully saves anos_letivos configuration (2025: fechado, 2024: aberto) for school E M E F MONSENHOR AUGUSTO DIAS DE BRITO, ✅ GRADE BLOCKING FOR COORDINATOR: POST /api/grades/batch correctly returns HTTP 403 when coordinator tries to save grades for closed year 2025 with proper error message 'O ano letivo 2025 está fechado para esta escola', ✅ ADMIN BYPASS FOR GRADES: Admin successfully bypasses closed year restriction (HTTP 200) and can save grades in closed year 2025, ✅ ATTENDANCE BLOCKING FOR COORDINATOR: POST /api/attendance correctly returns HTTP 403 when coordinator tries to save attendance for closed year 2025 with proper error message, ✅ ADMIN BYPASS FOR ATTENDANCE: Admin successfully bypasses attendance restriction for closed year 2025 (HTTP 200/201), ✅ UNCONFIGURED YEARS BEHAVIOR: Coordinator can edit both grades and attendance for unconfigured years (2023) - default behavior working correctly, ✅ CLEANUP VERIFICATION: School academic years successfully reverted to 'aberto' status after testing. All test scenarios from review request completed successfully - the academic year management system correctly blocks coordinators from editing closed years while allowing admin bypass, and permits editing of unconfigured years by default."
+
   - task: "Bug Fix: Professores alocados não apareciam na turma"
     implemented: true
     working: true
