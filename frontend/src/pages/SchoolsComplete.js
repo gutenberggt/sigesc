@@ -770,6 +770,21 @@ export function SchoolsComplete() {
                 <option value="inactive">Inativa</option>
               </select>
             </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Autorização ou Reconhecimento</label>
+              <input
+                type="text"
+                value={formData.regulamentacao || ''}
+                onChange={(e) => updateFormData('regulamentacao', e.target.value)}
+                disabled={viewMode}
+                placeholder="Ex: Resolução n° 272 de 21 de maio de 2020 - CEE/PA"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Será exibido no Certificado de Conclusão
+              </p>
+            </div>
           </div>
         </div>
       )}
