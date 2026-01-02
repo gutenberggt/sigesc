@@ -4916,7 +4916,7 @@ class SIGESCTester:
             self.log("5️⃣ Testing Unconfigured Years (should allow editing)...")
             
             # Test coordinator trying to save grade for unconfigured year 2026
-            self.log("   Testing coordinator access to unconfigured year 2026...")
+            self.log("   Testing coordinator access to unconfigured year 2023...")
             grade_data_2026 = [
                 {
                     "student_id": test_student_id,
