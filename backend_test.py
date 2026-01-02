@@ -4936,7 +4936,7 @@ class SIGESCTester:
             )
             
             if response.status_code == 200:
-                self.log("✅ Coordinator can edit grades in unconfigured year 2026 (default behavior)")
+                self.log("✅ Coordinator can edit grades in unconfigured year 2023 (default behavior)")
                 batch_result = response.json()
                 if batch_result.get('updated', 0) > 0 or batch_result.get('grades'):
                     self.log("✅ Grade successfully saved in unconfigured year")
