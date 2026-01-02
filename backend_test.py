@@ -5201,6 +5201,9 @@ class SIGESCTester:
         test_results = []
         
         try:
+            # Test Certificado de Conclusão (NEW - from review request)
+            test_results.append(("Certificado de Conclusão", self.test_certificado_conclusao()))
+            
             # Test Academic Year Management System (NEW - from review request)
             test_results.append(("Academic Year Management", self.test_academic_year_management()))
             
