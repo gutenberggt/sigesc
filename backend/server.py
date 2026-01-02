@@ -3348,6 +3348,18 @@ async def create_learning_object(data: LearningObjectCreate, request: Request):
     """Cria um registro de objeto de conhecimento"""
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'professor'])(request)
     
+    # Verifica se o ano letivo está aberto (apenas para não-admins)
+    if current_user.get('role') != 'admin':
+        class_doc = await db.classes.find_one(
+            {"id": data.class_id},
+            {"_id": 0, "school_id": 1, "academic_year": 1}
+        )
+        if class_doc:
+            await verify_academic_year_open_or_raise(
+                class_doc['school_id'],
+                data.academic_year or class_doc.get('academic_year', datetime.now().year)
+            )
+    
     # Verifica se já existe registro para esta data/turma/componente
     existing = await db.learning_objects.find_one({
         "class_id": data.class_id,
