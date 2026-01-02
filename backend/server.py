@@ -5165,7 +5165,10 @@ async def get_certificado(
     academic_year: int = 2025,
     request: Request = None
 ):
-    """Gera o Certificado de Conclusão em PDF"""
+    """
+    Gera o Certificado de Conclusão em PDF.
+    Uso exclusivo para turmas do 9º Ano e EJA 4ª Etapa.
+    """
     current_user = await AuthMiddleware.get_current_user(request)
     
     # Buscar aluno
@@ -5182,6 +5185,19 @@ async def get_certificado(
     class_info = await db.classes.find_one({"id": student.get("class_id")}, {"_id": 0})
     if not class_info:
         class_info = {"name": "N/A", "grade_level": "N/A", "shift": "N/A"}
+    
+    # Validar se a turma é elegível para certificado (9º Ano ou EJA 4ª Etapa)
+    grade_level = str(class_info.get('grade_level', '')).lower()
+    education_level = str(class_info.get('education_level', '')).lower()
+    
+    is_9ano = '9' in grade_level and 'ano' in grade_level
+    is_eja_4etapa = ('eja' in education_level or 'eja' in grade_level) and ('4' in grade_level or 'etapa' in grade_level)
+    
+    if not (is_9ano or is_eja_4etapa):
+        raise HTTPException(
+            status_code=400, 
+            detail="Certificado disponível apenas para turmas do 9º Ano ou EJA 4ª Etapa"
+        )
     
     # Buscar matrícula
     enrollment = await db.enrollments.find_one(
