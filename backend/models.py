@@ -1621,6 +1621,7 @@ class MantenedoraBase(BaseModel):
     codigo_inep: Optional[str] = None
     natureza_juridica: Optional[str] = None  # Pública Municipal, Pública Estadual, Privada, etc.
     logotipo_url: Optional[str] = None  # URL do logotipo
+    brasao_url: Optional[str] = None  # URL do brasão
     slogan: Optional[str] = None  # Slogan da instituição para cabeçalhos dos documentos
     
     # Endereço
