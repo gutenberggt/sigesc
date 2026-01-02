@@ -533,6 +533,16 @@ class SchoolBase(BaseModel):
     possui_horta: Optional[bool] = False
     possui_estacionamento: Optional[bool] = False
     
+    # Permissão - Data Limite de Lançamento por Bimestre
+    bimestre_1_limite_lancamento: Optional[str] = None
+    bimestre_2_limite_lancamento: Optional[str] = None
+    bimestre_3_limite_lancamento: Optional[str] = None
+    bimestre_4_limite_lancamento: Optional[str] = None
+    
+    # Anos Letivos da escola e seus status
+    # Formato: { "2025": { "status": "aberto" }, "2026": { "status": "fechado" } }
+    anos_letivos: Optional[dict] = None
+    
     # Status geral
     status: Literal['active', 'inactive'] = 'active'
 
