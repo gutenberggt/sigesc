@@ -5036,6 +5036,9 @@ class SIGESCTester:
         test_results = []
         
         try:
+            # Test Academic Year Management System (NEW - from review request)
+            test_results.append(("Academic Year Management", self.test_academic_year_management()))
+            
             # Test the two specific functionalities from review request (PRIORITY)
             test_results.append(("Bug Fix: Professores Alocados", self.test_bug_fix_professores_alocados()))
             test_results.append(("Sistema Avaliação Conceitual EI", self.test_sistema_avaliacao_conceitual_educacao_infantil()))
