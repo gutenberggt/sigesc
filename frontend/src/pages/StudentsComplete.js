@@ -2016,6 +2016,7 @@ export function StudentsComplete() {
           }}
           student={documentStudent}
           academicYear="2025"
+          classInfo={classes.find(c => c.id === filterClassId) || null}
         />
         
         {/* Modal de Impressão em Lote */}
