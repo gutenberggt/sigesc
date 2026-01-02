@@ -693,6 +693,15 @@ class SchoolUpdate(BaseModel):
     possui_horta: Optional[bool] = None
     possui_estacionamento: Optional[bool] = None
     
+    # Permissão - Data Limite de Lançamento por Bimestre
+    bimestre_1_limite_lancamento: Optional[str] = None
+    bimestre_2_limite_lancamento: Optional[str] = None
+    bimestre_3_limite_lancamento: Optional[str] = None
+    bimestre_4_limite_lancamento: Optional[str] = None
+    
+    # Anos Letivos da escola e seus status
+    anos_letivos: Optional[dict] = None
+    
     status: Optional[Literal['active', 'inactive']] = None
 
 class School(SchoolBase):
