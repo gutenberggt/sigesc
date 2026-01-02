@@ -1566,18 +1566,36 @@ def generate_certificado_pdf(
 ) -> BytesIO:
     """
     Gera o Certificado de Conclusão em PDF.
-    Segue o modelo oficial da Prefeitura Municipal de Floresta do Araguaia.
+    Usa imagem de fundo do servidor FTP.
     Uso exclusivo para turmas do 9º Ano e EJA 4ª Etapa.
     """
     from reportlab.lib.pagesizes import landscape, A4
     from reportlab.pdfgen import canvas
     from reportlab.lib.units import cm, mm
+    import urllib.request
+    import tempfile
+    import os
     
     buffer = BytesIO()
     
     # Página em paisagem (landscape)
     width, height = landscape(A4)
     c = canvas.Canvas(buffer, pagesize=landscape(A4))
+    
+    # ========== IMAGEM DE FUNDO ==========
+    background_url = "https://aprenderdigital.top/imagens/certificado/certificado_1.jpg"
+    
+    try:
+        # Baixar a imagem de fundo temporariamente
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
+            urllib.request.urlretrieve(background_url, tmp_file.name)
+            # Desenhar imagem de fundo ocupando toda a página
+            c.drawImage(tmp_file.name, 0, 0, width=width, height=height)
+            # Limpar arquivo temporário
+            os.unlink(tmp_file.name)
+    except Exception as e:
+        # Se falhar ao carregar a imagem, continua sem fundo
+        logger.warning(f"Não foi possível carregar imagem de fundo do certificado: {e}")
     
     # ========== DADOS DO ALUNO ==========
     student_name = student.get('full_name', 'N/A').upper()
@@ -1614,105 +1632,84 @@ def generate_certificado_pdf(
     else:
         curso_completo = "Ensino Fundamental"
     
-    # ========== CORES E FONTES ==========
+    # ========== CORES ==========
     dark_blue = colors.HexColor('#1a365d')
-    medium_blue = colors.HexColor('#2563eb')
     black = colors.black
     
-    # ========== BORDA DECORATIVA ==========
-    # Borda externa
-    c.setStrokeColor(medium_blue)
-    c.setLineWidth(3)
-    c.rect(1.5*cm, 1.5*cm, width - 3*cm, height - 3*cm)
-    
-    # Borda interna decorativa
-    c.setLineWidth(1)
-    c.rect(2*cm, 2*cm, width - 4*cm, height - 4*cm)
-    
-    # ========== TEXTO VERTICAL "CERTIFICADO" ==========
-    c.saveState()
-    c.setFillColor(medium_blue)
-    c.setFont("Helvetica-Bold", 36)
-    c.translate(3*cm, height/2)
-    c.rotate(90)
-    c.drawCentredString(0, 0, "CERTIFICADO")
-    c.restoreState()
-    
     # ========== CABEÇALHO ==========
-    y_position = height - 3*cm
+    # Centro deslocado para a direita (por causa do texto vertical "CERTIFICADO" no fundo)
+    center_x = width / 2 + 1.5*cm
+    y_position = height - 2.5*cm
     
-    # Logotipo à direita
-    logo = get_logo_image(width=2.5*cm, height=2.5*cm)
+    # Logotipo/Brasão no canto superior direito
+    logo = get_logo_image(width=2*cm, height=2*cm)
     if logo:
-        # Desenhar logo no canto superior direito
         try:
-            c.drawImage(logo.filename, width - 5*cm, y_position - 1.5*cm, width=2.5*cm, height=2.5*cm, preserveAspectRatio=True)
+            c.drawImage(logo.filename, width - 4.5*cm, y_position - 1*cm, width=2*cm, height=2*cm, preserveAspectRatio=True, mask='auto')
         except:
             pass
     
     # Textos do cabeçalho (centralizados)
-    center_x = width / 2 + 1*cm  # Deslocado um pouco para a direita por causa do texto vertical
-    
     c.setFillColor(black)
-    c.setFont("Helvetica-Bold", 10)
+    c.setFont("Helvetica-Bold", 9)
     c.drawCentredString(center_x, y_position, "REPÚBLICA FEDERATIVA DO BRASIL")
     
-    y_position -= 14
-    c.setFont("Helvetica", 9)
+    y_position -= 12
+    c.setFont("Helvetica", 8)
     c.drawCentredString(center_x, y_position, "GOVERNO DO ESTADO DO PARÁ")
     
-    y_position -= 14
-    c.setFont("Helvetica-Bold", 10)
+    y_position -= 12
+    c.setFont("Helvetica-Bold", 9)
     c.drawCentredString(center_x, y_position, "PREFEITURA MUNICIPAL DE FLORESTA DO ARAGUAIA")
     
-    y_position -= 14
-    c.setFont("Helvetica", 9)
+    y_position -= 12
+    c.setFont("Helvetica", 8)
     c.drawCentredString(center_x, y_position, "SECRETARIA MUNICIPAL DE EDUCAÇÃO")
     
     # ========== NOME DA ESCOLA ==========
-    y_position -= 30
+    y_position -= 22
     c.setFillColor(dark_blue)
-    c.setFont("Helvetica-Bold", 12)
+    c.setFont("Helvetica-Bold", 11)
     c.drawCentredString(center_x, y_position, school_name)
     
     # ========== AUTORIZAÇÃO LEGAL ==========
-    y_position -= 20
+    y_position -= 16
     c.setFillColor(black)
-    c.setFont("Helvetica", 8)
+    c.setFont("Helvetica", 7)
     c.drawCentredString(center_x, y_position, f"Autorização - {resolucao}")
     
-    y_position -= 12
-    c.setFont("Helvetica-Oblique", 8)
+    y_position -= 10
+    c.setFont("Helvetica-Oblique", 7)
     c.drawCentredString(center_x, y_position, "ATO LEGAL DE AUTORIZAÇÃO OU RECONHECIMENTO DO CURSO")
     
     # ========== CORPO DO CERTIFICADO ==========
-    y_position -= 35
+    y_position -= 28
     
     # "Conferimos o presente certificado a"
     c.setFillColor(black)
-    c.setFont("Helvetica", 11)
+    c.setFont("Helvetica", 10)
     c.drawCentredString(center_x, y_position, "Conferimos o presente certificado a")
     
     # Nome do aluno (destaque)
-    y_position -= 25
+    y_position -= 22
     c.setFillColor(dark_blue)
-    c.setFont("Helvetica-Bold", 14)
+    c.setFont("Helvetica-Bold", 13)
     c.drawCentredString(center_x, y_position, student_name)
     
     # Filiação
-    y_position -= 25
+    y_position -= 20
     c.setFillColor(black)
-    c.setFont("Helvetica", 10)
+    c.setFont("Helvetica", 9)
     c.drawCentredString(center_x, y_position, f"filho(a) de: {filiation}")
     
     # Linha com nacionalidade, naturalidade e nascimento
-    y_position -= 20
-    c.setFont("Helvetica", 10)
+    y_position -= 16
+    c.setFont("Helvetica", 9)
     info_line = f"Nacionalidade: {nationality}        naturalidade: {naturalidade}        Nascido(a) em: {birth_date}"
     c.drawCentredString(center_x, y_position, info_line)
     
     # ========== TEXTO DE CONCLUSÃO ==========
-    y_position -= 35
+    y_position -= 28
     
     # Criar texto de conclusão
     text_lines = [
@@ -1721,34 +1718,23 @@ def generate_certificado_pdf(
         "de Ensino em vigor no País."
     ]
     
-    c.setFont("Helvetica", 10)
+    c.setFont("Helvetica", 9)
     for line in text_lines:
         c.drawCentredString(center_x, y_position, line)
-        y_position -= 14
+        y_position -= 12
     
-    # ========== ÁREA DE ASSINATURAS ==========
-    y_position -= 40
-    
-    # Linha para assinatura do concluinte
-    c.line(center_x - 6*cm, y_position, center_x + 6*cm, y_position)
-    y_position -= 12
-    c.setFont("Helvetica", 9)
-    c.drawCentredString(center_x, y_position, "Assinatura do(a) Concluinte")
-    
-    # Linha para assinatura do diretor
-    y_position -= 40
-    c.line(center_x - 6*cm, y_position, center_x + 6*cm, y_position)
-    y_position -= 12
-    c.drawCentredString(center_x, y_position, "Assinatura do(a) Diretor(a)")
-    
-    # ========== RODAPÉ - DATA ==========
-    y_position = 3*cm
+    # ========== DATA ==========
+    y_position -= 15
     today = format_date_pt(date.today())
     city = school.get('municipio', 'Floresta do Araguaia')
     state = school.get('estado', 'PA')
     
     c.setFont("Helvetica", 9)
     c.drawCentredString(center_x, y_position, f"{city} - {state}, {today}.")
+    
+    # ========== ÁREA DE ASSINATURAS ==========
+    # As linhas de assinatura já estão na imagem de fundo
+    # Apenas posicionar os textos de identificação se necessário
     
     # Finalizar
     c.save()
