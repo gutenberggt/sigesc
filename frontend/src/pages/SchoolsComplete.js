@@ -201,11 +201,15 @@ export function SchoolsComplete() {
     possui_horta: false,
     possui_estacionamento: false,
     
-    // Permissão - Data Limite de Lançamento por Bimestre
+    // Permissão - Data Limite de Lançamento por Bimestre (por ano)
     bimestre_1_limite_lancamento: '',
     bimestre_2_limite_lancamento: '',
     bimestre_3_limite_lancamento: '',
     bimestre_4_limite_lancamento: '',
+    
+    // Anos Letivos da escola e seus status
+    // Formato: { 2025: { status: 'aberto' }, 2026: { status: 'aberto' }, ... }
+    anos_letivos: {},
     
     status: 'active'
   });
