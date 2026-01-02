@@ -2484,6 +2484,18 @@ async def save_attendance(attendance: AttendanceCreate, request: Request):
     # Coordenador PODE editar frequência (área do diário)
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
     
+    # Verifica se o ano letivo está aberto (apenas para não-admins)
+    if current_user.get('role') != 'admin':
+        class_doc = await db.classes.find_one(
+            {"id": attendance.class_id},
+            {"_id": 0, "school_id": 1}
+        )
+        if class_doc:
+            await verify_academic_year_open_or_raise(
+                class_doc['school_id'],
+                attendance.academic_year
+            )
+    
     # Verifica se pode lançar nessa data
     date_check = await check_attendance_date(attendance.date, request)
     if not date_check['can_record']:
