@@ -15,8 +15,10 @@ export default function Mantenedora() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingBrasao, setUploadingBrasao] = useState(false);
   const [alert, setAlert] = useState(null);
   const fileInputRef = useRef(null);
+  const brasaoInputRef = useRef(null);
   const [formData, setFormData] = useState({
     // Identificação
     nome: '',
@@ -24,6 +26,7 @@ export default function Mantenedora() {
     codigo_inep: '',
     natureza_juridica: 'Pública Municipal',
     logotipo_url: '',
+    brasao_url: '',  // URL do brasão
     slogan: '',  // Slogan para cabeçalhos dos documentos
     
     // Endereço
