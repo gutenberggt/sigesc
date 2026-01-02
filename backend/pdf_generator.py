@@ -1777,6 +1777,13 @@ def generate_certificado_pdf(
     # As linhas de assinatura já estão na imagem de fundo
     # Apenas posicionar os textos de identificação se necessário
     
+    # Limpar arquivo temporário do brasão
+    if brasao_tmp_path:
+        try:
+            os.unlink(brasao_tmp_path)
+        except:
+            pass
+    
     # Finalizar
     c.save()
     buffer.seek(0)
