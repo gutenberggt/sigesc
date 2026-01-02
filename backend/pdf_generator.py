@@ -18,6 +18,9 @@ from datetime import datetime, date
 from typing import List, Dict, Any, Optional
 import locale
 import urllib.request
+import logging
+
+logger = logging.getLogger(__name__)
 import tempfile
 import os
 
