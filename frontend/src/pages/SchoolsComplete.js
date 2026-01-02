@@ -322,10 +322,59 @@ export function SchoolsComplete() {
     }
   }
 
+  // Funções para gerenciar anos letivos
+  function adicionarAnoLetivo(ano) {
+    if (!ano) return;
+    const anoNum = parseInt(ano);
+    if (formData.anos_letivos && formData.anos_letivos[anoNum]) {
+      showAlert('error', `Ano ${anoNum} já foi adicionado`);
+      return;
+    }
+    
+    const novosAnos = {
+      ...formData.anos_letivos,
+      [anoNum]: { status: 'aberto' }
+    };
+    updateFormData('anos_letivos', novosAnos);
+    setNovoAnoLetivo('');
+  }
+
+  function alterarStatusAnoLetivo(ano, novoStatus) {
+    if (!isAdmin) {
+      showAlert('error', 'Apenas administradores podem alterar o status do ano letivo');
+      return;
+    }
+    
+    const novosAnos = {
+      ...formData.anos_letivos,
+      [ano]: { ...formData.anos_letivos[ano], status: novoStatus }
+    };
+    updateFormData('anos_letivos', novosAnos);
+  }
+
+  function removerAnoLetivo(ano) {
+    if (!isAdmin) {
+      showAlert('error', 'Apenas administradores podem remover anos letivos');
+      return;
+    }
+    
+    const novosAnos = { ...formData.anos_letivos };
+    delete novosAnos[ano];
+    updateFormData('anos_letivos', novosAnos);
+  }
+
+  // Verifica se o ano selecionado está fechado (bloqueia edição)
+  const isYearClosed = formData.anos_letivos && 
+    formData.anos_letivos[selectedYear] && 
+    formData.anos_letivos[selectedYear].status === 'fechado';
+
   function handleView(school) {
     setEditingSchool(school);
     setViewMode(true);
-    setFormData(school);
+    setFormData({
+      ...school,
+      anos_letivos: school.anos_letivos || {}
+    });
     setIsModalOpen(true);
     loadSchoolStaff(school.id);
   }
@@ -333,7 +382,10 @@ export function SchoolsComplete() {
   function handleEdit(school) {
     setEditingSchool(school);
     setViewMode(false);
-    setFormData(school);
+    setFormData({
+      ...school,
+      anos_letivos: school.anos_letivos || {}
+    });
     setIsModalOpen(true);
     loadSchoolStaff(school.id);
   }
