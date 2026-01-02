@@ -1681,9 +1681,9 @@ def generate_certificado_pdf(
     # ========== BRASÃO NO CANTO SUPERIOR DIREITO (SEM TRANSPARÊNCIA) ==========
     if brasao_tmp_path:
         try:
-            brasao_small_size = 2.2*cm
-            brasao_small_x = width - 4.5*cm
-            brasao_small_y = height - 4*cm
+            brasao_small_size = 3.52*cm  # 2.2cm + 60% = 3.52cm
+            brasao_small_x = width - 5.5*cm  # Ajustado para o novo tamanho
+            brasao_small_y = height - 5*cm   # Ajustado para o novo tamanho
             c.drawImage(brasao_tmp_path, brasao_small_x, brasao_small_y, 
                        width=brasao_small_size, height=brasao_small_size, 
                        preserveAspectRatio=True, mask='auto')
