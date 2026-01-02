@@ -1601,19 +1601,32 @@ def generate_certificado_pdf(
         # Se falhar ao carregar a imagem, continua sem fundo
         logger.warning(f"Não foi possível carregar imagem de fundo do certificado: {e}")
     
-    # ========== BRASÃO DA MANTENEDORA ==========
+    # ========== BRASÃO COMO MARCA D'ÁGUA (CENTRALIZADO, 70% ALTURA, 20% OPACIDADE) ==========
     brasao_url = mantenedora.get('brasao_url') if mantenedora else None
     if brasao_url:
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_brasao:
                 urllib.request.urlretrieve(brasao_url, tmp_brasao.name)
-                # Posicionar o brasão no canto superior direito
-                brasao_size = 2.2*cm
-                brasao_x = width - 4.5*cm
-                brasao_y = height - 4*cm
+                
+                # Calcular tamanho: 70% da altura da página
+                brasao_height = height * 0.70
+                brasao_width = brasao_height  # Manter proporção quadrada inicialmente
+                
+                # Centralizar horizontalmente e verticalmente
+                brasao_x = (width - brasao_width) / 2
+                brasao_y = (height - brasao_height) / 2
+                
+                # Aplicar transparência de 80% (opacidade 20%)
+                c.saveState()
+                c.setFillAlpha(0.20)  # 20% de opacidade = 80% de transparência
+                c.setStrokeAlpha(0.20)
+                
+                # Desenhar o brasão como marca d'água
                 c.drawImage(tmp_brasao.name, brasao_x, brasao_y, 
-                           width=brasao_size, height=brasao_size, 
+                           width=brasao_width, height=brasao_height, 
                            preserveAspectRatio=True, mask='auto')
+                
+                c.restoreState()  # Restaurar opacidade normal para o texto
                 os.unlink(tmp_brasao.name)
         except Exception as e:
             logger.warning(f"Não foi possível carregar brasão da mantenedora: {e}")
