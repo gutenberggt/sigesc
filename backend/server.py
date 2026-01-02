@@ -5257,6 +5257,20 @@ async def get_batch_documents(
     if not class_info:
         raise HTTPException(status_code=404, detail="Turma não encontrada")
     
+    # Validar elegibilidade para certificado (9º Ano ou EJA 4ª Etapa)
+    if document_type == 'certificado':
+        grade_level = str(class_info.get('grade_level', '')).lower()
+        education_level = str(class_info.get('education_level', '')).lower()
+        
+        is_9ano = '9' in grade_level and 'ano' in grade_level
+        is_eja_4etapa = ('eja' in education_level or 'eja' in grade_level) and ('4' in grade_level or 'etapa' in grade_level)
+        
+        if not (is_9ano or is_eja_4etapa):
+            raise HTTPException(
+                status_code=400, 
+                detail="Certificado disponível apenas para turmas do 9º Ano ou EJA 4ª Etapa"
+            )
+    
     # Buscar escola da turma
     school = await db.schools.find_one({"id": class_info.get("school_id")}, {"_id": 0})
     if not school:
