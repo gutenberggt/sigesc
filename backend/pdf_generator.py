@@ -1662,14 +1662,6 @@ def generate_certificado_pdf(
     center_x = width / 2 + 1.5*cm
     y_position = height - 2.5*cm
     
-    # Logotipo/Brasão no canto superior direito
-    logo = get_logo_image(width=2*cm, height=2*cm)
-    if logo:
-        try:
-            c.drawImage(logo.filename, width - 4.5*cm, y_position - 1*cm, width=2*cm, height=2*cm, preserveAspectRatio=True, mask='auto')
-        except:
-            pass
-    
     # Textos do cabeçalho (centralizados)
     c.setFillColor(black)
     c.setFont("Helvetica-Bold", 9)
