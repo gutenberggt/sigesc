@@ -26,16 +26,22 @@ export function SchoolsComplete() {
   const [schoolStaff, setSchoolStaff] = useState([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [calendarioLetivo, setCalendarioLetivo] = useState(null);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [novoAnoLetivo, setNovoAnoLetivo] = useState('');
 
   // SEMED pode visualizar tudo, mas não pode editar/excluir
   const canEdit = user?.role !== 'semed';
   const canDelete = user?.role !== 'semed';
+  const isAdmin = user?.role === 'admin';
   
   // Dados padrão da mantenedora
   const defaultLocation = getDefaultLocation();
   
   // Ano letivo atual
   const currentYear = new Date().getFullYear();
+  
+  // Anos disponíveis para seleção (2025 a 2030)
+  const anosDisponiveis = [2025, 2026, 2027, 2028, 2029, 2030];
 
   // Estado do formulário com valores padrão
   const [formData, setFormData] = useState({
