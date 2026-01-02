@@ -1761,6 +1761,19 @@ async def update_grades_batch(request: Request, grades: List[dict]):
     # Coordenador PODE editar notas (área do diário)
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
     
+    # Verifica se o ano letivo está aberto (apenas para não-admins)
+    if grades and current_user.get('role') != 'admin':
+        first_grade = grades[0]
+        class_doc = await db.classes.find_one(
+            {"id": first_grade['class_id']},
+            {"_id": 0, "school_id": 1}
+        )
+        if class_doc:
+            await verify_academic_year_open_or_raise(
+                class_doc['school_id'],
+                first_grade['academic_year']
+            )
+    
     results = []
     for grade_data in grades:
         # Verifica se já existe
