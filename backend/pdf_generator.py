@@ -1565,11 +1565,12 @@ def generate_certificado_pdf(
     class_info: Dict[str, Any],
     enrollment: Dict[str, Any],
     academic_year: int,
-    course_name: str = "Ensino Fundamental"
+    course_name: str = "Ensino Fundamental",
+    mantenedora: Dict[str, Any] = None
 ) -> BytesIO:
     """
     Gera o Certificado de Conclusão em PDF.
-    Usa imagem de fundo do servidor FTP.
+    Usa imagem de fundo do servidor FTP e brasão da mantenedora.
     Uso exclusivo para turmas do 9º Ano e EJA 4ª Etapa.
     """
     from reportlab.lib.pagesizes import landscape, A4
@@ -1599,6 +1600,23 @@ def generate_certificado_pdf(
     except Exception as e:
         # Se falhar ao carregar a imagem, continua sem fundo
         logger.warning(f"Não foi possível carregar imagem de fundo do certificado: {e}")
+    
+    # ========== BRASÃO DA MANTENEDORA ==========
+    brasao_url = mantenedora.get('brasao_url') if mantenedora else None
+    if brasao_url:
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_brasao:
+                urllib.request.urlretrieve(brasao_url, tmp_brasao.name)
+                # Posicionar o brasão no canto superior direito
+                brasao_size = 2.2*cm
+                brasao_x = width - 4.5*cm
+                brasao_y = height - 4*cm
+                c.drawImage(tmp_brasao.name, brasao_x, brasao_y, 
+                           width=brasao_size, height=brasao_size, 
+                           preserveAspectRatio=True, mask='auto')
+                os.unlink(tmp_brasao.name)
+        except Exception as e:
+            logger.warning(f"Não foi possível carregar brasão da mantenedora: {e}")
     
     # ========== DADOS DO ALUNO ==========
     student_name = student.get('full_name', 'N/A').upper()
