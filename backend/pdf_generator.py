@@ -1708,7 +1708,7 @@ def generate_certificado_pdf(
     c.drawCentredString(center_x, y_position, "SECRETARIA MUNICIPAL DE EDUCAÇÃO")
     
     # ========== NOME DA ESCOLA ==========
-    y_position -= 24
+    y_position -= 34  # +10 (mais 1 espaço)
     c.setFillColor(dark_blue)
     c.setFont("Helvetica-Bold", 14)
     c.drawCentredString(center_x, y_position, school_name)
@@ -1720,7 +1720,7 @@ def generate_certificado_pdf(
     c.drawCentredString(center_x, y_position, f"Autorização - {resolucao}")
     
     # ========== CORPO DO CERTIFICADO ==========
-    y_position -= 32
+    y_position -= 42  # +10 (mais 1 espaço)
     
     # "Conferimos o presente certificado a"
     c.setFillColor(black)
@@ -1761,7 +1761,7 @@ def generate_certificado_pdf(
         y_position -= 15
     
     # ========== DATA ==========
-    y_position -= 18
+    y_position -= 38  # +20 (mais 2 espaços)
     today = format_date_pt(date.today())
     city = school.get('municipio', 'Floresta do Araguaia')
     state = school.get('estado', 'PA')
