@@ -2103,6 +2103,41 @@ export function SchoolsComplete() {
           size="xl"
         >
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Seletor de Ano Letivo */}
+            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border">
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-medium text-gray-700">Ano Letivo:</label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium"
+                >
+                  {anosDisponiveis.map(ano => (
+                    <option key={ano} value={ano}>{ano}</option>
+                  ))}
+                </select>
+              </div>
+              {formData.anos_letivos && formData.anos_letivos[selectedYear] && (
+                <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  formData.anos_letivos[selectedYear].status === 'fechado' 
+                    ? 'bg-red-100 text-red-700' 
+                    : 'bg-green-100 text-green-700'
+                }`}>
+                  {formData.anos_letivos[selectedYear].status === 'fechado' ? '🔒 Ano Fechado' : '🔓 Ano Aberto'}
+                </div>
+              )}
+            </div>
+            
+            {/* Aviso se ano está fechado */}
+            {isYearClosed && !isAdmin && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-700 flex items-center gap-2">
+                  <AlertCircle size={16} />
+                  <span>O ano letivo {selectedYear} está <strong>fechado</strong>. Os dados não podem ser editados.</span>
+                </p>
+              </div>
+            )}
+            
             <Tabs tabs={tabLabels}>
               {tabContents}
             </Tabs>
