@@ -67,6 +67,7 @@ export default function Mantenedora() {
         codigo_inep: data.codigo_inep || '',
         natureza_juridica: data.natureza_juridica || 'Pública Municipal',
         logotipo_url: data.logotipo_url || '',
+        brasao_url: data.brasao_url || '',
         slogan: data.slogan || '',
         cep: data.cep || '',
         logradouro: data.logradouro || '',
