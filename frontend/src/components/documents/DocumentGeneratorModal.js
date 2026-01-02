@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, ExternalLink, X, GraduationCap, ClipboardCheck, Calendar, User } from 'lucide-react';
+import { FileText, ExternalLink, X, GraduationCap, ClipboardCheck, Calendar, User, Award } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { documentsAPI, getToken } from '@/services/api';
@@ -10,6 +10,7 @@ import { documentsAPI, getToken } from '@/services/api';
  * - Ficha Individual
  * - Declaração de Matrícula
  * - Declaração de Frequência
+ * - Certificado (apenas 9º Ano e EJA 4ª Etapa)
  * 
  * Os PDFs abrem em nova aba do navegador para visualização.
  * O usuário pode salvar ou imprimir diretamente do visualizador.
@@ -18,10 +19,24 @@ export const DocumentGeneratorModal = ({
   isOpen, 
   onClose, 
   student,
-  academicYear = '2025'
+  academicYear = '2025',
+  classInfo = null  // Informações da turma para verificar elegibilidade do certificado
 }) => {
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState(null);
+
+  // Verifica se a turma é elegível para certificado (9º Ano ou EJA 4ª Etapa)
+  const isEligibleForCertificate = (() => {
+    if (!classInfo) return false;
+    const gradeLevel = (classInfo.grade_level || '').toLowerCase();
+    const educationLevel = (classInfo.education_level || '').toLowerCase();
+    
+    const is9ano = gradeLevel.includes('9') && gradeLevel.includes('ano');
+    const isEja4etapa = (educationLevel.includes('eja') || gradeLevel.includes('eja')) && 
+                        (gradeLevel.includes('4') || gradeLevel.includes('etapa'));
+    
+    return is9ano || isEja4etapa;
+  })();
 
   const handleOpenPdf = async (type) => {
     if (!student?.id) {
@@ -48,6 +63,9 @@ export const DocumentGeneratorModal = ({
         case 'frequencia':
           url = documentsAPI.getDeclaracaoFrequenciaUrl(student.id, academicYear);
           break;
+        case 'certificado':
+          url = documentsAPI.getCertificadoUrl(student.id, academicYear);
+          break;
         default:
           throw new Error('Tipo de documento inválido');
       }
@@ -63,7 +81,8 @@ export const DocumentGeneratorModal = ({
       });
       
       if (!response.ok) {
-        throw new Error('Erro ao gerar documento');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Erro ao gerar documento');
       }
       
       const blob = await response.blob();
