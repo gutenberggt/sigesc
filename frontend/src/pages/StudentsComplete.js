@@ -2067,23 +2067,25 @@ export function StudentsComplete() {
                 <ExternalLink size={20} className="text-green-600" />
               </button>
               
-              {/* Certificado */}
-              <button
-                onClick={() => handleBatchPrint('certificado')}
-                disabled={batchPrinting}
-                className="w-full flex items-center justify-between p-4 border-2 border-purple-200 rounded-lg hover:bg-purple-50 hover:border-purple-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <FileText className="text-purple-600" size={20} />
+              {/* Certificado - Apenas para 9º Ano e EJA 4ª Etapa */}
+              {isClassEligibleForCertificate && (
+                <button
+                  onClick={() => handleBatchPrint('certificado')}
+                  disabled={batchPrinting}
+                  className="w-full flex items-center justify-between p-4 border-2 border-purple-200 rounded-lg hover:bg-purple-50 hover:border-purple-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <FileText className="text-purple-600" size={20} />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-gray-900">Certificado</p>
+                      <p className="text-sm text-gray-500">Certificado de conclusão (9º Ano / EJA 4ª Etapa)</p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className="font-medium text-gray-900">Certificado</p>
-                    <p className="text-sm text-gray-500">Certificado de conclusão</p>
-                  </div>
-                </div>
-                <ExternalLink size={20} className="text-purple-600" />
-              </button>
+                  <ExternalLink size={20} className="text-purple-600" />
+                </button>
+              )}
             </div>
             
             {batchPrinting && (
