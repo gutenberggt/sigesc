@@ -1678,6 +1678,18 @@ def generate_certificado_pdf(
     center_x = width / 2 + 1.5*cm
     y_position = height - 2.5*cm
     
+    # ========== BRASÃO NO CANTO SUPERIOR DIREITO (SEM TRANSPARÊNCIA) ==========
+    if brasao_tmp_path:
+        try:
+            brasao_small_size = 2.2*cm
+            brasao_small_x = width - 4.5*cm
+            brasao_small_y = height - 4*cm
+            c.drawImage(brasao_tmp_path, brasao_small_x, brasao_small_y, 
+                       width=brasao_small_size, height=brasao_small_size, 
+                       preserveAspectRatio=True, mask='auto')
+        except Exception as e:
+            logger.warning(f"Não foi possível desenhar brasão no canto: {e}")
+    
     # Textos do cabeçalho (centralizados)
     c.setFillColor(black)
     c.setFont("Helvetica-Bold", 9)
