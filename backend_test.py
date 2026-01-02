@@ -4701,6 +4701,318 @@ class SIGESCTester:
         self.log("✅ Sistema de Avaliação Conceitual para Educação Infantil testing completed!")
         return True
 
+    def test_academic_year_management(self):
+        """Test Academic Year Management System as per review request"""
+        self.log("\n📅 Testing Academic Year Management System (Sistema de Gerenciamento de Anos Letivos)...")
+        
+        # Test data from review request
+        target_school_id = "ef2f28d3-a42d-4e08-923e-76b6eda5dc04"  # E M E F MONSENHOR AUGUSTO DIAS DE BRITO
+        target_class_id = "970fec6e-1b90-44ca-9413-05fe77c369b8"   # 1º Ano A
+        academic_year = 2025
+        
+        # Store original school configuration for cleanup
+        original_school_config = None
+        
+        try:
+            # Step 1: Test Academic Year Configuration (Backend) - PUT /api/schools/{school_id}
+            self.log("1️⃣ Testing Academic Year Configuration - PUT /api/schools/{school_id}...")
+            
+            # First, get current school configuration
+            response = requests.get(
+                f"{API_BASE}/schools/{target_school_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                original_school_config = response.json()
+                self.log(f"✅ Retrieved school: {original_school_config.get('name')}")
+                self.log(f"   Current anos_letivos: {original_school_config.get('anos_letivos', 'Not configured')}")
+            else:
+                self.log(f"❌ Failed to get school: {response.status_code} - {response.text}")
+                return False
+            
+            # Configure academic years with 2025 as "fechado" (closed)
+            anos_letivos_config = {
+                "anos_letivos": {
+                    "2025": {"status": "fechado"},
+                    "2024": {"status": "aberto"}
+                }
+            }
+            
+            response = requests.put(
+                f"{API_BASE}/schools/{target_school_id}",
+                json=anos_letivos_config,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                updated_school = response.json()
+                self.log(f"✅ School academic years configured successfully")
+                self.log(f"   2025 status: {updated_school.get('anos_letivos', {}).get('2025', {}).get('status')}")
+                self.log(f"   2024 status: {updated_school.get('anos_letivos', {}).get('2024', {}).get('status')}")
+                
+                # Verify the data was saved correctly
+                if (updated_school.get('anos_letivos', {}).get('2025', {}).get('status') == 'fechado' and
+                    updated_school.get('anos_letivos', {}).get('2024', {}).get('status') == 'aberto'):
+                    self.log("✅ Academic years configuration saved correctly")
+                else:
+                    self.log("❌ Academic years configuration not saved correctly")
+                    return False
+            else:
+                self.log(f"❌ Failed to configure academic years: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 2: Test Grade Blocking for Coordinator (POST /api/grades/batch)
+            self.log("2️⃣ Testing Grade Blocking for Coordinator - POST /api/grades/batch...")
+            
+            # Get a student from the target class
+            response = requests.get(
+                f"{API_BASE}/students?class_id={target_class_id}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            test_student_id = None
+            if response.status_code == 200:
+                students = response.json()
+                if students:
+                    test_student_id = students[0]['id']
+                    self.log(f"✅ Found test student: {students[0].get('full_name')} (ID: {test_student_id})")
+                else:
+                    self.log("❌ No students found in target class")
+                    return False
+            else:
+                self.log(f"❌ Failed to get students: {response.status_code}")
+                return False
+            
+            # Get a course for testing
+            response = requests.get(
+                f"{API_BASE}/courses",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            test_course_id = None
+            if response.status_code == 200:
+                courses = response.json()
+                if courses:
+                    test_course_id = courses[0]['id']
+                    self.log(f"✅ Using course: {courses[0].get('name')} (ID: {test_course_id})")
+                else:
+                    self.log("❌ No courses found")
+                    return False
+            else:
+                self.log(f"❌ Failed to get courses: {response.status_code}")
+                return False
+            
+            # Test coordinator trying to save grade for closed year 2025 (should get HTTP 403)
+            self.log("   Testing coordinator access to closed year 2025...")
+            grade_data_2025 = [
+                {
+                    "student_id": test_student_id,
+                    "class_id": target_class_id,
+                    "course_id": test_course_id,
+                    "academic_year": 2025,  # Closed year
+                    "b1": 8.0,
+                    "b2": 7.0,
+                    "observations": "Teste de bloqueio para coordenador"
+                }
+            ]
+            
+            response = requests.post(
+                f"{API_BASE}/grades/batch",
+                json=grade_data_2025,
+                headers=self.get_headers(self.coordinator_token)
+            )
+            
+            if response.status_code == 403:
+                self.log("✅ Coordinator correctly blocked from editing grades in closed year 2025 (HTTP 403)")
+                response_data = response.json()
+                if "ano letivo 2025 está fechado" in response_data.get('detail', '').lower():
+                    self.log("✅ Correct error message about closed academic year")
+                else:
+                    self.log(f"❌ Unexpected error message: {response_data.get('detail')}")
+            else:
+                self.log(f"❌ Coordinator should be blocked (expected 403), got: {response.status_code}")
+                return False
+            
+            # Step 3: Test Admin Bypass for Closed Year (POST /api/grades/batch)
+            self.log("3️⃣ Testing Admin Bypass for Closed Year - POST /api/grades/batch...")
+            
+            # Test admin trying to save grade for closed year 2025 (should succeed - bypass)
+            self.log("   Testing admin bypass for closed year 2025...")
+            response = requests.post(
+                f"{API_BASE}/grades/batch",
+                json=grade_data_2025,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                self.log("✅ Admin successfully bypassed closed year restriction (HTTP 200)")
+                batch_result = response.json()
+                if batch_result.get('updated', 0) > 0 or batch_result.get('grades'):
+                    self.log("✅ Grade successfully saved by admin in closed year")
+                else:
+                    self.log("❌ Grade not saved despite successful response")
+            else:
+                self.log(f"❌ Admin should be able to bypass restriction, got: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 4: Test Attendance Blocking (POST /api/attendance)
+            self.log("4️⃣ Testing Attendance Blocking - POST /api/attendance...")
+            
+            # Test coordinator trying to save attendance for closed year 2025
+            self.log("   Testing coordinator attendance access to closed year 2025...")
+            attendance_data_2025 = {
+                "class_id": target_class_id,
+                "date": "2025-03-15",  # Date in closed year
+                "academic_year": 2025,
+                "attendance_type": "daily",
+                "period": "regular",
+                "records": [
+                    {
+                        "student_id": test_student_id,
+                        "status": "P"
+                    }
+                ],
+                "observations": "Teste de bloqueio de frequência para coordenador"
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/attendance",
+                json=attendance_data_2025,
+                headers=self.get_headers(self.coordinator_token)
+            )
+            
+            if response.status_code == 403:
+                self.log("✅ Coordinator correctly blocked from editing attendance in closed year 2025 (HTTP 403)")
+                response_data = response.json()
+                if "ano letivo 2025 está fechado" in response_data.get('detail', '').lower():
+                    self.log("✅ Correct error message about closed academic year")
+                else:
+                    self.log(f"❌ Unexpected error message: {response_data.get('detail')}")
+            else:
+                self.log(f"❌ Coordinator should be blocked from attendance (expected 403), got: {response.status_code}")
+                return False
+            
+            # Test admin trying to save attendance for closed year 2025 (should succeed)
+            self.log("   Testing admin attendance bypass for closed year 2025...")
+            response = requests.post(
+                f"{API_BASE}/attendance",
+                json=attendance_data_2025,
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200 or response.status_code == 201:
+                self.log("✅ Admin successfully bypassed attendance restriction for closed year (HTTP 200/201)")
+                attendance_result = response.json()
+                if attendance_result.get('id'):
+                    self.log("✅ Attendance successfully saved by admin in closed year")
+                else:
+                    self.log("❌ Attendance not saved despite successful response")
+            else:
+                self.log(f"❌ Admin should be able to bypass attendance restriction, got: {response.status_code} - {response.text}")
+                return False
+            
+            # Step 5: Test Unconfigured Years (should allow editing)
+            self.log("5️⃣ Testing Unconfigured Years (should allow editing)...")
+            
+            # Test coordinator trying to save grade for unconfigured year 2026
+            self.log("   Testing coordinator access to unconfigured year 2026...")
+            grade_data_2026 = [
+                {
+                    "student_id": test_student_id,
+                    "class_id": target_class_id,
+                    "course_id": test_course_id,
+                    "academic_year": 2026,  # Unconfigured year
+                    "b1": 9.0,
+                    "b2": 8.0,
+                    "observations": "Teste de ano não configurado"
+                }
+            ]
+            
+            response = requests.post(
+                f"{API_BASE}/grades/batch",
+                json=grade_data_2026,
+                headers=self.get_headers(self.coordinator_token)
+            )
+            
+            if response.status_code == 200:
+                self.log("✅ Coordinator can edit grades in unconfigured year 2026 (default behavior)")
+                batch_result = response.json()
+                if batch_result.get('updated', 0) > 0 or batch_result.get('grades'):
+                    self.log("✅ Grade successfully saved in unconfigured year")
+                else:
+                    self.log("❌ Grade not saved despite successful response")
+            else:
+                self.log(f"❌ Coordinator should be able to edit unconfigured year, got: {response.status_code} - {response.text}")
+                return False
+            
+            # Test coordinator trying to save attendance for unconfigured year 2026
+            self.log("   Testing coordinator attendance access to unconfigured year 2026...")
+            attendance_data_2026 = {
+                "class_id": target_class_id,
+                "date": "2026-03-15",  # Date in unconfigured year
+                "academic_year": 2026,
+                "attendance_type": "daily",
+                "period": "regular",
+                "records": [
+                    {
+                        "student_id": test_student_id,
+                        "status": "P"
+                    }
+                ],
+                "observations": "Teste de ano não configurado para frequência"
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/attendance",
+                json=attendance_data_2026,
+                headers=self.get_headers(self.coordinator_token)
+            )
+            
+            if response.status_code == 200 or response.status_code == 201:
+                self.log("✅ Coordinator can edit attendance in unconfigured year 2026 (default behavior)")
+                attendance_result = response.json()
+                if attendance_result.get('id'):
+                    self.log("✅ Attendance successfully saved in unconfigured year")
+                else:
+                    self.log("❌ Attendance not saved despite successful response")
+            else:
+                self.log(f"❌ Coordinator should be able to edit attendance in unconfigured year, got: {response.status_code} - {response.text}")
+                return False
+            
+            self.log("✅ Academic Year Management System testing completed successfully!")
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Error during academic year management testing: {str(e)}")
+            return False
+            
+        finally:
+            # Step 6: Cleanup - Revert year 2025 status to "aberto" (open)
+            self.log("6️⃣ Cleanup - Reverting year 2025 status to 'aberto'...")
+            
+            if original_school_config:
+                # Restore original configuration or set 2025 to "aberto"
+                cleanup_config = {
+                    "anos_letivos": {
+                        "2025": {"status": "aberto"},
+                        "2024": {"status": "aberto"}
+                    }
+                }
+                
+                response = requests.put(
+                    f"{API_BASE}/schools/{target_school_id}",
+                    json=cleanup_config,
+                    headers=self.get_headers(self.admin_token)
+                )
+                
+                if response.status_code == 200:
+                    self.log("✅ School academic years reverted to 'aberto' status")
+                else:
+                    self.log(f"❌ Failed to revert school configuration: {response.status_code}")
+            else:
+                self.log("❌ Could not revert school configuration - original config not available")
+
     def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting SIGESC Backend API Tests - Review Request Testing")
