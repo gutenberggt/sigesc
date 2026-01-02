@@ -5207,6 +5207,9 @@ async def get_certificado(
     if not enrollment:
         enrollment = {"registration_number": student.get("enrollment_number", "N/A")}
     
+    # Buscar mantenedora (para o brasão)
+    mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+    
     # Gerar PDF
     try:
         pdf_buffer = generate_certificado_pdf(
@@ -5214,7 +5217,8 @@ async def get_certificado(
             school=school,
             class_info=class_info,
             enrollment=enrollment,
-            academic_year=academic_year
+            academic_year=academic_year,
+            mantenedora=mantenedora
         )
         
         filename = f"certificado_{student.get('full_name', 'aluno').replace(' ', '_')}.pdf"
