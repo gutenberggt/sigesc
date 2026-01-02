@@ -1603,10 +1603,13 @@ def generate_certificado_pdf(
     
     # ========== BRASÃO COMO MARCA D'ÁGUA (CENTRALIZADO, 70% ALTURA, 20% OPACIDADE) ==========
     brasao_url = mantenedora.get('brasao_url') if mantenedora else None
+    brasao_tmp_path = None  # Guardar caminho para reutilizar
+    
     if brasao_url:
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_brasao:
                 urllib.request.urlretrieve(brasao_url, tmp_brasao.name)
+                brasao_tmp_path = tmp_brasao.name  # Guardar para usar depois
                 
                 # Calcular tamanho: 70% da altura da página
                 brasao_height = height * 0.70
@@ -1622,12 +1625,12 @@ def generate_certificado_pdf(
                 c.setStrokeAlpha(0.20)
                 
                 # Desenhar o brasão como marca d'água
-                c.drawImage(tmp_brasao.name, brasao_x, brasao_y, 
+                c.drawImage(brasao_tmp_path, brasao_x, brasao_y, 
                            width=brasao_width, height=brasao_height, 
                            preserveAspectRatio=True, mask='auto')
                 
                 c.restoreState()  # Restaurar opacidade normal para o texto
-                os.unlink(tmp_brasao.name)
+                
         except Exception as e:
             logger.warning(f"Não foi possível carregar brasão da mantenedora: {e}")
     
