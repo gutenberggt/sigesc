@@ -137,6 +137,38 @@ class ConnectionManager:
 # Instância global do gerenciador de conexões
 connection_manager = ConnectionManager()
 
+# ============= ACADEMIC YEAR STATUS VERIFICATION =============
+
+async def check_academic_year_open(school_id: str, academic_year: int) -> bool:
+    """
+    Verifica se o ano letivo está aberto para uma escola específica.
+    Retorna True se o ano está aberto ou não configurado, False se está fechado.
+    """
+    school = await db.schools.find_one(
+        {"id": school_id},
+        {"_id": 0, "anos_letivos": 1}
+    )
+    
+    if not school or not school.get('anos_letivos'):
+        return True  # Se não há configuração, permite edição
+    
+    year_config = school['anos_letivos'].get(str(academic_year))
+    if not year_config:
+        return True  # Se o ano não está configurado, permite edição
+    
+    return year_config.get('status', 'aberto') != 'fechado'
+
+async def verify_academic_year_open_or_raise(school_id: str, academic_year: int):
+    """
+    Verifica se o ano letivo está aberto e lança exceção se estiver fechado.
+    """
+    is_open = await check_academic_year_open(school_id, academic_year)
+    if not is_open:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"O ano letivo {academic_year} está fechado para esta escola. Não é possível fazer alterações."
+        )
+
 # Hierarquia de roles (maior valor = maior permissão)
 ROLE_HIERARCHY = {
     'diretor': 5,
