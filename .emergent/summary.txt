@@ -1,194 +1,170 @@
 <analysis>**original_problem_statement:**
-O usuário iniciou a tarefa com o objetivo de criar a funcionalidade de geração da Ficha Individual do Aluno em PDF. O escopo foi expandido para incluir múltiplos ajustes de layout em todos os PDFs, a criação de uma página de gerenciamento para a Unidade Mantenedora, a centralização dos dados da mantenedora em todo o sistema (cabeçalho, PDFs, formulários), e a correção de um bug no formulário de escolas.
-
-Subsequentemente, o usuário solicitou e o agente implementou as seguintes funcionalidades e correções:
--   Alterar o download de PDFs para que abram em uma nova aba do navegador.
--   Adicionar campos calculados de Idade e Série Ideal no formulário de alunos, com lógica de data de corte.
--   Importar em massa uma lista de 224 servidores a partir de uma planilha Excel.
--   Adicionar novos cargos à lista de servidores e ordená-la alfabeticamente.
--   Alterar a exclusão de usuários de soft delete para hard delete.
--   Adicionar um contador de registros dinâmico e filtrável à página de gestão de servidores.
--   Permitir que um servidor tenha múltiplas funções (lotações) na mesma escola.
--   Corrigir a contagem de usuários na página de gerenciamento, que estava limitada a 100.
--   Adicionar o campo CPF ao cadastro e visualização de servidores.
--   Criar 16 novas turmas e matricular 240 alunos aleatoriamente com base na idade ideal.
--   Implementar uma lógica de filtragem complexa para componentes curriculares na alocação de professores, baseada no nível da turma e se a escola oferece Escola Integral.
--   O último pedido do usuário foi investigar por que os alunos recém-matriculados não estão aparecendo na página de Frequência.
+O usuário iniciou a sessão para refinar e expandir as funcionalidades do sistema de gestão escolar. Os principais requisitos da sessão incluíram:
+- Ajustar o layout do PDF da Ficha Individual e do Boletim.
+- Implementar uma lógica de avaliação conceitual para a Educação Infantil (OD, DP, ND, NT), onde a média é o maior conceito alcançado e a aprovação é automática.
+- Corrigir um bug que impedia a exibição correta de professores alocados nos detalhes da turma.
+- Adaptar a interface de lançamento de notas para usar conceitos (dropdowns) em vez de notas numéricas para turmas de Educação Infantil.
+- Criar uma funcionalidade no Calendário Letivo para que administradores possam definir o início e o fim de cada um dos quatro bimestres do ano.
+- Criar uma nova aba Permissão no cadastro da escola, que exibe os períodos bimestrais (definidos no calendário) e permite configurar uma data limite para lançamentos de notas/frequências para cada bimestre, por escola.
+- Adicionar um seletor de ano letivo (2025-2030) no cadastro da escola e uma funcionalidade para gerenciar o status de cada ano letivo (Aberto ou Fechado), onde o status Fechado bloqueia todas as edições para aquele ano.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-Um sistema de gestão escolar (SIGESC) full-stack (React/FastAPI/MongoDB) com funcionalidades robustas de gerenciamento de alunos, servidores, escolas e turmas. Os dados da Unidade Mantenedora estão centralizados e são usados para a identidade visual da aplicação e nos documentos PDF. A geração de documentos (Boletim, Ficha, Declarações) agora abre o PDF diretamente no navegador. O sistema permite a gestão complexa de servidores, incluindo múltiplas lotações na mesma escola e uma lógica de alocação de professores a componentes curriculares baseada em regras específicas. A importação de dados em massa via scripts foi utilizada com sucesso.
+O sistema de gestão escolar (SIGESC) possui funcionalidades robustas para gestão de alunos, servidores, escolas e turmas. Foram realizados múltiplos ajustes de layout nos PDFs da Ficha Individual e do Boletim.
+
+Foi implementado um sistema completo de avaliação conceitual para a Educação Infantil:
+- **Backend**:  e  foram atualizados para usar a maior nota dos bimestres como média final e garantir aprovação automática. Os PDFs agora exibem os conceitos (OD, DP, ND, NT).
+- **Frontend**: A página de lançamento de notas () agora exibe um seletor de conceitos em vez de campos numéricos para turmas de Educação Infantil.
+
+A gestão de calendários foi aprimorada:
+- **Calendário Letivo**: Administradores podem agora, através de um novo modal na página , definir as datas de início e fim para cada um dos quatro bimestres do ano letivo.
+- **Permissões por Escola**: No cadastro da escola (), uma nova aba Permissão exibe as datas bimestrais (vindas do calendário global) e permite que o administrador defina uma Data Limite para Lançamento específica para cada bimestre naquela escola.
+
+Um bug que impedia a exibição de professores na página de detalhes da turma foi corrigido no endpoint .
 
 **Last working item**:
--   **Last item agent was working:** O agente estava começando a investigar por que a página de Lista de Frequência não exibe os alunos que foram matriculados em uma turma. O usuário relatou o problema e forneceu um screenshot de uma lista de frequência vazia.
+-   **Last item agent was working:** O agente estava implementando a funcionalidade de gerenciamento de anos letivos na aba Permissão do formulário de cadastro de escolas (). Ele adicionou a interface para selecionar um ano letivo (2025-2030) acima das abas e, dentro da aba Permissão, adicionou a lógica para adicionar anos e definir seu status como Aberto ou Fechado.
 -   **Status:** IN PROGRESS
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** both. O agente de backend para verificar o endpoint  e o agente de frontend para simular os passos do usuário (navegar para Frequência, selecionar escola e turma) e analisar os logs do console e as requisições de rede.
--   **User Testing Done:** N (User reported the issue, which counts as a failed test).
+-   **Which testing method agent to use?** both
+    - **Frontend:** Usar a ferramenta de screenshot para verificar se a interface do seletor de ano e a gestão de status Aberto/Fechado funcionam como esperado no modal da escola.
+    - **Backend:** Escrever um teste com  ou  para verificar se os dados dos anos letivos ( com status) são salvos corretamente ao atualizar uma escola. Em seguida, testar a implementação da regra de bloqueio para anos Fechados.
+-   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Alunos não aparecem na lista de frequência.**
--   **Issue 2: (P1) A funcionalidade de Gerenciar Lotações pode não estar salvando corretamente.**
--   **Issue 3: (P2) Dados órfãos de lotação de servidores.**
+-   **Issue 1: (P1) A funcionalidade de Gerenciar Lotações pode não estar salvando corretamente.** Foi relatado em um fork anterior e o agente não conseguiu reproduzir.
+-   **Issue 2: (P2) Dados órfãos de lotação de servidores.** Lotações podem estar vinculadas a escolas que não existem mais, necessitando de um script de limpeza.
 
 Issues Detail:
--   **Issue 1: Alunos não aparecem na lista de frequência.**
-    -   **Attempted fixes:** Nenhuma tentativa ainda. O agente estava prestes a iniciar a investigação.
-    -   **Next debug checklist:**
-        1.  Verificar o código do frontend em  para entender como a chamada de API é feita.
-        2.  Analisar a chamada de rede no navegador para o endpoint  quando uma turma é selecionada. Verificar o status da resposta e os dados retornados.
-        3.  Inspecionar a lógica do endpoint no backend em  para garantir que a consulta ao banco de dados para buscar alunos matriculados () e seus dados () está correta.
-        4.  Confirmar no banco de dados que as matrículas para a turma selecionada existem e estão com o status correto.
-    -   **Why fix this issue and what will be achieved with the fix?** A lista de frequência é uma funcionalidade central para professores e administração. A correção permitirá o registro e acompanhamento da presença dos alunos.
-    -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** both
-    -   **Blocked on other issue:** N/A
-
--   **Issue 2: A funcionalidade de Gerenciar Lotações pode não estar salvando corretamente.**
-    -   **Attempted fixes:** O agente investigou a API e o fluxo do frontend, concluindo que a funcionalidade estava funcionando (conseguiu salvar novas lotações em testes com screenshots). No entanto, a falha pode ser específica para o cenário do usuário.
-    -   **Next debug checklist:** Aguardar um feedback mais detalhado do usuário com os passos exatos que estão resultando na falha. Se o usuário confirmar o problema, registrar o fluxo com o agente de testes de frontend para reproduzir o erro.
-    -   **Why fix this issue and what will be achieved with the fix?** Garante que os administradores possam gerenciar corretamente as atribuições de servidores às escolas.
+-   **Issue 1: A funcionalidade de Gerenciar Lotações pode não estar salvando corretamente.**
+    -   **Attempted fixes:** Nenhuma tentativa nesta sessão.
+    -   **Next debug checklist:** Aguardar um feedback mais detalhado do usuário com os passos exatos para reproduzir a falha.
+    -   **Why fix this issue and what will be achieved with the fix?** Garante a correta gestão das atribuições de servidores às escolas.
     -   **Status:** USER VERIFICATION PENDING
-    -   **Is recurring issue?** N
+    -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** frontend
     -   **Blocked on other issue:** N/A
 
--   **Issue 3: Dados órfãos de lotação de servidores.**
-    -   **Attempted fixes:** None. This is a known issue from a previous job.
-    -   **Next debug checklist:**
-        1.  Escrever um script para iterar sobre todas as .
-        2.  Para cada lotação, verificar se a  associada ainda existe na coleção .
-        3.  Gerar um relatório de lotações órfãs e propor um plano de limpeza (ex: excluir as lotações ou movê-las para um estado arquivado).
-    -   **Why fix this issue and what will be achieved with the fix?** Melhorará a integridade dos dados e evitará erros em relatórios ou visualizações que dependem de lotações válidas.
+-   **Issue 2: Dados órfãos de lotação de servidores.**
+    -   **Attempted fixes:** None.
+    -   **Next debug checklist:** Escrever um script para iterar sobre todas as , verificar se a  associada existe e relatar as lotações órfãs.
+    -   **Why fix this issue and what will be achieved with the fix?** Melhorará a integridade dos dados e evitará erros em cascata.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** backend
     -   **Blocked on other issue:** N/A
 
 **In progress Task List**:
--   **Task 1: Validar a lógica de filtragem de Componentes Curriculares (P1)**
-    -   **Where to resume:** A implementação foi concluída e um bug de runtime () foi corrigido. O próximo passo é uma validação funcional completa. O agente de testes de frontend deve ser usado para simular um cenário:
-        1. Selecionar um professor e abrir o modal de alocação.
-        2. Selecionar uma escola que **não** tem Escola Integral.
-        3. Adicionar uma turma (ex: 5º Ano).
-        4. Verificar se a lista de componentes contém apenas os do 5º Ano (ex: Matemática, Português) e **NÃO** contém os componentes de Escola Integral.
-        5. Repetir para uma escola que **tem** Escola Integral e verificar se os componentes integrais aparecem.
-    -   **What will be achieved with this?** Garante que os professores só possam ser alocados aos componentes curriculares corretos, evitando erros de atribuição.
-    -   **Status:** TESTING PENDING
-    -   **Should Test frontend/backend/both after fix?** frontend
+-   **Task 1: (P0) Finalizar a implementação do gerenciamento de Anos Letivos por escola.**
+    -   **Where to resume:** A interface frontend em  foi criada, mas a lógica de backend está ausente.
+        1.  No backend, modifique o modelo  e  em  para incluir o novo campo .
+        2.  Atualize o endpoint  em  para salvar os dados dos anos letivos no documento da escola.
+        3.  Implemente a lógica de verificação de permissão no backend. Em todos os endpoints que modificam dados (ex: salvar notas, frequência, editar turmas), adicione uma verificação para garantir que a operação não seja permitida se o ano letivo correspondente da escola estiver marcado como Fechado.
+    -   **What will be achieved with this?** A funcionalidade de bloquear edições para anos letivos Fechados estará completa, garantindo a integridade dos dados históricos.
+    -   **Status:** IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?** both
     -   **Blocked on something:** N/A
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   **(P1)** Implementar a lógica de geração do PDF do Certificado do aluno. O endpoint () e a função  em  são atualmente placeholders.
+    -   **(P1)** Implementar a geração do PDF do Certificado do aluno.
+    -   **(P1)** Validar a lógica de filtragem de Componentes Curriculares usando o agente de testes de frontend para simular cenários complexos.
 -   **Future Tasks:**
-    -   **(P2)** Refatorar : O arquivo é grande e complexo.
-    -   **(P3)** Refatorar : Precisa ser dividido para melhor manutenibilidade.
-    -   **(P4)** Refatorar : Crescendo em complexidade.
-    -   **(P4)** Refatorar : O hook está se tornando muito grande e gerenciando muitos estados, devendo ser dividido em hooks menores e mais focados.
+    -   **(P2)** Refatorar .
+    -   **(P3)** Refatorar .
+    -   **(P4)** Refatorar .
+    -   **(P4)** Refatorar .
+    -   **(P4)** Refatorar  para dividir as funções de geração de PDF em helpers menores.
+    -   **(P4)** Deletar o arquivo obsoleto .
 
 **Completed work in this session**
--   **PDFs Abertos no Navegador:** Alterado o  de  para  em todos os endpoints de geração de PDF.
--   **Melhoria no Formulário de Aluno:** Adicionados os campos somente leitura Idade e Série Ideal, que são calculados dinamicamente com base na data de nascimento e na data de corte de 31 de março.
--   **Gestão de Servidores Aprimorada:**
-    -   Adicionado o campo CPF ao formulário e à tela de detalhes.
-    -   Importados 224 servidores de uma planilha Excel.
-    -   Adicionados novos cargos (Mediador, etc.) e a lista foi ordenada alfabeticamente.
-    -   Permitida a lotação de um servidor com múltiplas funções na mesma escola.
-    -   Adicionado um contador de registros filtrável à página principal.
--   **Gestão de Usuários Corrigida:**
-    -   A exclusão de usuários agora é permanente (hard delete).
-    -   Corrigido o contador de total de usuários, que estava limitado a 100 pelo backend.
--   **Criação de Turmas em Massa:** Criadas 16 turmas em 3 escolas diferentes e matriculados 240 alunos, respeitando a idade ideal para cada série.
--   **Filtragem de Componentes Curriculares:** Implementada (e corrigida) uma lógica complexa no modal de alocação de professores para exibir apenas os componentes relevantes para a turma selecionada e as configurações da escola.
--   **Atualizações de Terminologia:** Substituído Componentes Integradores por Escola Integral em vários locais da aplicação.
-
-**Earlier issues found/mentioned but not fixed**
--   **Issue 1: Dados órfãos de lotação de servidores:** Lotações de servidores podem estar vinculadas a IDs de escolas que não existem mais. Status: NOT STARTED.
--   **Issue 2: Refatoração de componentes grandes:** , , e  foram mencionados como necessitando de refatoração. Status: NOT STARTED.
-
-**Known issue recurrence from previous fork**
--   None.
+-   **Layout da Ficha Individual (PDF):** Múltiplos ajustes de layout foram concluídos, incluindo remoção/reorganização de colunas, alinhamento de tabelas e tradução de campos.
+-   **Layout do Boletim (PDF):** Ajustado o cabeçalho para reduzir o tamanho da fonte e reorganizar os campos.
+-   **Lógica de Componentes Optativos:** A lógica para componentes Optativos na Ficha Individual foi sincronizada com a do Boletim.
+-   **Avaliação Conceitual (Educação Infantil):** Implementado o sistema de avaliação por conceitos (OD, DP, ND, NT), incluindo o cálculo da média pelo maior conceito e aprovação automática. A interface de lançamento de notas () foi adaptada para usar um seletor de conceitos.
+-   **Correção de Bug (Alocação de Professores):** Corrigido o bug que impedia a exibição de professores nos detalhes da turma, ajustando a consulta no backend para usar a coleção  e removendo duplicatas.
+-   **Configuração de Períodos Bimestrais:** Implementada a funcionalidade no Calendário Letivo para administradores definirem as datas de início/fim dos bimestres.
+-   **Aba de Permissões na Escola:** Adicionada a aba Permissão no cadastro de escolas, que exibe os períodos bimestrais globais e permite definir uma data limite de lançamento por bimestre para cada escola.
+-   **Visibilidade de Botões (Admin):** Os botões Gerenciar Eventos and Períodos Bimestrais na página de calendário agora são visíveis apenas para administradores.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Dynamic Frontend Calculation:** Uso de  e  em React para calcular e exibir dados derivados (idade, série ideal) em tempo real.
--   **Complex Frontend Filtering Logic:** Implementação de um  hook () que depende de múltiplos estados para filtrar dinamicamente uma lista de opções para um dropdown.
--   **Hard vs. Soft Delete:** Alteração de um endpoint FastAPI de atualizar um campo  para usar  para remoção permanente.
--   **Backend API Limits:** Correção de um bug de contagem removendo um limite hardcoded () em uma consulta de banco de dados no backend.
--   **Scripting for Data Migration:** Uso de scripts Python para analisar arquivos Excel e fazer chamadas de API em lote para criar/atualizar centenas de registros.
+-   **Hierarchical Configuration:** Implementado um sistema onde uma configuração global (Períodos Bimestrais no Calendário) é herdada por entidades individuais (Escolas), que podem adicionar suas próprias configurações específicas (Data Limite de Lançamento).
+-   **Conditional Business Logic:** A aplicação agora diferencia a lógica de negócio (cálculo de notas, aprovação) com base no nível de ensino (), tanto no backend () quanto no frontend ().
+-   **Dynamic UI Rendering:** A página  renderiza condicionalmente um campo numérico ou um seletor de conceitos. A página  busca dados de um endpoint () para popular campos de formulário somente leitura.
 
 **key DB schema**
--   **users:** O comportamento de exclusão mudou de soft para hard delete.
--   **staff:** O campo  () foi atualizado para incluir 'auxiliar_secretaria', 'mediador', 'auxiliar_servicos_gerais'. O campo  está sendo salvo.
--   **school_assignments:** A lógica de validação no backend foi alterada para permitir a existência de um par  múltiplas vezes, desde que o campo  seja diferente.
--   **enrollments:** Coleção que vincula  a . É a fonte de dados para a lista de frequência.
+-   **academic_calendars** (Nova Coleção):
+    -   
+    -   , 
+    -   , 
+    -   (e assim por diante para 4 bimestres e recesso)
+-   **schools** (Campos a serem adicionados):
+    -    (ex: )
 
 **changes in tech stack**
--   None.
+- Nenhuma.
 
 **All files of reference**
--   **/app/frontend/src/pages/Attendance.js**: Local do bug atual.
--   **/app/backend/server.py**: Contém os endpoints de API relevantes, incluindo o de frequência.
--   **/app/frontend/src/hooks/useStaff.js**: Contém a lógica de alocação de professores que foi recentemente modificada e pode ter efeitos colaterais.
--   **/app/frontend/src/pages/StudentsComplete.js**: Contém a lógica de cálculo da idade/série ideal.
--   **/app/frontend/src/components/staff/AlocacaoModal.js**: Componente com a nova e complexa lógica de filtragem que precisa de validação.
+-   **/app/backend/grade_calculator.py**: Novo arquivo que contém a lógica de cálculo de notas, incluindo a nova regra de avaliação conceitual.
+-   **/app/backend/pdf_generator.py**: Arquivo central para a geração de PDFs, modificado para suportar avaliação conceitual e múltiplos ajustes de layout.
+-   **/app/backend/server.py**: Onde os novos endpoints do calendário foram adicionados e bugs foram corrigidos.
+-   **/app/frontend/src/pages/Grades.js**: A interface de lançamento de notas, agora com renderização condicional para conceitos.
+-   **/app/frontend/src/pages/Calendar.js**: A interface de calendário, agora com a funcionalidade de configuração de períodos bimestrais.
+-   **/app/frontend/src/pages/SchoolsComplete.js**: O formulário de escolas, com a nova aba Permissão e lógica de gerenciamento de anos letivos.
 
 **Areas that need refactoring**:
--   
--   
--   
--    (está se tornando um god hook e deve ser dividido).
+-   O arquivo  está obsoleto e deve ser excluído.
+-   O arquivo  continua crescendo em complexidade e seria beneficiado pela extração de funções auxiliares.
+-   Os componentes  e  tornaram-se muito grandes e complexos.
 
 **key api endpoints**
--   ****: **(SUSPEITO)** Endpoint que busca os alunos de uma turma para a lista de frequência. Provável fonte do bug atual.
--   ****: **(MODIFICADO)** Agora realiza uma exclusão permanente.
--   ****: **(MODIFICADO)** Removeu o limite de 100 e agora retorna todos os usuários.
--   ****: **(MODIFICADO)** Lógica de validação alterada para permitir múltiplas funções para um servidor na mesma escola.
--   ****: **(MODIFICADO)** Todos os 4 endpoints de documentos agora usam .
+-   **** (NOVO): Retorna os períodos bimestrais configurados para um ano letivo.
+-   **** (NOVO): Salva/atualiza os períodos bimestrais de um ano letivo.
+-   ****: A lógica de cálculo no backend () foi atualizada para lidar com a avaliação conceitual.
+-   ****: Corrigido para buscar da coleção  e remover duplicatas de professores.
 
 **Critical Info for New Agent**
--   **Current Blocker:** A principal prioridade é corrigir a página de Lista de Frequência, que não está exibindo os alunos matriculados. A investigação deve começar no endpoint  e no seu consumo pelo frontend em .
--   **Complex Staff Logic:** A lógica de alocação de professores () agora possui um filtro complexo para componentes curriculares. Uma validação funcional completa desta feature é necessária para garantir que não há regressões.
--   **User-Reported Issues:** O usuário relatou que as Lotações não estavam salvando. Embora o agente não tenha conseguido reproduzir o erro, fique atento a essa possibilidade e peça um passo a passo detalhado ao usuário se o problema for mencionado novamente.
+-   A tarefa de maior prioridade (P0) é finalizar a funcionalidade de gerenciamento de anos letivos. Isso requer a implementação do backend para salvar os dados dos anos letivos por escola () e, crucialmente, implementar a lógica de bloqueio em toda a aplicação para anos marcados como Fechado.
+-   A lógica de avaliação para Educação Infantil é um novo pilar do sistema e deve ser considerada em futuras alterações relacionadas a notas ou histórico de alunos.
+-   A configuração de permissões de lançamento agora é uma combinação de uma configuração global (Calendário) e uma configuração por escola (aba Permissão).
 
-**documents and test_reports created in this job**
--   None.
+**documents and test reports created in this job**
+-   Nenhum novo documento formal foi criado.
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  
-2.  
-3.  
-4.  
-5.  
-6.  
-7.  
-8.  
-9.  
-10. 
+1.  **Request:** Vincular as datas de início/fim do bimestre na aba Permissão da escola aos dados do Calendário Letivo, tornando-as somente leitura. (COMPLETED)
+2.  **User Confirmation:** CONTINUE. (HANDLED)
+3.  **Agent Action:** Agente completou a refatoração e testou o build. (HANDLED)
+4.  **Agent Action:** Agente fez screenshots para verificar a nova aba Permissão. (HANDLED)
+5.  **Agent Summary:** Resumiu o trabalho feito na aba Permissão. (HANDLED)
+6.  **Request:** Adicionar um seletor de ano (2025-2030) no cadastro da escola. Na aba Permissão, adicionar uma funcionalidade para gerenciar anos letivos com status Aberto ou Fechado, onde Fechado bloqueia todas as edições para aquele ano. (IN PROGRESS)
+7.  **Agent Action:** Agente iniciou a implementação, modificando o estado e o  em . (HANDLED)
+8.  **Agent Action:** Agente adicionou as funções de handler (, ) no frontend. (HANDLED)
+9.  **Agent Action:** Agente modificou a UI para adicionar o seletor de ano e a nova seção de gerenciamento na aba Permissão. (HANDLED)
+10. **Agent Action:** Agente testou o build do frontend com as novas alterações. (HANDLED)
 
 **Project Health Check:**
--   **Broken:** A funcionalidade de Lista de Frequência está quebrada.
+-   **Broken:** None
 -   **Mocked:** None
 
 **3rd Party Integrations**
--   **reportlab**: Utilizado no backend para a geração de documentos PDF.
--   **Servidor FTP Externo ()**: Utilizado para o armazenamento persistente de arquivos como logotipos e fotos de perfil.
+-   **reportlab**: Usado extensivamente no backend para geração de PDFs.
+-   **PyPDF2**: Usado para mesclar PDFs.
+-   **Servidor FTP Externo ()**: Usado para armazenamento de arquivos persistentes.
 
 **Testing status**
--   **Testing agent used after significant changes:** NO (O agente usou  e  extensivamente, mas não o agente de testes para as funcionalidades mais recentes).
+-   **Testing agent used after significant changes:** YES (para a lógica de avaliação conceitual).
 -   **Troubleshoot agent used after agent stuck in loop:** NO
--   **Test files created:** None
--   **Known regressions:** A lista de frequência não funciona após a matrícula de novos alunos.
+-   **Test files created:** []
+-   **Known regressions:** None
 
 **Credentials to test flow:**
 -   **Admin:**  / 
--   **Professor:**  / 
+-   **Coordenador/Professor:**  / 
 
 **What agent forgot to execute**
--   O agente não realizou uma validação funcional completa da complexa lógica de filtragem de componentes curriculares após corrigir o erro de runtime . O bug foi corrigido, mas o comportamento correto da feature não foi confirmado.
--   O agente concluiu que o problema de salvar lotações estava resolvido do seu lado, mas não obteve uma confirmação final do usuário, deixando a questão em aberto.</analysis>
+-   Nenhum item solicitado pelo usuário foi esquecido. O agente estava trabalhando ativamente na última solicitação quando a sessão terminou.</analysis>
