@@ -1690,67 +1690,63 @@ def generate_certificado_pdf(
         except Exception as e:
             logger.warning(f"Não foi possível desenhar brasão no canto: {e}")
     
-    # Textos do cabeçalho (centralizados)
+    # Textos do cabeçalho (centralizados) - Fontes aumentadas em 3 pontos
     c.setFillColor(black)
-    c.setFont("Helvetica-Bold", 9)
+    c.setFont("Helvetica-Bold", 12)
     c.drawCentredString(center_x, y_position, "REPÚBLICA FEDERATIVA DO BRASIL")
     
-    y_position -= 12
-    c.setFont("Helvetica", 8)
+    y_position -= 14
+    c.setFont("Helvetica", 11)
     c.drawCentredString(center_x, y_position, "GOVERNO DO ESTADO DO PARÁ")
     
-    y_position -= 12
-    c.setFont("Helvetica-Bold", 9)
+    y_position -= 14
+    c.setFont("Helvetica-Bold", 12)
     c.drawCentredString(center_x, y_position, "PREFEITURA MUNICIPAL DE FLORESTA DO ARAGUAIA")
     
-    y_position -= 12
-    c.setFont("Helvetica", 8)
+    y_position -= 14
+    c.setFont("Helvetica", 11)
     c.drawCentredString(center_x, y_position, "SECRETARIA MUNICIPAL DE EDUCAÇÃO")
     
     # ========== NOME DA ESCOLA ==========
-    y_position -= 22
+    y_position -= 24
     c.setFillColor(dark_blue)
-    c.setFont("Helvetica-Bold", 11)
+    c.setFont("Helvetica-Bold", 14)
     c.drawCentredString(center_x, y_position, school_name)
     
     # ========== AUTORIZAÇÃO LEGAL ==========
-    y_position -= 16
+    y_position -= 18
     c.setFillColor(black)
-    c.setFont("Helvetica", 7)
+    c.setFont("Helvetica", 10)
     c.drawCentredString(center_x, y_position, f"Autorização - {resolucao}")
     
-    y_position -= 10
-    c.setFont("Helvetica-Oblique", 7)
-    c.drawCentredString(center_x, y_position, "ATO LEGAL DE AUTORIZAÇÃO OU RECONHECIMENTO DO CURSO")
-    
     # ========== CORPO DO CERTIFICADO ==========
-    y_position -= 28
+    y_position -= 32
     
     # "Conferimos o presente certificado a"
     c.setFillColor(black)
-    c.setFont("Helvetica", 10)
+    c.setFont("Helvetica", 13)
     c.drawCentredString(center_x, y_position, "Conferimos o presente certificado a")
     
     # Nome do aluno (destaque)
-    y_position -= 22
+    y_position -= 26
     c.setFillColor(dark_blue)
-    c.setFont("Helvetica-Bold", 13)
+    c.setFont("Helvetica-Bold", 16)
     c.drawCentredString(center_x, y_position, student_name)
     
     # Filiação
-    y_position -= 20
+    y_position -= 24
     c.setFillColor(black)
-    c.setFont("Helvetica", 9)
+    c.setFont("Helvetica", 12)
     c.drawCentredString(center_x, y_position, f"filho(a) de: {filiation}")
     
     # Linha com nacionalidade, naturalidade e nascimento
-    y_position -= 16
-    c.setFont("Helvetica", 9)
-    info_line = f"Nacionalidade: {nationality}        naturalidade: {naturalidade}        Nascido(a) em: {birth_date}"
+    y_position -= 18
+    c.setFont("Helvetica", 12)
+    info_line = f"Nacionalidade: {nationality}        Naturalidade: {naturalidade}        Nascido(a) em: {birth_date}"
     c.drawCentredString(center_x, y_position, info_line)
     
     # ========== TEXTO DE CONCLUSÃO ==========
-    y_position -= 28
+    y_position -= 32
     
     # Criar texto de conclusão
     text_lines = [
@@ -1759,18 +1755,18 @@ def generate_certificado_pdf(
         "de Ensino em vigor no País."
     ]
     
-    c.setFont("Helvetica", 9)
+    c.setFont("Helvetica", 12)
     for line in text_lines:
         c.drawCentredString(center_x, y_position, line)
-        y_position -= 12
+        y_position -= 15
     
     # ========== DATA ==========
-    y_position -= 15
+    y_position -= 18
     today = format_date_pt(date.today())
     city = school.get('municipio', 'Floresta do Araguaia')
     state = school.get('estado', 'PA')
     
-    c.setFont("Helvetica", 9)
+    c.setFont("Helvetica", 12)
     c.drawCentredString(center_x, y_position, f"{city} - {state}, {today}.")
     
     # ========== ÁREA DE ASSINATURAS ==========
