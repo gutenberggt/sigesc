@@ -138,6 +138,46 @@ export default function Mantenedora() {
     setFormData(prev => ({ ...prev, logotipo_url: '' }));
   };
 
+  // Upload do brasão
+  const handleBrasaoUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validar tipo de arquivo
+    if (!file.type.startsWith('image/')) {
+      showAlert('error', 'Por favor, selecione uma imagem');
+      return;
+    }
+
+    // Validar tamanho (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showAlert('error', 'A imagem deve ter no máximo 5MB');
+      return;
+    }
+
+    try {
+      setUploadingBrasao(true);
+      const result = await uploadAPI.upload(file, 'brasao');
+      
+      if (result.url) {
+        setFormData(prev => ({ ...prev, brasao_url: result.url }));
+        showAlert('success', 'Brasão enviado com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro ao enviar brasão:', error);
+      showAlert('error', 'Erro ao enviar brasão');
+    } finally {
+      setUploadingBrasao(false);
+      if (brasaoInputRef.current) {
+        brasaoInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveBrasao = () => {
+    setFormData(prev => ({ ...prev, brasao_url: '' }));
+  };
+
   const handleInputChange = (field, value) => {
     // Aplicar formatação automática
     let formattedValue = value;
