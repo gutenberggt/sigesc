@@ -543,6 +543,22 @@ export function StudentsComplete() {
     return result;
   })();
 
+  // Verifica se a turma selecionada é elegível para certificado (9º Ano ou EJA 4ª Etapa)
+  const isClassEligibleForCertificate = (() => {
+    if (!filterClassId) return false;
+    const selectedClass = classes.find(c => c.id === filterClassId);
+    if (!selectedClass) return false;
+    
+    const gradeLevel = (selectedClass.grade_level || '').toLowerCase();
+    const educationLevel = (selectedClass.education_level || '').toLowerCase();
+    
+    const is9ano = gradeLevel.includes('9') && gradeLevel.includes('ano');
+    const isEja4etapa = (educationLevel.includes('eja') || gradeLevel.includes('eja')) && 
+                        (gradeLevel.includes('4') || gradeLevel.includes('etapa'));
+    
+    return is9ano || isEja4etapa;
+  })();
+
   const handleSelectStudent = (student) => {
     setSelectedStudent(student);
     setSearchName(student.full_name || '');
