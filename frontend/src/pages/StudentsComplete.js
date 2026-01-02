@@ -364,7 +364,8 @@ export function StudentsComplete() {
     setBatchPrinting(true);
     
     try {
-      const academicYear = new Date().getFullYear();
+      // Usar o ano letivo das matrículas (geralmente o ano atual ou configurado)
+      const academicYear = 2025; // Ano letivo fixo por enquanto
       
       // Obter o blob do PDF consolidado
       const blob = await documentsAPI.getBatchDocuments(filterClassId, documentType, academicYear);
