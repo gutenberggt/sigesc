@@ -4950,8 +4950,8 @@ class SIGESCTester:
             self.log("   Testing coordinator attendance access to unconfigured year 2026...")
             attendance_data_2026 = {
                 "class_id": target_class_id,
-                "date": "2026-03-16",  # Date in unconfigured year (Monday)
-                "academic_year": 2026,
+                "date": "2023-03-16",  # Date in unconfigured year (past date, Monday)
+                "academic_year": 2023,  # Use 2023 instead of 2026
                 "attendance_type": "daily",
                 "period": "regular",
                 "records": [
