@@ -1566,98 +1566,192 @@ def generate_certificado_pdf(
 ) -> BytesIO:
     """
     Gera o Certificado de Conclusão em PDF.
+    Segue o modelo oficial da Prefeitura Municipal de Floresta do Araguaia.
+    Uso exclusivo para turmas do 9º Ano e EJA 4ª Etapa.
     """
+    from reportlab.lib.pagesizes import landscape, A4
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.units import cm, mm
+    
     buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=2*cm,
-        leftMargin=2*cm,
-        topMargin=3*cm,
-        bottomMargin=2*cm
-    )
     
-    styles = get_styles()
-    elements = []
+    # Página em paisagem (landscape)
+    width, height = landscape(A4)
+    c = canvas.Canvas(buffer, pagesize=landscape(A4))
     
-    # Logotipo centralizado
-    logo = get_logo_image(width=3.75*cm, height=2.5*cm)  # Largura 50% maior para não deformar
-    if logo:
-        logo_table = Table([[logo]], colWidths=[16*cm])
-        logo_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ]))
-        elements.append(logo_table)
-        elements.append(Spacer(1, 10))
-    
-    # Cabeçalho
-    elements.append(Paragraph("PREFEITURA MUNICIPAL DE FLORESTA DO ARAGUAIA", styles['CenterText']))
-    elements.append(Paragraph("SECRETARIA MUNICIPAL DE EDUCAÇÃO", styles['CenterText']))
-    elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['Subtitle']))
-    elements.append(Spacer(1, 30))
-    
-    # Título do Certificado
-    cert_style = ParagraphStyle(
-        'CertTitle',
-        parent=styles['MainTitle'],
-        fontSize=24,
-        textColor=colors.HexColor('#1e40af'),
-        spaceAfter=30
-    )
-    elements.append(Paragraph("CERTIFICADO", cert_style))
-    elements.append(Spacer(1, 30))
-    
-    # Corpo do Certificado
+    # ========== DADOS DO ALUNO ==========
     student_name = student.get('full_name', 'N/A').upper()
     birth_date = student.get('birth_date', 'N/A')
-    grade_level = class_info.get('grade_level', 'N/A')
+    nationality = student.get('nationality', 'BRASILEIRA').upper()
+    birth_city = student.get('birth_city', '').upper()
+    birth_state = student.get('birth_state', 'PA').upper()
+    father_name = student.get('father_name', '').upper()
+    mother_name = student.get('mother_name', '').upper()
     
-    # Determinar o nível com base na série
-    if '9' in str(grade_level):
-        nivel = "Anos Finais do Ensino Fundamental"
-    elif '5' in str(grade_level):
-        nivel = "Anos Iniciais do Ensino Fundamental"
+    # Filiação
+    parents = []
+    if mother_name:
+        parents.append(mother_name)
+    if father_name:
+        parents.append(father_name)
+    filiation = ' e '.join(parents) if parents else 'N/A'
+    
+    # Naturalidade completa
+    naturalidade = f"{birth_city} - {birth_state}" if birth_city else birth_state
+    
+    # Dados da escola
+    school_name = school.get('name', 'ESCOLA MUNICIPAL').upper()
+    
+    # Resolução de autorização da escola (pode vir do cadastro da escola)
+    resolucao = school.get('regulamentacao', 'Resolução n° 272 de 21 de maio de 2020 - CEE/PA')
+    
+    # Determinar o nível de ensino para o certificado
+    grade_level = class_info.get('grade_level', '')
+    education_level = class_info.get('education_level', '')
+    
+    if 'eja' in education_level.lower() or '4' in str(grade_level):
+        curso_completo = "Ensino Fundamental - Educação de Jovens e Adultos (EJA)"
     else:
-        nivel = "Ensino Fundamental"
+        curso_completo = "Ensino Fundamental"
     
-    text = f"""
-    Certificamos que <b>{student_name}</b>, nascido(a) em <b>{birth_date}</b>,
-    concluiu com aproveitamento o <b>{nivel}</b>, nesta Unidade de Ensino,
-    no ano letivo de <b>{academic_year}</b>, estando apto(a) a prosseguir seus estudos.
-    """
+    # ========== CORES E FONTES ==========
+    dark_blue = colors.HexColor('#1a365d')
+    medium_blue = colors.HexColor('#2563eb')
+    black = colors.black
     
-    elements.append(Paragraph(text, styles['JustifyText']))
-    elements.append(Spacer(1, 40))
+    # ========== BORDA DECORATIVA ==========
+    # Borda externa
+    c.setStrokeColor(medium_blue)
+    c.setLineWidth(3)
+    c.rect(1.5*cm, 1.5*cm, width - 3*cm, height - 3*cm)
     
-    # Data e local
-    today = format_date_pt(date.today())
-    city = school.get('city', school.get('municipio', 'Município'))
-    state = school.get('state', school.get('estado', 'PA'))
-    elements.append(Paragraph(f"{city} - {state}, {today}.", styles['CenterText']))
-    elements.append(Spacer(1, 60))
+    # Borda interna decorativa
+    c.setLineWidth(1)
+    c.rect(2*cm, 2*cm, width - 4*cm, height - 4*cm)
     
-    # Assinaturas
-    sig_data = [
-        ['_' * 30, '_' * 30],
-        ['Secretário(a) Escolar', 'Diretor(a)'],
+    # ========== TEXTO VERTICAL "CERTIFICADO" ==========
+    c.saveState()
+    c.setFillColor(medium_blue)
+    c.setFont("Helvetica-Bold", 36)
+    c.translate(3*cm, height/2)
+    c.rotate(90)
+    c.drawCentredString(0, 0, "CERTIFICADO")
+    c.restoreState()
+    
+    # ========== CABEÇALHO ==========
+    y_position = height - 3*cm
+    
+    # Logotipo à direita
+    logo = get_logo_image(width=2.5*cm, height=2.5*cm)
+    if logo:
+        # Desenhar logo no canto superior direito
+        try:
+            c.drawImage(logo.filename, width - 5*cm, y_position - 1.5*cm, width=2.5*cm, height=2.5*cm, preserveAspectRatio=True)
+        except:
+            pass
+    
+    # Textos do cabeçalho (centralizados)
+    center_x = width / 2 + 1*cm  # Deslocado um pouco para a direita por causa do texto vertical
+    
+    c.setFillColor(black)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawCentredString(center_x, y_position, "REPÚBLICA FEDERATIVA DO BRASIL")
+    
+    y_position -= 14
+    c.setFont("Helvetica", 9)
+    c.drawCentredString(center_x, y_position, "GOVERNO DO ESTADO DO PARÁ")
+    
+    y_position -= 14
+    c.setFont("Helvetica-Bold", 10)
+    c.drawCentredString(center_x, y_position, "PREFEITURA MUNICIPAL DE FLORESTA DO ARAGUAIA")
+    
+    y_position -= 14
+    c.setFont("Helvetica", 9)
+    c.drawCentredString(center_x, y_position, "SECRETARIA MUNICIPAL DE EDUCAÇÃO")
+    
+    # ========== NOME DA ESCOLA ==========
+    y_position -= 30
+    c.setFillColor(dark_blue)
+    c.setFont("Helvetica-Bold", 12)
+    c.drawCentredString(center_x, y_position, school_name)
+    
+    # ========== AUTORIZAÇÃO LEGAL ==========
+    y_position -= 20
+    c.setFillColor(black)
+    c.setFont("Helvetica", 8)
+    c.drawCentredString(center_x, y_position, f"Autorização - {resolucao}")
+    
+    y_position -= 12
+    c.setFont("Helvetica-Oblique", 8)
+    c.drawCentredString(center_x, y_position, "ATO LEGAL DE AUTORIZAÇÃO OU RECONHECIMENTO DO CURSO")
+    
+    # ========== CORPO DO CERTIFICADO ==========
+    y_position -= 35
+    
+    # "Conferimos o presente certificado a"
+    c.setFillColor(black)
+    c.setFont("Helvetica", 11)
+    c.drawCentredString(center_x, y_position, "Conferimos o presente certificado a")
+    
+    # Nome do aluno (destaque)
+    y_position -= 25
+    c.setFillColor(dark_blue)
+    c.setFont("Helvetica-Bold", 14)
+    c.drawCentredString(center_x, y_position, student_name)
+    
+    # Filiação
+    y_position -= 25
+    c.setFillColor(black)
+    c.setFont("Helvetica", 10)
+    c.drawCentredString(center_x, y_position, f"filho(a) de: {filiation}")
+    
+    # Linha com nacionalidade, naturalidade e nascimento
+    y_position -= 20
+    c.setFont("Helvetica", 10)
+    info_line = f"Nacionalidade: {nationality}        naturalidade: {naturalidade}        Nascido(a) em: {birth_date}"
+    c.drawCentredString(center_x, y_position, info_line)
+    
+    # ========== TEXTO DE CONCLUSÃO ==========
+    y_position -= 35
+    
+    # Criar texto de conclusão
+    text_lines = [
+        f"Por haver concluído em {academic_year}, o {curso_completo}, com aprovação em todos os Componentes",
+        "Curriculares para gozar de todos os direitos, regalias e prerrogativas concedidas aos portadores, pela Legislação",
+        "de Ensino em vigor no País."
     ]
     
-    sig_table = Table(sig_data, colWidths=[8*cm, 8*cm])
-    sig_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 1), (-1, 1), 5),
-    ]))
-    elements.append(sig_table)
-    elements.append(Spacer(1, 40))
+    c.setFont("Helvetica", 10)
+    for line in text_lines:
+        c.drawCentredString(center_x, y_position, line)
+        y_position -= 14
     
-    # Registro
-    reg_number = enrollment.get('registration_number', student.get('enrollment_number', 'N/A'))
-    elements.append(Paragraph(f"Registro nº: {reg_number}", styles['SmallText']))
-    elements.append(Paragraph(f"Livro: _____ Folha: _____", styles['SmallText']))
+    # ========== ÁREA DE ASSINATURAS ==========
+    y_position -= 40
     
-    # Gerar PDF
-    doc.build(elements)
+    # Linha para assinatura do concluinte
+    c.line(center_x - 6*cm, y_position, center_x + 6*cm, y_position)
+    y_position -= 12
+    c.setFont("Helvetica", 9)
+    c.drawCentredString(center_x, y_position, "Assinatura do(a) Concluinte")
+    
+    # Linha para assinatura do diretor
+    y_position -= 40
+    c.line(center_x - 6*cm, y_position, center_x + 6*cm, y_position)
+    y_position -= 12
+    c.drawCentredString(center_x, y_position, "Assinatura do(a) Diretor(a)")
+    
+    # ========== RODAPÉ - DATA ==========
+    y_position = 3*cm
+    today = format_date_pt(date.today())
+    city = school.get('municipio', 'Floresta do Araguaia')
+    state = school.get('estado', 'PA')
+    
+    c.setFont("Helvetica", 9)
+    c.drawCentredString(center_x, y_position, f"{city} - {state}, {today}.")
+    
+    # Finalizar
+    c.save()
     buffer.seek(0)
     return buffer
 
