@@ -4970,7 +4970,7 @@ class SIGESCTester:
             )
             
             if response.status_code == 200 or response.status_code == 201:
-                self.log("✅ Coordinator can edit attendance in unconfigured year 2026 (default behavior)")
+                self.log("✅ Coordinator can edit attendance in unconfigured year 2023 (default behavior)")
                 attendance_result = response.json()
                 if attendance_result.get('id'):
                     self.log("✅ Attendance successfully saved in unconfigured year")
