@@ -5013,6 +5013,171 @@ class SIGESCTester:
             else:
                 self.log("❌ Could not revert school configuration - original config not available")
 
+    def test_certificado_conclusao(self):
+        """Test Certificado de Conclusão functionality as per review request"""
+        self.log("\n🎓 Testing Certificado de Conclusão - SIGESC...")
+        
+        # Test data from review request
+        eligible_class_id = "36d77a13-c5f0-4907-860d-ed6c3db32b8b"  # 9º Ano (eligible)
+        non_eligible_class_id = "970fec6e-1b90-44ca-9413-05fe77c369b8"  # 1º Ano (not eligible)
+        eligible_student_id = "14584e57-0e6f-4436-b1d2-775b09dbd2b3"  # DANNYD LEYON ALVES DE SOUZA
+        academic_year = 2025
+        
+        # 1. Test eligibility validation - eligible class (9º Ano)
+        self.log("1️⃣ Testing certificate generation for eligible student (9º Ano)...")
+        response = requests.get(
+            f"{API_BASE}/documents/certificado/{eligible_student_id}?academic_year={academic_year}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            self.log("✅ Certificate generated successfully for 9º Ano student")
+            
+            # Verify Content-Type
+            content_type = response.headers.get('Content-Type')
+            if content_type == 'application/pdf':
+                self.log("✅ Correct Content-Type: application/pdf")
+            else:
+                self.log(f"❌ Incorrect Content-Type: {content_type}")
+                return False
+            
+            # Verify file size (should be > 10KB)
+            content_length = len(response.content)
+            if content_length > 10240:  # 10KB
+                self.log(f"✅ PDF size is adequate: {content_length} bytes (> 10KB)")
+            else:
+                self.log(f"❌ PDF size too small: {content_length} bytes (< 10KB)")
+                return False
+            
+            # Verify filename in headers
+            content_disposition = response.headers.get('Content-Disposition', '')
+            if 'certificado_' in content_disposition:
+                self.log("✅ Correct filename format in Content-Disposition")
+            else:
+                self.log(f"❌ Incorrect filename format: {content_disposition}")
+                
+        else:
+            self.log(f"❌ Failed to generate certificate for eligible student: {response.status_code} - {response.text}")
+            return False
+        
+        # 2. Test eligibility validation - non-eligible class (1º Ano)
+        self.log("2️⃣ Testing certificate blocking for non-eligible class (1º Ano)...")
+        
+        # First, find a student from the non-eligible class
+        response = requests.get(
+            f"{API_BASE}/students?class_id={non_eligible_class_id}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            students = response.json()
+            if students:
+                non_eligible_student_id = students[0]['id']
+                student_name = students[0].get('full_name', 'N/A')
+                self.log(f"   Found student from 1º Ano: {student_name}")
+                
+                # Try to generate certificate for non-eligible student
+                response = requests.get(
+                    f"{API_BASE}/documents/certificado/{non_eligible_student_id}?academic_year={academic_year}",
+                    headers=self.get_headers(self.admin_token)
+                )
+                
+                if response.status_code == 400:
+                    error_message = response.json().get('detail', '')
+                    expected_message = "Certificado disponível apenas para turmas do 9º Ano ou EJA 4ª Etapa"
+                    
+                    if expected_message in error_message:
+                        self.log("✅ Correctly blocked certificate for 1º Ano with proper error message")
+                    else:
+                        self.log(f"❌ Incorrect error message: {error_message}")
+                        return False
+                else:
+                    self.log(f"❌ Should have returned 400 error, got: {response.status_code}")
+                    return False
+            else:
+                self.log("❌ No students found in 1º Ano class for testing")
+                return False
+        else:
+            self.log(f"❌ Failed to get students from 1º Ano class: {response.status_code}")
+            return False
+        
+        # 3. Test batch certificate generation for eligible class
+        self.log("3️⃣ Testing batch certificate generation for 9º Ano class...")
+        response = requests.get(
+            f"{API_BASE}/documents/batch/{eligible_class_id}/certificado?academic_year={academic_year}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 200:
+            self.log("✅ Batch certificate generation successful")
+            
+            # Verify Content-Type
+            content_type = response.headers.get('Content-Type')
+            if content_type == 'application/pdf':
+                self.log("✅ Correct Content-Type for batch PDF: application/pdf")
+            else:
+                self.log(f"❌ Incorrect Content-Type for batch PDF: {content_type}")
+                return False
+            
+            # Verify file size (batch should be larger)
+            content_length = len(response.content)
+            if content_length > 20480:  # 20KB (should be larger for multiple students)
+                self.log(f"✅ Batch PDF size is adequate: {content_length} bytes (> 20KB)")
+            else:
+                self.log(f"❌ Batch PDF size too small: {content_length} bytes (< 20KB)")
+                return False
+            
+            # Verify filename contains "Certificados"
+            content_disposition = response.headers.get('Content-Disposition', '')
+            if 'Certificados_' in content_disposition:
+                self.log("✅ Correct batch filename format")
+            else:
+                self.log(f"❌ Incorrect batch filename: {content_disposition}")
+                
+        else:
+            self.log(f"❌ Failed to generate batch certificates: {response.status_code} - {response.text}")
+            return False
+        
+        # 4. Test authentication requirement
+        self.log("4️⃣ Testing authentication requirement for certificate endpoints...")
+        response = requests.get(f"{API_BASE}/documents/certificado/{eligible_student_id}")
+        
+        if response.status_code == 401:
+            self.log("✅ Certificate endpoint correctly requires authentication")
+        else:
+            self.log(f"❌ Certificate endpoint should require authentication: {response.status_code}")
+            return False
+        
+        # 5. Test invalid student ID
+        self.log("5️⃣ Testing invalid student ID handling...")
+        invalid_student_id = "00000000-0000-0000-0000-000000000000"
+        response = requests.get(
+            f"{API_BASE}/documents/certificado/{invalid_student_id}?academic_year={academic_year}",
+            headers=self.get_headers(self.admin_token)
+        )
+        
+        if response.status_code == 404:
+            self.log("✅ Correctly returns 404 for invalid student ID")
+        else:
+            self.log(f"❌ Should return 404 for invalid student ID, got: {response.status_code}")
+            return False
+        
+        # 6. Test different academic years
+        self.log("6️⃣ Testing certificate generation with different academic years...")
+        for year in [2024, 2025]:
+            response = requests.get(
+                f"{API_BASE}/documents/certificado/{eligible_student_id}?academic_year={year}",
+                headers=self.get_headers(self.admin_token)
+            )
+            
+            if response.status_code == 200:
+                self.log(f"✅ Certificate generated successfully for academic year {year}")
+            else:
+                self.log(f"❌ Failed to generate certificate for year {year}: {response.status_code}")
+        
+        self.log("✅ Certificado de Conclusão testing completed successfully!")
+        return True
+
     def run_all_tests(self):
         """Run all backend tests"""
         self.log("🚀 Starting SIGESC Backend API Tests - Review Request Testing")
