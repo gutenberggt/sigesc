@@ -5372,7 +5372,8 @@ async def get_batch_documents(
                     school=school,
                     class_info=class_info,
                     enrollment=enrollment,
-                    academic_year=academic_year
+                    academic_year=academic_year,
+                    mantenedora=mantenedora
                 )
             
             # Adicionar ao merger
