@@ -1555,48 +1555,62 @@ def generate_ficha_individual_pdf(
             resultado = "APROVADO"
             resultado_color = colors.HexColor('#16a34a')  # Verde
     else:
-        # OUTROS NÍVEIS: Cálculo normal
-        if grades:
-            medias = []
-            for course in courses:
-                is_optativo = course.get('optativo', False)
-                course_id = course.get('id')
-                grade = grades_by_course.get(course_id, {})
-                b1 = grade.get('b1')
-                b2 = grade.get('b2')
-                b3 = grade.get('b3')
-                b4 = grade.get('b4')
-                
-                # Verificar se tem notas válidas
-                valid_grades = [g for g in [b1, b2, b3, b4] if isinstance(g, (int, float))]
-                
-                # Componentes optativos: se NÃO têm notas, não interferem na aprovação
-                # Se têm notas, entram normalmente no cálculo (igual ao Boletim)
-                if is_optativo and not valid_grades:
-                    continue
-                
+        # OUTROS NÍVEIS: Cálculo usando regras da mantenedora
+        # Preparar lista de médias por componente
+        medias_por_componente = []
+        for course in courses:
+            is_optativo = course.get('optativo', False)
+            course_id = course.get('id')
+            grade = grades_by_course.get(course_id, {})
+            b1 = grade.get('b1')
+            b2 = grade.get('b2')
+            b3 = grade.get('b3')
+            b4 = grade.get('b4')
+            
+            # Verificar se tem notas válidas
+            valid_grades = [g for g in [b1, b2, b3, b4] if isinstance(g, (int, float))]
+            
+            # Calcular média do componente (média ponderada)
+            if valid_grades:
                 b1 = b1 or 0
                 b2 = b2 or 0
                 b3 = b3 or 0
                 b4 = b4 or 0
                 total = (b1 * 2) + (b2 * 3) + (b3 * 2) + (b4 * 3)
                 media = total / 10
-                medias.append(media)
-            
-            if medias:
-                media_geral = sum(medias) / len(medias)
-                if media_geral >= 5 and frequencia_anual >= 75:
-                    resultado = "APROVADO"
-                    resultado_color = colors.HexColor('#16a34a')
-                else:
-                    resultado = "REPROVADO"
-                    resultado_color = colors.HexColor('#dc2626')
             else:
-                resultado = "EM ANDAMENTO"
-                resultado_color = colors.HexColor('#2563eb')
-        else:
-            resultado = "EM ANDAMENTO"
-            resultado_color = colors.HexColor('#2563eb')
+                media = None
+            
+            medias_por_componente.append({
+                'nome': course.get('name', 'N/A'),
+                'media': media,
+                'optativo': is_optativo
+            })
+        
+        # Extrair regras de aprovação da mantenedora
+        regras_aprovacao = {
+            'media_aprovacao': mantenedora.get('media_aprovacao', 6.0) if mantenedora else 6.0,
+            'aprovacao_com_dependencia': mantenedora.get('aprovacao_com_dependencia', False) if mantenedora else False,
+            'max_componentes_dependencia': mantenedora.get('max_componentes_dependencia') if mantenedora else None,
+            'cursar_apenas_dependencia': mantenedora.get('cursar_apenas_dependencia', False) if mantenedora else False,
+            'qtd_componentes_apenas_dependencia': mantenedora.get('qtd_componentes_apenas_dependencia') if mantenedora else None,
+        }
+        
+        # Calcular resultado usando a função centralizada
+        resultado_calc = calcular_resultado_final_aluno(
+            medias_por_componente=medias_por_componente,
+            regras_aprovacao=regras_aprovacao,
+            enrollment_status=enrollment_status,
+            is_educacao_infantil=False
+        )
+        
+        resultado = resultado_calc['resultado']
+        resultado_color = colors.HexColor(resultado_calc['cor'])
+        
+        # TODO: Considerar frequência mínima também (75%)
+        # if frequencia_anual < 75 and resultado == "APROVADO":
+        #     resultado = "REPROVADO POR FREQUÊNCIA"
+        #     resultado_color = colors.HexColor('#dc2626')
     
     # ===== LINHA COM OBSERVAÇÃO E RESULTADO =====
     obs_style = ParagraphStyle('ObsStyle', fontSize=7, fontName='Helvetica-Oblique')
