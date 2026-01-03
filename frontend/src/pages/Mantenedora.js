@@ -81,6 +81,7 @@ export default function Mantenedora() {
         slogan: data.slogan || '',
         // Condicionais para aprovação
         media_aprovacao: data.media_aprovacao?.toString() || '6.0',
+        frequencia_minima: data.frequencia_minima?.toString() || '75',
         aprovacao_com_dependencia: data.aprovacao_com_dependencia || false,
         max_componentes_dependencia: data.max_componentes_dependencia?.toString() || '',
         cursar_apenas_dependencia: data.cursar_apenas_dependencia || false,
