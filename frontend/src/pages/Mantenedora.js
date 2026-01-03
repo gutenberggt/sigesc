@@ -37,6 +37,7 @@ export default function Mantenedora() {
     max_componentes_dependencia: '',
     cursar_apenas_dependencia: false,
     qtd_componentes_apenas_dependencia: '',
+    frequencia_minima: '75',
     
     // Endereço
     cep: '',
