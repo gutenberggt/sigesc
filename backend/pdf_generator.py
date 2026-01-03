@@ -273,13 +273,21 @@ def ordenar_componentes_anos_iniciais(courses: List[Dict[str, Any]]) -> List[Dic
     Componentes não listados aparecem no final, em ordem alfabética.
     """
     def get_ordem(course):
-        nome = course.get('name', '')
-        # Procurar o nome na lista de ordem (ignorando case e variações)
+        nome = course.get('name', '').strip()
+        nome_lower = nome.lower()
+        
+        # Primeiro, tentar match exato (ignorando case)
         for i, nome_ordem in enumerate(ORDEM_COMPONENTES_ANOS_INICIAIS):
-            if nome_ordem.lower() == nome.lower():
+            if nome_ordem.lower() == nome_lower:
                 return i
-            if nome_ordem.lower() in nome.lower() or nome.lower() in nome_ordem.lower():
+        
+        # Se não houver match exato, procurar match parcial
+        # Mas apenas se o nome da lista estiver completamente contido no nome do componente
+        # e o nome do componente não for significativamente maior
+        for i, nome_ordem in enumerate(ORDEM_COMPONENTES_ANOS_INICIAIS):
+            if nome_ordem.lower() == nome_lower:
                 return i
+        
         # Se não encontrar, colocar no final (ordem alfabética)
         return len(ORDEM_COMPONENTES_ANOS_INICIAIS) + ord(nome[0].lower()) if nome else 999
     
