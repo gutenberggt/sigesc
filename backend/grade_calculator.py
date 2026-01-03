@@ -300,3 +300,171 @@ async def calculate_and_update_grade(db, grade_id: str) -> dict:
     
     updated_grade = await db.grades.find_one({"id": grade_id}, {"_id": 0})
     return updated_grade
+
+
+def calcular_resultado_final_aluno(
+    medias_por_componente: List[Dict],
+    regras_aprovacao: Dict,
+    enrollment_status: str = 'active',
+    is_educacao_infantil: bool = False
+) -> Dict:
+    """
+    Calcula o resultado final do aluno considerando as regras de aprovação da mantenedora.
+    
+    Args:
+        medias_por_componente: Lista de dicts com {'nome': str, 'media': float, 'optativo': bool}
+        regras_aprovacao: Dict com regras da mantenedora:
+            - media_aprovacao: float (5.0 a 10.0)
+            - aprovacao_com_dependencia: bool
+            - max_componentes_dependencia: int (1-5)
+            - cursar_apenas_dependencia: bool
+            - qtd_componentes_apenas_dependencia: int (1-5)
+        enrollment_status: Status da matrícula (active, transferido, desistente, etc.)
+        is_educacao_infantil: Se é Educação Infantil (aprovação automática)
+    
+    Returns:
+        Dict com:
+            - resultado: str ('APROVADO', 'REPROVADO', 'APROVADO COM DEPENDÊNCIA', 'CURSAR DEPENDÊNCIA', etc.)
+            - cor: str (hex color)
+            - componentes_reprovados: List[str] - nomes dos componentes reprovados
+            - media_geral: float
+            - detalhes: str - explicação do resultado
+    """
+    # Verificar status especiais da matrícula
+    status_especiais = {
+        'desistencia': ('DESISTENTE', '#dc2626'),
+        'desistente': ('DESISTENTE', '#dc2626'),
+        'falecimento': ('FALECIDO', '#6b7280'),
+        'falecido': ('FALECIDO', '#6b7280'),
+        'transferencia': ('TRANSFERIDO', '#f59e0b'),
+        'transferido': ('TRANSFERIDO', '#f59e0b'),
+    }
+    
+    if enrollment_status.lower() in status_especiais:
+        resultado, cor = status_especiais[enrollment_status.lower()]
+        return {
+            'resultado': resultado,
+            'cor': cor,
+            'componentes_reprovados': [],
+            'media_geral': None,
+            'detalhes': f'Aluno com status: {resultado}'
+        }
+    
+    # Educação Infantil: aprovação automática
+    if is_educacao_infantil:
+        return {
+            'resultado': 'APROVADO',
+            'cor': '#16a34a',
+            'componentes_reprovados': [],
+            'media_geral': None,
+            'detalhes': 'Educação Infantil - aprovação automática'
+        }
+    
+    # Extrair regras da mantenedora (com valores padrão)
+    media_minima = regras_aprovacao.get('media_aprovacao', 6.0) or 6.0
+    permite_dependencia = regras_aprovacao.get('aprovacao_com_dependencia', False)
+    max_componentes_dep = regras_aprovacao.get('max_componentes_dependencia', 0) or 0
+    permite_cursar_dep = regras_aprovacao.get('cursar_apenas_dependencia', False)
+    qtd_cursar_dep = regras_aprovacao.get('qtd_componentes_apenas_dependencia', 0) or 0
+    
+    # Filtrar componentes válidos (não optativos sem notas)
+    componentes_validos = []
+    for comp in medias_por_componente:
+        is_optativo = comp.get('optativo', False)
+        media = comp.get('media')
+        
+        # Se for optativo e não tem média, ignora
+        if is_optativo and media is None:
+            continue
+        
+        componentes_validos.append(comp)
+    
+    # Se não há componentes válidos, está em andamento
+    if not componentes_validos:
+        return {
+            'resultado': 'EM ANDAMENTO',
+            'cor': '#2563eb',
+            'componentes_reprovados': [],
+            'media_geral': None,
+            'detalhes': 'Sem notas registradas'
+        }
+    
+    # Calcular média geral e identificar componentes reprovados
+    medias = []
+    componentes_reprovados = []
+    
+    for comp in componentes_validos:
+        media = comp.get('media')
+        if media is not None:
+            medias.append(media)
+            if media < media_minima:
+                componentes_reprovados.append(comp.get('nome', 'N/A'))
+    
+    if not medias:
+        return {
+            'resultado': 'EM ANDAMENTO',
+            'cor': '#2563eb',
+            'componentes_reprovados': [],
+            'media_geral': None,
+            'detalhes': 'Sem notas registradas'
+        }
+    
+    media_geral = sum(medias) / len(medias)
+    qtd_reprovados = len(componentes_reprovados)
+    
+    # Lógica de resultado
+    if qtd_reprovados == 0:
+        # Aprovado direto - nenhum componente reprovado
+        return {
+            'resultado': 'APROVADO',
+            'cor': '#16a34a',
+            'componentes_reprovados': [],
+            'media_geral': media_geral,
+            'detalhes': f'Média geral: {media_geral:.1f} - Aprovado em todos os componentes'
+        }
+    
+    # Tem componentes reprovados - verificar regras de dependência
+    
+    # 1. Verificar se pode cursar apenas dependência
+    if permite_cursar_dep and qtd_reprovados >= qtd_cursar_dep and qtd_cursar_dep > 0:
+        return {
+            'resultado': 'CURSAR DEPENDÊNCIA',
+            'cor': '#7c3aed',  # Roxo
+            'componentes_reprovados': componentes_reprovados,
+            'media_geral': media_geral,
+            'detalhes': f'Reprovado em {qtd_reprovados} componente(s) - deve cursar apenas dependência: {", ".join(componentes_reprovados)}'
+        }
+    
+    # 2. Verificar se pode ser aprovado com dependência
+    if permite_dependencia and qtd_reprovados <= max_componentes_dep:
+        return {
+            'resultado': 'APROVADO COM DEPENDÊNCIA',
+            'cor': '#ca8a04',  # Amarelo
+            'componentes_reprovados': componentes_reprovados,
+            'media_geral': media_geral,
+            'detalhes': f'Aprovado com dependência em {qtd_reprovados} componente(s): {", ".join(componentes_reprovados)}'
+        }
+    
+    # 3. Reprovado - excedeu o limite de componentes para dependência
+    if qtd_reprovados > 0:
+        if permite_dependencia:
+            detalhes = f'Reprovado em {qtd_reprovados} componente(s) - excede o limite de {max_componentes_dep} para dependência: {", ".join(componentes_reprovados)}'
+        else:
+            detalhes = f'Reprovado em {qtd_reprovados} componente(s): {", ".join(componentes_reprovados)}'
+        
+        return {
+            'resultado': 'REPROVADO',
+            'cor': '#dc2626',
+            'componentes_reprovados': componentes_reprovados,
+            'media_geral': media_geral,
+            'detalhes': detalhes
+        }
+    
+    # Fallback - não deveria chegar aqui
+    return {
+        'resultado': 'EM ANDAMENTO',
+        'cor': '#2563eb',
+        'componentes_reprovados': [],
+        'media_geral': media_geral,
+        'detalhes': 'Avaliação em andamento'
+    }
