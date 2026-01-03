@@ -500,5 +500,6 @@ def calcular_resultado_final_aluno(
         'cor': '#2563eb',
         'componentes_reprovados': [],
         'media_geral': media_geral,
-        'detalhes': 'Avaliação em andamento'
+        'detalhes': 'Avaliação em andamento',
+        'reprovado_por_frequencia': False
     }
