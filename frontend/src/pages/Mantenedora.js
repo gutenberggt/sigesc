@@ -499,6 +499,129 @@ export default function Mantenedora() {
             </CardContent>
           </Card>
 
+          {/* Condicionais para Aprovação */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <CheckSquare className="w-5 h-5 text-purple-600" />
+                Condicionais para Aprovação
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Média para aprovação */}
+              <div>
+                <Label htmlFor="media_aprovacao">Média para Aprovação</Label>
+                <Select
+                  value={formData.media_aprovacao}
+                  onValueChange={(value) => handleInputChange('media_aprovacao', value)}
+                >
+                  <SelectTrigger className="w-48 mt-1">
+                    <SelectValue placeholder="Selecione a média" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5.0">5,0</SelectItem>
+                    <SelectItem value="6.0">6,0</SelectItem>
+                    <SelectItem value="7.0">7,0</SelectItem>
+                    <SelectItem value="8.0">8,0</SelectItem>
+                    <SelectItem value="9.0">9,0</SelectItem>
+                    <SelectItem value="10.0">10,0</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Média mínima necessária para aprovação do aluno
+                </p>
+              </div>
+
+              {/* Aprovação com dependência */}
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="aprovacao_com_dependencia"
+                    checked={formData.aprovacao_com_dependencia}
+                    onCheckedChange={(checked) => {
+                      handleInputChange('aprovacao_com_dependencia', checked);
+                      if (!checked) {
+                        handleInputChange('max_componentes_dependencia', '');
+                      }
+                    }}
+                  />
+                  <Label htmlFor="aprovacao_com_dependencia" className="cursor-pointer">
+                    Aprovação com dependência
+                  </Label>
+                </div>
+                
+                {formData.aprovacao_com_dependencia && (
+                  <div className="ml-6 p-3 bg-gray-50 rounded-lg border">
+                    <Label htmlFor="max_componentes_dependencia">
+                      Quantidade máxima de Componentes para ser aprovado com dependência
+                    </Label>
+                    <Select
+                      value={formData.max_componentes_dependencia}
+                      onValueChange={(value) => handleInputChange('max_componentes_dependencia', value)}
+                    >
+                      <SelectTrigger className="w-48 mt-1">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 componente</SelectItem>
+                        <SelectItem value="2">2 componentes</SelectItem>
+                        <SelectItem value="3">3 componentes</SelectItem>
+                        <SelectItem value="4">4 componentes</SelectItem>
+                        <SelectItem value="5">5 componentes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {/* Cursar apenas dependência */}
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="cursar_apenas_dependencia"
+                    checked={formData.cursar_apenas_dependencia}
+                    onCheckedChange={(checked) => {
+                      handleInputChange('cursar_apenas_dependencia', checked);
+                      if (!checked) {
+                        handleInputChange('qtd_componentes_apenas_dependencia', '');
+                      }
+                    }}
+                  />
+                  <Label htmlFor="cursar_apenas_dependencia" className="cursor-pointer">
+                    Cursar apenas dependência
+                  </Label>
+                </div>
+                
+                {formData.cursar_apenas_dependencia && (
+                  <div className="ml-6 p-3 bg-gray-50 rounded-lg border">
+                    <Label htmlFor="qtd_componentes_apenas_dependencia">
+                      Quantidade de Componentes para cursar apenas dependência
+                    </Label>
+                    <Select
+                      value={formData.qtd_componentes_apenas_dependencia}
+                      onValueChange={(value) => handleInputChange('qtd_componentes_apenas_dependencia', value)}
+                    >
+                      <SelectTrigger className="w-48 mt-1">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 componente</SelectItem>
+                        <SelectItem value="2">2 componentes</SelectItem>
+                        <SelectItem value="3">3 componentes</SelectItem>
+                        <SelectItem value="4">4 componentes</SelectItem>
+                        <SelectItem value="5">5 componentes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              
+              <p className="text-xs text-gray-500 border-t pt-3 mt-3">
+                Estas regras serão consideradas no resultado final do aluno
+              </p>
+            </CardContent>
+          </Card>
+
           {/* Endereço */}
           <Card>
             <CardHeader>
