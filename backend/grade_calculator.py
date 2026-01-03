@@ -306,7 +306,8 @@ def calcular_resultado_final_aluno(
     medias_por_componente: List[Dict],
     regras_aprovacao: Dict,
     enrollment_status: str = 'active',
-    is_educacao_infantil: bool = False
+    is_educacao_infantil: bool = False,
+    frequencia_aluno: float = None
 ) -> Dict:
     """
     Calcula o resultado final do aluno considerando as regras de aprovação da mantenedora.
@@ -315,12 +316,14 @@ def calcular_resultado_final_aluno(
         medias_por_componente: Lista de dicts com {'nome': str, 'media': float, 'optativo': bool}
         regras_aprovacao: Dict com regras da mantenedora:
             - media_aprovacao: float (5.0 a 10.0)
+            - frequencia_minima: float (60 a 85, padrão 75)
             - aprovacao_com_dependencia: bool
             - max_componentes_dependencia: int (1-5)
             - cursar_apenas_dependencia: bool
             - qtd_componentes_apenas_dependencia: int (1-5)
         enrollment_status: Status da matrícula (active, transferido, desistente, etc.)
         is_educacao_infantil: Se é Educação Infantil (aprovação automática)
+        frequencia_aluno: Frequência do aluno em porcentagem (0-100)
     
     Returns:
         Dict com:
@@ -329,6 +332,7 @@ def calcular_resultado_final_aluno(
             - componentes_reprovados: List[str] - nomes dos componentes reprovados
             - media_geral: float
             - detalhes: str - explicação do resultado
+            - reprovado_por_frequencia: bool
     """
     # Verificar status especiais da matrícula
     status_especiais = {
@@ -347,7 +351,8 @@ def calcular_resultado_final_aluno(
             'cor': cor,
             'componentes_reprovados': [],
             'media_geral': None,
-            'detalhes': f'Aluno com status: {resultado}'
+            'detalhes': f'Aluno com status: {resultado}',
+            'reprovado_por_frequencia': False
         }
     
     # Educação Infantil: aprovação automática
@@ -357,7 +362,8 @@ def calcular_resultado_final_aluno(
             'cor': '#16a34a',
             'componentes_reprovados': [],
             'media_geral': None,
-            'detalhes': 'Educação Infantil - aprovação automática'
+            'detalhes': 'Educação Infantil - aprovação automática',
+            'reprovado_por_frequencia': False
         }
     
     # Extrair regras da mantenedora (com valores padrão)
