@@ -1630,6 +1630,13 @@ class MantenedoraBase(BaseModel):
     brasao_url: Optional[str] = None  # URL do brasão
     slogan: Optional[str] = None  # Slogan da instituição para cabeçalhos dos documentos
     
+    # Condicionais para aprovação
+    media_aprovacao: Optional[float] = 6.0  # Média mínima para aprovação (5.0 a 10.0)
+    aprovacao_com_dependencia: Optional[bool] = False  # Permite aprovação com dependência
+    max_componentes_dependencia: Optional[int] = None  # Máximo de componentes para aprovar com dependência (1-5)
+    cursar_apenas_dependencia: Optional[bool] = False  # Permite cursar apenas dependência
+    qtd_componentes_apenas_dependencia: Optional[int] = None  # Quantidade de componentes para cursar apenas dependência (1-5)
+    
     # Endereço
     cep: Optional[str] = None
     logradouro: Optional[str] = None
@@ -1661,6 +1668,13 @@ class MantenedoraUpdate(BaseModel):
     logotipo_url: Optional[str] = None
     brasao_url: Optional[str] = None  # URL do brasão
     slogan: Optional[str] = None  # Slogan da instituição
+    
+    # Condicionais para aprovação
+    media_aprovacao: Optional[float] = None
+    aprovacao_com_dependencia: Optional[bool] = None
+    max_componentes_dependencia: Optional[int] = None
+    cursar_apenas_dependencia: Optional[bool] = None
+    qtd_componentes_apenas_dependencia: Optional[int] = None
     
     cep: Optional[str] = None
     logradouro: Optional[str] = None
