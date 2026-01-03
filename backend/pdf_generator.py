@@ -267,6 +267,59 @@ def ordenar_componentes_educacao_infantil(courses: List[Dict[str, Any]]) -> List
     return sorted(courses, key=get_ordem)
 
 
+def ordenar_componentes_anos_iniciais(courses: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Ordena os componentes curriculares do Ensino Fundamental Anos Iniciais na ordem específica definida.
+    Componentes não listados aparecem no final, em ordem alfabética.
+    """
+    def get_ordem(course):
+        nome = course.get('name', '')
+        # Procurar o nome na lista de ordem (ignorando case e variações)
+        for i, nome_ordem in enumerate(ORDEM_COMPONENTES_ANOS_INICIAIS):
+            if nome_ordem.lower() == nome.lower():
+                return i
+            if nome_ordem.lower() in nome.lower() or nome.lower() in nome_ordem.lower():
+                return i
+        # Se não encontrar, colocar no final (ordem alfabética)
+        return len(ORDEM_COMPONENTES_ANOS_INICIAIS) + ord(nome[0].lower()) if nome else 999
+    
+    return sorted(courses, key=get_ordem)
+
+
+def ordenar_componentes_anos_finais(courses: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Ordena os componentes curriculares do Ensino Fundamental Anos Finais na ordem específica definida.
+    Componentes não listados aparecem no final, em ordem alfabética.
+    """
+    def get_ordem(course):
+        nome = course.get('name', '')
+        # Procurar o nome na lista de ordem (ignorando case e variações)
+        for i, nome_ordem in enumerate(ORDEM_COMPONENTES_ANOS_FINAIS):
+            if nome_ordem.lower() == nome.lower():
+                return i
+            if nome_ordem.lower() in nome.lower() or nome.lower() in nome_ordem.lower():
+                return i
+        # Se não encontrar, colocar no final (ordem alfabética)
+        return len(ORDEM_COMPONENTES_ANOS_FINAIS) + ord(nome[0].lower()) if nome else 999
+    
+    return sorted(courses, key=get_ordem)
+
+
+def ordenar_componentes_por_nivel(courses: List[Dict[str, Any]], nivel_ensino: str) -> List[Dict[str, Any]]:
+    """
+    Ordena os componentes curriculares de acordo com o nível de ensino.
+    """
+    if nivel_ensino == 'educacao_infantil':
+        return ordenar_componentes_educacao_infantil(courses)
+    elif nivel_ensino == 'fundamental_anos_iniciais':
+        return ordenar_componentes_anos_iniciais(courses)
+    elif nivel_ensino == 'fundamental_anos_finais':
+        return ordenar_componentes_anos_finais(courses)
+    else:
+        # Para outros níveis (EJA, etc.), ordenar alfabeticamente
+        return sorted(courses, key=lambda x: x.get('name', ''))
+
+
 def generate_boletim_pdf(
     student: Dict[str, Any],
     school: Dict[str, Any],
