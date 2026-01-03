@@ -20,6 +20,13 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
   - Aprovação com dependência (checkbox + qtd máxima de componentes 1-5)
   - Cursar apenas dependência (checkbox + qtd de componentes 1-5)
 
+- **Lógica de Resultado Final**: Implementada função `calcular_resultado_final_aluno()` que considera:
+  - Média mínima configurável pela mantenedora
+  - Aprovação com dependência (se permitido e dentro do limite)
+  - Cursar apenas dependência (quando reprovações excedem o limite)
+  - Status especiais (transferido, desistente, falecido)
+  - Resultados possíveis: APROVADO, REPROVADO, APROVADO COM DEPENDÊNCIA, CURSAR DEPENDÊNCIA, EM ANDAMENTO
+
 ### Anteriores
 - Gerenciamento de Anos Letivos (aberto/fechado)
 - Geração de Certificado de Conclusão (9º Ano e EJA)
@@ -34,7 +41,6 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 
 ### P1 (Alto)
 - [ ] Verificar bug de "Gerenciar Lotações" não salvando
-- [ ] Implementar lógica de resultado final usando regras de aprovação da mantenedora
 
 ### P2 (Médio)
 - [ ] Limpar dados órfãos de lotações
@@ -49,7 +55,7 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 
 ### Backend
 - FastAPI + Motor (MongoDB async)
-- Arquivos principais: server.py, models.py, pdf_generator.py
+- Arquivos principais: server.py, models.py, pdf_generator.py, grade_calculator.py
 
 ### Frontend
 - React + Vite + TailwindCSS + Shadcn/UI
