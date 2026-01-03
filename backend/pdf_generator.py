@@ -146,6 +146,48 @@ ORDEM_COMPONENTES_EDUCACAO_INFANTIL = [
     "Recreação, Esporte e Lazer",  # Variação do nome
 ]
 
+# ===== ORDEM DOS COMPONENTES - ENSINO FUNDAMENTAL ANOS INICIAIS =====
+ORDEM_COMPONENTES_ANOS_INICIAIS = [
+    "Língua Portuguesa",
+    "Arte",
+    "Educação Física",
+    "Matemática",
+    "Ciências",
+    "História",
+    "Geografia",
+    "Ensino Religioso",
+    # Componentes de escola integral
+    "Recreação, Esporte e Lazer",
+    "Arte e Cultura",
+    "Tecnologia e Informática",
+    "Acompanhamento Pedagógico de Língua Portuguesa",
+    "Acompanhamento Pedagógico de Matemática",
+]
+
+# ===== ORDEM DOS COMPONENTES - ENSINO FUNDAMENTAL ANOS FINAIS =====
+ORDEM_COMPONENTES_ANOS_FINAIS = [
+    "Língua Portuguesa",
+    "Arte",
+    "Educação Física",
+    "Língua Inglesa",
+    "Língua inglesa",  # Variação do nome (minúscula)
+    "Inglês",  # Variação do nome
+    "Matemática",
+    "Ciências",
+    "História",
+    "Geografia",
+    "Ensino Religioso",
+    "Educação Ambiental e Clima",
+    "Estudos Amazônicos",
+    "Literatura e Redação",
+    # Componentes de escola integral
+    "Recreação, Esporte e Lazer",
+    "Arte e Cultura",
+    "Tecnologia e Informática",
+    "Acompanhamento Pedagógico de Língua Portuguesa",
+    "Acompanhamento Pedagógico de Matemática",
+]
+
 # ===== SISTEMA DE AVALIAÇÃO CONCEITUAL - EDUCAÇÃO INFANTIL =====
 # Conceitos e seus valores numéricos
 CONCEITOS_EDUCACAO_INFANTIL = {
