@@ -4675,6 +4675,7 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
     for course in all_courses:
         atendimento = course.get('atendimento_programa')
         course_grade_levels = course.get('grade_levels', [])
+        course_name = course.get('name', 'N/A')
         
         # Componentes Transversais/Formativos aparecem em TODAS as escolas
         if atendimento == 'transversal_formativa':
@@ -4684,18 +4685,21 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
         elif atendimento == 'atendimento_integral':
             # Só incluir se a escola é integral
             if not escola_integral:
+                excluded_courses.append(f"{course_name} (excluído: atendimento_integral e escola não é integral)")
                 continue
         # Verificar se o componente é de outro atendimento (AEE, reforço, etc)
         elif atendimento and atendimento not in ['atendimento_integral', 'transversal_formativa']:
             # Verificar se a escola oferece esse atendimento
             escola_oferece = school.get(atendimento, False)
             if not escola_oferece:
+                excluded_courses.append(f"{course_name} (excluído: atendimento={atendimento} não oferecido pela escola)")
                 continue
         
         # Verificar se o componente é específico para certas séries
         if course_grade_levels:
             # Se o componente tem séries específicas, verificar se a turma é de uma delas
             if grade_level and grade_level not in course_grade_levels:
+                excluded_courses.append(f"{course_name} (excluído: grade_levels={course_grade_levels} não inclui {grade_level})")
                 continue
         
         filtered_courses.append(course)
