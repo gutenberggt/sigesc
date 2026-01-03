@@ -1,52 +1,56 @@
 <analysis>**original_problem_statement:**
 O usuário iniciou a sessão para refinar e expandir as funcionalidades do sistema de gestão escolar. Os principais requisitos da sessão incluíram:
-- Ajustar o layout do PDF da Ficha Individual e do Boletim.
-- Implementar uma lógica de avaliação conceitual para a Educação Infantil (OD, DP, ND, NT), onde a média é o maior conceito alcançado e a aprovação é automática.
-- Corrigir um bug que impedia a exibição correta de professores alocados nos detalhes da turma.
-- Adaptar a interface de lançamento de notas para usar conceitos (dropdowns) em vez de notas numéricas para turmas de Educação Infantil.
-- Criar uma funcionalidade no Calendário Letivo para que administradores possam definir o início e o fim de cada um dos quatro bimestres do ano.
-- Criar uma nova aba Permissão no cadastro da escola, que exibe os períodos bimestrais (definidos no calendário) e permite configurar uma data limite para lançamentos de notas/frequências para cada bimestre, por escola.
-- Adicionar um seletor de ano letivo (2025-2030) no cadastro da escola e uma funcionalidade para gerenciar o status de cada ano letivo (Aberto ou Fechado), onde o status Fechado bloqueia todas as edições para aquele ano.
+- Ajustar layouts de PDF, implementar avaliação conceitual, corrigir bugs e adicionar novas funcionalidades de gestão de períodos letivos e permissões.
+- Implementar a geração de um PDF de Certificado de Conclusão para turmas de 9º Ano e EJA, com layout específico, imagem de fundo e brasão da mantenedora.
+- Adicionar um campo de upload para o Brasão da mantenedora.
+- Adicionar um campo Autorização ou Reconhecimento no cadastro da escola.
+- Criar um modelo de planilha para importação de alunos e, em seguida, executar essa importação/atualização em massa.
+- Marcar todos os alunos de uma escola específica como Transferido.
+- Corrigir um bug em que nem todos os componentes curriculares cadastrados aparecem no Boletim e na Ficha Individual.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-O sistema de gestão escolar (SIGESC) possui funcionalidades robustas para gestão de alunos, servidores, escolas e turmas. Foram realizados múltiplos ajustes de layout nos PDFs da Ficha Individual e do Boletim.
-
-Foi implementado um sistema completo de avaliação conceitual para a Educação Infantil:
-- **Backend**:  e  foram atualizados para usar a maior nota dos bimestres como média final e garantir aprovação automática. Os PDFs agora exibem os conceitos (OD, DP, ND, NT).
-- **Frontend**: A página de lançamento de notas () agora exibe um seletor de conceitos em vez de campos numéricos para turmas de Educação Infantil.
-
-A gestão de calendários foi aprimorada:
-- **Calendário Letivo**: Administradores podem agora, através de um novo modal na página , definir as datas de início e fim para cada um dos quatro bimestres do ano letivo.
-- **Permissões por Escola**: No cadastro da escola (), uma nova aba Permissão exibe as datas bimestrais (vindas do calendário global) e permite que o administrador defina uma Data Limite para Lançamento específica para cada bimestre naquela escola.
-
-Um bug que impedia a exibição de professores na página de detalhes da turma foi corrigido no endpoint .
+O sistema de gestão escolar (SIGESC) possui um conjunto robusto de funcionalidades. As implementações mais recentes incluem:
+- **Gerenciamento de Ano Letivo**: Um sistema completo que permite definir o status de um ano letivo como Aberto ou Fechado por escola. Anos Fechados bloqueiam edições de notas, frequências e objetos de conhecimento para todos, exceto administradores.
+- **Geração de Certificado**: Funcionalidade completa para gerar Certificados de Conclusão para alunos de 9º Ano e EJA 4ª Etapa. O PDF gerado inclui uma imagem de fundo, o brasão da mantenedora no canto superior e como marca d'água centralizada, e informações dinâmicas do aluno e da escola. Os botões para gerar o certificado (individual e em lote) aparecem condicionalmente na interface.
+- **Cadastro de Mantenedora e Escola**: A página da Unidade Mantenedora agora possui um campo para upload do Brasão. O formulário de escolas possui um campo para Autorização ou Reconhecimento.
+- **Gestão de Alunos**: Foi criado um modelo de planilha Excel () para coleta de dados. Uma importação em massa foi executada com sucesso, atualizando mais de 3700 alunos existentes e cadastrando mais de 600 novos. Além disso, foi executado um script para alterar o status de mais de 4200 alunos para Transferido.
 
 **Last working item**:
--   **Last item agent was working:** O agente estava implementando a funcionalidade de gerenciamento de anos letivos na aba Permissão do formulário de cadastro de escolas (). Ele adicionou a interface para selecionar um ano letivo (2025-2030) acima das abas e, dentro da aba Permissão, adicionou a lógica para adicionar anos e definir seu status como Aberto ou Fechado.
+-   **Last item agent was working:** O agente estava investigando o motivo pelo qual alguns Componentes Curriculares não aparecem no Boletim e na Ficha Individual para turmas do Fundamental - Anos Finais. O agente já confirmou que a filtragem por série (ex: 9º Ano) parece estar correta, identificando os 17 componentes esperados. A suspeita recaiu sobre a lógica de filtragem que diferencia componentes de .
 -   **Status:** IN PROGRESS
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** both
-    - **Frontend:** Usar a ferramenta de screenshot para verificar se a interface do seletor de ano e a gestão de status Aberto/Fechado funcionam como esperado no modal da escola.
-    - **Backend:** Escrever um teste com  ou  para verificar se os dados dos anos letivos ( com status) são salvos corretamente ao atualizar uma escola. Em seguida, testar a implementação da regra de bloqueio para anos Fechados.
+-   **Which testing method agent to use?** backend testing agent
+    - O agente deve escrever um script de teste para chamar o endpoint de geração de boletim () para um aluno de uma turma do 9º Ano. O script deve inspecionar a estrutura de dados dos componentes curriculares que são passados para a função  para verificar se a lista corresponde aos 17 componentes esperados. Isso isolará se o problema está na busca de dados no  ou na renderização no .
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P1) A funcionalidade de Gerenciar Lotações pode não estar salvando corretamente.** Foi relatado em um fork anterior e o agente não conseguiu reproduzir.
--   **Issue 2: (P2) Dados órfãos de lotação de servidores.** Lotações podem estar vinculadas a escolas que não existem mais, necessitando de um script de limpeza.
+-   **Issue 1: (P0) Componentes curriculares ausentes no Boletim/Ficha Individual.**
+-   **Issue 2: (P1) A funcionalidade de Gerenciar Lotações pode não estar salvando corretamente.**
+-   **Issue 3: (P2) Dados órfãos de lotação de servidores.**
 
 Issues Detail:
--   **Issue 1: A funcionalidade de Gerenciar Lotações pode não estar salvando corretamente.**
+-   **Issue 1: Componentes curriculares ausentes no Boletim/Ficha Individual.**
+    -   **Attempted fixes:** O agente validou que o campo  é usado corretamente e que a filtragem por  (9º Ano) funciona isoladamente, retornando 17 componentes.
+    -   **Next debug checklist:**
+        1.  Verificar no , na função que gera o boletim (em torno da linha 4698), como a lógica  está se comportando.
+        2.  Inspecionar os dados da turma de teste para ver o valor do campo .
+        3.  Inspecionar os dados dos componentes curriculares que estão faltando para ver o valor do campo .
+        4.  Adicionar logs no endpoint  em  para imprimir a lista final de componentes antes de passá-la para o .
+    -   **Why fix this issue and what will be achieved with the fix?** Garante que os registros acadêmicos (Boletim e Ficha Individual) sejam completos e precisos, refletindo todos os componentes que o aluno cursou.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** both
+    -   **Blocked on other issue:** N/A
+-   **Issue 2: A funcionalidade de Gerenciar Lotações pode não estar salvando corretamente.**
     -   **Attempted fixes:** Nenhuma tentativa nesta sessão.
-    -   **Next debug checklist:** Aguardar um feedback mais detalhado do usuário com os passos exatos para reproduzir a falha.
-    -   **Why fix this issue and what will be achieved with the fix?** Garante a correta gestão das atribuições de servidores às escolas.
+    -   **Next debug checklist:** Aguardar feedback detalhado do usuário com os passos exatos para reproduzir a falha.
     -   **Status:** USER VERIFICATION PENDING
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** frontend
     -   **Blocked on other issue:** N/A
-
--   **Issue 2: Dados órfãos de lotação de servidores.**
+-   **Issue 3: Dados órfãos de lotação de servidores.**
     -   **Attempted fixes:** None.
     -   **Next debug checklist:** Escrever um script para iterar sobre todas as , verificar se a  associada existe e relatar as lotações órfãs.
     -   **Why fix this issue and what will be achieved with the fix?** Melhorará a integridade dos dados e evitará erros em cascata.
@@ -56,20 +60,11 @@ Issues Detail:
     -   **Blocked on other issue:** N/A
 
 **In progress Task List**:
--   **Task 1: (P0) Finalizar a implementação do gerenciamento de Anos Letivos por escola.**
-    -   **Where to resume:** A interface frontend em  foi criada, mas a lógica de backend está ausente.
-        1.  No backend, modifique o modelo  e  em  para incluir o novo campo .
-        2.  Atualize o endpoint  em  para salvar os dados dos anos letivos no documento da escola.
-        3.  Implemente a lógica de verificação de permissão no backend. Em todos os endpoints que modificam dados (ex: salvar notas, frequência, editar turmas), adicione uma verificação para garantir que a operação não seja permitida se o ano letivo correspondente da escola estiver marcado como Fechado.
-    -   **What will be achieved with this?** A funcionalidade de bloquear edições para anos letivos Fechados estará completa, garantindo a integridade dos dados históricos.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** both
-    -   **Blocked on something:** N/A
+Nenhum.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   **(P1)** Implementar a geração do PDF do Certificado do aluno.
-    -   **(P1)** Validar a lógica de filtragem de Componentes Curriculares usando o agente de testes de frontend para simular cenários complexos.
+    -   **(P1)** Validar a lógica de filtragem de Componentes Curriculares usando o agente de testes de frontend assim que o bug atual for resolvido.
 -   **Future Tasks:**
     -   **(P2)** Refatorar .
     -   **(P3)** Refatorar .
@@ -79,92 +74,94 @@ Issues Detail:
     -   **(P4)** Deletar o arquivo obsoleto .
 
 **Completed work in this session**
--   **Layout da Ficha Individual (PDF):** Múltiplos ajustes de layout foram concluídos, incluindo remoção/reorganização de colunas, alinhamento de tabelas e tradução de campos.
--   **Layout do Boletim (PDF):** Ajustado o cabeçalho para reduzir o tamanho da fonte e reorganizar os campos.
--   **Lógica de Componentes Optativos:** A lógica para componentes Optativos na Ficha Individual foi sincronizada com a do Boletim.
--   **Avaliação Conceitual (Educação Infantil):** Implementado o sistema de avaliação por conceitos (OD, DP, ND, NT), incluindo o cálculo da média pelo maior conceito e aprovação automática. A interface de lançamento de notas () foi adaptada para usar um seletor de conceitos.
--   **Correção de Bug (Alocação de Professores):** Corrigido o bug que impedia a exibição de professores nos detalhes da turma, ajustando a consulta no backend para usar a coleção  e removendo duplicatas.
--   **Configuração de Períodos Bimestrais:** Implementada a funcionalidade no Calendário Letivo para administradores definirem as datas de início/fim dos bimestres.
--   **Aba de Permissões na Escola:** Adicionada a aba Permissão no cadastro de escolas, que exibe os períodos bimestrais globais e permite definir uma data limite de lançamento por bimestre para cada escola.
--   **Visibilidade de Botões (Admin):** Os botões Gerenciar Eventos and Períodos Bimestrais na página de calendário agora são visíveis apenas para administradores.
+-   **Gerenciamento de Anos Letivos**: Finalizada a implementação e testes da funcionalidade de bloquear edições em anos letivos Fechados.
+-   **Geração de Certificado**: Implementado do zero a geração do PDF de Certificado de Conclusão, incluindo layout complexo com imagem de fundo, brasão como marca d'água e no canto, e lógica de exibição condicional na UI. Corrigido um bug de script error na impressão em lote.
+-   **Cadastro da Mantenedora**: Adicionado campo de upload para o Brasão na UI e no backend.
+-   **Cadastro de Escola**: Adicionado e corrigido o salvamento do campo Autorização ou Reconhecimento.
+-   **Importação de Alunos**: Criado um modelo de planilha Excel e executada uma importação em massa para cadastrar/atualizar mais de 4400 alunos.
+-   **Atualização em Massa**: Executado um script para alterar o status de todos os alunos de uma escola para Transferido.
+-   **Ajustes no Certificado**: Realizados múltiplos ajustes de layout (espaçamento, tamanho da fonte, tamanho do brasão) com base no feedback do usuário.
+
+**Earlier issues found/mentioned but not fixed**
+-   Nenhum.
+
+**Known issue recurrence from previous fork**
+-   **Issue recurrence in previous fork:** Gerenciar Lotações pode não estar salvando corretamente.
+-   **Recurrence count:** 2+
+-   **Status:** USER VERIFICATION PENDING
 
 **Code Architecture**
-
+academic_yearsregulamentacaobrasao_url
 
 **Key Technical Concepts**
--   **Hierarchical Configuration:** Implementado um sistema onde uma configuração global (Períodos Bimestrais no Calendário) é herdada por entidades individuais (Escolas), que podem adicionar suas próprias configurações específicas (Data Limite de Lançamento).
--   **Conditional Business Logic:** A aplicação agora diferencia a lógica de negócio (cálculo de notas, aprovação) com base no nível de ensino (), tanto no backend () quanto no frontend ().
--   **Dynamic UI Rendering:** A página  renderiza condicionalmente um campo numérico ou um seletor de conceitos. A página  busca dados de um endpoint () para popular campos de formulário somente leitura.
+-   **Role-Based Access Control (RBAC):** A lógica de bloqueio para anos letivos Fechados diferencia o acesso entre  e outros roles como .
+-   **Dynamic PDF Generation (ReportLab):** Uso avançado para criar certificados complexos, combinando imagens de fundo, imagens sobrepostas (brasão), marcas d'água com transparência e texto dinâmico.
+-   **Bulk Data Processing:** Utilização de scripts executados em background para manipular grandes volumes de dados (milhares de registros de alunos), evitando timeouts de requisições web.
 
 **key DB schema**
--   **academic_calendars** (Nova Coleção):
+-   **schools**:
+    -    (Ex: )
     -   
-    -   , 
-    -   , 
-    -   (e assim por diante para 4 bimestres e recesso)
--   **schools** (Campos a serem adicionados):
-    -    (ex: )
+-   **mantenedoras**:
+    -   
+-   **courses**:
+    -    (Ex: )
+    -    (Ex: )
+    -    (Ex: , )
 
 **changes in tech stack**
-- Nenhuma.
+-   Adicionado  ao backend para manipulação de arquivos Excel.
 
 **All files of reference**
--   **/app/backend/grade_calculator.py**: Novo arquivo que contém a lógica de cálculo de notas, incluindo a nova regra de avaliação conceitual.
--   **/app/backend/pdf_generator.py**: Arquivo central para a geração de PDFs, modificado para suportar avaliação conceitual e múltiplos ajustes de layout.
--   **/app/backend/server.py**: Onde os novos endpoints do calendário foram adicionados e bugs foram corrigidos.
--   **/app/frontend/src/pages/Grades.js**: A interface de lançamento de notas, agora com renderização condicional para conceitos.
--   **/app/frontend/src/pages/Calendar.js**: A interface de calendário, agora com a funcionalidade de configuração de períodos bimestrais.
--   **/app/frontend/src/pages/SchoolsComplete.js**: O formulário de escolas, com a nova aba Permissão e lógica de gerenciamento de anos letivos.
+-   **/app/backend/server.py**: Local da lógica de filtragem dos componentes curriculares.
+-   **/app/backend/pdf_generator.py**: Local onde o boletim é renderizado.
+-   **/app/backend/models.py**: Definição dos modelos de dados.
+-   **/app/frontend/public/modelo_cadastro_alunos.xlsx**: Planilha modelo para cadastro de alunos.
 
 **Areas that need refactoring**:
--   O arquivo  está obsoleto e deve ser excluído.
--   O arquivo  continua crescendo em complexidade e seria beneficiado pela extração de funções auxiliares.
--   Os componentes  e  tornaram-se muito grandes e complexos.
+-    está obsoleto e pode ser excluído.
+-   , ,  e  estão se tornando muito complexos e poderiam ser divididos em componentes menores.
 
 **key api endpoints**
--   **** (NOVO): Retorna os períodos bimestrais configurados para um ano letivo.
--   **** (NOVO): Salva/atualiza os períodos bimestrais de um ano letivo.
--   ****: A lógica de cálculo no backend () foi atualizada para lidar com a avaliação conceitual.
--   ****: Corrigido para buscar da coleção  e remover duplicatas de professores.
+-   ****, ****, ****: Agora incluem a verificação .
+-   ****: Gera o certificado individual.
+-   ****: Gera certificados em lote para uma turma.
+-   ****: Salva a URL do brasão.
+-   ****: Salva a  e .
 
 **Critical Info for New Agent**
--   A tarefa de maior prioridade (P0) é finalizar a funcionalidade de gerenciamento de anos letivos. Isso requer a implementação do backend para salvar os dados dos anos letivos por escola () e, crucialmente, implementar a lógica de bloqueio em toda a aplicação para anos marcados como Fechado.
--   A lógica de avaliação para Educação Infantil é um novo pilar do sistema e deve ser considerada em futuras alterações relacionadas a notas ou histórico de alunos.
--   A configuração de permissões de lançamento agora é uma combinação de uma configuração global (Calendário) e uma configuração por escola (aba Permissão).
+-   A prioridade máxima é resolver o bug dos componentes curriculares ausentes no boletim. O usuário está aguardando ativamente essa correção.
+-   O ponto de partida para a depuração é a lógica de filtragem por  de componente () em , próximo à linha 4698, pois a filtragem por série já foi verificada e parece correta.
+-   A manipulação de grandes volumes de dados (como a importação de alunos) deve ser feita por meio de scripts executados em background para evitar timeouts.
 
 **documents and test reports created in this job**
--   Nenhum novo documento formal foi criado.
+-   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **Request:** Vincular as datas de início/fim do bimestre na aba Permissão da escola aos dados do Calendário Letivo, tornando-as somente leitura. (COMPLETED)
-2.  **User Confirmation:** CONTINUE. (HANDLED)
-3.  **Agent Action:** Agente completou a refatoração e testou o build. (HANDLED)
-4.  **Agent Action:** Agente fez screenshots para verificar a nova aba Permissão. (HANDLED)
-5.  **Agent Summary:** Resumiu o trabalho feito na aba Permissão. (HANDLED)
-6.  **Request:** Adicionar um seletor de ano (2025-2030) no cadastro da escola. Na aba Permissão, adicionar uma funcionalidade para gerenciar anos letivos com status Aberto ou Fechado, onde Fechado bloqueia todas as edições para aquele ano. (IN PROGRESS)
-7.  **Agent Action:** Agente iniciou a implementação, modificando o estado e o  em . (HANDLED)
-8.  **Agent Action:** Agente adicionou as funções de handler (, ) no frontend. (HANDLED)
-9.  **Agent Action:** Agente modificou a UI para adicionar o seletor de ano e a nova seção de gerenciamento na aba Permissão. (HANDLED)
-10. **Agent Action:** Agente testou o build do frontend com as novas alterações. (HANDLED)
+1.  **Request:** Aumente o brasão no canto do certificado em 60%. (COMPLETED)
+2.  **Request:** Mude o status de todos os alunos da Escola Municipal Floresta do Araguaia para transferido. (COMPLETED)
+3.  **Report:** Senti falta de Componentes Curriculares no Boletim. Comparou os cadastrados com a imagem do boletim. (IN PROGRESS)
+4.  **Confirmation:** Continue! (HANDLED, Agent continued debugging)
 
 **Project Health Check:**
--   **Broken:** None
--   **Mocked:** None
+-   **Broken:** A geração de Boletim e Ficha Individual está parcialmente quebrada, pois componentes curriculares importantes estão faltando para o Fundamental - Anos Finais.
+-   **Mocked:** None.
 
 **3rd Party Integrations**
--   **reportlab**: Usado extensivamente no backend para geração de PDFs.
--   **PyPDF2**: Usado para mesclar PDFs.
--   **Servidor FTP Externo ()**: Usado para armazenamento de arquivos persistentes.
+-   **reportlab**: Geração de PDFs.
+-   **PyPDF2**: Mesclagem de PDFs.
+-   **openpyxl**: Leitura e escrita de arquivos Excel ().
+-   **Servidor FTP ()**: Armazenamento de arquivos persistentes como logotipos e brasões.
 
 **Testing status**
--   **Testing agent used after significant changes:** YES (para a lógica de avaliação conceitual).
+-   **Testing agent used after significant changes:** YES (usado para validar a funcionalidade do certificado).
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** []
--   **Known regressions:** None
+-   **Known regressions:** A funcionalidade de exibição de componentes no boletim parece ter regredido ou nunca funcionou corretamente para todos os casos.
 
 **Credentials to test flow:**
 -   **Admin:**  / 
 -   **Coordenador/Professor:**  / 
 
 **What agent forgot to execute**
--   Nenhum item solicitado pelo usuário foi esquecido. O agente estava trabalhando ativamente na última solicitação quando a sessão terminou.</analysis>
+-   Nenhum item solicitado pelo usuário foi esquecido. O agente está trabalhando ativamente na última solicitação.</analysis>
