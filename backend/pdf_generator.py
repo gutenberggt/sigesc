@@ -715,18 +715,24 @@ def generate_boletim_pdf(
         # Extrair regras de aprovação da mantenedora
         regras_aprovacao = {
             'media_aprovacao': mantenedora.get('media_aprovacao', 6.0) if mantenedora else 6.0,
+            'frequencia_minima': mantenedora.get('frequencia_minima', 75.0) if mantenedora else 75.0,
             'aprovacao_com_dependencia': mantenedora.get('aprovacao_com_dependencia', False) if mantenedora else False,
             'max_componentes_dependencia': mantenedora.get('max_componentes_dependencia') if mantenedora else None,
             'cursar_apenas_dependencia': mantenedora.get('cursar_apenas_dependencia', False) if mantenedora else False,
             'qtd_componentes_apenas_dependencia': mantenedora.get('qtd_componentes_apenas_dependencia') if mantenedora else None,
         }
         
+        # Calcular frequência do aluno (se houver dados de frequência)
+        # TODO: Receber frequência calculada externamente quando disponível
+        frequencia_aluno = None  # Será calculada quando integrado com módulo de frequência
+        
         # Calcular resultado usando a função centralizada
         resultado_calc = calcular_resultado_final_aluno(
             medias_por_componente=medias_por_componente,
             regras_aprovacao=regras_aprovacao,
             enrollment_status=enrollment_status,
-            is_educacao_infantil=False
+            is_educacao_infantil=False,
+            frequencia_aluno=frequencia_aluno
         )
         
         resultado = resultado_calc['resultado']
