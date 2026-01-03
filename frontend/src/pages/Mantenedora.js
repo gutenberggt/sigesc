@@ -221,7 +221,16 @@ export default function Mantenedora() {
     
     try {
       setSaving(true);
-      await mantenedoraAPI.update(formData);
+      
+      // Preparar dados para envio, convertendo valores numéricos
+      const dataToSend = {
+        ...formData,
+        media_aprovacao: formData.media_aprovacao ? parseFloat(formData.media_aprovacao) : null,
+        max_componentes_dependencia: formData.max_componentes_dependencia ? parseInt(formData.max_componentes_dependencia) : null,
+        qtd_componentes_apenas_dependencia: formData.qtd_componentes_apenas_dependencia ? parseInt(formData.qtd_componentes_apenas_dependencia) : null,
+      };
+      
+      await mantenedoraAPI.update(dataToSend);
       // Atualiza o contexto global da mantenedora
       refreshMantenedora();
       showAlert('success', 'Dados salvos com sucesso!');
