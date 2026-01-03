@@ -78,6 +78,13 @@ export default function Mantenedora() {
         logotipo_url: data.logotipo_url || '',
         brasao_url: data.brasao_url || '',
         slogan: data.slogan || '',
+        // Condicionais para aprovação
+        media_aprovacao: data.media_aprovacao?.toString() || '6.0',
+        aprovacao_com_dependencia: data.aprovacao_com_dependencia || false,
+        max_componentes_dependencia: data.max_componentes_dependencia?.toString() || '',
+        cursar_apenas_dependencia: data.cursar_apenas_dependencia || false,
+        qtd_componentes_apenas_dependencia: data.qtd_componentes_apenas_dependencia?.toString() || '',
+        // Endereço
         cep: data.cep || '',
         logradouro: data.logradouro || '',
         numero: data.numero || '',
