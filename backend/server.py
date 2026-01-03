@@ -4656,6 +4656,7 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
     
     # Determinar se a escola oferece atendimento integral
     escola_integral = school.get('atendimento_integral', False)
+    logger.info(f"Boletim: escola_integral={escola_integral}")
     
     # Construir query para buscar componentes curriculares
     courses_query = {}
@@ -4666,9 +4667,11 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
     
     # Buscar componentes do nível de ensino
     all_courses = await db.courses.find(courses_query, {"_id": 0}).to_list(100)
+    logger.info(f"Boletim: {len(all_courses)} componentes encontrados para nivel_ensino={nivel_ensino}")
     
     # Filtrar componentes baseado no atendimento/programa
     filtered_courses = []
+    excluded_courses = []  # Para debug
     for course in all_courses:
         atendimento = course.get('atendimento_programa')
         course_grade_levels = course.get('grade_levels', [])
