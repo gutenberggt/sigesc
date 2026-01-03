@@ -5037,6 +5037,7 @@ async def get_ficha_individual(
     
     # Verificar se a escola oferece atendimento integral
     escola_integral = school.get('atendimento_integral', False)
+    logger.info(f"Ficha Individual: escola_integral={escola_integral}")
     
     # Buscar componentes: globais (sem school_id) OU específicos da escola
     courses_filter = {
@@ -5051,12 +5052,15 @@ async def get_ficha_individual(
         ]
     }
     all_courses = await db.courses.find(courses_filter, {"_id": 0}).to_list(100)
+    logger.info(f"Ficha Individual: {len(all_courses)} componentes encontrados para nivel_ensino={nivel_ensino}")
     
     # Filtrar componentes baseado no atendimento/programa
     filtered_courses = []
+    excluded_courses = []  # Para debug
     for course in all_courses:
         atendimento = course.get('atendimento_programa')
         course_grade_levels = course.get('grade_levels', [])
+        course_name = course.get('name', 'N/A')
         
         # Componentes Transversais/Formativos aparecem em TODAS as escolas
         if atendimento == 'transversal_formativa':
@@ -5065,19 +5069,33 @@ async def get_ficha_individual(
         # Verificar se o componente é específico de Escola Integral
         elif atendimento == 'atendimento_integral':
             if not escola_integral:
+                excluded_courses.append(f"{course_name} (excluído: atendimento_integral e escola não é integral)")
                 continue
         # Verificar se o componente é de outro atendimento (AEE, reforço, etc)
         elif atendimento and atendimento not in ['atendimento_integral', 'transversal_formativa']:
             escola_oferece = school.get(atendimento, False)
             if not escola_oferece:
+                excluded_courses.append(f"{course_name} (excluído: atendimento={atendimento} não oferecido pela escola)")
                 continue
         
         # Verificar se o componente é específico para certas séries
         if course_grade_levels:
             if grade_level and grade_level not in course_grade_levels:
+                excluded_courses.append(f"{course_name} (excluído: grade_levels={course_grade_levels} não inclui {grade_level})")
                 continue
         
         filtered_courses.append(course)
+    
+    # Log de debug detalhado
+    logger.info(f"Ficha Individual: {len(filtered_courses)} componentes incluídos após filtragem")
+    if excluded_courses:
+        logger.warning(f"Ficha Individual: {len(excluded_courses)} componentes EXCLUÍDOS:")
+        for exc in excluded_courses:
+            logger.warning(f"  - {exc}")
+    
+    # Log dos componentes incluídos
+    included_names = [c.get('name', 'N/A') for c in filtered_courses]
+    logger.info(f"Ficha Individual: Componentes incluídos: {included_names}")
     
     # Ordenar por nome
     filtered_courses.sort(key=lambda x: x.get('name', ''))
