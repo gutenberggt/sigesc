@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Save, MapPin, Phone, User, Loader2, Upload, Image, X, Home } from 'lucide-react';
+import { Building2, Save, MapPin, Phone, User, Loader2, Upload, Image, X, Home, CheckSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { mantenedoraAPI, uploadAPI } from '@/services/api';
 import { formatCEP, formatPhone, formatCPF, formatCNPJ } from '@/utils/formatters';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
@@ -28,6 +30,13 @@ export default function Mantenedora() {
     logotipo_url: '',
     brasao_url: '',  // URL do brasão
     slogan: '',  // Slogan para cabeçalhos dos documentos
+    
+    // Condicionais para aprovação
+    media_aprovacao: '6.0',
+    aprovacao_com_dependencia: false,
+    max_componentes_dependencia: '',
+    cursar_apenas_dependencia: false,
+    qtd_componentes_apenas_dependencia: '',
     
     // Endereço
     cep: '',
