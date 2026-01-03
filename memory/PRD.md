@@ -17,15 +17,17 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 
 - **Condicionais para Aprovação (Mantenedora)**: Novos campos no cadastro da mantenedora:
   - Média para aprovação (5,0 a 10,0)
+  - **Frequência mínima para aprovação (60% a 85%, padrão LDB: 75%)**
   - Aprovação com dependência (checkbox + qtd máxima de componentes 1-5)
   - Cursar apenas dependência (checkbox + qtd de componentes 1-5)
 
 - **Lógica de Resultado Final**: Implementada função `calcular_resultado_final_aluno()` que considera:
   - Média mínima configurável pela mantenedora
+  - **Frequência mínima configurável (reprovação prioritária por frequência)**
   - Aprovação com dependência (se permitido e dentro do limite)
   - Cursar apenas dependência (quando reprovações excedem o limite)
   - Status especiais (transferido, desistente, falecido)
-  - Resultados possíveis: APROVADO, REPROVADO, APROVADO COM DEPENDÊNCIA, CURSAR DEPENDÊNCIA, EM ANDAMENTO
+  - Resultados possíveis: APROVADO, REPROVADO, REPROVADO POR FREQUÊNCIA, APROVADO COM DEPENDÊNCIA, CURSAR DEPENDÊNCIA, EM ANDAMENTO
 
 ### Anteriores
 - Gerenciamento de Anos Letivos (aberto/fechado)
