@@ -691,10 +691,9 @@ def generate_boletim_pdf(
             resultado = "APROVADO"
             resultado_color = colors.HexColor('#16a34a')  # Verde
     else:
-        # OUTROS NÍVEIS: Cálculo normal de aprovação
-        # Componentes optativos: se NÃO têm notas, não interferem na aprovação
-        # Se têm notas, entram normalmente no cálculo
-        all_medias = []
+        # OUTROS NÍVEIS: Cálculo usando regras da mantenedora
+        # Preparar lista de médias por componente
+        medias_por_componente = []
         for course in courses:
             is_optativo = course.get('optativo', False)
             course_grades = grades_by_course.get(course.get('id'), {})
@@ -704,28 +703,34 @@ def generate_boletim_pdf(
                 if isinstance(g, (int, float)):
                     valid_grades.append(g)
             
-            # Se for optativo e NÃO tem notas, não entra no cálculo
-            # Se for optativo e TEM notas, entra normalmente
-            if is_optativo and not valid_grades:
-                continue
+            # Calcular média do componente
+            media = sum(valid_grades) / len(valid_grades) if valid_grades else None
             
-            if valid_grades:
-                all_medias.append(sum(valid_grades) / len(valid_grades))
+            medias_por_componente.append({
+                'nome': course.get('name', 'N/A'),
+                'media': media,
+                'optativo': is_optativo
+            })
         
-        if all_medias:
-            media_geral = sum(all_medias) / len(all_medias)
-            if media_geral >= 6:
-                resultado = "APROVADO"
-                resultado_color = colors.HexColor('#16a34a')  # Verde
-            elif media_geral >= 4:
-                resultado = "EM RECUPERAÇÃO"
-                resultado_color = colors.HexColor('#ca8a04')  # Amarelo
-            else:
-                resultado = "REPROVADO"
-                resultado_color = colors.HexColor('#dc2626')  # Vermelho
-        else:
-            resultado = "EM ANDAMENTO"
-            resultado_color = colors.HexColor('#2563eb')  # Azul
+        # Extrair regras de aprovação da mantenedora
+        regras_aprovacao = {
+            'media_aprovacao': mantenedora.get('media_aprovacao', 6.0) if mantenedora else 6.0,
+            'aprovacao_com_dependencia': mantenedora.get('aprovacao_com_dependencia', False) if mantenedora else False,
+            'max_componentes_dependencia': mantenedora.get('max_componentes_dependencia') if mantenedora else None,
+            'cursar_apenas_dependencia': mantenedora.get('cursar_apenas_dependencia', False) if mantenedora else False,
+            'qtd_componentes_apenas_dependencia': mantenedora.get('qtd_componentes_apenas_dependencia') if mantenedora else None,
+        }
+        
+        # Calcular resultado usando a função centralizada
+        resultado_calc = calcular_resultado_final_aluno(
+            medias_por_componente=medias_por_componente,
+            regras_aprovacao=regras_aprovacao,
+            enrollment_status=enrollment_status,
+            is_educacao_infantil=False
+        )
+        
+        resultado = resultado_calc['resultado']
+        resultado_color = colors.HexColor(resultado_calc['cor'])
     
     # Estilos do resultado (fonte original, largura +20%)
     result_style = ParagraphStyle('Result', fontSize=12, alignment=TA_LEFT)
