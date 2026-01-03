@@ -419,13 +419,30 @@ def calcular_resultado_final_aluno(
             'cor': '#2563eb',
             'componentes_reprovados': [],
             'media_geral': None,
-            'detalhes': 'Sem notas registradas'
+            'detalhes': 'Sem notas registradas',
+            'reprovado_por_frequencia': False
         }
     
     media_geral = sum(medias) / len(medias)
     qtd_reprovados = len(componentes_reprovados)
     
-    # Lógica de resultado
+    # VERIFICAÇÃO PRIORITÁRIA: Reprovação por frequência
+    if reprovado_por_frequencia:
+        freq_str = f'{frequencia_aluno:.1f}%' if frequencia_aluno else 'N/A'
+        detalhes = f'Reprovado por frequência insuficiente ({freq_str} < {frequencia_minima:.0f}% mínimo)'
+        if qtd_reprovados > 0:
+            detalhes += f'. Também reprovado em {qtd_reprovados} componente(s): {", ".join(componentes_reprovados)}'
+        
+        return {
+            'resultado': 'REPROVADO POR FREQUÊNCIA',
+            'cor': '#991b1b',  # Vermelho escuro
+            'componentes_reprovados': componentes_reprovados,
+            'media_geral': media_geral,
+            'detalhes': detalhes,
+            'reprovado_por_frequencia': True
+        }
+    
+    # Lógica de resultado (frequência OK)
     if qtd_reprovados == 0:
         # Aprovado direto - nenhum componente reprovado
         return {
@@ -433,7 +450,8 @@ def calcular_resultado_final_aluno(
             'cor': '#16a34a',
             'componentes_reprovados': [],
             'media_geral': media_geral,
-            'detalhes': f'Média geral: {media_geral:.1f} - Aprovado em todos os componentes'
+            'detalhes': f'Média geral: {media_geral:.1f} - Aprovado em todos os componentes',
+            'reprovado_por_frequencia': False
         }
     
     # Tem componentes reprovados - verificar regras de dependência
@@ -445,7 +463,8 @@ def calcular_resultado_final_aluno(
             'cor': '#7c3aed',  # Roxo
             'componentes_reprovados': componentes_reprovados,
             'media_geral': media_geral,
-            'detalhes': f'Reprovado em {qtd_reprovados} componente(s) - deve cursar apenas dependência: {", ".join(componentes_reprovados)}'
+            'detalhes': f'Reprovado em {qtd_reprovados} componente(s) - deve cursar apenas dependência: {", ".join(componentes_reprovados)}',
+            'reprovado_por_frequencia': False
         }
     
     # 2. Verificar se pode ser aprovado com dependência
@@ -455,7 +474,8 @@ def calcular_resultado_final_aluno(
             'cor': '#ca8a04',  # Amarelo
             'componentes_reprovados': componentes_reprovados,
             'media_geral': media_geral,
-            'detalhes': f'Aprovado com dependência em {qtd_reprovados} componente(s): {", ".join(componentes_reprovados)}'
+            'detalhes': f'Aprovado com dependência em {qtd_reprovados} componente(s): {", ".join(componentes_reprovados)}',
+            'reprovado_por_frequencia': False
         }
     
     # 3. Reprovado - excedeu o limite de componentes para dependência
@@ -470,7 +490,8 @@ def calcular_resultado_final_aluno(
             'cor': '#dc2626',
             'componentes_reprovados': componentes_reprovados,
             'media_geral': media_geral,
-            'detalhes': detalhes
+            'detalhes': detalhes,
+            'reprovado_por_frequencia': False
         }
     
     # Fallback - não deveria chegar aqui
