@@ -1603,26 +1603,18 @@ def generate_ficha_individual_pdf(
             'qtd_componentes_apenas_dependencia': mantenedora.get('qtd_componentes_apenas_dependencia') if mantenedora else None,
         }
         
-        # Calcular frequência do aluno (se houver dados de frequência)
-        # TODO: Receber frequência calculada externamente quando disponível
-        frequencia_aluno = None  # Será calculada quando integrado com módulo de frequência
-        
         # Calcular resultado usando a função centralizada
+        # Usa a frequencia_anual calculada anteriormente
         resultado_calc = calcular_resultado_final_aluno(
             medias_por_componente=medias_por_componente,
             regras_aprovacao=regras_aprovacao,
             enrollment_status=enrollment_status,
             is_educacao_infantil=False,
-            frequencia_aluno=frequencia_aluno
+            frequencia_aluno=frequencia_anual
         )
         
         resultado = resultado_calc['resultado']
         resultado_color = colors.HexColor(resultado_calc['cor'])
-        
-        # TODO: Considerar frequência mínima também (75%)
-        # if frequencia_anual < 75 and resultado == "APROVADO":
-        #     resultado = "REPROVADO POR FREQUÊNCIA"
-        #     resultado_color = colors.HexColor('#dc2626')
     
     # ===== LINHA COM OBSERVAÇÃO E RESULTADO =====
     obs_style = ParagraphStyle('ObsStyle', fontSize=7, fontName='Helvetica-Oblique')
