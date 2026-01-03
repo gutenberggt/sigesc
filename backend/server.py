@@ -4704,6 +4704,17 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
         
         filtered_courses.append(course)
     
+    # Log de debug detalhado
+    logger.info(f"Boletim: {len(filtered_courses)} componentes incluídos após filtragem")
+    if excluded_courses:
+        logger.warning(f"Boletim: {len(excluded_courses)} componentes EXCLUÍDOS:")
+        for exc in excluded_courses:
+            logger.warning(f"  - {exc}")
+    
+    # Log dos componentes incluídos
+    included_names = [c.get('name', 'N/A') for c in filtered_courses]
+    logger.info(f"Boletim: Componentes incluídos: {included_names}")
+    
     # Ordenar por nome
     filtered_courses.sort(key=lambda x: x.get('name', ''))
     
