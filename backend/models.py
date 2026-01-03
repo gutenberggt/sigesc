@@ -1632,6 +1632,7 @@ class MantenedoraBase(BaseModel):
     
     # Condicionais para aprovação
     media_aprovacao: Optional[float] = 6.0  # Média mínima para aprovação (5.0 a 10.0)
+    frequencia_minima: Optional[float] = 75.0  # Frequência mínima para aprovação (%)
     aprovacao_com_dependencia: Optional[bool] = False  # Permite aprovação com dependência
     max_componentes_dependencia: Optional[int] = None  # Máximo de componentes para aprovar com dependência (1-5)
     cursar_apenas_dependencia: Optional[bool] = False  # Permite cursar apenas dependência
