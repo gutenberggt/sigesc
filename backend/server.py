@@ -5829,6 +5829,118 @@ async def get_unread_count(request: Request):
 
 # ============= FIM USER PROFILE ENDPOINTS =============
 
+# ============= DEBUG ENDPOINT - COMPONENTES CURRICULARES =============
+
+@api_router.get("/debug/courses/{class_id}")
+async def debug_courses_for_class(class_id: str, request: Request = None):
+    """
+    Debug: Retorna informações detalhadas sobre os componentes curriculares
+    que seriam usados no boletim de uma turma específica.
+    """
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    # Buscar turma
+    class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
+    if not class_info:
+        raise HTTPException(status_code=404, detail="Turma não encontrada")
+    
+    # Buscar escola
+    school_id = class_info.get("school_id")
+    school = await db.schools.find_one({"id": school_id}, {"_id": 0})
+    if not school:
+        raise HTTPException(status_code=404, detail="Escola não encontrada")
+    
+    # Determinar nível de ensino e série
+    nivel_ensino = class_info.get('nivel_ensino')
+    grade_level = class_info.get('grade_level', '')
+    grade_level_lower = grade_level.lower() if grade_level else ''
+    
+    # Inferir nivel_ensino se não definido
+    if not nivel_ensino:
+        if any(x in grade_level_lower for x in ['berçário', 'bercario', 'maternal', 'pré', 'pre']):
+            nivel_ensino = 'educacao_infantil'
+        elif any(x in grade_level_lower for x in ['1º ano', '2º ano', '3º ano', '4º ano', '5º ano', '1 ano', '2 ano', '3 ano', '4 ano', '5 ano']):
+            nivel_ensino = 'fundamental_anos_iniciais'
+        elif any(x in grade_level_lower for x in ['6º ano', '7º ano', '8º ano', '9º ano', '6 ano', '7 ano', '8 ano', '9 ano']):
+            nivel_ensino = 'fundamental_anos_finais'
+        elif any(x in grade_level_lower for x in ['eja', 'etapa']):
+            if any(x in grade_level_lower for x in ['3', '4', 'final']):
+                nivel_ensino = 'eja_final'
+            else:
+                nivel_ensino = 'eja'
+    
+    escola_integral = school.get('atendimento_integral', False)
+    
+    # Buscar todos os componentes do nível
+    courses_query = {}
+    if nivel_ensino:
+        courses_query['nivel_ensino'] = nivel_ensino
+    
+    all_courses = await db.courses.find(courses_query, {"_id": 0}).to_list(100)
+    
+    # Filtrar componentes
+    filtered_courses = []
+    excluded_courses = []
+    
+    for course in all_courses:
+        atendimento = course.get('atendimento_programa')
+        course_grade_levels = course.get('grade_levels', [])
+        course_name = course.get('name', 'N/A')
+        
+        # Verificar atendimento
+        if atendimento == 'transversal_formativa':
+            pass
+        elif atendimento == 'atendimento_integral':
+            if not escola_integral:
+                excluded_courses.append({
+                    "name": course_name,
+                    "reason": f"atendimento_integral e escola não é integral (escola_integral={escola_integral})",
+                    "course_data": course
+                })
+                continue
+        elif atendimento and atendimento not in ['atendimento_integral', 'transversal_formativa']:
+            escola_oferece = school.get(atendimento, False)
+            if not escola_oferece:
+                excluded_courses.append({
+                    "name": course_name,
+                    "reason": f"atendimento={atendimento} não oferecido pela escola",
+                    "course_data": course
+                })
+                continue
+        
+        # Verificar grade_levels
+        if course_grade_levels:
+            if grade_level and grade_level not in course_grade_levels:
+                excluded_courses.append({
+                    "name": course_name,
+                    "reason": f"grade_levels={course_grade_levels} não inclui '{grade_level}'",
+                    "course_data": course
+                })
+                continue
+        
+        filtered_courses.append(course)
+    
+    return {
+        "class_info": {
+            "id": class_id,
+            "name": class_info.get('name'),
+            "grade_level": grade_level,
+            "nivel_ensino_original": class_info.get('nivel_ensino'),
+            "nivel_ensino_inferido": nivel_ensino
+        },
+        "school_info": {
+            "id": school_id,
+            "name": school.get('name'),
+            "atendimento_integral": escola_integral,
+            "atendimentos": {k: v for k, v in school.items() if k.startswith('atendimento') or k.endswith('_integral')}
+        },
+        "total_courses_found": len(all_courses),
+        "total_courses_filtered": len(filtered_courses),
+        "total_courses_excluded": len(excluded_courses),
+        "included_courses": [{"name": c.get('name'), "id": c.get('id'), "grade_levels": c.get('grade_levels', []), "atendimento": c.get('atendimento_programa')} for c in filtered_courses],
+        "excluded_courses": excluded_courses
+    }
+
 # ============= UNIDADE MANTENEDORA ENDPOINTS =============
 
 @api_router.get("/mantenedora", response_model=Mantenedora)
