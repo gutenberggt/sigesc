@@ -228,6 +228,7 @@ export default function Mantenedora() {
       const dataToSend = {
         ...formData,
         media_aprovacao: formData.media_aprovacao ? parseFloat(formData.media_aprovacao) : null,
+        frequencia_minima: formData.frequencia_minima ? parseFloat(formData.frequencia_minima) : null,
         max_componentes_dependencia: formData.max_componentes_dependencia ? parseInt(formData.max_componentes_dependencia) : null,
         qtd_componentes_apenas_dependencia: formData.qtd_componentes_apenas_dependencia ? parseInt(formData.qtd_componentes_apenas_dependencia) : null,
       };
