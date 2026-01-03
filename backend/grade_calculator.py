@@ -368,10 +368,16 @@ def calcular_resultado_final_aluno(
     
     # Extrair regras da mantenedora (com valores padrão)
     media_minima = regras_aprovacao.get('media_aprovacao', 6.0) or 6.0
+    frequencia_minima = regras_aprovacao.get('frequencia_minima', 75.0) or 75.0
     permite_dependencia = regras_aprovacao.get('aprovacao_com_dependencia', False)
     max_componentes_dep = regras_aprovacao.get('max_componentes_dependencia', 0) or 0
     permite_cursar_dep = regras_aprovacao.get('cursar_apenas_dependencia', False)
     qtd_cursar_dep = regras_aprovacao.get('qtd_componentes_apenas_dependencia', 0) or 0
+    
+    # Verificar reprovação por frequência
+    reprovado_por_frequencia = False
+    if frequencia_aluno is not None and frequencia_aluno < frequencia_minima:
+        reprovado_por_frequencia = True
     
     # Filtrar componentes válidos (não optativos sem notas)
     componentes_validos = []
@@ -392,7 +398,8 @@ def calcular_resultado_final_aluno(
             'cor': '#2563eb',
             'componentes_reprovados': [],
             'media_geral': None,
-            'detalhes': 'Sem notas registradas'
+            'detalhes': 'Sem notas registradas',
+            'reprovado_por_frequencia': False
         }
     
     # Calcular média geral e identificar componentes reprovados
