@@ -1672,6 +1672,7 @@ class MantenedoraUpdate(BaseModel):
     
     # Condicionais para aprovação
     media_aprovacao: Optional[float] = None
+    frequencia_minima: Optional[float] = None
     aprovacao_com_dependencia: Optional[bool] = None
     max_componentes_dependencia: Optional[int] = None
     cursar_apenas_dependencia: Optional[bool] = None
