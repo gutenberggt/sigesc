@@ -544,6 +544,30 @@ export default function Mantenedora() {
                 </p>
               </div>
 
+              {/* Frequência mínima */}
+              <div>
+                <Label htmlFor="frequencia_minima">Frequência Mínima para Aprovação (%)</Label>
+                <Select
+                  value={formData.frequencia_minima}
+                  onValueChange={(value) => handleInputChange('frequencia_minima', value)}
+                >
+                  <SelectTrigger className="w-48 mt-1">
+                    <SelectValue placeholder="Selecione a frequência" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="60">60%</SelectItem>
+                    <SelectItem value="65">65%</SelectItem>
+                    <SelectItem value="70">70%</SelectItem>
+                    <SelectItem value="75">75%</SelectItem>
+                    <SelectItem value="80">80%</SelectItem>
+                    <SelectItem value="85">85%</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Frequência mínima necessária para aprovação (padrão LDB: 75%)
+                </p>
+              </div>
+
               {/* Aprovação com dependência */}
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
