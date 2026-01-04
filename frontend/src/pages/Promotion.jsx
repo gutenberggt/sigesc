@@ -306,7 +306,7 @@ export function Promotion() {
         // Organizar notas por componente
         const gradesByComponent = {};
         studentGrades.forEach(grade => {
-          const course = (coursesData || []).find(c => c.id === grade.course_id);
+          const course = (orderedCourses || []).find(c => c.id === grade.course_id);
           if (course) {
             if (!gradesByComponent[course.id]) {
               gradesByComponent[course.id] = {
