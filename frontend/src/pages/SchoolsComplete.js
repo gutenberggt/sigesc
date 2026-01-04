@@ -1657,10 +1657,8 @@ export function SchoolsComplete() {
             <table className="min-w-full divide-y divide-gray-200 border rounded-lg">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turma</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ano Letivo</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Série/Etapa</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turno</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -1668,12 +1666,6 @@ export function SchoolsComplete() {
                   <tr key={index} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">{classItem.name}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{classItem.academic_year}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{classItem.grade_level}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {classItem.shift === 'morning' ? 'Manhã' :
-                       classItem.shift === 'afternoon' ? 'Tarde' :
-                       classItem.shift === 'evening' ? 'Noite' : 'Integral'}
-                    </td>
                   </tr>
                 ))}
               </tbody>
