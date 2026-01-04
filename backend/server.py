@@ -38,13 +38,15 @@ from models import (
     TeacherAssignment, TeacherAssignmentCreate, TeacherAssignmentUpdate,
     Announcement, AnnouncementCreate, AnnouncementUpdate, AnnouncementResponse,
     AnnouncementRecipient, AnnouncementReadStatus, NotificationCount,
-    Mantenedora, MantenedoraUpdate
+    Mantenedora, MantenedoraUpdate,
+    AuditLog, AuditLogFilter
 )
 from auth_utils import (
     hash_password, verify_password, create_access_token, 
     create_refresh_token, decode_token, get_school_ids_from_links
 )
 from auth_middleware import AuthMiddleware
+from audit_service import audit_service
 from pdf_generator import (
     generate_boletim_pdf,
     generate_declaracao_matricula_pdf,
