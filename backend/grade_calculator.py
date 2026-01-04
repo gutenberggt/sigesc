@@ -503,3 +503,289 @@ def calcular_resultado_final_aluno(
         'detalhes': 'Avaliação em andamento',
         'reprovado_por_frequencia': False
     }
+
+
+
+# Séries do 1º e 2º Ano (promoção automática)
+SERIES_PROMOCAO_AUTOMATICA = [
+    '1º Ano', '1° Ano', '1 Ano', 'Primeiro Ano',
+    '2º Ano', '2° Ano', '2 Ano', 'Segundo Ano'
+]
+
+# Séries do 3º ao 5º Ano (Anos Iniciais com avaliação)
+SERIES_ANOS_INICIAIS_AVALIACAO = [
+    '3º Ano', '3° Ano', '3 Ano', 'Terceiro Ano',
+    '4º Ano', '4° Ano', '4 Ano', 'Quarto Ano',
+    '5º Ano', '5° Ano', '5 Ano', 'Quinto Ano'
+]
+
+# Séries do 6º ao 9º Ano (Anos Finais)
+SERIES_ANOS_FINAIS = [
+    '6º Ano', '6° Ano', '6 Ano', 'Sexto Ano',
+    '7º Ano', '7° Ano', '7 Ano', 'Sétimo Ano',
+    '8º Ano', '8° Ano', '8 Ano', 'Oitavo Ano',
+    '9º Ano', '9° Ano', '9 Ano', 'Nono Ano'
+]
+
+# Etapas EJA Iniciais (1ª e 2ª Etapa)
+ETAPAS_EJA_INICIAIS = [
+    '1ª Etapa', '1° Etapa', '1 Etapa', 'Primeira Etapa',
+    '2ª Etapa', '2° Etapa', '2 Etapa', 'Segunda Etapa'
+]
+
+# Etapas EJA Finais (3ª e 4ª Etapa)
+ETAPAS_EJA_FINAIS = [
+    '3ª Etapa', '3° Etapa', '3 Etapa', 'Terceira Etapa',
+    '4ª Etapa', '4° Etapa', '4 Etapa', 'Quarta Etapa'
+]
+
+
+def _match_serie(grade_level: str, series_list: List[str]) -> bool:
+    """Verifica se a série corresponde a alguma da lista"""
+    if not grade_level:
+        return False
+    gl_lower = grade_level.lower()
+    return any(serie.lower() in gl_lower for serie in series_list)
+
+
+def is_promocao_automatica(grade_level: str) -> bool:
+    """Verifica se é série com promoção automática (1º e 2º Ano)"""
+    return _match_serie(grade_level, SERIES_PROMOCAO_AUTOMATICA)
+
+
+def is_anos_iniciais_avaliacao(grade_level: str) -> bool:
+    """Verifica se é série dos Anos Iniciais com avaliação (3º ao 5º Ano)"""
+    return _match_serie(grade_level, SERIES_ANOS_INICIAIS_AVALIACAO)
+
+
+def is_anos_finais(grade_level: str) -> bool:
+    """Verifica se é série dos Anos Finais (6º ao 9º Ano)"""
+    return _match_serie(grade_level, SERIES_ANOS_FINAIS)
+
+
+def is_eja_inicial(grade_level: str, nivel_ensino: str = None) -> bool:
+    """Verifica se é EJA Inicial (1ª e 2ª Etapa)"""
+    if nivel_ensino == 'eja':
+        return _match_serie(grade_level, ETAPAS_EJA_INICIAIS)
+    return False
+
+
+def is_eja_final(grade_level: str, nivel_ensino: str = None) -> bool:
+    """Verifica se é EJA Final (3ª e 4ª Etapa)"""
+    if nivel_ensino in ['eja', 'eja_final']:
+        return _match_serie(grade_level, ETAPAS_EJA_FINAIS)
+    return False
+
+
+def determinar_resultado_documento(
+    enrollment_status: str,
+    grade_level: str,
+    nivel_ensino: str,
+    data_fim_4bim: str,
+    medias_por_componente: List[Dict],
+    regras_aprovacao: Dict,
+    frequencia_aluno: float = None
+) -> Dict:
+    """
+    Determina o resultado do aluno para exibição no Boletim/Ficha Individual.
+    
+    Regras:
+    - ATÉ a data fim do 4º bimestre: Status "Ativo" → "CURSANDO", outros mantém
+    - APÓS a data fim do 4º bimestre:
+        - Status diferente de "Ativo" → manter status
+        - Status "Ativo":
+            - Educação Infantil → "CONCLUIU"
+            - 1º e 2º Ano → "PROMOVIDO"
+            - 3º ao 5º Ano, 1ª/2ª Etapa EJA → Verificar frequência e média
+            - 6º ao 9º Ano, 3ª/4ª Etapa EJA → Verificar frequência, média e dependência
+    
+    Args:
+        enrollment_status: Status da matrícula (active, transferred, etc.)
+        grade_level: Série/Ano do aluno (ex: "5º Ano", "3ª Etapa")
+        nivel_ensino: Nível de ensino (educacao_infantil, fundamental_anos_iniciais, etc.)
+        data_fim_4bim: Data de fim do 4º bimestre (YYYY-MM-DD)
+        medias_por_componente: Lista de dicts com {'nome': str, 'media': float, 'optativo': bool}
+        regras_aprovacao: Dict com regras da mantenedora
+        frequencia_aluno: Frequência do aluno em porcentagem (0-100)
+    
+    Returns:
+        Dict com 'resultado', 'cor', 'detalhes'
+    """
+    from datetime import datetime, timezone
+    
+    # Verificar se estamos antes ou depois do fim do 4º bimestre
+    hoje = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    apos_fim_4bim = hoje > data_fim_4bim if data_fim_4bim else False
+    
+    # Normalizar status
+    status_lower = (enrollment_status or 'active').lower()
+    
+    # ========== ANTES DO FIM DO 4º BIMESTRE ==========
+    if not apos_fim_4bim:
+        # Verificar status especiais
+        status_especiais = {
+            'desistencia': ('DESISTENTE', '#dc2626'),
+            'desistente': ('DESISTENTE', '#dc2626'),
+            'falecimento': ('FALECIDO', '#6b7280'),
+            'falecido': ('FALECIDO', '#6b7280'),
+            'transferencia': ('TRANSFERIDO', '#f59e0b'),
+            'transferido': ('TRANSFERIDO', '#f59e0b'),
+        }
+        
+        if status_lower in status_especiais:
+            resultado, cor = status_especiais[status_lower]
+            return {'resultado': resultado, 'cor': cor, 'detalhes': f'Status: {resultado}'}
+        
+        # Status "Ativo" → "CURSANDO"
+        return {
+            'resultado': 'CURSANDO',
+            'cor': '#2563eb',  # Azul
+            'detalhes': 'Ano letivo em andamento'
+        }
+    
+    # ========== APÓS O FIM DO 4º BIMESTRE ==========
+    
+    # Verificar status especiais primeiro
+    status_especiais = {
+        'desistencia': ('DESISTENTE', '#dc2626'),
+        'desistente': ('DESISTENTE', '#dc2626'),
+        'falecimento': ('FALECIDO', '#6b7280'),
+        'falecido': ('FALECIDO', '#6b7280'),
+        'transferencia': ('TRANSFERIDO', '#f59e0b'),
+        'transferido': ('TRANSFERIDO', '#f59e0b'),
+    }
+    
+    if status_lower in status_especiais:
+        resultado, cor = status_especiais[status_lower]
+        return {'resultado': resultado, 'cor': cor, 'detalhes': f'Status: {resultado}'}
+    
+    # Status "Ativo" - aplicar regras por nível/série
+    
+    # 1. EDUCAÇÃO INFANTIL → "CONCLUIU"
+    if is_educacao_infantil(grade_level, nivel_ensino):
+        return {
+            'resultado': 'CONCLUIU',
+            'cor': '#16a34a',  # Verde
+            'detalhes': 'Educação Infantil - conclusão automática'
+        }
+    
+    # 2. 1º e 2º ANO → "PROMOVIDO"
+    if is_promocao_automatica(grade_level):
+        return {
+            'resultado': 'PROMOVIDO',
+            'cor': '#16a34a',  # Verde
+            'detalhes': 'Promoção automática - 1º/2º Ano'
+        }
+    
+    # 3. 3º ao 5º ANO ou 1ª/2ª ETAPA EJA → Verificar frequência e média
+    if is_anos_iniciais_avaliacao(grade_level) or is_eja_inicial(grade_level, nivel_ensino):
+        return _calcular_resultado_com_avaliacao(
+            medias_por_componente=medias_por_componente,
+            regras_aprovacao=regras_aprovacao,
+            frequencia_aluno=frequencia_aluno,
+            permite_dependencia=False  # Sem dependência para anos iniciais
+        )
+    
+    # 4. 6º ao 9º ANO ou 3ª/4ª ETAPA EJA → Verificar com possibilidade de dependência
+    if is_anos_finais(grade_level) or is_eja_final(grade_level, nivel_ensino):
+        return _calcular_resultado_com_avaliacao(
+            medias_por_componente=medias_por_componente,
+            regras_aprovacao=regras_aprovacao,
+            frequencia_aluno=frequencia_aluno,
+            permite_dependencia=True  # Com dependência para anos finais
+        )
+    
+    # Fallback: usar a função existente
+    resultado_calc = calcular_resultado_final_aluno(
+        medias_por_componente=medias_por_componente,
+        regras_aprovacao=regras_aprovacao,
+        enrollment_status=enrollment_status,
+        is_educacao_infantil=False,
+        frequencia_aluno=frequencia_aluno
+    )
+    return {
+        'resultado': resultado_calc['resultado'],
+        'cor': resultado_calc['cor'],
+        'detalhes': resultado_calc.get('detalhes', '')
+    }
+
+
+def _calcular_resultado_com_avaliacao(
+    medias_por_componente: List[Dict],
+    regras_aprovacao: Dict,
+    frequencia_aluno: float = None,
+    permite_dependencia: bool = False
+) -> Dict:
+    """
+    Calcula resultado verificando frequência e média.
+    
+    Args:
+        medias_por_componente: Lista de médias por componente
+        regras_aprovacao: Regras da mantenedora
+        frequencia_aluno: Frequência do aluno
+        permite_dependencia: Se permite aprovação com dependência
+    """
+    # Extrair regras
+    media_minima = regras_aprovacao.get('media_aprovacao', 6.0) or 6.0
+    frequencia_minima = regras_aprovacao.get('frequencia_minima', 75.0) or 75.0
+    aprovacao_dependencia = regras_aprovacao.get('aprovacao_com_dependencia', False) and permite_dependencia
+    max_componentes_dep = regras_aprovacao.get('max_componentes_dependencia', 0) or 0
+    cursar_dependencia = regras_aprovacao.get('cursar_apenas_dependencia', False) and permite_dependencia
+    qtd_cursar_dep = regras_aprovacao.get('qtd_componentes_apenas_dependencia', 0) or 0
+    
+    # Verificar frequência mínima
+    if frequencia_aluno is not None and frequencia_aluno < frequencia_minima:
+        return {
+            'resultado': 'REPROVADO',
+            'cor': '#dc2626',
+            'detalhes': f'Frequência insuficiente ({frequencia_aluno:.1f}% < {frequencia_minima:.0f}%)'
+        }
+    
+    # Verificar médias por componente
+    componentes_reprovados = []
+    for comp in medias_por_componente:
+        is_optativo = comp.get('optativo', False)
+        media = comp.get('media')
+        
+        # Ignorar optativos sem nota
+        if is_optativo and media is None:
+            continue
+        
+        # Verificar se reprovou no componente
+        if media is not None and media < media_minima:
+            componentes_reprovados.append(comp.get('nome', 'N/A'))
+    
+    qtd_reprovados = len(componentes_reprovados)
+    
+    # Sem reprovações → APROVADO
+    if qtd_reprovados == 0:
+        return {
+            'resultado': 'APROVADO',
+            'cor': '#16a34a',
+            'detalhes': 'Aprovado em todos os componentes'
+        }
+    
+    # Com reprovações - verificar dependência (apenas se permitido)
+    if permite_dependencia:
+        # Verificar "Cursar apenas dependência"
+        if cursar_dependencia and qtd_cursar_dep > 0 and qtd_reprovados >= qtd_cursar_dep:
+            return {
+                'resultado': 'EM DEPENDÊNCIA',
+                'cor': '#7c3aed',  # Roxo
+                'detalhes': f'Deve cursar apenas dependência em: {", ".join(componentes_reprovados)}'
+            }
+        
+        # Verificar "Aprovado com dependência"
+        if aprovacao_dependencia and max_componentes_dep > 0 and qtd_reprovados <= max_componentes_dep:
+            return {
+                'resultado': 'APROVADO COM DEPENDÊNCIA',
+                'cor': '#ca8a04',  # Amarelo
+                'detalhes': f'Aprovado com dependência em: {", ".join(componentes_reprovados)}'
+            }
+    
+    # Reprovado
+    return {
+        'resultado': 'REPROVADO',
+        'cor': '#dc2626',
+        'detalhes': f'Reprovado em {qtd_reprovados} componente(s): {", ".join(componentes_reprovados)}'
+    }
