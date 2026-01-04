@@ -562,6 +562,7 @@ export const Calendar = () => {
   const [showEventModal, setShowEventModal] = useState(false);
   const [showPeriodosModal, setShowPeriodosModal] = useState(false);
   const [calendarioLetivo, setCalendarioLetivo] = useState(null);
+  const [diasLetivosCalculados, setDiasLetivosCalculados] = useState(null);
   const [savingPeriodos, setSavingPeriodos] = useState(false);
   const navigateTo = useNavigate();
   
@@ -572,16 +573,12 @@ export const Calendar = () => {
   const [periodos, setPeriodos] = useState({
     bimestre_1_inicio: '',
     bimestre_1_fim: '',
-    bimestre_1_dias_letivos: '',
     bimestre_2_inicio: '',
     bimestre_2_fim: '',
-    bimestre_2_dias_letivos: '',
     bimestre_3_inicio: '',
     bimestre_3_fim: '',
-    bimestre_3_dias_letivos: '',
     bimestre_4_inicio: '',
     bimestre_4_fim: '',
-    bimestre_4_dias_letivos: '',
     recesso_inicio: '',
     recesso_fim: '',
     dias_letivos_previstos: 200
@@ -598,10 +595,21 @@ export const Calendar = () => {
     try {
       const data = await calendarAPI.getEvents({ academic_year: currentYear });
       setEvents(data);
+      // Recarregar dias letivos quando eventos mudam
+      loadDiasLetivos();
     } catch (error) {
       console.error('Erro ao carregar eventos:', error);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const loadDiasLetivos = async () => {
+    try {
+      const data = await calendarAPI.getDiasLetivos(currentYear);
+      setDiasLetivosCalculados(data);
+    } catch (error) {
+      console.error('Erro ao calcular dias letivos:', error);
     }
   };
   
