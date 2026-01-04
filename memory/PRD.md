@@ -11,64 +11,80 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 ## Implementações Recentes
 
 ### 2026-01-04
+- **Sistema de Auditoria Completo** (P0 - IMPLEMENTADO):
+  - Novo serviço `audit_service.py` para rastrear alterações críticas
+  - Modelo `AuditLog` para armazenar registros
+  - Auditoria integrada em:
+    - Login (sucesso e falha)
+    - Criação, edição e exclusão de alunos
+    - Edição de notas em lote
+  - Novos endpoints:
+    - `GET /api/audit-logs` - Lista logs com filtros
+    - `GET /api/audit-logs/user/{id}` - Histórico por usuário
+    - `GET /api/audit-logs/document/{collection}/{id}` - Histórico de documento
+    - `GET /api/audit-logs/critical` - Eventos críticos
+    - `GET /api/audit-logs/stats` - Estatísticas
+  - Nova página frontend `/admin/audit-logs` com:
+    - Tabela de logs com paginação
+    - Filtros por ação, coleção, severidade
+    - Estatísticas de eventos
+  - Acessível no Dashboard via botão "Auditoria"
+
 - **Correção Visual do Calendário Anual**:
   - Cores uniformizadas: dias letivos e sábados letivos com mesma cor verde (bg-green-100)
   - Removida legenda duplicada, mantida apenas a legenda original de tipos de eventos
-  - Feriados em vermelho claro, recesso em azul claro, fim de semana em cinza
 
 - **Bloqueio por Data Limite de Edição** (P1 - IMPLEMENTADO):
   - Nova função `check_bimestre_edit_deadline()` verifica data limite por bimestre
-  - Nova função `verify_bimestre_edit_deadline_or_raise()` bloqueia edições após prazo
   - Verificação aplicada em: `/api/grades/batch`, `/api/attendance`, `/api/learning-objects`
-  - Admin e secretário podem editar mesmo após data limite
-  - Novo endpoint `/api/calendario-letivo/{ano}/status-edicao` retorna status de cada bimestre
+  - Novo endpoint `/api/calendario-letivo/{ano}/status-edicao`
 
 - **Indicadores Visuais de Bloqueio por Bimestre** (IMPLEMENTADO):
-  - Novo hook `useBimestreEditStatus` para verificar status de edição
-  - Componentes visuais: `BimestreStatusBadge`, `BimestreBlockedAlert`, `BimestreStatusRow`
-  - Integrado na página de Notas (`Grades.js`):
-    - Mostra status de edição no topo da página
-    - Cabeçalhos de bimestres ficam vermelhos com ícone de cadeado quando bloqueados
-    - Campos de entrada ficam desabilitados automaticamente
-  - Integrado na página de Frequência (`Attendance.js`):
-    - Mostra status de edição no topo da página
-    - Alerta visual quando há bimestres bloqueados
+  - Novo hook `useBimestreEditStatus` 
+  - Integrado nas páginas de Notas e Frequência
 
 ### 2026-01-03
-- **Ordenação de Componentes Curriculares**: Implementada ordenação personalizada para Anos Iniciais e Anos Finais
-
-- **Condicionais para Aprovação (Mantenedora)**:
-  - Média para aprovação (5,0 a 10,0)
-  - Frequência mínima para aprovação (60% a 85%, padrão LDB: 75%)
-  - Aprovação com dependência (checkbox + qtd máxima de componentes 1-5)
-  - Cursar apenas dependência (checkbox + qtd de componentes 1-5)
-
-- **Lógica de Resultado Final**: Função `calcular_resultado_final_aluno()` considera:
-  - Média mínima, Frequência mínima, Aprovação com dependência, Cursar dependência
-  - Resultados: APROVADO, REPROVADO, REPROVADO POR FREQUÊNCIA, APROVADO COM DEPENDÊNCIA, CURSAR DEPENDÊNCIA
-
-- **Dias Letivos por Bimestre no Calendário Letivo**:
-  - Campo de dias letivos em cada bimestre (1º, 2º, 3º, 4º)
-  - Soma automática do total anual de dias letivos
-  - Exibição visual com badges coloridas para cada bimestre
-  - Total de dias letivos anuais exibido na mesma linha do título
-
-- **Cálculo de Frequência no Boletim**:
-  - Busca os dias letivos do calendário letivo
-  - Calcula frequência: (dias_letivos - faltas) / dias_letivos * 100
-  - Usa a frequência calculada na verificação de reprovação
-
-### Anteriores
-- Gerenciamento de Anos Letivos (aberto/fechado)
-- Geração de Certificado de Conclusão (9º Ano e EJA)
-- Campo de Brasão na Mantenedora
-- Campo de Autorização/Reconhecimento na Escola
-- Importação em massa de alunos via Excel
+- Ordenação de Componentes Curriculares
+- Condicionais para Aprovação (Mantenedora)
+- Lógica de Resultado Final
+- Dias Letivos por Bimestre
+- Cálculo de Frequência no Boletim
 
 ## Backlog Priorizado
 
 ### P0 (Crítico)
-- [ ] Investigar bug de componentes ausentes no Boletim (logs de debug adicionados)
+- [x] ~~Sistema de Auditoria~~ (CONCLUÍDO 2026-01-04)
+- [ ] Investigar bug de componentes ausentes no Boletim
+
+### P1 (Alto)
+- [x] ~~Bloqueio por data limite de edição~~ (CONCLUÍDO 2026-01-04)
+- [ ] Verificar bug de "Gerenciar Lotações" não salvando
+
+### P2 (Médio)
+- [ ] Rate limiting para endpoints sensíveis
+- [ ] Índices MongoDB otimizados
+- [ ] Limpar dados órfãos de lotações
+
+### P3 (Baixo)
+- [ ] Refatorar server.py em módulos
+- [ ] Refatorar StudentsComplete.js
+- [ ] Refatorar Calendar.js
+
+## Arquitetura
+
+### Backend
+- FastAPI + Motor (MongoDB async)
+- Arquivos: server.py, models.py, pdf_generator.py, grade_calculator.py, audit_service.py
+
+### Frontend
+- React + Vite + TailwindCSS + Shadcn/UI
+- Páginas novas: AuditLogs.jsx
+- Hooks novos: useBimestreEditStatus.js
+- Componentes novos: BimestreStatus.jsx
+
+## Credenciais de Teste
+- Admin: gutenberg@sigesc.com / @Celta2007
+- Coordenador: ricleidegoncalves@gmail.com / 007724
 
 ### P1 (Alto)
 - [x] ~~Implementar bloqueio por data limite de edição~~ (CONCLUÍDO 2026-01-04)
