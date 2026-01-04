@@ -135,7 +135,8 @@ export function Promotion() {
         return;
       }
       try {
-        const data = await classesAPI.list({ school_id: selectedSchool });
+        // Passar school_id diretamente (não como objeto)
+        const data = await classesAPI.list(selectedSchool);
         // Filtrar apenas turmas do 3º ao 9º Ano e EJA
         const filteredClasses = (data || []).filter(c => isSerieElegivel(c.grade_level));
         setClasses(filteredClasses);
