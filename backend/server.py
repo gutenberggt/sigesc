@@ -6569,6 +6569,145 @@ async def debug_courses_for_class(class_id: str, request: Request = None):
         "excluded_courses": excluded_courses
     }
 
+# ============= MANUTENÇÃO E LIMPEZA =============
+
+@api_router.get("/maintenance/orphan-check")
+async def check_orphan_data(request: Request):
+    """
+    Verifica dados órfãos no sistema.
+    Apenas admin pode executar.
+    """
+    current_user = await AuthMiddleware.require_roles(['admin'])(request)
+    
+    results = {
+        'timestamp': datetime.now(timezone.utc).isoformat(),
+        'orphans': [],
+        'summary': {
+            'enrollments': 0,
+            'grades': 0,
+            'school_assignments': 0,
+            'teacher_assignments': 0,
+            'total': 0
+        }
+    }
+    
+    # Verifica matrículas órfãs
+    enrollments = await db.enrollments.find({}, {"_id": 0, "id": 1, "student_id": 1, "school_id": 1, "class_id": 1}).to_list(10000)
+    for enrollment in enrollments:
+        issues = []
+        student = await db.students.find_one({"id": enrollment.get('student_id')})
+        if not student:
+            issues.append("Aluno não encontrado")
+        school = await db.schools.find_one({"id": enrollment.get('school_id')})
+        if not school:
+            issues.append("Escola não encontrada")
+        if enrollment.get('class_id'):
+            class_doc = await db.classes.find_one({"id": enrollment.get('class_id')})
+            if not class_doc:
+                issues.append("Turma não encontrada")
+        if issues:
+            results['orphans'].append({'type': 'enrollment', 'id': enrollment.get('id'), 'issues': issues})
+            results['summary']['enrollments'] += 1
+    
+    # Verifica lotações órfãs
+    assignments = await db.school_assignments.find({}, {"_id": 0, "id": 1, "staff_id": 1, "school_id": 1}).to_list(10000)
+    for assignment in assignments:
+        issues = []
+        staff = await db.staff.find_one({"id": assignment.get('staff_id')})
+        if not staff:
+            issues.append("Servidor não encontrado")
+        school = await db.schools.find_one({"id": assignment.get('school_id')})
+        if not school:
+            issues.append("Escola não encontrada")
+        if issues:
+            results['orphans'].append({'type': 'school_assignment', 'id': assignment.get('id'), 'issues': issues})
+            results['summary']['school_assignments'] += 1
+    
+    # Verifica alocações de professores órfãs
+    teacher_assignments = await db.teacher_assignments.find({}, {"_id": 0, "id": 1, "staff_id": 1, "school_id": 1, "class_id": 1}).to_list(10000)
+    for assignment in teacher_assignments:
+        issues = []
+        staff = await db.staff.find_one({"id": assignment.get('staff_id')})
+        if not staff:
+            issues.append("Servidor não encontrado")
+        school = await db.schools.find_one({"id": assignment.get('school_id')})
+        if not school:
+            issues.append("Escola não encontrada")
+        class_doc = await db.classes.find_one({"id": assignment.get('class_id')})
+        if not class_doc:
+            issues.append("Turma não encontrada")
+        if issues:
+            results['orphans'].append({'type': 'teacher_assignment', 'id': assignment.get('id'), 'issues': issues})
+            results['summary']['teacher_assignments'] += 1
+    
+    results['summary']['total'] = (
+        results['summary']['enrollments'] +
+        results['summary']['grades'] +
+        results['summary']['school_assignments'] +
+        results['summary']['teacher_assignments']
+    )
+    
+    return results
+
+
+@api_router.delete("/maintenance/orphan-cleanup")
+async def cleanup_orphan_data(request: Request, dry_run: bool = True):
+    """
+    Remove dados órfãos do sistema.
+    Apenas admin pode executar.
+    Use dry_run=false para executar a limpeza real.
+    """
+    current_user = await AuthMiddleware.require_roles(['admin'])(request)
+    
+    # Primeiro, obtém lista de órfãos
+    orphan_check = await check_orphan_data(request)
+    
+    if dry_run:
+        return {
+            'mode': 'dry_run',
+            'message': 'Nenhuma alteração foi feita. Use dry_run=false para executar a limpeza.',
+            'would_delete': orphan_check['summary']
+        }
+    
+    deleted = {
+        'enrollments': 0,
+        'school_assignments': 0,
+        'teacher_assignments': 0,
+        'total': 0
+    }
+    
+    for orphan in orphan_check['orphans']:
+        try:
+            if orphan['type'] == 'enrollment':
+                await db.enrollments.delete_one({"id": orphan['id']})
+                deleted['enrollments'] += 1
+            elif orphan['type'] == 'school_assignment':
+                await db.school_assignments.delete_one({"id": orphan['id']})
+                deleted['school_assignments'] += 1
+            elif orphan['type'] == 'teacher_assignment':
+                await db.teacher_assignments.delete_one({"id": orphan['id']})
+                deleted['teacher_assignments'] += 1
+        except Exception as e:
+            pass
+    
+    deleted['total'] = deleted['enrollments'] + deleted['school_assignments'] + deleted['teacher_assignments']
+    
+    # Registra auditoria da limpeza
+    await audit_service.log(
+        action='delete',
+        collection='system',
+        user=current_user,
+        request=request,
+        description=f"Executou limpeza de dados órfãos: {deleted['total']} registros removidos",
+        extra_data=deleted
+    )
+    
+    return {
+        'mode': 'executed',
+        'deleted': deleted
+    }
+
+
 # ============= UNIDADE MANTENEDORA ENDPOINTS =============
 
 @api_router.get("/mantenedora", response_model=Mantenedora)
