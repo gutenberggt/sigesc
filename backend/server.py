@@ -1876,6 +1876,8 @@ async def update_grades_batch(request: Request, grades: List[dict]):
             await verify_bimestre_edit_deadline_or_raise(academic_year, bimestre, user_role)
     
     results = []
+    audit_changes = []  # Para acumular mudanças para auditoria
+    
     for grade_data in grades:
         # Verifica se já existe
         existing = await db.grades.find_one({
@@ -1891,6 +1893,10 @@ async def update_grades_batch(request: Request, grades: List[dict]):
                           if k in ['b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2', 'recovery', 'observations'] and v is not None}
             update_fields['updated_at'] = datetime.now(timezone.utc).isoformat()
             
+            # Guarda valor antigo para auditoria
+            old_values = {k: existing.get(k) for k in update_fields.keys() if k != 'updated_at'}
+            new_values = {k: v for k, v in update_fields.items() if k != 'updated_at'}
+            
             await db.grades.update_one(
                 {"id": existing['id']},
                 {"$set": update_fields}
@@ -1898,6 +1904,15 @@ async def update_grades_batch(request: Request, grades: List[dict]):
             
             updated = await calculate_and_update_grade(db, existing['id'])
             results.append(updated)
+            
+            # Registra alteração para auditoria
+            if old_values != new_values:
+                audit_changes.append({
+                    'student_id': grade_data['student_id'],
+                    'grade_id': existing['id'],
+                    'old': old_values,
+                    'new': new_values
+                })
         else:
             # Cria novo
             new_grade = {
@@ -1922,6 +1937,37 @@ async def update_grades_batch(request: Request, grades: List[dict]):
             await db.grades.insert_one(new_grade)
             updated = await calculate_and_update_grade(db, new_grade['id'])
             results.append(updated)
+            
+            # Registra criação para auditoria
+            audit_changes.append({
+                'student_id': grade_data['student_id'],
+                'grade_id': new_grade['id'],
+                'action': 'create',
+                'new': {k: v for k, v in new_grade.items() if k in ['b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2']}
+            })
+    
+    # Registra auditoria em lote
+    if audit_changes:
+        # Busca informações da turma para contexto
+        class_info = None
+        school_id = None
+        if grades:
+            class_info = await db.classes.find_one(
+                {"id": grades[0].get('class_id')},
+                {"_id": 0, "name": 1, "school_id": 1}
+            )
+            school_id = class_info.get('school_id') if class_info else None
+        
+        await audit_service.log(
+            action='update',
+            collection='grades',
+            user=current_user,
+            request=request,
+            description=f"Atualizou notas de {len(audit_changes)} aluno(s) da turma {class_info.get('name', 'N/A') if class_info else 'N/A'}",
+            school_id=school_id,
+            academic_year=grades[0].get('academic_year') if grades else None,
+            extra_data={'changes': audit_changes[:10]}  # Limita para não sobrecarregar
+        )
     
     return {"updated": len(results), "grades": results}
 
