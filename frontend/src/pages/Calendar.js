@@ -643,6 +643,8 @@ export const Calendar = () => {
       await calendarAPI.updateCalendarioLetivo(currentYear, periodos);
       setShowPeriodosModal(false);
       await loadCalendarioLetivo();
+      // Recarregar dias letivos calculados
+      await loadDiasLetivos();
     } catch (error) {
       console.error('Erro ao salvar períodos:', error);
       alert('Erro ao salvar períodos bimestrais');
