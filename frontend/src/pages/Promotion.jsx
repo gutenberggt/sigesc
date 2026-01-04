@@ -60,10 +60,11 @@ const COMPONENT_ABBREVIATIONS = {
   'Traço, sons, cores e formas': 'Traç. Sons'
 };
 
-// Ordem dos componentes - Anos Iniciais (1º ao 5º Ano)
+// Ordem dos componentes - Anos Iniciais (1º ao 5º Ano) - Igual ao Boletim
 const ORDEM_COMPONENTES_ANOS_INICIAIS = [
   'Língua Portuguesa',
   'Arte',
+  'Arte e Cultura',
   'Educação Física',
   'Matemática',
   'Ciências',
@@ -72,18 +73,19 @@ const ORDEM_COMPONENTES_ANOS_INICIAIS = [
   'Ensino Religioso',
   'Recreação, Esporte e Lazer',
   'Linguagem Recreativa com Práticas de Esporte e Lazer',
-  'Arte e Cultura',
   'Tecnologia e Informática',
   'Acompanhamento Pedagógico de Língua Portuguesa',
   'Acomp. Ped. de Língua Portuguesa',
   'Acompanhamento Pedagógico de Matemática',
-  'Acomp. Ped. de Matemática'
+  'Acomp. Ped. de Matemática',
+  'Educação Ambiental e Clima'
 ];
 
-// Ordem dos componentes - Anos Finais (6º ao 9º Ano)
+// Ordem dos componentes - Anos Finais (6º ao 9º Ano) - Igual ao Boletim
 const ORDEM_COMPONENTES_ANOS_FINAIS = [
   'Língua Portuguesa',
   'Arte',
+  'Arte e Cultura',
   'Educação Física',
   'Língua Inglesa',
   'Inglês',
@@ -92,17 +94,16 @@ const ORDEM_COMPONENTES_ANOS_FINAIS = [
   'História',
   'Geografia',
   'Ensino Religioso',
-  'Educação Ambiental e Clima',
   'Estudos Amazônicos',
   'Literatura e Redação',
   'Recreação, Esporte e Lazer',
   'Linguagem Recreativa com Práticas de Esporte e Lazer',
-  'Arte e Cultura',
   'Tecnologia e Informática',
   'Acompanhamento Pedagógico de Língua Portuguesa',
   'Acomp. Ped. de Língua Portuguesa',
   'Acompanhamento Pedagógico de Matemática',
-  'Acomp. Ped. de Matemática'
+  'Acomp. Ped. de Matemática',
+  'Educação Ambiental e Clima'
 ];
 
 // Função para ordenar componentes por nível de ensino
