@@ -3682,18 +3682,54 @@ async def update_school_assignment(assignment_id: str, assignment_data: SchoolAs
     
     await db.school_assignments.update_one({"id": assignment_id}, {"$set": update_data})
     
+    # Auditoria de atualização de lotação
+    staff = await db.staff.find_one({"id": existing.get('staff_id')}, {"_id": 0, "full_name": 1})
+    school = await db.schools.find_one({"id": existing.get('school_id')}, {"_id": 0, "name": 1})
+    await audit_service.log(
+        action='update',
+        collection='school_assignments',
+        user=current_user,
+        request=request,
+        document_id=assignment_id,
+        description=f"Atualizou lotação do servidor {staff.get('full_name', 'N/A') if staff else 'N/A'}",
+        school_id=existing.get('school_id'),
+        school_name=school.get('name') if school else None,
+        academic_year=existing.get('academic_year'),
+        old_value={'funcao': existing.get('funcao'), 'status': existing.get('status'), 'carga_horaria': existing.get('carga_horaria')},
+        new_value=update_data
+    )
+    
     return await db.school_assignments.find_one({"id": assignment_id}, {"_id": 0})
 
 @api_router.delete("/school-assignments/{assignment_id}")
 async def delete_school_assignment(assignment_id: str, request: Request):
     """Remove lotação"""
-    await AuthMiddleware.require_roles(['admin'])(request)
+    current_user = await AuthMiddleware.require_roles(['admin'])(request)
     
     existing = await db.school_assignments.find_one({"id": assignment_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Lotação não encontrada")
     
+    # Guarda dados para auditoria
+    staff = await db.staff.find_one({"id": existing.get('staff_id')}, {"_id": 0, "full_name": 1})
+    school = await db.schools.find_one({"id": existing.get('school_id')}, {"_id": 0, "name": 1})
+    
     await db.school_assignments.delete_one({"id": assignment_id})
+    
+    # Auditoria de exclusão de lotação
+    await audit_service.log(
+        action='delete',
+        collection='school_assignments',
+        user=current_user,
+        request=request,
+        document_id=assignment_id,
+        description=f"EXCLUIU lotação do servidor {staff.get('full_name', 'N/A') if staff else 'N/A'} da escola {school.get('name', 'N/A') if school else 'N/A'}",
+        school_id=existing.get('school_id'),
+        school_name=school.get('name') if school else None,
+        academic_year=existing.get('academic_year'),
+        old_value={'staff_id': existing.get('staff_id'), 'funcao': existing.get('funcao'), 'status': existing.get('status')}
+    )
+    
     return {"message": "Lotação removida com sucesso"}
 
 # ============= TEACHER ASSIGNMENTS (ALOCAÇÃO DE PROFESSORES) =============
