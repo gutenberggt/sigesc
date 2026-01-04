@@ -1,0 +1,128 @@
+"""
+Router de Turmas - SIGESC
+Endpoints para gestão de turmas (classes).
+"""
+
+from fastapi import APIRouter, HTTPException, status, Request
+from typing import List, Optional
+
+from models import Class, ClassCreate, ClassUpdate
+from auth_middleware import AuthMiddleware
+
+router = APIRouter(prefix="/classes", tags=["Turmas"])
+
+
+def setup_router(db, audit_service):
+    """Configura o router com as dependências necessárias"""
+
+    @router.post("", response_model=Class, status_code=status.HTTP_201_CREATED)
+    async def create_class(class_data: ClassCreate, request: Request):
+        """Cria nova turma"""
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+        
+        # Verifica acesso à escola
+        await AuthMiddleware.verify_school_access(request, class_data.school_id)
+        
+        class_obj = Class(**class_data.model_dump())
+        doc = class_obj.model_dump()
+        doc['created_at'] = doc['created_at'].isoformat()
+        
+        await db.classes.insert_one(doc)
+        
+        return class_obj
+
+    @router.get("", response_model=List[Class])
+    async def list_classes(request: Request, school_id: Optional[str] = None, skip: int = 0, limit: int = 100):
+        """Lista turmas"""
+        current_user = await AuthMiddleware.get_current_user(request)
+        
+        # Constrói filtro
+        filter_query = {}
+        
+        if current_user['role'] in ['admin', 'semed']:
+            # Admin e SEMED podem filtrar por escola ou ver todas
+            if school_id:
+                filter_query['school_id'] = school_id
+        else:
+            # Outros papéis veem apenas das escolas vinculadas
+            if school_id and school_id in current_user['school_ids']:
+                filter_query['school_id'] = school_id
+            else:
+                filter_query['school_id'] = {"$in": current_user['school_ids']}
+        
+        classes = await db.classes.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+        
+        return classes
+
+    @router.get("/{class_id}", response_model=Class)
+    async def get_class(class_id: str, request: Request):
+        """Busca turma por ID"""
+        current_user = await AuthMiddleware.get_current_user(request)
+        
+        class_doc = await db.classes.find_one({"id": class_id}, {"_id": 0})
+        
+        if not class_doc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Turma não encontrada"
+            )
+        
+        # Verifica acesso à escola da turma
+        await AuthMiddleware.verify_school_access(request, class_doc['school_id'])
+        
+        return Class(**class_doc)
+
+    @router.put("/{class_id}", response_model=Class)
+    async def update_class(class_id: str, class_update: ClassUpdate, request: Request):
+        """Atualiza turma"""
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+        
+        # Busca turma
+        class_doc = await db.classes.find_one({"id": class_id}, {"_id": 0})
+        if not class_doc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Turma não encontrada"
+            )
+        
+        # Verifica acesso
+        await AuthMiddleware.verify_school_access(request, class_doc['school_id'])
+        
+        update_data = class_update.model_dump(exclude_unset=True)
+        
+        if update_data:
+            await db.classes.update_one(
+                {"id": class_id},
+                {"$set": update_data}
+            )
+        
+        updated_class = await db.classes.find_one({"id": class_id}, {"_id": 0})
+        return Class(**updated_class)
+
+    @router.delete("/{class_id}", status_code=status.HTTP_204_NO_CONTENT)
+    async def delete_class(class_id: str, request: Request):
+        """Deleta turma"""
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+        
+        # Busca turma
+        class_doc = await db.classes.find_one({"id": class_id}, {"_id": 0})
+        if not class_doc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Turma não encontrada"
+            )
+        
+        # Verifica acesso
+        await AuthMiddleware.verify_school_access(request, class_doc['school_id'])
+        
+        result = await db.classes.delete_one({"id": class_id})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Turma não encontrada"
+            )
+        
+        return None
+
+    return router
