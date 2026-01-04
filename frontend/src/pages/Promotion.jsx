@@ -59,6 +59,9 @@ const RESULT_COLORS = {
   'EM DEPENDÊNCIA': 'bg-purple-100 text-purple-800 border-purple-300'
 };
 
+// Quantidade de alunos por página
+const STUDENTS_PER_PAGE = 10;
+
 export function Promotion() {
   const navigate = useNavigate();
   const { accessToken, user } = useAuth();
@@ -75,6 +78,9 @@ export function Promotion() {
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedYear, setSelectedYear] = useState(2025);
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Processed data
   const [promotionData, setPromotionData] = useState([]);
