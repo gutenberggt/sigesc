@@ -169,6 +169,85 @@ async def verify_academic_year_open_or_raise(school_id: str, academic_year: int)
             detail=f"O ano letivo {academic_year} está fechado para esta escola. Não é possível fazer alterações."
         )
 
+async def check_bimestre_edit_deadline(academic_year: int, bimestre: int = None) -> dict:
+    """
+    Verifica se a data limite de edição do bimestre foi ultrapassada.
+    Se bimestre não for especificado, verifica todos os bimestres.
+    
+    Retorna:
+        {
+            "can_edit": bool,
+            "bimestre": int or None,
+            "data_limite": str or None,
+            "message": str
+        }
+    """
+    from datetime import date
+    
+    today = date.today().isoformat()
+    
+    # Busca o calendário letivo do ano
+    calendario = await db.calendario_letivo.find_one(
+        {"ano_letivo": academic_year},
+        {"_id": 0}
+    )
+    
+    if not calendario:
+        return {"can_edit": True, "bimestre": None, "data_limite": None, "message": "Calendário letivo não configurado"}
+    
+    # Se bimestre específico
+    if bimestre:
+        data_limite = calendario.get(f"bimestre_{bimestre}_data_limite")
+        if not data_limite:
+            return {"can_edit": True, "bimestre": bimestre, "data_limite": None, "message": f"Data limite do {bimestre}º bimestre não configurada"}
+        
+        if today > data_limite:
+            return {
+                "can_edit": False, 
+                "bimestre": bimestre, 
+                "data_limite": data_limite,
+                "message": f"O prazo para edição do {bimestre}º bimestre encerrou em {data_limite}"
+            }
+        return {"can_edit": True, "bimestre": bimestre, "data_limite": data_limite, "message": "Dentro do prazo"}
+    
+    # Verifica todos os bimestres e retorna o bimestre atual baseado na data
+    for i in range(1, 5):
+        inicio = calendario.get(f"bimestre_{i}_inicio")
+        fim = calendario.get(f"bimestre_{i}_fim")
+        data_limite = calendario.get(f"bimestre_{i}_data_limite")
+        
+        if inicio and fim and today >= inicio and today <= fim:
+            # Estamos dentro deste bimestre
+            if data_limite and today > data_limite:
+                return {
+                    "can_edit": False,
+                    "bimestre": i,
+                    "data_limite": data_limite,
+                    "message": f"O prazo para edição do {i}º bimestre encerrou em {data_limite}"
+                }
+            return {"can_edit": True, "bimestre": i, "data_limite": data_limite, "message": "Dentro do prazo"}
+    
+    return {"can_edit": True, "bimestre": None, "data_limite": None, "message": "Fora do período letivo"}
+
+async def verify_bimestre_edit_deadline_or_raise(academic_year: int, bimestre: int, user_role: str):
+    """
+    Verifica se pode editar notas/frequência do bimestre e lança exceção se não puder.
+    Admin e secretário podem editar mesmo após a data limite.
+    """
+    # Admin e secretário podem sempre editar
+    if user_role in ['admin', 'secretario']:
+        return True
+    
+    check = await check_bimestre_edit_deadline(academic_year, bimestre)
+    
+    if not check["can_edit"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=check["message"]
+        )
+    
+    return True
+
 # Hierarquia de roles (maior valor = maior permissão)
 ROLE_HIERARCHY = {
     'diretor': 5,
