@@ -806,27 +806,6 @@ export function Promotion() {
             </CardContent>
           </Card>
         )}
-
-        {/* Rodapé do documento */}
-        {selectedClass && promotionData.length > 0 && (
-          <Card className="bg-slate-50">
-            <CardContent className="p-4">
-              <div className="flex justify-between items-end">
-                <div className="text-center flex-1">
-                  <div className="border-t border-black w-48 mx-auto mt-8"></div>
-                  <p className="text-sm mt-1">Secretário(a)</p>
-                </div>
-                <div className="text-center flex-1">
-                  <p className="text-sm">Floresta do Araguaia - PA, {new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                </div>
-                <div className="text-center flex-1">
-                  <div className="border-t border-black w-48 mx-auto mt-8"></div>
-                  <p className="text-sm mt-1">Diretor(a)</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </Layout>
   );
