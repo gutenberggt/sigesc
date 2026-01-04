@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Download, FileText, School, Users, BookOpen, Filter, RefreshCw, CheckCircle, XCircle, AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Loader2, Download, FileText, School, Users, BookOpen, Filter, RefreshCw, CheckCircle, XCircle, AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Home } from 'lucide-react';
 import { schoolsAPI, classesAPI, gradesAPI, coursesAPI, studentsAPI } from '@/services/api';
 import { toast } from 'sonner';
 
@@ -420,11 +420,21 @@ export function Promotion() {
       <div className="space-y-6" data-testid="promotion-page">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Livro de Promoção</h1>
-            <p className="text-gray-500 mt-1">
-              3º ao 9º Ano e EJA (1ª a 4ª Etapa)
-            </p>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+              data-testid="back-to-dashboard-button"
+            >
+              <Home size={18} />
+              <span>Início</span>
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Livro de Promoção</h1>
+              <p className="text-gray-500 mt-1">
+                3º ao 9º Ano e EJA (1ª a 4ª Etapa)
+              </p>
+            </div>
           </div>
           
           <div className="flex gap-2">
