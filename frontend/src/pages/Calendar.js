@@ -1030,13 +1030,13 @@ export const Calendar = () => {
         >
           <div className="space-y-6">
             <p className="text-sm text-gray-600">
-              Defina as datas de início e fim de cada bimestre do ano letivo.
+              Defina as datas de início e fim de cada bimestre e a quantidade de dias letivos.
             </p>
             
             {/* 1º Bimestre */}
             <div className="border rounded-lg p-4 bg-blue-50">
               <h4 className="font-medium text-blue-800 mb-3">1º Bimestre</h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Data Início</label>
                   <input
@@ -1055,13 +1055,25 @@ export const Calendar = () => {
                     className="w-full px-3 py-2 border rounded-md"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Dias Letivos</label>
+                  <input
+                    type="number"
+                    value={periodos.bimestre_1_dias_letivos}
+                    onChange={(e) => setPeriodos({...periodos, bimestre_1_dias_letivos: e.target.value ? parseInt(e.target.value) : ''})}
+                    className="w-full px-3 py-2 border rounded-md"
+                    min="1"
+                    max="100"
+                    placeholder="Ex: 50"
+                  />
+                </div>
               </div>
             </div>
             
             {/* 2º Bimestre */}
             <div className="border rounded-lg p-4 bg-green-50">
               <h4 className="font-medium text-green-800 mb-3">2º Bimestre</h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Data Início</label>
                   <input
@@ -1078,6 +1090,18 @@ export const Calendar = () => {
                     value={periodos.bimestre_2_fim}
                     onChange={(e) => setPeriodos({...periodos, bimestre_2_fim: e.target.value})}
                     className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Dias Letivos</label>
+                  <input
+                    type="number"
+                    value={periodos.bimestre_2_dias_letivos}
+                    onChange={(e) => setPeriodos({...periodos, bimestre_2_dias_letivos: e.target.value ? parseInt(e.target.value) : ''})}
+                    className="w-full px-3 py-2 border rounded-md"
+                    min="1"
+                    max="100"
+                    placeholder="Ex: 50"
                   />
                 </div>
               </div>
@@ -1111,7 +1135,7 @@ export const Calendar = () => {
             {/* 3º Bimestre */}
             <div className="border rounded-lg p-4 bg-yellow-50">
               <h4 className="font-medium text-yellow-800 mb-3">3º Bimestre</h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Data Início</label>
                   <input
@@ -1130,13 +1154,25 @@ export const Calendar = () => {
                     className="w-full px-3 py-2 border rounded-md"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Dias Letivos</label>
+                  <input
+                    type="number"
+                    value={periodos.bimestre_3_dias_letivos}
+                    onChange={(e) => setPeriodos({...periodos, bimestre_3_dias_letivos: e.target.value ? parseInt(e.target.value) : ''})}
+                    className="w-full px-3 py-2 border rounded-md"
+                    min="1"
+                    max="100"
+                    placeholder="Ex: 50"
+                  />
+                </div>
               </div>
             </div>
             
             {/* 4º Bimestre */}
             <div className="border rounded-lg p-4 bg-purple-50">
               <h4 className="font-medium text-purple-800 mb-3">4º Bimestre</h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Data Início</label>
                   <input
@@ -1155,21 +1191,33 @@ export const Calendar = () => {
                     className="w-full px-3 py-2 border rounded-md"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Dias Letivos</label>
+                  <input
+                    type="number"
+                    value={periodos.bimestre_4_dias_letivos}
+                    onChange={(e) => setPeriodos({...periodos, bimestre_4_dias_letivos: e.target.value ? parseInt(e.target.value) : ''})}
+                    className="w-full px-3 py-2 border rounded-md"
+                    min="1"
+                    max="100"
+                    placeholder="Ex: 50"
+                  />
+                </div>
               </div>
             </div>
             
-            {/* Dias Letivos Previstos */}
-            <div className="border rounded-lg p-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Dias Letivos Previstos</label>
-              <input
-                type="number"
-                value={periodos.dias_letivos_previstos}
-                onChange={(e) => setPeriodos({...periodos, dias_letivos_previstos: parseInt(e.target.value) || 200})}
-                className="w-32 px-3 py-2 border rounded-md"
-                min="1"
-                max="365"
-              />
-              <p className="text-xs text-gray-500 mt-1">Normalmente 200 dias para o ano letivo</p>
+            {/* Total de Dias Letivos */}
+            <div className="border rounded-lg p-4 bg-indigo-50">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-indigo-800">Total de Dias Letivos Anuais:</span>
+                <span className="text-2xl font-bold text-indigo-600">
+                  {(parseInt(periodos.bimestre_1_dias_letivos) || 0) + 
+                   (parseInt(periodos.bimestre_2_dias_letivos) || 0) + 
+                   (parseInt(periodos.bimestre_3_dias_letivos) || 0) + 
+                   (parseInt(periodos.bimestre_4_dias_letivos) || 0)} dias
+                </span>
+              </div>
+              <p className="text-xs text-indigo-600 mt-1">LDB exige mínimo de 200 dias letivos por ano</p>
             </div>
             
             {/* Botões */}
