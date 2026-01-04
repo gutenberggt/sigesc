@@ -5284,6 +5284,11 @@ async def get_ficha_individual(
     # Buscar dados da mantenedora
     mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
     
+    # Buscar calendário letivo para data fim do 4º bimestre
+    calendario_letivo = await db.calendar.find_one({
+        "year": academic_year
+    }, {"_id": 0})
+    
     # Gerar PDF
     try:
         pdf_buffer = generate_ficha_individual_pdf(
@@ -5295,7 +5300,8 @@ async def get_ficha_individual(
             grades=grades,
             courses=courses,
             attendance_data=attendance_data,
-            mantenedora=mantenedora
+            mantenedora=mantenedora,
+            calendario_letivo=calendario_letivo
         )
         
         filename = f"ficha_individual_{student.get('full_name', 'aluno').replace(' ', '_')}.pdf"
