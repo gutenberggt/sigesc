@@ -32,7 +32,9 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
     - `schools.py` (100 linhas) - CRUD de escolas
     - `courses.py` (100 linhas) - CRUD de componentes curriculares
     - `classes.py` (128 linhas) - CRUD de turmas
-  - **Redução**: server.py de 7.185 → 6.842 linhas (-343 linhas)
+    - `guardians.py` (92 linhas) - CRUD de responsáveis
+    - `enrollments.py` (182 linhas) - CRUD de matrículas
+  - **Redução**: server.py de 7.185 → 6.610 linhas (-575 linhas, -8%)
 
 - **Refatoração Frontend - Hooks** (P3 - EM PROGRESSO):
   - Criados hooks reutilizáveis em `/app/frontend/src/hooks/`:
