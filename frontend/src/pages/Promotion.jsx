@@ -690,7 +690,7 @@ export function Promotion() {
                   </thead>
                   
                   <tbody>
-                    {promotionData.map((student, rowIdx) => (
+                    {paginatedData.map((student, rowIdx) => (
                       <tr key={student.studentId} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                         <td className="px-2 py-2 border-r text-center sticky left-0 bg-inherit z-10">{student.number}</td>
                         <td className="px-2 py-2 border-r font-medium sticky left-8 bg-inherit z-10 whitespace-nowrap">
