@@ -611,9 +611,9 @@ export const Calendar = () => {
     }
   };
   
-  const loadDiasLetivos = async () => {
+  const loadDiasLetivos = async (ano = currentYear) => {
     try {
-      const data = await calendarAPI.getDiasLetivos(currentYear);
+      const data = await calendarAPI.getDiasLetivos(ano);
       setDiasLetivosCalculados(data);
     } catch (error) {
       console.error('Erro ao calcular dias letivos:', error);
