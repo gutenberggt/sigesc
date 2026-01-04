@@ -504,7 +504,7 @@ export function StudentsComplete() {
 
   const getClassName = (classId) => {
     const classItem = classes.find(c => c.id === classId);
-    return classItem ? `${classItem.name} - ${classItem.grade_level}` : '-';
+    return classItem ? classItem.name : '-';
   };
 
   const filteredClasses = classes.filter(c => c.school_id === formData.school_id);
