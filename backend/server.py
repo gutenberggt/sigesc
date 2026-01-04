@@ -1511,6 +1511,20 @@ async def delete_student(student_id: str, request: Request):
             detail="Aluno não encontrado"
         )
     
+    # Registra auditoria (CRÍTICO - exclusão de aluno)
+    school = await db.schools.find_one({"id": student_doc.get('school_id')}, {"_id": 0, "name": 1})
+    await audit_service.log(
+        action='delete',
+        collection='students',
+        user=current_user,
+        request=request,
+        document_id=student_id,
+        description=f"EXCLUIU aluno: {student_doc.get('full_name')} (CPF: {student_doc.get('cpf', 'N/A')})",
+        school_id=student_doc.get('school_id'),
+        school_name=school.get('name') if school else None,
+        old_value={'full_name': student_doc.get('full_name'), 'cpf': student_doc.get('cpf'), 'class_id': student_doc.get('class_id')}
+    )
+    
     return None
 
 # ============= GUARDIAN (RESPONSÁVEL) ROUTES =============
