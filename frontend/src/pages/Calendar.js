@@ -170,12 +170,16 @@ const DayCell = ({ date, events, isToday, isCurrentMonth, onClick, onEventClick,
     bgClass = 'bg-red-100';
   } else if (hasRecesso) {
     bgClass = 'bg-blue-50';
+  } else if (isWeekend && hasSchoolDay) {
+    // Sábado letivo - verde mais intenso
+    bgClass = 'bg-green-200';
   } else if (isWeekend && isInSchoolPeriod) {
     bgClass = 'bg-gray-100';
   } else if (isSchoolDay) {
-    bgClass = 'bg-green-50';
+    // Dia letivo normal (seg-sex) - verde claro
+    bgClass = 'bg-green-100';
   } else if (hasSchoolDay) {
-    bgClass = 'bg-green-50';
+    bgClass = 'bg-green-100';
   }
   
   return (
