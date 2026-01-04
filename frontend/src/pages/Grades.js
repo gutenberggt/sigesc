@@ -175,6 +175,15 @@ export function Grades() {
   const [alert, setAlert] = useState(null);
   const [academicYear, setAcademicYear] = useState(new Date().getFullYear());
   
+  // Hook para verificar status de edição dos bimestres
+  const { 
+    editStatus, 
+    loading: loadingEditStatus, 
+    canEditBimestre, 
+    blockedBimestres,
+    getBimestreInfo 
+  } = useBimestreEditStatus(academicYear);
+  
   // Dados base
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -206,6 +215,11 @@ export function Grades() {
   
   // SEMED pode visualizar, mas não editar
   const canEdit = user?.role !== 'semed';
+  
+  // Função auxiliar para verificar se pode editar um bimestre específico
+  const canEditField = (bimestre) => {
+    return canEdit && canEditBimestre(bimestre);
+  };
   
   // Carrega dados iniciais
   useEffect(() => {
