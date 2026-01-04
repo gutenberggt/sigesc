@@ -1762,3 +1762,61 @@ class CalendarioLetivo(CalendarioLetivoBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
+
+
+# ============= AUDIT LOG MODELS =============
+
+class AuditLog(BaseModel):
+    """
+    Registro de auditoria para rastrear todas as alterações críticas no sistema.
+    Permite saber: QUEM fez O QUÊ, QUANDO e ONDE.
+    """
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    
+    # Identificação da ação
+    action: Literal['create', 'update', 'delete', 'login', 'logout', 'export', 'import', 'approve', 'reject']
+    collection: str  # Ex: "grades", "attendance", "students", "staff"
+    document_id: Optional[str] = None  # ID do documento afetado
+    
+    # Quem realizou a ação
+    user_id: str
+    user_email: str
+    user_role: str
+    user_name: Optional[str] = None
+    
+    # Contexto da ação
+    school_id: Optional[str] = None  # Escola relacionada
+    school_name: Optional[str] = None
+    academic_year: Optional[int] = None
+    
+    # Detalhes da alteração
+    description: str  # Descrição legível da ação
+    old_value: Optional[dict] = None  # Valor anterior (para updates)
+    new_value: Optional[dict] = None  # Novo valor
+    changes: Optional[dict] = None  # Campos específicos alterados
+    
+    # Metadados
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    # Categorização para filtros
+    severity: Literal['info', 'warning', 'critical'] = 'info'
+    category: Literal['auth', 'academic', 'administrative', 'financial', 'system'] = 'academic'
+
+
+class AuditLogFilter(BaseModel):
+    """Filtros para consulta de logs de auditoria"""
+    user_id: Optional[str] = None
+    user_role: Optional[str] = None
+    school_id: Optional[str] = None
+    collection: Optional[str] = None
+    action: Optional[str] = None
+    category: Optional[str] = None
+    severity: Optional[str] = None
+    start_date: Optional[str] = None  # YYYY-MM-DD
+    end_date: Optional[str] = None  # YYYY-MM-DD
+    academic_year: Optional[int] = None
+    search: Optional[str] = None  # Busca na descrição
