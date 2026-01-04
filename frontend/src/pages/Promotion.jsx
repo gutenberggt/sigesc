@@ -632,45 +632,45 @@ export function Promotion() {
                     <tr className="bg-slate-100 border-b-2 border-slate-300">
                       <th rowSpan={2} className="px-2 py-2 text-left font-semibold border-r sticky left-0 bg-slate-100 z-10">N°</th>
                       <th rowSpan={2} className="px-2 py-2 text-left font-semibold border-r min-w-[200px] sticky left-8 bg-slate-100 z-10">LISTA DE ALUNOS</th>
-                      <th rowSpan={2} className="px-2 py-2 text-center font-semibold border-r w-10">SEXO</th>
+                      <th rowSpan={2} className="px-2 py-2 text-center font-semibold border-r-2 border-slate-400 w-10">SEXO</th>
                       
                       {/* 1º Bimestre */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r bg-blue-50">
+                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-blue-50">
                         NOTAS 1º BIMESTRE
                       </th>
                       
                       {/* 2º Bimestre */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r bg-green-50">
+                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-green-50">
                         NOTAS 2º BIMESTRE
                       </th>
                       
                       {/* Recuperação 1º Semestre */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r bg-yellow-50">
+                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-yellow-50">
                         RECUPERAÇÃO 1º SEM
                       </th>
                       
                       {/* 3º Bimestre */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r bg-blue-50">
+                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-blue-50">
                         NOTAS 3º BIMESTRE
                       </th>
                       
                       {/* 4º Bimestre */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r bg-green-50">
+                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-green-50">
                         NOTAS 4º BIMESTRE
                       </th>
                       
                       {/* Recuperação 2º Semestre */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r bg-yellow-50">
+                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-yellow-50">
                         RECUPERAÇÃO 2º SEM
                       </th>
                       
                       {/* Total Pontos Anuais */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r bg-purple-50">
+                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-purple-50">
                         TOTAL PONTOS ANUAIS
                       </th>
                       
                       {/* Média Final */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r bg-orange-50">
+                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-orange-50">
                         MÉDIA FINAL
                       </th>
                       
@@ -685,7 +685,12 @@ export function Promotion() {
                       {/* Repetir componentes para cada seção */}
                       {[...Array(8)].map((_, sectionIdx) => (
                         courses.map((course, idx) => (
-                          <th key={`${sectionIdx}-${idx}`} className="px-1 py-1 text-center font-normal border-r text-[10px] whitespace-nowrap">
+                          <th 
+                            key={`${sectionIdx}-${idx}`} 
+                            className={`px-1 py-1 text-center font-normal text-[10px] whitespace-nowrap ${
+                              idx === courses.length - 1 ? 'border-r-2 border-slate-400' : 'border-r'
+                            }`}
+                          >
                             {abbreviateComponent(course.name)}
                           </th>
                         ))
