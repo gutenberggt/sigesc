@@ -387,6 +387,18 @@ export const Dashboard = () => {
                   <span className="font-medium text-gray-900">Auditoria</span>
                 </button>
               )}
+              
+              {/* Livro de Promoção - admin, secretario, diretor, coordenador, semed */}
+              {['admin', 'secretario', 'diretor', 'coordenador', 'semed'].includes(user?.role) && (
+                <button
+                  onClick={() => navigate('/admin/promotion')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                  data-testid="nav-promotion-button"
+                >
+                  <Award className="text-emerald-600" size={24} />
+                  <span className="font-medium text-gray-900">Livro de Promoção</span>
+                </button>
+              )}
             </div>
           </div>
         )}
