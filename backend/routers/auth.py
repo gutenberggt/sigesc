@@ -130,7 +130,7 @@ def setup_router(db, audit_service):
             user={'id': user.id, 'email': user.email, 'role': effective_role, 'full_name': user.full_name},
             request=request,
             document_id=user.id,
-            description=f"Login realizado: {user.full_name} ({user.email})"
+            description=f"Login realizado: {user.full_name}"
         )
         
         user_response_data = user.model_dump(exclude={'password_hash'})
