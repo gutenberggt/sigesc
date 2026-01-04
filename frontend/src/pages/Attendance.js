@@ -84,6 +84,13 @@ export const Attendance = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('regular');
   const [academicYear] = useState(new Date().getFullYear());
   
+  // Hook para verificar status de edição dos bimestres
+  const { 
+    editStatus, 
+    loading: loadingEditStatus, 
+    blockedBimestres 
+  } = useBimestreEditStatus(academicYear);
+  
   // Dados do professor (quando logado como professor)
   const [professorTurmas, setProfessorTurmas] = useState([]);
   const isProfessor = user?.role === 'professor';
