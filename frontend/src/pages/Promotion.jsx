@@ -91,18 +91,15 @@ export function Promotion() {
       }
       try {
         const data = await classesAPI.list({ school_id: selectedSchool });
-        // Filtrar turmas pelo ano letivo selecionado
-        const filteredClasses = (data || []).filter(c => 
-          !c.academic_year || c.academic_year === selectedYear
-        );
-        setClasses(filteredClasses);
+        // Mostrar todas as turmas da escola (não filtrar por ano)
+        setClasses(data || []);
       } catch (error) {
         console.error('Erro ao carregar turmas:', error);
         toast.error('Erro ao carregar turmas');
       }
     };
     fetchClasses();
-  }, [selectedSchool, selectedYear]);
+  }, [selectedSchool]);
 
   // Carregar dados de promoção quando turma é selecionada
   const loadPromotionData = useCallback(async () => {
