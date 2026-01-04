@@ -293,7 +293,7 @@ export function Promotion() {
           number: index + 1,
           studentId: student.id,
           studentName: student.full_name,
-          sex: student.gender === 'M' ? 'M' : 'F',
+          sex: (student.sex || '').toLowerCase() === 'masculino' ? 'M' : 'F',
           enrollment: studentEnrollment,
           grades: gradesByComponent,
           result
