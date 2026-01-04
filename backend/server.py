@@ -3629,6 +3629,20 @@ async def create_school_assignment(assignment: SchoolAssignmentCreate, request: 
     new_assignment = SchoolAssignment(**assignment.model_dump())
     await db.school_assignments.insert_one(new_assignment.model_dump())
     
+    # Auditoria de criação de lotação
+    await audit_service.log(
+        action='create',
+        collection='school_assignments',
+        user=current_user,
+        request=request,
+        document_id=new_assignment.id,
+        description=f"Criou lotação do servidor {staff.get('full_name', 'N/A')} como {assignment.funcao} na escola {school.get('name', 'N/A')}",
+        school_id=assignment.school_id,
+        school_name=school.get('name'),
+        academic_year=assignment.academic_year,
+        new_value={'staff_id': assignment.staff_id, 'funcao': assignment.funcao, 'carga_horaria': assignment.carga_horaria}
+    )
+    
     return await db.school_assignments.find_one({"id": new_assignment.id}, {"_id": 0})
 
 @api_router.get("/school-assignments/staff/{staff_id}/schools")
