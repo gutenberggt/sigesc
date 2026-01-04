@@ -1626,6 +1626,22 @@ async def create_enrollment(enrollment_data: EnrollmentCreate, request: Request)
         }}
     )
     
+    # Auditoria de criação de matrícula
+    student = await db.students.find_one({"id": enrollment_data.student_id}, {"_id": 0, "full_name": 1})
+    school = await db.schools.find_one({"id": enrollment_data.school_id}, {"_id": 0, "name": 1})
+    await audit_service.log(
+        action='create',
+        collection='enrollments',
+        user=current_user,
+        request=request,
+        document_id=enrollment_obj.id,
+        description=f"Criou matrícula do aluno {student.get('full_name', 'N/A') if student else 'N/A'}",
+        school_id=enrollment_data.school_id,
+        school_name=school.get('name') if school else None,
+        academic_year=enrollment_data.academic_year,
+        new_value={'student_id': enrollment_data.student_id, 'class_id': enrollment_data.class_id}
+    )
+    
     return enrollment_obj
 
 @api_router.get("/enrollments", response_model=List[Enrollment])
