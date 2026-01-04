@@ -375,6 +375,18 @@ export const Dashboard = () => {
                   <span className="font-medium text-gray-900">Log de Conversas</span>
                 </button>
               )}
+              
+              {/* Logs de Auditoria - admin, secretario, semed */}
+              {['admin', 'secretario', 'semed'].includes(user?.role) && (
+                <button
+                  onClick={() => navigate('/admin/audit-logs')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
+                  data-testid="nav-audit-logs-button"
+                >
+                  <Shield className="text-blue-600" size={24} />
+                  <span className="font-medium text-gray-900">Auditoria</span>
+                </button>
+              )}
             </div>
           </div>
         )}
