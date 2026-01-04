@@ -49,6 +49,13 @@ const SEVERITY_COLORS = {
   critical: 'bg-red-100 text-red-800'
 };
 
+// Labels de severidade em português
+const SEVERITY_LABELS = {
+  info: 'Informação',
+  warning: 'Aviso',
+  critical: 'Crítico'
+};
+
 // Labels legíveis
 const ACTION_LABELS = {
   login: 'Login',
