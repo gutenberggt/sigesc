@@ -2950,6 +2950,21 @@ async def save_attendance(attendance: AttendanceCreate, request: Request):
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }}
         )
+        
+        # Auditoria de atualização de frequência
+        class_info = await db.classes.find_one({"id": attendance.class_id}, {"_id": 0, "name": 1, "school_id": 1})
+        await audit_service.log(
+            action='update',
+            collection='attendance',
+            user=current_user,
+            request=request,
+            document_id=existing['id'],
+            description=f"Atualizou frequência da turma {class_info.get('name', 'N/A')} em {attendance.date}",
+            school_id=class_info.get('school_id') if class_info else None,
+            academic_year=attendance.academic_year,
+            extra_data={'date': attendance.date, 'records_count': len(attendance.records)}
+        )
+        
         return await db.attendance.find_one({"id": existing['id']}, {"_id": 0})
     else:
         # Cria novo
@@ -2968,6 +2983,21 @@ async def save_attendance(attendance: AttendanceCreate, request: Request):
         }
         
         await db.attendance.insert_one(new_attendance)
+        
+        # Auditoria de criação de frequência
+        class_info = await db.classes.find_one({"id": attendance.class_id}, {"_id": 0, "name": 1, "school_id": 1})
+        await audit_service.log(
+            action='create',
+            collection='attendance',
+            user=current_user,
+            request=request,
+            document_id=new_attendance['id'],
+            description=f"Lançou frequência da turma {class_info.get('name', 'N/A')} em {attendance.date}",
+            school_id=class_info.get('school_id') if class_info else None,
+            academic_year=attendance.academic_year,
+            extra_data={'date': attendance.date, 'records_count': len(attendance.records)}
+        )
+        
         return await db.attendance.find_one({"id": new_attendance['id']}, {"_id": 0})
 
 @api_router.delete("/attendance/{attendance_id}")
