@@ -75,7 +75,7 @@ const COLLECTION_LABELS = {
 };
 
 export const AuditLogs = () => {
-  const { token, user } = useAuth();
+  const { accessToken: token, user } = useAuth();
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
