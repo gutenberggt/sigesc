@@ -19,7 +19,7 @@ from typing import List, Dict, Any, Optional
 import locale
 import urllib.request
 import logging
-from grade_calculator import calcular_resultado_final_aluno
+from grade_calculator import calcular_resultado_final_aluno, determinar_resultado_documento, is_educacao_infantil
 
 logger = logging.getLogger(__name__)
 import tempfile
