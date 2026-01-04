@@ -191,7 +191,7 @@ export const Enrollments = () => {
 
   const getClassName = (classId) => {
     const classItem = classes.find(c => c.id === classId);
-    return classItem ? `${classItem.name} - ${classItem.grade_level}` : '-';
+    return classItem ? classItem.name : '-';
   };
 
   // Filtra classes pela escola selecionada
