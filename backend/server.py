@@ -72,6 +72,75 @@ audit_service.set_db(db)
 # Create the main app
 app = FastAPI(title="SIGESC API", version="1.0.0")
 
+
+@app.on_event("startup")
+async def create_indexes():
+    """Cria índices otimizados no MongoDB durante o startup"""
+    try:
+        # Índices para students
+        await db.students.create_index("id", unique=True)
+        await db.students.create_index("cpf", sparse=True)
+        await db.students.create_index("school_id")
+        await db.students.create_index("class_id")
+        await db.students.create_index([("full_name", 1)])
+        
+        # Índices para grades (notas) - muito consultada
+        await db.grades.create_index("id", unique=True)
+        await db.grades.create_index([("student_id", 1), ("academic_year", 1)])
+        await db.grades.create_index([("class_id", 1), ("course_id", 1), ("academic_year", 1)])
+        await db.grades.create_index("student_id")
+        
+        # Índices para attendance (frequência)
+        await db.attendance.create_index("id", unique=True)
+        await db.attendance.create_index([("class_id", 1), ("date", 1)])
+        await db.attendance.create_index([("class_id", 1), ("academic_year", 1)])
+        
+        # Índices para enrollments (matrículas)
+        await db.enrollments.create_index("id", unique=True)
+        await db.enrollments.create_index([("student_id", 1), ("academic_year", 1)])
+        await db.enrollments.create_index("school_id")
+        
+        # Índices para classes (turmas)
+        await db.classes.create_index("id", unique=True)
+        await db.classes.create_index("school_id")
+        await db.classes.create_index([("school_id", 1), ("academic_year", 1)])
+        
+        # Índices para staff (servidores)
+        await db.staff.create_index("id", unique=True)
+        await db.staff.create_index("email", sparse=True)
+        await db.staff.create_index("cpf", sparse=True)
+        
+        # Índices para school_assignments (lotações)
+        await db.school_assignments.create_index("id", unique=True)
+        await db.school_assignments.create_index([("staff_id", 1), ("academic_year", 1)])
+        await db.school_assignments.create_index([("school_id", 1), ("academic_year", 1)])
+        
+        # Índices para teacher_assignments (alocações)
+        await db.teacher_assignments.create_index("id", unique=True)
+        await db.teacher_assignments.create_index([("staff_id", 1), ("academic_year", 1)])
+        await db.teacher_assignments.create_index([("class_id", 1), ("course_id", 1)])
+        
+        # Índices para courses (componentes)
+        await db.courses.create_index("id", unique=True)
+        await db.courses.create_index("nivel_ensino")
+        
+        # Índices para schools
+        await db.schools.create_index("id", unique=True)
+        
+        # Índices para users
+        await db.users.create_index("id", unique=True)
+        await db.users.create_index("email", unique=True)
+        
+        # Índices para audit_logs
+        await db.audit_logs.create_index([("timestamp", -1)])
+        await db.audit_logs.create_index("user_id")
+        await db.audit_logs.create_index("collection")
+        await db.audit_logs.create_index([("collection", 1), ("document_id", 1)])
+        
+        logger.info("Índices MongoDB criados/verificados com sucesso")
+    except Exception as e:
+        logger.error(f"Erro ao criar índices MongoDB: {e}")
+
 # Create uploads directory
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
