@@ -376,8 +376,8 @@ export const Dashboard = () => {
                 </button>
               )}
               
-              {/* Logs de Auditoria - admin, secretario, semed */}
-              {['admin', 'secretario', 'semed'].includes(user?.role) && (
+              {/* Logs de Auditoria - apenas admin */}
+              {user?.role === 'admin' && (
                 <button
                   onClick={() => navigate('/admin/audit-logs')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
