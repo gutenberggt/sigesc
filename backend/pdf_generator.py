@@ -724,9 +724,13 @@ def generate_boletim_pdf(
             'qtd_componentes_apenas_dependencia': mantenedora.get('qtd_componentes_apenas_dependencia') if mantenedora else None,
         }
         
-        # Calcular frequência do aluno (se houver dados de frequência)
-        # TODO: Receber frequência calculada externamente quando disponível
-        frequencia_aluno = None  # Será calculada quando integrado com módulo de frequência
+        # Calcular frequência do aluno baseada nos dias letivos e faltas
+        frequencia_aluno = None
+        if dias_letivos_ano and dias_letivos_ano > 0 and total_geral_faltas is not None:
+            dias_presentes = dias_letivos_ano - total_geral_faltas
+            frequencia_aluno = (dias_presentes / dias_letivos_ano) * 100
+            # Garantir que a frequência não seja negativa
+            frequencia_aluno = max(0, frequencia_aluno)
         
         # Calcular resultado usando a função centralizada
         resultado_calc = calcular_resultado_final_aluno(
