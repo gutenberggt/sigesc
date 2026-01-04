@@ -60,6 +60,85 @@ const COMPONENT_ABBREVIATIONS = {
   'Traço, sons, cores e formas': 'Traç. Sons'
 };
 
+// Ordem dos componentes - Anos Iniciais (1º ao 5º Ano)
+const ORDEM_COMPONENTES_ANOS_INICIAIS = [
+  'Língua Portuguesa',
+  'Arte',
+  'Educação Física',
+  'Matemática',
+  'Ciências',
+  'História',
+  'Geografia',
+  'Ensino Religioso',
+  'Recreação, Esporte e Lazer',
+  'Linguagem Recreativa com Práticas de Esporte e Lazer',
+  'Arte e Cultura',
+  'Tecnologia e Informática',
+  'Acompanhamento Pedagógico de Língua Portuguesa',
+  'Acomp. Ped. de Língua Portuguesa',
+  'Acompanhamento Pedagógico de Matemática',
+  'Acomp. Ped. de Matemática'
+];
+
+// Ordem dos componentes - Anos Finais (6º ao 9º Ano)
+const ORDEM_COMPONENTES_ANOS_FINAIS = [
+  'Língua Portuguesa',
+  'Arte',
+  'Educação Física',
+  'Língua Inglesa',
+  'Inglês',
+  'Matemática',
+  'Ciências',
+  'História',
+  'Geografia',
+  'Ensino Religioso',
+  'Educação Ambiental e Clima',
+  'Estudos Amazônicos',
+  'Literatura e Redação',
+  'Recreação, Esporte e Lazer',
+  'Linguagem Recreativa com Práticas de Esporte e Lazer',
+  'Arte e Cultura',
+  'Tecnologia e Informática',
+  'Acompanhamento Pedagógico de Língua Portuguesa',
+  'Acomp. Ped. de Língua Portuguesa',
+  'Acompanhamento Pedagógico de Matemática',
+  'Acomp. Ped. de Matemática'
+];
+
+// Função para ordenar componentes por nível de ensino
+const ordenarComponentes = (courses, gradeLevel) => {
+  // Determinar se é Anos Iniciais ou Anos Finais
+  const isAnosIniciais = ['1º Ano', '2º Ano', '3º Ano', '4º Ano', '5º Ano', 
+                          '1º ano', '2º ano', '3º ano', '4º ano', '5º ano'].some(
+    nivel => gradeLevel?.includes(nivel)
+  );
+  
+  const ordemReferencia = isAnosIniciais ? ORDEM_COMPONENTES_ANOS_INICIAIS : ORDEM_COMPONENTES_ANOS_FINAIS;
+  
+  return [...courses].sort((a, b) => {
+    const nomeA = a.name || '';
+    const nomeB = b.name || '';
+    
+    // Encontrar índice na ordem de referência
+    let idxA = ordemReferencia.findIndex(nome => 
+      nome.toLowerCase() === nomeA.toLowerCase() || 
+      nomeA.toLowerCase().includes(nome.toLowerCase()) ||
+      nome.toLowerCase().includes(nomeA.toLowerCase())
+    );
+    let idxB = ordemReferencia.findIndex(nome => 
+      nome.toLowerCase() === nomeB.toLowerCase() || 
+      nomeB.toLowerCase().includes(nome.toLowerCase()) ||
+      nome.toLowerCase().includes(nomeB.toLowerCase())
+    );
+    
+    // Se não encontrar, colocar no final em ordem alfabética
+    if (idxA === -1) idxA = 999 + nomeA.charCodeAt(0);
+    if (idxB === -1) idxB = 999 + nomeB.charCodeAt(0);
+    
+    return idxA - idxB;
+  });
+};
+
 // Função para abreviar nome do componente
 const abbreviateComponent = (name) => {
   return COMPONENT_ABBREVIATIONS[name] || name.substring(0, 10) + '.';
