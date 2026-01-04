@@ -23,6 +23,17 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
   - Admin e secretário podem editar mesmo após data limite
   - Novo endpoint `/api/calendario-letivo/{ano}/status-edicao` retorna status de cada bimestre
 
+- **Indicadores Visuais de Bloqueio por Bimestre** (IMPLEMENTADO):
+  - Novo hook `useBimestreEditStatus` para verificar status de edição
+  - Componentes visuais: `BimestreStatusBadge`, `BimestreBlockedAlert`, `BimestreStatusRow`
+  - Integrado na página de Notas (`Grades.js`):
+    - Mostra status de edição no topo da página
+    - Cabeçalhos de bimestres ficam vermelhos com ícone de cadeado quando bloqueados
+    - Campos de entrada ficam desabilitados automaticamente
+  - Integrado na página de Frequência (`Attendance.js`):
+    - Mostra status de edição no topo da página
+    - Alerta visual quando há bimestres bloqueados
+
 ### 2026-01-03
 - **Ordenação de Componentes Curriculares**: Implementada ordenação personalizada para Anos Iniciais e Anos Finais
 
