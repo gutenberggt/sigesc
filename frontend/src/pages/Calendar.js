@@ -232,7 +232,26 @@ const DayCell = ({ date, events, isToday, isCurrentMonth, onClick, onEventClick,
 };
 
 // Vista Anual
-const AnnualView = ({ year, events, onDayClick, onEventClick }) => {
+const AnnualView = ({ year, events, onDayClick, onEventClick, periodosBimestrais }) => {
+  // Função para determinar se uma data está dentro do período letivo
+  const isDateInSchoolPeriod = (dateStr) => {
+    if (periodosBimestrais && Object.keys(periodosBimestrais).some(k => periodosBimestrais[k])) {
+      for (let i = 1; i <= 4; i++) {
+        const inicio = periodosBimestrais[`bimestre_${i}_inicio`];
+        const fim = periodosBimestrais[`bimestre_${i}_fim`];
+        if (inicio && fim && dateStr >= inicio && dateStr <= fim) {
+          return true;
+        }
+      }
+      return false;
+    }
+    // Fallback para períodos padrão se não configurados
+    return (
+      (dateStr >= `${year}-02-09` && dateStr <= `${year}-06-30`) ||
+      (dateStr >= `${year}-08-03` && dateStr <= `${year}-12-18`)
+    );
+  };
+
   return (
     <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
       {MONTHS.map((month, monthIndex) => {
@@ -249,21 +268,73 @@ const AnnualView = ({ year, events, onDayClick, onEventClick }) => {
         for (let day = 1; day <= daysInMonth; day++) {
           const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const dayEvents = events.filter(e => dateStr >= e.start_date && dateStr <= e.end_date);
-          const hasEvents = dayEvents.length > 0;
-          const hasNonSchoolDay = dayEvents.some(e => !e.is_school_day);
-          const hasSchoolDay = dayEvents.some(e => e.is_school_day);
           const isToday = dateStr === new Date().toISOString().split('T')[0];
+          
+          // Verifica tipo de dia
+          const dateObj = new Date(dateStr + 'T12:00:00');
+          const dayOfWeek = dateObj.getDay();
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+          const isSaturday = dayOfWeek === 6;
+          
+          // Verifica eventos
+          const hasFeriado = dayEvents.some(e => e.event_type?.includes('feriado'));
+          const hasRecesso = dayEvents.some(e => e.event_type === 'recesso_escolar');
+          const hasSabadoLetivo = dayEvents.some(e => e.event_type === 'sabado_letivo' || (e.is_school_day && isSaturday));
+          const hasNonSchoolDay = dayEvents.some(e => !e.is_school_day);
+          
+          // Verifica se está no período letivo
+          const isInSchoolPeriod = isDateInSchoolPeriod(dateStr);
+          
+          // Determina se é dia letivo (seg-sex, dentro do período, sem feriado/recesso)
+          const isSchoolDay = isInSchoolPeriod && !isWeekend && !hasFeriado && !hasRecesso && !hasNonSchoolDay;
+          
+          // Define a cor de fundo baseado na hierarquia
+          let bgClass = '';
+          let textClass = '';
+          
+          if (hasFeriado) {
+            // Feriado - vermelho claro
+            bgClass = 'bg-red-100';
+            textClass = 'text-red-700';
+          } else if (hasRecesso) {
+            // Recesso - azul claro
+            bgClass = 'bg-blue-50';
+            textClass = 'text-blue-700';
+          } else if (hasSabadoLetivo) {
+            // Sábado letivo - verde intenso
+            bgClass = 'bg-green-200';
+            textClass = 'text-green-800';
+          } else if (isWeekend && isInSchoolPeriod) {
+            // Fim de semana normal (dentro do período letivo) - cinza
+            bgClass = 'bg-gray-100';
+            textClass = 'text-gray-500';
+          } else if (isWeekend) {
+            // Fim de semana fora do período letivo
+            bgClass = 'bg-gray-100';
+            textClass = 'text-gray-400';
+          } else if (isSchoolDay) {
+            // Dia letivo (seg-sex) - verde claro
+            bgClass = 'bg-green-100';
+            textClass = 'text-green-700';
+          }
+          
+          const title = dayEvents.length > 0 
+            ? dayEvents.map(e => e.name).join(', ')
+            : isSchoolDay 
+              ? 'Dia Letivo' 
+              : isWeekend 
+                ? (isSaturday ? 'Sábado' : 'Domingo')
+                : '';
           
           days.push(
             <div 
               key={day}
-              className={`text-center text-xs p-1 cursor-pointer hover:bg-gray-100 rounded
+              className={`text-center text-xs p-1 cursor-pointer hover:opacity-80 rounded
                 ${isToday ? 'ring-1 ring-blue-500 font-bold' : ''}
-                ${hasNonSchoolDay && !hasSchoolDay ? 'bg-red-100 text-red-700' : ''}
-                ${hasSchoolDay ? 'bg-green-100 text-green-700' : ''}
-                ${hasEvents && !hasNonSchoolDay && !hasSchoolDay ? 'bg-purple-100' : ''}
+                ${bgClass}
+                ${textClass}
               `}
-              title={dayEvents.map(e => e.name).join(', ')}
+              title={title}
               onClick={() => onDayClick(dateStr)}
             >
               {day}
