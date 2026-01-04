@@ -359,12 +359,20 @@ async def register(user_data: UserCreate):
     return UserResponse(**user_obj.model_dump(exclude={'password_hash'}))
 
 @api_router.post("/auth/login", response_model=TokenResponse)
-async def login(credentials: LoginRequest):
+async def login(credentials: LoginRequest, request: Request):
     """Autentica usuário e retorna tokens"""
     # Busca usuário
     user_doc = await db.users.find_one({"email": credentials.email}, {"_id": 0})
     
     if not user_doc:
+        # Registra tentativa de login falhada
+        await audit_service.log(
+            action='login',
+            collection='users',
+            user={'id': 'unknown', 'email': credentials.email, 'role': 'unknown'},
+            request=request,
+            description=f"Tentativa de login falhada - usuário não encontrado: {credentials.email}"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos"
@@ -374,6 +382,14 @@ async def login(credentials: LoginRequest):
     
     # Verifica senha
     if not verify_password(credentials.password, user.password_hash):
+        # Registra tentativa de login falhada
+        await audit_service.log(
+            action='login',
+            collection='users',
+            user={'id': user.id, 'email': user.email, 'role': user.role},
+            request=request,
+            description=f"Tentativa de login falhada - senha incorreta: {credentials.email}"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou senha incorretos"
@@ -408,6 +424,16 @@ async def login(credentials: LoginRequest):
     
     access_token = create_access_token(token_data)
     refresh_token = create_refresh_token({"sub": user.id})
+    
+    # Registra login bem sucedido
+    await audit_service.log(
+        action='login',
+        collection='users',
+        user={'id': user.id, 'email': user.email, 'role': effective_role, 'full_name': user.full_name},
+        request=request,
+        document_id=user.id,
+        description=f"Login realizado: {user.full_name} ({user.email})"
+    )
     
     # Retorna usuário com role efetivo
     user_response_data = user.model_dump(exclude={'password_hash'})
