@@ -61,6 +61,13 @@ from pdf_generator import (
 from ftp_upload import upload_to_ftp, delete_from_ftp
 from grade_calculator import calculate_and_update_grade
 
+# Import routers
+from routers import (
+    setup_users_router,
+    setup_schools_router,
+    setup_courses_router
+)
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
