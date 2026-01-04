@@ -1325,6 +1325,21 @@ async def update_student(student_id: str, student_update: StudentUpdate, request
     
     await db.student_history.insert_one(history_entry)
     
+    # Registra auditoria
+    await audit_service.log(
+        action='update',
+        collection='students',
+        user=current_user,
+        request=request,
+        document_id=student_id,
+        description=f"Atualizou aluno: {student_doc.get('full_name')} - {action_type}",
+        school_id=new_school_id or old_school_id,
+        school_name=school.get('name') if school else None,
+        old_value={'class_id': old_class_id, 'school_id': old_school_id, 'status': old_status},
+        new_value={'class_id': new_class_id, 'school_id': new_school_id, 'status': new_status},
+        extra_data={'action_type': action_type, 'observations': history_obs}
+    )
+    
     updated_student = await db.students.find_one({"id": student_id}, {"_id": 0})
     return Student(**updated_student)
 
