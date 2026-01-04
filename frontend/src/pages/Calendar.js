@@ -840,10 +840,7 @@ export const Calendar = () => {
               <div className="flex items-center gap-2 bg-indigo-100 px-3 py-1 rounded-full">
                 <span className="text-xs text-indigo-600 font-medium">Dias Letivos Anuais:</span>
                 <span className="text-sm font-bold text-indigo-800">
-                  {(parseInt(periodos.bimestre_1_dias_letivos) || 0) + 
-                   (parseInt(periodos.bimestre_2_dias_letivos) || 0) + 
-                   (parseInt(periodos.bimestre_3_dias_letivos) || 0) + 
-                   (parseInt(periodos.bimestre_4_dias_letivos) || 0)}
+                  {diasLetivosCalculados?.total_dias_letivos || 0}
                 </span>
               </div>
             </div>
@@ -851,21 +848,9 @@ export const Calendar = () => {
               <div className="p-2 bg-blue-50 rounded-lg">
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-medium text-blue-800">1º Bimestre</span>
-                  <input
-                    type="number"
-                    value={periodos.bimestre_1_dias_letivos}
-                    onChange={(e) => {
-                      const newPeriodos = {...periodos, bimestre_1_dias_letivos: e.target.value ? parseInt(e.target.value) : ''};
-                      setPeriodos(newPeriodos);
-                      // Salvar automaticamente
-                      calendarAPI.updateCalendarioLetivo(currentYear, newPeriodos);
-                    }}
-                    className="w-14 px-1 py-0.5 text-xs text-center border rounded bg-white text-blue-800 font-medium"
-                    min="1"
-                    max="100"
-                    placeholder="dias"
-                    disabled={!canEditPeriodos}
-                  />
+                  <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full font-medium">
+                    {diasLetivosCalculados?.bimestre_1_dias_letivos || 0} dias
+                  </span>
                 </div>
                 <div className="text-blue-600 text-xs">
                   {calendarioLetivo.bimestre_1_inicio && new Date(calendarioLetivo.bimestre_1_inicio + 'T12:00:00').toLocaleDateString('pt-BR')} a {calendarioLetivo.bimestre_1_fim && new Date(calendarioLetivo.bimestre_1_fim + 'T12:00:00').toLocaleDateString('pt-BR')}
@@ -874,20 +859,9 @@ export const Calendar = () => {
               <div className="p-2 bg-green-50 rounded-lg">
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-medium text-green-800">2º Bimestre</span>
-                  <input
-                    type="number"
-                    value={periodos.bimestre_2_dias_letivos}
-                    onChange={(e) => {
-                      const newPeriodos = {...periodos, bimestre_2_dias_letivos: e.target.value ? parseInt(e.target.value) : ''};
-                      setPeriodos(newPeriodos);
-                      calendarAPI.updateCalendarioLetivo(currentYear, newPeriodos);
-                    }}
-                    className="w-14 px-1 py-0.5 text-xs text-center border rounded bg-white text-green-800 font-medium"
-                    min="1"
-                    max="100"
-                    placeholder="dias"
-                    disabled={!canEditPeriodos}
-                  />
+                  <span className="text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full font-medium">
+                    {diasLetivosCalculados?.bimestre_2_dias_letivos || 0} dias
+                  </span>
                 </div>
                 <div className="text-green-600 text-xs">
                   {calendarioLetivo.bimestre_2_inicio && new Date(calendarioLetivo.bimestre_2_inicio + 'T12:00:00').toLocaleDateString('pt-BR')} a {calendarioLetivo.bimestre_2_fim && new Date(calendarioLetivo.bimestre_2_fim + 'T12:00:00').toLocaleDateString('pt-BR')}
@@ -896,20 +870,9 @@ export const Calendar = () => {
               <div className="p-2 bg-yellow-50 rounded-lg">
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-medium text-yellow-800">3º Bimestre</span>
-                  <input
-                    type="number"
-                    value={periodos.bimestre_3_dias_letivos}
-                    onChange={(e) => {
-                      const newPeriodos = {...periodos, bimestre_3_dias_letivos: e.target.value ? parseInt(e.target.value) : ''};
-                      setPeriodos(newPeriodos);
-                      calendarAPI.updateCalendarioLetivo(currentYear, newPeriodos);
-                    }}
-                    className="w-14 px-1 py-0.5 text-xs text-center border rounded bg-white text-yellow-800 font-medium"
-                    min="1"
-                    max="100"
-                    placeholder="dias"
-                    disabled={!canEditPeriodos}
-                  />
+                  <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full font-medium">
+                    {diasLetivosCalculados?.bimestre_3_dias_letivos || 0} dias
+                  </span>
                 </div>
                 <div className="text-yellow-600 text-xs">
                   {calendarioLetivo.bimestre_3_inicio && new Date(calendarioLetivo.bimestre_3_inicio + 'T12:00:00').toLocaleDateString('pt-BR')} a {calendarioLetivo.bimestre_3_fim && new Date(calendarioLetivo.bimestre_3_fim + 'T12:00:00').toLocaleDateString('pt-BR')}
@@ -918,20 +881,9 @@ export const Calendar = () => {
               <div className="p-2 bg-purple-50 rounded-lg">
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-medium text-purple-800">4º Bimestre</span>
-                  <input
-                    type="number"
-                    value={periodos.bimestre_4_dias_letivos}
-                    onChange={(e) => {
-                      const newPeriodos = {...periodos, bimestre_4_dias_letivos: e.target.value ? parseInt(e.target.value) : ''};
-                      setPeriodos(newPeriodos);
-                      calendarAPI.updateCalendarioLetivo(currentYear, newPeriodos);
-                    }}
-                    className="w-14 px-1 py-0.5 text-xs text-center border rounded bg-white text-purple-800 font-medium"
-                    min="1"
-                    max="100"
-                    placeholder="dias"
-                    disabled={!canEditPeriodos}
-                  />
+                  <span className="text-xs bg-purple-200 text-purple-800 px-2 py-0.5 rounded-full font-medium">
+                    {diasLetivosCalculados?.bimestre_4_dias_letivos || 0} dias
+                  </span>
                 </div>
                 <div className="text-purple-600 text-xs">
                   {calendarioLetivo.bimestre_4_inicio && new Date(calendarioLetivo.bimestre_4_inicio + 'T12:00:00').toLocaleDateString('pt-BR')} a {calendarioLetivo.bimestre_4_fim && new Date(calendarioLetivo.bimestre_4_fim + 'T12:00:00').toLocaleDateString('pt-BR')}
