@@ -732,33 +732,33 @@ export function Grades() {
                                 <div className="text-sm font-medium text-gray-900">{item.student.full_name}</div>
                                 <div className="text-xs text-gray-500">{item.student.enrollment_number}</div>
                               </td>
-                              <td className="px-4 py-3 text-center">
+                              <td className={`px-4 py-3 text-center ${!canEditField(1) ? 'bg-red-50/50' : ''}`}>
                                 {isEdInfantil ? (
                                   <ConceitoSelect
                                     value={item.grade.b1}
                                     onChange={(v) => updateLocalGrade(index, 'b1', v)}
-                                    disabled={!canEdit}
+                                    disabled={!canEditField(1)}
                                   />
                                 ) : (
                                   <GradeInput
                                     value={item.grade.b1}
                                     onChange={(v) => updateLocalGrade(index, 'b1', v)}
-                                    disabled={!canEdit}
+                                    disabled={!canEditField(1)}
                                   />
                                 )}
                               </td>
-                              <td className="px-4 py-3 text-center">
+                              <td className={`px-4 py-3 text-center ${!canEditField(2) ? 'bg-red-50/50' : ''}`}>
                                 {isEdInfantil ? (
                                   <ConceitoSelect
                                     value={item.grade.b2}
                                     onChange={(v) => updateLocalGrade(index, 'b2', v)}
-                                    disabled={!canEdit}
+                                    disabled={!canEditField(2)}
                                   />
                                 ) : (
                                   <GradeInput
                                     value={item.grade.b2}
                                     onChange={(v) => updateLocalGrade(index, 'b2', v)}
-                                    disabled={!canEdit}
+                                    disabled={!canEditField(2)}
                                   />
                                 )}
                               </td>
@@ -767,38 +767,38 @@ export function Grades() {
                                   <GradeInput
                                     value={item.grade.rec_s1}
                                     onChange={(v) => updateLocalGrade(index, 'rec_s1', v)}
-                                    disabled={!canEdit}
+                                    disabled={!canEditField(1) && !canEditField(2)}
                                     placeholder="-"
                                   />
                                 </td>
                               )}
-                              <td className="px-4 py-3 text-center">
+                              <td className={`px-4 py-3 text-center ${!canEditField(3) ? 'bg-red-50/50' : ''}`}>
                                 {isEdInfantil ? (
                                   <ConceitoSelect
                                     value={item.grade.b3}
                                     onChange={(v) => updateLocalGrade(index, 'b3', v)}
-                                    disabled={!canEdit}
+                                    disabled={!canEditField(3)}
                                   />
                                 ) : (
                                   <GradeInput
                                     value={item.grade.b3}
                                     onChange={(v) => updateLocalGrade(index, 'b3', v)}
-                                    disabled={!canEdit}
+                                    disabled={!canEditField(3)}
                                   />
                                 )}
                               </td>
-                              <td className="px-4 py-3 text-center">
+                              <td className={`px-4 py-3 text-center ${!canEditField(4) ? 'bg-red-50/50' : ''}`}>
                                 {isEdInfantil ? (
                                   <ConceitoSelect
                                     value={item.grade.b4}
                                     onChange={(v) => updateLocalGrade(index, 'b4', v)}
-                                    disabled={!canEdit}
+                                    disabled={!canEditField(4)}
                                   />
                                 ) : (
                                   <GradeInput
                                     value={item.grade.b4}
                                     onChange={(v) => updateLocalGrade(index, 'b4', v)}
-                                    disabled={!canEdit}
+                                    disabled={!canEditField(4)}
                                   />
                                 )}
                               </td>
@@ -807,7 +807,7 @@ export function Grades() {
                                   <GradeInput
                                     value={item.grade.rec_s2}
                                     onChange={(v) => updateLocalGrade(index, 'rec_s2', v)}
-                                    disabled={!canEdit}
+                                    disabled={!canEditField(3) && !canEditField(4)}
                                     placeholder="-"
                                   />
                                 </td>
