@@ -186,14 +186,24 @@ export const AuditLogs = () => {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Shield className="w-7 h-7 text-blue-600" />
-              Logs de Auditoria
-            </h1>
-            <p className="text-gray-500 mt-1">
-              Rastreamento de todas as alterações críticas no sistema
-            </p>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+              data-testid="back-to-dashboard-button"
+            >
+              <Home size={18} />
+              <span>Início</span>
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Shield className="w-7 h-7 text-blue-600" />
+                Logs de Auditoria
+              </h1>
+              <p className="text-gray-500 mt-1">
+                Rastreamento de todas as alterações críticas no sistema
+              </p>
+            </div>
           </div>
           <Button onClick={() => { fetchLogs(); fetchStats(); }} variant="outline">
             <RefreshCw className="w-4 h-4 mr-2" />
