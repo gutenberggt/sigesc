@@ -1713,6 +1713,21 @@ async def update_enrollment(enrollment_id: str, enrollment_update: EnrollmentUpd
                 {"id": existing_enrollment['student_id']},
                 {"$set": student_update}
             )
+        
+        # Auditoria de atualização de matrícula
+        student = await db.students.find_one({"id": existing_enrollment['student_id']}, {"_id": 0, "full_name": 1})
+        await audit_service.log(
+            action='update',
+            collection='enrollments',
+            user=current_user,
+            request=request,
+            document_id=enrollment_id,
+            description=f"Atualizou matrícula do aluno {student.get('full_name', 'N/A') if student else 'N/A'}",
+            school_id=update_data.get('school_id') or existing_enrollment.get('school_id'),
+            academic_year=existing_enrollment.get('academic_year'),
+            old_value={'status': existing_enrollment.get('status'), 'class_id': existing_enrollment.get('class_id')},
+            new_value=update_data
+        )
     
     updated_enrollment = await db.enrollments.find_one({"id": enrollment_id}, {"_id": 0})
     return Enrollment(**updated_enrollment)
@@ -1722,6 +1737,14 @@ async def delete_enrollment(enrollment_id: str, request: Request):
     """Deleta matrícula"""
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
     
+    # Busca matrícula antes de deletar para auditoria
+    existing = await db.enrollments.find_one({"id": enrollment_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Matrícula não encontrada"
+        )
+    
     result = await db.enrollments.delete_one({"id": enrollment_id})
     
     if result.deleted_count == 0:
@@ -1729,6 +1752,20 @@ async def delete_enrollment(enrollment_id: str, request: Request):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Matrícula não encontrada"
         )
+    
+    # Auditoria de exclusão de matrícula
+    student = await db.students.find_one({"id": existing.get('student_id')}, {"_id": 0, "full_name": 1})
+    await audit_service.log(
+        action='delete',
+        collection='enrollments',
+        user=current_user,
+        request=request,
+        document_id=enrollment_id,
+        description=f"EXCLUIU matrícula do aluno {student.get('full_name', 'N/A') if student else 'N/A'}",
+        school_id=existing.get('school_id'),
+        academic_year=existing.get('academic_year'),
+        old_value={'student_id': existing.get('student_id'), 'class_id': existing.get('class_id'), 'status': existing.get('status')}
+    )
     
     return None
 
