@@ -564,24 +564,31 @@ export const Calendar = () => {
   const [calendarioLetivo, setCalendarioLetivo] = useState(null);
   const [diasLetivosCalculados, setDiasLetivosCalculados] = useState(null);
   const [savingPeriodos, setSavingPeriodos] = useState(false);
+  const [anoSelecionadoPeriodos, setAnoSelecionadoPeriodos] = useState(new Date().getFullYear());
   const navigateTo = useNavigate();
   
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
   
+  // Verificar se usuário pode editar datas limite (apenas admin e secretario)
+  const canEditDataLimite = user?.role && ['admin', 'secretario'].includes(user.role);
+  
   // Estado para os períodos bimestrais
   const [periodos, setPeriodos] = useState({
     bimestre_1_inicio: '',
     bimestre_1_fim: '',
+    bimestre_1_data_limite: '',
     bimestre_2_inicio: '',
     bimestre_2_fim: '',
+    bimestre_2_data_limite: '',
     bimestre_3_inicio: '',
     bimestre_3_fim: '',
+    bimestre_3_data_limite: '',
     bimestre_4_inicio: '',
     bimestre_4_fim: '',
+    bimestre_4_data_limite: '',
     recesso_inicio: '',
-    recesso_fim: '',
-    dias_letivos_previstos: 200
+    recesso_fim: ''
   });
   
   // Carrega eventos
