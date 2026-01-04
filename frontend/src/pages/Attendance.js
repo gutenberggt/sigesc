@@ -522,7 +522,7 @@ export const Attendance = () => {
                       <option value="">Selecione a turma</option>
                       {classes.map(c => (
                         <option key={c.id} value={c.id}>
-                          {c.name} - {c.grade_level}
+                          {c.name}
                         </option>
                       ))}
                     </select>
