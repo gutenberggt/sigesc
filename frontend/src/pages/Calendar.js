@@ -171,8 +171,8 @@ const DayCell = ({ date, events, isToday, isCurrentMonth, onClick, onEventClick,
   } else if (hasRecesso) {
     bgClass = 'bg-blue-50';
   } else if (isWeekend && hasSchoolDay) {
-    // Sábado letivo - verde mais intenso
-    bgClass = 'bg-green-200';
+    // Sábado letivo - mesma cor dos dias letivos
+    bgClass = 'bg-green-100';
   } else if (isWeekend && isInSchoolPeriod) {
     bgClass = 'bg-gray-100';
   } else if (isSchoolDay) {
