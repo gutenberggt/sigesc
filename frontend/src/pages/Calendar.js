@@ -787,7 +787,11 @@ export const Calendar = () => {
           <div className="flex gap-2">
             {user?.role === 'admin' && (
               <>
-                <Button variant="outline" onClick={() => setShowPeriodosModal(true)}>
+                <Button variant="outline" onClick={() => {
+                  setAnoSelecionadoPeriodos(currentYear);
+                  loadCalendarioLetivo(currentYear);
+                  setShowPeriodosModal(true);
+                }}>
                   <Clock size={18} className="mr-2" />
                   Períodos Bimestrais
                 </Button>
