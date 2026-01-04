@@ -3641,10 +3641,27 @@ async def create_learning_object(data: LearningObjectCreate, request: Request):
 async def update_learning_object(object_id: str, data: LearningObjectUpdate, request: Request):
     """Atualiza um registro de objeto de conhecimento"""
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'professor'])(request)
+    user_role = current_user.get('role', '')
     
     existing = await db.learning_objects.find_one({"id": object_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Registro não encontrado")
+    
+    # Verifica a data limite de edição por bimestre (apenas para não-admins e não-secretarios)
+    if user_role not in ['admin', 'secretario']:
+        academic_year = existing.get('academic_year', datetime.now().year)
+        calendario = await db.calendario_letivo.find_one(
+            {"ano_letivo": academic_year},
+            {"_id": 0}
+        )
+        if calendario:
+            object_date = existing.get('date')
+            for i in range(1, 5):
+                inicio = calendario.get(f"bimestre_{i}_inicio")
+                fim = calendario.get(f"bimestre_{i}_fim")
+                if inicio and fim and object_date >= inicio and object_date <= fim:
+                    await verify_bimestre_edit_deadline_or_raise(academic_year, i, user_role)
+                    break
     
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
