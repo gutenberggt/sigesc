@@ -86,7 +86,7 @@ export function Promotion() {
   const [promotionData, setPromotionData] = useState([]);
   
   // Anos disponíveis
-  const years = [2023, 2024, 2025, 2026];
+  const years = [2025, 2026, 2027, 2028, 2029, 2030];
 
   // Séries elegíveis para o Livro de Promoção (3º ao 9º Ano e EJA 1ª a 4ª Etapa)
   const SERIES_ELEGIVEIS = [
