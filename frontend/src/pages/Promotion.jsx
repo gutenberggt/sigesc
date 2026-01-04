@@ -7,10 +7,24 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Download, FileText, School, Users, BookOpen, Filter, RefreshCw, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
-import { schoolsAPI, classesAPI, gradesAPI, enrollmentsAPI, coursesAPI, studentsAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, gradesAPI, coursesAPI, studentsAPI } from '@/services/api';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+// Helper para buscar matrículas
+const fetchEnrollments = async (filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.class_id) params.append('class_id', filters.class_id);
+  if (filters.student_id) params.append('student_id', filters.student_id);
+  const response = await fetch(`${API_URL}/api/enrollments?${params.toString()}`, {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+    }
+  });
+  if (!response.ok) throw new Error('Erro ao buscar matrículas');
+  return response.json();
+};
 
 // Componentes Curriculares abreviados (como no documento)
 const COMPONENT_ABBREVIATIONS = {
