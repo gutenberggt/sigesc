@@ -75,6 +75,11 @@ audit_service.set_db(db)
 # Create the main app
 app = FastAPI(title="SIGESC API", version="1.0.0")
 
+# Configurar rate limiting
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 @app.on_event("startup")
 async def create_indexes():
