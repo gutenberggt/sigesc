@@ -561,6 +561,16 @@ export function Grades() {
           </div>
         )}
         
+        {/* Alerta de bimestres bloqueados */}
+        <BimestreBlockedAlert blockedBimestres={blockedBimestres} />
+        
+        {/* Status de edição dos bimestres */}
+        {!loadingEditStatus && editStatus && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+            <BimestreStatusRow editStatus={editStatus} loading={loadingEditStatus} />
+          </div>
+        )}
+        
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="border-b border-gray-200">
