@@ -1371,11 +1371,20 @@ def generate_ficha_individual_pdf(
     # Ordenar componentes curriculares por nível de ensino
     courses = ordenar_componentes_por_nivel(courses, nivel_ensino)
     
+    # Obter o grade_level original para buscar carga horária por série
+    student_grade_level = class_info.get('grade_level', '')
+    
     for course in courses:
         course_id = course.get('id')
         course_name = course.get('name', 'N/A')
         is_optativo = course.get('optativo', False)
-        carga_horaria = course.get('carga_horaria', course.get('workload', 80))
+        
+        # Obter carga horária - prioriza carga_horaria_por_serie baseado na série do aluno
+        carga_horaria_por_serie = course.get('carga_horaria_por_serie', {})
+        if carga_horaria_por_serie and student_grade_level:
+            carga_horaria = carga_horaria_por_serie.get(student_grade_level, course.get('carga_horaria', course.get('workload', 80)))
+        else:
+            carga_horaria = course.get('carga_horaria', course.get('workload', 80))
         
         # Marcar componentes optativos com "(Optativo)" - igual ao Boletim
         if is_optativo:
