@@ -86,9 +86,10 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 - [x] ~~Rate limiting~~ (CONCLUÍDO)
 - [x] ~~Limpeza de dados órfãos~~ (CONCLUÍDO - endpoints criados)
 - [x] ~~Página Logs de Auditoria não carregava~~ (RESOLVIDO 2026-01-04)
-- [ ] Continuar refatoração do server.py em módulos
+- [~] Refatoração do server.py em módulos (EM PROGRESSO - 5 routers criados)
 
 ### P3 (Baixo)
+- [~] Refatorar SchoolsComplete.js (EM PROGRESSO - hooks criados)
 - [ ] Refatorar StudentsComplete.js
 - [ ] Refatorar Calendar.js
 
