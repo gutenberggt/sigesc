@@ -58,15 +58,17 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 ### P0 (Crítico)
 - [x] ~~Sistema de Auditoria~~ (CONCLUÍDO)
 - [x] ~~Bug componentes ausentes no Boletim~~ (RESOLVIDO - duplicados consolidados)
+- [x] ~~Correção carga horária por série~~ (CONCLUÍDO 2026-01-04)
 
 ### P1 (Alto)
 - [x] ~~Bloqueio por data limite de edição~~ (CONCLUÍDO)
-- [x] ~~Verificar bug "Gerenciar Lotações"~~ (TESTADO - API funcionando)
+- [ ] Verificar bug "Gerenciar Lotações" (AGUARDANDO REPRODUÇÃO DO USUÁRIO)
 
 ### P2 (Médio)
 - [x] ~~Índices MongoDB otimizados~~ (CONCLUÍDO)
 - [x] ~~Rate limiting~~ (CONCLUÍDO)
 - [x] ~~Limpeza de dados órfãos~~ (CONCLUÍDO - endpoints criados)
+- [x] ~~Página Logs de Auditoria não carregava~~ (RESOLVIDO 2026-01-04)
 - [ ] Continuar refatoração do server.py em módulos
 
 ### P3 (Baixo)
