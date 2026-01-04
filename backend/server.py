@@ -66,7 +66,9 @@ from routers import (
     setup_users_router,
     setup_schools_router,
     setup_courses_router,
-    setup_classes_router
+    setup_classes_router,
+    setup_guardians_router,
+    setup_enrollments_router
 )
 
 ROOT_DIR = Path(__file__).parent
