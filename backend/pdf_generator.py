@@ -1568,79 +1568,67 @@ def generate_ficha_individual_pdf(
     elements.append(Spacer(1, 5))
     
     # ===== CALCULAR RESULTADO =====
-    # Obter status da matrícula para verificar casos especiais
+    # Obter status da matrícula e dados para cálculo do resultado
     enrollment_status = enrollment.get('status', 'active')
     
-    if is_educacao_infantil:
-        # EDUCAÇÃO INFANTIL: Aprovação automática, exceto casos especiais
-        if enrollment_status in ['desistencia', 'desistente', 'falecimento', 'falecido', 'transferencia', 'transferido']:
-            if enrollment_status in ['desistencia', 'desistente']:
-                resultado = "DESISTENTE"
-                resultado_color = colors.HexColor('#dc2626')  # Vermelho
-            elif enrollment_status in ['falecimento', 'falecido']:
-                resultado = "FALECIDO"
-                resultado_color = colors.HexColor('#6b7280')  # Cinza
-            else:
-                resultado = "TRANSFERIDO"
-                resultado_color = colors.HexColor('#f59e0b')  # Laranja
+    # Obter data fim do 4º bimestre do calendário
+    calendario_letivo = calendario_letivo or {}
+    data_fim_4bim = calendario_letivo.get('bimestre_4_fim')
+    
+    # Preparar lista de médias por componente
+    medias_por_componente = []
+    for course in courses:
+        is_optativo = course.get('optativo', False)
+        course_id = course.get('id')
+        grade = grades_by_course.get(course_id, {})
+        b1 = grade.get('b1')
+        b2 = grade.get('b2')
+        b3 = grade.get('b3')
+        b4 = grade.get('b4')
+        
+        # Verificar se tem notas válidas
+        valid_grades = [g for g in [b1, b2, b3, b4] if isinstance(g, (int, float))]
+        
+        # Calcular média do componente (média ponderada)
+        if valid_grades:
+            b1 = b1 or 0
+            b2 = b2 or 0
+            b3 = b3 or 0
+            b4 = b4 or 0
+            total = (b1 * 2) + (b2 * 3) + (b3 * 2) + (b4 * 3)
+            media = total / 10
         else:
-            resultado = "APROVADO"
-            resultado_color = colors.HexColor('#16a34a')  # Verde
-    else:
-        # OUTROS NÍVEIS: Cálculo usando regras da mantenedora
-        # Preparar lista de médias por componente
-        medias_por_componente = []
-        for course in courses:
-            is_optativo = course.get('optativo', False)
-            course_id = course.get('id')
-            grade = grades_by_course.get(course_id, {})
-            b1 = grade.get('b1')
-            b2 = grade.get('b2')
-            b3 = grade.get('b3')
-            b4 = grade.get('b4')
-            
-            # Verificar se tem notas válidas
-            valid_grades = [g for g in [b1, b2, b3, b4] if isinstance(g, (int, float))]
-            
-            # Calcular média do componente (média ponderada)
-            if valid_grades:
-                b1 = b1 or 0
-                b2 = b2 or 0
-                b3 = b3 or 0
-                b4 = b4 or 0
-                total = (b1 * 2) + (b2 * 3) + (b3 * 2) + (b4 * 3)
-                media = total / 10
-            else:
-                media = None
-            
-            medias_por_componente.append({
-                'nome': course.get('name', 'N/A'),
-                'media': media,
-                'optativo': is_optativo
-            })
+            media = None
         
-        # Extrair regras de aprovação da mantenedora
-        regras_aprovacao = {
-            'media_aprovacao': mantenedora.get('media_aprovacao', 6.0) if mantenedora else 6.0,
-            'frequencia_minima': mantenedora.get('frequencia_minima', 75.0) if mantenedora else 75.0,
-            'aprovacao_com_dependencia': mantenedora.get('aprovacao_com_dependencia', False) if mantenedora else False,
-            'max_componentes_dependencia': mantenedora.get('max_componentes_dependencia') if mantenedora else None,
-            'cursar_apenas_dependencia': mantenedora.get('cursar_apenas_dependencia', False) if mantenedora else False,
-            'qtd_componentes_apenas_dependencia': mantenedora.get('qtd_componentes_apenas_dependencia') if mantenedora else None,
-        }
-        
-        # Calcular resultado usando a função centralizada
-        # Usa a frequencia_anual calculada anteriormente
-        resultado_calc = calcular_resultado_final_aluno(
-            medias_por_componente=medias_por_componente,
-            regras_aprovacao=regras_aprovacao,
-            enrollment_status=enrollment_status,
-            is_educacao_infantil=False,
-            frequencia_aluno=frequencia_anual
-        )
-        
-        resultado = resultado_calc['resultado']
-        resultado_color = colors.HexColor(resultado_calc['cor'])
+        medias_por_componente.append({
+            'nome': course.get('name', 'N/A'),
+            'media': media,
+            'optativo': is_optativo
+        })
+    
+    # Extrair regras de aprovação da mantenedora
+    regras_aprovacao = {
+        'media_aprovacao': mantenedora.get('media_aprovacao', 6.0) if mantenedora else 6.0,
+        'frequencia_minima': mantenedora.get('frequencia_minima', 75.0) if mantenedora else 75.0,
+        'aprovacao_com_dependencia': mantenedora.get('aprovacao_com_dependencia', False) if mantenedora else False,
+        'max_componentes_dependencia': mantenedora.get('max_componentes_dependencia') if mantenedora else None,
+        'cursar_apenas_dependencia': mantenedora.get('cursar_apenas_dependencia', False) if mantenedora else False,
+        'qtd_componentes_apenas_dependencia': mantenedora.get('qtd_componentes_apenas_dependencia') if mantenedora else None,
+    }
+    
+    # Calcular resultado usando a nova função que considera a data do 4º bimestre
+    resultado_calc = determinar_resultado_documento(
+        enrollment_status=enrollment_status,
+        grade_level=grade_level,
+        nivel_ensino=nivel_ensino,
+        data_fim_4bim=data_fim_4bim,
+        medias_por_componente=medias_por_componente,
+        regras_aprovacao=regras_aprovacao,
+        frequencia_aluno=frequencia_anual
+    )
+    
+    resultado = resultado_calc['resultado']
+    resultado_color = colors.HexColor(resultado_calc['cor'])
     
     # ===== LINHA COM OBSERVAÇÃO E RESULTADO =====
     obs_style = ParagraphStyle('ObsStyle', fontSize=7, fontName='Helvetica-Oblique')
