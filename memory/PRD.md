@@ -12,36 +12,23 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 
 ### 2026-01-04
 - **Sistema de Auditoria Completo** (P0 - IMPLEMENTADO):
-  - Novo serviço `audit_service.py` para rastrear alterações críticas
-  - Modelo `AuditLog` para armazenar registros
-  - Auditoria integrada em:
-    - Login (sucesso e falha)
-    - Criação, edição e exclusão de alunos
-    - Edição de notas em lote
-  - Novos endpoints:
-    - `GET /api/audit-logs` - Lista logs com filtros
-    - `GET /api/audit-logs/user/{id}` - Histórico por usuário
-    - `GET /api/audit-logs/document/{collection}/{id}` - Histórico de documento
-    - `GET /api/audit-logs/critical` - Eventos críticos
-    - `GET /api/audit-logs/stats` - Estatísticas
-  - Nova página frontend `/admin/audit-logs` com:
-    - Tabela de logs com paginação
-    - Filtros por ação, coleção, severidade
-    - Estatísticas de eventos
-  - Acessível no Dashboard via botão "Auditoria"
+  - Serviço `audit_service.py` para rastrear alterações críticas
+  - Auditoria integrada em: login, alunos, notas, frequência, matrículas, lotações
+  - Endpoints de consulta, estatísticas e eventos críticos
+  - Página frontend `/admin/audit-logs` (apenas admin)
 
-- **Correção Visual do Calendário Anual**:
-  - Cores uniformizadas: dias letivos e sábados letivos com mesma cor verde (bg-green-100)
-  - Removida legenda duplicada, mantida apenas a legenda original de tipos de eventos
+- **Endpoint de Limpeza de Dados Órfãos**:
+  - `GET /api/maintenance/orphan-check` - Verifica dados órfãos
+  - `DELETE /api/maintenance/orphan-cleanup` - Remove dados órfãos
+  - Script standalone `cleanup_orphans.py` para execução manual
 
-- **Bloqueio por Data Limite de Edição** (P1 - IMPLEMENTADO):
-  - Nova função `check_bimestre_edit_deadline()` verifica data limite por bimestre
-  - Verificação aplicada em: `/api/grades/batch`, `/api/attendance`, `/api/learning-objects`
-  - Novo endpoint `/api/calendario-letivo/{ano}/status-edicao`
+- **Início da Refatoração em Módulos**:
+  - Criada estrutura `/app/backend/routers/`
+  - Router de autenticação separado (modelo para demais)
 
-- **Indicadores Visuais de Bloqueio por Bimestre** (IMPLEMENTADO):
-  - Novo hook `useBimestreEditStatus` 
-  - Integrado nas páginas de Notas e Frequência
+- **Correção Visual do Calendário Anual**
+- **Bloqueio por Data Limite de Edição**
+- **Indicadores Visuais de Bloqueio por Bimestre**
 
 ### 2026-01-03
 - Ordenação de Componentes Curriculares
@@ -53,20 +40,20 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 ## Backlog Priorizado
 
 ### P0 (Crítico)
-- [x] ~~Sistema de Auditoria~~ (CONCLUÍDO 2026-01-04)
+- [x] ~~Sistema de Auditoria~~ (CONCLUÍDO)
+- [x] ~~Limpeza de dados órfãos~~ (CONCLUÍDO)
 - [ ] Investigar bug de componentes ausentes no Boletim
 
 ### P1 (Alto)
-- [x] ~~Bloqueio por data limite de edição~~ (CONCLUÍDO 2026-01-04)
+- [x] ~~Bloqueio por data limite de edição~~ (CONCLUÍDO)
 - [ ] Verificar bug de "Gerenciar Lotações" não salvando
 
 ### P2 (Médio)
 - [ ] Rate limiting para endpoints sensíveis
 - [ ] Índices MongoDB otimizados
-- [ ] Limpar dados órfãos de lotações
+- [ ] Continuar refatoração do server.py em módulos
 
 ### P3 (Baixo)
-- [ ] Refatorar server.py em módulos
 - [ ] Refatorar StudentsComplete.js
 - [ ] Refatorar Calendar.js
 
@@ -74,13 +61,19 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 
 ### Backend
 - FastAPI + Motor (MongoDB async)
-- Arquivos: server.py, models.py, pdf_generator.py, grade_calculator.py, audit_service.py
+- Estrutura:
+  - `server.py` - Endpoints principais (em refatoração)
+  - `routers/` - Routers modulares (auth.py)
+  - `audit_service.py` - Serviço de auditoria
+  - `grade_calculator.py` - Lógica de cálculo de notas
+  - `pdf_generator.py` - Geração de documentos
+  - `cleanup_orphans.py` - Manutenção de dados
 
 ### Frontend
 - React + Vite + TailwindCSS + Shadcn/UI
-- Páginas novas: AuditLogs.jsx
-- Hooks novos: useBimestreEditStatus.js
-- Componentes novos: BimestreStatus.jsx
+- Páginas: AuditLogs.jsx
+- Hooks: useBimestreEditStatus.js
+- Componentes: BimestreStatus.jsx
 
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
