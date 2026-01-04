@@ -449,18 +449,30 @@ export function Promotion() {
               
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">
-                  Turma
+                  Turma (3º ao 9º Ano / EJA)
                 </label>
                 <Select value={selectedClass} onValueChange={setSelectedClass} disabled={!selectedSchool}>
                   <SelectTrigger data-testid="class-select">
-                    <SelectValue placeholder={selectedSchool ? "Selecione a turma" : "Selecione a escola primeiro"} />
+                    <SelectValue placeholder={
+                      !selectedSchool 
+                        ? "Selecione a escola primeiro" 
+                        : classes.length === 0 
+                          ? "Nenhuma turma elegível" 
+                          : "Selecione a turma"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    {classes.map(cls => (
-                      <SelectItem key={cls.id} value={cls.id}>
-                        {cls.name} - {cls.grade_level} ({cls.shift})
+                    {classes.length === 0 ? (
+                      <SelectItem value="none" disabled>
+                        Nenhuma turma do 3º ao 9º Ano ou EJA
                       </SelectItem>
-                    ))}
+                    ) : (
+                      classes.map(cls => (
+                        <SelectItem key={cls.id} value={cls.id}>
+                          {cls.name} - {cls.grade_level} ({cls.shift})
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
