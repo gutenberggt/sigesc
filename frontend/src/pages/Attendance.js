@@ -14,15 +14,18 @@ import {
   Settings,
   FileText,
   Home,
-  Trash2
+  Trash2,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert } from '@/components/ui/alert';
 import { Modal } from '@/components/Modal';
-import { schoolsAPI, classesAPI, coursesAPI, attendanceAPI, professorAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, coursesAPI, attendanceAPI, professorAPI, calendarAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
+import { BimestreBlockedAlert, BimestreStatusRow } from '@/components/BimestreStatus';
 
 // Labels para níveis de ensino
 const EDUCATION_LEVEL_LABELS = {
