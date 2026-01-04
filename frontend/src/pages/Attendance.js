@@ -431,6 +431,16 @@ export const Attendance = () => {
           </Alert>
         )}
         
+        {/* Alerta de bimestres bloqueados */}
+        <BimestreBlockedAlert blockedBimestres={blockedBimestres} />
+        
+        {/* Status de edição dos bimestres */}
+        {!loadingEditStatus && editStatus && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+            <BimestreStatusRow editStatus={editStatus} loading={loadingEditStatus} />
+          </div>
+        )}
+        
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-4">
