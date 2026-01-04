@@ -685,75 +685,66 @@ def generate_boletim_pdf(
     elements.append(Spacer(1, 20))
     
     # ===== RESULTADO FINAL =====
-    # Obter status da matrícula para verificar casos especiais
+    # Obter status da matrícula e dados para cálculo do resultado
     enrollment_status = enrollment.get('status', 'active')
+    grade_level = class_info.get('grade_level', '')
     
-    if is_educacao_infantil:
-        # EDUCAÇÃO INFANTIL: Aprovação automática, exceto casos especiais
-        if enrollment_status in ['desistencia', 'desistente', 'falecimento', 'falecido', 'transferencia', 'transferido']:
-            if enrollment_status in ['desistencia', 'desistente']:
-                resultado = "DESISTENTE"
-                resultado_color = colors.HexColor('#dc2626')  # Vermelho
-            elif enrollment_status in ['falecimento', 'falecido']:
-                resultado = "FALECIDO"
-                resultado_color = colors.HexColor('#6b7280')  # Cinza
-            else:
-                resultado = "TRANSFERIDO"
-                resultado_color = colors.HexColor('#f59e0b')  # Laranja
-        else:
-            resultado = "APROVADO"
-            resultado_color = colors.HexColor('#16a34a')  # Verde
-    else:
-        # OUTROS NÍVEIS: Cálculo usando regras da mantenedora
-        # Preparar lista de médias por componente
-        medias_por_componente = []
-        for course in courses:
-            is_optativo = course.get('optativo', False)
-            course_grades = grades_by_course.get(course.get('id'), {})
-            valid_grades = []
-            for period in ['P1', 'P2', 'P3', 'P4']:
-                g = course_grades.get(period, {}).get('grade')
-                if isinstance(g, (int, float)):
-                    valid_grades.append(g)
-            
-            # Calcular média do componente
-            media = sum(valid_grades) / len(valid_grades) if valid_grades else None
-            
-            medias_por_componente.append({
-                'nome': course.get('name', 'N/A'),
-                'media': media,
-                'optativo': is_optativo
-            })
+    # Obter data fim do 4º bimestre do calendário
+    data_fim_4bim = None
+    if calendario_letivo:
+        data_fim_4bim = calendario_letivo.get('bimestre_4_fim')
+    
+    # Preparar lista de médias por componente
+    medias_por_componente = []
+    for course in courses:
+        is_optativo = course.get('optativo', False)
+        course_grades = grades_by_course.get(course.get('id'), {})
+        valid_grades = []
+        for period in ['P1', 'P2', 'P3', 'P4']:
+            g = course_grades.get(period, {}).get('grade')
+            if isinstance(g, (int, float)):
+                valid_grades.append(g)
         
-        # Extrair regras de aprovação da mantenedora
-        regras_aprovacao = {
-            'media_aprovacao': mantenedora.get('media_aprovacao', 6.0) if mantenedora else 6.0,
-            'frequencia_minima': mantenedora.get('frequencia_minima', 75.0) if mantenedora else 75.0,
-            'aprovacao_com_dependencia': mantenedora.get('aprovacao_com_dependencia', False) if mantenedora else False,
-            'max_componentes_dependencia': mantenedora.get('max_componentes_dependencia') if mantenedora else None,
-            'cursar_apenas_dependencia': mantenedora.get('cursar_apenas_dependencia', False) if mantenedora else False,
-            'qtd_componentes_apenas_dependencia': mantenedora.get('qtd_componentes_apenas_dependencia') if mantenedora else None,
-        }
+        # Calcular média do componente
+        media = sum(valid_grades) / len(valid_grades) if valid_grades else None
         
-        # Calcular frequência do aluno baseada nos dias letivos e faltas
-        frequencia_aluno = None
-        if dias_letivos_ano and dias_letivos_ano > 0 and total_geral_faltas is not None:
-            dias_presentes = dias_letivos_ano - total_geral_faltas
-            frequencia_aluno = (dias_presentes / dias_letivos_ano) * 100
-            # Garantir que a frequência não seja negativa
-            frequencia_aluno = max(0, frequencia_aluno)
-        
-        # Calcular resultado usando a função centralizada
-        resultado_calc = calcular_resultado_final_aluno(
-            medias_por_componente=medias_por_componente,
-            regras_aprovacao=regras_aprovacao,
-            enrollment_status=enrollment_status,
-            is_educacao_infantil=False,
-            frequencia_aluno=frequencia_aluno
-        )
-        
-        resultado = resultado_calc['resultado']
-        resultado_color = colors.HexColor(resultado_calc['cor'])
+        medias_por_componente.append({
+            'nome': course.get('name', 'N/A'),
+            'media': media,
+            'optativo': is_optativo
+        })
+    
+    # Extrair regras de aprovação da mantenedora
+    regras_aprovacao = {
+        'media_aprovacao': mantenedora.get('media_aprovacao', 6.0) if mantenedora else 6.0,
+        'frequencia_minima': mantenedora.get('frequencia_minima', 75.0) if mantenedora else 75.0,
+        'aprovacao_com_dependencia': mantenedora.get('aprovacao_com_dependencia', False) if mantenedora else False,
+        'max_componentes_dependencia': mantenedora.get('max_componentes_dependencia') if mantenedora else None,
+        'cursar_apenas_dependencia': mantenedora.get('cursar_apenas_dependencia', False) if mantenedora else False,
+        'qtd_componentes_apenas_dependencia': mantenedora.get('qtd_componentes_apenas_dependencia') if mantenedora else None,
+    }
+    
+    # Calcular frequência do aluno baseada nos dias letivos e faltas
+    frequencia_aluno = None
+    if dias_letivos_ano and dias_letivos_ano > 0 and total_geral_faltas is not None:
+        dias_presentes = dias_letivos_ano - total_geral_faltas
+        frequencia_aluno = (dias_presentes / dias_letivos_ano) * 100
+        # Garantir que a frequência não seja negativa
+        frequencia_aluno = max(0, frequencia_aluno)
+    
+    # Calcular resultado usando a nova função que considera a data do 4º bimestre
+    resultado_calc = determinar_resultado_documento(
+        enrollment_status=enrollment_status,
+        grade_level=grade_level,
+        nivel_ensino=nivel_ensino,
+        data_fim_4bim=data_fim_4bim,
+        medias_por_componente=medias_por_componente,
+        regras_aprovacao=regras_aprovacao,
+        frequencia_aluno=frequencia_aluno
+    )
+    
+    resultado = resultado_calc['resultado']
+    resultado_color = colors.HexColor(resultado_calc['cor'])
     
     # Estilos do resultado (fonte original, largura +20%)
     result_style = ParagraphStyle('Result', fontSize=12, alignment=TA_LEFT)
