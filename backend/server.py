@@ -6904,9 +6904,8 @@ async def consolidate_duplicate_courses(request: Request, dry_run: bool = True):
 
 @api_router.get("/mantenedora", response_model=Mantenedora)
 async def get_mantenedora(request: Request = None):
-    """Busca a Unidade Mantenedora (única)"""
-    current_user = await AuthMiddleware.get_current_user(request)
-    
+    """Busca a Unidade Mantenedora (única) - Endpoint público para exibição de dados institucionais"""
+    # Não requer autenticação - dados públicos da instituição
     mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
     
     if not mantenedora:
