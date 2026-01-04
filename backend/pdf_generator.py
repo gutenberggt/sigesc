@@ -2587,6 +2587,14 @@ def generate_livro_promocao_pdf(
         ('INNERGRID', (0, 0), (-1, -1), 0.3, colors.grey),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         
+        # Linhas verticais mais grossas entre blocos
+        ('LINEAFTER', (2, 0), (2, -1), 1.5, colors.black),  # Após Sexo
+        ('LINEAFTER', (2 + num_components, 0), (2 + num_components, -1), 1.5, colors.black),  # Após 3º Bim
+        ('LINEAFTER', (2 + num_components * 2, 0), (2 + num_components * 2, -1), 1.5, colors.black),  # Após 4º Bim
+        ('LINEAFTER', (2 + num_components * 3, 0), (2 + num_components * 3, -1), 1.5, colors.black),  # Após Rec 2º Sem
+        ('LINEAFTER', (2 + num_components * 3 + 1, 0), (2 + num_components * 3 + 1, -1), 1.5, colors.black),  # Após Total
+        ('LINEAFTER', (2 + num_components * 3 + 2, 0), (2 + num_components * 3 + 2, -1), 1.5, colors.black),  # Após Média
+        
         # Padding
         ('TOPPADDING', (0, 0), (-1, -1), 2),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
