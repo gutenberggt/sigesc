@@ -1212,8 +1212,15 @@ def generate_ficha_individual_pdf(
         except:
             pass
     
-    # Carga horária total da turma
-    total_carga_horaria = sum(c.get('carga_horaria', c.get('workload', 80)) for c in courses) if courses else 1200
+    # Carga horária total da turma - considerando carga_horaria_por_serie
+    def get_course_workload(course, grade_level):
+        """Obtém a carga horária de um componente considerando a série do aluno"""
+        carga_por_serie = course.get('carga_horaria_por_serie', {})
+        if carga_por_serie and grade_level:
+            return carga_por_serie.get(grade_level, course.get('carga_horaria', course.get('workload', 80)))
+        return course.get('carga_horaria', course.get('workload', 80))
+    
+    total_carga_horaria = sum(get_course_workload(c, grade_level) for c in courses) if courses else 1200
     dias_letivos = 200
     
     # Calcular frequência anual média
