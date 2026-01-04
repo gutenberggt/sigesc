@@ -60,7 +60,7 @@ export function Promotion() {
   // Filters
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState(2025);
   
   // Processed data
   const [promotionData, setPromotionData] = useState([]);
