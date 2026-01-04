@@ -353,7 +353,7 @@ export const AuditLogs = () => {
                         <td className="px-4 py-3 whitespace-nowrap">
                           <Badge className={SEVERITY_COLORS[log.severity]}>
                             {log.severity === 'critical' && <AlertTriangle className="h-3 w-3 mr-1" />}
-                            {log.severity}
+                            {SEVERITY_LABELS[log.severity] || log.severity}
                           </Badge>
                         </td>
                       </tr>
