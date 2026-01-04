@@ -1022,6 +1022,7 @@ export const Calendar = () => {
                 events={events}
                 onDayClick={handleDayClick}
                 onEventClick={handleEventClick}
+                periodosBimestrais={calendarioLetivo}
               />
             )}
             {view === 'monthly' && (
