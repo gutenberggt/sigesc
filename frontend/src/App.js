@@ -265,6 +265,16 @@ function App() {
           {/* Redireciona raiz para dashboard ou login */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           
+          {/* Auditoria - Apenas admin, secretario, semed */}
+          <Route
+            path="/admin/audit-logs"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed']}>
+                <AuditLogs />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* 404 - Rota não encontrada */}
           <Route
             path="*"
