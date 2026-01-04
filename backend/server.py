@@ -436,8 +436,9 @@ async def register(user_data: UserCreate):
     return UserResponse(**user_obj.model_dump(exclude={'password_hash'}))
 
 @api_router.post("/auth/login", response_model=TokenResponse)
+@limiter.limit("5/minute")
 async def login(credentials: LoginRequest, request: Request):
-    """Autentica usuário e retorna tokens"""
+    """Autentica usuário e retorna tokens. Rate limited: 5 tentativas por minuto."""
     # Busca usuário
     user_doc = await db.users.find_one({"email": credentials.email}, {"_id": 0})
     
