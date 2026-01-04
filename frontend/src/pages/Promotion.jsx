@@ -322,6 +322,24 @@ export function Promotion() {
     loadPromotionData();
   }, [loadPromotionData]);
 
+  // Reset página quando turma muda
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedClass]);
+
+  // Calcular dados paginados
+  const totalPages = Math.ceil(promotionData.length / STUDENTS_PER_PAGE);
+  const startIndex = (currentPage - 1) * STUDENTS_PER_PAGE;
+  const endIndex = startIndex + STUDENTS_PER_PAGE;
+  const paginatedData = promotionData.slice(startIndex, endIndex);
+
+  // Navegação de páginas
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
   // Gerar PDF do Livro de Promoção
   const handleDownloadPDF = async () => {
     if (!selectedClass) {
