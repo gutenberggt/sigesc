@@ -399,6 +399,12 @@ export const calendarAPI = {
     return response.data;
   },
   
+  getDiasLetivos: async (anoLetivo, schoolId = null) => {
+    const params = schoolId ? `?school_id=${schoolId}` : '';
+    const response = await axios.get(`${API}/calendario-letivo/${anoLetivo}/dias-letivos${params}`);
+    return response.data;
+  },
+  
   getPeriodosBimestrais: async (anoLetivo, schoolId = null) => {
     const params = schoolId ? `?school_id=${schoolId}` : '';
     const response = await axios.get(`${API}/calendario-letivo/${anoLetivo}/periodos${params}`);
