@@ -287,9 +287,10 @@ export function Promotion() {
       const filteredStudents = (studentsData || []).filter(s => studentIds.includes(s.id));
       setStudents(filteredStudents);
       
-      // Buscar componentes curriculares
+      // Buscar componentes curriculares e ordenar conforme o nível de ensino
       const coursesData = await coursesAPI.getAll(classInfo.education_level);
-      setCourses(coursesData || []);
+      const orderedCourses = ordenarComponentes(coursesData || [], classInfo.grade_level);
+      setCourses(orderedCourses);
       
       // Buscar notas de todos os alunos da turma
       const gradesPromises = studentIds.map(studentId => 
