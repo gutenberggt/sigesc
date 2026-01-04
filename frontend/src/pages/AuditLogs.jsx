@@ -277,7 +277,7 @@ export const AuditLogs = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="info">Info</SelectItem>
+                <SelectItem value="info">Informação</SelectItem>
                 <SelectItem value="warning">Aviso</SelectItem>
                 <SelectItem value="critical">Crítico</SelectItem>
               </SelectContent>
