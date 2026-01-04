@@ -84,6 +84,7 @@ const COLLECTION_LABELS = {
 };
 
 export const AuditLogs = () => {
+  const navigate = useNavigate();
   const { accessToken: token, user } = useAuth();
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState(null);
