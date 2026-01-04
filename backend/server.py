@@ -1839,9 +1839,10 @@ async def update_grades_batch(request: Request, grades: List[dict]):
     """Atualiza notas em lote (por turma)"""
     # Coordenador PODE editar notas (área do diário)
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
+    user_role = current_user.get('role', '')
     
     # Verifica se o ano letivo está aberto (apenas para não-admins)
-    if grades and current_user.get('role') != 'admin':
+    if grades and user_role != 'admin':
         first_grade = grades[0]
         class_doc = await db.classes.find_one(
             {"id": first_grade['class_id']},
@@ -1852,6 +1853,22 @@ async def update_grades_batch(request: Request, grades: List[dict]):
                 class_doc['school_id'],
                 first_grade['academic_year']
             )
+    
+    # Verifica a data limite de edição por bimestre (apenas para não-admins e não-secretarios)
+    if grades and user_role not in ['admin', 'secretario']:
+        first_grade = grades[0]
+        academic_year = first_grade.get('academic_year')
+        
+        # Identifica quais bimestres estão sendo editados
+        bimestres_editados = set()
+        for grade_data in grades:
+            for bim in ['b1', 'b2', 'b3', 'b4']:
+                if grade_data.get(bim) is not None:
+                    bimestres_editados.add(int(bim[1]))  # Extrai o número do bimestre
+        
+        # Verifica cada bimestre sendo editado
+        for bimestre in bimestres_editados:
+            await verify_bimestre_edit_deadline_or_raise(academic_year, bimestre, user_role)
     
     results = []
     for grade_data in grades:
