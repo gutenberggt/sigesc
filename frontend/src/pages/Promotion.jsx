@@ -705,7 +705,7 @@ export function Promotion() {
                         <td className="px-2 py-2 border-r font-medium sticky left-8 bg-inherit z-10 whitespace-nowrap">
                           {student.studentName}
                         </td>
-                        <td className="px-2 py-2 border-r text-center">{student.sex}</td>
+                        <td className="px-2 py-2 border-r-2 border-slate-400 text-center">{student.sex}</td>
                         
                         {/* Notas por seção */}
                         {['b1', 'b2', 'rec1', 'b3', 'b4', 'rec2', 'totalPoints', 'finalAverage'].map((period, periodIdx) => (
@@ -728,10 +728,15 @@ export function Promotion() {
                             // Destacar médias abaixo de 6
                             const isLowGrade = period === 'finalAverage' && gradeData?.finalAverage !== null && gradeData?.finalAverage < 6;
                             
+                            // Última coluna de cada bloco tem borda mais grossa
+                            const isLastInSection = idx === courses.length - 1;
+                            
                             return (
                               <td 
                                 key={`${period}-${idx}`} 
-                                className={`px-1 py-2 border-r text-center text-[10px] ${isLowGrade ? 'bg-red-100 text-red-700 font-bold' : ''}`}
+                                className={`px-1 py-2 text-center text-[10px] ${
+                                  isLastInSection ? 'border-r-2 border-slate-400' : 'border-r'
+                                } ${isLowGrade ? 'bg-red-100 text-red-700 font-bold' : ''}`}
                               >
                                 {value}
                               </td>
