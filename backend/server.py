@@ -2703,9 +2703,10 @@ async def save_attendance(attendance: AttendanceCreate, request: Request):
     """Salva ou atualiza frequência de uma turma"""
     # Coordenador PODE editar frequência (área do diário)
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
+    user_role = current_user.get('role', '')
     
     # Verifica se o ano letivo está aberto (apenas para não-admins)
-    if current_user.get('role') != 'admin':
+    if user_role != 'admin':
         class_doc = await db.classes.find_one(
             {"id": attendance.class_id},
             {"_id": 0, "school_id": 1}
@@ -2715,6 +2716,22 @@ async def save_attendance(attendance: AttendanceCreate, request: Request):
                 class_doc['school_id'],
                 attendance.academic_year
             )
+    
+    # Verifica a data limite de edição por bimestre (apenas para não-admins e não-secretarios)
+    if user_role not in ['admin', 'secretario']:
+        # Determina qual bimestre a data de frequência pertence
+        calendario = await db.calendario_letivo.find_one(
+            {"ano_letivo": attendance.academic_year},
+            {"_id": 0}
+        )
+        if calendario:
+            attendance_date = attendance.date
+            for i in range(1, 5):
+                inicio = calendario.get(f"bimestre_{i}_inicio")
+                fim = calendario.get(f"bimestre_{i}_fim")
+                if inicio and fim and attendance_date >= inicio and attendance_date <= fim:
+                    await verify_bimestre_edit_deadline_or_raise(attendance.academic_year, i, user_role)
+                    break
     
     # Verifica se pode lançar nessa data
     date_check = await check_attendance_date(attendance.date, request)
