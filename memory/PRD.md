@@ -10,24 +10,29 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 
 ## Implementações Recentes
 
-### 2026-01-03
+### 2026-01-03/04
 - **Ordenação de Componentes Curriculares**: Implementada ordenação personalizada para Anos Iniciais e Anos Finais
-  - Anos Iniciais: Língua Portuguesa → Arte → Educação Física → Matemática → Ciências → História → Geografia → Ensino Religioso → Componentes de escola integral
-  - Anos Finais: Língua Portuguesa → Arte → Educação Física → Língua Inglesa → Matemática → Ciências → História → Geografia → Ensino Religioso → Educação Ambiental e Clima → Estudos Amazônicos → Literatura e Redação → Componentes de escola integral
 
-- **Condicionais para Aprovação (Mantenedora)**: Novos campos no cadastro da mantenedora:
+- **Condicionais para Aprovação (Mantenedora)**:
   - Média para aprovação (5,0 a 10,0)
-  - **Frequência mínima para aprovação (60% a 85%, padrão LDB: 75%)**
+  - Frequência mínima para aprovação (60% a 85%, padrão LDB: 75%)
   - Aprovação com dependência (checkbox + qtd máxima de componentes 1-5)
   - Cursar apenas dependência (checkbox + qtd de componentes 1-5)
 
-- **Lógica de Resultado Final**: Implementada função `calcular_resultado_final_aluno()` que considera:
-  - Média mínima configurável pela mantenedora
-  - **Frequência mínima configurável (reprovação prioritária por frequência)**
-  - Aprovação com dependência (se permitido e dentro do limite)
-  - Cursar apenas dependência (quando reprovações excedem o limite)
-  - Status especiais (transferido, desistente, falecido)
-  - Resultados possíveis: APROVADO, REPROVADO, REPROVADO POR FREQUÊNCIA, APROVADO COM DEPENDÊNCIA, CURSAR DEPENDÊNCIA, EM ANDAMENTO
+- **Lógica de Resultado Final**: Função `calcular_resultado_final_aluno()` considera:
+  - Média mínima, Frequência mínima, Aprovação com dependência, Cursar dependência
+  - Resultados: APROVADO, REPROVADO, REPROVADO POR FREQUÊNCIA, APROVADO COM DEPENDÊNCIA, CURSAR DEPENDÊNCIA
+
+- **Dias Letivos por Bimestre no Calendário Letivo**:
+  - Campo de dias letivos em cada bimestre (1º, 2º, 3º, 4º)
+  - Soma automática do total anual de dias letivos
+  - Exibição visual com badges coloridas para cada bimestre
+  - Total de dias letivos anuais exibido na mesma linha do título
+
+- **Cálculo de Frequência no Boletim**:
+  - Busca os dias letivos do calendário letivo
+  - Calcula frequência: (dias_letivos - faltas) / dias_letivos * 100
+  - Usa a frequência calculada na verificação de reprovação
 
 ### Anteriores
 - Gerenciamento de Anos Letivos (aberto/fechado)
@@ -65,7 +70,7 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 
 ### Banco de Dados
 - MongoDB
-- Coleções: users, schools, classes, students, courses, grades, attendance, mantenedora, etc.
+- Coleções: users, schools, classes, students, courses, grades, attendance, mantenedora, calendario_letivo, etc.
 
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
