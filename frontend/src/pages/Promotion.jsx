@@ -581,22 +581,6 @@ export function Promotion() {
           </div>
         )}
 
-        {/* Cabeçalho do documento */}
-        {selectedClass && selectedSchoolInfo && selectedClassInfo && (
-          <Card className="bg-slate-50 border-2 border-slate-200">
-            <CardContent className="p-4">
-              <div className="text-center space-y-1">
-                <p className="text-xs text-gray-600">PREFEITURA MUNICIPAL DE FLORESTA DO ARAGUAIA</p>
-                <p className="text-xs text-gray-600">SECRETARIA MUNICIPAL DE EDUCAÇÃO</p>
-                <p className="font-semibold text-sm">{selectedSchoolInfo.name}</p>
-                <p className="text-sm">TURMA: {selectedClassInfo.name} - {selectedClassInfo.grade_level} - {selectedClassInfo.shift?.toUpperCase()}</p>
-                <p className="text-sm">ANO LETIVO: {selectedYear}</p>
-                <p className="font-bold text-lg mt-2">LIVRO DE PROMOÇÃO</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Tabela de Promoção */}
         {loading ? (
           <Card>
