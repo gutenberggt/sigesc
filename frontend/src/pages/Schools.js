@@ -143,9 +143,19 @@ export const Schools = () => {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900" data-testid="schools-title">Escolas</h1>
-            <p className="text-gray-600 mt-1">Gerencie as escolas do sistema</p>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+              data-testid="back-to-dashboard-button"
+            >
+              <Home size={18} />
+              <span>Início</span>
+            </button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900" data-testid="schools-title">Escolas</h1>
+              <p className="text-gray-600 mt-1">Gerencie as escolas do sistema</p>
+            </div>
           </div>
           <button
             onClick={handleCreate}
