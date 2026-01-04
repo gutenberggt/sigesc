@@ -2328,19 +2328,18 @@ async def update_calendario_letivo(ano_letivo: int, request: Request, school_id:
     update_data = {
         "bimestre_1_inicio": body.get("bimestre_1_inicio"),
         "bimestre_1_fim": body.get("bimestre_1_fim"),
-        "bimestre_1_dias_letivos": body.get("bimestre_1_dias_letivos"),
+        "bimestre_1_data_limite": body.get("bimestre_1_data_limite"),
         "bimestre_2_inicio": body.get("bimestre_2_inicio"),
         "bimestre_2_fim": body.get("bimestre_2_fim"),
-        "bimestre_2_dias_letivos": body.get("bimestre_2_dias_letivos"),
+        "bimestre_2_data_limite": body.get("bimestre_2_data_limite"),
         "bimestre_3_inicio": body.get("bimestre_3_inicio"),
         "bimestre_3_fim": body.get("bimestre_3_fim"),
-        "bimestre_3_dias_letivos": body.get("bimestre_3_dias_letivos"),
+        "bimestre_3_data_limite": body.get("bimestre_3_data_limite"),
         "bimestre_4_inicio": body.get("bimestre_4_inicio"),
         "bimestre_4_fim": body.get("bimestre_4_fim"),
-        "bimestre_4_dias_letivos": body.get("bimestre_4_dias_letivos"),
+        "bimestre_4_data_limite": body.get("bimestre_4_data_limite"),
         "recesso_inicio": body.get("recesso_inicio"),
         "recesso_fim": body.get("recesso_fim"),
-        "dias_letivos_previstos": body.get("dias_letivos_previstos", 200),
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "updated_by": current_user['id']
     }
