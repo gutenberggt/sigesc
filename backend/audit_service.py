@@ -247,7 +247,7 @@ class AuditService:
         Returns:
             Tuple (logs, total_count)
         """
-        if not self.db:
+        if self.db is None:
             return [], 0
         
         query = {}
