@@ -4741,6 +4741,25 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
     # Buscar dados da mantenedora
     mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
     
+    # Buscar calendário letivo para obter os dias letivos
+    calendario_letivo = await db.calendario_letivo.find_one({
+        "ano_letivo": int(academic_year),
+        "school_id": None  # Calendário geral
+    }, {"_id": 0})
+    
+    # Calcular total de dias letivos do ano
+    dias_letivos_ano = 200  # Padrão LDB
+    if calendario_letivo:
+        dias_letivos_ano = (
+            (calendario_letivo.get('bimestre_1_dias_letivos') or 0) +
+            (calendario_letivo.get('bimestre_2_dias_letivos') or 0) +
+            (calendario_letivo.get('bimestre_3_dias_letivos') or 0) +
+            (calendario_letivo.get('bimestre_4_dias_letivos') or 0)
+        )
+        # Se não tiver dias por bimestre, usar o total previsto
+        if dias_letivos_ano == 0:
+            dias_letivos_ano = calendario_letivo.get('dias_letivos_previstos', 200) or 200
+    
     # Gerar PDF
     try:
         pdf_buffer = generate_boletim_pdf(
@@ -4751,7 +4770,8 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
             grades=grades,
             courses=courses,
             academic_year=academic_year,
-            mantenedora=mantenedora
+            mantenedora=mantenedora,
+            dias_letivos_ano=dias_letivos_ano
         )
         
         filename = f"boletim_{student.get('full_name', 'aluno').replace(' ', '_')}_{academic_year}.pdf"
