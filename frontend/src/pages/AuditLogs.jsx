@@ -231,14 +231,14 @@ export const AuditLogs = () => {
               />
             </div>
             <Select
-              value={filters.action}
-              onValueChange={(value) => setFilters({...filters, action: value})}
+              value={filters.action || 'all'}
+              onValueChange={(value) => setFilters({...filters, action: value === 'all' ? '' : value})}
             >
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Ação" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas</SelectItem>
+                <SelectItem value="all">Todas</SelectItem>
                 <SelectItem value="login">Login</SelectItem>
                 <SelectItem value="create">Criação</SelectItem>
                 <SelectItem value="update">Alteração</SelectItem>
@@ -246,14 +246,14 @@ export const AuditLogs = () => {
               </SelectContent>
             </Select>
             <Select
-              value={filters.collection}
-              onValueChange={(value) => setFilters({...filters, collection: value})}
+              value={filters.collection || 'all'}
+              onValueChange={(value) => setFilters({...filters, collection: value === 'all' ? '' : value})}
             >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Coleção" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas</SelectItem>
+                <SelectItem value="all">Todas</SelectItem>
                 <SelectItem value="users">Usuários</SelectItem>
                 <SelectItem value="students">Alunos</SelectItem>
                 <SelectItem value="grades">Notas</SelectItem>
@@ -262,14 +262,14 @@ export const AuditLogs = () => {
               </SelectContent>
             </Select>
             <Select
-              value={filters.severity}
-              onValueChange={(value) => setFilters({...filters, severity: value})}
+              value={filters.severity || 'all'}
+              onValueChange={(value) => setFilters({...filters, severity: value === 'all' ? '' : value})}
             >
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Severidade" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas</SelectItem>
+                <SelectItem value="all">Todas</SelectItem>
                 <SelectItem value="info">Info</SelectItem>
                 <SelectItem value="warning">Aviso</SelectItem>
                 <SelectItem value="critical">Crítico</SelectItem>
