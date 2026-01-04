@@ -1009,35 +1009,6 @@ export const Calendar = () => {
           </div>
         )}
         
-        {/* Legenda de cores */}
-        {view === 'annual' && (
-          <div className="mb-4 p-3 bg-white rounded-lg shadow-sm border">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Legenda</h4>
-            <div className="flex flex-wrap gap-3 text-xs">
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 bg-green-100 rounded border border-green-200"></div>
-                <span>Dia Letivo</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 bg-green-200 rounded border border-green-300"></div>
-                <span>Sábado Letivo</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 bg-red-100 rounded border border-red-200"></div>
-                <span>Feriado</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 bg-blue-50 rounded border border-blue-200"></div>
-                <span>Recesso</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 bg-gray-100 rounded border border-gray-200"></div>
-                <span>Fim de Semana</span>
-              </div>
-            </div>
-          </div>
-        )}
-        
         {/* Calendário */}
         {loading ? (
           <div className="flex justify-center items-center h-64">
