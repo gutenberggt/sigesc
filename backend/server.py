@@ -6764,11 +6764,15 @@ users_router = setup_users_router(db, audit_service)
 schools_router = setup_schools_router(db, audit_service)
 courses_router = setup_courses_router(db, audit_service)
 classes_router = setup_classes_router(db, audit_service)
+guardians_router = setup_guardians_router(db, audit_service)
+enrollments_router = setup_enrollments_router(db, audit_service)
 
 app.include_router(users_router, prefix="/api")
 app.include_router(schools_router, prefix="/api")
 app.include_router(courses_router, prefix="/api")
 app.include_router(classes_router, prefix="/api")
+app.include_router(guardians_router, prefix="/api")
+app.include_router(enrollments_router, prefix="/api")
 
 # ============= WEBSOCKET ENDPOINT =============
 
