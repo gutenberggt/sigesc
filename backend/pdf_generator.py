@@ -2261,11 +2261,22 @@ def generate_livro_promocao_pdf(
             'Estudos Amazônicos': 'Est. Amaz.',
             'Literatura e Redação': 'Lit. e red.',
             'Recreação e Lazer': 'R. E. Laz.',
+            'Recreação, Esporte e Lazer': 'R. E. Laz.',
+            'Linguagem Recreativa com Práticas de Esporte e Lazer': 'R. E. Laz.',
             'Arte e Cultura': 'Art. e Cul.',
             'Tecnologia da Informação': 'Tec. Inf.',
             'Tecnologia e Informática': 'Tec. Inf.',
             'Acompanhamento Pedagógico de Língua Portuguesa': 'APL Port.',
-            'Acompanhamento Pedagógico de Matemática': 'AP Mat.'
+            'Acompanhamento Pedagógico de Matemática': 'AP Mat.',
+            'Acomp. Ped. de Língua Portuguesa': 'APL Port.',
+            'Acomp. Ped. de Matemática': 'AP Mat.',
+            'Contação de Histórias e Iniciação Musical': 'Cont. Hist.',
+            'Corpo, gestos e movimentos': 'Corp. Gest.',
+            'Escuta, fala, pensamento e imaginação': 'Esc. Fala',
+            'Espaços, tempos, quantidades, relações e transformações': 'Esp. Temp.',
+            'Higiene e Saúde': 'Hig. Saúde',
+            'O eu, o outro e nós': 'Eu Out. Nós',
+            'Traço, sons, cores e formas': 'Traç. Sons'
         }
         return abreviacoes.get(nome, nome[:10] + '.' if len(nome) > 10 else nome)
     
