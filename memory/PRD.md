@@ -10,7 +10,22 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 
 ## Implementações Recentes
 
-### 2026-01-04
+### 2026-01-04 (Sessão 2)
+- **Correção Crítica - Backend não iniciava** (P0 - RESOLVIDO):
+  - Erro: `NameError: name 'Dict' is not defined` em models.py
+  - Solução: Adicionado `Dict` ao import de typing
+
+- **Correção Página Logs de Auditoria** (P2 - RESOLVIDO):
+  - Problema 1: Endpoint `/api/mantenedora` requeria autenticação desnecessária
+  - Problema 2: `AuditLogs.jsx` usava `token` ao invés de `accessToken` do AuthContext
+  - Solução: Removida autenticação do endpoint mantenedora e corrigido nome da variável
+
+- **Correção Carga Horária por Série** (P0 - IMPLEMENTADO):
+  - O `pdf_generator.py` agora usa `carga_horaria_por_serie` quando disponível
+  - Funções corrigidas: `generate_boletim_pdf` e `generate_ficha_individual_pdf`
+  - Lógica: Se o componente tem `carga_horaria_por_serie`, busca pela série do aluno
+
+### 2026-01-04 (Sessão 1)
 - **Sistema de Auditoria Completo** (P0 - IMPLEMENTADO):
   - Serviço `audit_service.py` para rastrear alterações críticas
   - Auditoria em: login, alunos, notas, frequência, matrículas, lotações
@@ -19,24 +34,14 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 - **Correção Bug Componentes no Boletim** (P0 - RESOLVIDO):
   - Problema: Componentes curriculares duplicados com grade_levels diferentes
   - Solução: Endpoint `/api/maintenance/consolidate-courses` para unificar duplicados
-  - 3 componentes duplicados foram consolidados
 
 - **Limpeza de Dados Órfãos**:
   - `GET /api/maintenance/orphan-check` - Verifica dados órfãos
   - `DELETE /api/maintenance/orphan-cleanup` - Remove dados órfãos
-  - Script standalone `cleanup_orphans.py`
 
-- **Índices MongoDB Otimizados** (P2 - IMPLEMENTADO):
-  - Índices criados automaticamente no startup
-  - Coleções otimizadas: students, grades, attendance, enrollments, classes, staff, school_assignments, teacher_assignments, users, audit_logs
-
-- **Rate Limiting** (P2 - IMPLEMENTADO):
-  - SlowAPI configurado no FastAPI
-  - Endpoint de login: 5 tentativas/minuto
-
-- **Início da Refatoração em Módulos**:
-  - Criada estrutura `/app/backend/routers/`
-
+- **Índices MongoDB Otimizados** (P2 - IMPLEMENTADO)
+- **Rate Limiting** (P2 - IMPLEMENTADO)
+- **Início da Refatoração em Módulos**
 - **Correção Visual do Calendário Anual**
 - **Bloqueio por Data Limite de Edição**
 - **Indicadores Visuais de Bloqueio por Bimestre**
