@@ -301,9 +301,9 @@ const AnnualView = ({ year, events, onDayClick, onEventClick, periodosBimestrais
             bgClass = 'bg-blue-50';
             textClass = 'text-blue-700';
           } else if (hasSabadoLetivo) {
-            // Sábado letivo - verde intenso
-            bgClass = 'bg-green-200';
-            textClass = 'text-green-800';
+            // Sábado letivo - mesma cor dos dias letivos
+            bgClass = 'bg-green-100';
+            textClass = 'text-green-700';
           } else if (isWeekend && isInSchoolPeriod) {
             // Fim de semana normal (dentro do período letivo) - cinza
             bgClass = 'bg-gray-100';
