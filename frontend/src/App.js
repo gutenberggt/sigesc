@@ -276,6 +276,16 @@ function App() {
             }
           />
           
+          {/* Livro de Promoção - admin, secretario, diretor, coordenador, semed */}
+          <Route
+            path="/admin/promotion"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed']}>
+                <Promotion />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* 404 - Rota não encontrada */}
           <Route
             path="*"
