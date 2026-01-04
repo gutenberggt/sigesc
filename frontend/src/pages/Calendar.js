@@ -572,12 +572,16 @@ export const Calendar = () => {
   const [periodos, setPeriodos] = useState({
     bimestre_1_inicio: '',
     bimestre_1_fim: '',
+    bimestre_1_dias_letivos: '',
     bimestre_2_inicio: '',
     bimestre_2_fim: '',
+    bimestre_2_dias_letivos: '',
     bimestre_3_inicio: '',
     bimestre_3_fim: '',
+    bimestre_3_dias_letivos: '',
     bimestre_4_inicio: '',
     bimestre_4_fim: '',
+    bimestre_4_dias_letivos: '',
     recesso_inicio: '',
     recesso_fim: '',
     dias_letivos_previstos: 200
