@@ -2493,6 +2493,73 @@ async def get_periodos_bimestrais(ano_letivo: int, request: Request, school_id: 
     }
 
 
+@api_router.get("/calendario-letivo/{ano_letivo}/status-edicao")
+async def get_edit_status(ano_letivo: int, request: Request, bimestre: Optional[int] = None):
+    """
+    Verifica o status de edição para o ano letivo.
+    Retorna se cada bimestre está aberto ou fechado para edição.
+    """
+    current_user = await AuthMiddleware.get_current_user(request)
+    user_role = current_user.get('role', '')
+    
+    # Admin e secretário sempre podem editar
+    if user_role in ['admin', 'secretario']:
+        return {
+            "ano_letivo": ano_letivo,
+            "pode_editar_todos": True,
+            "motivo": "Usuário com permissão de administração",
+            "bimestres": [
+                {"bimestre": i, "pode_editar": True, "data_limite": None, "motivo": "Permissão administrativa"}
+                for i in range(1, 5)
+            ]
+        }
+    
+    check = await check_bimestre_edit_deadline(ano_letivo, bimestre)
+    
+    if bimestre:
+        return {
+            "ano_letivo": ano_letivo,
+            "bimestre": bimestre,
+            "pode_editar": check["can_edit"],
+            "data_limite": check["data_limite"],
+            "motivo": check["message"]
+        }
+    
+    # Retorna status de todos os bimestres
+    calendario = await db.calendario_letivo.find_one(
+        {"ano_letivo": ano_letivo},
+        {"_id": 0}
+    )
+    
+    from datetime import date
+    today = date.today().isoformat()
+    
+    bimestres_status = []
+    for i in range(1, 5):
+        data_limite = calendario.get(f"bimestre_{i}_data_limite") if calendario else None
+        pode_editar = True
+        motivo = "Dentro do prazo"
+        
+        if data_limite and today > data_limite:
+            pode_editar = False
+            motivo = f"Prazo encerrado em {data_limite}"
+        elif not data_limite:
+            motivo = "Sem data limite configurada"
+        
+        bimestres_status.append({
+            "bimestre": i,
+            "pode_editar": pode_editar,
+            "data_limite": data_limite,
+            "motivo": motivo
+        })
+    
+    return {
+        "ano_letivo": ano_letivo,
+        "pode_editar_todos": all(b["pode_editar"] for b in bimestres_status),
+        "bimestres": bimestres_status
+    }
+
+
 # ============= ATTENDANCE (FREQUÊNCIA) =============
 
 @api_router.get("/attendance/settings/{academic_year}")
