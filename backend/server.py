@@ -5498,7 +5498,8 @@ async def get_batch_documents(
                     grades=grades,
                     courses=courses,
                     academic_year=str(academic_year),
-                    mantenedora=mantenedora
+                    mantenedora=mantenedora,
+                    calendario_letivo=calendario_letivo
                 )
             elif document_type == 'ficha_individual':
                 # Buscar frequência do aluno
@@ -5528,7 +5529,8 @@ async def get_batch_documents(
                     courses=courses,
                     attendance_data=attendance_data,
                     academic_year=academic_year,
-                    mantenedora=mantenedora
+                    mantenedora=mantenedora,
+                    calendario_letivo=calendario_letivo
                 )
             elif document_type == 'certificado':
                 pdf_buffer = generate_certificado_pdf(
