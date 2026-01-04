@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { gradesAPI, schoolsAPI, classesAPI, coursesAPI, studentsAPI, professorAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
+import { BimestreBlockedAlert, BimestreStatusRow, BimestreFieldIndicator } from '@/components/BimestreStatus';
 import { 
   Home, BookOpen, Users, User, Save, AlertCircle, CheckCircle, 
-  Search, X, Calculator, TrendingUp, TrendingDown
+  Search, X, Calculator, TrendingUp, TrendingDown, Lock
 } from 'lucide-react';
 
 // ===== SISTEMA DE AVALIAÇÃO CONCEITUAL - EDUCAÇÃO INFANTIL =====
