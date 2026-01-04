@@ -618,97 +618,9 @@ async def get_user_permissions(request: Request):
     
     return permissions
 
-# ============= USER ROUTES (Admin only) =============
+# ============= USER ROUTES - MOVIDO PARA routers/users.py =============
 
-@api_router.get("/users", response_model=List[UserResponse])
-async def list_users(request: Request, skip: int = 0, limit: int = 1000):
-    """Lista usuários (apenas admin e semed)"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'semed'])(request)
-    
-    users = await db.users.find({}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
-    
-    # Remove password_hash de todos
-    for user in users:
-        user.pop('password_hash', None)
-    
-    return users
-
-@api_router.get("/users/{user_id}", response_model=UserResponse)
-async def get_user(user_id: str, request: Request):
-    """Busca usuário por ID"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'semed'])(request)
-    
-    user_doc = await db.users.find_one({"id": user_id}, {"_id": 0})
-    
-    if not user_doc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuário não encontrado"
-        )
-    
-    user_doc.pop('password_hash', None)
-    return UserResponse(**user_doc)
-
-@api_router.put("/users/{user_id}", response_model=UserResponse)
-async def update_user(user_id: str, user_update: UserUpdate, request: Request):
-    """Atualiza usuário"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
-    
-    # Busca usuário
-    user_doc = await db.users.find_one({"id": user_id}, {"_id": 0})
-    if not user_doc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuário não encontrado"
-        )
-    
-    # Prepara atualização
-    update_data = user_update.model_dump(exclude_unset=True)
-    
-    if update_data:
-        await db.users.update_one(
-            {"id": user_id},
-            {"$set": update_data}
-        )
-    
-    # Retorna usuário atualizado
-    updated_user = await db.users.find_one({"id": user_id}, {"_id": 0})
-    updated_user.pop('password_hash', None)
-    
-    return UserResponse(**updated_user)
-
-@api_router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: str, request: Request):
-    """Deleta usuário definitivamente do sistema"""
-    current_user = await AuthMiddleware.require_roles(['admin'])(request)
-    
-    # Verificar se o usuário existe
-    user = await db.users.find_one({"id": user_id})
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuário não encontrado"
-        )
-    
-    # Não permitir excluir o próprio usuário
-    if user_id == current_user['id']:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Não é possível excluir seu próprio usuário"
-        )
-    
-    # Excluir definitivamente o usuário
-    result = await db.users.delete_one({"id": user_id})
-    
-    if result.deleted_count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro ao excluir usuário"
-        )
-    
-    return None
-
-# ============= SCHOOL ROUTES =============
+# ============= SCHOOL ROUTES - MOVIDO PARA routers/schools.py =============
 
 @api_router.post("/schools", response_model=School, status_code=status.HTTP_201_CREATED)
 async def create_school(school: SchoolCreate, request: Request):
