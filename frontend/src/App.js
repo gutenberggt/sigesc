@@ -20,6 +20,7 @@ import ProfessorDashboard from '@/pages/ProfessorDashboard';
 import MessageLogs from '@/pages/MessageLogs';
 import Announcements from '@/pages/Announcements';
 import Mantenedora from '@/pages/Mantenedora';
+import AuditLogs from '@/pages/AuditLogs';
 import '@/App.css';
 
 function App() {
