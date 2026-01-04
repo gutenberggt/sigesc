@@ -66,6 +66,9 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ.get('DB_NAME', 'sigesc_db')]
 
+# Inicializa o serviço de auditoria com a conexão do banco
+audit_service.set_db(db)
+
 # Create the main app
 app = FastAPI(title="SIGESC API", version="1.0.0")
 
