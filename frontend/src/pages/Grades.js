@@ -697,20 +697,24 @@ export function Grades() {
                         <thead className="bg-gray-50">
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                            <th className={`px-4 py-3 text-center text-xs font-medium uppercase ${!canEditField(1) ? 'bg-red-50 text-red-500' : 'text-gray-500'}`}>
                               {isEdInfantil ? '1º Bim' : 'B1 (×2)'}
+                              {!canEditField(1) && <Lock className="inline w-3 h-3 ml-1" />}
                             </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                            <th className={`px-4 py-3 text-center text-xs font-medium uppercase ${!canEditField(2) ? 'bg-red-50 text-red-500' : 'text-gray-500'}`}>
                               {isEdInfantil ? '2º Bim' : 'B2 (×3)'}
+                              {!canEditField(2) && <Lock className="inline w-3 h-3 ml-1" />}
                             </th>
                             {!isEdInfantil && (
                               <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 1º</th>
                             )}
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                            <th className={`px-4 py-3 text-center text-xs font-medium uppercase ${!canEditField(3) ? 'bg-red-50 text-red-500' : 'text-gray-500'}`}>
                               {isEdInfantil ? '3º Bim' : 'B3 (×2)'}
+                              {!canEditField(3) && <Lock className="inline w-3 h-3 ml-1" />}
                             </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                            <th className={`px-4 py-3 text-center text-xs font-medium uppercase ${!canEditField(4) ? 'bg-red-50 text-red-500' : 'text-gray-500'}`}>
                               {isEdInfantil ? '4º Bim' : 'B4 (×3)'}
+                              {!canEditField(4) && <Lock className="inline w-3 h-3 ml-1" />}
                             </th>
                             {!isEdInfantil && (
                               <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 2º</th>
