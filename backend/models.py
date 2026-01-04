@@ -768,8 +768,12 @@ class CourseBase(BaseModel):
     # Código (opcional)
     code: Optional[str] = None
     
-    # Carga horária (específica para o nível/atendimento)
+    # Carga horária padrão (específica para o nível/atendimento)
     workload: Optional[int] = None
+    
+    # Carga horária diferenciada por série (para componentes como Ciências, História, Geografia)
+    # Ex: {"6º Ano": 80, "7º Ano": 120, "8º Ano": 80, "9º Ano": 80}
+    carga_horaria_por_serie: Optional[Dict[str, int]] = None
 
 class CourseCreate(CourseBase):
     pass
@@ -783,6 +787,7 @@ class CourseUpdate(BaseModel):
     optativo: Optional[bool] = None
     code: Optional[str] = None
     workload: Optional[int] = None
+    carga_horaria_por_serie: Optional[Dict[str, int]] = None
 
 class Course(CourseBase):
     model_config = ConfigDict(extra="ignore")
