@@ -270,7 +270,7 @@ export const Students = () => {
                   <option value="">Selecione uma turma</option>
                   {classes.filter(c => c.school_id === formData.school_id).map((classItem) => (
                     <option key={classItem.id} value={classItem.id}>
-                      {classItem.name} - {classItem.grade_level}
+                      {classItem.name}
                     </option>
                   ))}
                 </select>
