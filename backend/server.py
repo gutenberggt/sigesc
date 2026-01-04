@@ -3011,11 +3011,27 @@ async def delete_attendance(attendance_id: str, request: Request):
     if not existing:
         raise HTTPException(status_code=404, detail="Registro de frequência não encontrado")
     
+    # Guarda dados para auditoria antes de deletar
+    class_info = await db.classes.find_one({"id": existing.get('class_id')}, {"_id": 0, "name": 1, "school_id": 1})
+    
     # Remove o registro
     result = await db.attendance.delete_one({"id": attendance_id})
     
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Erro ao remover frequência")
+    
+    # Auditoria de exclusão
+    await audit_service.log(
+        action='delete',
+        collection='attendance',
+        user=current_user,
+        request=request,
+        document_id=attendance_id,
+        description=f"EXCLUIU frequência da turma {class_info.get('name', 'N/A')} de {existing.get('date')}",
+        school_id=class_info.get('school_id') if class_info else None,
+        academic_year=existing.get('academic_year'),
+        old_value={'date': existing.get('date'), 'records_count': len(existing.get('records', []))}
+    )
     
     return {"message": "Frequência removida com sucesso"}
 
