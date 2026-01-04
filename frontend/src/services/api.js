@@ -409,6 +409,12 @@ export const calendarAPI = {
     const params = schoolId ? `?school_id=${schoolId}` : '';
     const response = await axios.get(`${API}/calendario-letivo/${anoLetivo}/periodos${params}`);
     return response.data;
+  },
+  
+  getEditStatus: async (anoLetivo, bimestre = null) => {
+    const params = bimestre ? `?bimestre=${bimestre}` : '';
+    const response = await axios.get(`${API}/calendario-letivo/${anoLetivo}/status-edicao${params}`);
+    return response.data;
   }
 };
 
