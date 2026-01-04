@@ -612,12 +612,16 @@ export const Calendar = () => {
       setPeriodos({
         bimestre_1_inicio: data.bimestre_1_inicio || '',
         bimestre_1_fim: data.bimestre_1_fim || '',
+        bimestre_1_dias_letivos: data.bimestre_1_dias_letivos || '',
         bimestre_2_inicio: data.bimestre_2_inicio || '',
         bimestre_2_fim: data.bimestre_2_fim || '',
+        bimestre_2_dias_letivos: data.bimestre_2_dias_letivos || '',
         bimestre_3_inicio: data.bimestre_3_inicio || '',
         bimestre_3_fim: data.bimestre_3_fim || '',
+        bimestre_3_dias_letivos: data.bimestre_3_dias_letivos || '',
         bimestre_4_inicio: data.bimestre_4_inicio || '',
         bimestre_4_fim: data.bimestre_4_fim || '',
+        bimestre_4_dias_letivos: data.bimestre_4_dias_letivos || '',
         recesso_inicio: data.recesso_inicio || '',
         recesso_fim: data.recesso_fim || '',
         dias_letivos_previstos: data.dias_letivos_previstos || 200
