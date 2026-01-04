@@ -65,7 +65,8 @@ from grade_calculator import calculate_and_update_grade
 from routers import (
     setup_users_router,
     setup_schools_router,
-    setup_courses_router
+    setup_courses_router,
+    setup_classes_router
 )
 
 ROOT_DIR = Path(__file__).parent
