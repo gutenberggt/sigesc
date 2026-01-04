@@ -5442,6 +5442,11 @@ async def get_batch_documents(
     # Buscar mantenedora
     mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
     
+    # Buscar calendário letivo para data fim do 4º bimestre
+    calendario_letivo = await db.calendar.find_one({
+        "year": academic_year
+    }, {"_id": 0})
+    
     # Buscar alunos matriculados na turma
     enrollments = await db.enrollments.find(
         {"class_id": class_id, "status": "active", "academic_year": academic_year},
