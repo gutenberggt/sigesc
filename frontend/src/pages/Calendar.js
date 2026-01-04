@@ -634,7 +634,19 @@ export const Calendar = () => {
   const handleSavePeriodos = async () => {
     setSavingPeriodos(true);
     try {
-      await calendarAPI.updateCalendarioLetivo(currentYear, periodos);
+      // Calcular o total de dias letivos
+      const totalDiasLetivos = 
+        (parseInt(periodos.bimestre_1_dias_letivos) || 0) + 
+        (parseInt(periodos.bimestre_2_dias_letivos) || 0) + 
+        (parseInt(periodos.bimestre_3_dias_letivos) || 0) + 
+        (parseInt(periodos.bimestre_4_dias_letivos) || 0);
+      
+      const periodosToSave = {
+        ...periodos,
+        dias_letivos_previstos: totalDiasLetivos
+      };
+      
+      await calendarAPI.updateCalendarioLetivo(currentYear, periodosToSave);
       setShowPeriodosModal(false);
       await loadCalendarioLetivo();
     } catch (error) {
