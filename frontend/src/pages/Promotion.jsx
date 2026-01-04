@@ -152,17 +152,17 @@ export function Promotion() {
       
       // Buscar dados dos alunos
       const studentIds = enrollments.map(e => e.student_id);
-      const studentsData = await studentsAPI.list();
+      const studentsData = await studentsAPI.getAll();
       const filteredStudents = (studentsData || []).filter(s => studentIds.includes(s.id));
       setStudents(filteredStudents);
       
       // Buscar componentes curriculares
-      const coursesData = await coursesAPI.list({ nivel_ensino: classInfo.education_level });
+      const coursesData = await coursesAPI.getAll(classInfo.education_level);
       setCourses(coursesData || []);
       
       // Buscar notas de todos os alunos da turma
       const gradesPromises = studentIds.map(studentId => 
-        gradesAPI.list({ student_id: studentId, academic_year: selectedYear })
+        gradesAPI.getAll({ student_id: studentId, academic_year: selectedYear })
       );
       const allGrades = await Promise.all(gradesPromises);
       
