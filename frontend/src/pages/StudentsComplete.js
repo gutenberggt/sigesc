@@ -1922,7 +1922,7 @@ export function StudentsComplete() {
                 <option value="">Todas as turmas</option>
                 {filterClassOptions.map(classItem => (
                   <option key={classItem.id} value={classItem.id}>
-                    {classItem.name} - {classItem.grade_level}
+                    {classItem.name}
                   </option>
                 ))}
               </select>
