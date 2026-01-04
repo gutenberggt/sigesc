@@ -10,6 +10,20 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 
 ## Implementações Recentes
 
+### 2026-01-05 (Sessão 3)
+- **Padronização da Exibição de Turmas** (P0 - CONCLUÍDO):
+  - Solicitação: "Em todo o sistema, exibir apenas o nome da turma, sem série/etapa e turno"
+  - Arquivos modificados:
+    - `Classes.js`: Removidas colunas "Nível de Ensino", "Série/Etapa" e "Turno" da tabela
+    - `SchoolsComplete.js`: Removidas colunas "Série/Etapa" e "Turno" da tabela de turmas da escola
+  - Arquivos já corretos (sem alteração necessária):
+    - `StudentsComplete.js`: getClassName já retorna apenas o nome
+    - `Enrollments.js`: getClassName já retorna apenas o nome
+    - `Grades.js`: seletor usa cls.name
+    - `Attendance.js`: seletor usa c.name
+    - `Promotion.jsx`: seletor usa cls.name
+  - **Testado**: 100% aprovado em todas as páginas
+
 ### 2026-01-04 (Sessão 2)
 - **Correção Crítica - Backend não iniciava** (P0 - RESOLVIDO):
   - Erro: `NameError: name 'Dict' is not defined` em models.py
