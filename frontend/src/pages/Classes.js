@@ -354,24 +354,13 @@ export const Classes = () => {
   };
 
   const columns = [
-    { header: 'Nome', accessor: 'name' },
+    { header: 'Turma', accessor: 'name' },
     {
       header: 'Escola',
       accessor: 'school_id',
       render: (row) => getSchoolName(row.school_id)
     },
-    { header: 'Ano Letivo', accessor: 'academic_year' },
-    {
-      header: 'Nível de Ensino',
-      accessor: 'education_level',
-      render: (row) => getEducationLevelLabel(row.education_level) || '-'
-    },
-    { header: 'Série/Etapa', accessor: 'grade_level' },
-    {
-      header: 'Turno',
-      accessor: 'shift',
-      render: (row) => shiftLabels[row.shift]
-    }
+    { header: 'Ano Letivo', accessor: 'academic_year' }
   ];
 
   const availableEducationLevels = getAvailableEducationLevels();
