@@ -10,7 +10,20 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 
 ## Implementações Recentes
 
-### 2026-01-03/04
+### 2026-01-04
+- **Correção Visual do Calendário Anual**:
+  - Cores uniformizadas: dias letivos e sábados letivos com mesma cor verde (bg-green-100)
+  - Removida legenda duplicada, mantida apenas a legenda original de tipos de eventos
+  - Feriados em vermelho claro, recesso em azul claro, fim de semana em cinza
+
+- **Bloqueio por Data Limite de Edição** (P1 - IMPLEMENTADO):
+  - Nova função `check_bimestre_edit_deadline()` verifica data limite por bimestre
+  - Nova função `verify_bimestre_edit_deadline_or_raise()` bloqueia edições após prazo
+  - Verificação aplicada em: `/api/grades/batch`, `/api/attendance`, `/api/learning-objects`
+  - Admin e secretário podem editar mesmo após data limite
+  - Novo endpoint `/api/calendario-letivo/{ano}/status-edicao` retorna status de cada bimestre
+
+### 2026-01-03
 - **Ordenação de Componentes Curriculares**: Implementada ordenação personalizada para Anos Iniciais e Anos Finais
 
 - **Condicionais para Aprovação (Mantenedora)**:
@@ -47,6 +60,7 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 - [ ] Investigar bug de componentes ausentes no Boletim (logs de debug adicionados)
 
 ### P1 (Alto)
+- [x] ~~Implementar bloqueio por data limite de edição~~ (CONCLUÍDO 2026-01-04)
 - [ ] Verificar bug de "Gerenciar Lotações" não salvando
 
 ### P2 (Médio)
