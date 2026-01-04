@@ -620,27 +620,47 @@ export const Calendar = () => {
     }
   };
   
-  const loadCalendarioLetivo = async () => {
+  const loadCalendarioLetivo = async (ano = currentYear) => {
     try {
-      const data = await calendarAPI.getCalendarioLetivo(currentYear);
+      const data = await calendarAPI.getCalendarioLetivo(ano);
       setCalendarioLetivo(data);
       setPeriodos({
         bimestre_1_inicio: data.bimestre_1_inicio || '',
         bimestre_1_fim: data.bimestre_1_fim || '',
+        bimestre_1_data_limite: data.bimestre_1_data_limite || '',
         bimestre_2_inicio: data.bimestre_2_inicio || '',
         bimestre_2_fim: data.bimestre_2_fim || '',
+        bimestre_2_data_limite: data.bimestre_2_data_limite || '',
         bimestre_3_inicio: data.bimestre_3_inicio || '',
         bimestre_3_fim: data.bimestre_3_fim || '',
+        bimestre_3_data_limite: data.bimestre_3_data_limite || '',
         bimestre_4_inicio: data.bimestre_4_inicio || '',
         bimestre_4_fim: data.bimestre_4_fim || '',
+        bimestre_4_data_limite: data.bimestre_4_data_limite || '',
         recesso_inicio: data.recesso_inicio || '',
-        recesso_fim: data.recesso_fim || '',
-        dias_letivos_previstos: data.dias_letivos_previstos || 200
+        recesso_fim: data.recesso_fim || ''
       });
       // Carregar dias letivos calculados
-      loadDiasLetivos();
+      loadDiasLetivos(ano);
     } catch (error) {
       console.error('Erro ao carregar calendário letivo:', error);
+      // Se não encontrou, limpar os campos
+      setPeriodos({
+        bimestre_1_inicio: '',
+        bimestre_1_fim: '',
+        bimestre_1_data_limite: '',
+        bimestre_2_inicio: '',
+        bimestre_2_fim: '',
+        bimestre_2_data_limite: '',
+        bimestre_3_inicio: '',
+        bimestre_3_fim: '',
+        bimestre_3_data_limite: '',
+        bimestre_4_inicio: '',
+        bimestre_4_fim: '',
+        bimestre_4_data_limite: '',
+        recesso_inicio: '',
+        recesso_fim: ''
+      });
     }
   };
   
