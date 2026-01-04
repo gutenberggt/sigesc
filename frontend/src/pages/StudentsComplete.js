@@ -1607,7 +1607,7 @@ export function StudentsComplete() {
             <option value="">Selecione uma turma</option>
             {filteredClasses.map(classItem => (
               <option key={classItem.id} value={classItem.id}>
-                {classItem.name} - {classItem.grade_level} ({classItem.shift === 'morning' ? 'Manhã' : classItem.shift === 'afternoon' ? 'Tarde' : classItem.shift === 'evening' ? 'Noite' : 'Integral'})
+                {classItem.name}
               </option>
             ))}
           </select>

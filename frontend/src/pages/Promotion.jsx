@@ -494,7 +494,7 @@ export function Promotion() {
                     ) : (
                       classes.map(cls => (
                         <SelectItem key={cls.id} value={cls.id}>
-                          {cls.name} - {cls.grade_level} ({cls.shift})
+                          {cls.name}
                         </SelectItem>
                       ))
                     )}

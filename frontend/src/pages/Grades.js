@@ -638,7 +638,7 @@ export function Grades() {
                     >
                       <option value="">Selecione a turma</option>
                       {filteredClasses.map(cls => (
-                        <option key={cls.id} value={cls.id}>{cls.name} - {cls.grade_level}</option>
+                        <option key={cls.id} value={cls.id}>{cls.name}</option>
                       ))}
                     </select>
                   </div>
