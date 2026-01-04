@@ -339,7 +339,8 @@ def generate_boletim_pdf(
     courses: List[Dict[str, Any]],
     academic_year: str,
     mantenedora: Dict[str, Any] = None,
-    dias_letivos_ano: int = 200
+    dias_letivos_ano: int = 200,
+    calendario_letivo: Dict[str, Any] = None
 ) -> BytesIO:
     """
     Gera o PDF do Boletim Escolar - Modelo Floresta do Araguaia
@@ -354,6 +355,7 @@ def generate_boletim_pdf(
         academic_year: Ano letivo
         mantenedora: Dados da mantenedora (logotipo, cidade, estado)
         dias_letivos_ano: Total de dias letivos no ano (para cálculo de frequência)
+        calendario_letivo: Dados do calendário letivo (para data fim do 4º bimestre)
     
     Returns:
         BytesIO com o PDF gerado
