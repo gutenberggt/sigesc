@@ -541,12 +541,21 @@ def generate_boletim_pdf(
     # Ordenar componentes curriculares por nível de ensino
     courses = ordenar_componentes_por_nivel(courses, nivel_ensino)
     
+    # Obter o grade_level original (não lowercase) para buscar carga horária por série
+    student_grade_level = class_info.get('grade_level', '')
+    
     for course in courses:
         course_grades = grades_by_course.get(course.get('id'), {})
         is_optativo = course.get('optativo', False)
         
-        # Obter carga horária do componente - SEMPRE contabiliza (inclusive optativos)
-        carga_horaria = course.get('workload', '')
+        # Obter carga horária do componente - prioriza carga_horaria_por_serie
+        carga_horaria_por_serie = course.get('carga_horaria_por_serie', {})
+        if carga_horaria_por_serie and student_grade_level:
+            # Busca carga horária específica para a série do aluno
+            carga_horaria = carga_horaria_por_serie.get(student_grade_level, course.get('workload', ''))
+        else:
+            carga_horaria = course.get('workload', '')
+        
         if carga_horaria:
             total_carga_horaria += carga_horaria
         
