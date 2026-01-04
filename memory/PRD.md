@@ -24,6 +24,17 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
     - `Promotion.jsx`: seletor usa cls.name
   - **Testado**: 100% aprovado em todas as páginas
 
+- **Geração de PDF do Livro de Promoção** (P0 - CONCLUÍDO):
+  - Novo endpoint: `GET /api/documents/promotion/{class_id}?academic_year=XXXX`
+  - Nova função: `generate_livro_promocao_pdf()` em `pdf_generator.py`
+  - PDF gerado em formato paisagem com:
+    - Cabeçalho com dados da escola/turma
+    - Tabela com notas de todos os bimestres por componente
+    - Recuperações semestrais (REC 1°S e REC 2°S)
+    - Total de pontos e média final por componente
+    - Resultado final colorido (Aprovado/Reprovado/Cursando/etc)
+  - **Testado**: 100% aprovado (9 testes backend + frontend)
+
 ### 2026-01-04 (Sessão 2)
 - **Correção Crítica - Backend não iniciava** (P0 - RESOLVIDO):
   - Erro: `NameError: name 'Dict' is not defined` em models.py
