@@ -151,24 +151,28 @@ ORDEM_COMPONENTES_EDUCACAO_INFANTIL = [
 ORDEM_COMPONENTES_ANOS_INICIAIS = [
     "Língua Portuguesa",
     "Arte",
+    "Arte e Cultura",
     "Educação Física",
     "Matemática",
     "Ciências",
     "História",
     "Geografia",
     "Ensino Religioso",
-    # Componentes de escola integral
     "Recreação, Esporte e Lazer",
-    "Arte e Cultura",
+    "Linguagem Recreativa com Práticas de Esporte e Lazer",
     "Tecnologia e Informática",
     "Acompanhamento Pedagógico de Língua Portuguesa",
+    "Acomp. Ped. de Língua Portuguesa",
     "Acompanhamento Pedagógico de Matemática",
+    "Acomp. Ped. de Matemática",
+    "Educação Ambiental e Clima",
 ]
 
 # ===== ORDEM DOS COMPONENTES - ENSINO FUNDAMENTAL ANOS FINAIS =====
 ORDEM_COMPONENTES_ANOS_FINAIS = [
     "Língua Portuguesa",
     "Arte",
+    "Arte e Cultura",
     "Educação Física",
     "Língua Inglesa",
     "Língua inglesa",  # Variação do nome (minúscula)
@@ -178,15 +182,16 @@ ORDEM_COMPONENTES_ANOS_FINAIS = [
     "História",
     "Geografia",
     "Ensino Religioso",
-    "Educação Ambiental e Clima",
     "Estudos Amazônicos",
     "Literatura e Redação",
-    # Componentes de escola integral
     "Recreação, Esporte e Lazer",
-    "Arte e Cultura",
+    "Linguagem Recreativa com Práticas de Esporte e Lazer",
     "Tecnologia e Informática",
     "Acompanhamento Pedagógico de Língua Portuguesa",
+    "Acomp. Ped. de Língua Portuguesa",
     "Acompanhamento Pedagógico de Matemática",
+    "Acomp. Ped. de Matemática",
+    "Educação Ambiental e Clima",
 ]
 
 # ===== SISTEMA DE AVALIAÇÃO CONCEITUAL - EDUCAÇÃO INFANTIL =====
