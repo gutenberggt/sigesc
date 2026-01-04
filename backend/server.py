@@ -2187,6 +2187,127 @@ async def get_calendario_letivo(ano_letivo: int, request: Request, school_id: Op
     return calendario
 
 
+@api_router.get("/calendario-letivo/{ano_letivo}/dias-letivos")
+async def calcular_dias_letivos(ano_letivo: int, request: Request, school_id: Optional[str] = None):
+    """
+    Calcula automaticamente os dias letivos de cada bimestre com base em:
+    - Datas de início e fim de cada bimestre
+    - Eventos do calendário (feriados, recessos, sábados letivos)
+    
+    Dias letivos = dias úteis (seg-sex) - feriados - recessos + sábados letivos
+    """
+    await AuthMiddleware.get_current_user(request)
+    
+    # Buscar configuração do calendário letivo
+    query = {"ano_letivo": ano_letivo}
+    if school_id:
+        query["school_id"] = school_id
+    else:
+        query["school_id"] = None
+    
+    calendario = await db.calendario_letivo.find_one(query, {"_id": 0})
+    
+    if not calendario:
+        return {
+            "bimestre_1_dias_letivos": 0,
+            "bimestre_2_dias_letivos": 0,
+            "bimestre_3_dias_letivos": 0,
+            "bimestre_4_dias_letivos": 0,
+            "total_dias_letivos": 0
+        }
+    
+    # Buscar todos os eventos do ano
+    events = await db.calendar_events.find({
+        "academic_year": ano_letivo
+    }, {"_id": 0}).to_list(1000)
+    
+    # Tipos de eventos que REMOVEM dias letivos
+    eventos_nao_letivos = ['feriado_nacional', 'feriado_estadual', 'feriado_municipal', 'recesso_escolar']
+    
+    # Criar set de datas não letivas
+    datas_nao_letivas = set()
+    datas_sabados_letivos = set()
+    
+    for event in events:
+        event_type = event.get('event_type', '')
+        start_date_str = event.get('start_date')
+        end_date_str = event.get('end_date') or start_date_str
+        
+        if not start_date_str:
+            continue
+        
+        try:
+            start_date = datetime.strptime(start_date_str[:10], '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str[:10], '%Y-%m-%d').date()
+            
+            # Iterar por todas as datas do evento
+            current = start_date
+            while current <= end_date:
+                if event_type in eventos_nao_letivos:
+                    datas_nao_letivas.add(current)
+                elif event_type == 'sabado_letivo':
+                    datas_sabados_letivos.add(current)
+                current += timedelta(days=1)
+        except (ValueError, TypeError):
+            continue
+    
+    def calcular_dias_letivos_periodo(inicio_str, fim_str):
+        """Calcula dias letivos entre duas datas"""
+        if not inicio_str or not fim_str:
+            return 0
+        
+        try:
+            inicio = datetime.strptime(inicio_str[:10], '%Y-%m-%d').date()
+            fim = datetime.strptime(fim_str[:10], '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            return 0
+        
+        dias_letivos = 0
+        current = inicio
+        
+        while current <= fim:
+            dia_semana = current.weekday()  # 0=segunda, 6=domingo
+            
+            # Verificar se é dia letivo
+            if dia_semana < 5:  # Segunda a sexta
+                if current not in datas_nao_letivas:
+                    dias_letivos += 1
+            elif dia_semana == 5:  # Sábado
+                if current in datas_sabados_letivos:
+                    dias_letivos += 1
+            # Domingo nunca é letivo
+            
+            current += timedelta(days=1)
+        
+        return dias_letivos
+    
+    # Calcular dias letivos de cada bimestre
+    b1 = calcular_dias_letivos_periodo(
+        calendario.get('bimestre_1_inicio'),
+        calendario.get('bimestre_1_fim')
+    )
+    b2 = calcular_dias_letivos_periodo(
+        calendario.get('bimestre_2_inicio'),
+        calendario.get('bimestre_2_fim')
+    )
+    b3 = calcular_dias_letivos_periodo(
+        calendario.get('bimestre_3_inicio'),
+        calendario.get('bimestre_3_fim')
+    )
+    b4 = calcular_dias_letivos_periodo(
+        calendario.get('bimestre_4_inicio'),
+        calendario.get('bimestre_4_fim')
+    )
+    
+    return {
+        "bimestre_1_dias_letivos": b1,
+        "bimestre_2_dias_letivos": b2,
+        "bimestre_3_dias_letivos": b3,
+        "bimestre_4_dias_letivos": b4,
+        "total_dias_letivos": b1 + b2 + b3 + b4
+    }
+
+
 @api_router.put("/calendario-letivo/{ano_letivo}")
 async def update_calendario_letivo(ano_letivo: int, request: Request, school_id: Optional[str] = None):
     """
