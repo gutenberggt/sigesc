@@ -2247,21 +2247,27 @@ def generate_livro_promocao_pdf(
     # Abreviações dos componentes
     def abreviar_componente(nome):
         abreviacoes = {
-            'Língua Portuguesa': 'Ling. Port.',
+            'Língua Portuguesa': 'Lin. Port.',
             'Arte': 'Arte',
-            'Educação Física': 'Ed. Física',
-            'Língua Inglesa': 'Ling. Ingl.',
-            'Inglês': 'Ling. Ingl.',
-            'Matemática': 'Matemát.',
-            'Ciências': 'Ciências',
-            'História': 'História',
-            'Geografia': 'Geografia',
-            'Ensino Religioso': 'Ens. Relig.',
+            'Educação Física': 'Ed. Fís.',
+            'Língua Inglesa': 'Lin. Ingl.',
+            'Inglês': 'Lin. Ingl.',
+            'Matemática': 'Mat.',
+            'Ciências': 'Ciênc.',
+            'História': 'Hist.',
+            'Geografia': 'Geo.',
+            'Ensino Religioso': 'Ed. Rel.',
+            'Educação Ambiental e Clima': 'Ed. A. Cl.',
             'Estudos Amazônicos': 'Est. Amaz.',
-            'Literatura e Redação': 'Lit. e Red.',
-            'Educação Ambiental e Clima': 'Ed. Amb. Clima'
+            'Literatura e Redação': 'Lit. e red.',
+            'Recreação e Lazer': 'R. E. Laz.',
+            'Arte e Cultura': 'Art. e Cul.',
+            'Tecnologia da Informação': 'Tec. Inf.',
+            'Tecnologia e Informática': 'Tec. Inf.',
+            'Acompanhamento Pedagógico de Língua Portuguesa': 'APL Port.',
+            'Acompanhamento Pedagógico de Matemática': 'AP Mat.'
         }
-        return abreviacoes.get(nome, nome[:12] if len(nome) > 12 else nome)
+        return abreviacoes.get(nome, nome[:10] + '.' if len(nome) > 10 else nome)
     
     comp_names = [abreviar_componente(c.get('name', '')) for c in courses_ordenados]
     

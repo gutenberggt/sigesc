@@ -28,17 +28,25 @@ const fetchEnrollments = async (filters = {}) => {
 
 // Componentes Curriculares abreviados (como no documento)
 const COMPONENT_ABBREVIATIONS = {
-  'Língua Portuguesa': 'Ling. Port.',
+  'Língua Portuguesa': 'Lin. Port.',
   'Arte': 'Arte',
-  'Educação Física': 'Ed. Física',
-  'Língua Inglesa': 'Ling. Ingl.',
-  'Matemática': 'Matemát.',
-  'Ciências': 'Ciências',
-  'História': 'História',
-  'Geografia': 'Geografia',
-  'Ensino Religioso': 'Ens. Relig.',
+  'Educação Física': 'Ed. Fís.',
+  'Língua Inglesa': 'Lin. Ingl.',
+  'Inglês': 'Lin. Ingl.',
+  'Matemática': 'Mat.',
+  'Ciências': 'Ciênc.',
+  'História': 'Hist.',
+  'Geografia': 'Geo.',
+  'Ensino Religioso': 'Ed. Rel.',
+  'Educação Ambiental e Clima': 'Ed. A. Cl.',
   'Estudos Amazônicos': 'Est. Amaz.',
-  'Literatura e Redação': 'Lit. e red.'
+  'Literatura e Redação': 'Lit. e red.',
+  'Recreação e Lazer': 'R. E. Laz.',
+  'Arte e Cultura': 'Art. e Cul.',
+  'Tecnologia da Informação': 'Tec. Inf.',
+  'Tecnologia e Informática': 'Tec. Inf.',
+  'Acompanhamento Pedagógico de Língua Portuguesa': 'APL Port.',
+  'Acompanhamento Pedagógico de Matemática': 'AP Mat.'
 };
 
 // Função para abreviar nome do componente
