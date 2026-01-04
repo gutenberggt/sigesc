@@ -1722,23 +1722,20 @@ class CalendarioLetivoBase(BaseModel):
     # Períodos bimestrais
     bimestre_1_inicio: Optional[str] = None
     bimestre_1_fim: Optional[str] = None
-    bimestre_1_dias_letivos: Optional[int] = None  # Dias letivos do 1º bimestre
+    bimestre_1_data_limite: Optional[str] = None  # Data limite para edição de notas/frequência
     bimestre_2_inicio: Optional[str] = None
     bimestre_2_fim: Optional[str] = None
-    bimestre_2_dias_letivos: Optional[int] = None  # Dias letivos do 2º bimestre
+    bimestre_2_data_limite: Optional[str] = None
     bimestre_3_inicio: Optional[str] = None
     bimestre_3_fim: Optional[str] = None
-    bimestre_3_dias_letivos: Optional[int] = None  # Dias letivos do 3º bimestre
+    bimestre_3_data_limite: Optional[str] = None
     bimestre_4_inicio: Optional[str] = None
     bimestre_4_fim: Optional[str] = None
-    bimestre_4_dias_letivos: Optional[int] = None  # Dias letivos do 4º bimestre
+    bimestre_4_data_limite: Optional[str] = None
     
     # Recesso/Férias entre semestres
     recesso_inicio: Optional[str] = None
     recesso_fim: Optional[str] = None
-    
-    # Dias letivos previstos (total anual - soma dos 4 bimestres)
-    dias_letivos_previstos: Optional[int] = 200
 
 class CalendarioLetivoCreate(CalendarioLetivoBase):
     pass
