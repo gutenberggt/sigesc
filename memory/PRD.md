@@ -25,6 +25,23 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
   - Funções corrigidas: `generate_boletim_pdf` e `generate_ficha_individual_pdf`
   - Lógica: Se o componente tem `carga_horaria_por_serie`, busca pela série do aluno
 
+- **Refatoração Backend - Módulos** (P2 - EM PROGRESSO):
+  - Criados routers modulares em `/app/backend/routers/`:
+    - `auth.py` (216 linhas) - Autenticação
+    - `users.py` (106 linhas) - CRUD de usuários
+    - `schools.py` (100 linhas) - CRUD de escolas
+    - `courses.py` (100 linhas) - CRUD de componentes curriculares
+    - `classes.py` (128 linhas) - CRUD de turmas
+  - **Redução**: server.py de 7.185 → 6.842 linhas (-343 linhas)
+
+- **Refatoração Frontend - Hooks** (P3 - EM PROGRESSO):
+  - Criados hooks reutilizáveis em `/app/frontend/src/hooks/`:
+    - `useSchools.js` (120 linhas) - Gestão de escolas
+    - `useSchoolStaff.js` (73 linhas) - Gestão de staff
+    - `useCalendarioLetivo.js` (98 linhas) - Calendário letivo
+    - `useSchoolForm.js` (262 linhas) - Formulário de escola
+  - Total: 553 linhas de lógica extraída para reutilização
+
 ### 2026-01-04 (Sessão 1)
 - **Sistema de Auditoria Completo** (P0 - IMPLEMENTADO):
   - Serviço `audit_service.py` para rastrear alterações críticas
