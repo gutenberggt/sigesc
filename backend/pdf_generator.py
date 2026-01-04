@@ -1061,7 +1061,8 @@ def generate_ficha_individual_pdf(
     grades: List[Dict[str, Any]] = None,
     courses: List[Dict[str, Any]] = None,
     attendance_data: Dict[str, Any] = None,
-    mantenedora: Dict[str, Any] = None
+    mantenedora: Dict[str, Any] = None,
+    calendario_letivo: Dict[str, Any] = None
 ) -> BytesIO:
     """
     Gera a Ficha Individual do Aluno em PDF - Modelo Floresta do Araguaia.
@@ -1076,6 +1077,7 @@ def generate_ficha_individual_pdf(
         courses: Lista de componentes curriculares
         attendance_data: Dados de frequência por componente
         mantenedora: Dados da mantenedora (logotipo, cidade, estado)
+        calendario_letivo: Dados do calendário letivo (para data fim do 4º bimestre)
     
     Returns:
         BytesIO com o PDF gerado
