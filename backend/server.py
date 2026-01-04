@@ -1138,6 +1138,20 @@ async def create_student(student_data: StudentCreate, request: Request):
     
     await db.students.insert_one(doc)
     
+    # Registra auditoria
+    school = await db.schools.find_one({"id": student_data.school_id}, {"_id": 0, "name": 1})
+    await audit_service.log(
+        action='create',
+        collection='students',
+        user=current_user,
+        request=request,
+        document_id=student_obj.id,
+        description=f"Cadastrou aluno: {student_obj.full_name}",
+        school_id=student_data.school_id,
+        school_name=school.get('name') if school else None,
+        new_value={'full_name': student_obj.full_name, 'cpf': student_obj.cpf, 'class_id': student_obj.class_id}
+    )
+    
     return student_obj
 
 @api_router.get("/students")
