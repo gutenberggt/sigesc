@@ -117,16 +117,24 @@ export function Promotion() {
         return;
       }
       
-      // Buscar matrículas da turma
-      const enrollments = await enrollmentsAPI.list({ 
-        class_id: selectedClass,
-        academic_year: selectedYear 
+      // Buscar matrículas da turma (buscar todas, depois filtrar)
+      let enrollments = await enrollmentsAPI.list({ 
+        class_id: selectedClass
       });
       
+      // Filtrar por ano se houver ano na matrícula, ou considerar todas
+      enrollments = (enrollments || []).filter(e => 
+        !e.academic_year || e.academic_year === selectedYear
+      );
+      
       if (!enrollments || enrollments.length === 0) {
-        toast.info('Nenhum aluno matriculado nesta turma');
-        setPromotionData([]);
-        return;
+        // Tentar buscar todas as matrículas sem filtro de ano
+        enrollments = await enrollmentsAPI.list({ class_id: selectedClass });
+        if (!enrollments || enrollments.length === 0) {
+          toast.info('Nenhum aluno matriculado nesta turma');
+          setPromotionData([]);
+          return;
+        }
       }
       
       // Buscar dados dos alunos
