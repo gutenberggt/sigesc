@@ -2155,3 +2155,285 @@ def generate_class_details_pdf(
     doc.build(elements)
     buffer.seek(0)
     return buffer
+
+
+def generate_livro_promocao_pdf(
+    school: Dict[str, Any],
+    class_info: Dict[str, Any],
+    students_data: List[Dict[str, Any]],
+    courses: List[Dict[str, Any]],
+    academic_year: int,
+    mantenedora: Dict[str, Any] = None
+) -> BytesIO:
+    """
+    Gera o PDF do Livro de Promoção para uma turma.
+    
+    O Livro de Promoção contém:
+    - Lista de alunos com notas de todos os bimestres
+    - Recuperações semestrais
+    - Total de pontos e média final por componente
+    - Resultado final (Aprovado/Reprovado/etc)
+    
+    Args:
+        school: Dados da escola
+        class_info: Dados da turma
+        students_data: Lista com dados dos alunos (incluindo notas e resultado)
+        courses: Lista de componentes curriculares
+        academic_year: Ano letivo
+        mantenedora: Dados da mantenedora (opcional)
+    
+    Returns:
+        BytesIO: Buffer com o PDF gerado
+    """
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm, mm
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    
+    buffer = BytesIO()
+    
+    # Criar documento em paisagem para caber mais colunas
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        leftMargin=0.5*cm,
+        rightMargin=0.5*cm,
+        topMargin=1*cm,
+        bottomMargin=1*cm
+    )
+    
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Estilos personalizados
+    styles.add(ParagraphStyle(
+        name='LivroTitle',
+        parent=styles['Heading1'],
+        fontSize=14,
+        alignment=TA_CENTER,
+        spaceAfter=5,
+        textColor=colors.HexColor('#1e3a5f')
+    ))
+    
+    styles.add(ParagraphStyle(
+        name='LivroSubtitle',
+        parent=styles['Normal'],
+        fontSize=10,
+        alignment=TA_CENTER,
+        spaceAfter=3
+    ))
+    
+    styles.add(ParagraphStyle(
+        name='LivroInfo',
+        parent=styles['Normal'],
+        fontSize=8,
+        alignment=TA_LEFT,
+        spaceAfter=2
+    ))
+    
+    # Cabeçalho
+    mantenedora_nome = mantenedora.get('nome', 'Secretaria Municipal de Educação') if mantenedora else 'Secretaria Municipal de Educação'
+    escola_nome = school.get('name', 'Escola Municipal')
+    turma_nome = class_info.get('name', 'Turma')
+    serie = class_info.get('grade_level', '')
+    
+    elements.append(Paragraph(f"<b>LIVRO DE PROMOÇÃO - {academic_year}</b>", styles['LivroTitle']))
+    elements.append(Paragraph(f"{mantenedora_nome}", styles['LivroSubtitle']))
+    elements.append(Paragraph(f"{escola_nome}", styles['LivroSubtitle']))
+    elements.append(Paragraph(f"Turma: {turma_nome} | Série: {serie}", styles['LivroSubtitle']))
+    elements.append(Spacer(1, 10))
+    
+    # Ordenar componentes
+    nivel_ensino = class_info.get('education_level', '')
+    courses_ordenados = ordenar_componentes_por_nivel(courses, nivel_ensino)
+    
+    # Abreviar nomes dos componentes para caber na tabela
+    def abreviar_componente(nome):
+        abreviacoes = {
+            'Língua Portuguesa': 'L.Port.',
+            'Arte': 'Arte',
+            'Educação Física': 'Ed.Fís.',
+            'Língua Inglesa': 'L.Ingl.',
+            'Inglês': 'L.Ingl.',
+            'Matemática': 'Mat.',
+            'Ciências': 'Ciên.',
+            'História': 'Hist.',
+            'Geografia': 'Geo.',
+            'Ensino Religioso': 'E.Rel.',
+            'Estudos Amazônicos': 'E.Amaz.',
+            'Literatura e Redação': 'Lit.Red.',
+            'Educação Ambiental e Clima': 'Ed.Amb.'
+        }
+        return abreviacoes.get(nome, nome[:6] + '.' if len(nome) > 6 else nome)
+    
+    # Criar nomes abreviados
+    comp_names = [abreviar_componente(c.get('name', '')) for c in courses_ordenados]
+    num_components = len(comp_names)
+    
+    # Se não houver componentes, usar um placeholder
+    if num_components == 0:
+        comp_names = ['Comp.']
+        num_components = 1
+    
+    # Calcular larguras das colunas
+    # Largura total disponível em A4 paisagem: ~27cm
+    largura_disponivel = 27 * cm
+    largura_num = 0.6 * cm
+    largura_nome = 4 * cm
+    largura_sexo = 0.6 * cm
+    largura_resultado = 1.5 * cm
+    
+    # Largura restante para as notas (8 seções: 4 bimestres + 2 rec + total + média)
+    largura_restante = largura_disponivel - largura_num - largura_nome - largura_sexo - largura_resultado
+    largura_por_nota = largura_restante / (num_components * 8) if num_components > 0 else 1 * cm
+    
+    # Limitar largura mínima
+    largura_por_nota = max(largura_por_nota, 0.5 * cm)
+    
+    # Construir cabeçalho da tabela (duas linhas)
+    # Linha 1: Seções principais
+    header_row_1 = ['N°', 'ALUNO', 'S']
+    
+    # Adicionar seções para cada componente
+    secoes = ['1° BIM', '2° BIM', 'REC 1°S', '3° BIM', '4° BIM', 'REC 2°S', 'TOTAL', 'MÉDIA']
+    for secao in secoes:
+        header_row_1.extend([secao] * num_components)
+    header_row_1.append('RESULTADO')
+    
+    # Linha 2: Nomes dos componentes repetidos
+    header_row_2 = ['', '', '']
+    for _ in secoes:
+        header_row_2.extend(comp_names)
+    header_row_2.append('')
+    
+    # Dados dos alunos
+    table_data = [header_row_1, header_row_2]
+    
+    for idx, student in enumerate(students_data, 1):
+        row = [
+            str(idx),
+            student.get('studentName', '')[:25],  # Limitar nome
+            student.get('sex', '-')
+        ]
+        
+        grades = student.get('grades', {})
+        
+        # Para cada seção (bimestre, rec, total, média)
+        for secao in ['b1', 'b2', 'rec1', 'b3', 'b4', 'rec2', 'totalPoints', 'finalAverage']:
+            for course in courses_ordenados:
+                course_id = course.get('id', '')
+                grade_info = grades.get(course_id, {})
+                
+                if secao == 'totalPoints':
+                    valor = grade_info.get('totalPoints')
+                elif secao == 'finalAverage':
+                    valor = grade_info.get('finalAverage')
+                else:
+                    valor = grade_info.get(secao)
+                
+                if valor is not None:
+                    row.append(f"{valor:.1f}" if isinstance(valor, (int, float)) else str(valor))
+                else:
+                    row.append('-')
+        
+        # Resultado final
+        resultado = student.get('result', 'CURSANDO')
+        row.append(resultado[:10])  # Abreviar resultado se necessário
+        
+        table_data.append(row)
+    
+    # Calcular larguras finais
+    col_widths = [largura_num, largura_nome, largura_sexo]
+    col_widths.extend([largura_por_nota] * (num_components * 8))
+    col_widths.append(largura_resultado)
+    
+    # Criar tabela
+    table = Table(table_data, colWidths=col_widths, repeatRows=2)
+    
+    # Estilo da tabela
+    style_commands = [
+        # Cabeçalho
+        ('BACKGROUND', (0, 0), (-1, 1), colors.HexColor('#1e3a5f')),
+        ('TEXTCOLOR', (0, 0), (-1, 1), colors.white),
+        ('FONTNAME', (0, 0), (-1, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 1), 5),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        
+        # Corpo
+        ('FONTSIZE', (0, 2), (-1, -1), 5),
+        ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
+        
+        # Nome do aluno alinhado à esquerda
+        ('ALIGN', (1, 2), (1, -1), 'LEFT'),
+        
+        # Grid
+        ('GRID', (0, 0), (-1, -1), 0.3, colors.grey),
+        
+        # Padding
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 1),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+        
+        # Zebra stripes
+        ('ROWBACKGROUNDS', (0, 2), (-1, -1), [colors.white, colors.HexColor('#f0f4f8')]),
+    ]
+    
+    # Colorir colunas por seção
+    col_idx = 3  # Começa após N°, ALUNO, S
+    section_colors = {
+        '1° BIM': '#e3f2fd',    # Azul claro
+        '2° BIM': '#e8f5e9',    # Verde claro
+        'REC 1°S': '#fff3e0',   # Laranja claro
+        '3° BIM': '#e3f2fd',    # Azul claro
+        '4° BIM': '#e8f5e9',    # Verde claro
+        'REC 2°S': '#fff3e0',   # Laranja claro
+        'TOTAL': '#f3e5f5',     # Roxo claro
+        'MÉDIA': '#fce4ec',     # Rosa claro
+    }
+    
+    for secao in secoes:
+        color = colors.HexColor(section_colors.get(secao, '#ffffff'))
+        for i in range(num_components):
+            # Aplicar cor de fundo nas células de dados (não no cabeçalho)
+            style_commands.append(('BACKGROUND', (col_idx + i, 2), (col_idx + i, -1), color))
+        col_idx += num_components
+    
+    # Colorir coluna de resultado baseado no valor
+    for row_idx, student in enumerate(students_data, 2):  # Começar da linha 2 (após cabeçalhos)
+        resultado = student.get('result', 'CURSANDO')
+        if 'APROVADO' in resultado or 'PROMOVIDO' in resultado:
+            style_commands.append(('BACKGROUND', (-1, row_idx), (-1, row_idx), colors.HexColor('#c8e6c9')))
+            style_commands.append(('TEXTCOLOR', (-1, row_idx), (-1, row_idx), colors.HexColor('#2e7d32')))
+        elif 'REPROVADO' in resultado:
+            style_commands.append(('BACKGROUND', (-1, row_idx), (-1, row_idx), colors.HexColor('#ffcdd2')))
+            style_commands.append(('TEXTCOLOR', (-1, row_idx), (-1, row_idx), colors.HexColor('#c62828')))
+        elif 'DESISTENTE' in resultado:
+            style_commands.append(('BACKGROUND', (-1, row_idx), (-1, row_idx), colors.HexColor('#e0e0e0')))
+        elif 'TRANSFERIDO' in resultado:
+            style_commands.append(('BACKGROUND', (-1, row_idx), (-1, row_idx), colors.HexColor('#fff9c4')))
+    
+    table.setStyle(TableStyle(style_commands))
+    elements.append(table)
+    
+    # Rodapé
+    elements.append(Spacer(1, 10))
+    today = datetime.now().strftime('%d/%m/%Y às %H:%M')
+    elements.append(Paragraph(f"Documento gerado em {today} | Total de alunos: {len(students_data)}", styles['LivroInfo']))
+    
+    # Legenda
+    legenda = """
+    <b>Legenda:</b> S = Sexo | REC = Recuperação Semestral | 
+    <font color="#2e7d32">APROVADO</font> | 
+    <font color="#c62828">REPROVADO</font> | 
+    CURSANDO | DESISTENTE | TRANSFERIDO
+    """
+    elements.append(Paragraph(legenda, styles['LivroInfo']))
+    
+    # Gerar PDF
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
