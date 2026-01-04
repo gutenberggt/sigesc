@@ -5395,6 +5395,207 @@ async def get_certificado(
         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
 
+@api_router.get("/documents/promotion/{class_id}")
+async def get_livro_promocao_pdf(
+    class_id: str,
+    academic_year: int = 2025,
+    request: Request = None
+):
+    """
+    Gera o PDF do Livro de Promoção para uma turma.
+    
+    O Livro de Promoção contém:
+    - Lista de alunos com notas de todos os bimestres
+    - Recuperações semestrais
+    - Total de pontos e média final por componente
+    - Resultado final (Aprovado/Reprovado/etc)
+    """
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    try:
+        # Buscar turma
+        class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
+        if not class_info:
+            raise HTTPException(status_code=404, detail="Turma não encontrada")
+        
+        # Buscar escola
+        school = await db.schools.find_one({"id": class_info.get("school_id")}, {"_id": 0})
+        if not school:
+            school = {"name": "Escola Municipal"}
+        
+        # Buscar mantenedora
+        mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+        
+        # Buscar matrículas da turma
+        enrollments = await db.enrollments.find({
+            "class_id": class_id
+        }, {"_id": 0}).to_list(1000)
+        
+        if not enrollments:
+            raise HTTPException(status_code=404, detail="Nenhum aluno matriculado nesta turma")
+        
+        student_ids = [e.get("student_id") for e in enrollments]
+        
+        # Buscar dados dos alunos
+        students = await db.students.find({
+            "id": {"$in": student_ids}
+        }, {"_id": 0}).to_list(1000)
+        
+        # Criar mapa de alunos por ID
+        students_map = {s.get("id"): s for s in students}
+        
+        # Buscar componentes curriculares
+        nivel_ensino = class_info.get('education_level', '')
+        grade_level = class_info.get('grade_level', '')
+        
+        courses = await db.courses.find({
+            "$or": [
+                {"grade_levels": grade_level},
+                {"grade_levels": {"$size": 0}},
+                {"grade_levels": {"$exists": False}}
+            ]
+        }, {"_id": 0}).to_list(100)
+        
+        # Se não encontrar, buscar todos
+        if not courses:
+            courses = await db.courses.find({}, {"_id": 0}).to_list(100)
+        
+        # Criar mapa de componentes
+        courses_map = {c.get("id"): c for c in courses}
+        
+        # Processar dados de cada aluno
+        students_data = []
+        
+        for enrollment in enrollments:
+            student_id = enrollment.get("student_id")
+            student = students_map.get(student_id)
+            
+            if not student:
+                continue
+            
+            # Buscar notas do aluno
+            grades = await db.grades.find({
+                "student_id": student_id,
+                "academic_year": academic_year
+            }, {"_id": 0}).to_list(500)
+            
+            # Organizar notas por componente
+            grades_by_component = {}
+            
+            for grade in grades:
+                course_id = grade.get("course_id")
+                if course_id not in grades_by_component:
+                    grades_by_component[course_id] = {
+                        "b1": None, "b2": None, "b3": None, "b4": None,
+                        "rec1": None, "rec2": None,
+                        "totalPoints": None, "finalAverage": None
+                    }
+                
+                period = grade.get("period", "")
+                grade_value = grade.get("grade")
+                
+                # Mapear períodos
+                period_map = {
+                    "P1": "b1", "P2": "b2", "P3": "b3", "P4": "b4",
+                    "REC1": "rec1", "REC2": "rec2"
+                }
+                
+                if period in period_map:
+                    grades_by_component[course_id][period_map[period]] = grade_value
+            
+            # Calcular total e média para cada componente
+            for course_id, comp_grades in grades_by_component.items():
+                b1 = comp_grades.get("b1") or 0
+                b2 = comp_grades.get("b2") or 0
+                b3 = comp_grades.get("b3") or 0
+                b4 = comp_grades.get("b4") or 0
+                rec1 = comp_grades.get("rec1")
+                rec2 = comp_grades.get("rec2")
+                
+                # Aplicar recuperação 1º semestre (substitui menor entre B1 e B2)
+                if rec1 is not None:
+                    if b1 <= b2 and rec1 > b1:
+                        b1 = rec1
+                    elif b2 < b1 and rec1 > b2:
+                        b2 = rec1
+                
+                # Aplicar recuperação 2º semestre (substitui menor entre B3 e B4)
+                if rec2 is not None:
+                    if b3 <= b4 and rec2 > b3:
+                        b3 = rec2
+                    elif b4 < b3 and rec2 > b4:
+                        b4 = rec2
+                
+                # Calcular total e média
+                total = b1 + b2 + b3 + b4
+                media = total / 4
+                
+                comp_grades["totalPoints"] = total
+                comp_grades["finalAverage"] = media
+            
+            # Determinar resultado final
+            result = "CURSANDO"
+            status = (enrollment.get("status") or "").lower()
+            
+            if status in ["desistencia", "desistente"]:
+                result = "DESISTENTE"
+            elif status in ["transferencia", "transferido"]:
+                result = "TRANSFERIDO"
+            else:
+                # Verificar médias
+                averages = [g.get("finalAverage") for g in grades_by_component.values() if g.get("finalAverage") is not None]
+                if averages:
+                    all_approved = all(avg >= 6 for avg in averages)
+                    if all_approved:
+                        result = "APROVADO"
+                    else:
+                        failed_count = sum(1 for avg in averages if avg < 6)
+                        if failed_count >= 3:
+                            result = "REPROVADO"
+            
+            # Adicionar dados do aluno
+            students_data.append({
+                "studentId": student_id,
+                "studentName": student.get("full_name", ""),
+                "sex": "M" if student.get("sex", "").lower() in ["m", "masculino"] else "F",
+                "grades": grades_by_component,
+                "result": result
+            })
+        
+        # Ordenar por nome
+        students_data.sort(key=lambda x: x.get("studentName", ""))
+        
+        # Gerar PDF
+        pdf_buffer = generate_livro_promocao_pdf(
+            school=school,
+            class_info=class_info,
+            students_data=students_data,
+            courses=courses,
+            academic_year=academic_year,
+            mantenedora=mantenedora
+        )
+        
+        # Gerar nome do arquivo
+        turma_nome = class_info.get("name", "turma").replace(" ", "_")
+        filename = f"livro_promocao_{turma_nome}_{academic_year}.pdf"
+        
+        return Response(
+            content=pdf_buffer.getvalue(),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'inline; filename="{filename}"'
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao gerar Livro de Promoção: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+
+
 @api_router.get("/documents/batch/{class_id}/{document_type}")
 async def get_batch_documents(
     class_id: str,
