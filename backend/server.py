@@ -3584,18 +3584,36 @@ async def get_learning_object(object_id: str, request: Request):
 async def create_learning_object(data: LearningObjectCreate, request: Request):
     """Cria um registro de objeto de conhecimento"""
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'professor'])(request)
+    user_role = current_user.get('role', '')
     
     # Verifica se o ano letivo está aberto (apenas para não-admins)
-    if current_user.get('role') != 'admin':
+    academic_year = data.academic_year or datetime.now().year
+    if user_role != 'admin':
         class_doc = await db.classes.find_one(
             {"id": data.class_id},
             {"_id": 0, "school_id": 1, "academic_year": 1}
         )
         if class_doc:
+            academic_year = data.academic_year or class_doc.get('academic_year', datetime.now().year)
             await verify_academic_year_open_or_raise(
                 class_doc['school_id'],
-                data.academic_year or class_doc.get('academic_year', datetime.now().year)
+                academic_year
             )
+    
+    # Verifica a data limite de edição por bimestre (apenas para não-admins e não-secretarios)
+    if user_role not in ['admin', 'secretario']:
+        calendario = await db.calendario_letivo.find_one(
+            {"ano_letivo": academic_year},
+            {"_id": 0}
+        )
+        if calendario:
+            object_date = data.date
+            for i in range(1, 5):
+                inicio = calendario.get(f"bimestre_{i}_inicio")
+                fim = calendario.get(f"bimestre_{i}_fim")
+                if inicio and fim and object_date >= inicio and object_date <= fim:
+                    await verify_bimestre_edit_deadline_or_raise(academic_year, i, user_role)
+                    break
     
     # Verifica se já existe registro para esta data/turma/componente
     existing = await db.learning_objects.find_one({
