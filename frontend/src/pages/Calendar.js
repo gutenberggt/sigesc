@@ -667,17 +667,25 @@ export const Calendar = () => {
   const handleSavePeriodos = async () => {
     setSavingPeriodos(true);
     try {
-      await calendarAPI.updateCalendarioLetivo(currentYear, periodos);
+      await calendarAPI.updateCalendarioLetivo(anoSelecionadoPeriodos, periodos);
       setShowPeriodosModal(false);
-      await loadCalendarioLetivo();
-      // Recarregar dias letivos calculados
-      await loadDiasLetivos();
+      // Se o ano selecionado for o ano atual, recarrega
+      if (anoSelecionadoPeriodos === currentYear) {
+        await loadCalendarioLetivo(currentYear);
+        await loadDiasLetivos(currentYear);
+      }
     } catch (error) {
       console.error('Erro ao salvar períodos:', error);
       alert('Erro ao salvar períodos bimestrais');
     } finally {
       setSavingPeriodos(false);
     }
+  };
+  
+  // Função para carregar períodos quando muda o ano no modal
+  const handleAnoSelecionadoChange = async (ano) => {
+    setAnoSelecionadoPeriodos(ano);
+    await loadCalendarioLetivo(ano);
   };
   
   const canEditPeriodos = user?.role && ['admin', 'secretario', 'semed'].includes(user.role);
