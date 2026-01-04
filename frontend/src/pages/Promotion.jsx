@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Download, FileText, School, Users, BookOpen, Filter, RefreshCw, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, Download, FileText, School, Users, BookOpen, Filter, RefreshCw, CheckCircle, XCircle, AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { schoolsAPI, classesAPI, gradesAPI, coursesAPI, studentsAPI } from '@/services/api';
 import { toast } from 'sonner';
 
