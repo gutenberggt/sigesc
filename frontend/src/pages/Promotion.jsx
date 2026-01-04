@@ -82,6 +82,31 @@ export function Promotion() {
   // Anos disponíveis
   const years = [2023, 2024, 2025, 2026];
 
+  // Séries elegíveis para o Livro de Promoção (3º ao 9º Ano e EJA 1ª a 4ª Etapa)
+  const SERIES_ELEGIVEIS = [
+    // 3º ao 5º Ano (Anos Iniciais)
+    '3º ano', '3° ano', '3 ano', 'terceiro ano',
+    '4º ano', '4° ano', '4 ano', 'quarto ano',
+    '5º ano', '5° ano', '5 ano', 'quinto ano',
+    // 6º ao 9º Ano (Anos Finais)
+    '6º ano', '6° ano', '6 ano', 'sexto ano',
+    '7º ano', '7° ano', '7 ano', 'sétimo ano', 'setimo ano',
+    '8º ano', '8° ano', '8 ano', 'oitavo ano',
+    '9º ano', '9° ano', '9 ano', 'nono ano',
+    // EJA (1ª a 4ª Etapa)
+    '1ª etapa', '1° etapa', '1 etapa', 'primeira etapa',
+    '2ª etapa', '2° etapa', '2 etapa', 'segunda etapa',
+    '3ª etapa', '3° etapa', '3 etapa', 'terceira etapa',
+    '4ª etapa', '4° etapa', '4 etapa', 'quarta etapa',
+  ];
+
+  // Função para verificar se a série é elegível
+  const isSerieElegivel = (gradeLevel) => {
+    if (!gradeLevel) return false;
+    const gl = gradeLevel.toLowerCase();
+    return SERIES_ELEGIVEIS.some(serie => gl.includes(serie.toLowerCase()));
+  };
+
   // Carregar escolas
   useEffect(() => {
     const fetchSchools = async () => {
@@ -96,7 +121,7 @@ export function Promotion() {
     fetchSchools();
   }, []);
 
-  // Carregar turmas quando escola é selecionada
+  // Carregar turmas quando escola é selecionada (filtrar apenas séries elegíveis)
   useEffect(() => {
     const fetchClasses = async () => {
       if (!selectedSchool) {
@@ -105,8 +130,9 @@ export function Promotion() {
       }
       try {
         const data = await classesAPI.list({ school_id: selectedSchool });
-        // Mostrar todas as turmas da escola (não filtrar por ano)
-        setClasses(data || []);
+        // Filtrar apenas turmas do 3º ao 9º Ano e EJA
+        const filteredClasses = (data || []).filter(c => isSerieElegivel(c.grade_level));
+        setClasses(filteredClasses);
       } catch (error) {
         console.error('Erro ao carregar turmas:', error);
         toast.error('Erro ao carregar turmas');
