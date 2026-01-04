@@ -1,62 +1,76 @@
 <analysis>**original_problem_statement:**
-O usuário iniciou a sessão para refinar e expandir as funcionalidades do sistema de gestão escolar. Os principais requisitos da sessão incluíram:
-- Ajustar layouts de PDF, implementar avaliação conceitual, corrigir bugs e adicionar novas funcionalidades de gestão de períodos letivos e permissões.
-- Implementar a geração de um PDF de Certificado de Conclusão para turmas de 9º Ano e EJA, com layout específico, imagem de fundo e brasão da mantenedora.
-- Adicionar um campo de upload para o Brasão da mantenedora.
-- Adicionar um campo Autorização ou Reconhecimento no cadastro da escola.
-- Criar um modelo de planilha para importação de alunos e, em seguida, executar essa importação/atualização em massa.
-- Marcar todos os alunos de uma escola específica como Transferido.
-- Corrigir um bug em que nem todos os componentes curriculares cadastrados aparecem no Boletim e na Ficha Individual.
+O usuário iniciou a sessão para refinar e expandir as funcionalidades do sistema de gestão escolar. Os requisitos abordados nesta sessão foram:
+- (Bug Visual) Corrigir a coloração do calendário anual, remover uma legenda duplicada e unificar a cor dos dias letivos.
+- (Nova Feature) Implementar um sistema de bloqueio de edição de notas e frequência com base em uma data limite configurável por bimestre.
+- (Análise) Realizar uma análise completa da robustez, escalabilidade e experiência do usuário do sistema, com base em um framework detalhado fornecido pelo usuário.
+- (Nova Feature) Implementar um sistema de trilha de auditoria para registrar ações críticas dos usuários (logins, alterações de notas, etc.).
+- (Melhoria) Adicionar mais pontos de auditoria, otimizar o banco de dados com índices, implementar rate limiting e criar um script para limpar dados órfãos.
+- (Bug Crítico) Corrigir um bug onde componentes curriculares com cargas horárias diferentes por série foram consolidados incorretamente, resultando em dados errados nos relatórios.
+- (Bug Recorrente) Investigar um problema persistente na funcionalidade Gerenciar Lotações.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-O sistema de gestão escolar (SIGESC) possui um conjunto robusto de funcionalidades. As implementações mais recentes incluem:
-- **Gerenciamento de Ano Letivo**: Um sistema completo que permite definir o status de um ano letivo como Aberto ou Fechado por escola. Anos Fechados bloqueiam edições de notas, frequências e objetos de conhecimento para todos, exceto administradores.
-- **Geração de Certificado**: Funcionalidade completa para gerar Certificados de Conclusão para alunos de 9º Ano e EJA 4ª Etapa. O PDF gerado inclui uma imagem de fundo, o brasão da mantenedora no canto superior e como marca d'água centralizada, e informações dinâmicas do aluno e da escola. Os botões para gerar o certificado (individual e em lote) aparecem condicionalmente na interface.
-- **Cadastro de Mantenedora e Escola**: A página da Unidade Mantenedora agora possui um campo para upload do Brasão. O formulário de escolas possui um campo para Autorização ou Reconhecimento.
-- **Gestão de Alunos**: Foi criado um modelo de planilha Excel () para coleta de dados. Uma importação em massa foi executada com sucesso, atualizando mais de 3700 alunos existentes e cadastrando mais de 600 novos. Além disso, foi executado um script para alterar o status de mais de 4200 alunos para Transferido.
+O sistema de gestão escolar SIGESC possui uma base funcional com frontend em React e backend em FastAPI/MongoDB. As funcionalidades mais recentes são:
+- **Trilha de Auditoria:** Foi implementado um sistema de ponta a ponta. No backend, há o  e a coleção  no MongoDB, registrando ações críticas como login, gestão de alunos, notas, frequência, matrículas e lotações. No frontend, foi criada a página , acessível pelo dashboard do administrador, para visualização desses logs.
+- **Bloqueio por Data Limite:** Foi implementada a lógica no backend () para impedir edições de notas e frequência após as datas limite. O frontend agora exibe indicadores visuais nas páginas  e  para informar os usuários sobre o status (aberto/bloqueado) de cada bimestre.
+- **Melhorias de Sistema:**
+    - O backend agora cria índices no MongoDB na inicialização para otimizar consultas.
+    - O endpoint de login () possui rate limiting para maior segurança.
+    - Foi adicionado um endpoint de manutenção () para identificar dados órfãos.
+- **Correção Visual do Calendário:** A visualização anual do calendário foi ajustada para ter a coloração correta dos dias e uma única legenda, conforme solicitado.
+- **Análise Estrutural:** Um relatório de análise () foi criado, avaliando a arquitetura do sistema e definindo os próximos passos para refatoração e melhorias.
 
 **Last working item**:
--   **Last item agent was working:** O agente estava investigando o motivo pelo qual alguns Componentes Curriculares não aparecem no Boletim e na Ficha Individual para turmas do Fundamental - Anos Finais. O agente já confirmou que a filtragem por série (ex: 9º Ano) parece estar correta, identificando os 17 componentes esperados. A suspeita recaiu sobre a lógica de filtragem que diferencia componentes de .
+-   **Last item agent was working:** O agente estava corrigindo um erro conceitual grave. Ele havia consolidado componentes curriculares duplicados, sem perceber que a duplicação era intencional para representar **cargas horárias diferentes para a mesma matéria em séries distintas**. A última ação foi começar a corrigir isso, adicionando o campo  ao modelo de dados  em  para armazenar essa informação de forma estruturada.
 -   **Status:** IN PROGRESS
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** backend testing agent
-    - O agente deve escrever um script de teste para chamar o endpoint de geração de boletim () para um aluno de uma turma do 9º Ano. O script deve inspecionar a estrutura de dados dos componentes curriculares que são passados para a função  para verificar se a lista corresponde aos 17 componentes esperados. Isso isolará se o problema está na busca de dados no  ou na renderização no .
+-   **Which testing method agent to use?** both. O agente precisará:
+    1. Criar um script para reverter a consolidação de dados anterior, separando os componentes e populando o novo campo .
+    2. Modificar  para usar o novo campo e exibir a carga horária correta baseada na série do aluno.
+    3. Testar a geração do Boletim () para validar se a carga horária está correta.
+    4. Atualizar a UI de gestão de componentes curriculares para permitir a edição da carga horária por série.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Componentes curriculares ausentes no Boletim/Ficha Individual.**
--   **Issue 2: (P1) A funcionalidade de Gerenciar Lotações pode não estar salvando corretamente.**
--   **Issue 3: (P2) Dados órfãos de lotação de servidores.**
+-   **Issue 1: (P0) Carga horária incorreta nos relatórios devido à consolidação errada de componentes.**
+-   **Issue 2: (P1) Bug na funcionalidade Gerenciar Lotações pode persistir.**
+-   **Issue 3: (P2) Página de logs de auditoria não carrega dados no frontend.**
 
 Issues Detail:
--   **Issue 1: Componentes curriculares ausentes no Boletim/Ficha Individual.**
-    -   **Attempted fixes:** O agente validou que o campo  é usado corretamente e que a filtragem por  (9º Ano) funciona isoladamente, retornando 17 componentes.
+-   **Issue 1: Carga horária incorreta nos relatórios devido à consolidação errada de componentes.**
+    -   **Attempted fixes:** O agente consolidou componentes com o mesmo nome (ex: Ciências), o que apagou as diferentes cargas horárias por série. Ele iniciou a correção adicionando um campo  ao modelo em .
     -   **Next debug checklist:**
-        1.  Verificar no , na função que gera o boletim (em torno da linha 4698), como a lógica  está se comportando.
-        2.  Inspecionar os dados da turma de teste para ver o valor do campo .
-        3.  Inspecionar os dados dos componentes curriculares que estão faltando para ver o valor do campo .
-        4.  Adicionar logs no endpoint  em  para imprimir a lista final de componentes antes de passá-la para o .
-    -   **Why fix this issue and what will be achieved with the fix?** Garante que os registros acadêmicos (Boletim e Ficha Individual) sejam completos e precisos, refletindo todos os componentes que o aluno cursou.
+        1.  Finalizar a modificação do modelo  em  para suportar .
+        2.  Criar um endpoint ou script de migração para reverter a consolidação, recriando os componentes ou atualizando o existente com os dados de carga horária por série (ex: ).
+        3.  Ajustar a função  em  para obter a carga horária do dicionário  com base na série do aluno.
+        4.  Atualizar a interface de administração de componentes para permitir a gestão deste novo formato de dados.
+    -   **Why fix this issue and what will be achieved with the fix?** Garante a precisão dos documentos acadêmicos oficiais, que é uma funcionalidade essencial e crítica do sistema.
     -   **Status:** IN PROGRESS
     -   **Is recurring issue?** N
     -   **Should Test frontend/backend/both after fix?** both
     -   **Blocked on other issue:** N/A
--   **Issue 2: A funcionalidade de Gerenciar Lotações pode não estar salvando corretamente.**
-    -   **Attempted fixes:** Nenhuma tentativa nesta sessão.
-    -   **Next debug checklist:** Aguardar feedback detalhado do usuário com os passos exatos para reproduzir a falha.
+-   **Issue 2: Bug na funcionalidade Gerenciar Lotações pode persistir.**
+    -   **Attempted fixes:** O agente testou a criação de lotações via API e confirmou que o backend funciona. No entanto, o erro pode ser específico da interface ou de um caso de uso não testado.
+    -   **Next debug checklist:**
+        1.  Solicitar ao usuário os passos exatos para reproduzir o erro na interface.
+        2.  Adicionar logs no  da função  em  para capturar erros que possam estar sendo silenciados.
+        3.  Revisar o fluxo de dados do formulário de lotação até a chamada da API.
+    -   **Why fix this issue and what will be achieved with the fix?** A gestão de alocação de pessoal é uma função administrativa central e precisa ser 100% confiável.
     -   **Status:** USER VERIFICATION PENDING
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** frontend
     -   **Blocked on other issue:** N/A
--   **Issue 3: Dados órfãos de lotação de servidores.**
-    -   **Attempted fixes:** None.
-    -   **Next debug checklist:** Escrever um script para iterar sobre todas as , verificar se a  associada existe e relatar as lotações órfãs.
-    -   **Why fix this issue and what will be achieved with the fix?** Melhorará a integridade dos dados e evitará erros em cascata.
+-   **Issue 3: Página de logs de auditoria não carrega dados no frontend.**
+    -   **Attempted fixes:** Nenhuma correção foi tentada. O agente identificou o problema, mas priorizou outras tarefas. A API funciona, mas o frontend não.
+    -   **Next debug checklist:**
+        1.  Analisar  e a chamada de API que busca os logs.
+        2.  Verificar se o token de autenticação está sendo enviado corretamente nos headers da requisição.
+        3.  Investigar o erro  relacionado ao contexto , que pode estar sendo chamado desnecessariamente nesta página. Remover a dependência ou garantir que o contexto esteja disponível.
+    -   **Why fix this issue and what will be achieved with the fix?** Torna a funcionalidade de auditoria, recém-implementada, utilizável para os administradores.
     -   **Status:** NOT STARTED
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** backend
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** frontend
     -   **Blocked on other issue:** N/A
 
 **In progress Task List**:
@@ -64,104 +78,93 @@ Nenhum.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   **(P1)** Validar a lógica de filtragem de Componentes Curriculares usando o agente de testes de frontend assim que o bug atual for resolvido.
+    -   (P1) **Refatorar :** Continuar a modularização movendo os endpoints de alunos, turmas, matrículas, etc., para seus próprios arquivos em , seguindo o padrão iniciado com .
 -   **Future Tasks:**
-    -   **(P2)** Refatorar .
-    -   **(P3)** Refatorar .
-    -   **(P4)** Refatorar .
-    -   **(P4)** Refatorar .
-    -   **(P4)** Refatorar  para dividir as funções de geração de PDF em helpers menores.
-    -   **(P4)** Deletar o arquivo obsoleto .
+    -   (P2) **Refatorar :** Quebrar as funções monolíticas de geração de PDF em sub-funções menores e mais testáveis.
+    -   (P3) **Refatorar Componentes Frontend:** Simplificar componentes grandes como , , e o hook .
+    -   (P4) **Deletar Código Obsoleto:** Remover o arquivo  após confirmar que ele não é mais utilizado.
 
 **Completed work in this session**
--   **Gerenciamento de Anos Letivos**: Finalizada a implementação e testes da funcionalidade de bloquear edições em anos letivos Fechados.
--   **Geração de Certificado**: Implementado do zero a geração do PDF de Certificado de Conclusão, incluindo layout complexo com imagem de fundo, brasão como marca d'água e no canto, e lógica de exibição condicional na UI. Corrigido um bug de script error na impressão em lote.
--   **Cadastro da Mantenedora**: Adicionado campo de upload para o Brasão na UI e no backend.
--   **Cadastro de Escola**: Adicionado e corrigido o salvamento do campo Autorização ou Reconhecimento.
--   **Importação de Alunos**: Criado um modelo de planilha Excel e executada uma importação em massa para cadastrar/atualizar mais de 4400 alunos.
--   **Atualização em Massa**: Executado um script para alterar o status de todos os alunos de uma escola para Transferido.
--   **Ajustes no Certificado**: Realizados múltiplos ajustes de layout (espaçamento, tamanho da fonte, tamanho do brasão) com base no feedback do usuário.
-
-**Earlier issues found/mentioned but not fixed**
--   Nenhum.
-
-**Known issue recurrence from previous fork**
--   **Issue recurrence in previous fork:** Gerenciar Lotações pode não estar salvando corretamente.
--   **Recurrence count:** 2+
--   **Status:** USER VERIFICATION PENDING
+-   **Feature: Trilha de Auditoria:** Implementado sistema completo com backend (), API e frontend () para rastrear ações críticas.
+-   **Feature: Bloqueio de Edição por Bimestre:** Finalizada a funcionalidade com lógica de backend e indicadores visuais no frontend para bloquear edições após datas limite.
+-   **Bug Fix: Coloração do Calendário:** Corrigida a estilização do calendário anual e removida a legenda duplicada.
+-   **Improvement: Manutenção e Segurança:** Adicionado endpoint para limpeza de dados órfãos, criação automática de índices no MongoDB e rate limiting no endpoint de login.
+-   **Analysis: Análise do Sistema:** Criado o documento  que serve como guia para a evolução da arquitetura do sistema.
 
 **Code Architecture**
-academic_yearsregulamentacaobrasao_url
+
 
 **Key Technical Concepts**
--   **Role-Based Access Control (RBAC):** A lógica de bloqueio para anos letivos Fechados diferencia o acesso entre  e outros roles como .
--   **Dynamic PDF Generation (ReportLab):** Uso avançado para criar certificados complexos, combinando imagens de fundo, imagens sobrepostas (brasão), marcas d'água com transparência e texto dinâmico.
--   **Bulk Data Processing:** Utilização de scripts executados em background para manipular grandes volumes de dados (milhares de registros de alunos), evitando timeouts de requisições web.
+-   **Audit Trail:** Implementação de um sistema para registrar eventos críticos (criação, alteração, exclusão) e acessos, centralizado no .
+-   **Backend Refactoring:** Iniciada a modularização do  em routers de API menores e mais focados, começando pela autenticação.
+-   **Complex Data Modeling:** Adaptação do modelo  para suportar regras de negócio complexas, como cargas horárias que variam por série ().
+-   **Database Optimization:** Adição de um passo na inicialização do servidor para garantir a criação de índices essenciais no MongoDB.
+-   **Security Hardening:** Implementação de rate limiting no endpoint de login para mitigar ataques de força bruta.
 
 **key DB schema**
--   **schools**:
-    -    (Ex: )
-    -   
--   **mantenedoras**:
-    -   
 -   **courses**:
-    -    (Ex: )
-    -    (Ex: )
-    -    (Ex: , )
-
-**changes in tech stack**
--   Adicionado  ao backend para manipulação de arquivos Excel.
+    -    (NOVO) - Ex: 
+-   **audit_logs**:
+    -   
+    -    (e.g., 'login', 'update_grade')
+    -    (e.g., 'student', 'course')
+    -   
+    -    (e.g., old vs new values)
+    -   
 
 **All files of reference**
--   **/app/backend/server.py**: Local da lógica de filtragem dos componentes curriculares.
--   **/app/backend/pdf_generator.py**: Local onde o boletim é renderizado.
--   **/app/backend/models.py**: Definição dos modelos de dados.
--   **/app/frontend/public/modelo_cadastro_alunos.xlsx**: Planilha modelo para cadastro de alunos.
-
-**Areas that need refactoring**:
--    está obsoleto e pode ser excluído.
--   , ,  e  estão se tornando muito complexos e poderiam ser divididos em componentes menores.
-
-**key api endpoints**
--   ****, ****, ****: Agora incluem a verificação .
--   ****: Gera o certificado individual.
--   ****: Gera certificados em lote para uma turma.
--   ****: Salva a URL do brasão.
--   ****: Salva a  e .
+-   **/app/backend/models.py**: Contém o modelo  que está sendo modificado.
+-   **/app/backend/pdf_generator.py**: Utiliza a carga horária e precisa ser atualizado para ler do novo campo.
+-   **/app/backend/server.py**: Onde a lógica de busca de componentes para o boletim reside.
+-   **/app/frontend/src/hooks/useStaff.js**: Local da lógica de frontend para a funcionalidade Gerenciar Lotações.
+-   **/app/frontend/src/pages/AuditLogs.jsx**: Página do frontend que não está carregando os dados de auditoria.
+-   **/app/memory/ANALISE_SISTEMA.md**: Relatório de análise que guia as tarefas de refatoração.
 
 **Critical Info for New Agent**
--   A prioridade máxima é resolver o bug dos componentes curriculares ausentes no boletim. O usuário está aguardando ativamente essa correção.
--   O ponto de partida para a depuração é a lógica de filtragem por  de componente () em , próximo à linha 4698, pois a filtragem por série já foi verificada e parece correta.
--   A manipulação de grandes volumes de dados (como a importação de alunos) deve ser feita por meio de scripts executados em background para evitar timeouts.
+-   A prioridade máxima é corrigir o bug da **carga horária** (). A solução anterior do agente estava errada e precisa ser refeita com cuidado, garantindo que os dados históricos não sejam perdidos e que os relatórios reflitam a carga horária correta para cada série.
+-   A página de **Logs de Auditoria** () está quebrada no frontend. Apesar de ser uma nova feature, ela é inútil no estado atual e precisa de depuração.
+-   A refatoração do  foi solicitada pelo usuário e iniciada pelo agente. É uma tarefa importante para a manutenibilidade do projeto a longo prazo.
 
 **documents and test reports created in this job**
 -   
+-   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **Request:** Aumente o brasão no canto do certificado em 60%. (COMPLETED)
-2.  **Request:** Mude o status de todos os alunos da Escola Municipal Floresta do Araguaia para transferido. (COMPLETED)
-3.  **Report:** Senti falta de Componentes Curriculares no Boletim. Comparou os cadastrados com a imagem do boletim. (IN PROGRESS)
-4.  **Confirmation:** Continue! (HANDLED, Agent continued debugging)
+1.  **User (Feedback):** Apontou legenda duplicada no calendário e pediu para unificar a cor dos dias letivos. (RESOLVED)
+2.  **User (Approval):** Concordou com o plano de ação do agente. (HANDLED)
+3.  **User (Request):** Pediu ao agente para prosseguir. (HANDLED)
+4.  **User (Request):** Solicitou uma análise detalhada da arquitetura do sistema. (COMPLETED)
+5.  **User (Approval):** Aprovou o plano de implementação do sistema de auditoria. (COMPLETED)
+6.  **User (Feedback):** Solicitou ajustes na feature de auditoria e aprovação para continuar com a refatoração. (COMPLETED)
+7.  **User (Approval):** Aprovou a ordem de prioridades do agente. (HANDLED)
+8.  **User (Correction):** Explicou que a consolidação de componentes estava errada, pois as cargas horárias são diferentes por série. (IN PROGRESS)
+9.  **User (Request):** Pediu ao agente para definir a ordem de execução. (HANDLED)
+10. **User (Approval):** Concordou com a ordem de execução proposta pelo agente. (HANDLED)
 
 **Project Health Check:**
--   **Broken:** A geração de Boletim e Ficha Individual está parcialmente quebrada, pois componentes curriculares importantes estão faltando para o Fundamental - Anos Finais.
+-   **Broken:**
+    -   O cálculo e exibição da carga horária nos relatórios está incorreto.
+    -   A página de Logs de Auditoria no frontend não funciona.
+    -   A funcionalidade Gerenciar Lotações é instável e reportada como recorrentemente problemática.
 -   **Mocked:** None.
 
 **3rd Party Integrations**
 -   **reportlab**: Geração de PDFs.
 -   **PyPDF2**: Mesclagem de PDFs.
--   **openpyxl**: Leitura e escrita de arquivos Excel ().
--   **Servidor FTP ()**: Armazenamento de arquivos persistentes como logotipos e brasões.
+-   **openpyxl**: Manipulação de arquivos Excel.
+-   **slowapi**: Implementação de rate limiting no FastAPI.
+-   **Servidor FTP ()**: Armazenamento de arquivos.
 
 **Testing status**
--   **Testing agent used after significant changes:** YES (usado para validar a funcionalidade do certificado).
+-   **Testing agent used after significant changes:** NO
 -   **Troubleshoot agent used after agent stuck in loop:** NO
--   **Test files created:** []
--   **Known regressions:** A funcionalidade de exibição de componentes no boletim parece ter regredido ou nunca funcionou corretamente para todos os casos.
+-   **Test files created:** Nenhum arquivo de teste permanente foi criado.
+-   **Known regressions:** A funcionalidade de carga horária nos relatórios regrediu devido a uma correção mal implementada.
 
 **Credentials to test flow:**
 -   **Admin:**  / 
 -   **Coordenador/Professor:**  / 
 
 **What agent forgot to execute**
--   Nenhum item solicitado pelo usuário foi esquecido. O agente está trabalhando ativamente na última solicitação.</analysis>
+-   O agente anterior não criou testes automatizados para as novas funcionalidades, como a verificação da data limite de edição ou a lógica de auditoria, dependendo apenas de testes manuais via  e screenshots.
+-   O agente não resolveu o problema de carregamento na página de frontend dos Logs de Auditoria () antes de finalizar a tarefa.</analysis>
