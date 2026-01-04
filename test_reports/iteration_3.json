@@ -1,0 +1,94 @@
+{
+  "summary": "Livro de Promoção PDF restructuring tested successfully. PDF now has 2 pages following Ficha Individual pattern: Page 1 (1º Semestre: 1º/2º Bimestre + Recuperação), Page 2 (2º Semestre: 3º/4º Bimestre + Recuperação + Total/Média/Resultado). Institutional header with logo, signatures, and date in Portuguese format all verified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Promotion page",
+        "issues": ["WebSocket connection warnings in console (non-blocking, cosmetic issue - same as previous iteration)"]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/tests/test_promotion_pdf.py",
+    "/app/tests/test_promotion_pdf_structure.py",
+    "/app/test_reports/pytest/pytest_promotion_results_v2.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/tests/test_promotion_pdf_structure.py"
+  ],
+  "success_rate": {
+    "backend": "100% (16/16 tests passed - 9 original + 7 structure tests)",
+    "frontend": "100%"
+  },
+  "test_credentials": "Admin: gutenberg@sigesc.com / @Celta2007",
+  "seed_data_creation": "None - used existing data from E M E F MONSENHOR AUGUSTO DIAS DE BRITO school",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Livro de Promoção PDF restructuring complete. PDF now follows Ficha Individual pattern with 2 pages. Page 1: 1º Semestre (1º/2º Bimestre + Recuperação 1º Sem). Page 2: 2º Semestre (3º/4º Bimestre + Recuperação 2º Sem) + Total/Média/Resultado + Signatures + Date. Test files at /app/tests/test_promotion_pdf.py and /app/tests/test_promotion_pdf_structure.py.",
+  "test_results": {
+    "backend_tests": {
+      "endpoint": "GET /api/documents/promotion/{class_id}",
+      "tests_passed": 16,
+      "tests_failed": 0,
+      "details": [
+        "test_pdf_generation_3ano - PASSED",
+        "test_pdf_generation_6ano - PASSED",
+        "test_pdf_generation_9ano - PASSED",
+        "test_pdf_requires_authentication - PASSED",
+        "test_pdf_invalid_class_id - PASSED",
+        "test_pdf_default_academic_year - PASSED",
+        "test_schools_list - PASSED",
+        "test_classes_list - PASSED",
+        "test_enrollments_by_class - PASSED",
+        "test_pdf_has_2_pages - PASSED",
+        "test_page1_contains_1st_semester_content - PASSED",
+        "test_page2_contains_2nd_semester_and_result - PASSED",
+        "test_pdf_contains_institutional_header - PASSED",
+        "test_pdf_contains_signatures - PASSED",
+        "test_pdf_contains_date - PASSED",
+        "test_pdf_size_reasonable - PASSED"
+      ]
+    },
+    "frontend_tests": {
+      "page": "/admin/promotion",
+      "status": "PASSED",
+      "details": [
+        "Page loads correctly with title 'Livro de Promoção'",
+        "Subtitle shows '3º ao 9º Ano e EJA (1ª a 4ª Etapa)'",
+        "Year selector works (2025 selected)",
+        "School selector shows schools list",
+        "Class selector filters to eligible classes (3º-9º Ano, EJA)",
+        "Data table displays students with grades columns",
+        "Statistics cards show Total, Aprovados, Reprovados, Cursando, Desistentes, Transferidos",
+        "Pagination works correctly",
+        "Gerar PDF button enabled when class selected",
+        "PDF download successful (livro_promocao_2025.pdf, ~42KB)"
+      ]
+    },
+    "pdf_structure_validation": {
+      "pages": 2,
+      "page1_content": {
+        "header": "Institutional header with logo, mantenedora, slogan",
+        "title": "LIVRO DE PROMOÇÃO",
+        "info_boxes": "ESCOLA, TURMA, ANO/ETAPA, TURNO, PÁGINA (01/02)",
+        "columns": "NOTAS 1º BIMESTRE, NOTAS 2º BIMESTRE, RECUPERAÇÃO 1º SEMESTRE"
+      },
+      "page2_content": {
+        "header": "Same institutional header",
+        "info_boxes": "PÁGINA (02/02)",
+        "columns": "NOTAS 3º BIMESTRE, NOTAS 4º BIMESTRE, RECUPERAÇÃO 2º SEMESTRE, TOTAL, MÉDIA, RESULTADO",
+        "signatures": "Secretário(a), Diretor(a)",
+        "date": "Date in Portuguese format (e.g., 'janeiro de 2026')"
+      },
+      "file_size": "~42KB (within expected range)"
+    }
+  }
+}
