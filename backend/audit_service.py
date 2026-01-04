@@ -124,7 +124,7 @@ class AuditService:
             academic_year: Ano letivo
             extra_data: Dados adicionais para incluir no log
         """
-        if not self._enabled or not self.db:
+        if not self._enabled or self.db is None:
             return
         
         try:
