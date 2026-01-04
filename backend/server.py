@@ -4863,7 +4863,8 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
             courses=courses,
             academic_year=academic_year,
             mantenedora=mantenedora,
-            dias_letivos_ano=dias_letivos_ano
+            dias_letivos_ano=dias_letivos_ano,
+            calendario_letivo=calendario_letivo
         )
         
         filename = f"boletim_{student.get('full_name', 'aluno').replace(' ', '_')}_{academic_year}.pdf"
