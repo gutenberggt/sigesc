@@ -6708,6 +6708,120 @@ async def cleanup_orphan_data(request: Request, dry_run: bool = True):
     }
 
 
+@api_router.get("/maintenance/duplicate-courses")
+async def check_duplicate_courses(request: Request):
+    """
+    Verifica componentes curriculares duplicados.
+    Apenas admin pode executar.
+    """
+    current_user = await AuthMiddleware.require_roles(['admin'])(request)
+    
+    courses = await db.courses.find({}, {"_id": 0}).to_list(500)
+    
+    # Agrupar por nome + nivel_ensino
+    groups = {}
+    for course in courses:
+        key = (course.get('name', ''), course.get('nivel_ensino', ''))
+        if key not in groups:
+            groups[key] = []
+        groups[key].append(course)
+    
+    # Encontrar duplicados
+    duplicates = []
+    for key, courses_list in groups.items():
+        if len(courses_list) > 1:
+            duplicates.append({
+                'name': key[0],
+                'nivel_ensino': key[1],
+                'count': len(courses_list),
+                'courses': courses_list
+            })
+    
+    return {
+        'total_duplicates': len(duplicates),
+        'duplicates': duplicates
+    }
+
+
+@api_router.post("/maintenance/consolidate-courses")
+async def consolidate_duplicate_courses(request: Request, dry_run: bool = True):
+    """
+    Consolida componentes curriculares duplicados.
+    Apenas admin pode executar.
+    Une os grade_levels de componentes com mesmo nome e nivel_ensino.
+    """
+    current_user = await AuthMiddleware.require_roles(['admin'])(request)
+    
+    # Obter duplicados
+    dup_check = await check_duplicate_courses(request)
+    
+    if dry_run:
+        return {
+            'mode': 'dry_run',
+            'message': 'Nenhuma alteração foi feita. Use dry_run=false para executar.',
+            'would_consolidate': dup_check
+        }
+    
+    consolidated = []
+    
+    for dup in dup_check['duplicates']:
+        courses_list = dup['courses']
+        if len(courses_list) < 2:
+            continue
+        
+        # Escolher o primeiro como base
+        base_course = courses_list[0]
+        base_id = base_course.get('id')
+        
+        # Unir grade_levels de todos os duplicados
+        all_grade_levels = set()
+        for c in courses_list:
+            grade_levels = c.get('grade_levels', [])
+            if grade_levels:
+                all_grade_levels.update(grade_levels)
+        
+        # Atualizar o componente base com todos os grade_levels
+        if all_grade_levels:
+            sorted_levels = sorted(list(all_grade_levels), key=lambda x: (
+                0 if 'º Ano' in x else 1,
+                int(''.join(filter(str.isdigit, x)) or 0)
+            ))
+            await db.courses.update_one(
+                {"id": base_id},
+                {"$set": {"grade_levels": sorted_levels}}
+            )
+        
+        # Remover os duplicados (manter apenas o primeiro)
+        removed_ids = []
+        for c in courses_list[1:]:
+            await db.courses.delete_one({"id": c.get('id')})
+            removed_ids.append(c.get('id'))
+        
+        consolidated.append({
+            'name': dup['name'],
+            'nivel_ensino': dup['nivel_ensino'],
+            'kept_id': base_id,
+            'removed_ids': removed_ids,
+            'unified_grade_levels': sorted_levels if all_grade_levels else []
+        })
+    
+    # Registra auditoria
+    await audit_service.log(
+        action='update',
+        collection='courses',
+        user=current_user,
+        request=request,
+        description=f"Consolidou {len(consolidated)} componentes curriculares duplicados",
+        extra_data={'consolidated': consolidated}
+    )
+    
+    return {
+        'mode': 'executed',
+        'consolidated': consolidated,
+        'total': len(consolidated)
+    }
+
+
 # ============= UNIDADE MANTENEDORA ENDPOINTS =============
 
 @api_router.get("/mantenedora", response_model=Mantenedora)
