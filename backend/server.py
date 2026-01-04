@@ -7118,6 +7118,15 @@ async def get_audit_stats(request: Request, days: int = 7):
 # Include the router in the main app
 app.include_router(api_router)
 
+# Include modular routers
+users_router = setup_users_router(db, audit_service)
+schools_router = setup_schools_router(db, audit_service)
+courses_router = setup_courses_router(db, audit_service)
+
+app.include_router(users_router, prefix="/api")
+app.include_router(schools_router, prefix="/api")
+app.include_router(courses_router, prefix="/api")
+
 # ============= WEBSOCKET ENDPOINT =============
 
 @app.websocket("/api/ws/{token}")
