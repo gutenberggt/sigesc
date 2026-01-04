@@ -1744,19 +1744,18 @@ class CalendarioLetivoUpdate(BaseModel):
     """Modelo para atualização do Calendário Letivo"""
     bimestre_1_inicio: Optional[str] = None
     bimestre_1_fim: Optional[str] = None
-    bimestre_1_dias_letivos: Optional[int] = None
+    bimestre_1_data_limite: Optional[str] = None
     bimestre_2_inicio: Optional[str] = None
     bimestre_2_fim: Optional[str] = None
-    bimestre_2_dias_letivos: Optional[int] = None
+    bimestre_2_data_limite: Optional[str] = None
     bimestre_3_inicio: Optional[str] = None
     bimestre_3_fim: Optional[str] = None
-    bimestre_3_dias_letivos: Optional[int] = None
+    bimestre_3_data_limite: Optional[str] = None
     bimestre_4_inicio: Optional[str] = None
     bimestre_4_fim: Optional[str] = None
-    bimestre_4_dias_letivos: Optional[int] = None
+    bimestre_4_data_limite: Optional[str] = None
     recesso_inicio: Optional[str] = None
     recesso_fim: Optional[str] = None
-    dias_letivos_previstos: Optional[int] = None
 
 class CalendarioLetivo(CalendarioLetivoBase):
     model_config = ConfigDict(extra="ignore")
