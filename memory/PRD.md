@@ -104,10 +104,12 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 - [x] ~~Sistema de Auditoria~~ (CONCLUÍDO)
 - [x] ~~Bug componentes ausentes no Boletim~~ (RESOLVIDO - duplicados consolidados)
 - [x] ~~Correção carga horária por série~~ (CONCLUÍDO 2026-01-04)
+- [x] ~~Bug Lotação não reconhecida na Alocação~~ (RESOLVIDO 2026-01-06)
 
 ### P1 (Alto)
 - [x] ~~Bloqueio por data limite de edição~~ (CONCLUÍDO)
-- [ ] Verificar bug "Gerenciar Lotações" (AGUARDANDO REPRODUÇÃO DO USUÁRIO)
+- [x] ~~Verificar bug "Gerenciar Lotações"~~ (RESOLVIDO 2026-01-06)
+- [ ] Dados de carga horária incorretos no banco (script de migração pendente)
 
 ### P2 (Médio)
 - [x] ~~Índices MongoDB otimizados~~ (CONCLUÍDO)
