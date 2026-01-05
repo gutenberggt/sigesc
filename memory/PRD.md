@@ -29,6 +29,14 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
   - Execução: `python scripts/migration_fix_course_workload.py [--dry-run] [--verbose]`
   - Script idempotente: pode ser executado múltiplas vezes sem efeitos colaterais
 
+- **Bug Sincronização de Notas entre Documentos** (P0 - RESOLVIDO):
+  - Problema: Notas lançadas apareciam na Ficha Individual mas não no Boletim e Livro de Promoção
+  - Causa raiz 1 (Boletim): O parâmetro `academic_year` era string mas o banco salva como int
+  - Causa raiz 2 (Livro de Promoção): O código esperava campos `period/grade` mas as notas usam `b1/b2/b3/b4`
+  - Correções no `server.py`:
+    - Endpoint `/documents/boletim`: Convertido `academic_year` para int antes da query (linha 4729)
+    - Endpoint `/documents/promotion`: Corrigido mapeamento de notas para usar `b1/b2/b3/b4` (linhas 5484-5499)
+
 ### 2026-01-05 (Sessão 3)
 - **Padronização da Exibição de Turmas** (P0 - CONCLUÍDO):
   - Solicitação: "Em todo o sistema, exibir apenas o nome da turma, sem série/etapa e turno"
