@@ -1470,11 +1470,57 @@ def generate_ficha_individual_pdf(
             rec_s1 = grade.get('rec_s1', grade.get('recovery'))
             rec_s2 = grade.get('rec_s2')
             
-            # Processo ponderado
-            b1_pond = (b1 or 0) * 2
-            b2_pond = (b2 or 0) * 3
-            b3_pond = (b3 or 0) * 2
-            b4_pond = (b4 or 0) * 3
+            # Valores originais para exibição
+            b1_orig = b1
+            b2_orig = b2
+            b3_orig = b3
+            b4_orig = b4
+            
+            # Valores para cálculo (após aplicar recuperação)
+            b1_calc = b1 if isinstance(b1, (int, float)) else 0
+            b2_calc = b2 if isinstance(b2, (int, float)) else 0
+            b3_calc = b3 if isinstance(b3, (int, float)) else 0
+            b4_calc = b4 if isinstance(b4, (int, float)) else 0
+            
+            # Aplicar lógica de recuperação do 1º semestre
+            # A recuperação substitui a menor nota entre B1 e B2
+            # Se as notas forem iguais, substitui a de maior peso (B2 tem peso 3)
+            if rec_s1 is not None and isinstance(rec_s1, (int, float)):
+                if b1_calc < b2_calc:
+                    # B1 é menor, substitui B1 se recuperação for maior
+                    if rec_s1 > b1_calc:
+                        b1_calc = rec_s1
+                elif b2_calc < b1_calc:
+                    # B2 é menor, substitui B2 se recuperação for maior
+                    if rec_s1 > b2_calc:
+                        b2_calc = rec_s1
+                else:
+                    # Notas iguais, substitui a de maior peso (B2 tem peso 3)
+                    if rec_s1 > b2_calc:
+                        b2_calc = rec_s1
+            
+            # Aplicar lógica de recuperação do 2º semestre
+            # A recuperação substitui a menor nota entre B3 e B4
+            # Se as notas forem iguais, substitui a de maior peso (B4 tem peso 3)
+            if rec_s2 is not None and isinstance(rec_s2, (int, float)):
+                if b3_calc < b4_calc:
+                    # B3 é menor, substitui B3 se recuperação for maior
+                    if rec_s2 > b3_calc:
+                        b3_calc = rec_s2
+                elif b4_calc < b3_calc:
+                    # B4 é menor, substitui B4 se recuperação for maior
+                    if rec_s2 > b4_calc:
+                        b4_calc = rec_s2
+                else:
+                    # Notas iguais, substitui a de maior peso (B4 tem peso 3)
+                    if rec_s2 > b4_calc:
+                        b4_calc = rec_s2
+            
+            # Processo ponderado (com notas já substituídas pela recuperação)
+            b1_pond = b1_calc * 2
+            b2_pond = b2_calc * 3
+            b3_pond = b3_calc * 2
+            b4_pond = b4_calc * 3
             
             # Total de pontos e média
             total_pontos = b1_pond + b2_pond + b3_pond + b4_pond
@@ -1483,8 +1529,8 @@ def generate_ficha_individual_pdf(
             row = [
                 course_name,
                 str(carga_horaria),
-                fmt_grade(b1), fmt_grade(b2), fmt_grade(rec_s1),
-                fmt_grade(b3), fmt_grade(b4), fmt_grade(rec_s2),
+                fmt_grade(b1_orig), fmt_grade(b2_orig), fmt_grade(rec_s1),
+                fmt_grade(b3_orig), fmt_grade(b4_orig), fmt_grade(rec_s2),
                 fmt_grade(b1_pond), fmt_grade(b2_pond), fmt_grade(b3_pond), fmt_grade(b4_pond),
                 fmt_grade(total_pontos),
                 fmt_grade(media_anual),
