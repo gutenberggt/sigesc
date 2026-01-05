@@ -1,4 +1,4 @@
-import { Building2, Plus, Minus } from 'lucide-react';
+import { Building2, Plus, Minus, Calendar } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { CARGOS, FUNCOES, TURNOS } from './constants';
@@ -17,12 +17,21 @@ export const LotacaoModal = ({
   loadingExisting,
   canDelete,
   onStaffChange,
+  onYearChange,
   onAddEscola,
   onRemoveEscola,
   onDeleteExisting,
   onSave,
   saving
 }) => {
+  const currentYear = new Date().getFullYear();
+  const selectedYear = lotacaoForm.academic_year || currentYear;
+  
+  // Filtrar lotações pelo ano selecionado
+  const lotacoesDoAno = existingLotacoes.filter(
+    lot => lot.academic_year === selectedYear || !lot.academic_year
+  );
+  
   return (
     <Modal
       isOpen={isOpen}
@@ -30,6 +39,26 @@ export const LotacaoModal = ({
       title="Gerenciar Lotações"
     >
       <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+        {/* Seletor de Ano Letivo - PRIMEIRO */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <label className="block text-sm font-medium text-blue-800 mb-1 flex items-center gap-2">
+            <Calendar size={16} />
+            Ano Letivo *
+          </label>
+          <select
+            value={selectedYear}
+            onChange={(e) => onYearChange(parseInt(e.target.value))}
+            className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+          >
+            {[2030, 2029, 2028, 2027, 2026, 2025, 2024, 2023, 2022].map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+          <p className="text-xs text-blue-600 mt-1">
+            Selecione o ano para visualizar e adicionar lotações
+          </p>
+        </div>
+        
         {/* Servidor */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Servidor *</label>
@@ -47,7 +76,7 @@ export const LotacaoModal = ({
           </select>
         </div>
         
-        {/* Lotações existentes */}
+        {/* Lotações existentes do ano selecionado */}
         {lotacaoForm.staff_id && (
           <div className="p-4 bg-gray-50 rounded-lg border">
             <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
