@@ -1293,17 +1293,55 @@ def generate_ficha_individual_pdf(
     
     dias_letivos = 200
     
-    # Calcular frequência anual média
-    freq_total = 0
-    freq_count = 0
+    # ===== CÁLCULO DE FREQUÊNCIA PARA ANOS INICIAIS =====
+    # Obter metadados de frequência
+    meta_freq = attendance_data.get('_meta', {})
+    faltas_regular = meta_freq.get('faltas_regular', 0)
+    faltas_por_componente = meta_freq.get('faltas_por_componente', {})
+    
+    # Calcular carga horária por tipo (Regular vs Escola Integral)
+    carga_regular = 0
+    carga_integral = 0
     for course in courses:
-        course_id = course.get('id')
-        att = attendance_data.get(course_id, {})
-        # Importante: verificar se existe frequência (mesmo que seja 0)
-        if att.get('frequency_percentage') is not None:
-            freq_total += att.get('frequency_percentage', 100)
-            freq_count += 1
-    frequencia_anual = freq_total / freq_count if freq_count > 0 else 100.0
+        atendimento = course.get('atendimento_programa')
+        ch = get_course_workload(course, grade_level)
+        if atendimento == 'atendimento_integral':
+            carga_integral += ch
+        else:
+            carga_regular += ch
+    
+    # Somar faltas dos componentes integrais
+    total_faltas_integral = sum(faltas_por_componente.values())
+    
+    if nivel_ensino == 'fundamental_anos_iniciais':
+        if is_escola_integral:
+            # ESCOLA INTEGRAL:
+            # Fórmula: ((Faltas Regular × 4) + Faltas Integral) / CH Total × 100 = % FALTAS
+            # CH Total = carga_regular (800) + carga_integral (600) = 1400
+            horas_faltadas = (faltas_regular * 4) + total_faltas_integral
+            percentual_faltas = (horas_faltadas / total_carga_horaria) * 100 if total_carga_horaria > 0 else 0
+            frequencia_anual = 100 - percentual_faltas
+        else:
+            # ESCOLA REGULAR:
+            # Fórmula: (Faltas × 4 / CH Total) × 100 = % FALTAS
+            # CH Total = 800
+            horas_faltadas = faltas_regular * 4
+            percentual_faltas = (horas_faltadas / total_carga_horaria) * 100 if total_carga_horaria > 0 else 0
+            frequencia_anual = 100 - percentual_faltas
+    else:
+        # Outros níveis - frequência padrão
+        freq_total = 0
+        freq_count = 0
+        for course in courses:
+            course_id = course.get('id')
+            att = attendance_data.get(course_id, {})
+            if att.get('frequency_percentage') is not None:
+                freq_total += att.get('frequency_percentage', 100)
+                freq_count += 1
+        frequencia_anual = freq_total / freq_count if freq_count > 0 else 100.0
+    
+    # Garantir que frequência não seja negativa
+    frequencia_anual = max(0, min(100, frequencia_anual))
     
     # Linha 1: Escola, Nome do Aluno
     info_style = ParagraphStyle('InfoStyle', fontSize=7, leading=9)
