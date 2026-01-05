@@ -564,23 +564,15 @@ def generate_boletim_pdf(
         if carga_horaria:
             total_carga_horaria += carga_horaria
         
-        # Obter notas de cada período
-        n1 = course_grades.get('P1', {}).get('grade', '')
-        n2 = course_grades.get('P2', {}).get('grade', '')
-        n3 = course_grades.get('P3', {}).get('grade', '')
-        n4 = course_grades.get('P4', {}).get('grade', '')
+        # Obter notas diretamente do registro (formato: b1, b2, b3, b4)
+        n1 = course_grades.get('b1', '')
+        n2 = course_grades.get('b2', '')
+        n3 = course_grades.get('b3', '')
+        n4 = course_grades.get('b4', '')
         
-        # Obter faltas de cada período para calcular total
-        f1 = course_grades.get('P1', {}).get('absences', 0) or 0
-        f2 = course_grades.get('P2', {}).get('absences', 0) or 0
-        f3 = course_grades.get('P3', {}).get('absences', 0) or 0
-        f4 = course_grades.get('P4', {}).get('absences', 0) or 0
-        
-        # Calcular total de faltas
+        # Obter faltas - não temos faltas por período no formato atual
+        # TODO: Integrar com sistema de frequência quando disponível
         total_faltas = 0
-        for f in [f1, f2, f3, f4]:
-            if isinstance(f, (int, float)):
-                total_faltas += int(f)
         
         total_geral_faltas += total_faltas
         
