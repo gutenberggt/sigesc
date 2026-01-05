@@ -543,6 +543,9 @@ def generate_boletim_pdf(
     total_geral_faltas = 0
     total_carga_horaria = 0
     
+    # Verificar se é escola integral
+    is_escola_integral = school.get('atendimento_integral', False) if school else False
+    
     # Ordenar componentes curriculares por nível de ensino
     courses = ordenar_componentes_por_nivel(courses, nivel_ensino)
     
