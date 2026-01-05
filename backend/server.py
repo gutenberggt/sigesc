@@ -5493,17 +5493,13 @@ async def get_livro_promocao_pdf(
                         "totalPoints": None, "finalAverage": None
                     }
                 
-                period = grade.get("period", "")
-                grade_value = grade.get("grade")
-                
-                # Mapear períodos
-                period_map = {
-                    "P1": "b1", "P2": "b2", "P3": "b3", "P4": "b4",
-                    "REC1": "rec1", "REC2": "rec2"
-                }
-                
-                if period in period_map:
-                    grades_by_component[course_id][period_map[period]] = grade_value
+                # As notas já vêm com os campos b1, b2, b3, b4, rec_s1, rec_s2
+                grades_by_component[course_id]["b1"] = grade.get("b1")
+                grades_by_component[course_id]["b2"] = grade.get("b2")
+                grades_by_component[course_id]["b3"] = grade.get("b3")
+                grades_by_component[course_id]["b4"] = grade.get("b4")
+                grades_by_component[course_id]["rec1"] = grade.get("rec_s1")
+                grades_by_component[course_id]["rec2"] = grade.get("rec_s2")
             
             # Calcular total e média para cada componente
             for course_id, comp_grades in grades_by_component.items():
