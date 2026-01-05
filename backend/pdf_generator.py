@@ -1559,7 +1559,7 @@ def generate_ficha_individual_pdf(
                 fmt_grade_conceitual(b4),
                 conceito_final,
                 fmt_int(total_faltas),
-                f"{freq_componente:.2f}".replace('.', ',')
+                freq_componente_str
             ]
         else:
             # OUTROS NÍVEIS: Processo ponderado completo
