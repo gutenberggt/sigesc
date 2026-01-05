@@ -383,7 +383,7 @@ export const AlocacaoModal = ({
               </p>
             </div>
             <p className="text-sm text-yellow-700 ml-7">
-              Para fazer alocações, primeiro adicione uma lotação na aba <strong>"Lotações"</strong> da página principal.
+              Para fazer alocações, primeiro adicione uma lotação na aba <strong>Lotações</strong> da página principal.
             </p>
           </div>
         )}
