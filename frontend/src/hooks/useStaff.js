@@ -540,9 +540,10 @@ export const useStaff = () => {
     setExistingLotacoes([]);
     
     if (staffId) {
-      await loadExistingLotacoes(staffId);
+      // Carregar lotações do ano selecionado
+      await loadExistingLotacoes(staffId, lotacaoForm.academic_year);
     }
-  }, [staffList, loadExistingLotacoes]);
+  }, [staffList, loadExistingLotacoes, lotacaoForm.academic_year]);
   
   // Função para mudar o ano letivo e recarregar as lotações
   const handleLotacaoYearChange = useCallback(async (year) => {
