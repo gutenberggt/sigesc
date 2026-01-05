@@ -635,6 +635,8 @@ export const useStaff = () => {
   
   const handleNewAlocacao = useCallback(async (staff = null) => {
     const staffId = staff?.id || '';
+    
+    // Limpar estados primeiro
     setAlocacaoForm({
       staff_id: staffId,
       school_id: '',
@@ -651,10 +653,15 @@ export const useStaff = () => {
     setExistingAlocacoes([]);
     setCargaHorariaExistente(0);
     
+    // Mostrar o modal imediatamente, indicando loading
+    setShowAlocacaoModal(true);
+    
+    // Depois carregar os dados do professor selecionado
     if (staffId) {
       const professor = staffList.find(s => s.id === staffId);
       setProfessorCargaHoraria(professor?.carga_horaria_semanal || 0);
       
+      // Carregar dados em paralelo
       await Promise.all([
         loadProfessorSchools(staffId),
         loadExistingAlocacoes(staffId)
@@ -662,8 +669,6 @@ export const useStaff = () => {
     } else {
       setProfessorCargaHoraria(0);
     }
-    
-    setShowAlocacaoModal(true);
   }, [academicYear, staffList, loadProfessorSchools, loadExistingAlocacoes]);
   
   const handleProfessorChange = useCallback(async (staffId) => {
