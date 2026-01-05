@@ -5233,8 +5233,7 @@ async def get_ficha_individual(
     courses = filtered_courses
     
     # Buscar dados de frequência do aluno
-    # A estrutura de attendance é: {class_id, date, records: [{student_id, status}]}
-    attendance_data = {}
+    # A estrutura de attendance é: {class_id, date, attendance_type, period, course_id, records: [{student_id, status}]}
     
     # Buscar todos os registros de frequência da turma do aluno
     class_id = student.get('class_id')
@@ -5243,41 +5242,56 @@ async def get_ficha_individual(
         {"_id": 0}
     ).to_list(500)
     
-    # Calcular frequência do aluno
-    total_dias_registrados = 0
-    total_presencas = 0
-    total_faltas = 0
+    # Separar faltas por tipo: Regular (diário) e Escola Integral (por componente)
+    faltas_regular = 0  # Faltas do período regular (frequência diária)
+    faltas_por_componente = {}  # Faltas por componente (escola integral)
     
     for att_record in attendance_records:
+        period = att_record.get('period', 'regular')
+        course_id = att_record.get('course_id')
+        attendance_type = att_record.get('attendance_type', 'daily')
+        
         student_records = att_record.get('records', [])
         for sr in student_records:
             if sr.get('student_id') == student_id:
-                total_dias_registrados += 1
                 status = sr.get('status', '')
-                if status == 'P':  # Presente
-                    total_presencas += 1
-                elif status == 'F':  # Falta
-                    total_faltas += 1
-                # J = Justificada (conta como presença para frequência)
-                elif status == 'J':
-                    total_presencas += 1
+                if status == 'F':  # Falta
+                    if attendance_type == 'daily' and period == 'regular':
+                        # Frequência diária regular - soma nas faltas gerais
+                        faltas_regular += 1
+                    elif course_id:
+                        # Frequência por componente (escola integral)
+                        if course_id not in faltas_por_componente:
+                            faltas_por_componente[course_id] = 0
+                        faltas_por_componente[course_id] += 1
     
-    # Calcular porcentagem de frequência
-    if total_dias_registrados > 0:
-        freq_geral = (total_presencas / total_dias_registrados) * 100
-    else:
-        freq_geral = 100.0  # Se não há registros, assume 100%
+    logger.info(f"Ficha Individual: Faltas Regular={faltas_regular}, Faltas por componente={faltas_por_componente}")
     
-    logger.info(f"Ficha Individual: Frequência calculada - dias={total_dias_registrados}, presenças={total_presencas}, faltas={total_faltas}, freq={freq_geral:.2f}%")
+    # Preparar attendance_data com informações detalhadas
+    # Adicionar metadados sobre faltas para o PDF generator usar
+    attendance_data = {
+        '_meta': {
+            'faltas_regular': faltas_regular,
+            'faltas_por_componente': faltas_por_componente,
+            'is_escola_integral': escola_integral
+        }
+    }
     
-    # Preencher attendance_data para cada componente
-    # Para anos iniciais com frequência diária, todos os componentes têm a mesma frequência
+    # Preencher dados por componente
     for course in courses:
         course_id = course.get('id')
+        atendimento = course.get('atendimento_programa')
+        
+        if atendimento == 'atendimento_integral':
+            # Componente de escola integral - faltas individuais
+            faltas = faltas_por_componente.get(course_id, 0)
+        else:
+            # Componente regular - todas as faltas vão para Língua Portuguesa
+            faltas = 0  # Será preenchido apenas para Língua Portuguesa no PDF
+        
         attendance_data[course_id] = {
-            'total_classes': total_dias_registrados,
-            'absences': total_faltas,
-            'frequency_percentage': freq_geral
+            'absences': faltas,
+            'atendimento_programa': atendimento
         }
     
     # Buscar dados da mantenedora
