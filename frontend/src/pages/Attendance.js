@@ -201,12 +201,18 @@ export const Attendance = () => {
   const loadClasses = async () => {
     try {
       if (isProfessor) {
-        // Para professor, filtra suas turmas pela escola selecionada
-        const filtered = professorTurmas.filter(t => t.school_id === selectedSchool);
+        // Para professor, filtra suas turmas pela escola selecionada e ano letivo
+        const filtered = professorTurmas.filter(t => 
+          t.school_id === selectedSchool && 
+          t.academic_year === academicYear
+        );
         setClasses(filtered);
       } else {
         const data = await classesAPI.getAll();
-        const filtered = data.filter(c => c.school_id === selectedSchool);
+        const filtered = data.filter(c => 
+          c.school_id === selectedSchool && 
+          c.academic_year === academicYear
+        );
         setClasses(filtered);
       }
     } catch (error) {
