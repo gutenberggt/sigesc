@@ -1,170 +1,162 @@
 <analysis>**original_problem_statement:**
-O usuário iniciou a sessão para refinar e expandir as funcionalidades do sistema de gestão escolar. Os requisitos abordados nesta sessão foram:
-- (Bug Visual) Corrigir a coloração do calendário anual, remover uma legenda duplicada e unificar a cor dos dias letivos.
-- (Nova Feature) Implementar um sistema de bloqueio de edição de notas e frequência com base em uma data limite configurável por bimestre.
-- (Análise) Realizar uma análise completa da robustez, escalabilidade e experiência do usuário do sistema, com base em um framework detalhado fornecido pelo usuário.
-- (Nova Feature) Implementar um sistema de trilha de auditoria para registrar ações críticas dos usuários (logins, alterações de notas, etc.).
-- (Melhoria) Adicionar mais pontos de auditoria, otimizar o banco de dados com índices, implementar rate limiting e criar um script para limpar dados órfãos.
-- (Bug Crítico) Corrigir um bug onde componentes curriculares com cargas horárias diferentes por série foram consolidados incorretamente, resultando em dados errados nos relatórios.
-- (Bug Recorrente) Investigar um problema persistente na funcionalidade Gerenciar Lotações.
+O usuário iniciou a sessão com vários objetivos para o sistema de gestão escolar SIGESC:
+- (Bugs) Corrigir um bug visual no calendário, um bug crítico de carga horária incorreta em relatórios, um bug recorrente na gestão de lotações e um bug na página de logs de auditoria que não carregava dados.
+- (Features) Implementar um sistema de bloqueio de edição por data limite, um sistema de trilha de auditoria, uma nova página Livro de Promoção baseada em PDFs, e uma nova lógica para calcular o Resultado Final do aluno nos documentos.
+- (Melhorias e Refatoração) Adicionar otimizações de segurança (rate limiting, índices), refatorar o monolítico  em múltiplos routers, e refatorar componentes de frontend complexos.
+- (Ajustes de UI) Traduzir a severidade nos logs de auditoria, remover o email da descrição do log, e padronizar a exibição dos nomes das turmas em todo o sistema (removendo série e turno).
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-O sistema de gestão escolar SIGESC possui uma base funcional com frontend em React e backend em FastAPI/MongoDB. As funcionalidades mais recentes são:
-- **Trilha de Auditoria:** Foi implementado um sistema de ponta a ponta. No backend, há o  e a coleção  no MongoDB, registrando ações críticas como login, gestão de alunos, notas, frequência, matrículas e lotações. No frontend, foi criada a página , acessível pelo dashboard do administrador, para visualização desses logs.
-- **Bloqueio por Data Limite:** Foi implementada a lógica no backend () para impedir edições de notas e frequência após as datas limite. O frontend agora exibe indicadores visuais nas páginas  e  para informar os usuários sobre o status (aberto/bloqueado) de cada bimestre.
-- **Melhorias de Sistema:**
-    - O backend agora cria índices no MongoDB na inicialização para otimizar consultas.
-    - O endpoint de login () possui rate limiting para maior segurança.
-    - Foi adicionado um endpoint de manutenção () para identificar dados órfãos.
-- **Correção Visual do Calendário:** A visualização anual do calendário foi ajustada para ter a coloração correta dos dias e uma única legenda, conforme solicitado.
-- **Análise Estrutural:** Um relatório de análise () foi criado, avaliando a arquitetura do sistema e definindo os próximos passos para refatoração e melhorias.
+O sistema de gestão escolar (SIGESC) é uma aplicação full-stack (React + FastAPI + MongoDB).
+- **Backend:** O  continua em processo de refatoração para routers modulares. Foi criado um novo endpoint () e uma função  em  para gerar o Livro de Promoção. Esta função foi significativamente aprimorada para replicar a estrutura do PDF da Ficha Individual, incluindo cabeçalho institucional, paginação e separadores visuais. As abreviações dos componentes curriculares foram padronizadas.
+- **Frontend:** A tarefa de padronização da exibição do nome da turma foi concluída e testada. A página  foi aprimorada com a correção do bug do campo sexo, padronização das abreviações e ordem dos componentes e adição de separadores de blocos. Foi implementado um sistema de navegação por atalho para a página inicial em múltiplas páginas. A maior mudança foi no gerenciamento de Pessoal (, , e os modais  e ), que foi reestruturado para ser centrado no ano letivo, onde o usuário seleciona um ano para visualizar e gerenciar as lotações e alocações daquele período.
 
 **Last working item**:
--   **Last item agent was working:** O agente estava corrigindo um erro conceitual grave. Ele havia consolidado componentes curriculares duplicados, sem perceber que a duplicação era intencional para representar **cargas horárias diferentes para a mesma matéria em séries distintas**. A última ação foi começar a corrigir isso, adicionando o campo  ao modelo de dados  em  para armazenar essa informação de forma estruturada.
+-   **Last item agent was working:** O agente estava tentando resolver um bug crítico e recorrente onde uma lotação de professor, embora salva, não é reconhecida ao tentar fazer uma alocação. O usuário reportou a mensagem Atenção: Este professor não possui lotação em nenhuma escola. Vá na aba Lotações para adicionar antes de fazer alocações, mesmo após ter feito a lotação. O agente realizou uma grande refatoração para tornar o fluxo centrado no ano letivo, mas o problema fundamental persiste.
 -   **Status:** IN PROGRESS
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** both. O agente precisará:
-    1. Criar um script para reverter a consolidação de dados anterior, separando os componentes e populando o novo campo .
-    2. Modificar  para usar o novo campo e exibir a carga horária correta baseada na série do aluno.
-    3. Testar a geração do Boletim () para validar se a carga horária está correta.
-    4. Atualizar a UI de gestão de componentes curriculares para permitir a edição da carga horária por série.
--   **User Testing Done:** N
+-   **Which testing method agent to use?** Frontend testing agent. O problema envolve um fluxo de usuário complexo com gerenciamento de estado entre múltiplos componentes (página principal , o hook  e os modais  e ). É necessário um teste de ponta a ponta para simular a criação de uma lotação em um ano e a verificação de seu reconhecimento no modal de alocação para o mesmo ano.
+-   **User Testing Done:** Y (O usuário confirmou que o bug persiste após a última alteração do agente).
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Carga horária incorreta nos relatórios devido à consolidação errada de componentes.**
--   **Issue 2: (P1) Bug na funcionalidade Gerenciar Lotações pode persistir.**
--   **Issue 3: (P2) Página de logs de auditoria não carrega dados no frontend.**
+-   **Issue 1: (P0) Lotação não é reconhecida na Alocação.**
+-   **Issue 2: (P1) Dados de carga horária incorretos no banco de dados.**
 
 Issues Detail:
--   **Issue 1: Carga horária incorreta nos relatórios devido à consolidação errada de componentes.**
-    -   **Attempted fixes:** O agente consolidou componentes com o mesmo nome (ex: Ciências), o que apagou as diferentes cargas horárias por série. Ele iniciou a correção adicionando um campo  ao modelo em .
+-   **Issue 1: Lotação não é reconhecida na Alocação.**
+    -   **Attempted fixes:** O agente inicialmente modificou o  para usar  na busca de lotações, em vez do ano corrente hardcoded. Em seguida, fez uma grande refatoração na UI e na lógica para que o usuário primeiro selecione o ano nos modais de Lotação e Alocação, e só então os dados relevantes sejam carregados. Nenhuma dessas abordagens resolveu o problema central. A lotação é criada no banco, mas o estado no frontend (provavelmente em  ou  no hook ) não é atualizado ou lido corretamente pelo modal de Alocação.
     -   **Next debug checklist:**
-        1.  Finalizar a modificação do modelo  em  para suportar .
-        2.  Criar um endpoint ou script de migração para reverter a consolidação, recriando os componentes ou atualizando o existente com os dados de carga horária por série (ex: ).
-        3.  Ajustar a função  em  para obter a carga horária do dicionário  com base na série do aluno.
-        4.  Atualizar a interface de administração de componentes para permitir a gestão deste novo formato de dados.
-    -   **Why fix this issue and what will be achieved with the fix?** Garante a precisão dos documentos acadêmicos oficiais, que é uma funcionalidade essencial e crítica do sistema.
+        1.  No hook , rastrear o estado das variáveis  e  com  em cada etapa: ao selecionar um professor, ao mudar o ano do filtro, ao abrir o modal de lotação e após salvá-la.
+        2.  Verificar a função  no . Ela recarrega as escolas () e alocações (), mas **não** recarrega as lotações (). Isso pode ser uma fonte do problema.
+        3.  Analisar a chamada  dentro do  de  no . A dependência dessa chamada pode não estar sendo acionada após uma nova lotação ser criada.
+        4.  Simplificar o fluxo: garantir que, após salvar uma nova lotação com sucesso no , a função  seja chamada explicitamente para atualizar a lista de escolas em que o professor está lotado.
+    -   **Why fix this issue and what will be achieved with the fix?** É um fluxo de trabalho administrativo fundamental. Sem isso, não é possível alocar professores para turmas, bloqueando uma funcionalidade central do sistema.
     -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** both
-    -   **Blocked on other issue:** N/A
--   **Issue 2: Bug na funcionalidade Gerenciar Lotações pode persistir.**
-    -   **Attempted fixes:** O agente testou a criação de lotações via API e confirmou que o backend funciona. No entanto, o erro pode ser específico da interface ou de um caso de uso não testado.
-    -   **Next debug checklist:**
-        1.  Solicitar ao usuário os passos exatos para reproduzir o erro na interface.
-        2.  Adicionar logs no  da função  em  para capturar erros que possam estar sendo silenciados.
-        3.  Revisar o fluxo de dados do formulário de lotação até a chamada da API.
-    -   **Why fix this issue and what will be achieved with the fix?** A gestão de alocação de pessoal é uma função administrativa central e precisa ser 100% confiável.
-    -   **Status:** USER VERIFICATION PENDING
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** frontend
     -   **Blocked on other issue:** N/A
--   **Issue 3: Página de logs de auditoria não carrega dados no frontend.**
-    -   **Attempted fixes:** Nenhuma correção foi tentada. O agente identificou o problema, mas priorizou outras tarefas. A API funciona, mas o frontend não.
+-   **Issue 2: Dados de carga horária incorretos no banco de dados.**
+    -   **Attempted fixes:** O código para *ler* a carga horária foi corrigido em uma sessão anterior, mas os dados antigos no banco de dados continuam errados. Nenhum script de migração foi criado.
     -   **Next debug checklist:**
-        1.  Analisar  e a chamada de API que busca os logs.
-        2.  Verificar se o token de autenticação está sendo enviado corretamente nos headers da requisição.
-        3.  Investigar o erro  relacionado ao contexto , que pode estar sendo chamado desnecessariamente nesta página. Remover a dependência ou garantir que o contexto esteja disponível.
-    -   **Why fix this issue and what will be achieved with the fix?** Torna a funcionalidade de auditoria, recém-implementada, utilizável para os administradores.
+        1.  Criar um script em .
+        2.  O script deve iterar na coleção , identificar os registros com dados consolidados incorretamente e preencher o campo  com os valores corretos para cada série.
+        3.  Executar o script em ambiente de teste para validar a correção.
+    -   **Why fix this issue and what will be achieved with the fix?** Garante a precisão dos documentos acadêmicos gerados pelo sistema.
     -   **Status:** NOT STARTED
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** backend
     -   **Blocked on other issue:** N/A
 
 **In progress Task List**:
-Nenhum.
+-   **Task 1: Refatoração do **
+    -   **Where to resume:** Continuar movendo endpoints restantes (como , , , ) do  para seus próprios arquivos em .
+    -   **What will be achieved with this?** Aumentará a manutenibilidade e a organização do código backend.
+    -   **Status:** IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?** backend
+    -   **Blocked on something:** N/A
+-   **Task 2: Refatoração do Frontend ()**
+    -   **Where to resume:** O componente  precisa ser refatorado para usar os hooks , , etc., que já foram criados.
+    -   **What will be achieved with this?** Simplificará um componente de frontend muito grande e complexo, separando a lógica de negócio da apresentação.
+    -   **Status:** IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on something:** N/A
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   (P1) **Refatorar :** Continuar a modularização movendo os endpoints de alunos, turmas, matrículas, etc., para seus próprios arquivos em , seguindo o padrão iniciado com .
+    -   (P1) Continuar Refatoração do Backend: Mover os endpoints restantes (, , , ) do .
 -   **Future Tasks:**
-    -   (P2) **Refatorar :** Quebrar as funções monolíticas de geração de PDF em sub-funções menores e mais testáveis.
-    -   (P3) **Refatorar Componentes Frontend:** Simplificar componentes grandes como , , e o hook .
-    -   (P4) **Deletar Código Obsoleto:** Remover o arquivo  após confirmar que ele não é mais utilizado.
+    -   (P2) **Refatorar :** Quebrar as funções monolíticas de geração de PDF em sub-funções menores.
+    -   (P3) **Refatorar outros Componentes Frontend:** Simplificar  (parte da Task 2) e .
+    -   (P4) **Deletar Código Obsoleto:** Remover o arquivo  após confirmar que não é utilizado.
 
 **Completed work in this session**
--   **Feature: Trilha de Auditoria:** Implementado sistema completo com backend (), API e frontend () para rastrear ações críticas.
--   **Feature: Bloqueio de Edição por Bimestre:** Finalizada a funcionalidade com lógica de backend e indicadores visuais no frontend para bloquear edições após datas limite.
--   **Bug Fix: Coloração do Calendário:** Corrigida a estilização do calendário anual e removida a legenda duplicada.
--   **Improvement: Manutenção e Segurança:** Adicionado endpoint para limpeza de dados órfãos, criação automática de índices no MongoDB e rate limiting no endpoint de login.
--   **Analysis: Análise do Sistema:** Criado o documento  que serve como guia para a evolução da arquitetura do sistema.
+- **Padronização da Exibição de Turmas:** Concluído. A exibição do nome da turma foi padronizada em todo o sistema (, , etc.), mostrando apenas o nome, e a mudança foi verificada por testes.
+- **Implementação do PDF do Livro de Promoção:** Concluído. O endpoint backend e a função de geração de PDF foram criados e testados com sucesso.
+- **Reestruturação do PDF do Livro de Promoção:** Concluído. O layout do PDF foi completamente refeito para corresponder ao padrão da Ficha Individual, com cabeçalho, paginação e nova estrutura de tabela.
+- **Correção de Bugs no Livro de Promoção:** Corrigido o bug onde o sexo dos alunos era exibido incorretamente na página () e a ordem dos componentes curriculares foi ajustada para corresponder à do boletim.
+- **Melhorias de UI:** Adicionados separadores de blocos no Livro de Promoção (PDF e web) e atalhos de navegação Início em várias páginas (, , ).
+- **Refatoração do Gerenciamento de Pessoal:** Implementado um filtro por ano letivo e reestruturados os modais de lotação e alocação para um fluxo centrado no ano.
+
+**Earlier issues found/mentioned but not fixed**
+- O problema da Lotação não reconhecida é o principal problema não resolvido e está detalhado na seção All Pending/In progress Issue list.
+
+**Known issue recurrence from previous fork**
+-   **Issue recurrence in previous fork:** Bug na funcionalidade Gerenciar Lotações.
+-   **Recurrence count:** 3+ (mencionado no handoff anterior, neste, e persistiu durante toda a sessão atual).
+-   **Status:** IN PROGRESS
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Audit Trail:** Implementação de um sistema para registrar eventos críticos (criação, alteração, exclusão) e acessos, centralizado no .
--   **Backend Refactoring:** Iniciada a modularização do  em routers de API menores e mais focados, começando pela autenticação.
--   **Complex Data Modeling:** Adaptação do modelo  para suportar regras de negócio complexas, como cargas horárias que variam por série ().
--   **Database Optimization:** Adição de um passo na inicialização do servidor para garantir a criação de índices essenciais no MongoDB.
--   **Security Hardening:** Implementação de rate limiting no endpoint de login para mitigar ataques de força bruta.
+-   **State Management com React Hooks:** Uso intensivo de , , e  para gerenciar estado complexo e interdependente em , incluindo formulários, dados de API, e estado da UI (modais, filtros).
+-   **Component-Driven Development:** A funcionalidade de gerenciamento de pessoal foi dividida em vários componentes reutilizáveis (, , etc.), embora a lógica centralizada no hook  seja muito complexa.
+-   **Debugging de Fluxo de Dados:** A sessão atual envolveu uma depuração profunda do fluxo de dados do frontend, da seleção do usuário (filtros) às chamadas de API e à renderização da UI, revelando problemas de estado obsoleto.
+-   **PDF Geração com ReportLab:** Refatoração avançada de uma função de geração de PDF para incluir cabeçalhos, paginação (), estilos condicionais e tabelas complexas com  para bordas customizadas.
 
 **key DB schema**
--   **courses**:
-    -    (NOVO) - Ex: 
--   **audit_logs**:
-    -   
-    -    (e.g., 'login', 'update_grade')
-    -    (e.g., 'student', 'course')
-    -   
-    -    (e.g., old vs new values)
-    -   
+-   **lotacoes:** 
+-   **teacher_assignments (alocações):** 
+-   **courses:**  (ainda requer migração de dados)
 
 **All files of reference**
--   **/app/backend/models.py**: Contém o modelo  que está sendo modificado.
--   **/app/backend/pdf_generator.py**: Utiliza a carga horária e precisa ser atualizado para ler do novo campo.
--   **/app/backend/server.py**: Onde a lógica de busca de componentes para o boletim reside.
--   **/app/frontend/src/hooks/useStaff.js**: Local da lógica de frontend para a funcionalidade Gerenciar Lotações.
--   **/app/frontend/src/pages/AuditLogs.jsx**: Página do frontend que não está carregando os dados de auditoria.
--   **/app/memory/ANALISE_SISTEMA.md**: Relatório de análise que guia as tarefas de refatoração.
+*   **/app/frontend/src/hooks/useStaff.js**: Arquivo central do bug. Contém toda a lógica de estado para gerenciamento de lotações e alocações.
+*   **/app/frontend/src/pages/Staff.js**: Página principal que consome o  e renderiza os componentes de tabela e modais.
+*   **/app/frontend/src/components/staff/LotacaoModal.js**: Modal para criar/gerenciar lotações.
+*   **/app/frontend/src/components/staff/AlocacaoModal.js**: Modal para criar/gerenciar alocações, onde o bug se manifesta.
+*   **/app/backend/server.py**: Onde o endpoint  foi analisado.
+*   **/app/backend/pdf_generator.py**: Modificado para melhorar o PDF do Livro de Promoção e padronizar abreviações.
+*   **/app/frontend/src/pages/Promotion.jsx**: Modificado para corrigir bugs de exibição e ordenação.
 
 **Critical Info for New Agent**
--   A prioridade máxima é corrigir o bug da **carga horária** (). A solução anterior do agente estava errada e precisa ser refeita com cuidado, garantindo que os dados históricos não sejam perdidos e que os relatórios reflitam a carga horária correta para cada série.
--   A página de **Logs de Auditoria** () está quebrada no frontend. Apesar de ser uma nova feature, ela é inútil no estado atual e precisa de depuração.
--   A refatoração do  foi solicitada pelo usuário e iniciada pelo agente. É uma tarefa importante para a manutenibilidade do projeto a longo prazo.
+-   **FOCO TOTAL NO BUG DA LOTAÇÃO:** A prioridade absoluta é resolver o bug que impede a alocação de professores. Ignore as outras tarefas até que isso seja corrigido.
+-   **O Problema é no Frontend State:** A investigação mostrou que os dados são salvos corretamente no backend. O bug reside na forma como o estado do frontend (no ) é gerenciado e propagado. A lotação recém-criada não está sendo refletida no estado que o modal de alocação consome.
+-   **Rastreie o fluxo de :** A função  é responsável por buscar as escolas onde um professor está lotado. Suspeita-se que ela não está sendo chamada no momento certo (ex: após salvar uma nova lotação) ou que suas dependências no  não estão sendo acionadas corretamente.
+-   **Ano Letivo é a Chave:** A refatoração tornou o  (o ano selecionado na UI principal) a fonte da verdade para quais dados exibir. Certifique-se de que este valor está sendo usado de forma consistente em todas as chamadas de carregamento de dados (, ).
 
 **documents and test reports created in this job**
--   
--   
+-   /app/test_reports/iteration_1.json
+-   /app/test_reports/iteration_2.json
+-   /app/test_reports/iteration_3.json
+-   /app/memory/PRD.md (atualizado múltiplas vezes)
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User (Feedback):** Apontou legenda duplicada no calendário e pediu para unificar a cor dos dias letivos. (RESOLVED)
-2.  **User (Approval):** Concordou com o plano de ação do agente. (HANDLED)
-3.  **User (Request):** Pediu ao agente para prosseguir. (HANDLED)
-4.  **User (Request):** Solicitou uma análise detalhada da arquitetura do sistema. (COMPLETED)
-5.  **User (Approval):** Aprovou o plano de implementação do sistema de auditoria. (COMPLETED)
-6.  **User (Feedback):** Solicitou ajustes na feature de auditoria e aprovação para continuar com a refatoração. (COMPLETED)
-7.  **User (Approval):** Aprovou a ordem de prioridades do agente. (HANDLED)
-8.  **User (Correction):** Explicou que a consolidação de componentes estava errada, pois as cargas horárias são diferentes por série. (IN PROGRESS)
-9.  **User (Request):** Pediu ao agente para definir a ordem de execução. (HANDLED)
-10. **User (Approval):** Concordou com a ordem de execução proposta pelo agente. (HANDLED)
+1.  **User (Request):** Pediu para adicionar um seletor de ano nos modais de Lotação/Alocação. (COMPLETED)
+2.  **User (Bug Report):** Reportou que a lotação não estava sendo reconhecida na alocação, mesmo após as mudanças. (IN PROGRESS)
+3.  **User (Suggestion):** Sugeriu que o fluxo deveria começar pela seleção do ano letivo para carregar os dados correspondentes. (IN PROGRESS, a implementação do agente não resolveu o bug)
+4.  **User (Bug Report):** Reportou que a mensagem de erro Este professor não possui lotação menciona uma aba Lotações que não existe dentro do modal de alocação. (HANDLED - agente entendeu o problema)
+5.  **User (Bug Report):** Informou que a ordem dos componentes no Livro de Promoção ainda estava errada. (COMPLETED)
+6.  **User (Input):** Forneceu a ordem correta dos componentes curriculares. (COMPLETED)
+7.  **User (Feedback):** Confirmou que a ordem dos componentes no boletim estava correta e a do Livro de Promoção, não. (HANDLED)
+8.  **User (Bug Report + Image):** Enviou uma imagem mostrando que a ordem dos componentes ainda estava incorreta, levando o agente a refatorar a função de ordenação. (COMPLETED)
+9.  **User (Request):** Pediu para identificar o ano da Lotação e Alocação nas tabelas. (COMPLETED)
+10. **User (Bug Report):** Reportou que, após as últimas alterações, as alocações salvas não apareciam, e o sistema não estava conversando entre si. (IN PROGRESS)
 
 **Project Health Check:**
 -   **Broken:**
-    -   O cálculo e exibição da carga horária nos relatórios está incorreto.
-    -   A página de Logs de Auditoria no frontend não funciona.
-    -   A funcionalidade Gerenciar Lotações é instável e reportada como recorrentemente problemática.
+    -   A funcionalidade Gerenciar Alocações de Professor está completamente bloqueada devido ao bug de reconhecimento de lotação. Esta é uma função crítica e o sistema está em um estado instável por causa dela.
+    -   Os dados históricos de  no banco de dados ainda estão incorretos, o que afeta a precisão de relatórios antigos.
 -   **Mocked:** None.
 
 **3rd Party Integrations**
--   **reportlab**: Geração de PDFs.
--   **PyPDF2**: Mesclagem de PDFs.
--   **openpyxl**: Manipulação de arquivos Excel.
--   **slowapi**: Implementação de rate limiting no FastAPI.
--   **Servidor FTP ()**: Armazenamento de arquivos.
+-   reportlab
+-   PyPDF2
+-   openpyxl
+-   slowapi
+-   Servidor FTP ()
 
 **Testing status**
--   **Testing agent used after significant changes:** NO
+-   **Testing agent used after significant changes:** YES (para padronização de UI e PDF), mas NO (para a refatoração do fluxo de lotação/alocação, onde o bug principal reside).
 -   **Troubleshoot agent used after agent stuck in loop:** NO
--   **Test files created:** Nenhum arquivo de teste permanente foi criado.
--   **Known regressions:** A funcionalidade de carga horária nos relatórios regrediu devido a uma correção mal implementada.
+-   **Test files created:** None
+-   **Known regressions:** A funcionalidade de alocação de professores está quebrada.
 
 **Credentials to test flow:**
 -   **Admin:**  / 
 -   **Coordenador/Professor:**  / 
 
 **What agent forgot to execute**
--   O agente anterior não criou testes automatizados para as novas funcionalidades, como a verificação da data limite de edição ou a lógica de auditoria, dependendo apenas de testes manuais via  e screenshots.
--   O agente não resolveu o problema de carregamento na página de frontend dos Logs de Auditoria () antes de finalizar a tarefa.</analysis>
+- O agente não conseguiu resolver a causa raiz do bug de lotação não reconhecida, apesar de múltiplas tentativas e uma grande refatoração.
+- O agente não iniciou a criação do script de migração para corrigir os dados de  no banco de dados.
+- As tarefas de refatoração do  e  permanecem em segundo plano e não foram continuadas.</analysis>
