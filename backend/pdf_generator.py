@@ -1478,7 +1478,7 @@ def generate_ficha_individual_pdf(
     
     def fmt_int(v):
         """Formata número inteiro"""
-        if v is None:
+        if v is None or v == '-':
             return '-'
         if isinstance(v, (int, float)):
             return str(int(v))
