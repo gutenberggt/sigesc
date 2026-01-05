@@ -5232,57 +5232,53 @@ async def get_ficha_individual(
     
     courses = filtered_courses
     
-    # Buscar dados de frequência por componente
+    # Buscar dados de frequência do aluno
+    # A estrutura de attendance é: {class_id, date, records: [{student_id, status}]}
     attendance_data = {}
+    
+    # Buscar todos os registros de frequência da turma do aluno
+    class_id = student.get('class_id')
+    attendance_records = await db.attendance.find(
+        {"class_id": class_id, "academic_year": academic_year},
+        {"_id": 0}
+    ).to_list(500)
+    
+    # Calcular frequência do aluno
+    total_dias_registrados = 0
+    total_presencas = 0
+    total_faltas = 0
+    
+    for att_record in attendance_records:
+        student_records = att_record.get('records', [])
+        for sr in student_records:
+            if sr.get('student_id') == student_id:
+                total_dias_registrados += 1
+                status = sr.get('status', '')
+                if status == 'P':  # Presente
+                    total_presencas += 1
+                elif status == 'F':  # Falta
+                    total_faltas += 1
+                # J = Justificada (conta como presença para frequência)
+                elif status == 'J':
+                    total_presencas += 1
+    
+    # Calcular porcentagem de frequência
+    if total_dias_registrados > 0:
+        freq_geral = (total_presencas / total_dias_registrados) * 100
+    else:
+        freq_geral = 100.0  # Se não há registros, assume 100%
+    
+    logger.info(f"Ficha Individual: Frequência calculada - dias={total_dias_registrados}, presenças={total_presencas}, faltas={total_faltas}, freq={freq_geral:.2f}%")
+    
+    # Preencher attendance_data para cada componente
+    # Para anos iniciais com frequência diária, todos os componentes têm a mesma frequência
     for course in courses:
         course_id = course.get('id')
-        
-        # Buscar frequência do componente (se houver registros específicos)
-        att_records = await db.attendance.find(
-            {
-                "student_id": student_id,
-                "course_id": course_id,
-                "academic_year": academic_year
-            },
-            {"_id": 0}
-        ).to_list(100)
-        
-        if att_records:
-            total_classes = sum(a.get('total_classes', 0) for a in att_records)
-            total_absences = sum(a.get('absences', 0) for a in att_records)
-            if total_classes > 0:
-                freq_pct = ((total_classes - total_absences) / total_classes) * 100
-            else:
-                freq_pct = 100.0
-            attendance_data[course_id] = {
-                'total_classes': total_classes,
-                'absences': total_absences,
-                'frequency_percentage': freq_pct
-            }
-        else:
-            # Buscar frequência geral do aluno
-            general_att = await db.attendance.find(
-                {"student_id": student_id, "academic_year": academic_year},
-                {"_id": 0}
-            ).to_list(100)
-            
-            if general_att:
-                total_classes = sum(a.get('total_classes', 0) for a in general_att)
-                total_absences = sum(a.get('absences', 0) for a in general_att)
-                if total_classes > 0:
-                    freq_pct = ((total_classes - total_absences) / total_classes) * 100
-                else:
-                    freq_pct = 100.0
-            else:
-                total_classes = 0
-                total_absences = 0
-                freq_pct = 100.0
-            
-            attendance_data[course_id] = {
-                'total_classes': total_classes,
-                'absences': total_absences,
-                'frequency_percentage': freq_pct
-            }
+        attendance_data[course_id] = {
+            'total_classes': total_dias_registrados,
+            'absences': total_faltas,
+            'frequency_percentage': freq_geral
+        }
     
     # Buscar dados da mantenedora
     mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
