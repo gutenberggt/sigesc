@@ -277,8 +277,18 @@ export const useStaff = () => {
   
   const filteredClasses = useMemo(() => {
     if (!alocacaoForm.school_id) return [];
-    return classes.filter(c => c.school_id === alocacaoForm.school_id);
-  }, [classes, alocacaoForm.school_id]);
+    return classes.filter(c => {
+      // Filtrar por escola
+      if (c.school_id !== alocacaoForm.school_id) return false;
+      
+      // Filtrar por ano letivo selecionado
+      if (alocacaoForm.academic_year && c.academic_year) {
+        if (c.academic_year !== alocacaoForm.academic_year) return false;
+      }
+      
+      return true;
+    });
+  }, [classes, alocacaoForm.school_id, alocacaoForm.academic_year]);
   
   // Filtrar componentes curriculares com base nas turmas selecionadas e escola
   const filteredCourses = useMemo(() => {
