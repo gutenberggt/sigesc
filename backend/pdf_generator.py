@@ -1274,7 +1274,7 @@ def generate_ficha_individual_pdf(
     # Para Anos Iniciais:
     # - Escola Regular: 800 horas (200 dias × 4h)
     # - Escola Integral: 1400 horas (800h base + 600h componentes extras)
-    if education_level == 'fundamental_anos_iniciais':
+    if nivel_ensino == 'fundamental_anos_iniciais':
         if is_escola_integral:
             # Escola Integral: soma todos os componentes (base + extras)
             # Base: 800h (Língua Portuguesa, Arte, Ed. Física, Matemática, Ciências, História, Geografia, Ens. Religioso, Ed. Ambiental)
