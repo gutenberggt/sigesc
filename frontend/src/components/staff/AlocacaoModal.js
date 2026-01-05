@@ -180,6 +180,20 @@ export const AlocacaoModal = ({
               </select>
             </div>
             
+            {/* Ano Letivo */}
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ano Letivo *</label>
+              <select
+                value={alocacaoForm.academic_year || new Date().getFullYear()}
+                onChange={(e) => onAcademicYearChange(parseInt(e.target.value))}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                {[2030, 2029, 2028, 2027, 2026, 2025, 2024, 2023, 2022].map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+            
             {/* Turmas */}
             <div className="mb-3">
               <label className="block text-sm font-medium text-gray-700 mb-1">Série/Ano (Turma)</label>
