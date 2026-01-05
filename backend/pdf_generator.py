@@ -149,15 +149,18 @@ ORDEM_COMPONENTES_EDUCACAO_INFANTIL = [
 
 # ===== ORDEM DOS COMPONENTES - ENSINO FUNDAMENTAL ANOS INICIAIS =====
 ORDEM_COMPONENTES_ANOS_INICIAIS = [
+    # === COMPONENTES REGULARES (BASE) ===
     "Língua Portuguesa",
     "Arte",
-    "Arte e Cultura",
     "Educação Física",
     "Matemática",
     "Ciências",
     "História",
     "Geografia",
     "Ensino Religioso",
+    "Educação Ambiental e Clima",
+    # === COMPONENTES ESCOLA INTEGRAL ===
+    "Arte e Cultura",
     "Recreação, Esporte e Lazer",
     "Linguagem Recreativa com Práticas de Esporte e Lazer",
     "Tecnologia e Informática",
@@ -165,7 +168,6 @@ ORDEM_COMPONENTES_ANOS_INICIAIS = [
     "Acomp. Ped. de Língua Portuguesa",
     "Acompanhamento Pedagógico de Matemática",
     "Acomp. Ped. de Matemática",
-    "Educação Ambiental e Clima",
 ]
 
 # ===== ORDEM DOS COMPONENTES - ENSINO FUNDAMENTAL ANOS FINAIS =====
