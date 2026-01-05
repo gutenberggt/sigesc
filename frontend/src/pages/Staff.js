@@ -216,12 +216,14 @@ const Staff = () => {
                 canDelete={staff.canDelete}
                 onEncerrar={staff.handleEncerrarLotacao}
                 onDelete={staff.handleDelete}
+                filterYear={staff.filterYear}
               />
             ) : (
               <AlocacoesTable
                 alocacoes={staff.alocacoes}
                 canDelete={staff.canDelete}
                 onDelete={staff.handleDelete}
+                filterYear={staff.filterYear}
               />
             )}
           </div>
