@@ -298,6 +298,7 @@ const Staff = () => {
           canDelete={staff.canDelete}
           onProfessorChange={staff.handleProfessorChange}
           onSchoolChange={staff.handleAlocacaoSchoolChange}
+          onAcademicYearChange={staff.handleAlocacaoAcademicYearChange}
           onAddTurma={staff.addTurmaAlocacao}
           onRemoveTurma={staff.removeTurmaAlocacao}
           onAddComponente={staff.addComponenteAlocacao}
