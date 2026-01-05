@@ -1295,13 +1295,6 @@ def generate_ficha_individual_pdf(
         course_id = grade.get('course_id')
         grades_by_course[course_id] = grade
     
-    # DEBUG: Log para verificar mapeamento
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"PDF Boletim DEBUG: grades_by_course tem {len(grades_by_course)} entradas")
-    for cid, g in grades_by_course.items():
-        logger.info(f"PDF Boletim DEBUG: course_id={cid}, b1={g.get('b1')}, b2={g.get('b2')}")
-    
     # Verificar se é Educação Infantil (avaliação conceitual)
     is_educacao_infantil = nivel_ensino == 'educacao_infantil'
     
