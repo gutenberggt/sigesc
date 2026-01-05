@@ -164,7 +164,7 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 ### P1 (Alto)
 - [x] ~~Implementar bloqueio por data limite de edição~~ (CONCLUÍDO 2026-01-04)
 - [x] ~~Verificar bug de "Gerenciar Lotações" não salvando~~ (RESOLVIDO 2026-01-06)
-- [ ] Dados de carga horária incorretos no banco (script de migração pendente)
+- [x] ~~Dados de carga horária incorretos no banco~~ (MIGRAÇÃO CONCLUÍDA 2026-01-06)
 
 ### P2 (Médio)
 - [ ] Limpar dados órfãos de lotações
