@@ -33,9 +33,14 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
   - Problema: Notas lançadas apareciam na Ficha Individual mas não no Boletim e Livro de Promoção
   - Causa raiz 1 (Boletim): O parâmetro `academic_year` era string mas o banco salva como int
   - Causa raiz 2 (Livro de Promoção): O código esperava campos `period/grade` mas as notas usam `b1/b2/b3/b4`
+  - Causa raiz 3 (Boletim): O cálculo da média usava média aritmética simples ao invés da fórmula ponderada
   - Correções no `server.py`:
     - Endpoint `/documents/boletim`: Convertido `academic_year` para int antes da query (linha 4729)
     - Endpoint `/documents/promotion`: Corrigido mapeamento de notas para usar `b1/b2/b3/b4` (linhas 5484-5499)
+  - Correções no `pdf_generator.py`:
+    - Boletim: Corrigido mapeamento de notas para usar `grade.get('b1')` diretamente
+    - Boletim: Implementada fórmula ponderada `(B1×2 + B2×3 + B3×2 + B4×3) / 10`
+    - Boletim: Implementada lógica de recuperação - substitui menor nota do semestre (se notas iguais, substitui a de maior peso)
 
 ### 2026-01-05 (Sessão 3)
 - **Padronização da Exibição de Turmas** (P0 - CONCLUÍDO):
