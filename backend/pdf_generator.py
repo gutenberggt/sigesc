@@ -565,10 +565,54 @@ def generate_boletim_pdf(
             total_carga_horaria += carga_horaria
         
         # Obter notas diretamente do registro (formato: b1, b2, b3, b4)
-        n1 = course_grades.get('b1', '')
-        n2 = course_grades.get('b2', '')
-        n3 = course_grades.get('b3', '')
-        n4 = course_grades.get('b4', '')
+        n1 = course_grades.get('b1')
+        n2 = course_grades.get('b2')
+        n3 = course_grades.get('b3')
+        n4 = course_grades.get('b4')
+        
+        # Obter recuperações
+        rec_s1 = course_grades.get('rec_s1')
+        rec_s2 = course_grades.get('rec_s2')
+        
+        # Aplicar lógica de recuperação do 1º semestre
+        # A recuperação substitui a menor nota entre B1 e B2
+        # Se as notas forem iguais, substitui a de maior peso (B2 tem peso 3)
+        if rec_s1 is not None and isinstance(rec_s1, (int, float)):
+            b1_val = n1 if isinstance(n1, (int, float)) else 0
+            b2_val = n2 if isinstance(n2, (int, float)) else 0
+            
+            if b1_val < b2_val:
+                # B1 é menor, substitui B1 se recuperação for maior
+                if rec_s1 > b1_val:
+                    n1 = rec_s1
+            elif b2_val < b1_val:
+                # B2 é menor, substitui B2 se recuperação for maior
+                if rec_s1 > b2_val:
+                    n2 = rec_s1
+            else:
+                # Notas iguais, substitui a de maior peso (B2 tem peso 3)
+                if rec_s1 > b2_val:
+                    n2 = rec_s1
+        
+        # Aplicar lógica de recuperação do 2º semestre
+        # A recuperação substitui a menor nota entre B3 e B4
+        # Se as notas forem iguais, substitui a de maior peso (B4 tem peso 3)
+        if rec_s2 is not None and isinstance(rec_s2, (int, float)):
+            b3_val = n3 if isinstance(n3, (int, float)) else 0
+            b4_val = n4 if isinstance(n4, (int, float)) else 0
+            
+            if b3_val < b4_val:
+                # B3 é menor, substitui B3 se recuperação for maior
+                if rec_s2 > b3_val:
+                    n3 = rec_s2
+            elif b4_val < b3_val:
+                # B4 é menor, substitui B4 se recuperação for maior
+                if rec_s2 > b4_val:
+                    n4 = rec_s2
+            else:
+                # Notas iguais, substitui a de maior peso (B4 tem peso 3)
+                if rec_s2 > b4_val:
+                    n4 = rec_s2
         
         # Obter faltas - não temos faltas por período no formato atual
         # TODO: Integrar com sistema de frequência quando disponível
@@ -577,25 +621,24 @@ def generate_boletim_pdf(
         total_geral_faltas += total_faltas
         
         # Calcular média/conceito
-        valid_grades = []
-        for g in [n1, n2, n3, n4]:
-            if isinstance(g, (int, float)):
-                valid_grades.append(g)
-        
         if is_educacao_infantil:
             # Educação Infantil: média é o MAIOR conceito alcançado
+            valid_grades = [g for g in [n1, n2, n3, n4] if isinstance(g, (int, float))]
             if valid_grades:
                 media = max(valid_grades)
                 media_str = valor_para_conceito(media)
             else:
                 media_str = '-'
         else:
-            # Outros níveis: média aritmética
-            if valid_grades:
-                media = sum(valid_grades) / len(valid_grades)
-                media_str = f"{media:.1f}"
-            else:
-                media_str = ''
+            # FÓRMULA PONDERADA: (B1×2 + B2×3 + B3×2 + B4×3) / 10
+            b1_val = n1 if isinstance(n1, (int, float)) else 0
+            b2_val = n2 if isinstance(n2, (int, float)) else 0
+            b3_val = n3 if isinstance(n3, (int, float)) else 0
+            b4_val = n4 if isinstance(n4, (int, float)) else 0
+            
+            total_pontos = (b1_val * 2) + (b2_val * 3) + (b3_val * 2) + (b4_val * 3)
+            media = total_pontos / 10
+            media_str = f"{media:.1f}"
         
         # Formatar valores
         def fmt_grade(v):
