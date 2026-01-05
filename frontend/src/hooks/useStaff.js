@@ -177,7 +177,7 @@ export const useStaff = () => {
     }
   }, [academicYear, showAlertMessage]);
   
-  const loadExistingLotacoes = useCallback(async (staffId) => {
+  const loadExistingLotacoes = useCallback(async (staffId, yearFilter = null) => {
     if (!staffId) {
       setExistingLotacoes([]);
       return;
@@ -185,11 +185,18 @@ export const useStaff = () => {
     
     setLoadingExisting(true);
     try {
-      const data = await schoolAssignmentAPI.list({ 
+      // Se não tiver filtro de ano, buscar todas as lotações ativas
+      const params = { 
         staff_id: staffId, 
-        academic_year: academicYear,
         status: 'ativo'
-      });
+      };
+      
+      // Aplicar filtro de ano apenas se especificado
+      if (yearFilter) {
+        params.academic_year = parseInt(yearFilter);
+      }
+      
+      const data = await schoolAssignmentAPI.list(params);
       setExistingLotacoes(data);
     } catch (error) {
       console.error('Erro ao carregar lotações existentes:', error);
@@ -197,7 +204,7 @@ export const useStaff = () => {
     } finally {
       setLoadingExisting(false);
     }
-  }, [academicYear]);
+  }, []);
   
   const loadExistingAlocacoes = useCallback(async (staffId) => {
     if (!staffId) {
