@@ -172,9 +172,9 @@ ORDEM_COMPONENTES_ANOS_INICIAIS = [
 
 # ===== ORDEM DOS COMPONENTES - ENSINO FUNDAMENTAL ANOS FINAIS =====
 ORDEM_COMPONENTES_ANOS_FINAIS = [
+    # === COMPONENTES REGULARES (BASE) ===
     "Língua Portuguesa",
     "Arte",
-    "Arte e Cultura",
     "Educação Física",
     "Língua Inglesa",
     "Língua inglesa",  # Variação do nome (minúscula)
@@ -186,6 +186,9 @@ ORDEM_COMPONENTES_ANOS_FINAIS = [
     "Ensino Religioso",
     "Estudos Amazônicos",
     "Literatura e Redação",
+    "Educação Ambiental e Clima",
+    # === COMPONENTES ESCOLA INTEGRAL ===
+    "Arte e Cultura",
     "Recreação, Esporte e Lazer",
     "Linguagem Recreativa com Práticas de Esporte e Lazer",
     "Tecnologia e Informática",
@@ -193,7 +196,6 @@ ORDEM_COMPONENTES_ANOS_FINAIS = [
     "Acomp. Ped. de Língua Portuguesa",
     "Acompanhamento Pedagógico de Matemática",
     "Acomp. Ped. de Matemática",
-    "Educação Ambiental e Clima",
 ]
 
 # ===== SISTEMA DE AVALIAÇÃO CONCEITUAL - EDUCAÇÃO INFANTIL =====
