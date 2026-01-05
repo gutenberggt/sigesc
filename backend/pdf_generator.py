@@ -1514,9 +1514,24 @@ def generate_ficha_individual_pdf(
         b3 = grade.get('b3')
         b4 = grade.get('b4')
         
-        # Faltas
+        # Faltas - Lógica especial para Anos Iniciais
         att = attendance_data.get(course_id, {})
-        total_faltas = att.get('absences', 0)
+        atendimento_programa = course.get('atendimento_programa')
+        
+        if nivel_ensino == 'fundamental_anos_iniciais':
+            # Anos Iniciais: lógica especial de exibição de faltas
+            if atendimento_programa == 'atendimento_integral':
+                # Componente de Escola Integral: mostrar faltas individuais
+                total_faltas = meta_freq.get('faltas_por_componente', {}).get(course_id, 0)
+            elif course_name == 'Língua Portuguesa':
+                # Língua Portuguesa: mostrar TODAS as faltas regulares
+                total_faltas = meta_freq.get('faltas_regular', 0)
+            else:
+                # Outros componentes regulares: não mostrar faltas (só em LP)
+                total_faltas = '-'
+        else:
+            # Outros níveis: usar faltas do attendance_data
+            total_faltas = att.get('absences', 0)
         
         # Frequência do componente
         freq_componente = att.get('frequency_percentage', 100.0)
