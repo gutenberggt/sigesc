@@ -1295,7 +1295,8 @@ def generate_ficha_individual_pdf(
     for course in courses:
         course_id = course.get('id')
         att = attendance_data.get(course_id, {})
-        if att.get('frequency_percentage'):
+        # Importante: verificar se existe frequência (mesmo que seja 0)
+        if att.get('frequency_percentage') is not None:
             freq_total += att.get('frequency_percentage', 100)
             freq_count += 1
     frequencia_anual = freq_total / freq_count if freq_count > 0 else 100.0
