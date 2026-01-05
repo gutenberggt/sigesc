@@ -178,14 +178,28 @@ export const LotacaoModal = ({
               </div>
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
-              <input
-                type="date"
-                value={lotacaoForm.data_inicio}
-                onChange={(e) => setLotacaoForm({ ...lotacaoForm, data_inicio: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
-              />
+            <div className="grid grid-cols-2 gap-4 mb-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ano Letivo *</label>
+                <select
+                  value={lotacaoForm.academic_year || new Date().getFullYear()}
+                  onChange={(e) => setLotacaoForm({ ...lotacaoForm, academic_year: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  {[2030, 2029, 2028, 2027, 2026, 2025, 2024, 2023, 2022].map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+                <input
+                  type="date"
+                  value={lotacaoForm.data_inicio}
+                  onChange={(e) => setLotacaoForm({ ...lotacaoForm, data_inicio: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
             </div>
           </div>
         )}
