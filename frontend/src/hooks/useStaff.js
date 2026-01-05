@@ -25,6 +25,7 @@ export const useStaff = () => {
   const [filterCargo, setFilterCargo] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterSchool, setFilterSchool] = useState('');
+  const [filterYear, setFilterYear] = useState(academicYear.toString());
   const [activeTab, setActiveTab] = useState('servidores');
   
   // Modais
