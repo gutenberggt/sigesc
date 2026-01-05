@@ -4723,9 +4723,11 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
         school = {"name": "Escola Municipal", "cnpj": "N/A", "phone": "N/A", "city": "Município"}
     
     # Buscar notas do aluno
+    # IMPORTANTE: academic_year deve ser int para corresponder ao banco de dados
+    academic_year_int = int(academic_year) if academic_year else 2025
     grades = await db.grades.find({
         "student_id": student_id,
-        "academic_year": academic_year
+        "academic_year": academic_year_int
     }, {"_id": 0}).to_list(100)
     
     # ===== FILTRAR COMPONENTES CURRICULARES =====
