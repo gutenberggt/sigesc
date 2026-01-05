@@ -685,7 +685,7 @@ export const useStaff = () => {
     setCargaHorariaTotal(0);
   }, []);
   
-  const handleAlocacaoAcademicYearChange = useCallback((year) => {
+  const handleAlocacaoAcademicYearChange = useCallback(async (year) => {
     setAlocacaoForm(prev => ({ ...prev, academic_year: year }));
     // Limpar turmas e componentes pois podem mudar com o ano
     setAlocacaoTurmas([]);
@@ -693,7 +693,12 @@ export const useStaff = () => {
     setSelectedAlocacaoClass('');
     setSelectedAlocacaoComponent('');
     setCargaHorariaTotal(0);
-  }, []);
+    
+    // Recarregar alocações existentes do professor para o novo ano
+    if (alocacaoForm.staff_id) {
+      await loadExistingAlocacoes(alocacaoForm.staff_id, year);
+    }
+  }, [alocacaoForm.staff_id, loadExistingAlocacoes]);
   
   const addTurmaAlocacao = useCallback(() => {
     if (!selectedAlocacaoClass) return;
