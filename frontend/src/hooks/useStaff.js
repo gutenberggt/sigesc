@@ -675,12 +675,12 @@ export const useStaff = () => {
       
       await Promise.all([
         loadProfessorSchools(staffId),
-        loadExistingAlocacoes(staffId)
+        loadExistingAlocacoes(staffId, alocacaoForm.academic_year)
       ]);
     } else {
       setProfessorCargaHoraria(0);
     }
-  }, [staffList, loadProfessorSchools, loadExistingAlocacoes]);
+  }, [staffList, loadProfessorSchools, loadExistingAlocacoes, alocacaoForm.academic_year]);
   
   const handleAlocacaoSchoolChange = useCallback((schoolId) => {
     setAlocacaoForm(prev => ({ ...prev, school_id: schoolId }));
