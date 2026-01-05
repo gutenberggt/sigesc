@@ -1,4 +1,4 @@
-import { GraduationCap, BookOpen, Plus, Minus, Trash2, AlertTriangle } from 'lucide-react';
+import { GraduationCap, BookOpen, Plus, Minus, Trash2, AlertTriangle, Calendar } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 
@@ -37,6 +37,14 @@ export const AlocacaoModal = ({
   onSave,
   saving
 }) => {
+  const currentYear = new Date().getFullYear();
+  const selectedYear = alocacaoForm.academic_year || currentYear;
+  
+  // Filtrar alocações pelo ano selecionado
+  const alocacoesDoAno = groupedAlocacoes.filter(
+    turma => turma.academic_year === selectedYear || !turma.academic_year
+  );
+  
   return (
     <Modal
       isOpen={isOpen}
@@ -45,6 +53,26 @@ export const AlocacaoModal = ({
       size="lg"
     >
       <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+        {/* Seletor de Ano Letivo - PRIMEIRO */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <label className="block text-sm font-medium text-blue-800 mb-1 flex items-center gap-2">
+            <Calendar size={16} />
+            Ano Letivo *
+          </label>
+          <select
+            value={selectedYear}
+            onChange={(e) => onAcademicYearChange(parseInt(e.target.value))}
+            className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+          >
+            {[2030, 2029, 2028, 2027, 2026, 2025, 2024, 2023, 2022].map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+          <p className="text-xs text-blue-600 mt-1">
+            Selecione o ano para visualizar e adicionar alocações
+          </p>
+        </div>
+        
         {/* Professor */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Professor *</label>
@@ -62,22 +90,22 @@ export const AlocacaoModal = ({
           </select>
         </div>
         
-        {/* Alocações existentes */}
+        {/* Alocações existentes do ano selecionado */}
         {alocacaoForm.staff_id && (
           <div className="p-4 bg-gray-50 rounded-lg border">
             <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
               <GraduationCap size={16} />
-              Alocações Atuais
+              Alocações em {selectedYear}
               {loadingExisting && <span className="text-gray-400 text-sm">(carregando...)</span>}
             </h4>
             
-            {!loadingExisting && groupedAlocacoes.length === 0 ? (
+            {!loadingExisting && alocacoesDoAno.length === 0 ? (
               <p className="text-sm text-gray-500 italic">
-                O professor não está alocado em nenhuma turma.
+                O professor não está alocado em nenhuma turma em {selectedYear}.
               </p>
             ) : (
               <div className="space-y-3">
-                {groupedAlocacoes.map(turma => {
+                {alocacoesDoAno.map(turma => {
                   const totalSemanal = turma.componentes.reduce((sum, comp) => {
                     const courseData = courses.find(c => c.id === comp.course_id);
                     const workload = courseData?.workload || 0;
