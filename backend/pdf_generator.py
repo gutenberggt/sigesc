@@ -1632,7 +1632,7 @@ def generate_ficha_individual_pdf(
                 fmt_grade(total_pontos),
                 fmt_grade(media_anual),
                 fmt_int(total_faltas),
-                f"{freq_componente:.2f}".replace('.', ',')
+                freq_componente_str
             ]
         table_data.append(row)
     
