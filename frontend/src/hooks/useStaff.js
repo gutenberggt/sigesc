@@ -828,6 +828,8 @@ export const useStaff = () => {
     setFilterStatus,
     filterSchool,
     setFilterSchool,
+    filterYear,
+    setFilterYear,
     activeTab,
     setActiveTab,
     
