@@ -22,6 +22,13 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
     - Mensagem de aviso melhorada com instruções claras
   - **Testado**: 100% aprovado - fluxo Lotação → Alocação funciona corretamente
 
+- **Migração de Carga Horária por Série** (P1 - CONCLUÍDO):
+  - Problema: Componentes curriculares com diferentes cargas horárias por nível de ensino não tinham o campo `carga_horaria_por_serie` preenchido
+  - Solução: Script de migração `/app/backend/scripts/migration_fix_course_workload.py`
+  - Resultado: 26 componentes atualizados com mapeamento correto de carga horária
+  - Execução: `python scripts/migration_fix_course_workload.py [--dry-run] [--verbose]`
+  - Script idempotente: pode ser executado múltiplas vezes sem efeitos colaterais
+
 ### 2026-01-05 (Sessão 3)
 - **Padronização da Exibição de Turmas** (P0 - CONCLUÍDO):
   - Solicitação: "Em todo o sistema, exibir apenas o nome da turma, sem série/etapa e turno"
