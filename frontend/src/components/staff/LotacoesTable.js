@@ -1,4 +1,4 @@
-import { Trash2, XCircle } from 'lucide-react';
+import { Trash2, XCircle, Calendar } from 'lucide-react';
 import { FUNCOES, TURNOS } from './constants';
 
 export const LotacoesTable = ({
@@ -6,8 +6,14 @@ export const LotacoesTable = ({
   canEdit,
   canDelete,
   onEncerrar,
-  onDelete
+  onDelete,
+  filterYear
 }) => {
+  // Filtrar por ano se especificado
+  const filteredLotacoes = filterYear 
+    ? lotacoes.filter(lot => lot.academic_year?.toString() === filterYear)
+    : lotacoes;
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">
@@ -15,6 +21,12 @@ export const LotacoesTable = ({
           <tr>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Servidor</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Escola</th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <div className="flex items-center gap-1">
+                <Calendar size={14} />
+                Ano
+              </div>
+            </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Função</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turno</th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Período</th>
@@ -23,19 +35,24 @@ export const LotacoesTable = ({
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {lotacoes.length === 0 ? (
+          {filteredLotacoes.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                Nenhuma lotação encontrada
+              <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                Nenhuma lotação encontrada {filterYear ? `para o ano ${filterYear}` : ''}
               </td>
             </tr>
-          ) : lotacoes.map(lot => (
+          ) : filteredLotacoes.map(lot => (
             <tr key={lot.id} className="hover:bg-gray-50">
               <td className="px-4 py-3">
-                <div className="font-medium text-gray-900">{lot.staff?.nome || lot.staff?.user_name || '-'}</div>
-                <div className="text-sm text-gray-500">{lot.staff?.matricula}</div>
+                <div className="font-medium text-gray-900">{lot.staff?.nome || lot.staff?.user_name || lot.staff_name || '-'}</div>
+                <div className="text-sm text-gray-500">{lot.staff?.matricula || lot.staff_matricula}</div>
               </td>
               <td className="px-4 py-3 text-gray-700">{lot.school_name}</td>
+              <td className="px-4 py-3">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {lot.academic_year || '-'}
+                </span>
+              </td>
               <td className="px-4 py-3 text-gray-700">{FUNCOES[lot.funcao] || lot.funcao}</td>
               <td className="px-4 py-3 text-gray-700">{TURNOS[lot.turno] || lot.turno || '-'}</td>
               <td className="px-4 py-3 text-sm text-gray-700">
