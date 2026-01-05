@@ -163,7 +163,8 @@ export const useStaff = () => {
     
     setLoadingProfessorSchools(true);
     try {
-      const schoolsData = await schoolAssignmentAPI.getStaffSchools(staffId, academicYear);
+      // Buscar escolas de TODAS as lotações ativas (sem filtro de ano)
+      const schoolsData = await schoolAssignmentAPI.getStaffSchools(staffId);
       setProfessorSchools(schoolsData);
       
       if (schoolsData.length === 0) {
@@ -175,7 +176,7 @@ export const useStaff = () => {
     } finally {
       setLoadingProfessorSchools(false);
     }
-  }, [academicYear, showAlertMessage]);
+  }, [showAlertMessage]);
   
   const loadExistingLotacoes = useCallback(async (staffId, yearFilter = null) => {
     if (!staffId) {
