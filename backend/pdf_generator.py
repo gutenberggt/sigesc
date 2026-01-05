@@ -504,13 +504,11 @@ def generate_boletim_pdf(
     
     # ===== TABELA DE NOTAS E FALTAS =====
     # Criar mapa de notas por disciplina
+    # As notas vêm no formato: {course_id, b1, b2, b3, b4, ...}
     grades_by_course = {}
     for grade in grades:
         course_id = grade.get('course_id')
-        if course_id not in grades_by_course:
-            grades_by_course[course_id] = {}
-        period = grade.get('period', 'P1')
-        grades_by_course[course_id][period] = grade
+        grades_by_course[course_id] = grade
     
     # Verificar se é Educação Infantil (avaliação conceitual)
     is_educacao_infantil = nivel_ensino == 'educacao_infantil'
