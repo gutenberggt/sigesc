@@ -126,6 +126,17 @@ export const Attendance = () => {
     loadSettings();
   }, [isProfessor, academicYear]);
   
+  // Recarrega turmas quando ano letivo muda
+  useEffect(() => {
+    if (selectedSchool) {
+      loadClasses();
+    }
+    // Limpar seleções dependentes quando o ano muda
+    setSelectedClass('');
+    setSelectedCourse('');
+    setAttendanceData(null);
+  }, [academicYear]);
+  
   // Carrega turmas quando escola muda
   useEffect(() => {
     if (selectedSchool) {
