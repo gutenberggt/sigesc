@@ -81,22 +81,23 @@ export const LotacaoModal = ({
           <div className="p-4 bg-gray-50 rounded-lg border">
             <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
               <Building2 size={16} />
-              Lotações Atuais
+              Lotações em {selectedYear}
               {loadingExisting && <span className="text-gray-400 text-sm">(carregando...)</span>}
             </h4>
             
-            {!loadingExisting && existingLotacoes.length === 0 ? (
+            {!loadingExisting && lotacoesDoAno.length === 0 ? (
               <p className="text-sm text-gray-500 italic">
-                O servidor não está lotado em nenhuma escola.
+                O servidor não possui lotação em {selectedYear}.
               </p>
             ) : (
               <div className="space-y-2">
-                {existingLotacoes.map(lot => (
+                {lotacoesDoAno.map(lot => (
                   <div key={lot.id} className="flex items-center gap-2 bg-white px-3 py-2 rounded border">
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">{lot.school_name}</p>
                       <p className="text-xs text-gray-500">
                         {FUNCOES[lot.funcao]} • {TURNOS[lot.turno] || 'Sem turno'} • Desde {lot.data_inicio}
+                        {lot.academic_year && <span className="ml-1 text-blue-600">• Ano: {lot.academic_year}</span>}
                       </p>
                     </div>
                     {canDelete && (
@@ -121,7 +122,7 @@ export const LotacaoModal = ({
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
             <h4 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
               <Plus size={16} />
-              Adicionar Nova Lotação
+              Adicionar Nova Lotação para {selectedYear}
             </h4>
             
             {/* Escola com botão + */}
