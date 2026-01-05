@@ -187,7 +187,7 @@ export const AlocacaoModal = ({
           <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
             <h4 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
               <Plus size={16} />
-              Adicionar Nova Alocação
+              Adicionar Nova Alocação para {selectedYear}
             </h4>
             
             {/* Escola */}
@@ -205,20 +205,6 @@ export const AlocacaoModal = ({
                 <option value="">Selecione a escola</option>
                 {professorSchools.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Ano Letivo */}
-            <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ano Letivo *</label>
-              <select
-                value={alocacaoForm.academic_year || new Date().getFullYear()}
-                onChange={(e) => onAcademicYearChange(parseInt(e.target.value))}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                {[2030, 2029, 2028, 2027, 2026, 2025, 2024, 2023, 2022].map(year => (
-                  <option key={year} value={year}>{year}</option>
                 ))}
               </select>
             </div>
