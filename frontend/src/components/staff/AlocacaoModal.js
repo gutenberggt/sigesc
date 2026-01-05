@@ -374,12 +374,27 @@ export const AlocacaoModal = ({
         )}
         
         {/* Mensagem se professor não tem lotação */}
-        {alocacaoForm.staff_id && professorSchools.length === 0 && !loadingProfessorSchools && (
+        {alocacaoForm.staff_id && !loadingProfessorSchools && professorSchools.length === 0 && (
           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-yellow-800">
-              <strong>Atenção:</strong> Este professor não possui lotação em nenhuma escola. 
-              Vá na aba Lotações para adicionar antes de fazer alocações.
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="text-yellow-600" size={20} />
+              <p className="text-sm font-medium text-yellow-800">
+                Atenção: Este professor não possui lotação ativa em nenhuma escola.
+              </p>
+            </div>
+            <p className="text-sm text-yellow-700 ml-7">
+              Para fazer alocações, primeiro adicione uma lotação na aba <strong>"Lotações"</strong> da página principal.
             </p>
+          </div>
+        )}
+        
+        {/* Loading escolas do professor */}
+        {alocacaoForm.staff_id && loadingProfessorSchools && (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              <p className="text-sm text-blue-800">Carregando lotações do professor...</p>
+            </div>
           </div>
         )}
         
