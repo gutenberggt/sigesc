@@ -605,6 +605,15 @@ export const useStaff = () => {
       }
       
       showAlertMessage('success', `${lotacaoEscolas.length} lotação(ões) criada(s)!`);
+      
+      // CORREÇÃO: Atualizar a lista de escolas do professor após criar lotação
+      // Isso garante que o modal de alocação reconheça as novas lotações
+      const staffIdSaved = lotacaoForm.staff_id;
+      await loadProfessorSchools(staffIdSaved);
+      
+      // Também recarregar as lotações existentes para manter o estado sincronizado
+      await loadExistingLotacoes(staffIdSaved);
+      
       setShowLotacaoModal(false);
       loadLotacoes();
     } catch (error) {
@@ -613,7 +622,7 @@ export const useStaff = () => {
     } finally {
       setSaving(false);
     }
-  }, [lotacaoForm, lotacaoEscolas, loadLotacoes, showAlertMessage]);
+  }, [lotacaoForm, lotacaoEscolas, loadLotacoes, loadProfessorSchools, loadExistingLotacoes, showAlertMessage]);
   
   // Alocação handlers
   const calcularCargaHoraria = useCallback((componentes) => {
