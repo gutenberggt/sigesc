@@ -266,6 +266,7 @@ const Staff = () => {
           loadingExisting={staff.loadingExisting}
           canDelete={staff.canDelete}
           onStaffChange={staff.handleLotacaoStaffChange}
+          onYearChange={staff.handleLotacaoYearChange}
           onAddEscola={staff.addEscolaLotacao}
           onRemoveEscola={staff.removeEscolaLotacao}
           onDeleteExisting={staff.handleDeleteExistingLotacao}
