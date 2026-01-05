@@ -939,6 +939,7 @@ export const useStaff = () => {
     handleNewAlocacao,
     handleProfessorChange,
     handleAlocacaoSchoolChange,
+    handleAlocacaoAcademicYearChange,
     handleSaveAlocacao,
     handleDelete,
     confirmDelete,
