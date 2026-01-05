@@ -10,6 +10,18 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 
 ## Implementações Recentes
 
+### 2026-01-06 (Sessão 4)
+- **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
+  - Problema: Após criar uma lotação para um professor, o modal de alocação não reconhecia a nova lotação, mostrando mensagem "Este professor não possui lotação em nenhuma escola"
+  - Causa raiz: O estado `professorSchools` no hook `useStaff.js` não era atualizado após salvar uma nova lotação
+  - Correção no `useStaff.js`:
+    - Adicionada chamada `loadProfessorSchools(staffIdSaved)` após salvar lotação (linhas 609-615)
+    - Garante sincronização imediata do estado
+  - Correção no `AlocacaoModal.js`:
+    - Adicionado indicador de loading "Carregando lotações do professor..."
+    - Mensagem de aviso melhorada com instruções claras
+  - **Testado**: 100% aprovado - fluxo Lotação → Alocação funciona corretamente
+
 ### 2026-01-05 (Sessão 3)
 - **Padronização da Exibição de Turmas** (P0 - CONCLUÍDO):
   - Solicitação: "Em todo o sistema, exibir apenas o nome da turma, sem série/etapa e turno"
