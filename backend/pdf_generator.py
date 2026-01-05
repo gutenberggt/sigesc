@@ -1389,9 +1389,6 @@ def generate_ficha_individual_pdf(
         
         grade = grades_by_course.get(course_id, {})
         
-        # DEBUG: Log para cada componente
-        logger.info(f"PDF Boletim DEBUG: Componente {course_name} (ID: {course_id}), nota encontrada: {bool(grade)}, b1={grade.get('b1')}")
-        
         # Notas bimestrais
         b1 = grade.get('b1')
         b2 = grade.get('b2')
