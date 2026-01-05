@@ -1534,7 +1534,12 @@ def generate_ficha_individual_pdf(
             total_faltas = att.get('absences', 0)
         
         # Frequência do componente
-        freq_componente = att.get('frequency_percentage', 100.0)
+        # Para Anos Iniciais, a frequência é calculada globalmente (não por componente)
+        # Então mostramos a frequência anual em todos os componentes
+        if nivel_ensino == 'fundamental_anos_iniciais':
+            freq_componente = frequencia_anual
+        else:
+            freq_componente = att.get('frequency_percentage', 100.0)
         
         if is_educacao_infantil:
             # EDUCAÇÃO INFANTIL: Conceitos e maior conceito como média
