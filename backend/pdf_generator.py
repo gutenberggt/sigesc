@@ -1245,7 +1245,7 @@ def generate_ficha_individual_pdf(
         except:
             pass
     
-    # Carga horária total da turma - considerando carga_horaria_por_serie
+    # Carga horária total da turma - considerando carga_horaria_por_serie e escola integral
     def get_course_workload(course, grade_level):
         """Obtém a carga horária de um componente considerando a série do aluno"""
         carga_por_serie = course.get('carga_horaria_por_serie', {})
@@ -1253,7 +1253,26 @@ def generate_ficha_individual_pdf(
             return carga_por_serie.get(grade_level, course.get('carga_horaria', course.get('workload', 80)))
         return course.get('carga_horaria', course.get('workload', 80))
     
-    total_carga_horaria = sum(get_course_workload(c, grade_level) for c in courses) if courses else 1200
+    # Verificar se é escola integral
+    is_escola_integral = school.get('atendimento_integral', False) if school else False
+    
+    # Calcular carga horária total baseada no nível de ensino e tipo de escola
+    # Para Anos Iniciais:
+    # - Escola Regular: 800 horas (200 dias × 4h)
+    # - Escola Integral: 1400 horas (800h base + 600h componentes extras)
+    if education_level == 'fundamental_anos_iniciais':
+        if is_escola_integral:
+            # Escola Integral: soma todos os componentes (base + extras)
+            # Base: 800h (Língua Portuguesa, Arte, Ed. Física, Matemática, Ciências, História, Geografia, Ens. Religioso, Ed. Ambiental)
+            # Extras: 600h (Arte e Cultura=160, Recreação=80, Tecnologia=40, Acomp. LP=160, Acomp. Mat=160)
+            total_carga_horaria = 1400
+        else:
+            # Escola Regular: 800 horas
+            total_carga_horaria = 800
+    else:
+        # Para outros níveis, soma a carga horária dos componentes
+        total_carga_horaria = sum(get_course_workload(c, grade_level) for c in courses) if courses else 1200
+    
     dias_letivos = 200
     
     # Calcular frequência anual média
