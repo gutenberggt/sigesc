@@ -175,6 +175,19 @@ const Staff = () => {
                   </select>
                 </>
               )}
+              
+              {(staff.activeTab === 'lotacoes' || staff.activeTab === 'alocacoes') && (
+                <select
+                  value={staff.filterYear}
+                  onChange={(e) => staff.setFilterYear(e.target.value)}
+                  className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-blue-50 font-medium"
+                >
+                  <option value="">Todos os Anos</option>
+                  {[2030, 2029, 2028, 2027, 2026, 2025, 2024, 2023, 2022].map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
           
