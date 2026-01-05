@@ -954,6 +954,7 @@ export const useStaff = () => {
     handleSaveStaff,
     handleNewLotacao,
     handleLotacaoStaffChange,
+    handleLotacaoYearChange,
     handleSaveLotacao,
     handleNewAlocacao,
     handleProfessorChange,
