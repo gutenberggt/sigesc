@@ -725,6 +725,17 @@ def generate_boletim_pdf(
     elements.append(grades_table)
     elements.append(Spacer(1, 20))
     
+    # ===== AJUSTAR CARGA HORÁRIA TOTAL PARA ANOS INICIAIS =====
+    # Para Anos Iniciais, a carga horária total depende se é escola integral ou regular
+    if nivel_ensino == 'fundamental_anos_iniciais':
+        if is_escola_integral:
+            # Escola Integral: 1400 horas
+            # (800h base + 600h extras: Arte/Cultura=160, Recreação=80, Tecnologia=40, Acomp.LP=160, Acomp.Mat=160)
+            total_carga_horaria = 1400
+        else:
+            # Escola Regular: 800 horas (200 dias × 4h/dia)
+            total_carga_horaria = 800
+    
     # ===== RESULTADO FINAL =====
     # Obter status da matrícula e dados para cálculo do resultado
     enrollment_status = enrollment.get('status', 'active')
