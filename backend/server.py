@@ -4730,6 +4730,11 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
         "academic_year": academic_year_int
     }, {"_id": 0}).to_list(100)
     
+    # DEBUG: Log das notas encontradas
+    logger.info(f"Boletim DEBUG: Encontradas {len(grades)} notas para student_id={student_id}, academic_year={academic_year_int}")
+    for g in grades:
+        logger.info(f"Boletim DEBUG: Nota - course_id={g.get('course_id')}, b1={g.get('b1')}, b2={g.get('b2')}, b3={g.get('b3')}, b4={g.get('b4')}")
+    
     # ===== FILTRAR COMPONENTES CURRICULARES =====
     # Determinar nível de ensino e série da turma
     nivel_ensino = class_info.get('nivel_ensino')
