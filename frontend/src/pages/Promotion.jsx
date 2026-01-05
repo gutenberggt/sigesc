@@ -116,27 +116,37 @@ const ordenarComponentes = (courses, gradeLevel) => {
   
   const ordemReferencia = isAnosIniciais ? ORDEM_COMPONENTES_ANOS_INICIAIS : ORDEM_COMPONENTES_ANOS_FINAIS;
   
+  // Função para encontrar o índice do componente na ordem de referência
+  const getOrdem = (nome) => {
+    const nomeLower = (nome || '').toLowerCase().trim();
+    
+    // Primeiro, tentar match exato
+    for (let i = 0; i < ordemReferencia.length; i++) {
+      if (ordemReferencia[i].toLowerCase() === nomeLower) {
+        return i;
+      }
+    }
+    
+    // Segundo, tentar match por início do nome (para variações)
+    for (let i = 0; i < ordemReferencia.length; i++) {
+      const refLower = ordemReferencia[i].toLowerCase();
+      if (nomeLower.startsWith(refLower) || refLower.startsWith(nomeLower)) {
+        // Evitar que "Acomp. Ped. de Língua Portuguesa" faça match com "Língua Portuguesa"
+        if (nomeLower.includes('acomp') && !refLower.includes('acomp')) {
+          continue;
+        }
+        return i;
+      }
+    }
+    
+    // Se não encontrar, colocar no final
+    return 999;
+  };
+  
   return [...courses].sort((a, b) => {
-    const nomeA = a.name || '';
-    const nomeB = b.name || '';
-    
-    // Encontrar índice na ordem de referência
-    let idxA = ordemReferencia.findIndex(nome => 
-      nome.toLowerCase() === nomeA.toLowerCase() || 
-      nomeA.toLowerCase().includes(nome.toLowerCase()) ||
-      nome.toLowerCase().includes(nomeA.toLowerCase())
-    );
-    let idxB = ordemReferencia.findIndex(nome => 
-      nome.toLowerCase() === nomeB.toLowerCase() || 
-      nomeB.toLowerCase().includes(nome.toLowerCase()) ||
-      nome.toLowerCase().includes(nomeB.toLowerCase())
-    );
-    
-    // Se não encontrar, colocar no final em ordem alfabética
-    if (idxA === -1) idxA = 999 + nomeA.charCodeAt(0);
-    if (idxB === -1) idxB = 999 + nomeB.charCodeAt(0);
-    
-    return idxA - idxB;
+    const ordemA = getOrdem(a.name);
+    const ordemB = getOrdem(b.name);
+    return ordemA - ordemB;
   });
 };
 
