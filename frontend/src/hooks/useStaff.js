@@ -207,7 +207,7 @@ export const useStaff = () => {
     }
   }, []);
   
-  const loadExistingAlocacoes = useCallback(async (staffId) => {
+  const loadExistingAlocacoes = useCallback(async (staffId, yearFilter = null) => {
     if (!staffId) {
       setExistingAlocacoes([]);
       return;
@@ -215,11 +215,17 @@ export const useStaff = () => {
     
     setLoadingExisting(true);
     try {
-      const data = await teacherAssignmentAPI.list({ 
+      // Usar o ano passado como parâmetro ou buscar todas se não especificado
+      const params = { 
         staff_id: staffId, 
-        academic_year: academicYear,
         status: 'ativo'
-      });
+      };
+      
+      if (yearFilter) {
+        params.academic_year = yearFilter;
+      }
+      
+      const data = await teacherAssignmentAPI.list(params);
       setExistingAlocacoes(data);
       
       const cargaExistente = data.reduce((sum, aloc) => {
@@ -235,7 +241,7 @@ export const useStaff = () => {
     } finally {
       setLoadingExisting(false);
     }
-  }, [academicYear, courses]);
+  }, [courses]);
   
   // Effects
   useEffect(() => {
