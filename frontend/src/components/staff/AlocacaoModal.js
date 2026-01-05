@@ -27,6 +27,7 @@ export const AlocacaoModal = ({
   canDelete,
   onProfessorChange,
   onSchoolChange,
+  onAcademicYearChange,
   onAddTurma,
   onRemoveTurma,
   onAddComponente,
