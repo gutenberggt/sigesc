@@ -82,7 +82,11 @@ export const Attendance = () => {
   const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedPeriod, setSelectedPeriod] = useState('regular');
-  const [academicYear] = useState(new Date().getFullYear());
+  const [academicYear, setAcademicYear] = useState(new Date().getFullYear());
+  
+  // Anos disponíveis para seleção
+  const currentYear = new Date().getFullYear();
+  const availableYears = [currentYear - 1, currentYear, currentYear + 1];
   
   // Hook para verificar status de edição dos bimestres
   const { 
