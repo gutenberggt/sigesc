@@ -404,8 +404,8 @@ def generate_boletim_pdf(
     # Mapa de níveis para exibição
     NIVEL_ENSINO_LABELS = {
         'educacao_infantil': 'EDUCAÇÃO INFANTIL',
-        'fundamental_anos_iniciais': 'ENSINO FUNDAMENTAL - ANOS INICIAIS',
-        'fundamental_anos_finais': 'ENSINO FUNDAMENTAL - ANOS FINAIS',
+        'fundamental_anos_iniciais': 'ENSINO FUNDAMENTAL',
+        'fundamental_anos_finais': 'ENSINO FUNDAMENTAL',
         'ensino_medio': 'ENSINO MÉDIO',
         'eja': 'EJA - ANOS INICIAIS',
         'eja_final': 'EJA - ANOS FINAIS'
@@ -1253,8 +1253,8 @@ def generate_ficha_individual_pdf(
     # Mapa de níveis para exibição
     NIVEL_ENSINO_LABELS = {
         'educacao_infantil': 'EDUCAÇÃO INFANTIL',
-        'fundamental_anos_iniciais': 'ENSINO FUNDAMENTAL - ANOS INICIAIS',
-        'fundamental_anos_finais': 'ENSINO FUNDAMENTAL - ANOS FINAIS',
+        'fundamental_anos_iniciais': 'ENSINO FUNDAMENTAL',
+        'fundamental_anos_finais': 'ENSINO FUNDAMENTAL',
         'ensino_medio': 'ENSINO MÉDIO',
         'eja': 'EJA - ANOS INICIAIS',
         'eja_final': 'EJA - ANOS FINAIS'
