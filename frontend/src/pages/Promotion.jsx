@@ -524,7 +524,7 @@ export function Promotion() {
   // Estatísticas
   const stats = {
     total: promotionData.length,
-    approved: promotionData.filter(p => p.result === 'APROVADO' || p.result === 'PROMOVIDO' || p.result === 'CONCLUIU').length,
+    approved: promotionData.filter(p => p.result === 'APROVADO' || p.result === 'APROVADO COM DEPENDÊNCIA' || p.result === 'PROMOVIDO' || p.result === 'CONCLUIU').length,
     failed: promotionData.filter(p => p.result === 'REPROVADO').length,
     inProgress: promotionData.filter(p => p.result === 'CURSANDO').length,
     dropped: promotionData.filter(p => p.result === 'DESISTENTE').length,
