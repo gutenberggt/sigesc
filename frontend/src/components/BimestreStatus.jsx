@@ -105,6 +105,85 @@ export const BimestreBlockedAlert = ({ blockedBimestres, className = '' }) => {
 };
 
 /**
+ * Alerta informativo que mostra a data limite dos bimestres ABERTOS
+ * Exibe para o professor a data limite ANTES de encerrar o prazo
+ */
+export const BimestreDeadlineAlert = ({ editStatus, className = '' }) => {
+  if (!editStatus || !editStatus.bimestres) return null;
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
+  };
+
+  // Filtrar apenas bimestres ABERTOS que têm data limite configurada
+  const openBimestresWithDeadline = editStatus.bimestres.filter(
+    b => b.pode_editar && b.data_limite
+  );
+
+  if (openBimestresWithDeadline.length === 0) return null;
+
+  // Calcular dias restantes para o bimestre mais próximo de encerrar
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const bimestresWithDaysLeft = openBimestresWithDeadline.map(b => {
+    const deadlineDate = new Date(b.data_limite + 'T23:59:59');
+    const diffTime = deadlineDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return { ...b, diasRestantes: diffDays };
+  }).sort((a, b) => a.diasRestantes - b.diasRestantes);
+
+  const closestDeadline = bimestresWithDaysLeft[0];
+  const isUrgent = closestDeadline.diasRestantes <= 7;
+  const isVeryUrgent = closestDeadline.diasRestantes <= 3;
+
+  // Determinar cor do alerta baseado na urgência
+  const alertClass = isVeryUrgent 
+    ? 'bg-orange-50 border-orange-300'
+    : isUrgent 
+      ? 'bg-yellow-50 border-yellow-200'
+      : 'bg-blue-50 border-blue-200';
+
+  const textClass = isVeryUrgent
+    ? 'text-orange-800'
+    : isUrgent
+      ? 'text-yellow-800'
+      : 'text-blue-800';
+
+  const iconClass = isVeryUrgent
+    ? 'text-orange-600'
+    : isUrgent
+      ? 'text-yellow-600'
+      : 'text-blue-600';
+
+  return (
+    <Alert className={`${alertClass} ${className}`}>
+      <Calendar className={`h-4 w-4 ${iconClass}`} />
+      <AlertDescription className={textClass}>
+        <span className="font-medium">
+          {isVeryUrgent ? '⚠️ Prazo próximo!' : isUrgent ? '📅 Atenção ao prazo:' : '📅 Prazos de edição:'}
+        </span>
+        <ul className="mt-1 ml-4 list-disc">
+          {bimestresWithDaysLeft.map(b => (
+            <li key={b.bimestre}>
+              <strong>{b.bimestre}º Bimestre</strong>: até <strong>{formatDate(b.data_limite)}</strong>
+              {b.diasRestantes === 0 && <span className="text-red-600 font-semibold"> (último dia!)</span>}
+              {b.diasRestantes === 1 && <span className="text-orange-600 font-semibold"> (amanhã!)</span>}
+              {b.diasRestantes > 1 && b.diasRestantes <= 7 && (
+                <span className="text-yellow-700"> ({b.diasRestantes} dias restantes)</span>
+              )}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-1 text-xs opacity-80">Após a data limite, somente Administradores e Secretários poderão editar.</p>
+      </AlertDescription>
+    </Alert>
+  );
+};
+
+/**
  * Linha de status compacta para mostrar todos os bimestres
  */
 export const BimestreStatusRow = ({ editStatus, loading }) => {
