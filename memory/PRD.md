@@ -10,6 +10,14 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 
 ## Implementações Recentes
 
+### 2026-01-06 (Sessão 5)
+- **Bug Crítico Corrigido - Lógica de Aprovação Ignorava Média 0.0** (P0 - RESOLVIDO):
+  - Problema: Alunos com média 0.0 em componentes curriculares eram marcados como "APROVADO" em vez de "REPROVADO"
+  - Causa raiz: No `pdf_generator.py` linha 828, o código `media = total_pontos / 10 if total_pontos > 0 else None` definia média como `None` quando todas as notas eram 0, fazendo com que o componente fosse ignorado na verificação de aprovação
+  - Correção: Alterado para usar `has_any_grade = any(g is not None for g in [b1, b2, b3, b4])` e `media = total_pontos / 10 if has_any_grade else None`
+  - **Testado**: 25 testes unitários passaram - cenários com média 0.0 agora corretamente retornam REPROVADO
+  - Arquivos de teste criados: `tests/test_zero_grade_bug.py`, `tests/test_pdf_generator_media.py`
+
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
   - Problema: Após criar uma lotação para um professor, o modal de alocação não reconhecia a nova lotação, mostrando mensagem "Este professor não possui lotação em nenhuma escola"
