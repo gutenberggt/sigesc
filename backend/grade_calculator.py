@@ -743,7 +743,8 @@ def _calcular_resultado_com_avaliacao(
     medias_por_componente: List[Dict],
     regras_aprovacao: Dict,
     frequencia_aluno: float = None,
-    permite_dependencia: bool = False
+    permite_dependencia: bool = False,
+    is_serie_final: bool = False
 ) -> Dict:
     """
     Calcula resultado verificando frequência e média.
@@ -753,9 +754,10 @@ def _calcular_resultado_com_avaliacao(
         regras_aprovacao: Regras da mantenedora
         frequencia_aluno: Frequência do aluno
         permite_dependencia: Se permite aprovação com dependência
+        is_serie_final: Se é série final (9º Ano ou 4ª Etapa) - não permite APROVADO COM DEPENDÊNCIA
     """
     # Extrair regras
-    media_minima = regras_aprovacao.get('media_aprovacao', 6.0) or 6.0
+    media_minima = regras_aprovacao.get('media_aprovacao', 5.0) or 5.0
     frequencia_minima = regras_aprovacao.get('frequencia_minima', 75.0) or 75.0
     aprovacao_dependencia = regras_aprovacao.get('aprovacao_com_dependencia', False) and permite_dependencia
     max_componentes_dep = regras_aprovacao.get('max_componentes_dependencia', 0) or 0
@@ -796,16 +798,17 @@ def _calcular_resultado_com_avaliacao(
     
     # Com reprovações - verificar dependência (apenas se permitido)
     if permite_dependencia:
-        # Verificar "Cursar apenas dependência"
+        # 1. Verificar "EM DEPENDÊNCIA" (cursar apenas os componentes reprovados)
         if cursar_dependencia and qtd_cursar_dep > 0 and qtd_reprovados >= qtd_cursar_dep:
             return {
                 'resultado': 'EM DEPENDÊNCIA',
                 'cor': '#7c3aed',  # Roxo
-                'detalhes': f'Deve cursar apenas dependência em: {", ".join(componentes_reprovados)}'
+                'detalhes': f'Cursará apenas dependência em: {", ".join(componentes_reprovados)}'
             }
         
-        # Verificar "Aprovado com dependência"
-        if aprovacao_dependencia and max_componentes_dep > 0 and qtd_reprovados <= max_componentes_dep:
+        # 2. Verificar "APROVADO COM DEPENDÊNCIA" (apenas para 6º ao 8º e 3ª Etapa)
+        # Séries finais (9º Ano e 4ª Etapa) NÃO permitem APROVADO COM DEPENDÊNCIA
+        if aprovacao_dependencia and max_componentes_dep > 0 and qtd_reprovados <= max_componentes_dep and not is_serie_final:
             return {
                 'resultado': 'APROVADO COM DEPENDÊNCIA',
                 'cor': '#ca8a04',  # Amarelo
