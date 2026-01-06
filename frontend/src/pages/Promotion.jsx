@@ -177,8 +177,10 @@ export function Promotion() {
   const { accessToken, user } = useAuth();
   const { mantenedora } = useMantenedora();
   
-  // Obter média de aprovação da mantenedora (padrão 5.0)
+  // Obter regras de aprovação da mantenedora
   const mediaAprovacao = mantenedora?.media_aprovacao || 5.0;
+  const aprovacaoComDependencia = mantenedora?.aprovacao_com_dependencia || false;
+  const maxComponentesDependencia = mantenedora?.max_componentes_dependencia || 2;
   
   // States
   const [loading, setLoading] = useState(false);
