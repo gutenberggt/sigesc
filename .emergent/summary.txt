@@ -1,64 +1,51 @@
 <analysis>**original_problem_statement:**
 O usuário iniciou a sessão com vários objetivos para o sistema de gestão escolar SIGESC:
-- (Bugs) Corrigir um bug visual no calendário, um bug crítico de carga horária incorreta em relatórios, um bug recorrente na gestão de lotações e um bug na página de logs de auditoria que não carregava dados.
-- (Features) Implementar um sistema de bloqueio de edição por data limite, um sistema de trilha de auditoria, uma nova página Livro de Promoção baseada em PDFs, e uma nova lógica para calcular o Resultado Final do aluno nos documentos.
-- (Melhorias e Refatoração) Adicionar otimizações de segurança (rate limiting, índices), refatorar o monolítico  em múltiplos routers, e refatorar componentes de frontend complexos.
-- (Ajustes de UI) Traduzir a severidade nos logs de auditoria, remover o email da descrição do log, e padronizar a exibição dos nomes das turmas em todo o sistema (removendo série e turno).
+- (Bugs) Corrigir um bug visual no calendário, um bug crítico de carga horária incorreta em relatórios, um bug recorrente na gestão de lotações, um bug na página de logs de auditoria que não carregava dados, e múltiplos bugs de sincronização de dados e cálculo em documentos PDF (Boletim, Ficha Individual, Livro de Promoção).
+- (Features) Implementar um sistema de bloqueio de edição por data limite, um sistema de trilha de auditoria, uma nova página Livro de Promoção, e uma nova lógica para calcular o Resultado Final do aluno nos documentos com regras complexas por nível de ensino. Adicionar um seletor de ano na página de Frequência.
+- (Melhorias) Adicionar otimizações de segurança, refatorar o monolítico , e refatorar componentes de frontend.
+- (Ajustes de UI) Traduzir a severidade nos logs, padronizar a exibição dos nomes das turmas, reorganizar a ordem dos componentes curriculares e ajustar a exibição de dados de frequência nos documentos.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
 O sistema de gestão escolar (SIGESC) é uma aplicação full-stack (React + FastAPI + MongoDB).
-- **Backend:** O  continua em processo de refatoração para routers modulares. Foi criado um novo endpoint () e uma função  em  para gerar o Livro de Promoção. Esta função foi significativamente aprimorada para replicar a estrutura do PDF da Ficha Individual, incluindo cabeçalho institucional, paginação e separadores visuais. As abreviações dos componentes curriculares foram padronizadas.
-- **Frontend:** A tarefa de padronização da exibição do nome da turma foi concluída e testada. A página  foi aprimorada com a correção do bug do campo sexo, padronização das abreviações e ordem dos componentes e adição de separadores de blocos. Foi implementado um sistema de navegação por atalho para a página inicial em múltiplas páginas. A maior mudança foi no gerenciamento de Pessoal (, , e os modais  e ), que foi reestruturado para ser centrado no ano letivo, onde o usuário seleciona um ano para visualizar e gerenciar as lotações e alocações daquele período.
+- **Backend:** O  hospeda a maior parte dos endpoints, embora a refatoração para routers modulares esteja em andamento. Foram corrigidos e aprimorados os endpoints de geração de documentos PDF (). O arquivo  agora contém lógicas de negócio extremamente complexas e específicas para cálculo de notas, médias ponderadas, aplicação de recuperação e determinação do status final do aluno (Aprovado, Reprovado, Em Dependência) com base no nível de ensino e série. Um script de migração foi criado e executado com sucesso para corrigir dados de carga horária no banco ().
+- **Frontend:** Um seletor de ano foi adicionado à página de Frequência (). A maior parte do trabalho recente foi focada na correção do bug de lotação/alocação de professores, que envolveu o hook  e os modais relacionados.
 
 **Last working item**:
--   **Last item agent was working:** O agente estava tentando resolver um bug crítico e recorrente onde uma lotação de professor, embora salva, não é reconhecida ao tentar fazer uma alocação. O usuário reportou a mensagem Atenção: Este professor não possui lotação em nenhuma escola. Vá na aba Lotações para adicionar antes de fazer alocações, mesmo após ter feito a lotação. O agente realizou uma grande refatoração para tornar o fluxo centrado no ano letivo, mas o problema fundamental persiste.
+-   **Last item agent was working:** O agente estava diagnosticando por que um aluno com média 0.0 em vários componentes curriculares estava sendo marcado como APROVADO. O agente identificou que a lógica em  provavelmente estava ignorando componentes com média 0.0 em vez de contá-los como reprovação.
 -   **Status:** IN PROGRESS
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** Frontend testing agent. O problema envolve um fluxo de usuário complexo com gerenciamento de estado entre múltiplos componentes (página principal , o hook  e os modais  e ). É necessário um teste de ponta a ponta para simular a criação de uma lotação em um ano e a verificação de seu reconhecimento no modal de alocação para o mesmo ano.
--   **User Testing Done:** Y (O usuário confirmou que o bug persiste após a última alteração do agente).
+-   **User Testing Done:** Y (O usuário forneceu PDFs mostrando o resultado final inconsistente e incorreto).
+-   **Which testing method agent to use?** Backend testing agent. O agente de teste deve criar um cenário de teste para a função  em , passando um conjunto de médias que inclua valores 0.0, e verificar se o resultado retornado é REPROVADO ou EM DEPENDÊNCIA, conforme as regras.
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Lotação não é reconhecida na Alocação.**
--   **Issue 2: (P1) Dados de carga horária incorretos no banco de dados.**
+-   **Issue 1: (P0) Lógica de aprovação incorreta ignora componentes com média 0.0.**
 
 Issues Detail:
--   **Issue 1: Lotação não é reconhecida na Alocação.**
-    -   **Attempted fixes:** O agente inicialmente modificou o  para usar  na busca de lotações, em vez do ano corrente hardcoded. Em seguida, fez uma grande refatoração na UI e na lógica para que o usuário primeiro selecione o ano nos modais de Lotação e Alocação, e só então os dados relevantes sejam carregados. Nenhuma dessas abordagens resolveu o problema central. A lotação é criada no banco, mas o estado no frontend (provavelmente em  ou  no hook ) não é atualizado ou lido corretamente pelo modal de Alocação.
+-   **Issue 1: Lógica de aprovação incorreta ignora componentes com média 0.0.**
+    -   **Attempted fixes:** O agente analisou os PDFs e concluiu que o problema reside na função , que não trata corretamente as médias 0.0. Nenhuma alteração no código foi aplicada ainda para este problema específico.
     -   **Next debug checklist:**
-        1.  No hook , rastrear o estado das variáveis  e  com  em cada etapa: ao selecionar um professor, ao mudar o ano do filtro, ao abrir o modal de lotação e após salvá-la.
-        2.  Verificar a função  no . Ela recarrega as escolas () e alocações (), mas **não** recarrega as lotações (). Isso pode ser uma fonte do problema.
-        3.  Analisar a chamada  dentro do  de  no . A dependência dessa chamada pode não estar sendo acionada após uma nova lotação ser criada.
-        4.  Simplificar o fluxo: garantir que, após salvar uma nova lotação com sucesso no , a função  seja chamada explicitamente para atualizar a lista de escolas em que o professor está lotado.
-    -   **Why fix this issue and what will be achieved with the fix?** É um fluxo de trabalho administrativo fundamental. Sem isso, não é possível alocar professores para turmas, bloqueando uma funcionalidade central do sistema.
+        1.  Modificar a função  em .
+        2.  Garantir que o loop que itera sobre  trate um componente com  como uma reprovação nesse componente.
+        3.  Após a correção, o aluno não deve mais ser APROVADO, mas sim APROVADO COM DEPENDÊNCIA ou REPROVADO, dependendo das regras de dependência para a sua série/nível.
+    -   **Why fix this issue and what will be achieved with the fix?** É um bug crítico que compromete a integridade do resultado acadêmico do aluno. A correção garantirá que o status final do aluno seja calculado corretamente de acordo com as regras de negócio.
     -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** frontend
-    -   **Blocked on other issue:** N/A
--   **Issue 2: Dados de carga horária incorretos no banco de dados.**
-    -   **Attempted fixes:** O código para *ler* a carga horária foi corrigido em uma sessão anterior, mas os dados antigos no banco de dados continuam errados. Nenhum script de migração foi criado.
-    -   **Next debug checklist:**
-        1.  Criar um script em .
-        2.  O script deve iterar na coleção , identificar os registros com dados consolidados incorretamente e preencher o campo  com os valores corretos para cada série.
-        3.  Executar o script em ambiente de teste para validar a correção.
-    -   **Why fix this issue and what will be achieved with the fix?** Garante a precisão dos documentos acadêmicos gerados pelo sistema.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** Y
+    -   **Is recurring issue?** N
     -   **Should Test frontend/backend/both after fix?** backend
     -   **Blocked on other issue:** N/A
 
 **In progress Task List**:
--   **Task 1: Refatoração do **
-    -   **Where to resume:** Continuar movendo endpoints restantes (como , , , ) do  para seus próprios arquivos em .
+-   **Task 1: (P1) Refatoração do **
+    -   **Where to resume:** Continuar movendo endpoints restantes (, , , ) do  para seus próprios arquivos em .
     -   **What will be achieved with this?** Aumentará a manutenibilidade e a organização do código backend.
     -   **Status:** IN PROGRESS
     -   **Should Test frontend/backend/both after fix?** backend
     -   **Blocked on something:** N/A
--   **Task 2: Refatoração do Frontend ()**
-    -   **Where to resume:** O componente  precisa ser refatorado para usar os hooks , , etc., que já foram criados.
-    -   **What will be achieved with this?** Simplificará um componente de frontend muito grande e complexo, separando a lógica de negócio da apresentação.
-    -   **Status:** IN PROGRESS
+-   **Task 2: (P2) Refatoração do Frontend ()**
+    -   **Where to resume:** O componente  precisa ser refatorado para usar hooks customizados, separando a lógica da apresentação.
+    -   **What will be achieved with this?** Simplificará um componente de frontend muito grande e complexo.
+    -   **Status:** NOT STARTED
     -   **Should Test frontend/backend/both after fix?** frontend
     -   **Blocked on something:** N/A
 
@@ -66,77 +53,83 @@ Issues Detail:
 -   **Upcoming Tasks:**
     -   (P1) Continuar Refatoração do Backend: Mover os endpoints restantes (, , , ) do .
 -   **Future Tasks:**
-    -   (P2) **Refatorar :** Quebrar as funções monolíticas de geração de PDF em sub-funções menores.
-    -   (P3) **Refatorar outros Componentes Frontend:** Simplificar  (parte da Task 2) e .
-    -   (P4) **Deletar Código Obsoleto:** Remover o arquivo  após confirmar que não é utilizado.
+    -   (P2) **Refatorar :** Quebrar as funções monolíticas de geração de PDF em sub-funções menores e mais gerenciáveis.
+    -   (P3) **Deletar Código Obsoleto:** Remover o arquivo  após confirmar que não é utilizado.
 
 **Completed work in this session**
-- **Padronização da Exibição de Turmas:** Concluído. A exibição do nome da turma foi padronizada em todo o sistema (, , etc.), mostrando apenas o nome, e a mudança foi verificada por testes.
-- **Implementação do PDF do Livro de Promoção:** Concluído. O endpoint backend e a função de geração de PDF foram criados e testados com sucesso.
-- **Reestruturação do PDF do Livro de Promoção:** Concluído. O layout do PDF foi completamente refeito para corresponder ao padrão da Ficha Individual, com cabeçalho, paginação e nova estrutura de tabela.
-- **Correção de Bugs no Livro de Promoção:** Corrigido o bug onde o sexo dos alunos era exibido incorretamente na página () e a ordem dos componentes curriculares foi ajustada para corresponder à do boletim.
-- **Melhorias de UI:** Adicionados separadores de blocos no Livro de Promoção (PDF e web) e atalhos de navegação Início em várias páginas (, , ).
-- **Refatoração do Gerenciamento de Pessoal:** Implementado um filtro por ano letivo e reestruturados os modais de lotação e alocação para um fluxo centrado no ano.
+- **Bug Lotação/Alocação (P0):** Corrigido o bug crítico onde a lotação de um professor não era reconhecida ao tentar fazer uma alocação. A correção foi validada pelo .
+- **Migração de Dados de Carga Horária:** Criado e executado um script de migração para corrigir dados de  na coleção .
+- **Bug de Sincronização de Notas:** Corrigido o bug onde as notas não apareciam no Boletim e Livro de Promoção. A causa era uma mistura de tipos de dados (ano como  vs ) e uma estrutura de dados incorreta esperada pelo .
+- **Implementação de Lógica de Cálculo Ponderado:** Corrigidos o Boletim e a Ficha Individual para usar a fórmula de média ponderada e a lógica de substituição por recuperação especificadas pelo usuário.
+- **Implementação de Regras de Aprovação Complexas:** Implementada em  a lógica de aprovação que varia por nível de ensino e série (Anos Iniciais, Anos Finais, EJA, séries finais).
+- **Integração de Faltas nos Documentos:** A lógica para buscar e exibir as faltas reais do sistema de frequência foi implementada na Ficha Individual e no Boletim, com regras complexas para escolas de tempo integral.
+- **Feature de Seletor de Ano:** Adicionado um seletor de ano letivo à página de Controle de Frequência.
+- **Correções de UI/Dados em Documentos:**
+    - Corrigido o campo INEP na Ficha Individual.
+    - Atualizado o campo Dias Letivos para buscar o valor calculado dinamicamente do calendário.
+    - Simplificado o rótulo ENSINO FUNDAMENTAL - ANOS INICIAIS/FINAIS para apenas ENSINO FUNDAMENTAL.
+    - Reorganizada a ordem dos componentes curriculares nos documentos.
 
 **Earlier issues found/mentioned but not fixed**
-- O problema da Lotação não reconhecida é o principal problema não resolvido e está detalhado na seção All Pending/In progress Issue list.
+- Nenhum. Todas as questões levantadas anteriormente foram abordadas, exceto o último item em andamento.
 
 **Known issue recurrence from previous fork**
 -   **Issue recurrence in previous fork:** Bug na funcionalidade Gerenciar Lotações.
--   **Recurrence count:** 3+ (mencionado no handoff anterior, neste, e persistiu durante toda a sessão atual).
--   **Status:** IN PROGRESS
+-   **Recurrence count:** 3+
+-   **Status:** RESOLVED (verificado pelo ).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **State Management com React Hooks:** Uso intensivo de , , e  para gerenciar estado complexo e interdependente em , incluindo formulários, dados de API, e estado da UI (modais, filtros).
--   **Component-Driven Development:** A funcionalidade de gerenciamento de pessoal foi dividida em vários componentes reutilizáveis (, , etc.), embora a lógica centralizada no hook  seja muito complexa.
--   **Debugging de Fluxo de Dados:** A sessão atual envolveu uma depuração profunda do fluxo de dados do frontend, da seleção do usuário (filtros) às chamadas de API e à renderização da UI, revelando problemas de estado obsoleto.
--   **PDF Geração com ReportLab:** Refatoração avançada de uma função de geração de PDF para incluir cabeçalhos, paginação (), estilos condicionais e tabelas complexas com  para bordas customizadas.
+- **Lógica de Negócio Complexa:** Implementação de regras de negócio detalhadas para o setor educacional em Python, especialmente em  e .
+- **Geração de PDF com ReportLab:** Manipulação avançada de tabelas, estilos e fluxo de dados para gerar múltiplos documentos PDF (Boletim, Ficha Individual).
+- **Migração de Dados:** Criação de scripts para corrigir dados inconsistentes no MongoDB.
+- **State Management no Frontend:** Uso de React Hooks para gerenciar estados complexos e interligados.
+- **Depuração Full-Stack:** Rastreamento de bugs de sincronização de dados desde a UI (React) até a API (FastAPI) e o banco de dados (MongoDB).
 
 **key DB schema**
--   **lotacoes:** 
--   **teacher_assignments (alocações):** 
--   **courses:**  (ainda requer migração de dados)
+- **lotacoes:** 
+- **teacher_assignments (alocações):** 
+- **courses:** 
+- **grades:** 
+- **attendance:** 
+- **calendario_letivo:** 
+- **schools:** 
+- **students:** 
 
 **All files of reference**
-*   **/app/frontend/src/hooks/useStaff.js**: Arquivo central do bug. Contém toda a lógica de estado para gerenciamento de lotações e alocações.
-*   **/app/frontend/src/pages/Staff.js**: Página principal que consome o  e renderiza os componentes de tabela e modais.
-*   **/app/frontend/src/components/staff/LotacaoModal.js**: Modal para criar/gerenciar lotações.
-*   **/app/frontend/src/components/staff/AlocacaoModal.js**: Modal para criar/gerenciar alocações, onde o bug se manifesta.
-*   **/app/backend/server.py**: Onde o endpoint  foi analisado.
-*   **/app/backend/pdf_generator.py**: Modificado para melhorar o PDF do Livro de Promoção e padronizar abreviações.
-*   **/app/frontend/src/pages/Promotion.jsx**: Modificado para corrigir bugs de exibição e ordenação.
+-   **/app/backend/grade_calculator.py**: Arquivo central para as regras de aprovação e cálculo de notas. **O bug atual está aqui.**
+-   **/app/backend/pdf_generator.py**: Contém a lógica de renderização para todos os documentos PDF. Foi extensivamente modificado.
+-   **/app/backend/server.py**: Principal arquivo da API, onde os endpoints dos documentos são definidos e os dados são preparados.
+-   **/app/frontend/src/hooks/useStaff.js**: Arquivo onde o bug de lotação/alocação foi corrigido.
+-   **/app/frontend/src/pages/Attendance.js**: Arquivo modificado para adicionar o seletor de ano.
+-   **/app/backend/scripts/migration_fix_course_workload.py**: Script criado para a migração de dados.
 
 **Critical Info for New Agent**
--   **FOCO TOTAL NO BUG DA LOTAÇÃO:** A prioridade absoluta é resolver o bug que impede a alocação de professores. Ignore as outras tarefas até que isso seja corrigido.
--   **O Problema é no Frontend State:** A investigação mostrou que os dados são salvos corretamente no backend. O bug reside na forma como o estado do frontend (no ) é gerenciado e propagado. A lotação recém-criada não está sendo refletida no estado que o modal de alocação consome.
--   **Rastreie o fluxo de :** A função  é responsável por buscar as escolas onde um professor está lotado. Suspeita-se que ela não está sendo chamada no momento certo (ex: após salvar uma nova lotação) ou que suas dependências no  não estão sendo acionadas corretamente.
--   **Ano Letivo é a Chave:** A refatoração tornou o  (o ano selecionado na UI principal) a fonte da verdade para quais dados exibir. Certifique-se de que este valor está sendo usado de forma consistente em todas as chamadas de carregamento de dados (, ).
+-   **FOCO NA LÓGICA DE APROVAÇÃO:** A prioridade máxima é corrigir o bug em  que permite que alunos com média 0.0 em alguns componentes sejam aprovados.
+-   **COMPLEXIDADE DAS REGRAS:** As regras de aprovação, cálculo de média e frequência são extremamente específicas e variam por nível de ensino e série. Qualquer alteração em  ou  deve ser feita com extremo cuidado e testada para os diferentes cenários (Anos Iniciais, Anos Finais, EJA, Escola Integral, etc.).
+-   **FONTE DA VERDADE:** O usuário frequentemente fornece PDFs e regras de negócio detalhadas. Estes devem ser a fonte da verdade para a implementação e correção de bugs.
 
 **documents and test reports created in this job**
--   /app/test_reports/iteration_1.json
--   /app/test_reports/iteration_2.json
--   /app/test_reports/iteration_3.json
+-   /app/test_reports/iteration_4.json
 -   /app/memory/PRD.md (atualizado múltiplas vezes)
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User (Request):** Pediu para adicionar um seletor de ano nos modais de Lotação/Alocação. (COMPLETED)
-2.  **User (Bug Report):** Reportou que a lotação não estava sendo reconhecida na alocação, mesmo após as mudanças. (IN PROGRESS)
-3.  **User (Suggestion):** Sugeriu que o fluxo deveria começar pela seleção do ano letivo para carregar os dados correspondentes. (IN PROGRESS, a implementação do agente não resolveu o bug)
-4.  **User (Bug Report):** Reportou que a mensagem de erro Este professor não possui lotação menciona uma aba Lotações que não existe dentro do modal de alocação. (HANDLED - agente entendeu o problema)
-5.  **User (Bug Report):** Informou que a ordem dos componentes no Livro de Promoção ainda estava errada. (COMPLETED)
-6.  **User (Input):** Forneceu a ordem correta dos componentes curriculares. (COMPLETED)
-7.  **User (Feedback):** Confirmou que a ordem dos componentes no boletim estava correta e a do Livro de Promoção, não. (HANDLED)
-8.  **User (Bug Report + Image):** Enviou uma imagem mostrando que a ordem dos componentes ainda estava incorreta, levando o agente a refatorar a função de ordenação. (COMPLETED)
-9.  **User (Request):** Pediu para identificar o ano da Lotação e Alocação nas tabelas. (COMPLETED)
-10. **User (Bug Report):** Reportou que, após as últimas alterações, as alocações salvas não apareciam, e o sistema não estava conversando entre si. (IN PROGRESS)
+1.  **User (Bug Report):** Apontou que a aluna foi aprovada, apesar de ter média 0.0 em vários componentes. (IN PROGRESS)
+2.  **User (Request):** Pediu para implementar regras de aprovação complexas e específicas por nível/série. (COMPLETED)
+3.  **User (Bug Report):** Questionou a inconsistência do resultado final entre a Ficha Individual (Reprovado) e o Boletim (Aprovado). (COMPLETED)
+4.  **User (Request):** Pediu para simplificar o rótulo ENSINO FUNDAMENTAL - ANOS FINAIS/INICIAIS para apenas ENSINO FUNDAMENTAL nos documentos. (COMPLETED)
+5.  **User (Request):** Solicitou que a lógica de faltas e resultado final do Boletim fosse sincronizada com a da Ficha Individual. (COMPLETED)
+6.  **User (Request):** Pediu que o campo Dias Letivos nos documentos buscasse o valor dinâmico do calendário configurado. (COMPLETED)
+7.  **User (Bug Report):** Reportou que o campo Nº INEP na Ficha Individual estava exibindo a matrícula errada. (COMPLETED)
+8.  **User (Request):** Solicitou que, para Anos Iniciais, a coluna de frequência por componente na Ficha Individual exibisse um traço, com o percentual total aparecendo apenas no resumo anual. (COMPLETED)
+9.  **User (Request):** Definiu a lógica complexa para cálculo e exibição de faltas na Ficha Individual para escolas regulares e de tempo integral. (COMPLETED)
+10. **User (Request):** Pediu para reorganizar a ordem dos componentes curriculares nos documentos, separando Regular de Escola Integral. (COMPLETED)
 
 **Project Health Check:**
 -   **Broken:**
-    -   A funcionalidade Gerenciar Alocações de Professor está completamente bloqueada devido ao bug de reconhecimento de lotação. Esta é uma função crítica e o sistema está em um estado instável por causa dela.
-    -   Os dados históricos de  no banco de dados ainda estão incorretos, o que afeta a precisão de relatórios antigos.
+    -   A lógica de cálculo do resultado final do aluno está incorreta, pois não trata adequadamente componentes com média 0.0, levando a aprovações indevidas.
 -   **Mocked:** None.
 
 **3rd Party Integrations**
@@ -147,16 +140,14 @@ Issues Detail:
 -   Servidor FTP ()
 
 **Testing status**
--   **Testing agent used after significant changes:** YES (para padronização de UI e PDF), mas NO (para a refatoração do fluxo de lotação/alocação, onde o bug principal reside).
+-   **Testing agent used after significant changes:** YES (para o bug de Lotação/Alocação).
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** None
--   **Known regressions:** A funcionalidade de alocação de professores está quebrada.
+-   **Known regressions:** A lógica de aprovação, embora aprimorada, introduziu um novo bug ao não considerar médias 0.0.
 
 **Credentials to test flow:**
 -   **Admin:**  / 
 -   **Coordenador/Professor:**  / 
 
 **What agent forgot to execute**
-- O agente não conseguiu resolver a causa raiz do bug de lotação não reconhecida, apesar de múltiplas tentativas e uma grande refatoração.
-- O agente não iniciou a criação do script de migração para corrigir os dados de  no banco de dados.
-- As tarefas de refatoração do  e  permanecem em segundo plano e não foram continuadas.</analysis>
+- O agente não considerou o cenário de teste onde um componente curricular tem média 0.0 ao implementar as novas regras de aprovação, resultando em um novo bug crítico.</analysis>
