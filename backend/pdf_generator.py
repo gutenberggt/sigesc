@@ -1853,17 +1853,45 @@ def generate_ficha_individual_pdf(
         b2 = grade.get('b2')
         b3 = grade.get('b3')
         b4 = grade.get('b4')
+        rec_s1 = grade.get('rec_s1')
+        rec_s2 = grade.get('rec_s2')
+        
+        # Valores para cálculo (aplicando recuperação)
+        b1_val = b1 if isinstance(b1, (int, float)) else 0
+        b2_val = b2 if isinstance(b2, (int, float)) else 0
+        b3_val = b3 if isinstance(b3, (int, float)) else 0
+        b4_val = b4 if isinstance(b4, (int, float)) else 0
+        
+        # Aplicar lógica de recuperação do 1º semestre
+        if rec_s1 is not None and isinstance(rec_s1, (int, float)):
+            if b1_val < b2_val:
+                if rec_s1 > b1_val:
+                    b1_val = rec_s1
+            elif b2_val < b1_val:
+                if rec_s1 > b2_val:
+                    b2_val = rec_s1
+            else:
+                if rec_s1 > b2_val:
+                    b2_val = rec_s1
+        
+        # Aplicar lógica de recuperação do 2º semestre
+        if rec_s2 is not None and isinstance(rec_s2, (int, float)):
+            if b3_val < b4_val:
+                if rec_s2 > b3_val:
+                    b3_val = rec_s2
+            elif b4_val < b3_val:
+                if rec_s2 > b4_val:
+                    b4_val = rec_s2
+            else:
+                if rec_s2 > b4_val:
+                    b4_val = rec_s2
         
         # Verificar se tem notas válidas
         valid_grades = [g for g in [b1, b2, b3, b4] if isinstance(g, (int, float))]
         
-        # Calcular média do componente (média ponderada)
+        # Calcular média do componente (média ponderada com notas após recuperação)
         if valid_grades:
-            b1 = b1 or 0
-            b2 = b2 or 0
-            b3 = b3 or 0
-            b4 = b4 or 0
-            total = (b1 * 2) + (b2 * 3) + (b3 * 2) + (b4 * 3)
+            total = (b1_val * 2) + (b2_val * 3) + (b3_val * 2) + (b4_val * 3)
             media = total / 10
         else:
             media = None
