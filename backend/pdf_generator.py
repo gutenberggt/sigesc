@@ -1904,7 +1904,7 @@ def generate_ficha_individual_pdf(
     
     # Extrair regras de aprovação da mantenedora
     regras_aprovacao = {
-        'media_aprovacao': mantenedora.get('media_aprovacao', 6.0) if mantenedora else 6.0,
+        'media_aprovacao': mantenedora.get('media_aprovacao', 5.0) if mantenedora else 5.0,
         'frequencia_minima': mantenedora.get('frequencia_minima', 75.0) if mantenedora else 75.0,
         'aprovacao_com_dependencia': mantenedora.get('aprovacao_com_dependencia', False) if mantenedora else False,
         'max_componentes_dependencia': mantenedora.get('max_componentes_dependencia') if mantenedora else None,
