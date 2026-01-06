@@ -682,9 +682,11 @@ def generate_boletim_pdf(
             return str(v) if v else ''
         
         def fmt_int(v):
+            if v is None or v == '-':
+                return '-'
             if isinstance(v, (int, float)):
                 return str(int(v))
-            return str(v) if v else ''
+            return str(v) if v else '-'
         
         # Marcar componentes optativos com "(Optativo)"
         course_name = course.get('name', 'N/A')
