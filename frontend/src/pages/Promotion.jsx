@@ -310,9 +310,12 @@ export function Promotion() {
       const allGrades = await Promise.all(gradesPromises);
       
       // Processar dados de promoção
-      const processed = filteredStudents.map((student, index) => {
+      const processed = filteredStudents.map((student) => {
         const studentEnrollment = enrollments.find(e => e.student_id === student.id);
-        const studentGrades = allGrades[index] || [];
+        
+        // Encontrar o índice correto das notas baseado no studentId
+        const studentIdIndex = studentIds.indexOf(student.id);
+        const studentGrades = studentIdIndex >= 0 ? (allGrades[studentIdIndex] || []) : [];
         
         // Organizar notas por componente
         const gradesByComponent = {};
