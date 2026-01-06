@@ -22,6 +22,13 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
   - Cenário principal: Aluna Ana Beatriz Pereira Sousa (5º Ano A) - 2 componentes com nota, 10 sem nota → REPROVADO (antes: APROVADO)
   - Arquivos de teste: `tests/test_mandatory_no_grade_bug.py` (13 testes)
 
+- **Bug Corrigido - Notas não exibidas no Livro de Promoção** (P1 - RESOLVIDO):
+  - Problema: A página do Livro de Promoção exibia "-" em todas as células de notas, mesmo havendo notas no banco
+  - Causa raiz 1: O código esperava formato `period/grade` mas as notas usam `b1, b2, b3, b4, rec_s1, rec_s2`
+  - Causa raiz 2: A ordem dos alunos em `filteredStudents` não correspondia à ordem em `studentIds`, fazendo com que as notas fossem associadas ao aluno errado
+  - Correção: Em `Promotion.jsx`, mapeamento direto dos campos e uso de `indexOf` para encontrar o índice correto das notas
+  - **Testado**: Screenshot confirmou que as notas estão aparecendo corretamente
+
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
   - Problema: Após criar uma lotação para um professor, o modal de alocação não reconhecia a nova lotação, mostrando mensagem "Este professor não possui lotação em nenhuma escola"
