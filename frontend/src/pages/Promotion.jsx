@@ -384,15 +384,15 @@ export function Promotion() {
         } else if (status === 'transferencia' || status === 'transferido') {
           result = 'TRANSFERIDO';
         } else {
-          // Verificar se todas as médias são >= 6
+          // Verificar se todas as médias são >= média de aprovação configurada na mantenedora
           const averages = Object.values(gradesByComponent).map(c => c.finalAverage).filter(a => a !== null);
           if (averages.length > 0) {
-            const allApproved = averages.every(avg => avg >= 6);
+            const allApproved = averages.every(avg => avg >= mediaAprovacao);
             if (allApproved) {
               result = 'APROVADO';
             } else {
-              // Verificar quantos componentes reprovados
-              const failedCount = averages.filter(avg => avg < 6).length;
+              // Verificar quantos componentes reprovados (abaixo da média de aprovação)
+              const failedCount = averages.filter(avg => avg < mediaAprovacao).length;
               if (failedCount >= 3) {
                 result = 'REPROVADO';
               } else {
