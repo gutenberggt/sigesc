@@ -367,7 +367,7 @@ def calcular_resultado_final_aluno(
         }
     
     # Extrair regras da mantenedora (com valores padrão)
-    media_minima = regras_aprovacao.get('media_aprovacao', 6.0) or 6.0
+    media_minima = regras_aprovacao.get('media_aprovacao', 5.0) or 5.0
     frequencia_minima = regras_aprovacao.get('frequencia_minima', 75.0) or 75.0
     permite_dependencia = regras_aprovacao.get('aprovacao_com_dependencia', False)
     max_componentes_dep = regras_aprovacao.get('max_componentes_dependencia', 0) or 0
