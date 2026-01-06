@@ -1252,7 +1252,7 @@ def generate_ficha_individual_pdf(
     
     student_name = student.get('full_name', 'N/A').upper()
     student_sex = student.get('sex', 'N/A')
-    inep_number = student.get('inep_number', student.get('enrollment_number', 'N/A'))
+    inep_number = student.get('inep_code', student.get('inep_number', 'N/A'))
     
     # Formatar data de nascimento
     birth_date = student.get('birth_date', 'N/A')
