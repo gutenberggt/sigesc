@@ -342,36 +342,52 @@ export function Promotion() {
           }
         });
         
-        // Calcular total de pontos e média final por componente
+        // Calcular total de pontos e média final por componente (usando média ponderada)
         Object.keys(gradesByComponent).forEach(courseId => {
           const comp = gradesByComponent[courseId];
-          const grades = [comp.b1, comp.b2, comp.b3, comp.b4].filter(g => g !== null);
-          if (grades.length > 0) {
-            // Considerar recuperação se houver
-            let total = grades.reduce((a, b) => a + b, 0);
-            
-            // Se tem recuperação, substitui a menor nota
+          
+          // Obter notas bimestrais (usar 0 se null)
+          let b1 = comp.b1 !== null ? comp.b1 : 0;
+          let b2 = comp.b2 !== null ? comp.b2 : 0;
+          let b3 = comp.b3 !== null ? comp.b3 : 0;
+          let b4 = comp.b4 !== null ? comp.b4 : 0;
+          
+          // Verificar se tem pelo menos uma nota registrada
+          const hasAnyGrade = comp.b1 !== null || comp.b2 !== null || comp.b3 !== null || comp.b4 !== null;
+          
+          if (hasAnyGrade) {
+            // Aplicar recuperação se houver (substitui a menor nota do semestre)
             if (comp.rec1 !== null) {
-              const sem1Grades = [comp.b1, comp.b2].filter(g => g !== null);
-              if (sem1Grades.length > 0) {
-                const minGrade = Math.min(...sem1Grades);
+              // Recuperação do 1º semestre - substitui a menor nota entre B1 e B2
+              if (comp.b1 !== null && comp.b2 !== null) {
+                const minGrade = Math.min(b1, b2);
                 if (comp.rec1 > minGrade) {
-                  total = total - minGrade + comp.rec1;
+                  if (b1 <= b2) {
+                    b1 = comp.rec1;
+                  } else {
+                    b2 = comp.rec1;
+                  }
                 }
               }
             }
             if (comp.rec2 !== null) {
-              const sem2Grades = [comp.b3, comp.b4].filter(g => g !== null);
-              if (sem2Grades.length > 0) {
-                const minGrade = Math.min(...sem2Grades);
+              // Recuperação do 2º semestre - substitui a menor nota entre B3 e B4
+              if (comp.b3 !== null && comp.b4 !== null) {
+                const minGrade = Math.min(b3, b4);
                 if (comp.rec2 > minGrade) {
-                  total = total - minGrade + comp.rec2;
+                  if (b3 <= b4) {
+                    b3 = comp.rec2;
+                  } else {
+                    b4 = comp.rec2;
+                  }
                 }
               }
             }
             
+            // Calcular média ponderada: (B1×2 + B2×3 + B3×2 + B4×3) / 10
+            const total = (b1 * 2) + (b2 * 3) + (b3 * 2) + (b4 * 3);
             comp.totalPoints = total;
-            comp.finalAverage = total / 4; // Média dos 4 bimestres
+            comp.finalAverage = total / 10;
           }
         });
         
