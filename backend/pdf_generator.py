@@ -678,7 +678,7 @@ def generate_boletim_pdf(
             if is_educacao_infantil:
                 return formatar_nota_conceitual(v, True) if isinstance(v, (int, float)) else (str(v) if v else '-')
             if isinstance(v, (int, float)):
-                return f"{v:.1f}"
+                return f"{v:.1f}".replace('.', ',')
             return str(v) if v else ''
         
         def fmt_int(v):
