@@ -39,6 +39,12 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
   - Backend: Endpoint `/api/calendario-letivo/{ano}/status-edicao` agora retorna `data_limite` para todos os usuários
   - **Testado**: Screenshot confirmou exibição do alerta com datas limite
 
+- **Bug Corrigido - Média para Aprovação não salva na Mantenedora** (P1 - RESOLVIDO):
+  - Problema: O campo "Média para Aprovação" não exibia o valor salvo e ao salvar sem alterar, perdia o valor
+  - Causa raiz: O backend retorna `5.0` (número), que JavaScript converte para `"5"` (sem `.0`), mas o Select espera `"5.0"` para corresponder ao `SelectItem`
+  - Correção: Em `Mantenedora.js`, usar `Number(data.media_aprovacao).toFixed(1)` para garantir formato correto
+  - **Testado**: API confirmou que valor foi salvo e carregado corretamente
+
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
   - Problema: Após criar uma lotação para um professor, o modal de alocação não reconhecia a nova lotação, mostrando mensagem "Este professor não possui lotação em nenhuma escola"
