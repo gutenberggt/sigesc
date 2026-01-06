@@ -4842,18 +4842,118 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
         "school_id": None  # Calendário geral
     }, {"_id": 0})
     
-    # Calcular total de dias letivos do ano
+    # Calcular total de dias letivos do ano (mesmo cálculo da ficha individual)
     dias_letivos_ano = 200  # Padrão LDB
     if calendario_letivo:
-        dias_letivos_ano = (
-            (calendario_letivo.get('bimestre_1_dias_letivos') or 0) +
-            (calendario_letivo.get('bimestre_2_dias_letivos') or 0) +
-            (calendario_letivo.get('bimestre_3_dias_letivos') or 0) +
-            (calendario_letivo.get('bimestre_4_dias_letivos') or 0)
-        )
-        # Se não tiver dias por bimestre, usar o total previsto
+        # Buscar eventos do calendário para o ano
+        eventos = await db.calendar_events.find({
+            "year": int(academic_year)
+        }, {"_id": 0}).to_list(500)
+        
+        from datetime import datetime, timedelta
+        datas_nao_letivas = set()
+        datas_sabados_letivos = set()
+        
+        for evento in eventos:
+            tipo = evento.get('type', '')
+            data_str = evento.get('date', '')
+            
+            if tipo in ['feriado', 'recesso', 'ferias', 'nao_letivo', 'ponto_facultativo', 'conselho']:
+                try:
+                    data = datetime.strptime(data_str[:10], '%Y-%m-%d').date()
+                    datas_nao_letivas.add(data)
+                except:
+                    pass
+            elif tipo == 'sabado_letivo':
+                try:
+                    data = datetime.strptime(data_str[:10], '%Y-%m-%d').date()
+                    datas_sabados_letivos.add(data)
+                except:
+                    pass
+        
+        def calcular_dias_letivos_periodo(inicio_str, fim_str):
+            if not inicio_str or not fim_str:
+                return 0
+            try:
+                inicio = datetime.strptime(str(inicio_str)[:10], '%Y-%m-%d').date()
+                fim = datetime.strptime(str(fim_str)[:10], '%Y-%m-%d').date()
+            except:
+                return 0
+            
+            dias = 0
+            current = inicio
+            while current <= fim:
+                dia_semana = current.weekday()
+                if dia_semana < 5:
+                    if current not in datas_nao_letivas:
+                        dias += 1
+                elif dia_semana == 5:
+                    if current in datas_sabados_letivos:
+                        dias += 1
+                current += timedelta(days=1)
+            return dias
+        
+        b1 = calcular_dias_letivos_periodo(calendario_letivo.get('bimestre_1_inicio'), calendario_letivo.get('bimestre_1_fim'))
+        b2 = calcular_dias_letivos_periodo(calendario_letivo.get('bimestre_2_inicio'), calendario_letivo.get('bimestre_2_fim'))
+        b3 = calcular_dias_letivos_periodo(calendario_letivo.get('bimestre_3_inicio'), calendario_letivo.get('bimestre_3_fim'))
+        b4 = calcular_dias_letivos_periodo(calendario_letivo.get('bimestre_4_inicio'), calendario_letivo.get('bimestre_4_fim'))
+        
+        dias_letivos_ano = b1 + b2 + b3 + b4
         if dias_letivos_ano == 0:
             dias_letivos_ano = calendario_letivo.get('dias_letivos_previstos', 200) or 200
+    
+    # ===== BUSCAR DADOS DE FREQUÊNCIA (MESMA LÓGICA DA FICHA INDIVIDUAL) =====
+    class_id = student.get('class_id')
+    attendance_records = await db.attendance.find(
+        {"class_id": class_id, "academic_year": int(academic_year)},
+        {"_id": 0}
+    ).to_list(500)
+    
+    # Separar faltas por tipo: Regular (diário) e Escola Integral (por componente)
+    faltas_regular = 0
+    faltas_por_componente = {}
+    
+    for att_record in attendance_records:
+        period = att_record.get('period', 'regular')
+        course_id = att_record.get('course_id')
+        attendance_type = att_record.get('attendance_type', 'daily')
+        
+        student_records = att_record.get('records', [])
+        for sr in student_records:
+            if sr.get('student_id') == student_id:
+                status = sr.get('status', '')
+                if status == 'F':
+                    if attendance_type == 'daily' and period == 'regular':
+                        faltas_regular += 1
+                    elif course_id:
+                        if course_id not in faltas_por_componente:
+                            faltas_por_componente[course_id] = 0
+                        faltas_por_componente[course_id] += 1
+    
+    logger.info(f"Boletim: Faltas Regular={faltas_regular}, Faltas por componente={faltas_por_componente}")
+    
+    # Preparar attendance_data para o PDF
+    attendance_data = {
+        '_meta': {
+            'faltas_regular': faltas_regular,
+            'faltas_por_componente': faltas_por_componente,
+            'is_escola_integral': escola_integral
+        }
+    }
+    
+    for course in courses:
+        course_id = course.get('id')
+        atendimento = course.get('atendimento_programa')
+        
+        if atendimento == 'atendimento_integral':
+            faltas = faltas_por_componente.get(course_id, 0)
+        else:
+            faltas = 0
+        
+        attendance_data[course_id] = {
+            'absences': faltas,
+            'atendimento_programa': atendimento
+        }
     
     # Gerar PDF
     try:
