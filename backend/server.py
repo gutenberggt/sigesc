@@ -2164,16 +2164,29 @@ async def get_edit_status(ano_letivo: int, request: Request, bimestre: Optional[
     current_user = await AuthMiddleware.get_current_user(request)
     user_role = current_user.get('role', '')
     
-    # Admin e secretário sempre podem editar
+    # Buscar calendário para obter as datas limite configuradas
+    calendario = await db.calendario_letivo.find_one(
+        {"ano_letivo": ano_letivo},
+        {"_id": 0}
+    )
+    
+    # Admin e secretário sempre podem editar, mas devem ver as datas limite
     if user_role in ['admin', 'secretario']:
+        bimestres_status = []
+        for i in range(1, 5):
+            data_limite = calendario.get(f"bimestre_{i}_data_limite") if calendario else None
+            bimestres_status.append({
+                "bimestre": i, 
+                "pode_editar": True, 
+                "data_limite": data_limite, 
+                "motivo": "Permissão administrativa"
+            })
+        
         return {
             "ano_letivo": ano_letivo,
             "pode_editar_todos": True,
             "motivo": "Usuário com permissão de administração",
-            "bimestres": [
-                {"bimestre": i, "pode_editar": True, "data_limite": None, "motivo": "Permissão administrativa"}
-                for i in range(1, 5)
-            ]
+            "bimestres": bimestres_status
         }
     
     check = await check_bimestre_edit_deadline(ano_letivo, bimestre)
