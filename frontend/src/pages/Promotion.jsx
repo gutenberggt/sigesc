@@ -398,7 +398,7 @@ export function Promotion() {
         }
         
         return {
-          number: index + 1,
+          number: 0, // Será renumerado depois da ordenação
           studentId: student.id,
           studentName: student.full_name,
           sex: (student.sex || '').toLowerCase() === 'masculino' ? 'M' : 'F',
