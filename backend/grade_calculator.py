@@ -787,14 +787,20 @@ def _calcular_resultado_com_avaliacao(
     for comp in medias_por_componente:
         is_optativo = comp.get('optativo', False)
         media = comp.get('media')
+        nome = comp.get('nome', 'N/A')
         
-        # Ignorar optativos sem nota
+        # Ignorar APENAS optativos sem nota
         if is_optativo and media is None:
             continue
         
-        # Verificar se reprovou no componente
-        if media is not None and media < media_minima:
-            componentes_reprovados.append(comp.get('nome', 'N/A'))
+        # Componente OBRIGATÓRIO sem nota = reprovado (não tem como aprovar sem nota)
+        # Componente com média < mínima = reprovado
+        if media is None:
+            # Componente obrigatório sem nota registrada
+            componentes_reprovados.append(nome)
+        elif media < media_minima:
+            # Componente com média abaixo do mínimo (inclui média 0.0)
+            componentes_reprovados.append(nome)
     
     qtd_reprovados = len(componentes_reprovados)
     
