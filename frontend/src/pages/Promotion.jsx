@@ -411,7 +411,11 @@ export function Promotion() {
             } else {
               // Verificar quantos componentes reprovados (abaixo da média de aprovação)
               const failedCount = averages.filter(avg => avg < mediaAprovacao).length;
-              if (failedCount >= 3) {
+              
+              // Aplicar regras de aprovação com dependência
+              if (aprovacaoComDependencia && failedCount <= maxComponentesDependencia) {
+                result = 'APROVADO COM DEPENDÊNCIA';
+              } else if (failedCount > maxComponentesDependencia) {
                 result = 'REPROVADO';
               } else {
                 result = 'CURSANDO'; // Aguardando recuperação ou análise
