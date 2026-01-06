@@ -307,7 +307,9 @@ def calcular_resultado_final_aluno(
     regras_aprovacao: Dict,
     enrollment_status: str = 'active',
     is_educacao_infantil: bool = False,
-    frequencia_aluno: float = None
+    frequencia_aluno: float = None,
+    nivel_ensino: str = None,
+    grade_level: str = None
 ) -> Dict:
     """
     Calcula o resultado final do aluno considerando as regras de aprovação da mantenedora.
@@ -324,15 +326,24 @@ def calcular_resultado_final_aluno(
         enrollment_status: Status da matrícula (active, transferido, desistente, etc.)
         is_educacao_infantil: Se é Educação Infantil (aprovação automática)
         frequencia_aluno: Frequência do aluno em porcentagem (0-100)
+        nivel_ensino: Nível de ensino (fundamental_anos_iniciais, fundamental_anos_finais, eja, etc.)
+        grade_level: Série/Ano do aluno (1º Ano, 9º Ano, 3ª Etapa, etc.)
     
     Returns:
         Dict com:
-            - resultado: str ('APROVADO', 'REPROVADO', 'APROVADO COM DEPENDÊNCIA', 'CURSAR DEPENDÊNCIA', etc.)
+            - resultado: str ('APROVADO', 'REPROVADO', 'APROVADO COM DEPENDÊNCIA', 'EM DEPENDÊNCIA', etc.)
             - cor: str (hex color)
             - componentes_reprovados: List[str] - nomes dos componentes reprovados
             - media_geral: float
             - detalhes: str - explicação do resultado
             - reprovado_por_frequencia: bool
+    
+    Regras por nível/série:
+        - Fundamental Anos Iniciais: Apenas APROVADO ou REPROVADO (sem dependência)
+        - Fundamental Anos Finais (6º ao 8º): APROVADO, APROVADO COM DEPENDÊNCIA, EM DEPENDÊNCIA, REPROVADO
+        - 9º Ano: APROVADO, EM DEPENDÊNCIA (não há APROVADO COM DEPENDÊNCIA), REPROVADO
+        - EJA Anos Finais (3ª Etapa): APROVADO, APROVADO COM DEPENDÊNCIA, EM DEPENDÊNCIA, REPROVADO
+        - EJA 4ª Etapa: APROVADO, EM DEPENDÊNCIA (não há APROVADO COM DEPENDÊNCIA), REPROVADO
     """
     # Verificar status especiais da matrícula
     status_especiais = {
@@ -366,6 +377,18 @@ def calcular_resultado_final_aluno(
             'reprovado_por_frequencia': False
         }
     
+    # Determinar se é série final (9º Ano ou 4ª Etapa) - não permite APROVADO COM DEPENDÊNCIA
+    is_serie_final = False
+    if grade_level:
+        grade_lower = grade_level.lower()
+        if '9' in grade_lower or '9º' in grade_lower:
+            is_serie_final = True
+        elif '4ª etapa' in grade_lower or '4a etapa' in grade_lower:
+            is_serie_final = True
+    
+    # Determinar se é Anos Iniciais (sem dependência)
+    is_anos_iniciais = nivel_ensino == 'fundamental_anos_iniciais'
+    
     # Extrair regras da mantenedora (com valores padrão)
     media_minima = regras_aprovacao.get('media_aprovacao', 5.0) or 5.0
     frequencia_minima = regras_aprovacao.get('frequencia_minima', 75.0) or 75.0
@@ -373,6 +396,11 @@ def calcular_resultado_final_aluno(
     max_componentes_dep = regras_aprovacao.get('max_componentes_dependencia', 0) or 0
     permite_cursar_dep = regras_aprovacao.get('cursar_apenas_dependencia', False)
     qtd_cursar_dep = regras_aprovacao.get('qtd_componentes_apenas_dependencia', 0) or 0
+    
+    # Anos Iniciais: desabilitar todas as opções de dependência
+    if is_anos_iniciais:
+        permite_dependencia = False
+        permite_cursar_dep = False
     
     # Verificar reprovação por frequência
     reprovado_por_frequencia = False
