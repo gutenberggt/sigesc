@@ -150,6 +150,7 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 - [x] ~~Correção carga horária por série~~ (CONCLUÍDO 2026-01-04)
 - [x] ~~Bug Lotação não reconhecida na Alocação~~ (RESOLVIDO 2026-01-06)
 - [x] ~~Bug Lógica de Aprovação Ignorava Média 0.0~~ (RESOLVIDO 2026-01-06)
+- [x] ~~Bug Lógica de Aprovação Ignorava Componentes Sem Nota~~ (RESOLVIDO 2026-01-06)
 
 ### P1 (Alto)
 - [x] ~~Bloqueio por data limite de edição~~ (CONCLUÍDO)
