@@ -825,7 +825,10 @@ def generate_boletim_pdf(
         
         # Calcular média ponderada: (B1×2 + B2×3 + B3×2 + B4×3) / 10
         total_pontos = (b1_val * 2) + (b2_val * 3) + (b3_val * 2) + (b4_val * 3)
-        media = total_pontos / 10 if total_pontos > 0 else None
+        # IMPORTANTE: média 0.0 é válida e deve ser tratada como reprovação
+        # Só usar None quando não há nenhuma nota registrada
+        has_any_grade = any(g is not None for g in [b1, b2, b3, b4])
+        media = total_pontos / 10 if has_any_grade else None
         
         medias_por_componente.append({
             'nome': course.get('name', 'N/A'),
