@@ -778,19 +778,54 @@ def generate_boletim_pdf(
     if calendario_letivo:
         data_fim_4bim = calendario_letivo.get('bimestre_4_fim')
     
-    # Preparar lista de médias por componente
+    # Preparar lista de médias por componente (usando fórmula ponderada com recuperação)
     medias_por_componente = []
     for course in courses:
         is_optativo = course.get('optativo', False)
-        course_grades = grades_by_course.get(course.get('id'), {})
-        valid_grades = []
-        for period in ['P1', 'P2', 'P3', 'P4']:
-            g = course_grades.get(period, {}).get('grade')
-            if isinstance(g, (int, float)):
-                valid_grades.append(g)
+        course_id = course.get('id')
+        course_grades = grades_by_course.get(course_id, {})
         
-        # Calcular média do componente
-        media = sum(valid_grades) / len(valid_grades) if valid_grades else None
+        # Obter notas bimestrais
+        b1 = course_grades.get('b1')
+        b2 = course_grades.get('b2')
+        b3 = course_grades.get('b3')
+        b4 = course_grades.get('b4')
+        rec_s1 = course_grades.get('rec_s1')
+        rec_s2 = course_grades.get('rec_s2')
+        
+        # Valores para cálculo
+        b1_val = b1 if isinstance(b1, (int, float)) else 0
+        b2_val = b2 if isinstance(b2, (int, float)) else 0
+        b3_val = b3 if isinstance(b3, (int, float)) else 0
+        b4_val = b4 if isinstance(b4, (int, float)) else 0
+        
+        # Aplicar lógica de recuperação do 1º semestre
+        if rec_s1 is not None and isinstance(rec_s1, (int, float)):
+            if b1_val < b2_val:
+                if rec_s1 > b1_val:
+                    b1_val = rec_s1
+            elif b2_val < b1_val:
+                if rec_s1 > b2_val:
+                    b2_val = rec_s1
+            else:
+                if rec_s1 > b2_val:
+                    b2_val = rec_s1
+        
+        # Aplicar lógica de recuperação do 2º semestre
+        if rec_s2 is not None and isinstance(rec_s2, (int, float)):
+            if b3_val < b4_val:
+                if rec_s2 > b3_val:
+                    b3_val = rec_s2
+            elif b4_val < b3_val:
+                if rec_s2 > b4_val:
+                    b4_val = rec_s2
+            else:
+                if rec_s2 > b4_val:
+                    b4_val = rec_s2
+        
+        # Calcular média ponderada: (B1×2 + B2×3 + B3×2 + B4×3) / 10
+        total_pontos = (b1_val * 2) + (b2_val * 3) + (b3_val * 2) + (b4_val * 3)
+        media = total_pontos / 10 if total_pontos > 0 else None
         
         medias_por_componente.append({
             'nome': course.get('name', 'N/A'),
@@ -800,7 +835,7 @@ def generate_boletim_pdf(
     
     # Extrair regras de aprovação da mantenedora
     regras_aprovacao = {
-        'media_aprovacao': mantenedora.get('media_aprovacao', 6.0) if mantenedora else 6.0,
+        'media_aprovacao': mantenedora.get('media_aprovacao', 5.0) if mantenedora else 5.0,
         'frequencia_minima': mantenedora.get('frequencia_minima', 75.0) if mantenedora else 75.0,
         'aprovacao_com_dependencia': mantenedora.get('aprovacao_com_dependencia', False) if mantenedora else False,
         'max_componentes_dependencia': mantenedora.get('max_componentes_dependencia') if mantenedora else None,
@@ -808,13 +843,33 @@ def generate_boletim_pdf(
         'qtd_componentes_apenas_dependencia': mantenedora.get('qtd_componentes_apenas_dependencia') if mantenedora else None,
     }
     
-    # Calcular frequência do aluno baseada nos dias letivos e faltas
-    frequencia_aluno = None
-    if dias_letivos_ano and dias_letivos_ano > 0 and total_geral_faltas is not None:
-        dias_presentes = dias_letivos_ano - total_geral_faltas
-        frequencia_aluno = (dias_presentes / dias_letivos_ano) * 100
-        # Garantir que a frequência não seja negativa
-        frequencia_aluno = max(0, frequencia_aluno)
+    # ===== CALCULAR FREQUÊNCIA (MESMA LÓGICA DA FICHA INDIVIDUAL) =====
+    meta_freq = attendance_data.get('_meta', {})
+    faltas_regular = meta_freq.get('faltas_regular', 0)
+    faltas_por_componente = meta_freq.get('faltas_por_componente', {})
+    total_faltas_integral = sum(faltas_por_componente.values())
+    
+    if nivel_ensino == 'fundamental_anos_iniciais':
+        if is_escola_integral:
+            # Escola Integral: 1400h
+            ch_total = 1400
+            horas_faltadas = (faltas_regular * 4) + total_faltas_integral
+        else:
+            # Escola Regular: 800h
+            ch_total = 800
+            horas_faltadas = faltas_regular * 4
+        
+        percentual_faltas = (horas_faltadas / ch_total) * 100 if ch_total > 0 else 0
+        frequencia_aluno = 100 - percentual_faltas
+        frequencia_aluno = max(0, min(100, frequencia_aluno))
+    else:
+        # Outros níveis: cálculo padrão baseado em dias letivos
+        if dias_letivos_ano and dias_letivos_ano > 0 and total_geral_faltas is not None:
+            dias_presentes = dias_letivos_ano - total_geral_faltas
+            frequencia_aluno = (dias_presentes / dias_letivos_ano) * 100
+            frequencia_aluno = max(0, frequencia_aluno)
+        else:
+            frequencia_aluno = None
     
     # Calcular resultado usando a nova função que considera a data do 4º bimestre
     resultado_calc = determinar_resultado_documento(
