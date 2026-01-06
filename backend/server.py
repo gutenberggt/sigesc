@@ -5302,6 +5302,72 @@ async def get_ficha_individual(
         "ano_letivo": academic_year
     }, {"_id": 0})
     
+    # Calcular dias letivos reais com base nos períodos bimestrais e eventos
+    dias_letivos_calculados = None
+    if calendario_letivo:
+        # Buscar eventos do calendário para o ano
+        eventos = await db.calendar_events.find({
+            "year": academic_year
+        }, {"_id": 0}).to_list(500)
+        
+        # Identificar datas não letivas (feriados, recessos, etc.)
+        from datetime import datetime, timedelta
+        datas_nao_letivas = set()
+        datas_sabados_letivos = set()
+        
+        for evento in eventos:
+            tipo = evento.get('type', '')
+            data_str = evento.get('date', '')
+            
+            # Tipos que removem dias letivos
+            if tipo in ['feriado', 'recesso', 'ferias', 'nao_letivo', 'ponto_facultativo', 'conselho']:
+                try:
+                    data = datetime.strptime(data_str[:10], '%Y-%m-%d').date()
+                    datas_nao_letivas.add(data)
+                except:
+                    pass
+            # Sábados letivos
+            elif tipo == 'sabado_letivo':
+                try:
+                    data = datetime.strptime(data_str[:10], '%Y-%m-%d').date()
+                    datas_sabados_letivos.add(data)
+                except:
+                    pass
+        
+        def calcular_dias_letivos_periodo(inicio_str, fim_str):
+            if not inicio_str or not fim_str:
+                return 0
+            try:
+                inicio = datetime.strptime(str(inicio_str)[:10], '%Y-%m-%d').date()
+                fim = datetime.strptime(str(fim_str)[:10], '%Y-%m-%d').date()
+            except:
+                return 0
+            
+            dias = 0
+            current = inicio
+            while current <= fim:
+                dia_semana = current.weekday()
+                if dia_semana < 5:  # Segunda a sexta
+                    if current not in datas_nao_letivas:
+                        dias += 1
+                elif dia_semana == 5:  # Sábado
+                    if current in datas_sabados_letivos:
+                        dias += 1
+                current += timedelta(days=1)
+            return dias
+        
+        b1 = calcular_dias_letivos_periodo(calendario_letivo.get('bimestre_1_inicio'), calendario_letivo.get('bimestre_1_fim'))
+        b2 = calcular_dias_letivos_periodo(calendario_letivo.get('bimestre_2_inicio'), calendario_letivo.get('bimestre_2_fim'))
+        b3 = calcular_dias_letivos_periodo(calendario_letivo.get('bimestre_3_inicio'), calendario_letivo.get('bimestre_3_fim'))
+        b4 = calcular_dias_letivos_periodo(calendario_letivo.get('bimestre_4_inicio'), calendario_letivo.get('bimestre_4_fim'))
+        
+        dias_letivos_calculados = b1 + b2 + b3 + b4
+        logger.info(f"Ficha Individual: Dias letivos calculados = {dias_letivos_calculados} (B1={b1}, B2={b2}, B3={b3}, B4={b4})")
+    
+    # Adicionar dias letivos calculados ao calendário
+    if calendario_letivo:
+        calendario_letivo['dias_letivos_calculados'] = dias_letivos_calculados
+    
     # Gerar PDF
     try:
         pdf_buffer = generate_ficha_individual_pdf(
