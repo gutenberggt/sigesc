@@ -29,6 +29,16 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
   - Correção: Em `Promotion.jsx`, mapeamento direto dos campos e uso de `indexOf` para encontrar o índice correto das notas
   - **Testado**: Screenshot confirmou que as notas estão aparecendo corretamente
 
+- **Feature - Exibição de Data Limite de Edição para Professores** (P1 - IMPLEMENTADO):
+  - Antes: Professor só via aviso quando o prazo já havia encerrado
+  - Agora: Professor vê a data limite **antes** de encerrar, com:
+    - Contador de dias restantes
+    - Cores indicativas de urgência (azul: normal, amarelo: <= 7 dias, laranja: <= 3 dias)
+    - Ícone de calendário e mensagem informativa
+  - Componente: `BimestreDeadlineAlert` em `BimestreStatus.jsx`
+  - Backend: Endpoint `/api/calendario-letivo/{ano}/status-edicao` agora retorna `data_limite` para todos os usuários
+  - **Testado**: Screenshot confirmou exibição do alerta com datas limite
+
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
   - Problema: Após criar uma lotação para um professor, o modal de alocação não reconhecia a nova lotação, mostrando mensagem "Este professor não possui lotação em nenhuma escola"
