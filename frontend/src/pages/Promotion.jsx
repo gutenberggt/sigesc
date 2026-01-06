@@ -175,6 +175,10 @@ const STUDENTS_PER_PAGE = 10;
 export function Promotion() {
   const navigate = useNavigate();
   const { accessToken, user } = useAuth();
+  const { mantenedora } = useMantenedora();
+  
+  // Obter média de aprovação da mantenedora (padrão 5.0)
+  const mediaAprovacao = mantenedora?.media_aprovacao || 5.0;
   
   // States
   const [loading, setLoading] = useState(false);
