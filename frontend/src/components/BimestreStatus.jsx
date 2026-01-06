@@ -255,6 +255,7 @@ export const BimestreFieldIndicator = ({ bimestre, canEdit, dataLimite }) => {
 export default {
   BimestreStatusBadge,
   BimestreBlockedAlert,
+  BimestreDeadlineAlert,
   BimestreStatusRow,
   BimestreFieldIndicator
 };
