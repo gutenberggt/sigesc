@@ -455,6 +455,9 @@ export const Attendance = () => {
         {/* Alerta de bimestres bloqueados */}
         <BimestreBlockedAlert blockedBimestres={blockedBimestres} />
         
+        {/* Alerta de prazos de edição (para bimestres ABERTOS) */}
+        <BimestreDeadlineAlert editStatus={editStatus} />
+        
         {/* Status de edição dos bimestres */}
         {!loadingEditStatus && editStatus && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
