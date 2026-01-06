@@ -349,7 +349,8 @@ def generate_boletim_pdf(
     academic_year: str,
     mantenedora: Dict[str, Any] = None,
     dias_letivos_ano: int = 200,
-    calendario_letivo: Dict[str, Any] = None
+    calendario_letivo: Dict[str, Any] = None,
+    attendance_data: Dict[str, Any] = None
 ) -> BytesIO:
     """
     Gera o PDF do Boletim Escolar - Modelo Floresta do Araguaia
@@ -365,11 +366,16 @@ def generate_boletim_pdf(
         mantenedora: Dados da mantenedora (logotipo, cidade, estado)
         dias_letivos_ano: Total de dias letivos no ano (para cálculo de frequência)
         calendario_letivo: Dados do calendário letivo (para data fim do 4º bimestre)
+        attendance_data: Dados de frequência do aluno
     
     Returns:
         BytesIO com o PDF gerado
     """
     from reportlab.platypus import KeepTogether
+    
+    # Inicializar attendance_data se não fornecido
+    if attendance_data is None:
+        attendance_data = {}
     
     buffer = BytesIO()
     doc = SimpleDocTemplate(
