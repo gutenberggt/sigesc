@@ -79,8 +79,8 @@ export default function Mantenedora() {
         logotipo_url: data.logotipo_url || '',
         brasao_url: data.brasao_url || '',
         slogan: data.slogan || '',
-        // Condicionais para aprovação
-        media_aprovacao: data.media_aprovacao?.toString() || '6.0',
+        // Condicionais para aprovação - garantir formato correto para Select
+        media_aprovacao: data.media_aprovacao != null ? Number(data.media_aprovacao).toFixed(1) : '6.0',
         frequencia_minima: data.frequencia_minima?.toString() || '75',
         aprovacao_com_dependencia: data.aprovacao_com_dependencia || false,
         max_componentes_dependencia: data.max_componentes_dependencia?.toString() || '',
