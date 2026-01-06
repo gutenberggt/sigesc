@@ -25,7 +25,7 @@ import { schoolsAPI, classesAPI, coursesAPI, attendanceAPI, professorAPI, calend
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
-import { BimestreBlockedAlert, BimestreStatusRow } from '@/components/BimestreStatus';
+import { BimestreBlockedAlert, BimestreDeadlineAlert, BimestreStatusRow } from '@/components/BimestreStatus';
 
 // Labels para níveis de ensino
 const EDUCATION_LEVEL_LABELS = {
