@@ -5297,9 +5297,9 @@ async def get_ficha_individual(
     # Buscar dados da mantenedora
     mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
     
-    # Buscar calendário letivo para data fim do 4º bimestre
-    calendario_letivo = await db.calendar.find_one({
-        "year": academic_year
+    # Buscar calendário letivo para dias letivos e data fim do 4º bimestre
+    calendario_letivo = await db.calendario_letivo.find_one({
+        "ano_letivo": academic_year
     }, {"_id": 0})
     
     # Gerar PDF
