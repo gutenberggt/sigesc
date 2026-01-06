@@ -178,9 +178,9 @@ export function Promotion() {
   const { mantenedora } = useMantenedora();
   
   // Obter regras de aprovação da mantenedora
-  const mediaAprovacao = mantenedora?.media_aprovacao || 5.0;
-  const aprovacaoComDependencia = mantenedora?.aprovacao_com_dependencia || false;
-  const maxComponentesDependencia = mantenedora?.max_componentes_dependencia || 2;
+  const mediaAprovacao = mantenedora?.media_aprovacao ?? 5.0;
+  const aprovacaoComDependencia = mantenedora?.aprovacao_com_dependencia ?? false;
+  const maxComponentesDependencia = mantenedora?.max_componentes_dependencia ?? 2;
   
   // States
   const [loading, setLoading] = useState(false);
