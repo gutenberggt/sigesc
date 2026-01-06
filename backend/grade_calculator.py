@@ -706,22 +706,32 @@ def determinar_resultado_documento(
             'detalhes': 'Promoção automática - 1º/2º Ano'
         }
     
-    # 3. 3º ao 5º ANO ou 1ª/2ª ETAPA EJA → Verificar frequência e média
+    # 3. 3º ao 5º ANO ou 1ª/2ª ETAPA EJA → Verificar frequência e média (sem dependência)
     if is_anos_iniciais_avaliacao(grade_level) or is_eja_inicial(grade_level, nivel_ensino):
         return _calcular_resultado_com_avaliacao(
             medias_por_componente=medias_por_componente,
             regras_aprovacao=regras_aprovacao,
             frequencia_aluno=frequencia_aluno,
-            permite_dependencia=False  # Sem dependência para anos iniciais
+            permite_dependencia=False,  # Sem dependência para anos iniciais
+            is_serie_final=False
         )
     
     # 4. 6º ao 9º ANO ou 3ª/4ª ETAPA EJA → Verificar com possibilidade de dependência
     if is_anos_finais(grade_level) or is_eja_final(grade_level, nivel_ensino):
+        # Verificar se é série final (9º Ano ou 4ª Etapa) - não permite APROVADO COM DEPENDÊNCIA
+        is_serie_final = False
+        grade_lower = grade_level.lower() if grade_level else ''
+        if '9' in grade_lower or '9º' in grade_lower:
+            is_serie_final = True
+        elif '4ª etapa' in grade_lower or '4a etapa' in grade_lower:
+            is_serie_final = True
+        
         return _calcular_resultado_com_avaliacao(
             medias_por_componente=medias_por_componente,
             regras_aprovacao=regras_aprovacao,
             frequencia_aluno=frequencia_aluno,
-            permite_dependencia=True  # Com dependência para anos finais
+            permite_dependencia=True,  # Com dependência para anos finais
+            is_serie_final=is_serie_final
         )
     
     # Fallback: usar a função existente
