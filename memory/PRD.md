@@ -11,12 +11,16 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 ## Implementações Recentes
 
 ### 2026-01-06 (Sessão 5)
-- **Bug Crítico Corrigido - Lógica de Aprovação Ignorava Média 0.0** (P0 - RESOLVIDO):
-  - Problema: Alunos com média 0.0 em componentes curriculares eram marcados como "APROVADO" em vez de "REPROVADO"
-  - Causa raiz: No `pdf_generator.py` linha 828, o código `media = total_pontos / 10 if total_pontos > 0 else None` definia média como `None` quando todas as notas eram 0, fazendo com que o componente fosse ignorado na verificação de aprovação
-  - Correção: Alterado para usar `has_any_grade = any(g is not None for g in [b1, b2, b3, b4])` e `media = total_pontos / 10 if has_any_grade else None`
-  - **Testado**: 25 testes unitários passaram - cenários com média 0.0 agora corretamente retornam REPROVADO
-  - Arquivos de teste criados: `tests/test_zero_grade_bug.py`, `tests/test_pdf_generator_media.py`
+- **Bug Crítico Corrigido - Lógica de Aprovação Ignorava Componentes Sem Nota** (P0 - RESOLVIDO):
+  - Problema 1: Alunos com componentes OBRIGATÓRIOS sem nota (media=None) eram marcados como "APROVADO"
+  - Problema 2: O Boletim exibia notas com ponto (.) em vez de vírgula (,)
+  - Causa raiz: A função `_calcular_resultado_com_avaliacao` ignorava componentes onde `media is None`, mesmo sendo obrigatórios
+  - Correção 1: Em `grade_calculator.py`, componentes obrigatórios sem nota agora são adicionados à lista de reprovados
+  - Correção 2: Em `pdf_generator.py`, a função `fmt_grade` do Boletim agora usa `.replace('.', ',')`
+  - Regra de negócio: "Só pode ser Aprovado se, em TODOS os componentes obrigatórios a média for >= 5,0"
+  - **Testado**: 54 testes unitários passaram
+  - Cenário principal: Aluna Ana Beatriz Pereira Sousa (5º Ano A) - 2 componentes com nota, 10 sem nota → REPROVADO (antes: APROVADO)
+  - Arquivos de teste: `tests/test_mandatory_no_grade_bug.py` (13 testes)
 
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
