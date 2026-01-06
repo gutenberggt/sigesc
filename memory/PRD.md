@@ -45,6 +45,16 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
   - Correção: Em `Mantenedora.js`, usar `Number(data.media_aprovacao).toFixed(1)` para garantir formato correto
   - **Testado**: API confirmou que valor foi salvo e carregado corretamente
 
+- **Bug Corrigido - Livro de Promoção não usava Média de Aprovação da Mantenedora** (P1 - RESOLVIDO):
+  - Problema: O Livro de Promoção usava valor hardcoded (6.0) em vez da média configurada na Mantenedora
+  - Correções aplicadas em `Promotion.jsx`:
+    1. Adicionado import do `useMantenedora` para acessar regras de aprovação
+    2. Alterado cálculo da média de aprovação para usar `mantenedora?.media_aprovacao ?? 5.0`
+    3. Implementado cálculo usando fórmula ponderada: `(B1×2 + B2×3 + B3×2 + B4×3) / 10`
+    4. Implementadas regras de "Aprovação com Dependência" usando configuração da Mantenedora
+    5. Adicionado "APROVADO COM DEPENDÊNCIA" ao contador de aprovados
+  - **Testado**: Screenshot confirmou exibição correta com regras da Mantenedora
+
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
   - Problema: Após criar uma lotação para um professor, o modal de alocação não reconhecia a nova lotação, mostrando mensagem "Este professor não possui lotação em nenhuma escola"
