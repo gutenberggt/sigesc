@@ -430,7 +430,7 @@ export function Promotion() {
     } finally {
       setLoading(false);
     }
-  }, [selectedClass, selectedYear, classes]);
+  }, [selectedClass, selectedYear, classes, mediaAprovacao]);
 
   useEffect(() => {
     loadPromotionData();
