@@ -627,11 +627,31 @@ def generate_boletim_pdf(
                 if rec_s2 > b4_val:
                     n4 = rec_s2
         
-        # Obter faltas - não temos faltas por período no formato atual
-        # TODO: Integrar com sistema de frequência quando disponível
-        total_faltas = 0
+        # ===== FALTAS - MESMA LÓGICA DA FICHA INDIVIDUAL =====
+        meta_freq = attendance_data.get('_meta', {})
+        atendimento_programa = course.get('atendimento_programa')
+        course_id = course.get('id')
+        course_name_atual = course.get('name', 'N/A')
         
-        total_geral_faltas += total_faltas
+        if nivel_ensino == 'fundamental_anos_iniciais':
+            # Anos Iniciais: lógica especial de exibição de faltas
+            if atendimento_programa == 'atendimento_integral':
+                # Componente de Escola Integral: mostrar faltas individuais
+                total_faltas = meta_freq.get('faltas_por_componente', {}).get(course_id, 0)
+            elif course_name_atual == 'Língua Portuguesa':
+                # Língua Portuguesa: mostrar TODAS as faltas regulares
+                total_faltas = meta_freq.get('faltas_regular', 0)
+            else:
+                # Outros componentes regulares: não mostrar faltas (só em LP)
+                total_faltas = '-'
+        else:
+            # Outros níveis: usar faltas do attendance_data
+            att = attendance_data.get(course_id, {})
+            total_faltas = att.get('absences', 0)
+        
+        # Somar faltas para o total (apenas valores numéricos)
+        if isinstance(total_faltas, (int, float)):
+            total_geral_faltas += total_faltas
         
         # Calcular média/conceito
         if is_educacao_infantil:
