@@ -484,19 +484,20 @@ def calcular_resultado_final_aluno(
     
     # Tem componentes reprovados - verificar regras de dependência
     
-    # 1. Verificar se pode cursar apenas dependência
+    # 1. Verificar se pode ficar EM DEPENDÊNCIA (cursar apenas os componentes reprovados)
     if permite_cursar_dep and qtd_reprovados >= qtd_cursar_dep and qtd_cursar_dep > 0:
         return {
-            'resultado': 'CURSAR DEPENDÊNCIA',
+            'resultado': 'EM DEPENDÊNCIA',
             'cor': '#7c3aed',  # Roxo
             'componentes_reprovados': componentes_reprovados,
             'media_geral': media_geral,
-            'detalhes': f'Reprovado em {qtd_reprovados} componente(s) - deve cursar apenas dependência: {", ".join(componentes_reprovados)}',
+            'detalhes': f'Reprovado em {qtd_reprovados} componente(s) - cursará apenas dependência: {", ".join(componentes_reprovados)}',
             'reprovado_por_frequencia': False
         }
     
-    # 2. Verificar se pode ser aprovado com dependência
-    if permite_dependencia and qtd_reprovados <= max_componentes_dep:
+    # 2. Verificar se pode ser APROVADO COM DEPENDÊNCIA (apenas para 6º ao 8º e 3ª Etapa)
+    # Séries finais (9º Ano e 4ª Etapa) NÃO permitem APROVADO COM DEPENDÊNCIA
+    if permite_dependencia and qtd_reprovados <= max_componentes_dep and not is_serie_final:
         return {
             'resultado': 'APROVADO COM DEPENDÊNCIA',
             'cor': '#ca8a04',  # Amarelo
