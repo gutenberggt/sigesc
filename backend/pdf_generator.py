@@ -671,7 +671,7 @@ def generate_boletim_pdf(
             
             total_pontos = (b1_val * 2) + (b2_val * 3) + (b3_val * 2) + (b4_val * 3)
             media = total_pontos / 10
-            media_str = f"{media:.1f}"
+            media_str = f"{media:.1f}".replace('.', ',')
         
         # Formatar valores
         def fmt_grade(v):
