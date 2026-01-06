@@ -2201,10 +2201,7 @@ async def get_edit_status(ano_letivo: int, request: Request, bimestre: Optional[
         }
     
     # Retorna status de todos os bimestres
-    calendario = await db.calendario_letivo.find_one(
-        {"ano_letivo": ano_letivo},
-        {"_id": 0}
-    )
+    # (calendário já foi buscado no início da função)
     
     from datetime import date
     today = date.today().isoformat()
