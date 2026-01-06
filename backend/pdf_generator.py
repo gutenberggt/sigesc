@@ -1291,10 +1291,11 @@ def generate_ficha_individual_pdf(
         # Para outros níveis, soma a carga horária dos componentes
         total_carga_horaria = sum(get_course_workload(c, grade_level) for c in courses) if courses else 1200
     
-    # Buscar dias letivos do calendário
+    # Buscar dias letivos do calendário (calculados a partir dos períodos bimestrais)
     dias_letivos = 200  # Valor padrão
     if calendario_letivo:
-        dias_letivos = calendario_letivo.get('dias_letivos_previstos', 200)
+        # Priorizar dias_letivos_calculados (soma dos bimestres), senão usar dias_letivos_previstos
+        dias_letivos = calendario_letivo.get('dias_letivos_calculados') or calendario_letivo.get('dias_letivos_previstos', 200)
     
     # ===== CÁLCULO DE FREQUÊNCIA PARA ANOS INICIAIS =====
     # Obter metadados de frequência
