@@ -319,23 +319,18 @@ export function Promotion() {
         studentGrades.forEach(grade => {
           const course = (orderedCourses || []).find(c => c.id === grade.course_id);
           if (course) {
-            if (!gradesByComponent[course.id]) {
-              gradesByComponent[course.id] = {
-                courseName: course.name,
-                b1: null, b2: null, b3: null, b4: null,
-                rec1: null, rec2: null,
-                totalPoints: 0,
-                finalAverage: null
-              };
-            }
-            
-            // Mapear período para bimestre
-            if (grade.period === 'P1') gradesByComponent[course.id].b1 = grade.grade;
-            if (grade.period === 'P2') gradesByComponent[course.id].b2 = grade.grade;
-            if (grade.period === 'P3') gradesByComponent[course.id].b3 = grade.grade;
-            if (grade.period === 'P4') gradesByComponent[course.id].b4 = grade.grade;
-            if (grade.period === 'REC1') gradesByComponent[course.id].rec1 = grade.grade;
-            if (grade.period === 'REC2') gradesByComponent[course.id].rec2 = grade.grade;
+            // As notas já vêm no formato correto (b1, b2, b3, b4, rec_s1, rec_s2)
+            gradesByComponent[course.id] = {
+              courseName: course.name,
+              b1: grade.b1 !== undefined ? grade.b1 : null,
+              b2: grade.b2 !== undefined ? grade.b2 : null,
+              b3: grade.b3 !== undefined ? grade.b3 : null,
+              b4: grade.b4 !== undefined ? grade.b4 : null,
+              rec1: grade.rec_s1 !== undefined ? grade.rec_s1 : null,
+              rec2: grade.rec_s2 !== undefined ? grade.rec_s2 : null,
+              totalPoints: 0,
+              finalAverage: null
+            };
           }
         });
         
