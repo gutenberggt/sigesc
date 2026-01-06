@@ -452,7 +452,7 @@ export function Promotion() {
     } finally {
       setLoading(false);
     }
-  }, [selectedClass, selectedYear, classes, mediaAprovacao]);
+  }, [selectedClass, selectedYear, classes, mediaAprovacao, aprovacaoComDependencia, maxComponentesDependencia]);
 
   useEffect(() => {
     loadPromotionData();
