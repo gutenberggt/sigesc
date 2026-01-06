@@ -436,10 +436,16 @@ def calcular_resultado_final_aluno(
     
     for comp in componentes_validos:
         media = comp.get('media')
+        nome = comp.get('nome', 'N/A')
+        
         if media is not None:
             medias.append(media)
+            # Componente com média abaixo do mínimo (inclui média 0.0)
             if media < media_minima:
-                componentes_reprovados.append(comp.get('nome', 'N/A'))
+                componentes_reprovados.append(nome)
+        else:
+            # Componente OBRIGATÓRIO sem nota = reprovado (não tem como aprovar sem nota)
+            componentes_reprovados.append(nome)
     
     if not medias:
         return {
