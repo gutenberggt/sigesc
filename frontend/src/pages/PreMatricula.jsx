@@ -85,7 +85,7 @@ export default function PreMatricula() {
     
     setSubmitting(true);
     try {
-      await api.post('/api/pre-matricula', {
+      await axios.post(`${API_URL}/api/pre-matricula`, {
         school_id: selectedSchool.id,
         ...formData
       });
