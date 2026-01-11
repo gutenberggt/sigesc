@@ -4,6 +4,7 @@ import { LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { NotificationBell, MessagesBadge } from '@/components/notifications';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
+import { ConnectionStatusBadge, OfflineBanner, FloatingStatusIndicator } from '@/components/OfflineStatus';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
