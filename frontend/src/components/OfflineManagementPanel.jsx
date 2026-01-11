@@ -245,6 +245,27 @@ export function OfflineManagementPanel({ academicYear, classId }) {
               </Button>
             )}
             
+            {/* Botão de Notificações */}
+            <Button 
+              size="sm" 
+              variant={notificationsEnabled ? "outline" : "default"}
+              onClick={handleEnableNotifications}
+              disabled={notificationsEnabled}
+              className={notificationsEnabled ? "text-green-600 border-green-300" : "bg-blue-600 hover:bg-blue-700"}
+            >
+              {notificationsEnabled ? (
+                <>
+                  <Bell className="w-4 h-4 mr-1" />
+                  Notificações ativas
+                </>
+              ) : (
+                <>
+                  <BellOff className="w-4 h-4 mr-1" />
+                  Ativar notificações
+                </>
+              )}
+            </Button>
+            
             <Button 
               size="sm" 
               variant="ghost"
