@@ -2133,6 +2133,50 @@ export function SchoolsComplete() {
               </div>
             </div>
           </div>
+          
+          {/* Pré-Matrícula Online */}
+          <div className="mt-8 pt-6 border-t">
+            <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Users size={20} className="text-purple-600" />
+              Pré-Matrícula Online
+            </h4>
+            <p className="text-sm text-gray-600 mb-4">
+              Quando ativada, esta escola aparecerá na página pública de <strong>Pré-Matrícula</strong>, 
+              permitindo que responsáveis realizem o cadastro prévio de novos alunos.
+            </p>
+            
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${
+                    formData.pre_matricula_ativa ? 'bg-purple-600' : 'bg-gray-300'
+                  } ${viewMode ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    onClick={() => !viewMode && updateFormData('pre_matricula_ativa', !formData.pre_matricula_ativa)}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-md transition-transform ${
+                      formData.pre_matricula_ativa ? 'translate-x-6' : 'translate-x-0.5'
+                    }`} />
+                  </div>
+                  <span className={`font-medium ${formData.pre_matricula_ativa ? 'text-purple-700' : 'text-gray-600'}`}>
+                    {formData.pre_matricula_ativa ? 'Pré-Matrícula Ativada' : 'Pré-Matrícula Desativada'}
+                  </span>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  formData.pre_matricula_ativa 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {formData.pre_matricula_ativa ? 'Visível ao público' : 'Não visível'}
+                </span>
+              </div>
+              
+              {formData.pre_matricula_ativa && (
+                <p className="text-sm text-purple-700 mt-3">
+                  Esta escola está aceitando pré-matrículas através do link público de pré-matrícula.
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     );
