@@ -1,0 +1,78 @@
+{
+  "summary": "Pre-Matricula (Online Pre-Registration) feature testing completed successfully. All features working as expected: login page button, public pre-matricula page, school selection, form submission, and database persistence.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/test_pre_matricula.py",
+    "/app/test_reports/pytest/pytest_pre_matricula.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fixed route order issue in /app/backend/routers/schools.py - moved /pre-matricula route BEFORE /{school_id} route to prevent FastAPI from matching 'pre-matricula' as a school_id parameter"
+  ],
+  "updated_files": [
+    "/app/backend/routers/schools.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "admin_email": "gutenberg@sigesc.com",
+    "admin_password": "@Celta2007"
+  },
+  "seed_data_creation": "Enabled pre-matricula for 'Escola Municipal Floresta do Araguaia' for testing. Created test pre-matricula record with student 'João da Silva Teste'",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Pre-Matricula feature is fully functional. Route order fix was applied to schools.py router. Test data exists in database.",
+  "features_tested": {
+    "login_page_button": {
+      "status": "PASS",
+      "description": "Green 'Pré-Matrícula' button visible on login page with correct styling"
+    },
+    "pre_matricula_page_load": {
+      "status": "PASS",
+      "description": "Page /pre-matricula loads correctly with school selection step"
+    },
+    "no_schools_message": {
+      "status": "PASS",
+      "description": "Shows 'Nenhuma escola disponível' when no schools have pre-matricula active"
+    },
+    "school_permission_tab": {
+      "status": "PASS",
+      "description": "Pré-Matrícula Online toggle visible in Permissão tab of school edit modal"
+    },
+    "enable_pre_matricula": {
+      "status": "PASS",
+      "description": "Toggle successfully enables pre-matricula and shows 'Visível ao público' status"
+    },
+    "school_appears_in_list": {
+      "status": "PASS",
+      "description": "School with pre-matricula active appears in public pre-matricula page"
+    },
+    "form_submission": {
+      "status": "PASS",
+      "description": "Form fills correctly and submits successfully with confirmation page"
+    },
+    "database_persistence": {
+      "status": "PASS",
+      "description": "Pre-matricula record saved in database with status 'pendente'"
+    },
+    "api_endpoints": {
+      "status": "PASS",
+      "description": "All API endpoints working: GET /api/schools/pre-matricula (public), POST /api/pre-matricula (public), GET /api/pre-matriculas (authenticated)"
+    }
+  },
+  "bug_fixed": {
+    "issue": "Route order in schools.py router caused /api/schools/pre-matricula to require authentication",
+    "root_cause": "FastAPI was matching 'pre-matricula' as a {school_id} parameter because /{school_id} route was defined before /pre-matricula",
+    "fix": "Moved /pre-matricula route definition before /{school_id} route in /app/backend/routers/schools.py"
+  }
+}
