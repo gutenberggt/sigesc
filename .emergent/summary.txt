@@ -5,149 +5,149 @@ O usuário iniciou a sessão com vários objetivos para o sistema de gestão esc
 - (Melhorias) Adicionar otimizações de segurança, refatorar o monolítico , e refatorar componentes de frontend.
 - (Ajustes de UI) Traduzir a severidade nos logs, padronizar a exibição dos nomes das turmas, reorganizar a ordem dos componentes curriculares e ajustar a exibição de dados de frequência nos documentos.
 
+Durante a sessão, o usuário também solicitou:
+- Correção de uma recorrência do bug de aprovação (P0).
+- Correção do Livro de Promoção que não exibia notas.
+- Implementação da exibição da data limite de edição para professores.
+- Correção do bug que impedia salvar a Média para Aprovação na Mantenedora.
+- Correção do Livro de Promoção para que usasse as regras de aprovação da Mantenedora.
+- Início da implementação de funcionalidade offline para o sistema.
+
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-O sistema de gestão escolar (SIGESC) é uma aplicação full-stack (React + FastAPI + MongoDB).
-- **Backend:** O  hospeda a maior parte dos endpoints, embora a refatoração para routers modulares esteja em andamento. Foram corrigidos e aprimorados os endpoints de geração de documentos PDF (). O arquivo  agora contém lógicas de negócio extremamente complexas e específicas para cálculo de notas, médias ponderadas, aplicação de recuperação e determinação do status final do aluno (Aprovado, Reprovado, Em Dependência) com base no nível de ensino e série. Um script de migração foi criado e executado com sucesso para corrigir dados de carga horária no banco ().
-- **Frontend:** Um seletor de ano foi adicionado à página de Frequência (). A maior parte do trabalho recente foi focada na correção do bug de lotação/alocação de professores, que envolveu o hook  e os modais relacionados.
+O sistema é uma aplicação full-stack (React + FastAPI + MongoDB) com funcionalidades de gestão acadêmica.
+- **Backend:**  contém a maior parte da lógica da API, com uma refatoração em andamento para routers modulares. Arquivos como  e  encapsulam regras de negócio complexas para o setor educacional.
+- **Frontend:** A aplicação React utiliza hooks e context para gerenciamento de estado. Múltiplos bugs foram corrigidos, e novas features como a exibição de data limite foram adicionadas.
+- **Funcionalidade Offline (PWA):** As Fases 1 e 2 da implementação offline foram concluídas. O sistema agora é um PWA básico com um Service Worker para cache. A biblioteca  foi instalada e configurada para criar um banco de dados IndexedDB local (). Foram criados os hooks e serviços iniciais para gerenciar dados offline (, , , ), mas ainda não estão integrados nas páginas de UI.
 
 **Last working item**:
--   **Last item agent was working:** O agente estava diagnosticando por que um aluno com média 0.0 em vários componentes curriculares estava sendo marcado como APROVADO. O agente identificou que a lógica em  provavelmente estava ignorando componentes com média 0.0 em vez de contá-los como reprovação.
+-   **Last item agent was working:** O agente estava no meio da **Fase 3** da implementação da funcionalidade offline. Especificamente, estava integrando o  e o hook  nas páginas  e  para começar a transição da lógica de busca de dados para o modelo offline-first.
 -   **Status:** IN PROGRESS
 -   **Agent Testing Done:** N
--   **User Testing Done:** Y (O usuário forneceu PDFs mostrando o resultado final inconsistente e incorreto).
--   **Which testing method agent to use?** Backend testing agent. O agente de teste deve criar um cenário de teste para a função  em , passando um conjunto de médias que inclua valores 0.0, e verificar se o resultado retornado é REPROVADO ou EM DEPENDÊNCIA, conforme as regras.
+-   **User Testing Done:** N
+-   **Which testing method agent to use?** Frontend testing agent. O agente de teste deve ser usado para: 1. Verificar se o  aparece corretamente nas páginas  e . 2. Simular um cenário offline, realizar edições de notas/frequência, voltar ao modo online e confirmar que a sincronização ocorre com sucesso e os dados são persistidos no backend.
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Lógica de aprovação incorreta ignora componentes com média 0.0.**
-
-Issues Detail:
--   **Issue 1: Lógica de aprovação incorreta ignora componentes com média 0.0.**
-    -   **Attempted fixes:** O agente analisou os PDFs e concluiu que o problema reside na função , que não trata corretamente as médias 0.0. Nenhuma alteração no código foi aplicada ainda para este problema específico.
-    -   **Next debug checklist:**
-        1.  Modificar a função  em .
-        2.  Garantir que o loop que itera sobre  trate um componente com  como uma reprovação nesse componente.
-        3.  Após a correção, o aluno não deve mais ser APROVADO, mas sim APROVADO COM DEPENDÊNCIA ou REPROVADO, dependendo das regras de dependência para a sua série/nível.
-    -   **Why fix this issue and what will be achieved with the fix?** É um bug crítico que compromete a integridade do resultado acadêmico do aluno. A correção garantirá que o status final do aluno seja calculado corretamente de acordo com as regras de negócio.
-    -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** backend
-    -   **Blocked on other issue:** N/A
+Nenhum. Todos os bugs reportados pelo usuário foram resolvidos. O foco atual é no desenvolvimento de novas funcionalidades.
 
 **In progress Task List**:
--   **Task 1: (P1) Refatoração do **
-    -   **Where to resume:** Continuar movendo endpoints restantes (, , , ) do  para seus próprios arquivos em .
-    -   **What will be achieved with this?** Aumentará a manutenibilidade e a organização do código backend.
+-   **Task 1: (P0) Implementar Funcionalidade Offline**
+    -   **Where to resume:** Continuar a integração nas páginas  e . O próximo passo é substituir a lógica de fetching de dados atual (chamadas diretas à API) para usar os novos hooks offline (, ) que leem e escrevem primeiramente no IndexedDB.
+    -   **What will be achieved with this?** As páginas de Notas e Frequência se tornarão capazes de funcionar offline, lendo e salvando dados localmente.
     -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** backend
-    -   **Blocked on something:** N/A
--   **Task 2: (P2) Refatoração do Frontend ()**
-    -   **Where to resume:** O componente  precisa ser refatorado para usar hooks customizados, separando a lógica da apresentação.
-    -   **What will be achieved with this?** Simplificará um componente de frontend muito grande e complexo.
-    -   **Status:** NOT STARTED
-    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Should Test frontend/backend/both after fix?** both
     -   **Blocked on something:** N/A
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   (P1) Continuar Refatoração do Backend: Mover os endpoints restantes (, , , ) do .
+    -   **(P0) Offline - Fase 3 (Conclusão):** Finalizar a integração dos hooks offline nas páginas de Notas e Frequência.
+    -   **(P0) Offline - Fase 4:** Construir os endpoints de sincronização no backend (, ).
+    -   **(P0) Offline - Fase 5:** Implementar a UI de status de sincronização (indicador, lista de itens pendentes, botão para forçar sync).
+    -   **(P1) Continuar Refatoração do Backend:** Mover os endpoints restantes (, , etc.) do  para routers modulares.
 -   **Future Tasks:**
-    -   (P2) **Refatorar :** Quebrar as funções monolíticas de geração de PDF em sub-funções menores e mais gerenciáveis.
-    -   (P3) **Deletar Código Obsoleto:** Remover o arquivo  após confirmar que não é utilizado.
+    -   **(P2) Refatorar :** Quebrar as funções monolíticas de geração de PDF.
+    -   **(P2) Refatorar :** Simplificar o componente, separando lógica da apresentação.
+    -   **(P3) Deletar Código Obsoleto:** Remover o arquivo  após confirmar que não é utilizado.
 
 **Completed work in this session**
-- **Bug Lotação/Alocação (P0):** Corrigido o bug crítico onde a lotação de um professor não era reconhecida ao tentar fazer uma alocação. A correção foi validada pelo .
-- **Migração de Dados de Carga Horária:** Criado e executado um script de migração para corrigir dados de  na coleção .
-- **Bug de Sincronização de Notas:** Corrigido o bug onde as notas não apareciam no Boletim e Livro de Promoção. A causa era uma mistura de tipos de dados (ano como  vs ) e uma estrutura de dados incorreta esperada pelo .
-- **Implementação de Lógica de Cálculo Ponderado:** Corrigidos o Boletim e a Ficha Individual para usar a fórmula de média ponderada e a lógica de substituição por recuperação especificadas pelo usuário.
-- **Implementação de Regras de Aprovação Complexas:** Implementada em  a lógica de aprovação que varia por nível de ensino e série (Anos Iniciais, Anos Finais, EJA, séries finais).
-- **Integração de Faltas nos Documentos:** A lógica para buscar e exibir as faltas reais do sistema de frequência foi implementada na Ficha Individual e no Boletim, com regras complexas para escolas de tempo integral.
-- **Feature de Seletor de Ano:** Adicionado um seletor de ano letivo à página de Controle de Frequência.
-- **Correções de UI/Dados em Documentos:**
-    - Corrigido o campo INEP na Ficha Individual.
-    - Atualizado o campo Dias Letivos para buscar o valor calculado dinamicamente do calendário.
-    - Simplificado o rótulo ENSINO FUNDAMENTAL - ANOS INICIAIS/FINAIS para apenas ENSINO FUNDAMENTAL.
-    - Reorganizada a ordem dos componentes curriculares nos documentos.
+- **Bug da Lógica de Aprovação (P0 - Recorrência):** Corrigido o bug crítico onde alunos eram aprovados indevidamente. A correção envolveu dois cenários: tratar médias 0.0 como reprovação e garantir que componentes curriculares obrigatórios sem nota também resultem em reprovação.
+- **Bug de Exibição de Notas no Livro de Promoção:** Corrigido o  para mapear corretamente a estrutura de dados das notas vindas do backend, resolvendo um problema de incompatibilidade que impedia a exibição.
+- **Bug de Média de Aprovação na Mantenedora:** Corrigido o  para garantir que a média de aprovação fosse salva e exibida corretamente, tratando uma incompatibilidade entre o tipo  do backend e o  esperado pelo componente .
+- **Bug do Livro de Promoção não usar Regras da Mantenedora:** Atualizado o  para usar o , garantindo que o cálculo do resultado final (Aprovado, Reprovado, Em Dependência) usasse a média e as regras de dependência configuradas pelo admin.
+- **Feature de Exibição de Data Limite:** Implementado um alerta informativo () nas páginas de Notas e Frequência para que os professores possam ver a data limite de edição antes que ela expire.
+- **UI Fix: Ponto por Vírgula:** Atualizado o  para formatar as notas com vírgula em vez de ponto nos boletins.
+- **Feature PWA Offline (Fases 1 e 2):** Iniciada a transformação do sistema em um PWA. O Service Worker foi configurado, o IndexedDB foi estabelecido com , e os hooks e serviços base para a funcionalidade offline foram criados.
 
 **Earlier issues found/mentioned but not fixed**
-- Nenhum. Todas as questões levantadas anteriormente foram abordadas, exceto o último item em andamento.
+- Nenhum.
 
 **Known issue recurrence from previous fork**
 -   **Issue recurrence in previous fork:** Bug na funcionalidade Gerenciar Lotações.
 -   **Recurrence count:** 3+
--   **Status:** RESOLVED (verificado pelo ).
+-   **Status:** RESOLVED (em um fork anterior).
+-   **New Recurrence in this session:** O bug P0 (lógica de aprovação incorreta) se manifestou de uma nova forma (ignorando componentes obrigatórios sem nota) e foi corrigido novamente.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Lógica de Negócio Complexa:** Implementação de regras de negócio detalhadas para o setor educacional em Python, especialmente em  e .
-- **Geração de PDF com ReportLab:** Manipulação avançada de tabelas, estilos e fluxo de dados para gerar múltiplos documentos PDF (Boletim, Ficha Individual).
-- **Migração de Dados:** Criação de scripts para corrigir dados inconsistentes no MongoDB.
-- **State Management no Frontend:** Uso de React Hooks para gerenciar estados complexos e interligados.
-- **Depuração Full-Stack:** Rastreamento de bugs de sincronização de dados desde a UI (React) até a API (FastAPI) e o banco de dados (MongoDB).
+- **Lógica de Negócio Complexa:** Implementação e depuração de regras acadêmicas detalhadas em Python () e JavaScript ().
+- **Depuração Full-Stack:** Rastreamento de bugs desde a UI (React) até a API (FastAPI) e o banco de dados (MongoDB), resolvendo problemas de sincronização e formatação de dados.
+- **PWA & Offline-First:** Arquitetura para funcionamento offline usando Service Workers para cache e IndexedDB (com ) para armazenamento de dados no cliente.
+- **React Context API:** Utilizada para gerenciar estado global, como as configurações da Mantenedora e o status da conexão online/offline.
 
 **key DB schema**
-- **lotacoes:** 
-- **teacher_assignments (alocações):** 
-- **courses:** 
-- **grades:** 
-- **attendance:** 
-- **calendario_letivo:** 
-- **schools:** 
-- **students:** 
+-   **mantenedora:** 
+-   **grades:** 
+-   **calendario_letivo:** 
+
+**changes in tech stack**
+-    e  foram adicionados ao frontend para facilitar a manipulação do IndexedDB.
 
 **All files of reference**
--   **/app/backend/grade_calculator.py**: Arquivo central para as regras de aprovação e cálculo de notas. **O bug atual está aqui.**
--   **/app/backend/pdf_generator.py**: Contém a lógica de renderização para todos os documentos PDF. Foi extensivamente modificado.
--   **/app/backend/server.py**: Principal arquivo da API, onde os endpoints dos documentos são definidos e os dados são preparados.
--   **/app/frontend/src/hooks/useStaff.js**: Arquivo onde o bug de lotação/alocação foi corrigido.
--   **/app/frontend/src/pages/Attendance.js**: Arquivo modificado para adicionar o seletor de ano.
--   **/app/backend/scripts/migration_fix_course_workload.py**: Script criado para a migração de dados.
+-   **/app/frontend/src/pages/Grades.js**: Em processo de integração com a funcionalidade offline.
+-   **/app/frontend/src/pages/Attendance.js**: Em processo de integração com a funcionalidade offline.
+-   **/app/frontend/src/pages/Promotion.jsx**: Corrigido para exibir notas e usar regras de aprovação corretas.
+-   **/app/frontend/src/pages/Mantenedora.js**: Corrigido para salvar e exibir a média de aprovação.
+-   **/app/backend/grade_calculator.py**: Corrigido para tratar cenários de aprovação incorreta.
+-   **/app/backend/server.py**: Modificado para retornar datas limite para todos os perfis.
+-   **/app/frontend/src/db/database.js**: Arquivo de configuração do Dexie.js para o IndexedDB.
+-   **/app/frontend/src/contexts/OfflineContext.jsx**: Contexto para gerenciar o estado da conexão.
+-   **/app/frontend/src/hooks/useOfflineGrades.js**: Hook para gerenciar notas no modo offline.
+
+**Areas that need refactoring**:
+-   **:** A refatoração para routers modulares está em andamento, mas não foi concluída.
+-   ** e :** Ambos são arquivos grandes e monolíticos que se beneficiariam de uma refatoração para melhorar a manutenibilidade.
+
+**key api endpoints**
+-    (GET): Retorna o status de edição e as datas limite dos bimestres.
+-    (GET/PUT): Gerencia as configurações globais da mantenedora, incluindo as regras de aprovação.
+-    (GET): Busca todas as notas de uma turma específica.
 
 **Critical Info for New Agent**
--   **FOCO NA LÓGICA DE APROVAÇÃO:** A prioridade máxima é corrigir o bug em  que permite que alunos com média 0.0 em alguns componentes sejam aprovados.
--   **COMPLEXIDADE DAS REGRAS:** As regras de aprovação, cálculo de média e frequência são extremamente específicas e variam por nível de ensino e série. Qualquer alteração em  ou  deve ser feita com extremo cuidado e testada para os diferentes cenários (Anos Iniciais, Anos Finais, EJA, Escola Integral, etc.).
--   **FONTE DA VERDADE:** O usuário frequentemente fornece PDFs e regras de negócio detalhadas. Estes devem ser a fonte da verdade para a implementação e correção de bugs.
+-   **Prioridade na Funcionalidade Offline:** A tarefa principal é continuar a implementação da funcionalidade offline, que está na Fase 3. O usuário aprovou e está aguardando o progresso.
+-   **Retomar em  e :** O trabalho deve ser retomado nesses arquivos, substituindo a lógica de busca de dados online pela nova abordagem offline-first usando os hooks já criados.
+-   **Cuidado com as Regras de Negócio:** Qualquer alteração na lógica de cálculo de notas é de alto risco. As regras são complexas e foram fonte de múltiplos bugs. Teste exaustivamente qualquer mudança nessa área.
 
 **documents and test reports created in this job**
--   /app/test_reports/iteration_4.json
--   /app/memory/PRD.md (atualizado múltiplas vezes)
+-   /app/test_reports/iteration_5.json
+-   /app/test_reports/iteration_6.json
+-   /app/memory/PRD.md
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User (Bug Report):** Apontou que a aluna foi aprovada, apesar de ter média 0.0 em vários componentes. (IN PROGRESS)
-2.  **User (Request):** Pediu para implementar regras de aprovação complexas e específicas por nível/série. (COMPLETED)
-3.  **User (Bug Report):** Questionou a inconsistência do resultado final entre a Ficha Individual (Reprovado) e o Boletim (Aprovado). (COMPLETED)
-4.  **User (Request):** Pediu para simplificar o rótulo ENSINO FUNDAMENTAL - ANOS FINAIS/INICIAIS para apenas ENSINO FUNDAMENTAL nos documentos. (COMPLETED)
-5.  **User (Request):** Solicitou que a lógica de faltas e resultado final do Boletim fosse sincronizada com a da Ficha Individual. (COMPLETED)
-6.  **User (Request):** Pediu que o campo Dias Letivos nos documentos buscasse o valor dinâmico do calendário configurado. (COMPLETED)
-7.  **User (Bug Report):** Reportou que o campo Nº INEP na Ficha Individual estava exibindo a matrícula errada. (COMPLETED)
-8.  **User (Request):** Solicitou que, para Anos Iniciais, a coluna de frequência por componente na Ficha Individual exibisse um traço, com o percentual total aparecendo apenas no resumo anual. (COMPLETED)
-9.  **User (Request):** Definiu a lógica complexa para cálculo e exibição de faltas na Ficha Individual para escolas regulares e de tempo integral. (COMPLETED)
-10. **User (Request):** Pediu para reorganizar a ordem dos componentes curriculares nos documentos, separando Regular de Escola Integral. (COMPLETED)
+10.  (User message to continue with Phase 3 of offline implementation).
+9.   (User message to start the offline implementation).
+8.   (User clarification on offline requirements).
+7.   (User question about offline mode).
+6.   (Bug report).
+5.   (Bug report).
+4.   (Feature request).
+3.   (Bug report).
+2.   (Bug report).
+1.  (User confirmation).
 
 **Project Health Check:**
--   **Broken:**
-    -   A lógica de cálculo do resultado final do aluno está incorreta, pois não trata adequadamente componentes com média 0.0, levando a aprovações indevidas.
--   **Mocked:** None.
+-   **Broken:** Nada está quebrado. Todos os bugs críticos foram corrigidos.
+-   **Mocked:** A funcionalidade offline está em um estado parcial. Os alicerces (DB local, hooks) foram criados, mas a integração com a UI e a sincronização com o backend ainda não foram implementadas.
 
 **3rd Party Integrations**
 -   reportlab
 -   PyPDF2
 -   openpyxl
 -   slowapi
+-   ** & ** (nova)
 -   Servidor FTP ()
 
 **Testing status**
--   **Testing agent used after significant changes:** YES (para o bug de Lotação/Alocação).
+-   **Testing agent used after significant changes:** YES
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** None
--   **Known regressions:** A lógica de aprovação, embora aprimorada, introduziu um novo bug ao não considerar médias 0.0.
+-   **Known regressions:** O bug P0 (lógica de aprovação) recorreu de uma nova forma nesta sessão e foi corrigido.
 
 **Credentials to test flow:**
 -   **Admin:**  / 
 -   **Coordenador/Professor:**  / 
 
 **What agent forgot to execute**
-- O agente não considerou o cenário de teste onde um componente curricular tem média 0.0 ao implementar as novas regras de aprovação, resultando em um novo bug crítico.</analysis>
+-   Nada significativo. O agente estava no meio de uma tarefa quando a sessão terminou, o que é esperado.</analysis>
