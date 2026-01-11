@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import Dexie from 'dexie';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
 import { useOffline } from '@/contexts/OfflineContext';
 import { gradesAPI } from '@/services/api';
