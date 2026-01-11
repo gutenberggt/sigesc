@@ -103,6 +103,16 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
     5. **Estado de permissão**: Mostra "Notificações ativas" (verde) quando já tem permissão
   - **Testado**: Screenshot confirmou botão de ativação visível no painel
 
+- **Melhoria de Segurança - Botão Limpar Cache** (P1 - IMPLEMENTADO):
+  - Objetivo: Evitar perda acidental de dados não sincronizados
+  - Implementado:
+    1. **Validação de pendências**: Verifica se há itens na fila de sincronização antes de permitir limpeza
+    2. **Confirmação dupla**: Quando há pendências, exige duas confirmações com avisos enfáticos
+    3. **Indicador visual**: Botão fica laranja com ⚠️ quando há itens pendentes
+    4. **Aviso de pendências**: Banner informativo aparece automaticamente quando há dados não sincronizados
+    5. **Tooltip contextual**: Mostra quantidade de itens pendentes ao passar o mouse no botão
+  - **Testado**: Screenshot confirmou comportamento correto do botão
+
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
   - Problema: Após criar uma lotação para um professor, o modal de alocação não reconhecia a nova lotação, mostrando mensagem "Este professor não possui lotação em nenhuma escola"
