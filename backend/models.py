@@ -1718,6 +1718,50 @@ class Mantenedora(MantenedoraBase):
 
 # ============= CALENDÁRIO - PERÍODOS BIMESTRAIS =============
 
+# ============= PRÉ-MATRÍCULA MODELS =============
+
+class PreMatriculaBase(BaseModel):
+    """Pré-matrícula online - cadastro prévio de novos alunos"""
+    school_id: str
+    
+    # Dados do Aluno
+    aluno_nome: str
+    aluno_data_nascimento: str
+    aluno_sexo: Optional[str] = None
+    aluno_cpf: Optional[str] = None
+    
+    # Dados do Responsável
+    responsavel_nome: str
+    responsavel_cpf: Optional[str] = None
+    responsavel_telefone: str
+    responsavel_email: Optional[str] = None
+    responsavel_parentesco: Optional[str] = None
+    
+    # Endereço
+    endereco_cep: Optional[str] = None
+    endereco_logradouro: Optional[str] = None
+    endereco_numero: Optional[str] = None
+    endereco_bairro: Optional[str] = None
+    endereco_cidade: Optional[str] = None
+    
+    # Nível de ensino desejado
+    nivel_ensino: Optional[str] = None
+    observacoes: Optional[str] = None
+
+class PreMatriculaCreate(PreMatriculaBase):
+    pass
+
+class PreMatricula(PreMatriculaBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    status: Literal['pendente', 'analisando', 'aprovada', 'rejeitada', 'convertida'] = 'pendente'
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+    analyzed_by: Optional[str] = None  # ID do usuário que analisou
+    analyzed_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
+    converted_student_id: Optional[str] = None  # ID do aluno criado após conversão
+
 class PeriodoBimestral(BaseModel):
     """Modelo para um período bimestral"""
     bimestre: int  # 1, 2, 3 ou 4
