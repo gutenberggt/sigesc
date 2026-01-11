@@ -573,8 +573,8 @@ export function Grades() {
         
         {/* Painel de Gerenciamento Offline */}
         <OfflineManagementPanel 
-          academicYear={selectedYear} 
-          classId={selectedClass?.id}
+          academicYear={academicYear} 
+          classId={selectedClass}
         />
         
         {/* Status de edição dos bimestres */}
