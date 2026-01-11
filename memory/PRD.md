@@ -113,6 +113,20 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
     5. **Tooltip contextual**: Mostra quantidade de itens pendentes ao passar o mouse no botão
   - **Testado**: Screenshot confirmou comportamento correto do botão
 
+- **Feature Pré-Matrícula Online** (P1 - IMPLEMENTADO):
+  - Objetivo: Permitir que responsáveis realizem cadastro prévio de novos alunos online
+  - Implementado:
+    1. **Página pública `/pre-matricula`**: Lista escolas com pré-matrícula ativa, formulário completo com dados do aluno, responsável e endereço
+    2. **Botão na página de login**: Botão verde "Pré-Matrícula" adicionado abaixo do formulário de login
+    3. **Toggle na aba Permissão**: Seção "Pré-Matrícula Online" com toggle para ativar/desativar por escola
+    4. **Modelo de dados**: `PreMatricula` com campos para aluno, responsável, endereço e status (pendente, analisando, aprovada, rejeitada, convertida)
+    5. **Endpoints API**:
+       - `GET /api/schools/pre-matricula` (público): Lista escolas com pré-matrícula ativa
+       - `POST /api/pre-matricula` (público): Cria nova pré-matrícula
+       - `GET /api/pre-matriculas` (autenticado): Lista pré-matrículas para gestão
+       - `PUT /api/pre-matriculas/{id}/status` (autenticado): Atualiza status da pré-matrícula
+  - **Testado**: 100% testes passaram (iteration_8.json) - 6 testes unitários + testes de frontend
+
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
   - Problema: Após criar uma lotação para um professor, o modal de alocação não reconhecia a nova lotação, mostrando mensagem "Este professor não possui lotação em nenhuma escola"
