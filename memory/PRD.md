@@ -78,9 +78,20 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
     6. **Serviço de Sync** (`/services/syncService.js`): Processamento da fila quando volta online
     7. **Integração OfflineContext**: Contador de pendências, eventos de sync, auto-sync ao reconectar
   - **Testado**: IndexedDB `SigescOfflineDB` criado com sucesso
+
+- **Feature PWA Offline - Fase 3 Integração nas Páginas** (P1 - IMPLEMENTADO):
+  - Objetivo: Integrar a funcionalidade offline nas páginas de Notas e Frequência
+  - Implementado:
+    1. **OfflineManagementPanel** integrado em `Grades.js` e `Attendance.js`
+    2. **Lógica offline-first em `loadGradesByClass`**: Busca da API quando online e atualiza cache local; lê do IndexedDB quando offline
+    3. **Lógica offline-first em `saveGrades`**: Salva na API quando online; salva no IndexedDB e adiciona à fila de sincronização quando offline
+    4. **Lógica offline-first em `loadAttendance`**: Mesmo padrão de notas
+    5. **Lógica offline-first em `saveAttendance`**: Mesmo padrão de notas
+    6. **Mensagens informativas**: Alerta quando dados são carregados do cache local
+  - **Testado**: 100% testes de frontend passaram (iteration_7.json)
   - **Próximas Fases**:
-    - Fase 3: Integração nas páginas de Notas e Frequência
-    - Fase 4: UI de gerenciamento de dados offline e configurações
+    - Fase 4: Endpoints de sincronização no backend (`/api/sync/push`, `/api/sync/pull`)
+    - Fase 5: UI de status de sincronização com indicador, lista de pendentes e botão de sync
 
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
