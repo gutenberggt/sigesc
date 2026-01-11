@@ -55,6 +55,22 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
     5. Adicionado "APROVADO COM DEPENDÊNCIA" ao contador de aprovados
   - **Testado**: Screenshot confirmou exibição correta com regras da Mantenedora
 
+- **Feature PWA Offline - Fase 1 Básica** (P1 - IMPLEMENTADO):
+  - Objetivo: Suporte offline para escolas em áreas rurais com internet intermitente
+  - Implementado:
+    1. **Service Worker** (`/public/sw.js`): Cache de assets, estratégia Network First para APIs
+    2. **Manifest PWA** (`/public/manifest.json`): Instalação como app no celular/desktop
+    3. **Ícones do App**: 8 tamanhos diferentes (72x72 até 512x512)
+    4. **Página Offline** (`/public/offline.html`): Interface amigável quando sem conexão
+    5. **Contexto Offline** (`OfflineContext.jsx`): Gerenciamento de estado de conexão
+    6. **Componentes de Status** (`OfflineStatus.jsx`): Badge, banner e indicador flutuante
+    7. **Integração no Layout**: Indicador visual de conexão no header
+  - **Testado**: Service Worker ativo e registrado, manifest acessível
+  - **Próximas Fases**:
+    - Fase 2: IndexedDB + Dexie.js para armazenamento local
+    - Fase 3: Sincronização bidirecional de notas e frequência
+    - Fase 4: UI de gerenciamento de dados offline
+
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
   - Problema: Após criar uma lotação para um professor, o modal de alocação não reconhecia a nova lotação, mostrando mensagem "Este professor não possui lotação em nenhuma escola"
