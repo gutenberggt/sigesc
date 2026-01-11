@@ -42,7 +42,8 @@ from models import (
     Announcement, AnnouncementCreate, AnnouncementUpdate, AnnouncementResponse,
     AnnouncementRecipient, AnnouncementReadStatus, NotificationCount,
     Mantenedora, MantenedoraUpdate,
-    AuditLog, AuditLogFilter
+    AuditLog, AuditLogFilter,
+    PreMatricula, PreMatriculaCreate
 )
 from auth_utils import (
     hash_password, verify_password, create_access_token, 
