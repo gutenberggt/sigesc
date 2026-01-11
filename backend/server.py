@@ -5961,6 +5961,127 @@ async def get_batch_documents(
         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
 
+# ============= PRÉ-MATRÍCULA ENDPOINTS (PÚBLICOS) =============
+
+@api_router.post("/pre-matricula", response_model=PreMatricula, status_code=status.HTTP_201_CREATED)
+async def create_pre_matricula(pre_matricula: PreMatriculaCreate):
+    """Cria uma nova pré-matrícula (rota pública - não requer autenticação)"""
+    # Verifica se a escola existe e tem pré-matrícula ativa
+    school = await db.schools.find_one(
+        {"id": pre_matricula.school_id, "pre_matricula_ativa": True, "status": "active"},
+        {"_id": 0}
+    )
+    
+    if not school:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Escola não encontrada ou pré-matrícula não está ativa"
+        )
+    
+    # Cria a pré-matrícula
+    pre_matricula_obj = PreMatricula(**pre_matricula.model_dump())
+    doc = pre_matricula_obj.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    
+    await db.pre_matriculas.insert_one(doc)
+    
+    return pre_matricula_obj
+
+@api_router.get("/pre-matriculas", response_model=List[PreMatricula])
+async def list_pre_matriculas(
+    request: Request,
+    school_id: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100
+):
+    """Lista pré-matrículas (apenas admin, secretário, diretor)"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
+    
+    query = {}
+    
+    # Filtro por escola
+    if school_id:
+        query['school_id'] = school_id
+    elif current_user['role'] not in ['admin']:
+        # Não-admin só vê das escolas vinculadas
+        query['school_id'] = {"$in": current_user['school_ids']}
+    
+    # Filtro por status
+    if status_filter:
+        query['status'] = status_filter
+    
+    pre_matriculas = await db.pre_matriculas.find(
+        query, {"_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    return pre_matriculas
+
+@api_router.get("/pre-matriculas/{pre_matricula_id}", response_model=PreMatricula)
+async def get_pre_matricula(pre_matricula_id: str, request: Request):
+    """Busca pré-matrícula por ID"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
+    
+    pre_matricula = await db.pre_matriculas.find_one(
+        {"id": pre_matricula_id}, {"_id": 0}
+    )
+    
+    if not pre_matricula:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pré-matrícula não encontrada"
+        )
+    
+    # Verifica acesso à escola
+    if current_user['role'] not in ['admin']:
+        if pre_matricula['school_id'] not in current_user['school_ids']:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Acesso negado a esta pré-matrícula"
+            )
+    
+    return pre_matricula
+
+@api_router.put("/pre-matriculas/{pre_matricula_id}/status")
+async def update_pre_matricula_status(
+    pre_matricula_id: str,
+    request: Request,
+    new_status: str = Query(..., description="Novo status: analisando, aprovada, rejeitada"),
+    rejection_reason: Optional[str] = None
+):
+    """Atualiza status da pré-matrícula"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
+    
+    if new_status not in ['analisando', 'aprovada', 'rejeitada']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Status inválido"
+        )
+    
+    update_data = {
+        "status": new_status,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "analyzed_by": current_user['id'],
+        "analyzed_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    if new_status == 'rejeitada' and rejection_reason:
+        update_data['rejection_reason'] = rejection_reason
+    
+    result = await db.pre_matriculas.update_one(
+        {"id": pre_matricula_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pré-matrícula não encontrada"
+        )
+    
+    return {"message": "Status atualizado com sucesso"}
+
+
 # ============= ANNOUNCEMENT ENDPOINTS =============
 
 def can_user_create_announcement(user: dict, recipient: dict) -> bool:
