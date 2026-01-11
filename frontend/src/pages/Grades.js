@@ -170,6 +170,7 @@ const ConceitoSelect = ({ value, onChange, disabled }) => {
 export function Grades() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isOnline, pendingSyncCount } = useOffline();
   
   // Estados gerais
   const [activeTab, setActiveTab] = useState('turma'); // 'turma' ou 'aluno'
