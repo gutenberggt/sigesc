@@ -207,6 +207,9 @@ export function SchoolsComplete() {
     bimestre_3_limite_lancamento: '',
     bimestre_4_limite_lancamento: '',
     
+    // Permissão - Pré-Matrícula Online
+    pre_matricula_ativa: false,
+    
     // Anos Letivos da escola e seus status
     // Formato: { 2025: { status: 'aberto' }, 2026: { status: 'aberto' }, ... }
     anos_letivos: {},
