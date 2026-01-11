@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { MantenedoraProvider } from '@/contexts/MantenedoraContext';
+import { OfflineProvider } from '@/contexts/OfflineContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Login } from '@/pages/Login';
 import { Dashboard } from '@/pages/Dashboard';
@@ -27,6 +28,7 @@ import '@/App.css';
 function App() {
   return (
     <AuthProvider>
+      <OfflineProvider>
       <MantenedoraProvider>
       <BrowserRouter>
         <Routes>
