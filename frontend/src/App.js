@@ -309,6 +309,7 @@ function App() {
         </Routes>
       </BrowserRouter>
       </MantenedoraProvider>
+      </OfflineProvider>
     </AuthProvider>
   );
 }
