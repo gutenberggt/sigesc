@@ -95,16 +95,42 @@ export function OfflineManagementPanel({ academicYear, classId }) {
     }
   };
 
-  // Limpa todos os dados locais
+  // Limpa todos os dados locais (com validação de segurança)
   const handleClearData = async () => {
-    if (!window.confirm('Tem certeza? Isso apagará todos os dados offline não sincronizados!')) {
-      return;
+    // Verifica se há itens pendentes de sincronização
+    if (pendingSyncCount > 0) {
+      const confirmMessage = `⚠️ ATENÇÃO: Você tem ${pendingSyncCount} item(ns) NÃO SINCRONIZADO(S)!\n\n` +
+        `Se você limpar o cache agora, esses dados serão PERDIDOS PERMANENTEMENTE e não poderão ser recuperados.\n\n` +
+        `Recomendação: Conecte-se à internet e sincronize os dados antes de limpar.\n\n` +
+        `Deseja realmente apagar TODOS os dados locais?`;
+      
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+      
+      // Segunda confirmação para dados pendentes
+      const doubleConfirm = window.confirm(
+        `🚨 ÚLTIMA CONFIRMAÇÃO 🚨\n\n` +
+        `Você está prestes a PERDER ${pendingSyncCount} registro(s) de notas/frequência que ainda não foram enviados ao servidor.\n\n` +
+        `Esta ação é IRREVERSÍVEL.\n\n` +
+        `Clique em "OK" apenas se tiver CERTEZA ABSOLUTA.`
+      );
+      
+      if (!doubleConfirm) {
+        toast.info('Operação cancelada. Seus dados estão seguros.');
+        return;
+      }
+    } else {
+      // Confirmação simples quando não há pendências
+      if (!window.confirm('Tem certeza que deseja limpar o cache local?\n\nIsso removerá os dados armazenados para uso offline, mas não afetará os dados no servidor.')) {
+        return;
+      }
     }
     
     setClearing(true);
     try {
       await clearAllData();
-      toast.success('Dados locais limpos');
+      toast.success('Dados locais limpos com sucesso');
     } catch (err) {
       toast.error('Erro ao limpar dados');
     } finally {
