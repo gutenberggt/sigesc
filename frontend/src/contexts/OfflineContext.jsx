@@ -237,7 +237,9 @@ export const OfflineProvider = ({ children }) => {
     triggerSync,
     updateServiceWorker,
     clearCache,
-    updatePendingCount
+    updatePendingCount,
+    notificationsEnabled,
+    requestNotificationPermission
   };
 
   return (
