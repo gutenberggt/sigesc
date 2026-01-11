@@ -416,7 +416,7 @@ export function Grades() {
     setHasChanges(true);
   };
   
-  // Salva notas da turma
+  // Salva notas da turma (com suporte offline)
   const saveGrades = async () => {
     setSaving(true);
     try {
@@ -434,12 +434,43 @@ export function Grades() {
         observations: item.grade.observations
       }));
       
-      await gradesAPI.updateBatch(gradesToSave);
-      showAlert('success', 'Notas salvas com sucesso!');
+      if (isOnline) {
+        // Online: salva diretamente na API
+        await gradesAPI.updateBatch(gradesToSave);
+        showAlert('success', 'Notas salvas com sucesso!');
+      } else {
+        // Offline: salva no IndexedDB e adiciona à fila de sincronização
+        for (const grade of gradesToSave) {
+          const existingLocal = await db.grades
+            .where('[student_id+course_id+academic_year]')
+            .equals([grade.student_id, grade.course_id, grade.academic_year])
+            .first();
+          
+          const now = new Date().toISOString();
+          const gradeWithMeta = {
+            ...grade,
+            updated_at: now,
+            syncStatus: SYNC_STATUS.PENDING
+          };
+          
+          if (existingLocal) {
+            await db.grades.update(existingLocal.localId, gradeWithMeta);
+            await addToSyncQueue('grades', SYNC_OPERATIONS.UPDATE, existingLocal.id || `temp_${Date.now()}`, gradeWithMeta);
+          } else {
+            const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            await db.grades.add({ ...gradeWithMeta, id: tempId });
+            await addToSyncQueue('grades', SYNC_OPERATIONS.CREATE, tempId, gradeWithMeta);
+          }
+        }
+        showAlert('success', 'Notas salvas localmente! Serão sincronizadas quando houver conexão.');
+      }
+      
       setHasChanges(false);
       
-      // Recarrega dados atualizados
-      await loadGradesByClass();
+      // Recarrega dados atualizados (se online)
+      if (isOnline) {
+        await loadGradesByClass();
+      }
     } catch (error) {
       console.error('Erro ao salvar notas:', error);
       showAlert('error', 'Erro ao salvar notas');
