@@ -70,6 +70,7 @@ const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', '
 export const Attendance = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { isOnline } = useOffline();
   
   // Estados principais
   const [activeTab, setActiveTab] = useState('lancamento'); // lancamento, relatorios, alertas, config
