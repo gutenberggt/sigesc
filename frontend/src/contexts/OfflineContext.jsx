@@ -128,9 +128,15 @@ export const OfflineProvider = ({ children }) => {
 
   // Monitora status de conexão
   useEffect(() => {
-    const handleOnline = () => {
+    const handleOnline = async () => {
       setIsOnline(true);
       console.log('[PWA] Conexão restaurada');
+      
+      // Notifica que voltou online (apenas se estava offline antes)
+      if (wasOfflineRef.current && notificationsEnabled) {
+        await notificationService.notifyOnline();
+      }
+      wasOfflineRef.current = false;
       
       // Tenta sincronizar quando volta online
       setTimeout(() => {
@@ -140,9 +146,15 @@ export const OfflineProvider = ({ children }) => {
       }, 1000);
     };
 
-    const handleOffline = () => {
+    const handleOffline = async () => {
       setIsOnline(false);
+      wasOfflineRef.current = true;
       console.log('[PWA] Conexão perdida');
+      
+      // Notifica que ficou offline
+      if (notificationsEnabled) {
+        await notificationService.notifyOffline();
+      }
     };
 
     window.addEventListener('online', handleOnline);
@@ -152,7 +164,7 @@ export const OfflineProvider = ({ children }) => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [notificationsEnabled]);
 
   // Registra o Service Worker
   useEffect(() => {
