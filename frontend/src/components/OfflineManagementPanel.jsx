@@ -6,7 +6,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { 
   Cloud, CloudOff, RefreshCw, Database, Trash2, 
   CheckCircle, AlertCircle, WifiOff, Download, Upload,
-  ChevronDown, ChevronUp, HardDrive
+  ChevronDown, ChevronUp, HardDrive, Bell, BellOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +18,10 @@ import { toast } from 'sonner';
  * Mostra status de conexão, dados em cache, pendências e permite sincronização manual
  */
 export function OfflineManagementPanel({ academicYear, classId }) {
-  const { isOnline, pendingSyncCount, syncStatus, syncProgress, triggerSync, lastSyncTime } = useOffline();
+  const { 
+    isOnline, pendingSyncCount, syncStatus, syncProgress, triggerSync, lastSyncTime,
+    notificationsEnabled, requestNotificationPermission 
+  } = useOffline();
   const { syncing, progress, error, syncAll, syncClass } = useOfflineSync();
   const [expanded, setExpanded] = useState(false);
   const [clearing, setClearing] = useState(false);
@@ -45,6 +48,16 @@ export function OfflineManagementPanel({ academicYear, classId }) {
     if (diff < 3600) return `${Math.floor(diff / 60)}min atrás`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h atrás`;
     return lastSyncTime.toLocaleDateString('pt-BR');
+  };
+
+  // Ativa notificações
+  const handleEnableNotifications = async () => {
+    const granted = await requestNotificationPermission();
+    if (granted) {
+      toast.success('Notificações ativadas! Você será avisado quando a sincronização for concluída.');
+    } else {
+      toast.error('Não foi possível ativar as notificações. Verifique as permissões do navegador.');
+    }
   };
 
   // Sincroniza dados da turma atual
