@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { syncService } from '@/services/syncService';
 import { countPendingSyncItems } from '@/db/database';
+import { notificationService } from '@/services/notificationService';
 
 const OfflineContext = createContext(null);
 
@@ -11,9 +12,28 @@ export const OfflineProvider = ({ children }) => {
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'error' | 'success'
   const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   
   // Ref para funções que precisam ser acessadas antes de serem declaradas
   const triggerSyncRef = useRef(null);
+  const wasOfflineRef = useRef(false);
+
+  // Solicita permissão para notificações ao carregar
+  useEffect(() => {
+    const checkNotificationPermission = async () => {
+      if (notificationService.hasPermission()) {
+        setNotificationsEnabled(true);
+      }
+    };
+    checkNotificationPermission();
+  }, []);
+
+  // Função para solicitar permissão de notificações
+  const requestNotificationPermission = useCallback(async () => {
+    const granted = await notificationService.requestPermission();
+    setNotificationsEnabled(granted);
+    return granted;
+  }, []);
 
   // Atualiza contador de itens pendentes
   const updatePendingCount = useCallback(async () => {
@@ -43,12 +63,22 @@ export const OfflineProvider = ({ children }) => {
         setLastSyncTime(new Date());
         setSyncStatus('success');
         
+        // Notifica sucesso se tiver itens sincronizados
+        if (notificationsEnabled && result.results?.succeeded > 0) {
+          await notificationService.notifySyncComplete(result.results.succeeded);
+        }
+        
         // Reset status após 3 segundos
         setTimeout(() => {
           setSyncStatus('idle');
         }, 3000);
       } else {
         setSyncStatus(result.reason === 'already_syncing' ? 'syncing' : 'error');
+        
+        // Notifica erro se tiver falhas
+        if (notificationsEnabled && result.results?.failed > 0) {
+          await notificationService.notifySyncError(result.results.failed);
+        }
       }
 
       await updatePendingCount();
@@ -57,9 +87,14 @@ export const OfflineProvider = ({ children }) => {
     } catch (error) {
       console.error('[PWA] Erro na sincronização:', error);
       setSyncStatus('error');
+      
+      if (notificationsEnabled) {
+        await notificationService.notifySyncError(1);
+      }
+      
       return { success: false, error: error.message };
     }
-  }, [updatePendingCount]);
+  }, [updatePendingCount, notificationsEnabled]);
 
   // Atualiza a ref quando triggerSync muda
   useEffect(() => {
