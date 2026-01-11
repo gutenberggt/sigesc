@@ -76,6 +76,9 @@ export const Layout = ({ children }) => {
 
             {/* Notifications & User Info */}
             <div className="flex items-center space-x-2">
+              {/* Status de Conexão Offline */}
+              <ConnectionStatusBadge showDetails={false} />
+              
               {/* Ícones de Notificação */}
               <MessagesBadge />
               <NotificationBell />
@@ -101,10 +104,16 @@ export const Layout = ({ children }) => {
         </div>
       </header>
 
+      {/* Banner de Offline */}
+      <OfflineBanner />
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
+      
+      {/* Indicador flutuante de status */}
+      <FloatingStatusIndicator />
     </div>
   );
 };
