@@ -274,7 +274,7 @@ export const Attendance = () => {
     setTimeout(() => setAlert(null), 4000);
   };
   
-  // Carrega frequência da turma
+  // Carrega frequência da turma (com suporte offline)
   const loadAttendance = async () => {
     if (!selectedClass || !selectedDate) return;
     
@@ -290,14 +290,72 @@ export const Attendance = () => {
         return;
       }
       
-      const data = await attendanceAPI.getByClass(
-        selectedClass, 
-        selectedDate,
-        attendanceType === 'by_component' ? selectedCourse : null,
-        selectedPeriod
-      );
+      if (isOnline) {
+        // Online: busca da API
+        const data = await attendanceAPI.getByClass(
+          selectedClass, 
+          selectedDate,
+          attendanceType === 'by_component' ? selectedCourse : null,
+          selectedPeriod
+        );
+        
+        setAttendanceData(data);
+        
+        // Atualiza cache local
+        if (data) {
+          const existingLocal = await db.attendance
+            .where('[class_id+date]')
+            .equals([selectedClass, selectedDate])
+            .first();
+          
+          const dataToCache = {
+            ...data,
+            class_id: selectedClass,
+            date: selectedDate,
+            syncStatus: SYNC_STATUS.SYNCED
+          };
+          
+          if (existingLocal) {
+            await db.attendance.update(existingLocal.localId, dataToCache);
+          } else {
+            await db.attendance.add(dataToCache);
+          }
+        }
+      } else {
+        // Offline: busca do cache local
+        const localData = await db.attendance
+          .where('[class_id+date]')
+          .equals([selectedClass, selectedDate])
+          .first();
+        
+        if (localData) {
+          setAttendanceData(localData);
+          showAlertMessage('info', 'Dados carregados do cache local (modo offline)');
+        } else {
+          // Tenta montar dados básicos com alunos do cache
+          const localStudents = await db.students
+            .where('class_id').equals(selectedClass)
+            .toArray();
+          
+          if (localStudents.length > 0) {
+            setAttendanceData({
+              class_id: selectedClass,
+              class_name: turma?.name || 'Turma',
+              date: selectedDate,
+              students: localStudents.map(s => ({
+                id: s.id,
+                full_name: s.full_name,
+                enrollment_number: s.enrollment_number,
+                status: null
+              }))
+            });
+            showAlertMessage('info', 'Lista de alunos carregada do cache. Nenhuma frequência registrada para esta data.');
+          } else {
+            showAlertMessage('error', 'Nenhum dado disponível offline. Sincronize quando houver conexão.');
+          }
+        }
+      }
       
-      setAttendanceData(data);
       setHasChanges(false);
     } catch (error) {
       console.error('Erro ao carregar frequência:', error);
