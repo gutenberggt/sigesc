@@ -342,13 +342,73 @@ export function Grades() {
     : [];
   
   // Carrega notas por turma
+  // Carrega notas por turma (com suporte offline)
   const loadGradesByClass = async () => {
     if (!selectedClass || !selectedCourse) return;
     
     setLoading(true);
     try {
-      const data = await gradesAPI.getByClass(selectedClass, selectedCourse, academicYear);
-      setGradesData(data);
+      if (isOnline) {
+        // Online: busca da API e atualiza cache local
+        const data = await gradesAPI.getByClass(selectedClass, selectedCourse, academicYear);
+        setGradesData(data);
+        
+        // Atualiza cache local com dados do servidor
+        if (data && data.length > 0) {
+          await db.transaction('rw', db.grades, async () => {
+            for (const item of data) {
+              if (item.grade && item.grade.id) {
+                const existing = await db.grades.where('id').equals(item.grade.id).first();
+                if (existing) {
+                  await db.grades.update(existing.localId, {
+                    ...item.grade,
+                    student_id: item.student.id,
+                    class_id: selectedClass,
+                    course_id: selectedCourse,
+                    syncStatus: SYNC_STATUS.SYNCED
+                  });
+                } else {
+                  await db.grades.add({
+                    ...item.grade,
+                    student_id: item.student.id,
+                    class_id: selectedClass,
+                    course_id: selectedCourse,
+                    syncStatus: SYNC_STATUS.SYNCED
+                  });
+                }
+              }
+            }
+          });
+        }
+      } else {
+        // Offline: busca do cache local
+        const localGrades = await db.grades
+          .where('class_id').equals(selectedClass)
+          .and(g => g.course_id === selectedCourse && g.academic_year === academicYear)
+          .toArray();
+        
+        // Busca alunos do cache para montar estrutura esperada
+        const localStudents = await db.students
+          .where('class_id').equals(selectedClass)
+          .toArray();
+        
+        // Monta estrutura compatível com o formato da API
+        const offlineData = localStudents.map(student => {
+          const grade = localGrades.find(g => g.student_id === student.id) || {
+            b1: null, b2: null, b3: null, b4: null,
+            rec_s1: null, rec_s2: null,
+            final_average: null, status: 'cursando'
+          };
+          return { student, grade };
+        });
+        
+        if (offlineData.length > 0) {
+          setGradesData(offlineData);
+          showAlert('info', 'Dados carregados do cache local (modo offline)');
+        } else {
+          showAlert('error', 'Nenhum dado disponível offline. Sincronize quando houver conexão.');
+        }
+      }
       setHasChanges(false);
     } catch (error) {
       console.error('Erro ao carregar notas:', error);
