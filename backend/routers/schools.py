@@ -110,17 +110,4 @@ def setup_router(db, audit_service):
         
         return None
 
-    @router.get("/pre-matricula", response_model=List[School])
-    async def list_schools_with_pre_matricula():
-        """Lista escolas com pré-matrícula ativa (rota pública)"""
-        schools = await db.schools.find(
-            {
-                "pre_matricula_ativa": True,
-                "status": "active"
-            },
-            {"_id": 0}
-        ).to_list(100)
-        
-        return schools
-
     return router
