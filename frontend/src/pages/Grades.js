@@ -5,9 +5,12 @@ import { gradesAPI, schoolsAPI, classesAPI, coursesAPI, studentsAPI, professorAP
 import { useAuth } from '@/contexts/AuthContext';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
 import { BimestreBlockedAlert, BimestreDeadlineAlert, BimestreStatusRow, BimestreFieldIndicator } from '@/components/BimestreStatus';
+import { OfflineManagementPanel, OfflineDataBadge } from '@/components/OfflineManagementPanel';
+import { useOffline } from '@/contexts/OfflineContext';
+import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
 import { 
   Home, BookOpen, Users, User, Save, AlertCircle, CheckCircle, 
-  Search, X, Calculator, TrendingUp, TrendingDown, Lock
+  Search, X, Calculator, TrendingUp, TrendingDown, Lock, CloudOff
 } from 'lucide-react';
 
 // ===== SISTEMA DE AVALIAÇÃO CONCEITUAL - EDUCAÇÃO INFANTIL =====
