@@ -66,10 +66,21 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
     6. **Componentes de Status** (`OfflineStatus.jsx`): Badge, banner e indicador flutuante
     7. **Integração no Layout**: Indicador visual de conexão no header
   - **Testado**: Service Worker ativo e registrado, manifest acessível
+
+- **Feature PWA Offline - Fase 2 IndexedDB** (P1 - IMPLEMENTADO):
+  - Objetivo: Armazenamento local de dados para lançamento offline de notas e frequência
+  - Implementado:
+    1. **Banco IndexedDB** (`/db/database.js`): Schema com Dexie.js para grades, attendance, students, classes, courses, schools
+    2. **Fila de Sincronização** (`syncQueue`): Tabela para operações pendentes com controle de retries
+    3. **Hook useOfflineGrades** (`/hooks/useOfflineGrades.js`): CRUD de notas com cache local e sync automático
+    4. **Hook useOfflineAttendance** (`/hooks/useOfflineAttendance.js`): CRUD de frequência com cache local
+    5. **Hook useOfflineSync** (`/hooks/useOfflineSync.js`): Sincronização de dados de referência (alunos, turmas, etc)
+    6. **Serviço de Sync** (`/services/syncService.js`): Processamento da fila quando volta online
+    7. **Integração OfflineContext**: Contador de pendências, eventos de sync, auto-sync ao reconectar
+  - **Testado**: IndexedDB `SigescOfflineDB` criado com sucesso
   - **Próximas Fases**:
-    - Fase 2: IndexedDB + Dexie.js para armazenamento local
-    - Fase 3: Sincronização bidirecional de notas e frequência
-    - Fase 4: UI de gerenciamento de dados offline
+    - Fase 3: Integração nas páginas de Notas e Frequência
+    - Fase 4: UI de gerenciamento de dados offline e configurações
 
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
