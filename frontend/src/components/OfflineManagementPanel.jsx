@@ -297,12 +297,37 @@ export function OfflineManagementPanel({ academicYear, classId }) {
               variant="ghost"
               onClick={handleClearData}
               disabled={clearing || syncing}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              className={pendingSyncCount > 0 
+                ? "text-orange-600 hover:text-orange-700 hover:bg-orange-50 border border-orange-300" 
+                : "text-red-600 hover:text-red-700 hover:bg-red-50"
+              }
+              title={pendingSyncCount > 0 
+                ? `⚠️ Há ${pendingSyncCount} item(ns) não sincronizado(s)` 
+                : "Limpar dados armazenados localmente"
+              }
             >
               <Trash2 className="w-4 h-4 mr-1" />
-              Limpar cache
+              {pendingSyncCount > 0 ? (
+                <>Limpar cache ⚠️</>
+              ) : (
+                <>Limpar cache</>
+              )}
             </Button>
           </div>
+          
+          {/* Aviso de pendências */}
+          {pendingSyncCount > 0 && (
+            <div className="mt-3 p-2 bg-orange-50 border border-orange-300 rounded text-sm text-orange-800 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>
+                <strong>Atenção:</strong> Você tem {pendingSyncCount} item(ns) aguardando sincronização. 
+                {isOnline 
+                  ? " Clique em 'Sincronizar tudo' para enviar ao servidor." 
+                  : " Conecte-se à internet para sincronizar."
+                }
+              </span>
+            </div>
+          )}
 
           {/* Erro */}
           {error && (
