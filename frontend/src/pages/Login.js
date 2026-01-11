@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Mail, Lock, AlertCircle } from 'lucide-react';
+import { Mail, Lock, AlertCircle, UserPlus } from 'lucide-react';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
@@ -109,6 +109,29 @@ export const Login = () => {
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
+          
+          {/* Divisor */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">ou</span>
+            </div>
+          </div>
+          
+          {/* Botão de Pré-Matrícula */}
+          <Link
+            to="/pre-matricula"
+            className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 focus:ring-4 focus:ring-green-300 transition-colors"
+            data-testid="pre-matricula-button"
+          >
+            <UserPlus size={20} />
+            Pré-Matrícula
+          </Link>
+          <p className="text-xs text-gray-500 text-center mt-2">
+            Realize a pré-matrícula de novos alunos
+          </p>
 
         </div>
       </div>
