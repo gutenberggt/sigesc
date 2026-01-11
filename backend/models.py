@@ -539,6 +539,9 @@ class SchoolBase(BaseModel):
     bimestre_3_limite_lancamento: Optional[str] = None
     bimestre_4_limite_lancamento: Optional[str] = None
     
+    # Permissão - Pré-Matrícula Online
+    pre_matricula_ativa: Optional[bool] = False
+    
     # Anos Letivos da escola e seus status
     # Formato: { "2025": { "status": "aberto" }, "2026": { "status": "fechado" } }
     anos_letivos: Optional[dict] = None
@@ -704,6 +707,9 @@ class SchoolUpdate(BaseModel):
     bimestre_2_limite_lancamento: Optional[str] = None
     bimestre_3_limite_lancamento: Optional[str] = None
     bimestre_4_limite_lancamento: Optional[str] = None
+    
+    # Permissão - Pré-Matrícula Online
+    pre_matricula_ativa: Optional[bool] = None
     
     # Anos Letivos da escola e seus status
     anos_letivos: Optional[dict] = None
