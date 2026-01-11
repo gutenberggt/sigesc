@@ -15,7 +15,8 @@ import {
   FileText,
   Home,
   Trash2,
-  Lock
+  Lock,
+  CloudOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
 import { BimestreBlockedAlert, BimestreDeadlineAlert, BimestreStatusRow } from '@/components/BimestreStatus';
+import { OfflineManagementPanel } from '@/components/OfflineManagementPanel';
+import { useOffline } from '@/contexts/OfflineContext';
+import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
 
 // Labels para níveis de ensino
 const EDUCATION_LEVEL_LABELS = {
