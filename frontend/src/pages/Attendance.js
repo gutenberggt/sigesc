@@ -328,7 +328,7 @@ export const Attendance = () => {
     setHasChanges(true);
   };
   
-  // Salva frequência
+  // Salva frequência (com suporte offline)
   const saveAttendance = async () => {
     if (!attendanceData || !dateCheck?.can_record) return;
     
@@ -350,7 +350,7 @@ export const Attendance = () => {
         return;
       }
       
-      await attendanceAPI.save({
+      const attendancePayload = {
         class_id: selectedClass,
         date: selectedDate,
         academic_year: academicYear,
@@ -358,13 +358,45 @@ export const Attendance = () => {
         course_id: attendanceType === 'by_component' ? selectedCourse : null,
         period: selectedPeriod,
         records
-      });
+      };
       
-      showAlertMessage('success', 'Frequência salva com sucesso!');
+      if (isOnline) {
+        // Online: salva diretamente na API
+        await attendanceAPI.save(attendancePayload);
+        showAlertMessage('success', 'Frequência salva com sucesso!');
+      } else {
+        // Offline: salva no IndexedDB e adiciona à fila de sincronização
+        const now = new Date().toISOString();
+        const dataWithMeta = {
+          ...attendancePayload,
+          updated_at: now,
+          syncStatus: SYNC_STATUS.PENDING
+        };
+        
+        // Verifica se já existe registro para esta turma/data
+        const existingLocal = await db.attendance
+          .where('[class_id+date]')
+          .equals([selectedClass, selectedDate])
+          .first();
+        
+        if (existingLocal) {
+          await db.attendance.update(existingLocal.localId, dataWithMeta);
+          await addToSyncQueue('attendance', SYNC_OPERATIONS.UPDATE, existingLocal.id || `temp_${Date.now()}`, dataWithMeta);
+        } else {
+          const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          await db.attendance.add({ ...dataWithMeta, id: tempId });
+          await addToSyncQueue('attendance', SYNC_OPERATIONS.CREATE, tempId, dataWithMeta);
+        }
+        
+        showAlertMessage('success', 'Frequência salva localmente! Será sincronizada quando houver conexão.');
+      }
+      
       setHasChanges(false);
       
-      // Recarrega para atualizar os dados
-      await loadAttendance();
+      // Recarrega para atualizar os dados (se online)
+      if (isOnline) {
+        await loadAttendance();
+      }
     } catch (error) {
       console.error('Erro ao salvar frequência:', error);
       showAlertMessage('error', error.response?.data?.detail || 'Erro ao salvar frequência');
