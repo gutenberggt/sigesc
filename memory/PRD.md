@@ -93,6 +93,16 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
     - Fase 4: Endpoints de sincronização no backend (`/api/sync/push`, `/api/sync/pull`)
     - Fase 5: UI de status de sincronização com indicador, lista de pendentes e botão de sync
 
+- **Feature Notificações Push para Sincronização** (P2 - IMPLEMENTADO):
+  - Objetivo: Alertar o professor quando a sincronização for concluída após voltar ao modo online
+  - Implementado:
+    1. **Serviço de Notificações** (`/services/notificationService.js`): Gerencia notificações do navegador
+    2. **Tipos de notificações**: Sincronização concluída, erro de sync, conexão restaurada, conexão perdida
+    3. **Botão "Ativar notificações"**: Adicionado ao OfflineManagementPanel para solicitar permissão
+    4. **Integração com OfflineContext**: Envia notificações automaticamente nos eventos de sync e conexão
+    5. **Estado de permissão**: Mostra "Notificações ativas" (verde) quando já tem permissão
+  - **Testado**: Screenshot confirmou botão de ativação visível no painel
+
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
   - Problema: Após criar uma lotação para um professor, o modal de alocação não reconhecia a nova lotação, mostrando mensagem "Este professor não possui lotação em nenhuma escola"
