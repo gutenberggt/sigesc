@@ -55,7 +55,7 @@ export default function PreMatricula() {
   const loadSchools = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/api/schools/pre-matricula');
+      const response = await axios.get(`${API_URL}/api/schools/pre-matricula`);
       setSchools(response.data || []);
     } catch (error) {
       console.error('Erro ao carregar escolas:', error);
