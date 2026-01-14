@@ -1,26 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Mail, Lock, AlertCircle, UserPlus } from 'lucide-react';
+import { Mail, Lock, AlertCircle, UserPlus, WifiOff, Info } from 'lucide-react';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Monitora status de conexão
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setInfo('');
     setLoading(true);
 
     const result = await login(email, password);
 
     if (result.success) {
-      // Redireciona baseado no papel do usuário
-      navigate('/dashboard');
+      // Mostra mensagem se for login offline
+      if (result.offline) {
+        setInfo(result.message);
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 1500);
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       setError(result.error);
     }
@@ -47,10 +71,30 @@ export const Login = () => {
         <div className="bg-white rounded-lg shadow-xl p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Entrar no Sistema</h2>
 
+          {/* Aviso de Offline */}
+          {!isOnline && (
+            <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start" data-testid="offline-warning">
+              <WifiOff className="text-amber-600 mr-2 flex-shrink-0 mt-0.5" size={20} />
+              <div>
+                <p className="text-sm font-medium text-amber-800">Você está offline</p>
+                <p className="text-xs text-amber-600 mt-1">
+                  Se você já fez login antes neste dispositivo, pode acessar com o mesmo e-mail.
+                </p>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start" data-testid="login-error">
               <AlertCircle className="text-red-600 mr-2 flex-shrink-0 mt-0.5" size={20} />
               <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
+          {info && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start" data-testid="login-info">
+              <Info className="text-blue-600 mr-2 flex-shrink-0 mt-0.5" size={20} />
+              <p className="text-sm text-blue-600">{info}</p>
             </div>
           )}
 
@@ -106,7 +150,7 @@ export const Login = () => {
               className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               data-testid="login-submit-button"
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? 'Entrando...' : (isOnline ? 'Entrar' : 'Entrar (Offline)')}
             </button>
           </form>
           
@@ -123,14 +167,19 @@ export const Login = () => {
           {/* Botão de Pré-Matrícula */}
           <Link
             to="/pre-matricula"
-            className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 focus:ring-4 focus:ring-green-300 transition-colors"
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-colors ${
+              isOnline 
+                ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-4 focus:ring-green-300'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed pointer-events-none'
+            }`}
             data-testid="pre-matricula-button"
+            onClick={(e) => !isOnline && e.preventDefault()}
           >
             <UserPlus size={20} />
             Pré-Matrícula
           </Link>
           <p className="text-xs text-gray-500 text-center mt-2">
-            Realize a pré-matrícula de novos alunos
+            {isOnline ? 'Realize a pré-matrícula de novos alunos' : 'Pré-matrícula requer conexão com internet'}
           </p>
 
         </div>
