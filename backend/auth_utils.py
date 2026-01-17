@@ -4,8 +4,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 import os
 
-# Configurações JWT
-SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'your-secret-key-change-in-production-sigesc-2024')
+# Configurações JWT - SECRET_KEY obrigatória em produção
+SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
+if not SECRET_KEY:
+    raise ValueError("JWT_SECRET_KEY environment variable is required")
 ALGORITHM = 'HS256'
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7

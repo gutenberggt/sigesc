@@ -7,14 +7,14 @@ from pathlib import Path
 from typing import Optional, Tuple
 import uuid
 
-# Configurações FTP
+# Configurações FTP - lidas de variáveis de ambiente
 FTP_CONFIG = {
-    "host": "ftp.aprenderdigital.top",
-    "port": 21,
-    "user": "gf8cfvu0",
-    "password": "e5DvdD831s",
-    "base_path": "/public_html/imagens",
-    "base_url": "https://aprenderdigital.top/imagens"
+    "host": os.environ.get("FTP_HOST", ""),
+    "port": int(os.environ.get("FTP_PORT", "21")),
+    "user": os.environ.get("FTP_USER", ""),
+    "password": os.environ.get("FTP_PASSWORD", ""),
+    "base_path": os.environ.get("FTP_BASE_PATH", "/public_html/imagens"),
+    "base_url": os.environ.get("FTP_BASE_URL", "https://aprenderdigital.top/imagens")
 }
 
 # Mapeamento de tipo de arquivo para pasta
