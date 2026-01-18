@@ -3,11 +3,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   Users, Search, Eye, CheckCircle, XCircle, Clock, 
-  UserPlus, Filter, ChevronDown, ChevronUp, Phone, 
+  UserPlus, ChevronDown, ChevronUp, Phone, 
   Mail, MapPin, Calendar, FileText, AlertCircle,
-  Loader2, RefreshCw, UserCheck
+  Loader2, RefreshCw, UserCheck, GraduationCap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -43,15 +51,22 @@ const NIVEL_LABELS = {
 };
 
 export default function PreMatriculaManagement() {
-  const { user, accessToken } = useAuth();
+  const { accessToken } = useAuth();
   const [loading, setLoading] = useState(true);
   const [preMatriculas, setPreMatriculas] = useState([]);
   const [schools, setSchools] = useState([]);
+  const [classes, setClasses] = useState([]);
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [processing, setProcessing] = useState(null);
+  
+  // Estado do modal de conversão
+  const [convertModalOpen, setConvertModalOpen] = useState(false);
+  const [selectedPreMatricula, setSelectedPreMatricula] = useState(null);
+  const [selectedClassId, setSelectedClassId] = useState('');
+  const [converting, setConverting] = useState(false);
 
   // Contadores por status
   const statusCounts = preMatriculas.reduce((acc, pm) => {
@@ -78,6 +93,18 @@ export default function PreMatriculaManagement() {
       setSchools(response.data || []);
     } catch (error) {
       console.error('Erro ao carregar escolas:', error);
+    }
+  };
+
+  const loadClasses = async (schoolId) => {
+    try {
+      const response = await axios.get(`${API_URL}/api/classes?school_id=${schoolId}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      setClasses(response.data || []);
+    } catch (error) {
+      console.error('Erro ao carregar turmas:', error);
+      setClasses([]);
     }
   };
 
@@ -141,6 +168,48 @@ export default function PreMatriculaManagement() {
 
   const handleAnalyze = (pm) => {
     updateStatus(pm.id, 'analisando');
+  };
+
+  // Abre modal de conversão
+  const handleOpenConvertModal = async (pm) => {
+    setSelectedPreMatricula(pm);
+    setSelectedClassId('');
+    await loadClasses(pm.school_id);
+    setConvertModalOpen(true);
+  };
+
+  // Converte pré-matrícula em aluno
+  const handleConvert = async () => {
+    if (!selectedPreMatricula) return;
+    
+    setConverting(true);
+    try {
+      let url = `${API_URL}/api/pre-matriculas/${selectedPreMatricula.id}/convert`;
+      if (selectedClassId) {
+        url += `?class_id=${selectedClassId}`;
+      }
+      
+      const response = await axios.post(url, {}, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      
+      toast.success(
+        <div>
+          <p className="font-medium">Aluno criado com sucesso!</p>
+          <p className="text-sm">Matrícula: {response.data.enrollment_number}</p>
+        </div>
+      );
+      
+      setConvertModalOpen(false);
+      setSelectedPreMatricula(null);
+      loadPreMatriculas();
+    } catch (error) {
+      console.error('Erro ao converter pré-matrícula:', error);
+      const errorMsg = error.response?.data?.detail || 'Erro ao converter pré-matrícula';
+      toast.error(errorMsg);
+    } finally {
+      setConverting(false);
+    }
   };
 
   // Filtra por termo de busca
@@ -207,6 +276,7 @@ export default function PreMatriculaManagement() {
                     ? 'ring-2 ring-blue-500 border-blue-500' 
                     : 'hover:border-gray-300'
                 } ${config.color.replace('text-', 'border-').split(' ')[0]} bg-white`}
+                data-testid={`status-filter-${key}`}
               >
                 <div className="flex items-center justify-between">
                   <Icon className={`w-5 h-5 ${config.color.split(' ')[1]}`} />
@@ -229,6 +299,7 @@ export default function PreMatriculaManagement() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
+                  data-testid="search-input"
                 />
               </div>
             </div>
@@ -237,6 +308,7 @@ export default function PreMatriculaManagement() {
               value={selectedSchool}
               onChange={(e) => setSelectedSchool(e.target.value)}
               className="px-3 py-2 border rounded-lg text-sm min-w-[200px]"
+              data-testid="school-filter"
             >
               <option value="">Todas as escolas</option>
               {schools.map(school => (
@@ -248,6 +320,7 @@ export default function PreMatriculaManagement() {
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="px-3 py-2 border rounded-lg text-sm min-w-[150px]"
+              data-testid="status-select-filter"
             >
               <option value="">Todos os status</option>
               {Object.entries(STATUS_CONFIG).map(([key, config]) => (
@@ -276,13 +349,13 @@ export default function PreMatriculaManagement() {
             </div>
           ) : (
             filteredPreMatriculas.map((pm) => {
-              const StatusIcon = STATUS_CONFIG[pm.status]?.icon || Clock;
               const isExpanded = expandedId === pm.id;
               
               return (
                 <div 
                   key={pm.id} 
                   className="bg-white rounded-lg border shadow-sm overflow-hidden"
+                  data-testid={`pre-matricula-card-${pm.id}`}
                 >
                   {/* Cabeçalho do Card */}
                   <div 
@@ -317,17 +390,16 @@ export default function PreMatriculaManagement() {
                       
                       <div className="flex items-center gap-2 ml-4">
                         {pm.status === 'pendente' && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={(e) => { e.stopPropagation(); handleAnalyze(pm); }}
-                              disabled={processing === pm.id}
-                            >
-                              <Eye className="w-4 h-4 mr-1" />
-                              Analisar
-                            </Button>
-                          </>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => { e.stopPropagation(); handleAnalyze(pm); }}
+                            disabled={processing === pm.id}
+                            data-testid={`analyze-btn-${pm.id}`}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Analisar
+                          </Button>
                         )}
                         {(pm.status === 'pendente' || pm.status === 'analisando') && (
                           <>
@@ -336,6 +408,7 @@ export default function PreMatriculaManagement() {
                               className="bg-green-600 hover:bg-green-700"
                               onClick={(e) => { e.stopPropagation(); handleApprove(pm); }}
                               disabled={processing === pm.id}
+                              data-testid={`approve-btn-${pm.id}`}
                             >
                               <CheckCircle className="w-4 h-4 mr-1" />
                               Aprovar
@@ -345,11 +418,30 @@ export default function PreMatriculaManagement() {
                               variant="destructive"
                               onClick={(e) => { e.stopPropagation(); handleReject(pm); }}
                               disabled={processing === pm.id}
+                              data-testid={`reject-btn-${pm.id}`}
                             >
                               <XCircle className="w-4 h-4 mr-1" />
                               Rejeitar
                             </Button>
                           </>
+                        )}
+                        {pm.status === 'aprovada' && (
+                          <Button
+                            size="sm"
+                            className="bg-purple-600 hover:bg-purple-700"
+                            onClick={(e) => { e.stopPropagation(); handleOpenConvertModal(pm); }}
+                            disabled={processing === pm.id}
+                            data-testid={`convert-btn-${pm.id}`}
+                          >
+                            <GraduationCap className="w-4 h-4 mr-1" />
+                            Converter em Aluno
+                          </Button>
+                        )}
+                        {pm.status === 'convertida' && pm.converted_student_id && (
+                          <span className="text-xs text-purple-600 font-medium flex items-center gap-1">
+                            <UserCheck className="w-4 h-4" />
+                            Aluno criado
+                          </span>
                         )}
                         {isExpanded ? (
                           <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -499,6 +591,19 @@ export default function PreMatriculaManagement() {
                           </p>
                         </div>
                       )}
+
+                      {/* Info de Conversão */}
+                      {pm.status === 'convertida' && pm.converted_student_id && (
+                        <div className="mt-4 pt-4 border-t">
+                          <h4 className="font-medium text-purple-700 mb-2 flex items-center gap-2">
+                            <UserCheck className="w-4 h-4" />
+                            Conversão Realizada
+                          </h4>
+                          <p className="text-sm text-purple-600 bg-purple-50 p-3 rounded border border-purple-200">
+                            Esta pré-matrícula foi convertida em aluno. ID do aluno: {pm.converted_student_id}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -507,6 +612,83 @@ export default function PreMatriculaManagement() {
           )}
         </div>
       </div>
+
+      {/* Modal de Conversão */}
+      <Dialog open={convertModalOpen} onOpenChange={setConvertModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-purple-600" />
+              Converter em Aluno
+            </DialogTitle>
+            <DialogDescription>
+              Crie um novo aluno a partir dos dados da pré-matrícula de <strong>{selectedPreMatricula?.aluno_nome}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="bg-gray-50 rounded-lg p-3 text-sm">
+              <p className="text-gray-600 mb-2">Dados que serão transferidos:</p>
+              <ul className="space-y-1 text-gray-700">
+                <li>• Nome: <strong>{selectedPreMatricula?.aluno_nome}</strong></li>
+                <li>• Data de Nasc.: <strong>{formatDate(selectedPreMatricula?.aluno_data_nascimento)}</strong></li>
+                <li>• Responsável: <strong>{selectedPreMatricula?.responsavel_nome}</strong></li>
+                <li>• Telefone: <strong>{selectedPreMatricula?.responsavel_telefone}</strong></li>
+              </ul>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-2">
+                Turma (opcional)
+              </label>
+              <select
+                value={selectedClassId}
+                onChange={(e) => setSelectedClassId(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg text-sm"
+                data-testid="class-select-modal"
+              >
+                <option value="">Selecionar turma depois</option>
+                {classes.map(cls => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.name} - {cls.grade_level} ({cls.shift === 'morning' ? 'Manhã' : cls.shift === 'afternoon' ? 'Tarde' : cls.shift === 'evening' ? 'Noite' : 'Integral'})
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Você pode vincular o aluno a uma turma agora ou fazer isso posteriormente.
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setConvertModalOpen(false)}
+              disabled={converting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleConvert}
+              disabled={converting}
+              className="bg-purple-600 hover:bg-purple-700"
+              data-testid="confirm-convert-btn"
+            >
+              {converting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Convertendo...
+                </>
+              ) : (
+                <>
+                  <UserCheck className="w-4 h-4 mr-2" />
+                  Confirmar Conversão
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
