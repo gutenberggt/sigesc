@@ -6083,6 +6083,167 @@ async def update_pre_matricula_status(
     return {"message": "Status atualizado com sucesso"}
 
 
+@api_router.post("/pre-matriculas/{pre_matricula_id}/convert")
+async def convert_pre_matricula_to_student(
+    pre_matricula_id: str,
+    request: Request,
+    class_id: Optional[str] = Query(None, description="ID da turma para matricular o aluno")
+):
+    """
+    Converte uma pré-matrícula aprovada em um novo aluno.
+    Cria o registro do aluno com os dados da pré-matrícula.
+    """
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
+    
+    # Buscar a pré-matrícula
+    pre_matricula = await db.pre_matriculas.find_one(
+        {"id": pre_matricula_id}, {"_id": 0}
+    )
+    
+    if not pre_matricula:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pré-matrícula não encontrada"
+        )
+    
+    # Verificar se a pré-matrícula está aprovada
+    if pre_matricula.get('status') != 'aprovada':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Apenas pré-matrículas aprovadas podem ser convertidas em alunos"
+        )
+    
+    # Verificar se já foi convertida
+    if pre_matricula.get('converted_student_id'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Esta pré-matrícula já foi convertida em aluno"
+        )
+    
+    # Buscar a escola para obter o próximo número de matrícula
+    school = await db.schools.find_one(
+        {"id": pre_matricula['school_id']}, {"_id": 0}
+    )
+    
+    if not school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Escola não encontrada"
+        )
+    
+    # Gerar número de matrícula único
+    current_year = datetime.now().year
+    student_count = await db.students.count_documents({"school_id": pre_matricula['school_id']})
+    enrollment_number = f"{current_year}{str(student_count + 1).zfill(5)}"
+    
+    # Mapear parentesco para tipo de responsável legal
+    parentesco_map = {
+        'mae': 'mother',
+        'pai': 'father',
+        'avo': 'other',
+        'tio': 'other',
+        'responsavel': 'other',
+        'outro': 'other'
+    }
+    
+    # Criar o documento do aluno
+    student_id = str(uuid.uuid4())
+    student_data = {
+        "id": student_id,
+        "school_id": pre_matricula['school_id'],
+        "enrollment_number": enrollment_number,
+        "full_name": pre_matricula.get('aluno_nome'),
+        "birth_date": pre_matricula.get('aluno_data_nascimento'),
+        "sex": pre_matricula.get('aluno_sexo'),
+        "cpf": pre_matricula.get('aluno_cpf'),
+        
+        # Responsável
+        "guardian_name": pre_matricula.get('responsavel_nome'),
+        "guardian_cpf": pre_matricula.get('responsavel_cpf'),
+        "guardian_phone": pre_matricula.get('responsavel_telefone'),
+        "guardian_relationship": pre_matricula.get('responsavel_parentesco'),
+        "legal_guardian_type": parentesco_map.get(pre_matricula.get('responsavel_parentesco', ''), 'other'),
+        
+        # Turma (se fornecida)
+        "class_id": class_id,
+        
+        # Observações
+        "observations": f"Aluno criado a partir da pré-matrícula. Email do responsável: {pre_matricula.get('responsavel_email', 'N/A')}",
+        
+        # Status
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Inserir o aluno
+    await db.students.insert_one(student_data)
+    
+    # Atualizar a pré-matrícula como convertida
+    await db.pre_matriculas.update_one(
+        {"id": pre_matricula_id},
+        {"$set": {
+            "status": "convertida",
+            "converted_student_id": student_id,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Registrar no histórico do aluno
+    history_doc = {
+        "id": str(uuid.uuid4()),
+        "student_id": student_id,
+        "school_id": pre_matricula['school_id'],
+        "school_name": school.get('name', 'N/A'),
+        "class_id": class_id,
+        "class_name": None,
+        "action_type": "matricula",
+        "previous_status": None,
+        "new_status": "active",
+        "observations": f"Matrícula criada a partir de pré-matrícula online (ID: {pre_matricula_id})",
+        "user_id": current_user['id'],
+        "user_name": current_user.get('full_name', current_user.get('email')),
+        "action_date": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Se tiver turma, buscar o nome
+    if class_id:
+        class_doc = await db.classes.find_one({"id": class_id}, {"_id": 0, "name": 1})
+        if class_doc:
+            history_doc["class_name"] = class_doc.get('name')
+    
+    await db.student_history.insert_one(history_doc)
+    
+    # Registrar no audit log
+    await db.audit_logs.insert_one({
+        "id": str(uuid.uuid4()),
+        "action": "create",
+        "collection": "students",
+        "document_id": student_id,
+        "user_id": current_user['id'],
+        "user_email": current_user.get('email'),
+        "user_role": current_user.get('role'),
+        "user_name": current_user.get('full_name'),
+        "school_id": pre_matricula['school_id'],
+        "school_name": school.get('name'),
+        "description": f"Aluno '{pre_matricula.get('aluno_nome')}' criado a partir de pré-matrícula online",
+        "new_value": {
+            "full_name": pre_matricula.get('aluno_nome'),
+            "enrollment_number": enrollment_number,
+            "pre_matricula_id": pre_matricula_id
+        },
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "severity": "info",
+        "category": "academic"
+    })
+    
+    return {
+        "message": "Pré-matrícula convertida em aluno com sucesso",
+        "student_id": student_id,
+        "enrollment_number": enrollment_number,
+        "student_name": pre_matricula.get('aluno_nome')
+    }
+
+
 # ============= ANNOUNCEMENT ENDPOINTS =============
 
 def can_user_create_announcement(user: dict, recipient: dict) -> bool:
