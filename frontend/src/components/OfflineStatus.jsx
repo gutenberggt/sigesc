@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import { useOffline } from '@/contexts/OfflineContext';
-import { Wifi, WifiOff, RefreshCw, CloudOff, Check, AlertCircle } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, CloudOff, Check, AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
