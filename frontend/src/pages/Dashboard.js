@@ -299,7 +299,16 @@ export const Dashboard = () => {
               </button>
               
               <button
-                onClick={() => navigate('/admin/grades')}
+                onClick={() => navigate('/admin/pre-matriculas')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-pink-50 hover:border-pink-300 transition-all"
+                data-testid="nav-pre-matriculas-button"
+              >
+                <UserPlus className="text-pink-600" size={24} />
+                <span className="font-medium text-gray-900">Pré-Matrículas</span>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/grades')}}
                 className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all"
                 data-testid="nav-grades-button"
               >
