@@ -385,7 +385,30 @@ export const Classes = () => {
       accessor: 'school_id',
       render: (row) => getSchoolName(row.school_id)
     },
-    { header: 'Ano Letivo', accessor: 'academic_year' }
+    { header: 'Ano Letivo', accessor: 'academic_year' },
+    {
+      header: 'Tipo',
+      accessor: 'atendimento_programa',
+      render: (row) => {
+        if (!row.atendimento_programa) return <span className="text-gray-400 text-xs">Regular</span>;
+        
+        const programaLabels = {
+          'atendimento_integral': { label: 'Integral', color: 'bg-purple-100 text-purple-800' },
+          'reforco_escolar': { label: 'Reforço', color: 'bg-orange-100 text-orange-800' },
+          'aulas_complementares': { label: 'Complementar', color: 'bg-teal-100 text-teal-800' },
+          'aee': { label: 'AEE', color: 'bg-blue-100 text-blue-800' }
+        };
+        
+        const programa = programaLabels[row.atendimento_programa];
+        if (!programa) return row.atendimento_programa;
+        
+        return (
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${programa.color}`}>
+            {programa.label}
+          </span>
+        );
+      }
+    }
   ];
 
   const availableEducationLevels = getAvailableEducationLevels();
