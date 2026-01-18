@@ -3,6 +3,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
+import { BimestreBlockedAlert, BimestreDeadlineAlert } from '@/components/BimestreStatus';
 import { 
   BookOpen, 
   Calendar, 
@@ -17,7 +19,8 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Home
+  Home,
+  Lock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI } from '@/services/api';
