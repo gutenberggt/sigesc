@@ -53,6 +53,7 @@ const NIVEL_LABELS = {
 
 export default function PreMatriculaManagement() {
   const { accessToken } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [preMatriculas, setPreMatriculas] = useState([]);
   const [schools, setSchools] = useState([]);
