@@ -1,14 +1,24 @@
-import { db, getPendingSyncItems, updateSyncQueueItem, removeSyncQueueItem, SYNC_STATUS, countPendingSyncItems } from '@/db/database';
-import { gradesAPI, attendanceAPI } from '@/services/api';
+import { db, getPendingSyncItems, updateSyncQueueItem, removeSyncQueueItem, SYNC_STATUS, countPendingSyncItems, updateSyncMeta } from '@/db/database';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 /**
  * Serviço de sincronização para processar fila de operações pendentes
+ * Fase 4: Usa endpoints de backend /api/sync/push e /api/sync/pull
  */
 class SyncService {
   constructor() {
     this.isSyncing = false;
     this.listeners = [];
     this.maxRetries = 3;
+  }
+
+  /**
+   * Obtém token de autenticação
+   */
+  getAuthToken() {
+    return localStorage.getItem('accessToken');
   }
 
   /**
@@ -35,12 +45,17 @@ class SyncService {
   }
 
   /**
-   * Processa toda a fila de sincronização
+   * Processa toda a fila de sincronização usando o endpoint /api/sync/push
    */
   async processQueue() {
     if (this.isSyncing) {
       console.log('[SyncService] Sincronização já em andamento');
       return { success: false, reason: 'already_syncing' };
+    }
+
+    if (!navigator.onLine) {
+      console.log('[SyncService] Offline - sincronização adiada');
+      return { success: false, reason: 'offline' };
     }
 
     this.isSyncing = true;
@@ -57,43 +72,70 @@ class SyncService {
       const pendingItems = await getPendingSyncItems();
       results.total = pendingItems.length;
 
-      console.log(`[SyncService] Processando ${pendingItems.length} itens pendentes`);
+      if (pendingItems.length === 0) {
+        console.log('[SyncService] Nenhum item pendente para sincronizar');
+        this.notify('sync_complete', results);
+        return { success: true, results };
+      }
 
-      for (const item of pendingItems) {
-        try {
-          this.notify('sync_progress', { 
-            current: results.processed + 1, 
-            total: pendingItems.length,
-            item 
-          });
+      console.log(`[SyncService] Enviando ${pendingItems.length} itens para o servidor`);
 
-          await this.processItem(item);
+      // Converte para formato do endpoint
+      const operations = pendingItems.map(item => ({
+        collection: item.collection,
+        operation: item.operation,
+        recordId: item.recordId,
+        data: item.data,
+        timestamp: item.timestamp
+      }));
+
+      // Chama endpoint de push
+      const token = this.getAuthToken();
+      const response = await axios.post(
+        `${API_URL}/api/sync/push`,
+        { operations },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const serverResults = response.data;
+      results.processed = serverResults.processed;
+      results.succeeded = serverResults.succeeded;
+      results.failed = serverResults.failed;
+
+      // Processa resultados individuais
+      for (const result of serverResults.results) {
+        const queueItem = pendingItems.find(item => item.recordId === result.recordId);
+        
+        if (result.success) {
+          // Remove da fila local
+          if (queueItem) {
+            await removeSyncQueueItem(queueItem.id);
+          }
           
-          // Remove da fila após sucesso
-          await removeSyncQueueItem(item.id);
-          results.succeeded++;
-
-          // Atualiza status do registro original
-          await this.updateRecordSyncStatus(item.collection, item.recordId, SYNC_STATUS.SYNCED);
-
-        } catch (err) {
-          console.error(`[SyncService] Erro ao processar item ${item.id}:`, err);
+          // Atualiza ID local com ID do servidor se necessário
+          if (result.serverId && result.serverId !== result.recordId) {
+            await this.updateLocalId(queueItem?.collection, result.recordId, result.serverId);
+          }
           
-          // Atualiza tentativas
-          await updateSyncQueueItem(item.id, 
-            item.retries >= this.maxRetries ? 'failed' : 'pending',
-            err.message
-          );
+          // Atualiza status do registro
+          if (queueItem) {
+            await this.updateRecordSyncStatus(queueItem.collection, result.serverId || result.recordId, SYNC_STATUS.SYNCED);
+          }
+        } else {
+          // Atualiza tentativas do item com erro
+          if (queueItem) {
+            await updateSyncQueueItem(
+              queueItem.id,
+              queueItem.retries >= this.maxRetries ? 'failed' : 'pending',
+              result.error
+            );
+          }
           
-          results.failed++;
           results.errors.push({
-            itemId: item.id,
-            collection: item.collection,
-            error: err.message
+            recordId: result.recordId,
+            error: result.error
           });
         }
-
-        results.processed++;
       }
 
       this.notify('sync_complete', results);
@@ -112,92 +154,107 @@ class SyncService {
   }
 
   /**
-   * Processa um item individual da fila
+   * Baixa dados do servidor para o cache local usando /api/sync/pull
    */
-  async processItem(item) {
-    const { collection, operation, recordId, data } = item;
+  async pullData(collections, options = {}) {
+    if (!navigator.onLine) {
+      console.log('[SyncService] Offline - pull adiado');
+      return { success: false, reason: 'offline' };
+    }
 
-    switch (collection) {
-      case 'grades':
-        return await this.syncGrade(operation, recordId, data);
-      case 'attendance':
-        return await this.syncAttendance(operation, recordId, data);
-      default:
-        throw new Error(`Coleção desconhecida: ${collection}`);
+    try {
+      const token = this.getAuthToken();
+      const response = await axios.post(
+        `${API_URL}/api/sync/pull`,
+        {
+          collections,
+          classId: options.classId || null,
+          academicYear: options.academicYear || null,
+          lastSync: options.lastSync || null
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const { data, syncedAt, counts } = response.data;
+
+      // Armazena dados no IndexedDB
+      for (const [collection, records] of Object.entries(data)) {
+        if (records && records.length > 0) {
+          await this.storeCollectionData(collection, records);
+          await updateSyncMeta(collection, records.length);
+        }
+      }
+
+      console.log('[SyncService] Pull concluído:', counts);
+      return { success: true, counts, syncedAt };
+
+    } catch (err) {
+      console.error('[SyncService] Erro no pull:', err);
+      return { success: false, error: err.message };
     }
   }
 
   /**
-   * Sincroniza uma nota
+   * Armazena dados de uma coleção no IndexedDB
    */
-  async syncGrade(operation, recordId, data) {
-    // Remove campos de controle local
-    const cleanData = this.cleanData(data);
+  async storeCollectionData(collection, records) {
+    const table = db[collection];
+    if (!table) {
+      console.warn(`[SyncService] Coleção desconhecida: ${collection}`);
+      return;
+    }
 
-    switch (operation) {
-      case 'create':
-        // Cria no servidor
-        const created = await gradesAPI.create(cleanData);
+    await db.transaction('rw', table, async () => {
+      for (const record of records) {
+        const existing = await table.where('id').equals(record.id).first();
         
-        // Atualiza ID local com ID do servidor
-        await this.updateLocalId('grades', recordId, created.id);
-        return created;
-
-      case 'update':
-        return await gradesAPI.update(recordId, cleanData);
-
-      case 'delete':
-        return await gradesAPI.delete(recordId);
-
-      default:
-        throw new Error(`Operação desconhecida: ${operation}`);
-    }
+        if (existing) {
+          // Atualiza registro existente
+          await table.update(existing.localId || existing.id, {
+            ...record,
+            syncStatus: SYNC_STATUS.SYNCED
+          });
+        } else {
+          // Adiciona novo registro
+          await table.add({
+            ...record,
+            syncStatus: SYNC_STATUS.SYNCED
+          });
+        }
+      }
+    });
   }
 
   /**
-   * Sincroniza um registro de frequência
+   * Obtém status de sincronização do servidor
    */
-  async syncAttendance(operation, recordId, data) {
-    const cleanData = this.cleanData(data);
-
-    switch (operation) {
-      case 'create':
-        const created = await attendanceAPI.create(cleanData);
-        await this.updateLocalId('attendance', recordId, created.id);
-        return created;
-
-      case 'update':
-        return await attendanceAPI.update(recordId, cleanData);
-
-      case 'delete':
-        return await attendanceAPI.delete(recordId);
-
-      default:
-        throw new Error(`Operação desconhecida: ${operation}`);
+  async getServerStatus() {
+    if (!navigator.onLine) {
+      return { success: false, reason: 'offline' };
     }
-  }
 
-  /**
-   * Remove campos de controle local dos dados
-   */
-  cleanData(data) {
-    if (!data) return data;
-    
-    const { localId, syncStatus, ...cleanData } = data;
-    
-    // Remove ID temporário se for criar
-    if (cleanData.id && cleanData.id.startsWith('temp_')) {
-      delete cleanData.id;
+    try {
+      const token = this.getAuthToken();
+      const response = await axios.get(
+        `${API_URL}/api/sync/status`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      return { success: true, data: response.data };
+    } catch (err) {
+      console.error('[SyncService] Erro ao obter status:', err);
+      return { success: false, error: err.message };
     }
-    
-    return cleanData;
   }
 
   /**
    * Atualiza ID local com ID do servidor após criação
    */
   async updateLocalId(collection, tempId, serverId) {
+    if (!collection) return;
+    
     const table = db[collection];
+    if (!table) return;
     
     const record = await table.where('id').equals(tempId).first();
     if (record) {
@@ -209,7 +266,10 @@ class SyncService {
    * Atualiza status de sincronização de um registro
    */
   async updateRecordSyncStatus(collection, recordId, status) {
+    if (!collection) return;
+    
     const table = db[collection];
+    if (!table) return;
     
     const record = await table.where('id').equals(recordId).first();
     if (record) {
