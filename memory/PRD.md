@@ -79,7 +79,17 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
     7. **Integração OfflineContext**: Contador de pendências, eventos de sync, auto-sync ao reconectar
   - **Testado**: IndexedDB `SigescOfflineDB` criado com sucesso
 
-- **Feature PWA Offline - Fase 3 Integração nas Páginas** (P1 - IMPLEMENTADO):
+- **Feature PWA Offline - Fase 4 Endpoints de Sincronização** (P0 - IMPLEMENTADO):
+  - Objetivo: Criar endpoints de backend para sincronização bidirecional de dados
+  - Implementado:
+    1. **Router `/api/sync`** (`/backend/routers/sync.py`): Endpoints de sincronização
+    2. **GET `/api/sync/status`**: Retorna contagens das coleções e dados do usuário
+    3. **POST `/api/sync/push`**: Recebe operações pendentes do cliente (create/update/delete) e processa no servidor
+    4. **POST `/api/sync/pull`**: Envia dados do servidor para popular cache local, com filtros opcionais (classId, academicYear, lastSync para delta sync)
+    5. **syncService.js atualizado**: Frontend agora usa os novos endpoints em vez de APIs individuais
+  - **Testado**: 17/17 testes passaram (iteration_9.json) - todos os endpoints funcionando
+  - **Próximas Fases**:
+    - Fase 5: UI de status de sincronização com indicador de progresso e lista de pendentes
   - Objetivo: Integrar a funcionalidade offline nas páginas de Notas e Frequência
   - Implementado:
     1. **OfflineManagementPanel** integrado em `Grades.js` e `Attendance.js`
