@@ -162,7 +162,8 @@ export const Classes = () => {
       shift: 'morning',
       education_level: '',
       grade_level: '',
-      teacher_ids: []
+      teacher_ids: [],
+      atendimento_programa: ''
     });
     setIsModalOpen(true);
   };
@@ -190,7 +191,8 @@ export const Classes = () => {
       shift: classItem.shift,
       education_level: educationLevel,
       grade_level: classItem.grade_level,
-      teacher_ids: classItem.teacher_ids || []
+      teacher_ids: classItem.teacher_ids || [],
+      atendimento_programa: classItem.atendimento_programa || ''
     });
     setIsModalOpen(true);
   };
