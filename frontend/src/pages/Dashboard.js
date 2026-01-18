@@ -308,7 +308,7 @@ export const Dashboard = () => {
               </button>
               
               <button
-                onClick={() => navigate('/admin/grades')}}
+                onClick={() => navigate('/admin/grades')}
                 className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all"
                 data-testid="nav-grades-button"
               >
