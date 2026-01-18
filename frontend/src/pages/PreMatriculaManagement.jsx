@@ -450,10 +450,19 @@ export default function PreMatriculaManagement() {
                           </Button>
                         )}
                         {pm.status === 'convertida' && pm.converted_student_id && (
-                          <span className="text-xs text-purple-600 font-medium flex items-center gap-1">
-                            <UserCheck className="w-4 h-4" />
-                            Aluno criado
-                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              navigate(`/admin/students?highlight=${pm.converted_student_id}`);
+                            }}
+                            data-testid={`view-student-btn-${pm.id}`}
+                          >
+                            <UserCheck className="w-4 h-4 mr-1" />
+                            Ver Aluno
+                          </Button>
                         )}
                         {isExpanded ? (
                           <ChevronUp className="w-5 h-5 text-gray-400" />
