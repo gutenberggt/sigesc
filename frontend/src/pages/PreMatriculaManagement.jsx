@@ -16,7 +16,7 @@ import {
   Users, Search, Eye, CheckCircle, XCircle, Clock, 
   UserPlus, ChevronDown, ChevronUp, Phone, 
   Mail, MapPin, Calendar, FileText, AlertCircle,
-  Loader2, RefreshCw, UserCheck, GraduationCap
+  Loader2, RefreshCw, UserCheck, GraduationCap, ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
