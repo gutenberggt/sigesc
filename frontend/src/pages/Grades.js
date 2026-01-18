@@ -4,7 +4,7 @@ import { Layout } from '@/components/Layout';
 import { gradesAPI, schoolsAPI, classesAPI, coursesAPI, studentsAPI, professorAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
-import { BimestreBlockedAlert, BimestreDeadlineAlert, BimestreStatusRow, BimestreFieldIndicator } from '@/components/BimestreStatus';
+import { BimestreBlockedAlert, BimestreDeadlineAlert, BimestreFieldIndicator } from '@/components/BimestreStatus';
 import { OfflineManagementPanel, OfflineDataBadge } from '@/components/OfflineManagementPanel';
 import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';

@@ -26,7 +26,7 @@ import { schoolsAPI, classesAPI, coursesAPI, attendanceAPI, professorAPI, calend
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
-import { BimestreBlockedAlert, BimestreDeadlineAlert, BimestreStatusRow } from '@/components/BimestreStatus';
+import { BimestreBlockedAlert, BimestreDeadlineAlert } from '@/components/BimestreStatus';
 import { OfflineManagementPanel } from '@/components/OfflineManagementPanel';
 import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
