@@ -532,8 +532,8 @@ export default function PreMatriculaManagement() {
                               <dd>{pm.aluno_cpf || '-'}</dd>
                             </div>
                             <div>
-                              <dt className="text-gray-500">Nível de Ensino</dt>
-                              <dd>{NIVEL_LABELS[pm.nivel_ensino] || pm.nivel_ensino || '-'}</dd>
+                              <dt className="text-gray-500">Série/Ano Desejado</dt>
+                              <dd>{SERIE_ANO_LABELS[pm.serie_ano_desejado] || pm.serie_ano_desejado || NIVEL_LABELS[pm.nivel_ensino] || pm.nivel_ensino || '-'}</dd>
                             </div>
                           </dl>
                         </div>
