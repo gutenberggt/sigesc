@@ -148,6 +148,22 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
        - `PUT /api/pre-matriculas/{id}/status` (autenticado): Atualiza status da pré-matrícula
   - **Testado**: 100% testes passaram (iteration_8.json) - 6 testes unitários + testes de frontend
 
+### 2026-01-18 (Sessão 6)
+- **Feature Converter Pré-Matrícula em Aluno** (P0 - IMPLEMENTADO):
+  - Objetivo: Permitir que administradores convertam uma pré-matrícula aprovada em um registro completo de aluno
+  - Implementado:
+    1. **Endpoint `POST /api/pre-matriculas/{id}/convert`**: Cria um novo aluno a partir dos dados da pré-matrícula
+       - Validações: Verifica se pré-matrícula existe, está aprovada e não foi convertida
+       - Gera número de matrícula único automaticamente (AAAA + 5 dígitos sequenciais)
+       - Mapeia dados do aluno, responsável e parentesco
+       - Registra no histórico do aluno e audit log
+       - Atualiza pré-matrícula para status "convertida" com referência ao aluno criado
+    2. **Botão "Converter em Aluno"**: Visível apenas para pré-matrículas com status "aprovada"
+    3. **Modal de Conversão**: Exibe resumo dos dados e permite selecionar turma (opcional)
+    4. **Status "Convertida"**: Novo status com cor roxa e ícone UserCheck
+    5. **Indicador "Aluno criado"**: Substitui botões de ação após conversão
+  - **Testado**: Endpoint e interface testados com sucesso - aluno criado com matrícula `202604247`
+
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
   - Problema: Após criar uma lotação para um professor, o modal de alocação não reconhecia a nova lotação, mostrando mensagem "Este professor não possui lotação em nenhuma escola"
