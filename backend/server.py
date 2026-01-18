@@ -72,6 +72,7 @@ from routers import (
     setup_guardians_router,
     setup_enrollments_router
 )
+from routers.sync import setup_sync_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
