@@ -79,6 +79,17 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
     7. **Integração OfflineContext**: Contador de pendências, eventos de sync, auto-sync ao reconectar
   - **Testado**: IndexedDB `SigescOfflineDB` criado com sucesso
 
+- **Feature PWA Offline - Fase 5 UI de Status de Sincronização** (P0 - IMPLEMENTADO):
+  - Objetivo: Interface visual para acompanhar e gerenciar sincronização offline
+  - Implementado:
+    1. **FloatingStatusIndicator melhorado**: Indicador flutuante no canto inferior direito que expande ao clicar, mostrando lista de pendências
+    2. **Banner de Offline**: Barra vermelha no topo da página quando sem conexão
+    3. **Badge de Status no Header**: Indicador visual de status no cabeçalho
+    4. **Painel de Gerenciamento**: Mostra status da fila, permite sincronizar, tentar novamente erros, e limpar itens com falha
+    5. **Detalhes de Pendências**: Lista expandida mostrando tipo de operação (criar/atualizar/excluir) e coleção (notas/frequência)
+    6. **SyncStatusPanel e SyncIndicator**: Componentes reutilizáveis criados para uso em outras partes do sistema
+  - **Testado**: Screenshots confirmaram funcionamento em modo online e offline
+
 - **Feature PWA Offline - Fase 4 Endpoints de Sincronização** (P0 - IMPLEMENTADO):
   - Objetivo: Criar endpoints de backend para sincronização bidirecional de dados
   - Implementado:
