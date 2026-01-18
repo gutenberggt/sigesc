@@ -2,7 +2,13 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
+from pathlib import Path
+from dotenv import load_dotenv
 import os
+
+# Carrega variáveis de ambiente do .env
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env')
 
 # Configurações JWT - SECRET_KEY obrigatória em produção
 SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
