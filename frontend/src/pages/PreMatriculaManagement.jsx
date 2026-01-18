@@ -51,6 +51,37 @@ const NIVEL_LABELS = {
   eja: 'EJA'
 };
 
+// Labels de série/ano
+const SERIE_ANO_LABELS = {
+  // Educação Infantil
+  educacao_infantil_bercario: 'Berçário',
+  educacao_infantil_maternal_i: 'Maternal I',
+  educacao_infantil_maternal_ii: 'Maternal II',
+  educacao_infantil_pre_i: 'Pré I',
+  educacao_infantil_pre_ii: 'Pré II',
+  
+  // Fundamental Anos Iniciais
+  fundamental_inicial_1ano: '1º Ano',
+  fundamental_inicial_2ano: '2º Ano',
+  fundamental_inicial_3ano: '3º Ano',
+  fundamental_inicial_4ano: '4º Ano',
+  fundamental_inicial_5ano: '5º Ano',
+  
+  // Fundamental Anos Finais
+  fundamental_final_6ano: '6º Ano',
+  fundamental_final_7ano: '7º Ano',
+  fundamental_final_8ano: '8º Ano',
+  fundamental_final_9ano: '9º Ano',
+  
+  // EJA Anos Iniciais
+  eja_inicial_1etapa: 'EJA 1ª Etapa',
+  eja_inicial_2etapa: 'EJA 2ª Etapa',
+  
+  // EJA Anos Finais
+  eja_final_3etapa: 'EJA 3ª Etapa',
+  eja_final_4etapa: 'EJA 4ª Etapa',
+};
+
 export default function PreMatriculaManagement() {
   const { accessToken } = useAuth();
   const navigate = useNavigate();
