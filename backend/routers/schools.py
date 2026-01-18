@@ -28,9 +28,9 @@ def setup_router(db, audit_service):
         
         return school_obj
 
-    @router.get("", response_model=List[School])
-    async def list_schools(request: Request, skip: int = 0, limit: int = 100):
-        """Lista escolas"""
+    @router.get("")
+    async def list_schools(request: Request, skip: int = 0, limit: int = 100, include_student_count: bool = True):
+        """Lista escolas com contagem opcional de alunos ativos"""
         current_user = await AuthMiddleware.get_current_user(request)
         
         # Admin e SEMED veem todas as escolas
@@ -42,6 +42,23 @@ def setup_router(db, audit_service):
                 {"id": {"$in": current_user['school_ids']}},
                 {"_id": 0}
             ).skip(skip).limit(limit).to_list(limit)
+        
+        # Adicionar contagem de alunos ativos se solicitado
+        if include_student_count and schools:
+            school_ids = [s['id'] for s in schools]
+            
+            # Agregação para contar alunos ativos por escola
+            pipeline = [
+                {"$match": {"school_id": {"$in": school_ids}, "status": "active"}},
+                {"$group": {"_id": "$school_id", "count": {"$sum": 1}}}
+            ]
+            
+            student_counts = await db.students.aggregate(pipeline).to_list(None)
+            count_map = {item['_id']: item['count'] for item in student_counts}
+            
+            # Adicionar contagem a cada escola
+            for school in schools:
+                school['student_count'] = count_map.get(school['id'], 0)
         
         return schools
 
