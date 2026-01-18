@@ -373,6 +373,10 @@ export const LearningObjects = () => {
           </div>
         )}
 
+        {/* Alertas de Bimestre Bloqueado e Prazo Próximo */}
+        <BimestreBlockedAlert blockedBimestres={blockedBimestres} />
+        <BimestreDeadlineAlert editStatus={editStatus} />
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
