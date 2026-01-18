@@ -46,6 +46,15 @@ export const LearningObjects = () => {
   const [academicYear, setAcademicYear] = useState(currentYear);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   
+  // Hook para verificar status de edição dos bimestres
+  const { 
+    editStatus, 
+    loading: loadingEditStatus, 
+    canEditBimestre, 
+    blockedBimestres,
+    getBimestreInfo 
+  } = useBimestreEditStatus(academicYear);
+  
   // Estados de dados
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
