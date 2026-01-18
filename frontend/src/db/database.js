@@ -187,31 +187,6 @@ export async function exportData() {
 }
 
 /**
- * Atualiza metadados de sincronização de uma coleção
- */
-export async function updateSyncMeta(collection, count) {
-  try {
-    const existing = await db.syncMeta.where('collection').equals(collection).first();
-    const now = new Date().toISOString();
-    
-    if (existing) {
-      await db.syncMeta.update(existing.id, {
-        lastSync: now,
-        count: count
-      });
-    } else {
-      await db.syncMeta.add({
-        collection,
-        lastSync: now,
-        count: count
-      });
-    }
-  } catch (error) {
-    console.error('[DB] Erro ao atualizar sync meta:', error);
-  }
-}
-
-/**
  * Obtém data da última sincronização de uma coleção
  */
 export async function getLastSyncTime(collection) {
