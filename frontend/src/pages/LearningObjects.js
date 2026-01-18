@@ -285,10 +285,28 @@ export const LearningObjects = () => {
     setShowForm(true);
   };
 
+  // Função para determinar o bimestre de uma data
+  const getBimestreFromDate = (dateStr) => {
+    if (!dateStr) return null;
+    const month = new Date(dateStr).getMonth() + 1; // 1-12
+    if (month <= 3) return 1;
+    if (month <= 6) return 2;
+    if (month <= 9) return 3;
+    return 4;
+  };
+
   // Salvar registro
   const handleSave = async () => {
     if (!formData.content.trim()) {
       showAlert('error', 'O conteúdo é obrigatório');
+      return;
+    }
+    
+    // Verificar se o bimestre está bloqueado
+    const bimestre = getBimestreFromDate(selectedDate);
+    if (bimestre && !canEditBimestre(bimestre)) {
+      const info = getBimestreInfo(bimestre);
+      showAlert('error', `O ${bimestre}º Bimestre está bloqueado para edição. Data limite: ${info?.dataLimite || 'N/A'}`);
       return;
     }
     
