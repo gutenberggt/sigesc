@@ -161,8 +161,10 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
     2. **Botão "Converter em Aluno"**: Visível apenas para pré-matrículas com status "aprovada"
     3. **Modal de Conversão**: Exibe resumo dos dados e permite selecionar turma (opcional)
     4. **Status "Convertida"**: Novo status com cor roxa e ícone UserCheck
-    5. **Indicador "Aluno criado"**: Substitui botões de ação após conversão
-  - **Testado**: Endpoint e interface testados com sucesso - aluno criado com matrícula `202604247`
+    5. **Botão "Ver Aluno"**: Após conversão, botão permite navegar direto para o cadastro do aluno
+    6. **Link no Toast**: Toast de sucesso inclui link clicável para abrir o cadastro do aluno
+    7. **Seção Expandida**: Área de detalhes mostra botão "Abrir Cadastro do Aluno"
+  - **Testado**: Endpoint e interface testados com sucesso - navegação para página de alunos funcionando
 
 ### 2026-01-06 (Sessão 4)
 - **Bug Crítico Corrigido - Lotação não reconhecida na Alocação** (P0 - RESOLVIDO):
