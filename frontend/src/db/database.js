@@ -187,6 +187,44 @@ export async function exportData() {
 }
 
 /**
+ * Atualiza metadados de sincronização de uma coleção
+ */
+export async function updateSyncMeta(collection, count) {
+  try {
+    const existing = await db.syncMeta.where('collection').equals(collection).first();
+    const now = new Date().toISOString();
+    
+    if (existing) {
+      await db.syncMeta.update(existing.id, {
+        lastSync: now,
+        count: count
+      });
+    } else {
+      await db.syncMeta.add({
+        collection,
+        lastSync: now,
+        count: count
+      });
+    }
+  } catch (error) {
+    console.error('[DB] Erro ao atualizar sync meta:', error);
+  }
+}
+
+/**
+ * Obtém data da última sincronização de uma coleção
+ */
+export async function getLastSyncTime(collection) {
+  try {
+    const meta = await db.syncMeta.where('collection').equals(collection).first();
+    return meta?.lastSync || null;
+  } catch (error) {
+    console.error('[DB] Erro ao obter last sync:', error);
+    return null;
+  }
+}
+
+/**
  * Verifica se o banco está disponível
  */
 export async function isDatabaseAvailable() {
