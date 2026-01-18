@@ -152,6 +152,28 @@ export const Classes = () => {
     });
   };
 
+  // Retorna os programas/atendimentos disponíveis baseados nas configurações da escola
+  const getAvailableProgramas = () => {
+    if (!selectedSchool) return [];
+    
+    const programas = [];
+    
+    if (selectedSchool.atendimento_integral) {
+      programas.push({ value: 'atendimento_integral', label: 'Escola Integral' });
+    }
+    if (selectedSchool.reforco_escolar) {
+      programas.push({ value: 'reforco_escolar', label: 'Reforço Escolar' });
+    }
+    if (selectedSchool.aulas_complementares) {
+      programas.push({ value: 'aulas_complementares', label: 'Aulas Complementares' });
+    }
+    if (selectedSchool.aee) {
+      programas.push({ value: 'aee', label: 'AEE - Atendimento Educacional Especializado' });
+    }
+    
+    return programas;
+  };
+
   const handleCreate = () => {
     setEditingClass(null);
     const defaultSchoolId = schools.length > 0 ? schools[0].id : '';
