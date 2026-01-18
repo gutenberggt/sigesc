@@ -777,6 +777,31 @@ export const Classes = () => {
               </select>
             </div>
 
+            {/* Campo de Atendimento/Programa - mostrado apenas se escola tem opções habilitadas */}
+            {getAvailableProgramas().length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de Atendimento/Programa
+                </label>
+                <select
+                  value={formData.atendimento_programa}
+                  onChange={(e) => setFormData({ ...formData, atendimento_programa: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  data-testid="class-programa-select"
+                >
+                  <option value="">Turma Regular (sem programa específico)</option>
+                  {getAvailableProgramas().map((programa) => (
+                    <option key={programa.value} value={programa.value}>
+                      {programa.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Selecione se esta turma faz parte de algum programa especial
+                </p>
+              </div>
+            )}
+
             <div className="flex justify-end space-x-2 mt-6 pt-4 border-t">
               <button
                 type="button"
