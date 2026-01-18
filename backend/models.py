@@ -731,6 +731,7 @@ class ClassBase(BaseModel):
     education_level: Optional[str] = None  # Nível de ensino (educacao_infantil, fundamental_anos_iniciais, etc.)
     grade_level: str  # Ex: "1º Ano", "6º Ano", "Berçário", etc
     teacher_ids: List[str] = []
+    atendimento_programa: Optional[Literal['aee', 'atendimento_integral', 'reforco_escolar', 'aulas_complementares']] = None
 
 class ClassCreate(ClassBase):
     pass
@@ -741,6 +742,7 @@ class ClassUpdate(BaseModel):
     education_level: Optional[str] = None
     grade_level: Optional[str] = None
     teacher_ids: Optional[List[str]] = None
+    atendimento_programa: Optional[Literal['aee', 'atendimento_integral', 'reforco_escolar', 'aulas_complementares']] = None
 
 class Class(ClassBase):
     model_config = ConfigDict(extra="ignore")
