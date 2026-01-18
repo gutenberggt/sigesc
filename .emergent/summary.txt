@@ -1,63 +1,88 @@
 <analysis>**original_problem_statement:**
-O usuário iniciou a sessão com vários objetivos para o sistema de gestão escolar SIGESC:
-- (Bugs) Corrigir um bug visual no calendário, um bug crítico de carga horária incorreta em relatórios, um bug recorrente na gestão de lotações, um bug na página de logs de auditoria que não carregava dados, e múltiplos bugs de sincronização de dados e cálculo em documentos PDF (Boletim, Ficha Individual, Livro de Promoção).
-- (Features) Implementar um sistema de bloqueio de edição por data limite, um sistema de trilha de auditoria, uma nova página Livro de Promoção, e uma nova lógica para calcular o Resultado Final do aluno nos documentos com regras complexas por nível de ensino. Adicionar um seletor de ano na página de Frequência.
-- (Melhorias) Adicionar otimizações de segurança, refatorar o monolítico , e refatorar componentes de frontend.
-- (Ajustes de UI) Traduzir a severidade nos logs, padronizar a exibição dos nomes das turmas, reorganizar a ordem dos componentes curriculares e ajustar a exibição de dados de frequência nos documentos.
+O usuário iniciou a sessão para continuar o desenvolvimento de um sistema de gestão escolar (SIGESC). O foco inicial era concluir a funcionalidade offline (PWA), mas o escopo foi expandido para incluir uma nova e grande funcionalidade de pré-matrícula online.
 
-Durante a sessão, o usuário também solicitou:
-- Correção de uma recorrência do bug de aprovação (P0).
-- Correção do Livro de Promoção que não exibia notas.
-- Implementação da exibição da data limite de edição para professores.
-- Correção do bug que impedia salvar a Média para Aprovação na Mantenedora.
-- Correção do Livro de Promoção para que usasse as regras de aprovação da Mantenedora.
-- Início da implementação de funcionalidade offline para o sistema.
+**Requisitos do Usuário Nesta Sessão:**
+- **(P0) Concluir Funcionalidade Offline:** Implementar as fases 3, 4 e 5 da funcionalidade PWA offline.
+- **(P0) Login Offline:** Permitir que usuários que já fizeram login online possam acessar o sistema offline.
+- **(P0) Nova Feature: Pré-Matrícula Online:**
+    - Criar uma opção no cadastro da escola para Ativar/Desativar Pré-matrícula.
+    - Adicionar um botão Pré-matrícula na página de login.
+    - Criar uma página pública de pré-matrícula onde um responsável pode inscrever um aluno, selecionando uma escola (somente escolas com a pré-matrícula ativa devem ser listadas).
+    - Criar uma página de Gestão de Pré-Matrículas para administradores visualizarem, aprovarem e converterem pré-matrículas em alunos.
+- **(P1) Melhorias de UI/UX:**
+    - Adicionar notificações push para informar a conclusão da sincronização de dados.
+    - Adicionar uma validação de segurança ao botão Limpar Cache para evitar perda de dados.
+    - Remover a informação de Status de edição das páginas de Notas e Frequência.
+- **(P1) Consistência de Features:** Adicionar o alerta de Prazo Próximo e a lógica de bloqueio de edição por data na página Objetos de Conhecimento, espelhando o comportamento das páginas de Notas e Frequência.
+- **(Deploy) Publicar a Aplicação:** Corrigir problemas de segurança e configuração para fazer o deploy da aplicação e torná-la acessível através de uma URL pública.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-O sistema é uma aplicação full-stack (React + FastAPI + MongoDB) com funcionalidades de gestão acadêmica.
-- **Backend:**  contém a maior parte da lógica da API, com uma refatoração em andamento para routers modulares. Arquivos como  e  encapsulam regras de negócio complexas para o setor educacional.
-- **Frontend:** A aplicação React utiliza hooks e context para gerenciamento de estado. Múltiplos bugs foram corrigidos, e novas features como a exibição de data limite foram adicionadas.
-- **Funcionalidade Offline (PWA):** As Fases 1 e 2 da implementação offline foram concluídas. O sistema agora é um PWA básico com um Service Worker para cache. A biblioteca  foi instalada e configurada para criar um banco de dados IndexedDB local (). Foram criados os hooks e serviços iniciais para gerenciar dados offline (, , , ), mas ainda não estão integrados nas páginas de UI.
+O sistema é uma aplicação full-stack (React + FastAPI + MongoDB) funcional e deployada.
+- **Backend:** A lógica da API está distribuída entre  e routers modulares (ex: , ). Foram implementados endpoints para suportar a sincronização offline e a nova funcionalidade de pré-matrícula. Problemas de segurança como credenciais hardcoded e chaves JWT inseguras foram corrigidos.
+- **Frontend:** A aplicação React agora é um PWA com funcionalidade offline completa (Fases 1 a 5). Os usuários podem trabalhar offline nas páginas de Notas e Frequência, com os dados sendo salvos localmente no IndexedDB e sincronizados quando a conexão é restaurada. A UI inclui indicadores visuais para o status da conexão e da sincronização. O login offline também foi implementado. A nova funcionalidade de pré-matrícula foi parcialmente implementada (formulário público e toggle no admin), mas a página de gerenciamento está em construção.
+- **Deploy:** A aplicação passou por um health check, teve problemas críticos de segurança corrigidos e foi deployada com sucesso.
 
 **Last working item**:
--   **Last item agent was working:** O agente estava no meio da **Fase 3** da implementação da funcionalidade offline. Especificamente, estava integrando o  e o hook  nas páginas  e  para começar a transição da lógica de busca de dados para o modelo offline-first.
+-   **Last item agent was working:** O agente estava implementando a página de **Gestão de Pré-Matrículas**. Especificamente, estava adicionando um link/botão na página do  para navegar para a nova página . O agente introduziu um erro de sintaxe () ao adicionar o botão, o que causou uma falha na compilação do frontend.
 -   **Status:** IN PROGRESS
 -   **Agent Testing Done:** N
+-   **Which testing method agent to use?** Manual testing by screenshot tool. O próximo agente deve primeiro corrigir o erro de sintaxe, verificar se o frontend compila e, em seguida, usar a ferramenta de screenshot para confirmar que o novo botão Pré-Matrículas aparece corretamente no dashboard e que o clique navega para a página correta (que ainda estará em construção).
 -   **User Testing Done:** N
--   **Which testing method agent to use?** Frontend testing agent. O agente de teste deve ser usado para: 1. Verificar se o  aparece corretamente nas páginas  e . 2. Simular um cenário offline, realizar edições de notas/frequência, voltar ao modo online e confirmar que a sincronização ocorre com sucesso e os dados são persistidos no backend.
 
 **All Pending/In progress Issue list**:
-Nenhum. Todos os bugs reportados pelo usuário foram resolvidos. O foco atual é no desenvolvimento de novas funcionalidades.
+-   **Issue 1: (P0) Erro de Sintaxe no Frontend**
+    -   **Description:** O frontend não está compilando devido a um erro de sintaxe no arquivo .
+    -   **Attempted fixes:** Nenhuma. O agente identificou a causa (chaves duplas ) mas a sessão terminou antes da correção.
+    -   **Next debug checklist:**
+        1.  Abrir .
+        2.  Navegar até a linha 311 (aproximadamente).
+        3.  Corrigir a sintaxe do  do novo botão, removendo o  extra.
+        4.  Verificar o status do supervisor do frontend para confirmar a compilação bem-sucedida.
+    -   **Why fix this issue and what will be achieved with the fix?** Corrigir este problema é um bloqueador para qualquer desenvolvimento ou teste no frontend. A correção permitirá que a implementação da página de gestão de pré-matrículas continue.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on other issue:** Não.
 
 **In progress Task List**:
--   **Task 1: (P0) Implementar Funcionalidade Offline**
-    -   **Where to resume:** Continuar a integração nas páginas  e . O próximo passo é substituir a lógica de fetching de dados atual (chamadas diretas à API) para usar os novos hooks offline (, ) que leem e escrevem primeiramente no IndexedDB.
-    -   **What will be achieved with this?** As páginas de Notas e Frequência se tornarão capazes de funcionar offline, lendo e salvando dados localmente.
+-   **Task 1: (P0) Criar Página de Gestão de Pré-Matrículas**
+    -   **Where to resume:** Após corrigir o erro de sintaxe no , o próximo passo é continuar a construção do componente . Este componente precisa buscar os dados do endpoint  e exibi-los em uma tabela, com funcionalidades para filtrar, visualizar detalhes, aprovar e rejeitar as inscrições.
+    -   **What will be achieved with this?** Administradores poderão gerenciar as pré-matrículas recebidas, completando o fluxo da funcionalidade.
     -   **Status:** IN PROGRESS
     -   **Should Test frontend/backend/both after fix?** both
-    -   **Blocked on something:** N/A
+    -   **Blocked on something:** Erro de Sintaxe no Frontend.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   **(P0) Offline - Fase 3 (Conclusão):** Finalizar a integração dos hooks offline nas páginas de Notas e Frequência.
-    -   **(P0) Offline - Fase 4:** Construir os endpoints de sincronização no backend (, ).
-    -   **(P0) Offline - Fase 5:** Implementar a UI de status de sincronização (indicador, lista de itens pendentes, botão para forçar sync).
-    -   **(P1) Continuar Refatoração do Backend:** Mover os endpoints restantes (, , etc.) do  para routers modulares.
+    -   **(P1) Melhoria Pré-Matrícula:** Enviar um email de confirmação para o responsável após a pré-matrícula ser enviada com sucesso.
+    -   **(P1) Melhoria Pré-Matrícula:** Implementar a funcionalidade de Converter em Aluno na página de gestão, que cria um novo registro de aluno a partir de uma pré-matrícula aprovada.
+    -   **(P2) Continuar Refatoração do Backend:** Mover os endpoints restantes (, , etc.) do  para routers modulares.
 -   **Future Tasks:**
-    -   **(P2) Refatorar :** Quebrar as funções monolíticas de geração de PDF.
-    -   **(P2) Refatorar :** Simplificar o componente, separando lógica da apresentação.
+    -   **(P2) Refatorar :** Quebrar as funções monolíticas de geração de PDF para melhorar a manutenibilidade.
+    -   **(P2) Refatorar :** Simplificar o componente, que é muito grande e complexo, separando lógica da apresentação.
     -   **(P3) Deletar Código Obsoleto:** Remover o arquivo  após confirmar que não é utilizado.
 
 **Completed work in this session**
-- **Bug da Lógica de Aprovação (P0 - Recorrência):** Corrigido o bug crítico onde alunos eram aprovados indevidamente. A correção envolveu dois cenários: tratar médias 0.0 como reprovação e garantir que componentes curriculares obrigatórios sem nota também resultem em reprovação.
-- **Bug de Exibição de Notas no Livro de Promoção:** Corrigido o  para mapear corretamente a estrutura de dados das notas vindas do backend, resolvendo um problema de incompatibilidade que impedia a exibição.
-- **Bug de Média de Aprovação na Mantenedora:** Corrigido o  para garantir que a média de aprovação fosse salva e exibida corretamente, tratando uma incompatibilidade entre o tipo  do backend e o  esperado pelo componente .
-- **Bug do Livro de Promoção não usar Regras da Mantenedora:** Atualizado o  para usar o , garantindo que o cálculo do resultado final (Aprovado, Reprovado, Em Dependência) usasse a média e as regras de dependência configuradas pelo admin.
-- **Feature de Exibição de Data Limite:** Implementado um alerta informativo () nas páginas de Notas e Frequência para que os professores possam ver a data limite de edição antes que ela expire.
-- **UI Fix: Ponto por Vírgula:** Atualizado o  para formatar as notas com vírgula em vez de ponto nos boletins.
-- **Feature PWA Offline (Fases 1 e 2):** Iniciada a transformação do sistema em um PWA. O Service Worker foi configurado, o IndexedDB foi estabelecido com , e os hooks e serviços base para a funcionalidade offline foram criados.
+-   **Funcionalidade Offline (PWA) - Conclusão:**
+    -   **Fase 3:** Lógica offline-first integrada nas páginas de Notas e Frequência (, ), usando  e  para ler/escrever no IndexedDB.
+    -   **Fase 4:** Endpoints de sincronização (, ) criados e testados no backend. O  no frontend foi atualizado para usá-los.
+    -   **Fase 5:** UI de status de sincronização implementada, incluindo um indicador flutuante que mostra o status offline e itens pendentes de sincronização.
+-   **Feature: Login Offline:** Usuários agora podem acessar o sistema offline se já tiverem feito login online anteriormente. A UI da página de login foi adaptada para o modo offline.
+-   **Feature: Pré-Matrícula Online (Implementação Inicial):**
+    -   Adicionado toggle Ativar Pré-matrícula na página de edição de escolas.
+    -   Criada a página pública de pré-matrícula ().
+    -   Adicionado o botão Pré-Matrícula na página de Login.
+    -   Endpoints da API criados para listar escolas ativas e receber novas pré-matrículas.
+-   **Feature: Controle de Prazo em Objetos de Conhecimento:** Adicionados os alertas de Prazo Próximo e a lógica de bloqueio de edição na página , tornando-a consistente com as páginas de Notas e Frequência.
+-   **Melhorias de Segurança e UX:**
+    -   **Notificações Push:** Implementado um sistema para notificar o usuário quando a sincronização offline for concluída.
+    -   **Segurança do Limpar Cache:** O botão agora é desativado e exibe um aviso se houver dados pendentes de sincronização, prevenindo a perda de dados.
+-   **Deploy da Aplicação:**
+    -   **Health Check:** Corrigidos 2 problemas críticos de segurança (credenciais FTP e JWT secret hardcoded) e um problema de configuração no .
+    -   **Deploy:** A aplicação foi deployada com sucesso e está acessível publicamente.
+-   **UI Tweak:** Removido o componente Status de edição das páginas de Notas e Frequência, conforme solicitado.
 
 **Earlier issues found/mentioned but not fixed**
 - Nenhum.
@@ -66,88 +91,93 @@ Nenhum. Todos os bugs reportados pelo usuário foram resolvidos. O foco atual é
 -   **Issue recurrence in previous fork:** Bug na funcionalidade Gerenciar Lotações.
 -   **Recurrence count:** 3+
 -   **Status:** RESOLVED (em um fork anterior).
--   **New Recurrence in this session:** O bug P0 (lógica de aprovação incorreta) se manifestou de uma nova forma (ignorando componentes obrigatórios sem nota) e foi corrigido novamente.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Lógica de Negócio Complexa:** Implementação e depuração de regras acadêmicas detalhadas em Python () e JavaScript ().
-- **Depuração Full-Stack:** Rastreamento de bugs desde a UI (React) até a API (FastAPI) e o banco de dados (MongoDB), resolvendo problemas de sincronização e formatação de dados.
-- **PWA & Offline-First:** Arquitetura para funcionamento offline usando Service Workers para cache e IndexedDB (com ) para armazenamento de dados no cliente.
-- **React Context API:** Utilizada para gerenciar estado global, como as configurações da Mantenedora e o status da conexão online/offline.
+- **PWA & Offline-First:** Arquitetura completa para funcionamento offline usando Service Workers, IndexedDB (com ), e um ciclo de sincronização (push/pull) com o backend.
+- **Deployment Readiness:** Uso de health checks para identificar e corrigir vulnerabilidades de segurança (secrets, credenciais) e problemas de configuração antes do deploy.
+- **Gerenciamento de Estado (React):** Uso extensivo de  e  para gerenciar estado global complexo, como autenticação, status online/offline e fila de sincronização.
+- **Refatoração de API (FastAPI):** Continuação da modularização da API com o uso de  para organizar endpoints por funcionalidade (, ).
 
 **key DB schema**
--   **mantenedora:** 
--   **grades:** 
--   **calendario_letivo:** 
+-   **schools:**  (campo adicionado)
+-   **pre_matriculas:** (nova coleção) 
 
 **changes in tech stack**
--    e  foram adicionados ao frontend para facilitar a manipulação do IndexedDB.
+-   Nenhuma nova dependência foi adicionada nesta sessão.
 
 **All files of reference**
--   **/app/frontend/src/pages/Grades.js**: Em processo de integração com a funcionalidade offline.
--   **/app/frontend/src/pages/Attendance.js**: Em processo de integração com a funcionalidade offline.
--   **/app/frontend/src/pages/Promotion.jsx**: Corrigido para exibir notas e usar regras de aprovação corretas.
--   **/app/frontend/src/pages/Mantenedora.js**: Corrigido para salvar e exibir a média de aprovação.
--   **/app/backend/grade_calculator.py**: Corrigido para tratar cenários de aprovação incorreta.
--   **/app/backend/server.py**: Modificado para retornar datas limite para todos os perfis.
--   **/app/frontend/src/db/database.js**: Arquivo de configuração do Dexie.js para o IndexedDB.
--   **/app/frontend/src/contexts/OfflineContext.jsx**: Contexto para gerenciar o estado da conexão.
--   **/app/frontend/src/hooks/useOfflineGrades.js**: Hook para gerenciar notas no modo offline.
+-   **/app/frontend/src/pages/Dashboard.js**: Contém o erro de sintaxe que bloqueia o frontend. O link para a gestão de pré-matrículas estava sendo adicionado aqui.
+-   **/app/frontend/src/pages/PreMatriculaManagement.jsx**: Novo arquivo, página a ser construída para gerenciar pré-matrículas.
+-   **/app/frontend/src/pages/Login.js**: Modificado para suportar login offline e adicionar o botão de pré-matrícula.
+-   **/app/frontend/src/contexts/AuthContext.js**: Sobrescrito para implementar a lógica de login offline.
+-   **/app/frontend/src/contexts/OfflineContext.jsx**: Modificado extensivamente para gerenciar a fila de sincronização, status e notificações.
+-   **/app/frontend/src/services/syncService.js**: Atualizado para se comunicar com os novos endpoints de sincronização do backend.
+-   **/app/backend/routers/sync.py**: Novo arquivo, contém os endpoints da Fase 4 (, , ).
+-   **/app/backend/server.py**: Modificado para registrar o novo router de sync e adicionar o endpoint público para receber pré-matrículas.
+-   **/app/backend/models.py**: Adicionado o Pydantic model para .
+-   **/app/backend/auth_utils.py**: Modificado para carregar variáveis de ambiente e remover secrets inseguros.
+-   **/app/backend/ftp_upload.py**: Modificado para carregar credenciais FTP a partir de variáveis de ambiente.
+-   **/app/.gitignore**: Limpo para remover entradas que poderiam vazar secrets.
 
 **Areas that need refactoring**:
--   **:** A refatoração para routers modulares está em andamento, mas não foi concluída.
--   ** e :** Ambos são arquivos grandes e monolíticos que se beneficiariam de uma refatoração para melhorar a manutenibilidade.
+-   **:** A refatoração para routers modulares está em andamento, mas endpoints importantes ainda residem no arquivo principal.
+-   **:** Continua sendo um componente monolítico e complexo que dificulta a manutenção.
 
 **key api endpoints**
--    (GET): Retorna o status de edição e as datas limite dos bimestres.
--    (GET/PUT): Gerencia as configurações globais da mantenedora, incluindo as regras de aprovação.
--    (GET): Busca todas as notas de uma turma específica.
+-   : Envia operações offline (criação/atualização de notas/frequência) para o servidor.
+-   : Baixa dados do servidor para popular o cache local do cliente.
+-   : Retorna o status de sincronização e contagens de dados do servidor.
+-   : Retorna a lista de escolas com a pré-matrícula ativa (público).
+-   : Cria um novo registro de pré-matrícula (público).
+-   : Retorna a lista de todas as pré-matrículas (protegido, para a página de gestão).
 
 **Critical Info for New Agent**
--   **Prioridade na Funcionalidade Offline:** A tarefa principal é continuar a implementação da funcionalidade offline, que está na Fase 3. O usuário aprovou e está aguardando o progresso.
--   **Retomar em  e :** O trabalho deve ser retomado nesses arquivos, substituindo a lógica de busca de dados online pela nova abordagem offline-first usando os hooks já criados.
--   **Cuidado com as Regras de Negócio:** Qualquer alteração na lógica de cálculo de notas é de alto risco. As regras são complexas e foram fonte de múltiplos bugs. Teste exaustivamente qualquer mudança nessa área.
+-   **Bloqueador Crítico:** A primeira e mais importante tarefa é consertar o erro de sintaxe no  para que o frontend volte a compilar.
+-   **Foco na Pré-Matrícula:** A prioridade do usuário mudou da funcionalidade offline para a conclusão da gestão de pré-matrículas. Após desbloquear o frontend, continue desenvolvendo a página .
+-   **Aplicação em Produção:** A aplicação está deployada e acessível. Qualquer nova funcionalidade ou correção de bug precisará de um novo deploy para ser refletida no ambiente de produção. Informe ao usuário que o deploy não tem custo adicional por evento, mas sim um custo mensal para manter a aplicação ativa.
 
 **documents and test reports created in this job**
--   /app/test_reports/iteration_5.json
--   /app/test_reports/iteration_6.json
--   /app/memory/PRD.md
+-   /app/test_reports/iteration_7.json
+-   /app/test_reports/iteration_8.json
+-   /app/test_reports/iteration_9.json
+-   /app/memory/PRD.md (atualizado com a conclusão das Fases 3, 4, 5 e outras melhorias)
 
 **Last 10 User Messages and any pending HUMAN messages**
-10.  (User message to continue with Phase 3 of offline implementation).
-9.   (User message to start the offline implementation).
-8.   (User clarification on offline requirements).
-7.   (User question about offline mode).
-6.   (Bug report).
-5.   (Bug report).
-4.   (Feature request).
-3.   (Bug report).
-2.   (Bug report).
-1.  (User confirmation).
+10.  (User confirming to proceed with creating the pre-enrollment management page).
+9.   (User asking about removing the Emergent badge).
+8.   (Agent confirming the implementation of deadline alerts).
+7.   (User requesting feature consistency).
+6.   (User requesting a UI tweak).
+5.   (User confirming to proceed with Phase 5 of offline implementation).
+4.   (User asking about deployment costs).
+3.   (User confirming to start Phase 4).
+2.   (User providing the production URL).
+1.   (User deciding against using a custom domain).
 
 **Project Health Check:**
--   **Broken:** Nada está quebrado. Todos os bugs críticos foram corrigidos.
--   **Mocked:** A funcionalidade offline está em um estado parcial. Os alicerces (DB local, hooks) foram criados, mas a integração com a UI e a sincronização com o backend ainda não foram implementadas.
+-   **Broken:** O frontend não está compilando devido a um erro de sintaxe em .
+-   **Mocked:** A página de Gestão de Pré-Matrículas () existe como um arquivo de placeholder, mas sua UI e lógica ainda não foram implementadas.
 
 **3rd Party Integrations**
 -   reportlab
 -   PyPDF2
 -   openpyxl
 -   slowapi
--   ** & ** (nova)
+-   dexie & dexie-react-hooks
 -   Servidor FTP ()
 
 **Testing status**
--   **Testing agent used after significant changes:** YES
+-   **Testing agent used after significant changes:** YES (usado com sucesso para validar a Fase 3, a funcionalidade de pré-matrícula e a Fase 4).
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** None
--   **Known regressions:** O bug P0 (lógica de aprovação) recorreu de uma nova forma nesta sessão e foi corrigido.
+-   **Known regressions:** None in this session.
 
 **Credentials to test flow:**
 -   **Admin:**  / 
 -   **Coordenador/Professor:**  / 
 
 **What agent forgot to execute**
--   Nada significativo. O agente estava no meio de uma tarefa quando a sessão terminou, o que é esperado.</analysis>
+- O agente não esqueceu de executar nada. Ele foi interrompido no meio de uma tarefa de correção de bug que ele mesmo introduziu, o que é um ponto de continuação claro.</analysis>
