@@ -138,9 +138,47 @@ export const OfflineBanner = () => {
 
 /**
  * Indicador flutuante de status (canto inferior)
+ * Fase 5: Mostra detalhes da fila de sincronização quando expandido
  */
 export const FloatingStatusIndicator = () => {
   const { isOnline, pendingSyncCount, syncStatus, triggerSync } = useOffline();
+  const [expanded, setExpanded] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  // Busca itens pendentes da fila para mostrar detalhes
+  const [pendingItems, setPendingItems] = useState([]);
+  
+  useEffect(() => {
+    const loadPendingItems = async () => {
+      try {
+        // Importa dinamicamente para evitar dependência circular
+        const { db } = await import('@/db/database');
+        const items = await db.syncQueue
+          .where('status')
+          .anyOf(['pending', 'failed'])
+          .limit(5)
+          .toArray();
+        setPendingItems(items);
+      } catch (err) {
+        console.error('Erro ao carregar itens pendentes:', err);
+      }
+    };
+    
+    if (expanded) {
+      loadPendingItems();
+    }
+  }, [expanded, pendingSyncCount]);
+
+  const handleSync = async () => {
+    if (!isOnline || syncing) return;
+    
+    setSyncing(true);
+    try {
+      await triggerSync();
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const getIndicatorStyle = () => {
     if (!isOnline) {
@@ -151,7 +189,7 @@ export const FloatingStatusIndicator = () => {
         subtext: 'Dados salvos localmente'
       };
     }
-    if (syncStatus === 'syncing') {
+    if (syncStatus === 'syncing' || syncing) {
       return {
         bg: 'bg-yellow-500',
         icon: <RefreshCw className="w-5 h-5 animate-spin" />,
@@ -172,7 +210,7 @@ export const FloatingStatusIndicator = () => {
         bg: 'bg-orange-500',
         icon: <CloudOff className="w-5 h-5" />,
         text: `${pendingSyncCount} pendente(s)`,
-        subtext: 'Clique para sincronizar'
+        subtext: 'Clique para detalhes'
       };
     }
     return null; // Não mostra quando está tudo OK
@@ -182,23 +220,116 @@ export const FloatingStatusIndicator = () => {
 
   if (!style) return null;
 
+  const getOperationLabel = (op) => {
+    switch (op) {
+      case 'create': return 'Criar';
+      case 'update': return 'Atualizar';
+      case 'delete': return 'Excluir';
+      default: return op;
+    }
+  };
+
+  const getCollectionLabel = (col) => {
+    switch (col) {
+      case 'grades': return 'Nota';
+      case 'attendance': return 'Frequência';
+      default: return col;
+    }
+  };
+
   return (
-    <button
-      onClick={isOnline && pendingSyncCount > 0 ? triggerSync : undefined}
-      className={`
-        fixed bottom-24 right-6 z-50
-        flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg
-        text-white transition-all duration-300
-        ${style.bg}
-        ${isOnline && pendingSyncCount > 0 ? 'cursor-pointer hover:opacity-90' : 'cursor-default'}
-      `}
-    >
-      {style.icon}
-      <div className="text-left">
-        <p className="font-medium text-sm">{style.text}</p>
-        <p className="text-xs opacity-80">{style.subtext}</p>
-      </div>
-    </button>
+    <div className="fixed bottom-24 right-6 z-50">
+      {/* Painel expandido */}
+      {expanded && (
+        <div className="mb-2 bg-white rounded-lg shadow-xl border p-4 w-72 max-h-80 overflow-auto">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-medium text-gray-900">Fila de Sincronização</h4>
+            <button 
+              onClick={() => setExpanded(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          
+          {pendingItems.length > 0 ? (
+            <div className="space-y-2 mb-3">
+              {pendingItems.map((item, idx) => (
+                <div 
+                  key={item.id || idx}
+                  className={`text-xs p-2 rounded ${
+                    item.status === 'failed' 
+                      ? 'bg-red-50 border border-red-200' 
+                      : 'bg-gray-50 border border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">
+                      {getCollectionLabel(item.collection)}
+                    </span>
+                    <span className={`px-1.5 py-0.5 rounded text-xs ${
+                      item.operation === 'create' ? 'bg-green-100 text-green-700' :
+                      item.operation === 'update' ? 'bg-blue-100 text-blue-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {getOperationLabel(item.operation)}
+                    </span>
+                  </div>
+                  {item.lastError && (
+                    <p className="text-red-600 mt-1 truncate">{item.lastError}</p>
+                  )}
+                </div>
+              ))}
+              {pendingSyncCount > 5 && (
+                <p className="text-xs text-gray-500 text-center">
+                  +{pendingSyncCount - 5} mais item(ns)
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 mb-3">Nenhum item na fila</p>
+          )}
+          
+          {isOnline && pendingSyncCount > 0 && (
+            <Button
+              size="sm"
+              onClick={handleSync}
+              disabled={syncing}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+            >
+              {syncing ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Sincronizando...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Sincronizar agora
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Botão principal */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className={`
+          flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg
+          text-white transition-all duration-300
+          ${style.bg}
+          cursor-pointer hover:opacity-90
+        `}
+      >
+        {style.icon}
+        <div className="text-left">
+          <p className="font-medium text-sm">{style.text}</p>
+          <p className="text-xs opacity-80">{style.subtext}</p>
+        </div>
+      </button>
+    </div>
   );
 };
 
