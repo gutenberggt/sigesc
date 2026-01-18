@@ -620,9 +620,19 @@ export default function PreMatriculaManagement() {
                             <UserCheck className="w-4 h-4" />
                             Conversão Realizada
                           </h4>
-                          <p className="text-sm text-purple-600 bg-purple-50 p-3 rounded border border-purple-200">
-                            Esta pré-matrícula foi convertida em aluno. ID do aluno: {pm.converted_student_id}
-                          </p>
+                          <div className="flex items-center justify-between bg-purple-50 p-3 rounded border border-purple-200">
+                            <p className="text-sm text-purple-600">
+                              Esta pré-matrícula foi convertida em aluno com sucesso.
+                            </p>
+                            <Button
+                              size="sm"
+                              className="bg-purple-600 hover:bg-purple-700"
+                              onClick={() => navigate(`/admin/students?highlight=${pm.converted_student_id}`)}
+                            >
+                              <ExternalLink className="w-4 h-4 mr-1" />
+                              Abrir Cadastro do Aluno
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
