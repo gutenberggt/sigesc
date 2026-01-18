@@ -5,6 +5,7 @@ import { OfflineProvider } from '@/contexts/OfflineContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Login } from '@/pages/Login';
 import PreMatricula from '@/pages/PreMatricula';
+import PreMatriculaManagement from '@/pages/PreMatriculaManagement';
 import { Dashboard } from '@/pages/Dashboard';
 import { SchoolsComplete as Schools } from '@/pages/SchoolsComplete';
 import { Users } from '@/pages/Users';
