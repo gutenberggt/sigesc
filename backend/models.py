@@ -1744,7 +1744,9 @@ class PreMatriculaBase(BaseModel):
     endereco_bairro: Optional[str] = None
     endereco_cidade: Optional[str] = None
     
-    # Nível de ensino desejado
+    # Série/Ano desejado (novo campo)
+    serie_ano_desejado: Optional[str] = None
+    # Nível de ensino desejado (mantido para compatibilidade)
     nivel_ensino: Optional[str] = None
     observacoes: Optional[str] = None
 
