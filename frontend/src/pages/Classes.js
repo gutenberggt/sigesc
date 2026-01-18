@@ -68,7 +68,8 @@ export const Classes = () => {
     shift: 'morning',
     education_level: '',
     grade_level: '',
-    teacher_ids: []
+    teacher_ids: [],
+    atendimento_programa: ''
   });
   
   // Permissões de edição:
