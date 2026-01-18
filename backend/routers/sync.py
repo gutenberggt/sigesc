@@ -63,7 +63,7 @@ def setup_sync_router(db, auth_middleware):
         Recebe operações pendentes do cliente e processa no servidor.
         Usado quando o cliente volta online após edições offline.
         """
-        current_user = await auth_middleware.require_auth()(request)
+        current_user = await auth_middleware.get_current_user(request)
         
         results = []
         succeeded = 0
@@ -99,7 +99,7 @@ def setup_sync_router(db, auth_middleware):
         Envia dados do servidor para o cliente popular o cache local.
         Usado para sincronização inicial ou refresh de dados.
         """
-        current_user = await auth_middleware.require_auth()(request)
+        current_user = await auth_middleware.get_current_user(request)
         
         data = {}
         counts = {}
@@ -132,7 +132,7 @@ def setup_sync_router(db, auth_middleware):
         """
         Retorna status de sincronização do usuário.
         """
-        current_user = await auth_middleware.require_auth()(request)
+        current_user = await auth_middleware.get_current_user(request)
         
         # Conta registros nas coleções principais
         grades_count = await db.grades.count_documents({})
