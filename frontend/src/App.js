@@ -95,6 +95,15 @@ function App() {
           />
           
           <Route
+            path="/admin/pre-matriculas"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor']}>
+                <PreMatriculaManagement />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
             path="/admin/grades"
             element={
               <ProtectedRoute allowedRoles={['admin', 'secretario', 'professor', 'coordenador', 'semed']}>
