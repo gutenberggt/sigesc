@@ -541,6 +541,26 @@ export const Classes = () => {
                     <span className="text-gray-500">Turno:</span>
                     <p className="font-medium">{shiftLabels[classDetails.class?.shift] || '-'}</p>
                   </div>
+                  {classDetails.class?.atendimento_programa && (
+                    <div className="col-span-2 md:col-span-3">
+                      <span className="text-gray-500">Tipo de Atendimento:</span>
+                      <p className="font-medium">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          classDetails.class.atendimento_programa === 'atendimento_integral' ? 'bg-purple-100 text-purple-800' :
+                          classDetails.class.atendimento_programa === 'reforco_escolar' ? 'bg-orange-100 text-orange-800' :
+                          classDetails.class.atendimento_programa === 'aulas_complementares' ? 'bg-teal-100 text-teal-800' :
+                          classDetails.class.atendimento_programa === 'aee' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {classDetails.class.atendimento_programa === 'atendimento_integral' ? 'Escola Integral' :
+                           classDetails.class.atendimento_programa === 'reforco_escolar' ? 'Reforço Escolar' :
+                           classDetails.class.atendimento_programa === 'aulas_complementares' ? 'Aulas Complementares' :
+                           classDetails.class.atendimento_programa === 'aee' ? 'AEE' :
+                           classDetails.class.atendimento_programa}
+                        </span>
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
