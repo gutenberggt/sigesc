@@ -343,6 +343,14 @@ export const LearningObjects = () => {
   const handleDelete = async () => {
     if (!editingRecord) return;
     
+    // Verificar se o bimestre está bloqueado
+    const bimestre = getBimestreFromDate(editingRecord.date);
+    if (bimestre && !canEditBimestre(bimestre)) {
+      const info = getBimestreInfo(bimestre);
+      showAlert('error', `O ${bimestre}º Bimestre está bloqueado para edição. Não é possível excluir.`);
+      return;
+    }
+    
     if (!window.confirm('Deseja realmente excluir este registro?')) return;
     
     try {
