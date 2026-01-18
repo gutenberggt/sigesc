@@ -435,9 +435,13 @@ export function SchoolsComplete() {
   const columns = [
     { header: 'Nome', accessor: 'name' },
     {
-      header: 'Código INEP',
-      accessor: 'inep_code',
-      render: (row) => row.inep_code || '-'
+      header: 'Alunos',
+      accessor: 'student_count',
+      render: (row) => (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+          {row.student_count !== undefined ? row.student_count : '-'}
+        </span>
+      )
     },
     {
       header: 'Município',
