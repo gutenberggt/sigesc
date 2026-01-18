@@ -195,11 +195,21 @@ export default function PreMatriculaManagement() {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       
+      const studentId = response.data.student_id;
+      
       toast.success(
-        <div>
+        <div className="space-y-2">
           <p className="font-medium">Aluno criado com sucesso!</p>
           <p className="text-sm">Matrícula: {response.data.enrollment_number}</p>
-        </div>
+          <button
+            onClick={() => navigate(`/admin/students?highlight=${studentId}`)}
+            className="flex items-center gap-1 text-sm text-purple-600 hover:text-purple-800 font-medium"
+          >
+            <ExternalLink className="w-3 h-3" />
+            Ver cadastro do aluno
+          </button>
+        </div>,
+        { duration: 8000 }
       );
       
       setConvertModalOpen(false);
