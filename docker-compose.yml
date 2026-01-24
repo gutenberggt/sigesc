@@ -26,6 +26,8 @@ services:
       - FTP_USER=${FTP_USER:-}
       - FTP_PASSWORD=${FTP_PASSWORD:-}
     restart: unless-stopped
+    depends_on:
+      - mongo
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
       interval: 30s
