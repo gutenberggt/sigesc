@@ -10,7 +10,7 @@ services:
     environment:
       - MONGO_URL=${MONGO_URL}
       - DB_NAME=${DB_NAME:-sigesc}
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - FTP_HOST=${FTP_HOST:-}
       - FTP_USER=${FTP_USER:-}
       - FTP_PASSWORD=${FTP_PASSWORD:-}
