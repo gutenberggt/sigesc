@@ -1,45 +1,50 @@
 <analysis>**original_problem_statement:**
-O usuário iniciou a sessão para implementar a funcionalidade Converter em Aluno e, em seguida, solicitou uma série de novas funcionalidades e melhorias, incluindo:
-1.  Adicionar um link direto para o perfil do aluno recém-criado.
-2.  Alterar o formulário de pré-matrícula para exibir um dropdown dinâmico de Série/Ano com base na escola selecionada.
-3.  Adicionar um campo Tipo de Atendimento/Programa (Integral, AEE, etc.) no cadastro de turmas, com opções baseadas na escola.
-4.  Substituir a coluna Código INEP pela contagem de alunos na lista de escolas.
-5.  Gerar uma documentação simplificada do projeto.
-6.  Por fim, o usuário relatou um problema crítico no deploy da aplicação na plataforma Coolify e pediu ajuda para depurá-lo.
+O usuário iniciou a sessão para migrar os dados de sua aplicação do ambiente de preview da Emergent para seu ambiente de produção no Coolify. Após a migração bem-sucedida do banco de dados e das imagens, a sessão evoluiu para abordar uma série de bugs e novos recursos solicitados pelo usuário, incluindo:
+-   Correção de imagens que não apareciam (logo da mantenedora e fotos dos funcionários).
+-   Correção e implementação da funcionalidade de login e sincronização offline (Background Sync).
+-   Implementação de lógica de negócios para turmas integrais vs. turmas regulares, incluindo pré-seleção em formulários e avisos de alteração.
+-   Correção de um bug onde turmas existentes em escolas integrais não eram exibidas corretamente.
+-   Modificação da lógica de geração de PDFs (Boletim e Ficha Individual) para usar a configuração da turma em vez da escola.
+-   Implementação de um novo sistema de avaliação por conceitos para o 1º e 2º ano do ensino fundamental, afetando tanto o frontend de lançamento de notas quanto a geração de PDFs no backend.
+-   Adição do ano letivo à visualização de lotações de servidores.
+-   Implementação de um filtro de servidores por ano letivo no quadro de pessoal da escola.
+-   Depuração de uma falha de build (yarn run v1.22.22
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.) no ambiente de deploy do Coolify.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-O sistema é uma aplicação full-stack (React + FastAPI + MongoDB) com funcionalidades extensivas de gestão escolar, incluindo PWA/offline. Nesta sessão, foram implementadas com sucesso as seguintes funcionalidades:
-- **Conversão de Pré-Matrícula:** Um fluxo completo para aprovar uma pré-matrícula e convertê-la em um novo registro de aluno, incluindo um link de navegação direto para o perfil do aluno recém-criado.
-- **Formulário de Pré-matrícula Dinâmico:** O formulário público agora exibe um dropdown de Série/Ano que mostra apenas as séries que a escola selecionada oferece.
-- **Tipos de Turma:** O formulário de turmas agora permite especificar se uma turma faz parte de um programa especial (Integral, AEE), com opções dinâmicas baseadas na configuração da escola.
-- **Contagem de Alunos:** A lista de escolas agora exibe a contagem de alunos ativos em vez do código INEP.
-- **Configuração de Deploy:** Foram criados todos os arquivos necessários (, , etc.) para realizar o deploy da aplicação via Coolify.
+A aplicação full-stack (React + FastAPI + MongoDB) está funcional no ambiente de preview da Emergent. Os dados e imagens foram migrados para o ambiente de produção do usuário (Coolify), mas o deploy mais recente no Coolify está falhando. Várias funcionalidades foram implementadas e corrigidas com sucesso no ambiente de preview, incluindo a lógica de sincronização offline completa (Background Sync), o sistema de avaliação conceitual para 1º/2º ano e a filtragem de servidores por ano letivo. A última alteração foi uma correção no código frontend para resolver um erro de build.
 
 **Last working item**:
--   **Last item agent was working:** O agente estava diagnosticando e resolvendo um erro de deploy na plataforma Coolify do usuário. A aplicação não estava funcionando porque o serviço de backend estava em um loop de reinicialização com status unhealthy.
+-   **Last item agent was working:** Depurando e corrigindo uma falha no build do frontend (yarn run v1.22.22
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.) que impedia o deploy no ambiente Coolify do usuário. O agente identificou que um comentário  incorreto e as dependências de um  estavam causando a falha. A correção foi aplicada e o comando yarn run v1.22.22
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command. foi executado com sucesso no ambiente da Emergent.
 -   **Status:** USER VERIFICATION PENDING
--   **Agent Testing Done:** N
--   **Which testing method agent to use?** N/A. O problema reside no ambiente de deploy externo do usuário (Coolify). O próximo agente deve primeiro confirmar com o usuário se a solução proposta funcionou, solicitando os logs do backend se o problema persistir.
+-   **Agent Testing Done:** Y
+-   **Which testing method agent to use?** N/A. O usuário precisa fazer o deploy no Coolify para verificar a correção. Se falhar, o próximo agente deverá analisar os novos logs de deploy.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Falha no Deploy em Produção (Coolify)**
-    -   **Description:** O serviço de backend está  no ambiente Coolify do usuário, impedindo o funcionamento da aplicação.
-    -   **Attempted fixes:** O agente analisou os logs do backend fornecidos pelo usuário e identificou a causa raiz: o serviço  está parado, resultando em um erro de  quando o backend tenta se conectar.
+-   **Issue 1: (P0) Falha de Deploy do Frontend no Coolify**
+    -   **Description:** O processo de build do frontend ( no Dockerfile) está falhando no ambiente de deploy do Coolify, impedindo a aplicação das últimas alterações em produção.
+    -   **Attempted fixes:**
+        -   O agente primeiro corrigiu erros de lint relacionados a aspas não escapadas () dentro de JSX, substituindo-as por . O deploy falhou novamente.
+        -   Na segunda tentativa, o agente identificou que o problema real era um comentário  que estava quebrando o processo de build. O comentário foi removido e as dependências do hook  foram corrigidas. O yarn run v1.22.22
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command. local passou.
     -   **Next debug checklist:**
-        1.  Perguntar ao usuário se ele conseguiu seguir as instruções para reiniciar os serviços no Coolify (primeiro o , depois o ).
-        2.  Se o problema persistir, pedir ao usuário para compartilhar os logs mais recentes do serviço  e do  para reavaliar o estado.
-        3.  Guiar o usuário novamente, se necessário, sobre como executar os comandos de reinicialização via terminal () ou através do painel do Coolify.
-    -   **Why fix this issue and what will be achieved with the fix?** Este é um bloqueador crítico. A aplicação está inacessível no ambiente de produção do usuário. A resolução permitirá que a aplicação volte a funcionar.
+        1.  Aguardar a confirmação do usuário se o deploy no Coolify foi bem-sucedido após a última correção.
+        2.  Se o deploy falhar novamente, solicitar ao usuário os logs de erro completos do Coolify.
+        3.  Analisar o novo erro. É provável que seja outro problema de lint ou sintaxe no frontend que só é pego pelo processo de build de produção.
+        4.  Verificar o arquivo , que foi o último a ser modificado extensivamente.
+    -   **Why fix this issue and what will be achieved with the fix?** A resolução deste problema é crítica para que o usuário possa ter as últimas funcionalidades e correções de bugs em seu ambiente de produção.
     -   **Status:** USER VERIFICATION PENDING
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** Backend (verificar logs e o endpoint de health).
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Frontend.
     -   **Blocked on other issue:** Não.
 
 **In progress Task List**:
--   Nenhum.
+Nenhuma.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
@@ -51,13 +56,25 @@ O sistema é uma aplicação full-stack (React + FastAPI + MongoDB) com funciona
     -   **(P3) Limpeza de Código:** Remover o arquivo obsoleto .
 
 **Completed work in this session**
--   **Feature: Converter Pré-Matrícula em Aluno:** Implementado o endpoint  e a interface no frontend () para converter uma pré-matrícula aprovada em um aluno.
--   **UX Improvement: Link para Aluno Recém-Criado:** Adicionado um botão Ver Aluno nos cards de pré-matrículas convertidas, que navega para a página de alunos com um parâmetro  na URL.
--   **Feature: Seleção Dinâmica de Série/Ano:** O formulário de pré-matrícula () foi atualizado para mostrar apenas as séries/anos disponíveis na escola selecionada.
--   **Feature: Distinção de Turmas por Programa:** O formulário de turmas () agora inclui um campo Tipo de Atendimento, cujas opções dependem das configurações da escola selecionada.
--   **Feature: Contagem de Alunos na Lista de Escolas:** A coluna Código INEP foi substituída pela contagem de alunos ativos nas páginas  e , com o backend  agora fornecendo esse dado.
--   **Documentation:** Gerada uma descrição detalhada de todas as páginas e endpoints do sistema.
--   **Deployment Setup:** Criados s, , e arquivos de configuração Nginx para facilitar o deploy no Coolify.
+-   **Migração de Dados e Imagens:** Migração completa e bem-sucedida do banco de dados MongoDB e dos arquivos de upload do ambiente Emergent para o servidor Coolify do usuário.
+-   **Correção de Imagens 404:** Debugou e resolveu o problema de imagens que não carregavam em produção, adicionando uma rota explícita () no backend e corrigindo um registro duplicado no banco de dados.
+-   **Funcionalidade Offline (Login e Background Sync):**
+    -   Corrigiu o login offline que falhava após o logout, ajustando a lógica para não exigir mais um .
+    -   Implementou o Background Sync completo, permitindo que as alterações feitas offline sejam sincronizadas com o servidor mesmo com o navegador fechado.
+-   **Lógica de Turma Integral:**
+    -   Implementou a pré-seleção do Tipo de Atendimento como Escola Integral ao criar turmas em escolas integrais.
+    -   Adicionou um aviso ao alterar o tipo de atendimento de Integral para Regular.
+    -   Corrigiu um bug de validação do backend ao fazer essa alteração.
+    -   Executou um script para atualizar turmas existentes que não tinham o campo  definido.
+-   **Lógica de Geração de PDF:** Modificou os endpoints de geração de Boletim e Ficha Individual para que os componentes curriculares sejam baseados na configuração da **turma** () e não na da escola.
+-   **Sistema de Conceitos (1º/2º Ano):**
+    -   Implementou um novo sistema de avaliação por conceitos (, , ) para o 1º e 2º ano.
+    -   Atualizou o backend () e o frontend () para refletir essa nova lógica.
+-   **Melhorias na Interface:**
+    -   Adicionou o ano letivo ao lado do nome da escola na lista de lotações do servidor.
+    -   Filtrou a lista do Quadro de Servidores de uma escola com base no ano letivo selecionado.
+-   **Correção de Build do Frontend:** Diagnosticou e corrigiu múltiplos erros de lint que estavam causando a falha do comando yarn run v1.22.22
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command. no deploy.
 
 **Earlier issues found/mentioned but not fixed**
 -   Nenhum.
@@ -69,63 +86,67 @@ O sistema é uma aplicação full-stack (React + FastAPI + MongoDB) com funciona
 
 
 **Key Technical Concepts**
--   **Docker & Coolify Deployment:** O agente introduziu uma configuração completa de containerização com  para frontend (React+Nginx) e backend (FastAPI), orquestrada com . O foco principal foi a depuração de problemas em um ambiente PaaS (Coolify), analisando logs de serviços para diagnosticar falhas de conexão () e configuração de roteamento (Traefik).
--   **API com Agregação de Dados:** O endpoint  foi modificado para agregar dados de outra coleção (contagem de alunos), simplificando a lógica no frontend.
--   **Lógica Dinâmica no Frontend:** Vários componentes foram aprimorados para exibir opções dinamicamente com base em seleções do usuário (e.g., séries disponíveis por escola, programas disponíveis por escola).
+-   **Depuração de Build de Frontend:** Diagnóstico de falhas no processo yarn run v1.22.22
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command., incluindo erros de lint e sintaxe (e.g.,  inválido, aspas não escapadas).
+-   **PWA e Offline First:** Implementação avançada de Service Worker com estratégias de , , e  para sincronização de dados em segundo plano.
+-   **IndexedDB:** Uso do Dexie.js para gerenciar um banco de dados local no navegador para armazenamento de dados offline e filas de sincronização.
+-   **Docker & Nginx:** Depuração de problemas de roteamento de proxy reverso em um ambiente PaaS (Coolify), envolvendo  no Nginx para rotas de API.
+-   **FastAPI & Pydantic:** Modificação de modelos Pydantic (, ) para ajustar regras de validação (e.g., permitir  para aceitar strings vazias).
+-   **Geração de PDF (ReportLab):** Modificação da lógica condicional dentro do  para gerar layouts de tabela e conteúdo diferentes com base em regras de negócio (e.g., nível de ensino da turma).
 
 **key DB schema**
--   **pre_matriculas:**  (campos adicionados)
--   **classes:**  (campo adicionado)
--   **schools:** (Resposta da API modificada para incluir )
+-   **classes:**  - Campo central para a lógica de turmas integrais. Pode ser 'atendimento_integral' ou / para regular.
+-   **school_assignments:**  - Usado para filtrar lotações de servidores por ano.
+-   **mantenedora:**  - Contém as URLs das imagens.
 
 **changes in tech stack**
--   Nenhuma mudança no stack de desenvolvimento. Adição de **Docker, Docker Compose e Nginx** para fins de deploy.
+-   Nenhuma.
 
 **All files of reference**
--   **Criados:**
-    -   , , 
-    -   , 
-    -   
--   **Atualizados:**
-    -   : Adicionado endpoint de conversão de pré-matrícula.
-    -   : Atualizados modelos  e .
-    -   : Adicionada contagem de alunos na listagem de escolas.
-    -   : Implementação do fluxo de conversão.
-    -   : Implementação do seletor dinâmico de série/ano.
-    -   : Implementação do campo Tipo de Atendimento.
-    -    e : Exibição da contagem de alunos.
-    -   : Atualizado com as novas funcionalidades concluídas.
+-   **/app/frontend/src/pages/SchoolsComplete.js:** Modificado extensivamente para filtrar servidores por ano e corrigir erros de lint que quebravam o build.
+-   **/app/frontend/public/sw.js:** Reescrevido para implementar Background Sync completo.
+-   **/app/frontend/src/contexts/OfflineContext.jsx:** Atualizado para registrar e interagir com o Service Worker (Background Sync).
+-   **/app/frontend/src/db/database.js:** Atualizado para registrar uma tag de  no Service Worker.
+-   **/app/frontend/src/pages/Grades.js:** Modificado para adicionar o sistema de conceitos para o 1º/2º ano.
+-   **/app/frontend/src/pages/Classes.js:** Modificado para pré-selecionar o tipo de atendimento e mostrar avisos.
+-   **/app/backend/server.py:** Várias rotas modificadas, especialmente as de geração de PDF e a nova rota .
+-   **/app/backend/pdf_generator.py:** Lógica de formatação de notas e estrutura de tabelas atualizada para o sistema de conceitos.
+-   **/app/backend/models.py:** Modelos  e  atualizados para permitir  vazio.
 
 **Areas that need refactoring**:
--   **:** Ainda contém muitos endpoints que poderiam ser movidos para routers modulares.
--   **:** Continua sendo um componente grande e complexo.
+-   : Continua sendo um arquivo muito grande e precisa ser modularizado em mais routers.
+-   : Tornou-se um componente muito complexo, gerenciando múltiplos estados e lógicas. Poderia ser dividido em subcomponentes.
 
 **key api endpoints**
--   : (Novo) Converte uma pré-matrícula em um novo aluno.
--   : (Modificado) Agora retorna um campo  em cada objeto de escola.
+-   : Rota GET para servir arquivos estáticos da pasta de uploads.
+-   : Endpoint de atualização de turma, cuja validação foi corrigida.
+-   : Geração de PDF de boletim, com lógica atualizada.
+-   : Geração de PDF de ficha individual, com lógica atualizada.
 
 **Critical Info for New Agent**
--   A prioridade máxima é confirmar com o usuário se a solução para o problema de deploy no Coolify funcionou. O problema foi identificado como o serviço MongoDB estar parado. As instruções para reiniciar os serviços foram fornecidas.
--   Não modifique os arquivos de Docker ou a configuração de deploy antes de confirmar se o simples reinício dos serviços resolveu o problema.
--   Depois que o problema de deploy for resolvido, apresente ao usuário o plano para as próximas tarefas, começando pelas Upcoming Tasks.
+-   **A PRIORIDADE MÁXIMA É VALIDAR A CORREÇÃO DO DEPLOY.** O usuário precisa tentar fazer o deploy novamente no Coolify. O erro de build (yarn run v1.22.22
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.) foi corrigido no ambiente de preview, mas precisa ser validado no ambiente de produção do usuário.
+-   O ambiente do usuário (Coolify) faz deploy a partir de um repositório Git. As correções feitas pelo agente estão no ambiente Emergent. O usuário precisa garantir que essas correções sejam enviadas para o seu repositório Git para que o Coolify as utilize.
+-   A aplicação possui uma complexa lógica offline. Qualquer alteração no frontend, especialmente em ,  ou , deve ser feita com cuidado para não quebrar a sincronização.
+-   O arquivo  é muito sensível e já causou a falha do build duas vezes. Edite-o com extrema cautela.
 
 **documents and test reports created in this job**
--    (atualizado)
+-    foi atualizado.
 
 **Last 10 User Messages and any pending HUMAN messages**
-10.  - O usuário expressou dificuldade em reiniciar o serviço MongoDB no Coolify.
-9.   - O usuário confirmou o envio do log do backend.
-8.   - O usuário enviou o arquivo de log do backend.
-7.   - O usuário enviou screenshots da UI do Coolify mostrando o status dos serviços.
-6.   - O usuário relatou que o problema de deploy persistia e compartilhou a configuração do roteador (Traefik/Caddy).
-5.   - O usuário iniciou a depuração do deploy, compartilhando um log de erro do  no Docker.
-4.   - Pedido de documentação do sistema.
-3.   - Pedido de nova feature.
-2.   - Pedido de nova feature.
-1.   - Pedido de nova feature/clarificação.
+10.  - Usuário reporta o primeiro erro de deploy.
+9.   - Usuário pede para o agente prosseguir após um timeout.
+8.  Usuário envia novos logs de erro, mostrando que o deploy falhou novamente.
+7.  Usuário confirma que o build local passou com sucesso após a correção do agente.
+6.   - Usuário aprova a finalização da tarefa de implementação do Background Sync.
+5.   - Usuário aprova a implementação do Background Sync.
+4.  Usuário pergunta se pode desligar o computador com dados offline ou se precisa esperar a sincronização.
+3.  Usuário pergunta se o login offline é para qualquer usuário que já logou ou apenas para o último.
+2.   - Usuário questiona sobre as restrições do login offline.
+1.  Usuário confirma que a remoção do registro duplicado da mantenedora resolveu o problema da logo.
 
 **Project Health Check:**
--   **Broken:** O deploy externo do usuário na plataforma Coolify está quebrado. O serviço  está  porque o serviço  está desligado, causando falhas de conexão.
+-   **Broken:** O pipeline de deploy do **frontend** para o ambiente de produção (Coolify) está quebrado, embora uma correção tenha sido preparada e aguarde validação.
 -   **Mocked:** Nenhum.
 
 **3rd Party Integrations**
@@ -134,17 +155,15 @@ O sistema é uma aplicação full-stack (React + FastAPI + MongoDB) com funciona
 -   openpyxl
 -   slowapi
 -   dexie & dexie-react-hooks
--   Servidor FTP ()
 
 **Testing status**
 -   **Testing agent used after significant changes:** NO
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** None
--   **Known regressions:** None
+-   **Known regressions:** O processo de build do frontend regrediu e começou a falhar após as últimas alterações, embora uma correção tenha sido implementada.
 
 **Credentials to test flow:**
 -   **Admin:**  / 
--   **Coordenador/Professor:**  / 
 
 **What agent forgot to execute**
--   Nada. O agente implementou todas as solicitações de feature do usuário e depois pivotou para uma complexa sessão de depuração de deploy, que está corretamente pausada aguardando a ação do usuário.</analysis>
+-   Nada. O agente foi muito completo em todas as solicitações do usuário e na depuração dos problemas que surgiram.</analysis>
