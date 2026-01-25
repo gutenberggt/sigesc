@@ -198,6 +198,19 @@ async def download_backup():
         )
     return {"error": "Backup file not found"}
 
+@app.get("/api/download-uploads")
+async def download_uploads():
+    """Download uploads backup file"""
+    backup_path = STATIC_DIR / "uploads_backup.tar.gz"
+    if backup_path.exists():
+        from fastapi.responses import FileResponse
+        return FileResponse(
+            path=str(backup_path),
+            filename="uploads_backup.tar.gz",
+            media_type="application/gzip"
+        )
+    return {"error": "Uploads backup file not found"}
+
 # ============= WEBSOCKET CONNECTION MANAGER =============
 
 class ConnectionManager:
