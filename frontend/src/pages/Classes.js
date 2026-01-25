@@ -353,11 +353,20 @@ export const Classes = () => {
 
   // Handlers para mudança de campos
   const handleSchoolChange = (schoolId) => {
+    const newSchool = schools.find(s => s.id === schoolId);
+    
+    // Pré-seleciona "Escola Integral" se a escola tem essa opção marcada
+    let defaultAtendimento = '';
+    if (newSchool?.atendimento_integral) {
+      defaultAtendimento = 'atendimento_integral';
+    }
+    
     setFormData({
       ...formData,
       school_id: schoolId,
       education_level: '',
-      grade_level: ''
+      grade_level: '',
+      atendimento_programa: defaultAtendimento
     });
   };
 
