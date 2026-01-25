@@ -207,7 +207,7 @@ CONCEITOS_EDUCACAO_INFANTIL = {
     'NT': {'valor': 0.0, 'descricao': 'Não Trabalhado'},
 }
 
-# Mapeamento inverso: valor para conceito
+# Mapeamento inverso: valor para conceito (Educação Infantil)
 VALOR_PARA_CONCEITO = {
     10.0: 'OD',
     7.5: 'DP',
@@ -215,20 +215,56 @@ VALOR_PARA_CONCEITO = {
     0.0: 'NT',
 }
 
-def valor_para_conceito(valor):
+# ===== SISTEMA DE AVALIAÇÃO CONCEITUAL - 1º E 2º ANO =====
+# Conceitos específicos para Anos Iniciais (1º e 2º ano)
+CONCEITOS_ANOS_INICIAIS = {
+    'C': {'valor': 10.0, 'descricao': 'Consolidado'},
+    'ED': {'valor': 7.5, 'descricao': 'Em Desenvolvimento'},
+    'ND': {'valor': 5.0, 'descricao': 'Não Desenvolvido'},
+}
+
+# Mapeamento inverso: valor para conceito (1º e 2º Ano)
+VALOR_PARA_CONCEITO_ANOS_INICIAIS = {
+    10.0: 'C',
+    7.5: 'ED',
+    5.0: 'ND',
+}
+
+# Lista de séries que usam avaliação conceitual dos anos iniciais
+SERIES_CONCEITUAIS_ANOS_INICIAIS = ['1º Ano', '2º Ano', '1º ano', '2º ano', '1 Ano', '2 Ano']
+
+def is_serie_conceitual_anos_iniciais(grade_level):
+    """Verifica se a série usa avaliação conceitual de Anos Iniciais (1º e 2º ano)."""
+    if not grade_level:
+        return False
+    grade_lower = grade_level.lower()
+    return any(serie.lower() in grade_lower for serie in SERIES_CONCEITUAIS_ANOS_INICIAIS)
+
+def valor_para_conceito(valor, grade_level=None):
     """Converte um valor numérico para o conceito correspondente."""
     if valor is None:
         return '-'
+    
+    # Determinar qual mapeamento usar
+    if grade_level and is_serie_conceitual_anos_iniciais(grade_level):
+        mapeamento = VALOR_PARA_CONCEITO_ANOS_INICIAIS
+        conceito_minimo = 'ND'
+    else:
+        mapeamento = VALOR_PARA_CONCEITO
+        conceito_minimo = 'NT'
+    
     # Encontrar o conceito mais próximo
-    for v, conceito in sorted(VALOR_PARA_CONCEITO.items(), reverse=True):
+    for v, conceito in sorted(mapeamento.items(), reverse=True):
         if valor >= v:
             return conceito
-    return 'NT'
+    return conceito_minimo
 
 def conceito_para_valor(conceito):
     """Converte um conceito para seu valor numérico."""
     if conceito in CONCEITOS_EDUCACAO_INFANTIL:
         return CONCEITOS_EDUCACAO_INFANTIL[conceito]['valor']
+    if conceito in CONCEITOS_ANOS_INICIAIS:
+        return CONCEITOS_ANOS_INICIAIS[conceito]['valor']
     return None
 
 def calcular_media_conceitual(notas):
