@@ -345,7 +345,20 @@ export const Classes = () => {
       setIsModalOpen(false);
       reloadData();
     } catch (error) {
-      showAlert('error', error.response?.data?.detail || 'Erro ao salvar turma');
+      // Trata erros de validação do Pydantic (array de objetos)
+      let errorMessage = 'Erro ao salvar turma';
+      const detail = error.response?.data?.detail;
+      
+      if (typeof detail === 'string') {
+        errorMessage = detail;
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        // Erro de validação Pydantic - extrai a mensagem do primeiro erro
+        errorMessage = detail[0]?.msg || detail[0]?.message || 'Erro de validação';
+      } else if (detail && typeof detail === 'object') {
+        errorMessage = detail.msg || detail.message || 'Erro ao salvar turma';
+      }
+      
+      showAlert('error', errorMessage);
       console.error(error);
     } finally {
       setSubmitting(false);
