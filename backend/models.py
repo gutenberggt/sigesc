@@ -731,7 +731,7 @@ class ClassBase(BaseModel):
     education_level: Optional[str] = None  # Nível de ensino (educacao_infantil, fundamental_anos_iniciais, etc.)
     grade_level: str  # Ex: "1º Ano", "6º Ano", "Berçário", etc
     teacher_ids: List[str] = []
-    atendimento_programa: Optional[Literal['aee', 'atendimento_integral', 'reforco_escolar', 'aulas_complementares']] = None
+    atendimento_programa: Optional[str] = None  # Permite qualquer valor incluindo string vazia para "Turma Regular"
 
 class ClassCreate(ClassBase):
     pass
