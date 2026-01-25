@@ -354,12 +354,73 @@ Sistema de gestão escolar para a Secretaria Municipal de Educação, com funcio
 
 ### Frontend
 - React + Vite + TailwindCSS + Shadcn/UI
-- Contextos: AuthContext, MantenedoraContext
+- Contextos: AuthContext, MantenedoraContext, OfflineContext
+- PWA com Service Worker e Background Sync
 
 ### Banco de Dados
-- MongoDB
+- MongoDB (produção) + IndexedDB (offline/local)
 - Coleções: users, schools, classes, students, courses, grades, attendance, mantenedora, calendario_letivo, etc.
 
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
 - Coordenador: ricleidegoncalves@gmail.com / 007724
+
+---
+
+## Implementações 2026-01-25
+
+### Migração de Dados para Produção (Coolify) - CONCLUÍDO
+- Migração completa do banco de dados do ambiente Emergent para produção
+- 4501 alunos, 193 usuários, 18 escolas, 223 servidores migrados
+- Correção do registro duplicado de mantenedora que impedia exibição do logo
+
+### Correção de Upload de Imagens no Coolify - CONCLUÍDO
+- Problema: Imagens retornavam 404 no ambiente de produção
+- Causa: Nginx do frontend não tinha proxy para `/api/uploads/*`
+- Solução 1: Adicionada rota explícita no backend para servir uploads
+- Solução 2: Configurado proxy no Nginx do frontend para rotear `/api/*` ao backend
+
+### Correção do Login Offline - CONCLUÍDO
+- Problema: Login offline não funcionava mesmo com dados salvos
+- Causa: O código exigia `accessToken` que era removido no logout
+- Solução: Login offline agora funciona apenas com `userData` salvo
+
+### Background Sync Implementado - CONCLUÍDO
+- Service Worker atualizado para v2.0.0 com Background Sync completo
+- Dados offline são sincronizados automaticamente quando conexão é restaurada
+- Funciona mesmo com navegador fechado (em navegadores compatíveis)
+- Notificação push quando sincronização é concluída
+- Suporte a Periodic Background Sync (verificação a cada 1 hora)
+
+## Funcionalidades Offline
+
+### O que FUNCIONA offline:
+- Login (último usuário que fez login online)
+- Lançamento de Notas (salvas no IndexedDB)
+- Lançamento de Frequência (salvas no IndexedDB)
+- Visualização de dados em cache
+
+### O que NÃO funciona offline:
+- Cadastros novos (alunos, escolas, usuários)
+- Upload de arquivos
+- Relatórios PDF
+- Mensagens/Chat
+
+### Sincronização:
+- Automática quando conexão volta (com navegador aberto)
+- Background Sync quando conexão volta (mesmo com navegador fechado)
+- Máximo 3 tentativas por operação
+- Notificação de sucesso/erro
+
+## Tarefas Pendentes
+
+### P1 - Próximas
+- Email de confirmação após pré-matrícula
+- Destacar aluno recém-criado na lista `/admin/students`
+
+### P2 - Refatoração
+- Mover endpoints do `server.py` para routers modulares
+- Simplificar `SchoolsComplete.js` e `pdf_generator.py`
+
+### P3 - Limpeza
+- Remover arquivo obsoleto `Courses.js`
