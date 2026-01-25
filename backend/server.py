@@ -4831,7 +4831,7 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
     all_courses = await db.courses.find(courses_query, {"_id": 0}).to_list(100)
     logger.info(f"Boletim: {len(all_courses)} componentes encontrados para nivel_ensino={nivel_ensino}")
     
-    # Filtrar componentes baseado no atendimento/programa
+    # Filtrar componentes baseado no atendimento/programa da TURMA
     filtered_courses = []
     excluded_courses = []  # Para debug
     for course in all_courses:
@@ -4839,22 +4839,21 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
         course_grade_levels = course.get('grade_levels', [])
         course_name = course.get('name', 'N/A')
         
-        # Componentes Transversais/Formativos aparecem em TODAS as escolas
+        # Componentes Transversais/Formativos aparecem em TODAS as turmas
         if atendimento == 'transversal_formativa':
-            # Sempre incluir - é transversal a todas as escolas
+            # Sempre incluir - é transversal a todas as turmas
             pass
         # Verificar se o componente é específico de Escola Integral
         elif atendimento == 'atendimento_integral':
-            # Só incluir se a escola é integral
-            if not escola_integral:
-                excluded_courses.append(f"{course_name} (excluído: atendimento_integral e escola não é integral)")
+            # Só incluir se a TURMA é integral (não a escola)
+            if not turma_integral:
+                excluded_courses.append(f"{course_name} (excluído: atendimento_integral e turma não é integral)")
                 continue
         # Verificar se o componente é de outro atendimento (AEE, reforço, etc)
         elif atendimento and atendimento not in ['atendimento_integral', 'transversal_formativa']:
-            # Verificar se a escola oferece esse atendimento
-            escola_oferece = school.get(atendimento, False)
-            if not escola_oferece:
-                excluded_courses.append(f"{course_name} (excluído: atendimento={atendimento} não oferecido pela escola)")
+            # Verificar se a turma tem esse atendimento específico
+            if turma_atendimento != atendimento:
+                excluded_courses.append(f"{course_name} (excluído: atendimento={atendimento} diferente do atendimento da turma={turma_atendimento})")
                 continue
         
         # Verificar se o componente é específico para certas séries
