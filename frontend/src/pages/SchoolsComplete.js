@@ -289,15 +289,19 @@ export function SchoolsComplete() {
   }
 
   // Função para carregar servidores lotados na escola
-  async function loadSchoolStaff(schoolId) {
+  async function loadSchoolStaff(schoolId, year = null) {
     if (!schoolId) {
       setSchoolStaff([]);
       return;
     }
     setLoadingStaff(true);
     try {
-      // Busca as lotações ativas da escola
-      const assignments = await schoolAssignmentAPI.list({ school_id: schoolId, status: 'ativo' });
+      // Busca as lotações ativas da escola, filtradas pelo ano letivo se especificado
+      const params = { school_id: schoolId, status: 'ativo' };
+      if (year) {
+        params.academic_year = year;
+      }
+      const assignments = await schoolAssignmentAPI.list(params);
       
       // Busca os dados completos de cada servidor
       const staffDetails = await Promise.all(
