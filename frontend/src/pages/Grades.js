@@ -350,10 +350,19 @@ export function Grades() {
     ? professorTurmas.find(t => t.id === selectedClass)
     : classes.find(c => c.id === selectedClass);
   
+  // Grade level da turma selecionada
+  const currentGradeLevel = selectedClassData?.grade_level || '';
+  
   // Verifica se é Educação Infantil
   const isEdInfantil = selectedClassData 
     ? isEducacaoInfantil(selectedClassData.grade_level, selectedClassData.nivel_ensino || selectedClassData.education_level)
     : false;
+  
+  // Verifica se é 1º ou 2º ano (usa conceitos específicos)
+  const isAnosIniciaisConc = isAnosIniciaisConceitual(currentGradeLevel);
+  
+  // Verifica se usa avaliação conceitual (Educação Infantil OU 1º/2º ano)
+  const usaConceito = isEdInfantil || isAnosIniciaisConc;
   
   // Filtros derivados - para professor usa as turmas alocadas
   const filteredClasses = isProfessor
