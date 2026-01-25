@@ -260,8 +260,16 @@ export const OfflineProvider = ({ children }) => {
 
   // Carrega contador inicial de pendências
   useEffect(() => {
-    updatePendingCount();
-  }, [updatePendingCount]);
+    const loadInitialCount = async () => {
+      try {
+        const count = await countPendingSyncItems();
+        setPendingSyncCount(count);
+      } catch (err) {
+        console.error('[PWA] Erro ao carregar contagem inicial:', err);
+      }
+    };
+    loadInitialCount();
+  }, []);
 
   // Força atualização do Service Worker
   const updateServiceWorker = useCallback(() => {
