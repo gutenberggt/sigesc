@@ -517,10 +517,10 @@ export function Grades() {
     
     const g = newData[index].grade;
     
-    if (isEdInfantil) {
-      // Educação Infantil: média é o MAIOR conceito alcançado
+    if (usaConceito) {
+      // Educação Infantil ou 1º/2º Ano: média é o MAIOR conceito alcançado
       g.final_average = calcularMaiorConceito(g.b1, g.b2, g.b3, g.b4);
-      // Aprovação automática para Educação Infantil
+      // Aprovação automática para avaliação conceitual
       g.status = 'aprovado';
     } else {
       // Outros níveis: Recalcula média com recuperações por semestre
