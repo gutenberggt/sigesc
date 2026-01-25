@@ -2146,7 +2146,7 @@ export function SchoolsComplete() {
                 <div>
                   <h6 className="font-medium text-red-800">Ano Letivo Fechado</h6>
                   <p className="text-sm text-red-700 mt-1">
-                    Ao marcar um ano como <strong>"Fechado"</strong>, todas as informações referentes àquele ano (notas, frequências, matrículas, etc.) 
+                    Ao marcar um ano como <strong>&quot;Fechado&quot;</strong>, todas as informações referentes àquele ano (notas, frequências, matrículas, etc.) 
                     ficam bloqueadas para edição por <strong>qualquer usuário</strong>. Apenas administradores podem alterar o status do ano.
                   </p>
                 </div>
