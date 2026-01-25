@@ -1735,7 +1735,10 @@ export function SchoolsComplete() {
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <Users className="text-blue-600" size={20} />
-            <h4 className="text-md font-semibold text-gray-900">Quadro de Servidores</h4>
+            <h4 className="text-md font-semibold text-gray-900">
+              Quadro de Servidores
+              <span className="ml-2 text-sm font-normal text-gray-500">({selectedYear})</span>
+            </h4>
           </div>
           <button
             type="button"
@@ -1754,10 +1757,10 @@ export function SchoolsComplete() {
         ) : schoolStaff.length === 0 ? (
           <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
             <Users className="mx-auto text-gray-400 mb-2" size={40} />
-            <p className="text-gray-500">Nenhum servidor lotado nesta escola</p>
+            <p className="text-gray-500">Nenhum servidor lotado nesta escola em {selectedYear}</p>
             <button
               type="button"
-              onClick={() => navigate('/admin/staff')}
+              onClick={() => navigate('/admin/staff')}}
               className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
             >
               Cadastrar lotação
