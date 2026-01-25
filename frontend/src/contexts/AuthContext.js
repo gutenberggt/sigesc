@@ -156,11 +156,13 @@ export const AuthProvider = ({ children }) => {
       console.log('[Auth Offline] savedToken exists:', !!savedToken);
       console.log('[Auth Offline] email tentado:', email);
       
-      if (cachedUser && savedToken) {
+      // Permite login offline se tiver dados do usuário (mesmo sem token)
+      if (cachedUser) {
         // Verifica se o email corresponde ao usuário em cache
         if (cachedUser.email === email) {
           setUser(cachedUser);
-          setAccessToken(savedToken);
+          // Usa token salvo se existir, ou cria um token temporário para sessão offline
+          setAccessToken(savedToken || 'offline-session-token');
           setIsOfflineSession(true);
           
           return { 
