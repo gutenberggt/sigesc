@@ -880,7 +880,7 @@ export const Classes = () => {
                 </label>
                 <select
                   value={formData.atendimento_programa}
-                  onChange={(e) => setFormData({ ...formData, atendimento_programa: e.target.value })}
+                  onChange={(e) => handleAtendimentoChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   data-testid="class-programa-select"
                 >
@@ -894,6 +894,17 @@ export const Classes = () => {
                 <p className="text-xs text-gray-500 mt-1">
                   Selecione se esta turma faz parte de algum programa especial
                 </p>
+                
+                {/* Aviso de mudança de tipo de atendimento */}
+                {atendimentoChangeWarning && (
+                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-800">Atenção: Mudança de Tipo de Atendimento</p>
+                      <p className="text-xs text-amber-700 mt-1">{atendimentoChangeWarning.message}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
