@@ -6722,6 +6722,10 @@ async def debug_courses_for_class(class_id: str, request: Request = None):
     
     escola_integral = school.get('atendimento_integral', False)
     
+    # Determinar o tipo de atendimento/programa da TURMA
+    turma_atendimento = class_info.get('atendimento_programa', '')
+    turma_integral = turma_atendimento == 'atendimento_integral'
+    
     # Buscar todos os componentes do nível
     courses_query = {}
     if nivel_ensino:
