@@ -742,7 +742,7 @@ class ClassUpdate(BaseModel):
     education_level: Optional[str] = None
     grade_level: Optional[str] = None
     teacher_ids: Optional[List[str]] = None
-    atendimento_programa: Optional[Literal['aee', 'atendimento_integral', 'reforco_escolar', 'aulas_complementares']] = None
+    atendimento_programa: Optional[str] = None  # Permite string vazia para "Turma Regular"
 
 class Class(ClassBase):
     model_config = ConfigDict(extra="ignore")
