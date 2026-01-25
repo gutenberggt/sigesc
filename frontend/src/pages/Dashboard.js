@@ -151,7 +151,7 @@ export const Dashboard = () => {
                   Olá, {user?.full_name?.split(' ')[0]}!
                 </h1>
                 <p className="text-blue-100" data-testid="dashboard-subtitle">
-                  {roleLabels[user?.role]} • {user?.email}
+                  {roleLabels[user?.role]}
                 </p>
               </div>
             </div>
