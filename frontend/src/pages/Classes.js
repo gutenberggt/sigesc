@@ -911,7 +911,10 @@ export const Classes = () => {
             <div className="flex justify-end space-x-2 mt-6 pt-4 border-t">
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setAtendimentoChangeWarning(null);
+                }}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 Cancelar
