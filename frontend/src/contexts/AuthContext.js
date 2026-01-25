@@ -125,16 +125,21 @@ export const AuthProvider = ({ children }) => {
         const response = await axios.post(`${API}/auth/login`, { email, password });
         const { access_token, refresh_token, user: userData } = response.data;
 
+        // Garante que userData tenha o email para validação offline
+        const userDataWithEmail = userData ? { ...userData, email } : { email };
+        
         setAccessToken(access_token);
         setRefreshToken(refresh_token);
-        setUser(userData);
+        setUser(userDataWithEmail);
         setIsOfflineSession(false);
 
         localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access_token);
         localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refresh_token);
-        saveUserDataLocally(userData);
+        saveUserDataLocally(userDataWithEmail);
+        
+        console.log('[Auth] Dados salvos para offline:', userDataWithEmail);
 
-        return { success: true, user: userData };
+        return { success: true, user: userDataWithEmail };
       } catch (error) {
         console.error('Erro no login:', error);
         return {
