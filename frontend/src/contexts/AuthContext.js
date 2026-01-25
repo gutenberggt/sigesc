@@ -152,6 +152,10 @@ export const AuthProvider = ({ children }) => {
       const cachedUser = getLocalUserData();
       const savedToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
       
+      console.log('[Auth Offline] cachedUser:', cachedUser);
+      console.log('[Auth Offline] savedToken exists:', !!savedToken);
+      console.log('[Auth Offline] email tentado:', email);
+      
       if (cachedUser && savedToken) {
         // Verifica se o email corresponde ao usuário em cache
         if (cachedUser.email === email) {
@@ -168,11 +172,12 @@ export const AuthProvider = ({ children }) => {
         } else {
           return {
             success: false,
-            error: 'Modo offline: apenas o último usuário logado pode acessar',
+            error: `Modo offline: apenas o último usuário logado (${cachedUser.email}) pode acessar`,
             offline: true
           };
         }
       } else {
+        console.log('[Auth Offline] Dados não encontrados no localStorage');
         return {
           success: false,
           error: 'Sem conexão com a internet. Faça login online primeiro para habilitar o acesso offline.',
