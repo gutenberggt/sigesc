@@ -335,7 +335,8 @@ export function SchoolsComplete() {
       const schoolId = editingSchool?.id || formData?.id;
       loadSchoolStaff(schoolId, selectedYear);
     }
-  }, [selectedYear, isModalOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedYear]);
 
   // Funções para gerenciar anos letivos
   function adicionarAnoLetivo(ano) {
