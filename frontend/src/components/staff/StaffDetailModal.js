@@ -150,7 +150,12 @@ export const StaffDetailModal = ({
                 <div key={lot.id} className="p-2 bg-white rounded border">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-medium">{lot.school_name}</p>
+                      <p className="font-medium">
+                        {lot.school_name}
+                        {lot.academic_year && (
+                          <span className="ml-2 text-sm text-gray-500">({lot.academic_year})</span>
+                        )}
+                      </p>
                       <p className="text-sm text-gray-600">{FUNCOES[lot.funcao]} • {TURNOS[lot.turno] || '-'}</p>
                     </div>
                     <span className={`px-2 py-1 rounded-full text-xs ${
