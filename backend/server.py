@@ -4814,9 +4814,11 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
     # Log para debug
     logger.info(f"Boletim: grade_level={grade_level}, nivel_ensino inferido={nivel_ensino}")
     
-    # Determinar se a escola oferece atendimento integral
-    escola_integral = school.get('atendimento_integral', False)
-    logger.info(f"Boletim: escola_integral={escola_integral}")
+    # Determinar o tipo de atendimento/programa da TURMA (não da escola)
+    # Se a turma tem atendimento_programa definido, usa ele. Senão, é turma regular.
+    turma_atendimento = class_info.get('atendimento_programa', '')
+    turma_integral = turma_atendimento == 'atendimento_integral'
+    logger.info(f"Boletim: turma_atendimento={turma_atendimento}, turma_integral={turma_integral}")
     
     # Construir query para buscar componentes curriculares
     courses_query = {}
