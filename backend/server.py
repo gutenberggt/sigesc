@@ -5318,9 +5318,10 @@ async def get_ficha_individual(
     # Log para debug
     logger.info(f"Ficha Individual: grade_level={grade_level}, nivel_ensino inferido={nivel_ensino}")
     
-    # Verificar se a escola oferece atendimento integral
-    escola_integral = school.get('atendimento_integral', False)
-    logger.info(f"Ficha Individual: escola_integral={escola_integral}")
+    # Determinar o tipo de atendimento/programa da TURMA (não da escola)
+    turma_atendimento = turma.get('atendimento_programa', '')
+    turma_integral = turma_atendimento == 'atendimento_integral'
+    logger.info(f"Ficha Individual: turma_atendimento={turma_atendimento}, turma_integral={turma_integral}")
     
     # Buscar componentes: globais (sem school_id) OU específicos da escola
     courses_filter = {
