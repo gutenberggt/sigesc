@@ -379,6 +379,40 @@ export const Classes = () => {
     });
   };
 
+  // Função para lidar com mudança de atendimento/programa
+  const handleAtendimentoChange = (newValue) => {
+    const oldValue = formData.atendimento_programa;
+    
+    // Obtém labels para exibição
+    const getAtendimentoLabel = (value) => {
+      if (!value) return 'Turma Regular';
+      const labels = {
+        'atendimento_integral': 'Escola Integral',
+        'reforco_escolar': 'Reforço Escolar',
+        'aulas_complementares': 'Aulas Complementares',
+        'aee': 'AEE - Atendimento Educacional Especializado'
+      };
+      return labels[value] || value;
+    };
+
+    // Mostra aviso se está mudando de um tipo para outro
+    if (oldValue !== newValue) {
+      const oldLabel = getAtendimentoLabel(oldValue);
+      const newLabel = getAtendimentoLabel(newValue);
+      
+      setAtendimentoChangeWarning({
+        from: oldLabel,
+        to: newLabel,
+        message: `Esta turma será alterada de "${oldLabel}" para "${newLabel}". A turma se adequará às configurações do novo tipo de atendimento.`
+      });
+      
+      // Limpa o aviso após 8 segundos
+      setTimeout(() => setAtendimentoChangeWarning(null), 8000);
+    }
+    
+    setFormData({ ...formData, atendimento_programa: newValue });
+  };
+
   const shiftLabels = {
     morning: 'Manhã',
     afternoon: 'Tarde',
