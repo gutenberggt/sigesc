@@ -278,20 +278,26 @@ def calcular_media_conceitual(notas):
             valores_validos.append(nota)
         elif isinstance(nota, str) and nota in CONCEITOS_EDUCACAO_INFANTIL:
             valores_validos.append(CONCEITOS_EDUCACAO_INFANTIL[nota]['valor'])
+        elif isinstance(nota, str) and nota in CONCEITOS_ANOS_INICIAIS:
+            valores_validos.append(CONCEITOS_ANOS_INICIAIS[nota]['valor'])
     
     if valores_validos:
         return max(valores_validos)  # Maior conceito alcançado
     return None
 
-def formatar_nota_conceitual(valor, is_educacao_infantil=False):
+def formatar_nota_conceitual(valor, is_educacao_infantil=False, grade_level=None):
     """
-    Formata uma nota. Se for Educação Infantil, retorna o conceito.
+    Formata uma nota. Se for Educação Infantil ou 1º/2º ano, retorna o conceito.
     Caso contrário, retorna o valor numérico formatado.
     """
     if valor is None:
         return '-'
-    if is_educacao_infantil:
-        return valor_para_conceito(valor)
+    
+    # Verifica se é 1º ou 2º ano (conceitual)
+    is_anos_iniciais_conceitual = grade_level and is_serie_conceitual_anos_iniciais(grade_level)
+    
+    if is_educacao_infantil or is_anos_iniciais_conceitual:
+        return valor_para_conceito(valor, grade_level)
     if isinstance(valor, (int, float)):
         return f"{valor:.1f}".replace('.', ',')
     return str(valor) if valor else '-'
