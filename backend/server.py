@@ -184,6 +184,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Temporary route for backup download
+@app.get("/api/download-backup")
+async def download_backup():
+    """Download database backup file"""
+    backup_path = STATIC_DIR / "backup_sigesc.tar.gz"
+    if backup_path.exists():
+        from fastapi.responses import FileResponse
+        return FileResponse(
+            path=str(backup_path),
+            filename="backup_sigesc.tar.gz",
+            media_type="application/gzip"
+        )
+    return {"error": "Backup file not found"}
+
 # ============= WEBSOCKET CONNECTION MANAGER =============
 
 class ConnectionManager:
