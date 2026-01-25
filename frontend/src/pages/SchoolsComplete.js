@@ -1892,7 +1892,7 @@ export function SchoolsComplete() {
                   <h6 className="font-medium text-amber-800">Períodos não configurados</h6>
                   <p className="text-sm text-amber-700 mt-1">
                     Os períodos bimestrais ainda não foram configurados no Calendário Letivo. 
-                    Configure os períodos no menu "Calendário" &gt; "Períodos Bimestrais" para definir as datas de início e fim de cada bimestre.
+                    Configure os períodos no menu &quot;Calendário&quot; &gt; &quot;Períodos Bimestrais&quot; para definir as datas de início e fim de cada bimestre.
                   </p>
                 </div>
               </div>
