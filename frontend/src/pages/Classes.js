@@ -177,6 +177,14 @@ export const Classes = () => {
   const handleCreate = () => {
     setEditingClass(null);
     const defaultSchoolId = schools.length > 0 ? schools[0].id : '';
+    const defaultSchool = schools.find(s => s.id === defaultSchoolId);
+    
+    // Pré-seleciona "Escola Integral" se a escola tem essa opção marcada
+    let defaultAtendimento = '';
+    if (defaultSchool?.atendimento_integral) {
+      defaultAtendimento = 'atendimento_integral';
+    }
+    
     setFormData({
       school_id: defaultSchoolId,
       academic_year: new Date().getFullYear(),
@@ -185,7 +193,7 @@ export const Classes = () => {
       education_level: '',
       grade_level: '',
       teacher_ids: [],
-      atendimento_programa: ''
+      atendimento_programa: defaultAtendimento
     });
     setIsModalOpen(true);
   };
