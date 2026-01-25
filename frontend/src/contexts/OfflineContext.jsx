@@ -166,14 +166,39 @@ export const OfflineProvider = ({ children }) => {
     };
   }, [notificationsEnabled]);
 
-  // Registra o Service Worker
+  // Registra o Service Worker e configura Background Sync
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
-        .then((registration) => {
+        .then(async (registration) => {
           console.log('[PWA] Service Worker registrado:', registration.scope);
           setIsServiceWorkerReady(true);
+
+          // Registra Background Sync se disponível
+          if ('sync' in registration) {
+            try {
+              await registration.sync.register('sync-pending-data');
+              console.log('[PWA] Background Sync registrado');
+            } catch (err) {
+              console.log('[PWA] Background Sync não disponível:', err);
+            }
+          }
+
+          // Registra Periodic Background Sync se disponível (para verificações periódicas)
+          if ('periodicSync' in registration) {
+            try {
+              const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+              if (status.state === 'granted') {
+                await registration.periodicSync.register('sync-check', {
+                  minInterval: 60 * 60 * 1000 // 1 hora
+                });
+                console.log('[PWA] Periodic Background Sync registrado');
+              }
+            } catch (err) {
+              console.log('[PWA] Periodic Sync não disponível:', err);
+            }
+          }
 
           // Verifica atualizações
           registration.addEventListener('updatefound', () => {
@@ -193,10 +218,41 @@ export const OfflineProvider = ({ children }) => {
 
       // Escuta mensagens do Service Worker
       navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data.type === 'SYNC_COMPLETE') {
-          setLastSyncTime(new Date());
-          setSyncStatus('success');
-          updatePendingCount();
+        const { type, payload } = event.data || {};
+        
+        switch (type) {
+          case 'SYNC_COMPLETE':
+            console.log('[PWA] Sincronização em background concluída:', payload);
+            setLastSyncTime(new Date());
+            setSyncStatus('success');
+            updatePendingCount();
+            setTimeout(() => setSyncStatus('idle'), 3000);
+            break;
+            
+          case 'SYNC_ERROR':
+            console.error('[PWA] Erro na sincronização em background:', payload);
+            setSyncStatus('error');
+            break;
+            
+          case 'GET_SYNC_INFO':
+            // Service Worker está pedindo informações para sincronização
+            if (event.ports && event.ports[0]) {
+              const token = localStorage.getItem('accessToken');
+              const apiUrl = process.env.REACT_APP_BACKEND_URL;
+              event.ports[0].postMessage({ token, apiUrl });
+            }
+            break;
+            
+          case 'GET_AUTH_TOKEN':
+            // Service Worker está pedindo o token
+            if (event.ports && event.ports[0]) {
+              const token = localStorage.getItem('accessToken');
+              event.ports[0].postMessage({ token });
+            }
+            break;
+            
+          default:
+            break;
         }
       });
     }
