@@ -1555,8 +1555,14 @@ def generate_ficha_individual_pdf(
     # Verificar se é Educação Infantil (avaliação conceitual)
     is_educacao_infantil = nivel_ensino == 'educacao_infantil'
     
-    if is_educacao_infantil:
-        # EDUCAÇÃO INFANTIL: Tabela simplificada com conceitos
+    # Verificar se é 1º ou 2º ano (avaliação conceitual específica)
+    is_anos_iniciais_conceitual = is_serie_conceitual_anos_iniciais(grade_level)
+    
+    # Usar avaliação conceitual para Educação Infantil OU 1º/2º ano
+    usa_conceito = is_educacao_infantil or is_anos_iniciais_conceitual
+    
+    if usa_conceito:
+        # EDUCAÇÃO INFANTIL ou 1º/2º ANO: Tabela simplificada com conceitos
         header_row1 = [
             'COMPONENTES\nCURRICULARES',
             'C.H.',
