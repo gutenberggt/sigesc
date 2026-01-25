@@ -4999,7 +4999,7 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
         '_meta': {
             'faltas_regular': faltas_regular,
             'faltas_por_componente': faltas_por_componente,
-            'is_escola_integral': escola_integral
+            'is_escola_integral': turma_integral  # Usa atendimento da TURMA
         }
     }
     
