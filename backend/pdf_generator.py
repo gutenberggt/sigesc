@@ -702,12 +702,12 @@ def generate_boletim_pdf(
             total_geral_faltas += total_faltas
         
         # Calcular média/conceito
-        if is_educacao_infantil:
-            # Educação Infantil: média é o MAIOR conceito alcançado
+        if usa_conceito:
+            # Educação Infantil ou 1º/2º ano: média é o MAIOR conceito alcançado
             valid_grades = [g for g in [n1, n2, n3, n4] if isinstance(g, (int, float))]
             if valid_grades:
                 media = max(valid_grades)
-                media_str = valor_para_conceito(media)
+                media_str = valor_para_conceito(media, student_grade_level)
             else:
                 media_str = '-'
         else:
@@ -723,8 +723,8 @@ def generate_boletim_pdf(
         
         # Formatar valores
         def fmt_grade(v):
-            if is_educacao_infantil:
-                return formatar_nota_conceitual(v, True) if isinstance(v, (int, float)) else (str(v) if v else '-')
+            if usa_conceito:
+                return formatar_nota_conceitual(v, is_educacao_infantil, student_grade_level) if isinstance(v, (int, float)) else (str(v) if v else '-')
             if isinstance(v, (int, float)):
                 return f"{v:.1f}".replace('.', ',')
             return str(v) if v else ''
