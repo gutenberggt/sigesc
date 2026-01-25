@@ -6742,23 +6742,22 @@ async def debug_courses_for_class(class_id: str, request: Request = None):
         course_grade_levels = course.get('grade_levels', [])
         course_name = course.get('name', 'N/A')
         
-        # Verificar atendimento
+        # Verificar atendimento - baseado na TURMA, não na escola
         if atendimento == 'transversal_formativa':
             pass
         elif atendimento == 'atendimento_integral':
-            if not escola_integral:
+            if not turma_integral:
                 excluded_courses.append({
                     "name": course_name,
-                    "reason": f"atendimento_integral e escola não é integral (escola_integral={escola_integral})",
+                    "reason": f"atendimento_integral e turma não é integral (turma_atendimento={turma_atendimento})",
                     "course_data": course
                 })
                 continue
         elif atendimento and atendimento not in ['atendimento_integral', 'transversal_formativa']:
-            escola_oferece = school.get(atendimento, False)
-            if not escola_oferece:
+            if turma_atendimento != atendimento:
                 excluded_courses.append({
                     "name": course_name,
-                    "reason": f"atendimento={atendimento} não oferecido pela escola",
+                    "reason": f"atendimento={atendimento} diferente do atendimento da turma={turma_atendimento}",
                     "course_data": course
                 })
                 continue
@@ -6781,13 +6780,18 @@ async def debug_courses_for_class(class_id: str, request: Request = None):
             "name": class_info.get('name'),
             "grade_level": grade_level,
             "nivel_ensino_original": class_info.get('nivel_ensino'),
-            "nivel_ensino_inferido": nivel_ensino
+            "nivel_ensino_inferido": nivel_ensino,
+            "atendimento_programa": turma_atendimento  # Adicionado
         },
         "school_info": {
             "id": school_id,
             "name": school.get('name'),
             "atendimento_integral": escola_integral,
             "atendimentos": {k: v for k, v in school.items() if k.startswith('atendimento') or k.endswith('_integral')}
+        },
+        "turma_info": {
+            "atendimento_programa": turma_atendimento,
+            "turma_integral": turma_integral
         },
         "total_courses_found": len(all_courses),
         "total_courses_filtered": len(filtered_courses),
