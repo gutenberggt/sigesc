@@ -166,8 +166,25 @@ async def create_indexes():
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
 
-# Mount static files for uploads
-app.mount("/api/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+# Explicit route to serve uploaded files (works better with reverse proxies)
+@app.get("/api/uploads/{file_path:path}")
+async def serve_upload(file_path: str):
+    """Serve uploaded files"""
+    file_location = UPLOADS_DIR / file_path
+    if file_location.exists() and file_location.is_file():
+        # Determine content type
+        suffix = file_location.suffix.lower()
+        content_types = {
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.pdf': 'application/pdf',
+        }
+        content_type = content_types.get(suffix, 'application/octet-stream')
+        return FileResponse(str(file_location), media_type=content_type)
+    raise HTTPException(status_code=404, detail="File not found")
 
 # Mount static files directory for backups
 STATIC_DIR = ROOT_DIR / "static"
