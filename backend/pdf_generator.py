@@ -565,9 +565,18 @@ def generate_boletim_pdf(
     # Verificar se é Educação Infantil (avaliação conceitual)
     is_educacao_infantil = nivel_ensino == 'educacao_infantil'
     
+    # Obter o grade_level original (não lowercase) para buscar carga horária por série
+    student_grade_level = class_info.get('grade_level', '')
+    
+    # Verificar se é 1º ou 2º ano (avaliação conceitual específica)
+    is_anos_iniciais_conceitual = is_serie_conceitual_anos_iniciais(student_grade_level)
+    
+    # Usar avaliação conceitual para Educação Infantil OU 1º/2º ano
+    usa_conceito = is_educacao_infantil or is_anos_iniciais_conceitual
+    
     # Cabeçalho da tabela - Modelo simplificado
-    # Para Educação Infantil, não tem coluna de Recuperação
-    if is_educacao_infantil:
+    # Para Educação Infantil e 1º/2º ano, não tem coluna de Recuperação
+    if usa_conceito:
         header_row1 = [
             'COMPONENTES CURRICULARES',
             'CH',
@@ -600,9 +609,6 @@ def generate_boletim_pdf(
     
     # Ordenar componentes curriculares por nível de ensino
     courses = ordenar_componentes_por_nivel(courses, nivel_ensino)
-    
-    # Obter o grade_level original (não lowercase) para buscar carga horária por série
-    student_grade_level = class_info.get('grade_level', '')
     
     for course in courses:
         course_grades = grades_by_course.get(course.get('id'), {})
