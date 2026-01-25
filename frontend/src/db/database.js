@@ -69,7 +69,7 @@ export const SYNC_OPERATIONS = {
 };
 
 /**
- * Adiciona um item à fila de sincronização
+ * Adiciona um item à fila de sincronização e registra Background Sync
  */
 export async function addToSyncQueue(collection, operation, recordId, data = null) {
   await db.syncQueue.add({
@@ -81,6 +81,17 @@ export async function addToSyncQueue(collection, operation, recordId, data = nul
     status: 'pending',
     retries: 0
   });
+  
+  // Registra Background Sync para sincronizar quando voltar online
+  if ('serviceWorker' in navigator && 'sync' in window.SyncManager?.prototype) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.sync.register('sync-pending-data');
+      console.log('[DB] Background Sync registrado para sincronização pendente');
+    } catch (err) {
+      console.log('[DB] Background Sync não disponível:', err.message);
+    }
+  }
 }
 
 /**
