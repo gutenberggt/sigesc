@@ -21,11 +21,24 @@ const CONCEITOS_EDUCACAO_INFANTIL = {
   NT: { valor: 0.0, descricao: 'Não Trabalhado', cor: 'text-gray-500' },
 };
 
+// ===== SISTEMA DE AVALIAÇÃO CONCEITUAL - 1º E 2º ANO =====
+const CONCEITOS_ANOS_INICIAIS = {
+  C: { valor: 10.0, descricao: 'Consolidado', cor: 'text-green-600' },
+  ED: { valor: 7.5, descricao: 'Em Desenvolvimento', cor: 'text-blue-600' },
+  ND: { valor: 5.0, descricao: 'Não Desenvolvido', cor: 'text-yellow-600' },
+};
+
 const VALOR_PARA_CONCEITO = {
   10.0: 'OD',
   7.5: 'DP',
   5.0: 'ND',
   0.0: 'NT',
+};
+
+const VALOR_PARA_CONCEITO_ANOS_INICIAIS = {
+  10.0: 'C',
+  7.5: 'ED',
+  5.0: 'ND',
 };
 
 // Lista de séries/anos da Educação Infantil
@@ -36,6 +49,9 @@ const SERIES_EDUCACAO_INFANTIL = [
   'Creche', 'Jardim', 'Jardim I', 'Jardim II'
 ];
 
+// Lista de séries que usam conceitos específicos (1º e 2º ano)
+const SERIES_ANOS_INICIAIS_CONCEITUAL = ['1º Ano', '2º Ano', '1º ano', '2º ano', '1 Ano', '2 Ano'];
+
 // Verifica se é série de Educação Infantil
 const isEducacaoInfantil = (gradeLevel, nivelEnsino) => {
   if (nivelEnsino === 'educacao_infantil') return true;
@@ -45,10 +61,33 @@ const isEducacaoInfantil = (gradeLevel, nivelEnsino) => {
   );
 };
 
+// Verifica se é 1º ou 2º ano (usa conceitos específicos)
+const isAnosIniciaisConceitual = (gradeLevel) => {
+  if (!gradeLevel) return false;
+  const gradeLower = gradeLevel.toLowerCase();
+  return SERIES_ANOS_INICIAIS_CONCEITUAL.some(serie => 
+    gradeLower.includes(serie.toLowerCase())
+  );
+};
+
+// Verifica se a série usa avaliação conceitual
+const usaAvaliacaoConceitual = (gradeLevel, nivelEnsino) => {
+  return isEducacaoInfantil(gradeLevel, nivelEnsino) || isAnosIniciaisConceitual(gradeLevel);
+};
+
 // Converte valor para conceito
-const valorParaConceito = (valor) => {
+const valorParaConceito = (valor, gradeLevel = null) => {
   if (valor === null || valor === undefined || valor === '') return '-';
   const num = Number(valor);
+  
+  // Se for 1º ou 2º ano, usar conceitos específicos
+  if (gradeLevel && isAnosIniciaisConceitual(gradeLevel)) {
+    if (num >= 10) return 'C';
+    if (num >= 7.5) return 'ED';
+    return 'ND';
+  }
+  
+  // Educação Infantil
   if (num >= 10) return 'OD';
   if (num >= 7.5) return 'DP';
   if (num >= 5) return 'ND';
@@ -57,10 +96,16 @@ const valorParaConceito = (valor) => {
 
 // Converte conceito para valor
 const conceitoParaValor = (conceito) => {
-  return CONCEITOS_EDUCACAO_INFANTIL[conceito]?.valor ?? null;
+  if (CONCEITOS_EDUCACAO_INFANTIL[conceito]) {
+    return CONCEITOS_EDUCACAO_INFANTIL[conceito].valor;
+  }
+  if (CONCEITOS_ANOS_INICIAIS[conceito]) {
+    return CONCEITOS_ANOS_INICIAIS[conceito].valor;
+  }
+  return null;
 };
 
-// Calcula o maior conceito (para Educação Infantil)
+// Calcula o maior conceito (para Educação Infantil e 1º/2º ano)
 const calcularMaiorConceito = (b1, b2, b3, b4) => {
   const valores = [b1, b2, b3, b4].filter(v => v !== null && v !== undefined && v !== '');
   if (valores.length === 0) return null;
