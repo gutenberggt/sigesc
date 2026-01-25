@@ -836,14 +836,25 @@ export function Grades() {
                   </div>
                 ) : gradesData.length > 0 ? (
                   <div>
-                    {/* Indicador de Educação Infantil */}
-                    {isEdInfantil && (
+                    {/* Indicador de avaliação conceitual */}
+                    {usaConceito && (
                       <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                         <p className="text-sm text-purple-800">
-                          <strong>Educação Infantil:</strong> Avaliação por conceitos. 
-                          <span className="ml-2">
-                            <strong>OD</strong>=Desenvolvido | <strong>DP</strong>=Parcialmente | <strong>ND</strong>=Não Desenvolvido | <strong>NT</strong>=Não Trabalhado
-                          </span>
+                          {isAnosIniciaisConc ? (
+                            <>
+                              <strong>1º/2º Ano - Avaliação Conceitual:</strong>
+                              <span className="ml-2">
+                                <strong>C</strong>=Consolidado | <strong>ED</strong>=Em Desenvolvimento | <strong>ND</strong>=Não Desenvolvido
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <strong>Educação Infantil:</strong> Avaliação por conceitos. 
+                              <span className="ml-2">
+                                <strong>OD</strong>=Desenvolvido | <strong>DP</strong>=Parcialmente | <strong>ND</strong>=Não Desenvolvido | <strong>NT</strong>=Não Trabalhado
+                              </span>
+                            </>
+                          )}
                         </p>
                       </div>
                     )}
@@ -853,29 +864,29 @@ export function Grades() {
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
                             <th className={`px-4 py-3 text-center text-xs font-medium uppercase ${!canEditField(1) ? 'bg-red-50 text-red-500' : 'text-gray-500'}`}>
-                              {isEdInfantil ? '1º Bim' : 'B1 (×2)'}
+                              {usaConceito ? '1º Bim' : 'B1 (×2)'}
                               {!canEditField(1) && <Lock className="inline w-3 h-3 ml-1" />}
                             </th>
                             <th className={`px-4 py-3 text-center text-xs font-medium uppercase ${!canEditField(2) ? 'bg-red-50 text-red-500' : 'text-gray-500'}`}>
-                              {isEdInfantil ? '2º Bim' : 'B2 (×3)'}
+                              {usaConceito ? '2º Bim' : 'B2 (×3)'}
                               {!canEditField(2) && <Lock className="inline w-3 h-3 ml-1" />}
                             </th>
-                            {!isEdInfantil && (
+                            {!usaConceito && (
                               <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 1º</th>
                             )}
                             <th className={`px-4 py-3 text-center text-xs font-medium uppercase ${!canEditField(3) ? 'bg-red-50 text-red-500' : 'text-gray-500'}`}>
-                              {isEdInfantil ? '3º Bim' : 'B3 (×2)'}
+                              {usaConceito ? '3º Bim' : 'B3 (×2)'}
                               {!canEditField(3) && <Lock className="inline w-3 h-3 ml-1" />}
                             </th>
                             <th className={`px-4 py-3 text-center text-xs font-medium uppercase ${!canEditField(4) ? 'bg-red-50 text-red-500' : 'text-gray-500'}`}>
-                              {isEdInfantil ? '4º Bim' : 'B4 (×3)'}
+                              {usaConceito ? '4º Bim' : 'B4 (×3)'}
                               {!canEditField(4) && <Lock className="inline w-3 h-3 ml-1" />}
                             </th>
-                            {!isEdInfantil && (
+                            {!usaConceito && (
                               <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 2º</th>
                             )}
                             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                              {isEdInfantil ? 'Conceito' : 'Média'}
+                              {usaConceito ? 'Conceito' : 'Média'}
                             </th>
                             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
                           </tr>
@@ -888,11 +899,12 @@ export function Grades() {
                                 <div className="text-xs text-gray-500">{item.student.enrollment_number}</div>
                               </td>
                               <td className={`px-4 py-3 text-center ${!canEditField(1) ? 'bg-red-50/50' : ''}`}>
-                                {isEdInfantil ? (
+                                {usaConceito ? (
                                   <ConceitoSelect
                                     value={item.grade.b1}
                                     onChange={(v) => updateLocalGrade(index, 'b1', v)}
                                     disabled={!canEditField(1)}
+                                    gradeLevel={currentGradeLevel}
                                   />
                                 ) : (
                                   <GradeInput
