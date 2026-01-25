@@ -1612,12 +1612,12 @@ def generate_ficha_individual_pdf(
             return f"{v:.1f}".replace('.', ',')
         return str(v) if v else '-'
     
-    def fmt_grade_conceitual(v):
-        """Formata nota como conceito para Educação Infantil"""
+    def fmt_grade_conceitual(v, gl=None):
+        """Formata nota como conceito para Educação Infantil ou 1º/2º Ano"""
         if v is None:
             return '-'
         if isinstance(v, (int, float)):
-            return valor_para_conceito(v)
+            return valor_para_conceito(v, gl)
         return str(v) if v else '-'
     
     def fmt_int(v):
