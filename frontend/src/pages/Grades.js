@@ -915,11 +915,12 @@ export function Grades() {
                                 )}
                               </td>
                               <td className={`px-4 py-3 text-center ${!canEditField(2) ? 'bg-red-50/50' : ''}`}>
-                                {isEdInfantil ? (
+                                {usaConceito ? (
                                   <ConceitoSelect
                                     value={item.grade.b2}
                                     onChange={(v) => updateLocalGrade(index, 'b2', v)}
                                     disabled={!canEditField(2)}
+                                    gradeLevel={currentGradeLevel}
                                   />
                                 ) : (
                                   <GradeInput
@@ -929,7 +930,7 @@ export function Grades() {
                                   />
                                 )}
                               </td>
-                              {!isEdInfantil && (
+                              {!usaConceito && (
                                 <td className="px-4 py-3 text-center bg-blue-50">
                                   <GradeInput
                                     value={item.grade.rec_s1}
@@ -940,11 +941,12 @@ export function Grades() {
                                 </td>
                               )}
                               <td className={`px-4 py-3 text-center ${!canEditField(3) ? 'bg-red-50/50' : ''}`}>
-                                {isEdInfantil ? (
+                                {usaConceito ? (
                                   <ConceitoSelect
                                     value={item.grade.b3}
                                     onChange={(v) => updateLocalGrade(index, 'b3', v)}
                                     disabled={!canEditField(3)}
+                                    gradeLevel={currentGradeLevel}
                                   />
                                 ) : (
                                   <GradeInput
@@ -955,11 +957,12 @@ export function Grades() {
                                 )}
                               </td>
                               <td className={`px-4 py-3 text-center ${!canEditField(4) ? 'bg-red-50/50' : ''}`}>
-                                {isEdInfantil ? (
+                                {usaConceito ? (
                                   <ConceitoSelect
                                     value={item.grade.b4}
                                     onChange={(v) => updateLocalGrade(index, 'b4', v)}
                                     disabled={!canEditField(4)}
+                                    gradeLevel={currentGradeLevel}
                                   />
                                 ) : (
                                   <GradeInput
@@ -969,7 +972,7 @@ export function Grades() {
                                   />
                                 )}
                               </td>
-                              {!isEdInfantil && (
+                              {!usaConceito && (
                                 <td className="px-4 py-3 text-center bg-blue-50">
                                   <GradeInput
                                     value={item.grade.rec_s2}
@@ -980,9 +983,13 @@ export function Grades() {
                                 </td>
                               )}
                               <td className="px-4 py-3 text-center">
-                                {isEdInfantil ? (
-                                  <span className={`font-bold ${CONCEITOS_EDUCACAO_INFANTIL[valorParaConceito(item.grade.final_average)]?.cor || 'text-gray-400'}`}>
-                                    {item.grade.final_average !== null ? valorParaConceito(item.grade.final_average) : '-'}
+                                {usaConceito ? (
+                                  <span className={`font-bold ${
+                                    isAnosIniciaisConc 
+                                      ? (CONCEITOS_ANOS_INICIAIS[valorParaConceito(item.grade.final_average, currentGradeLevel)]?.cor || 'text-gray-400')
+                                      : (CONCEITOS_EDUCACAO_INFANTIL[valorParaConceito(item.grade.final_average, currentGradeLevel)]?.cor || 'text-gray-400')
+                                  }`}>
+                                    {item.grade.final_average !== null ? valorParaConceito(item.grade.final_average, currentGradeLevel) : '-'}
                                   </span>
                                 ) : (
                                   <span className={`font-bold ${
