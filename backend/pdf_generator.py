@@ -1686,21 +1686,21 @@ def generate_ficha_individual_pdf(
             freq_componente = att.get('frequency_percentage', 100.0)
             freq_componente_str = f"{freq_componente:.2f}".replace('.', ',')
         
-        if is_educacao_infantil:
-            # EDUCAÇÃO INFANTIL: Conceitos e maior conceito como média
+        if usa_conceito:
+            # EDUCAÇÃO INFANTIL ou 1º/2º ANO: Conceitos e maior conceito como média
             valid_grades = [g for g in [b1, b2, b3, b4] if isinstance(g, (int, float))]
             if valid_grades:
-                conceito_final = valor_para_conceito(max(valid_grades))
+                conceito_final = valor_para_conceito(max(valid_grades), student_grade_level)
             else:
                 conceito_final = '-'
             
             row = [
                 course_name,
                 str(carga_horaria),
-                fmt_grade_conceitual(b1),
-                fmt_grade_conceitual(b2),
-                fmt_grade_conceitual(b3),
-                fmt_grade_conceitual(b4),
+                fmt_grade_conceitual(b1, student_grade_level),
+                fmt_grade_conceitual(b2, student_grade_level),
+                fmt_grade_conceitual(b3, student_grade_level),
+                fmt_grade_conceitual(b4, student_grade_level),
                 conceito_final,
                 fmt_int(total_faltas),
                 freq_componente_str
