@@ -383,7 +383,7 @@ export function SchoolsComplete() {
       anos_letivos: school.anos_letivos || {}
     });
     setIsModalOpen(true);
-    loadSchoolStaff(school.id);
+    loadSchoolStaff(school.id, selectedYear);
   }
 
   function handleEdit(school) {
@@ -394,7 +394,7 @@ export function SchoolsComplete() {
       anos_letivos: school.anos_letivos || {}
     });
     setIsModalOpen(true);
-    loadSchoolStaff(school.id);
+    loadSchoolStaff(school.id, selectedYear);
   }
 
   async function handleDelete(school) {
