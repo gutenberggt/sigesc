@@ -86,6 +86,7 @@ export const Classes = () => {
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [filterSchoolId, setFilterSchoolId] = useState('');
+  const [atendimentoChangeWarning, setAtendimentoChangeWarning] = useState(null);
   
   // Estados para modal de visualização
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
