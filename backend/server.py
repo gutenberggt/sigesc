@@ -5319,7 +5319,7 @@ async def get_ficha_individual(
     logger.info(f"Ficha Individual: grade_level={grade_level}, nivel_ensino inferido={nivel_ensino}")
     
     # Determinar o tipo de atendimento/programa da TURMA (não da escola)
-    turma_atendimento = turma.get('atendimento_programa', '')
+    turma_atendimento = class_info.get('atendimento_programa', '')
     turma_integral = turma_atendimento == 'atendimento_integral'
     logger.info(f"Ficha Individual: turma_atendimento={turma_atendimento}, turma_integral={turma_integral}")
     
