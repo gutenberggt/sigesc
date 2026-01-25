@@ -1760,7 +1760,7 @@ export function SchoolsComplete() {
             <p className="text-gray-500">Nenhum servidor lotado nesta escola em {selectedYear}</p>
             <button
               type="button"
-              onClick={() => navigate('/admin/staff')}}
+              onClick={() => navigate('/admin/staff')}
               className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
             >
               Cadastrar lotação
