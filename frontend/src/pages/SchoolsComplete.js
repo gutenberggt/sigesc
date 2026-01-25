@@ -329,6 +329,14 @@ export function SchoolsComplete() {
     }
   }
 
+  // Recarrega servidores quando o ano letivo é alterado (e o modal está aberto)
+  useEffect(() => {
+    if (isModalOpen && (editingSchool?.id || formData?.id)) {
+      const schoolId = editingSchool?.id || formData?.id;
+      loadSchoolStaff(schoolId, selectedYear);
+    }
+  }, [selectedYear, isModalOpen]);
+
   // Funções para gerenciar anos letivos
   function adicionarAnoLetivo(ano) {
     if (!ano) return;
