@@ -5436,7 +5436,7 @@ async def get_ficha_individual(
         '_meta': {
             'faltas_regular': faltas_regular,
             'faltas_por_componente': faltas_por_componente,
-            'is_escola_integral': escola_integral
+            'is_escola_integral': turma_integral  # Usa atendimento da TURMA
         }
     }
     
