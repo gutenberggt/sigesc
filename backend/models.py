@@ -1672,6 +1672,8 @@ class MantenedoraBase(BaseModel):
     responsavel_nome: Optional[str] = None
     responsavel_cargo: Optional[str] = None
     responsavel_cpf: Optional[str] = None
+    responsavel_celular: Optional[str] = None
+    responsavel_email: Optional[str] = None
     
     # Configurações de Exibição
     exibir_pre_matricula: Optional[bool] = True  # Exibir botão de pré-matrícula na tela de login
@@ -1712,6 +1714,8 @@ class MantenedoraUpdate(BaseModel):
     responsavel_nome: Optional[str] = None
     responsavel_cargo: Optional[str] = None
     responsavel_cpf: Optional[str] = None
+    responsavel_celular: Optional[str] = None
+    responsavel_email: Optional[str] = None
     
     # Configurações de Exibição
     exibir_pre_matricula: Optional[bool] = None
