@@ -60,6 +60,8 @@ export default function Mantenedora() {
     responsavel_nome: '',
     responsavel_cargo: '',
     responsavel_cpf: '',
+    responsavel_celular: '',
+    responsavel_email: '',
     
     // Configurações de Exibição
     exibir_pre_matricula: true
@@ -106,6 +108,8 @@ export default function Mantenedora() {
         responsavel_nome: data.responsavel_nome || '',
         responsavel_cargo: data.responsavel_cargo || '',
         responsavel_cpf: data.responsavel_cpf || '',
+        responsavel_celular: data.responsavel_celular || '',
+        responsavel_email: data.responsavel_email || '',
         // Configurações de Exibição
         exibir_pre_matricula: data.exibir_pre_matricula !== false // default true
       });
