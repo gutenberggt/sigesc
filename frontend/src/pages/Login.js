@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Mail, Lock, AlertCircle, UserPlus, WifiOff, Info } from 'lucide-react';
+import { mantenedoraAPI } from '@/services/api';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
@@ -10,6 +11,7 @@ export const Login = () => {
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [exibirPreMatricula, setExibirPreMatricula] = useState(true);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -26,6 +28,23 @@ export const Login = () => {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Busca configuração da mantenedora
+  useEffect(() => {
+    const fetchMantenedora = async () => {
+      try {
+        const data = await mantenedoraAPI.get();
+        setExibirPreMatricula(data.exibir_pre_matricula !== false);
+      } catch (error) {
+        console.error('Erro ao buscar configuração:', error);
+        // Em caso de erro, mantém o padrão (exibir)
+      }
+    };
+    
+    if (isOnline) {
+      fetchMantenedora();
+    }
+  }, [isOnline]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
