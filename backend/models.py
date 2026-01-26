@@ -1672,6 +1672,9 @@ class MantenedoraBase(BaseModel):
     responsavel_nome: Optional[str] = None
     responsavel_cargo: Optional[str] = None
     responsavel_cpf: Optional[str] = None
+    
+    # Configurações de Exibição
+    exibir_pre_matricula: Optional[bool] = True  # Exibir botão de pré-matrícula na tela de login
 
 class MantenedoraUpdate(BaseModel):
     """Modelo para atualização da Mantenedora"""
@@ -1709,6 +1712,9 @@ class MantenedoraUpdate(BaseModel):
     responsavel_nome: Optional[str] = None
     responsavel_cargo: Optional[str] = None
     responsavel_cpf: Optional[str] = None
+    
+    # Configurações de Exibição
+    exibir_pre_matricula: Optional[bool] = None
 
 class Mantenedora(MantenedoraBase):
     model_config = ConfigDict(extra="ignore")
