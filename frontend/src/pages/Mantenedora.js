@@ -59,7 +59,10 @@ export default function Mantenedora() {
     // Responsável Legal
     responsavel_nome: '',
     responsavel_cargo: '',
-    responsavel_cpf: ''
+    responsavel_cpf: '',
+    
+    // Configurações de Exibição
+    exibir_pre_matricula: true
   });
 
   const showAlert = (type, message) => {
@@ -102,7 +105,9 @@ export default function Mantenedora() {
         contato_cargo: data.contato_cargo || '',
         responsavel_nome: data.responsavel_nome || '',
         responsavel_cargo: data.responsavel_cargo || '',
-        responsavel_cpf: data.responsavel_cpf || ''
+        responsavel_cpf: data.responsavel_cpf || '',
+        // Configurações de Exibição
+        exibir_pre_matricula: data.exibir_pre_matricula !== false // default true
       });
     } catch (error) {
       console.error('Erro ao carregar mantenedora:', error);
