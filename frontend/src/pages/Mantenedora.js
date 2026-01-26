@@ -895,6 +895,32 @@ export default function Mantenedora() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Configurações de Exibição */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Settings className="w-5 h-5 text-gray-600" />
+                Configurações de Exibição
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="exibir_pre_matricula"
+                  checked={formData.exibir_pre_matricula}
+                  onCheckedChange={(checked) => handleInputChange('exibir_pre_matricula', checked)}
+                  data-testid="exibir-pre-matricula-checkbox"
+                />
+                <Label htmlFor="exibir_pre_matricula" className="cursor-pointer">
+                  Exibir botão de Pré-Matrícula na tela de login
+                </Label>
+              </div>
+              <p className="text-xs text-gray-500">
+                Quando habilitado, o botão de pré-matrícula será exibido na tela de login para os responsáveis realizarem a pré-matrícula de novos alunos.
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Botão Salvar */}
