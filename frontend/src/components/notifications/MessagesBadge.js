@@ -147,7 +147,7 @@ export const MessagesBadge = () => {
                   key={conv.id}
                   className="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
                   onClick={() => {
-                    navigate(`/perfil?chat=${conv.user_id}`);
+                    navigate(`/profile?chat=${conv.user_id}`);
                     setIsOpen(false);
                   }}
                 >
