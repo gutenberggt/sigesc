@@ -375,7 +375,7 @@ export const useStaff = () => {
       }
     } catch (error) {
       console.error('Erro ao excluir lotação:', error);
-      showAlertMessage('error', error.response?.data?.detail || 'Erro ao excluir lotação');
+      showAlertMessage('error', extractErrorMessage(error) || 'Erro ao excluir lotação');
     }
   }, [lotacaoForm.staff_id, activeTab, loadExistingLotacoes, loadLotacoes, showAlertMessage]);
   
@@ -389,7 +389,7 @@ export const useStaff = () => {
       }
     } catch (error) {
       console.error('Erro ao excluir alocação:', error);
-      showAlertMessage('error', error.response?.data?.detail || 'Erro ao excluir alocação');
+      showAlertMessage('error', extractErrorMessage(error) || 'Erro ao excluir alocação');
     }
   }, [alocacaoForm.staff_id, activeTab, loadExistingAlocacoes, loadAlocacoes, showAlertMessage]);
   
@@ -535,7 +535,7 @@ export const useStaff = () => {
       loadStaff();
     } catch (error) {
       console.error('Erro ao salvar servidor:', error);
-      showAlertMessage('error', error.response?.data?.detail || 'Erro ao salvar servidor');
+      showAlertMessage('error', extractErrorMessage(error) || 'Erro ao salvar servidor');
     } finally {
       setSaving(false);
     }
@@ -646,7 +646,7 @@ export const useStaff = () => {
       loadLotacoes();
     } catch (error) {
       console.error('Erro ao salvar lotações:', error);
-      showAlertMessage('error', error.response?.data?.detail || 'Erro ao salvar lotações');
+      showAlertMessage('error', extractErrorMessage(error) || 'Erro ao salvar lotações');
     } finally {
       setSaving(false);
     }
@@ -838,7 +838,7 @@ export const useStaff = () => {
       loadAlocacoes();
     } catch (error) {
       console.error('Erro ao salvar alocações:', error);
-      showAlertMessage('error', error.response?.data?.detail || 'Erro ao salvar alocações');
+      showAlertMessage('error', extractErrorMessage(error) || 'Erro ao salvar alocações');
     } finally {
       setSaving(false);
     }
@@ -870,7 +870,7 @@ export const useStaff = () => {
       setShowDeleteModal(false);
     } catch (error) {
       console.error('Erro ao excluir:', error);
-      showAlertMessage('error', error.response?.data?.detail || 'Erro ao excluir');
+      showAlertMessage('error', extractErrorMessage(error) || 'Erro ao excluir');
     } finally {
       setDeleting(false);
     }
