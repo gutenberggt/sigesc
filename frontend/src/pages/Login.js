@@ -173,33 +173,37 @@ export const Login = () => {
             </button>
           </form>
           
-          {/* Divisor */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">ou</span>
-            </div>
-          </div>
-          
-          {/* Botão de Pré-Matrícula */}
-          <Link
-            to="/pre-matricula"
-            className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-colors ${
-              isOnline 
-                ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-4 focus:ring-green-300'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed pointer-events-none'
-            }`}
-            data-testid="pre-matricula-button"
-            onClick={(e) => !isOnline && e.preventDefault()}
-          >
-            <UserPlus size={20} />
-            Pré-Matrícula
-          </Link>
-          <p className="text-xs text-gray-500 text-center mt-2">
-            {isOnline ? 'Realize a pré-matrícula de novos alunos' : 'Pré-matrícula requer conexão com internet'}
-          </p>
+          {/* Divisor e Botão de Pré-Matrícula - apenas se habilitado */}
+          {exibirPreMatricula && (
+            <>
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">ou</span>
+                </div>
+              </div>
+              
+              {/* Botão de Pré-Matrícula */}
+              <Link
+                to="/pre-matricula"
+                className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-colors ${
+                  isOnline 
+                    ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-4 focus:ring-green-300'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed pointer-events-none'
+                }`}
+                data-testid="pre-matricula-button"
+                onClick={(e) => !isOnline && e.preventDefault()}
+              >
+                <UserPlus size={20} />
+                Pré-Matrícula
+              </Link>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                {isOnline ? 'Realize a pré-matrícula de novos alunos' : 'Pré-matrícula requer conexão com internet'}
+              </p>
+            </>
+          )}
 
         </div>
       </div>
