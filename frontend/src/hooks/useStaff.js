@@ -85,9 +85,27 @@ export const useStaff = () => {
   const canEdit = user?.role === 'admin' || user?.role === 'secretario';
   const canDelete = user?.role === 'admin';
   
+  // Helper para extrair mensagem de erro do Pydantic ou string
+  const extractErrorMessage = (error) => {
+    const detail = error.response?.data?.detail;
+    if (typeof detail === 'string') {
+      return detail;
+    }
+    if (Array.isArray(detail) && detail.length > 0) {
+      // Erro de validação Pydantic - extrai a mensagem do primeiro erro
+      return detail[0]?.msg || detail[0]?.message || 'Erro de validação';
+    }
+    if (detail && typeof detail === 'object') {
+      return detail.msg || detail.message || 'Erro desconhecido';
+    }
+    return 'Erro ao processar requisição';
+  };
+  
   // Alert helper
   const showAlertMessage = useCallback((type, message) => {
-    setAlert({ show: true, type, message });
+    // Garante que message seja sempre uma string
+    const safeMessage = typeof message === 'string' ? message : String(message);
+    setAlert({ show: true, type, message: safeMessage });
     setTimeout(() => setAlert({ show: false, type: '', message: '' }), 3000);
   }, []);
   
