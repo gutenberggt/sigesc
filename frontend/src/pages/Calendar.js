@@ -763,7 +763,8 @@ export const Calendar = () => {
     await loadCalendarioLetivo(ano);
   };
   
-  const canEditPeriodos = user?.role && ['admin', 'secretario', 'semed'].includes(user.role);
+  // Configurar Períodos Bimestrais - Exclusivo ao administrador
+  const canEditPeriodos = user?.role === 'admin';
   
   // Navegação
   const navigate = (direction) => {
