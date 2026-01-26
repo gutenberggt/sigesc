@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Save, MapPin, Phone, User, Loader2, Upload, Image, X, Home, CheckSquare } from 'lucide-react';
+import { Building2, Save, MapPin, Phone, User, Loader2, Upload, Image, X, Home, CheckSquare, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
