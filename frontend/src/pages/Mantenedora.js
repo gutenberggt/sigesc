@@ -897,6 +897,29 @@ export default function Mantenedora() {
                   />
                 </div>
               </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="responsavel_celular">Celular</Label>
+                  <Input
+                    id="responsavel_celular"
+                    value={formData.responsavel_celular}
+                    onChange={(e) => handleInputChange('responsavel_celular', e.target.value)}
+                    placeholder="(00) 00000-0000"
+                    maxLength={15}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="responsavel_email">E-mail</Label>
+                  <Input
+                    id="responsavel_email"
+                    type="email"
+                    value={formData.responsavel_email}
+                    onChange={(e) => handleInputChange('responsavel_email', e.target.value)}
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
 
