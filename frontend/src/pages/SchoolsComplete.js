@@ -434,7 +434,15 @@ export function SchoolsComplete() {
       setIsModalOpen(false);
       reloadData();
     } catch (error) {
-      showAlert('error', error.response?.data?.detail || 'Erro ao salvar escola');
+      // Trata erros de validação Pydantic (array de objetos)
+      const detail = error.response?.data?.detail;
+      let errorMessage = 'Erro ao salvar escola';
+      if (typeof detail === 'string') {
+        errorMessage = detail;
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        errorMessage = detail[0]?.msg || 'Erro de validação';
+      }
+      showAlert('error', errorMessage);
       console.error(error);
     } finally {
       setSubmitting(false);
