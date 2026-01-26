@@ -2243,7 +2243,7 @@ export function SchoolsComplete() {
               <p className="text-gray-600 text-sm">Cadastro completo de escolas com todas as informações</p>
             </div>
           </div>
-          {canEdit && (
+          {canCreate && (
             <button
               onClick={handleCreate}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
