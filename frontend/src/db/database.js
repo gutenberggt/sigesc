@@ -13,16 +13,18 @@ class SigescDatabase extends Dexie {
   constructor() {
     super('SigescOfflineDB');
 
-    // Schema do banco - versão 1
-    this.version(1).stores({
+    // Schema do banco - versão 2 (adicionado suporte offline para alunos)
+    this.version(2).stores({
       // Notas dos alunos
       grades: '++localId, id, student_id, course_id, class_id, academic_year, [student_id+course_id+academic_year], syncStatus',
       
       // Frequência/Presenças
       attendance: '++localId, id, class_id, date, academic_year, [class_id+date], syncStatus',
       
+      // Alunos - agora com suporte a CRUD offline
+      students: '++localId, id, class_id, full_name, enrollment_number, status, syncStatus',
+      
       // Dados de referência (somente leitura, sincronizados do servidor)
-      students: 'id, class_id, full_name, enrollment_number',
       classes: 'id, school_id, grade_level, academic_year',
       courses: 'id, name, school_id',
       schools: 'id, name',
@@ -31,6 +33,25 @@ class SigescDatabase extends Dexie {
       syncQueue: '++id, collection, operation, recordId, timestamp, status, retries',
       
       // Metadados de sincronização
+      syncMeta: 'collection, lastSync, recordCount'
+    }).upgrade(tx => {
+      // Migração: adiciona syncStatus aos alunos existentes
+      return tx.table('students').toCollection().modify(student => {
+        if (!student.syncStatus) {
+          student.syncStatus = 'synced';
+        }
+      });
+    });
+
+    // Mantém compatibilidade com versão 1
+    this.version(1).stores({
+      grades: '++localId, id, student_id, course_id, class_id, academic_year, [student_id+course_id+academic_year], syncStatus',
+      attendance: '++localId, id, class_id, date, academic_year, [class_id+date], syncStatus',
+      students: 'id, class_id, full_name, enrollment_number',
+      classes: 'id, school_id, grade_level, academic_year',
+      courses: 'id, name, school_id',
+      schools: 'id, name',
+      syncQueue: '++id, collection, operation, recordId, timestamp, status, retries',
       syncMeta: 'collection, lastSync, recordCount'
     });
 
