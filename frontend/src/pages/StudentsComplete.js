@@ -291,20 +291,6 @@ export function StudentsComplete() {
     };
     fetchData();
   }, [reloadTrigger, isOnline]);
-        ]);
-        setStudents(studentsData);
-        setSchools(schoolsData);
-        setClasses(classesData);
-      } catch (error) {
-        setAlert({ type: 'error', message: 'Erro ao carregar dados' });
-        setTimeout(() => setAlert(null), 5000);
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [reloadTrigger]);
 
   // Fechar dropdowns ao clicar fora
   useEffect(() => {
