@@ -6,6 +6,7 @@ import { Modal } from '@/components/Modal';
 import { Tabs } from '@/components/Tabs';
 import { studentsAPI, schoolsAPI, classesAPI, uploadAPI, documentsAPI } from '@/services/api';
 import { formatPhone, formatCEP } from '@/utils/formatters';
+import { extractErrorMessage } from '@/utils/errorHandler';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar } from 'lucide-react';

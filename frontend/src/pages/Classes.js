@@ -6,6 +6,7 @@ import { Modal } from '@/components/Modal';
 import { classesAPI, schoolsAPI, documentsAPI } from '@/services/api';
 import { Plus, AlertCircle, CheckCircle, Home, Eye, Phone, FileText, User, Users, School, Calendar, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { extractErrorMessage } from '@/utils/errorHandler';
 
 // Mapeamento de níveis de ensino para séries/etapas
 const GRADE_LEVELS_BY_EDUCATION = {
