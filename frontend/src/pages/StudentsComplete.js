@@ -214,6 +214,7 @@ const calculateIdealGrade = (birthDate) => {
 export function StudentsComplete() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isOnline, pendingSyncCount, triggerSync } = useOffline();
   const [students, setStudents] = useState([]);
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -225,6 +226,7 @@ export function StudentsComplete() {
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [formData, setFormData] = useState(initialFormData);
+  const [dataSource, setDataSource] = useState('server'); // 'server' ou 'local'
   
   // Estado para modal de documentos
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
@@ -260,14 +262,35 @@ export function StudentsComplete() {
   const canEdit = canEditStudents;
   const canDelete = canDeleteStudents;
 
+  // Carrega dados com suporte offline
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [studentsData, schoolsData, classesData] = await Promise.all([
-          studentsAPI.getAll(),
-          schoolsAPI.getAll(),
-          classesAPI.getAll()
+        
+        // Busca alunos usando serviço offline
+        const studentsResult = await offlineStudentsService.getStudents();
+        setStudents(studentsResult.data || []);
+        setDataSource(studentsResult.source || 'server');
+        
+        // Busca escolas e turmas (ainda precisam de conexão)
+        if (isOnline) {
+          const [schoolsData, classesData] = await Promise.all([
+            schoolsAPI.getAll(),
+            classesAPI.getAll()
+          ]);
+          setSchools(schoolsData || []);
+          setClasses(classesData?.items || classesData || []);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        showAlert('error', 'Erro ao carregar dados');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [reloadTrigger, isOnline]);
         ]);
         setStudents(studentsData);
         setSchools(schoolsData);
