@@ -2332,6 +2332,144 @@ export function StudentsComplete() {
             </div>
           </div>
         </Modal>
+
+        {/* Modal de Registro de Atestado Médico */}
+        <Modal 
+          isOpen={showCertificateModal} 
+          onClose={() => setShowCertificateModal(false)} 
+          title="Registrar Atestado Médico"
+          size="md"
+        >
+          <div className="space-y-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-sm text-red-800">
+                <strong>⚠️ Atenção:</strong> O atestado médico bloqueará o lançamento de frequência pelo professor nos dias cobertos. 
+                O período aparecerá como "AM" (Atestado Médico) na lista de presença.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Data Inicial <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={certificateForm.start_date}
+                  onChange={(e) => setCertificateForm(prev => ({ ...prev, start_date: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Data Final <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={certificateForm.end_date}
+                  onChange={(e) => setCertificateForm(prev => ({ ...prev, end_date: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Motivo</label>
+              <select
+                value={certificateForm.reason}
+                onChange={(e) => setCertificateForm(prev => ({ ...prev, reason: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+              >
+                <option value="Atestado Médico">Atestado Médico</option>
+                <option value="Atestado Médico - Consulta">Atestado Médico - Consulta</option>
+                <option value="Atestado Médico - Cirurgia">Atestado Médico - Cirurgia</option>
+                <option value="Atestado Médico - Internação">Atestado Médico - Internação</option>
+                <option value="Atestado Médico - Tratamento">Atestado Médico - Tratamento</option>
+                <option value="Atestado Odontológico">Atestado Odontológico</option>
+                <option value="Licença Maternidade">Licença Maternidade</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+              <textarea
+                value={certificateForm.notes}
+                onChange={(e) => setCertificateForm(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Informações adicionais sobre o atestado..."
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Documento Digitalizado</label>
+              {certificateForm.document_url ? (
+                <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <FileText className="text-green-600" size={20} />
+                  <span className="text-sm text-green-800">Documento anexado</span>
+                  <button
+                    type="button"
+                    onClick={() => setCertificateForm(prev => ({ ...prev, document_url: '' }))}
+                    className="ml-auto text-red-600 hover:bg-red-100 p-1 rounded"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 cursor-pointer transition-colors border border-gray-300">
+                  <Upload size={18} />
+                  <span>Anexar Atestado (PDF/Imagem)</span>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        try {
+                          const result = await uploadAPI.upload(file, 'atestado');
+                          setCertificateForm(prev => ({ ...prev, document_url: result.url }));
+                          showAlert('success', 'Documento anexado');
+                        } catch (error) {
+                          showAlert('error', 'Erro ao anexar documento');
+                        }
+                      }
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <button
+                type="button"
+                onClick={() => setShowCertificateModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCertificate}
+                disabled={savingCertificate || !certificateForm.start_date || !certificateForm.end_date}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {savingCertificate ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Stethoscope size={18} />
+                    Registrar Atestado
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </Layout>
   );
