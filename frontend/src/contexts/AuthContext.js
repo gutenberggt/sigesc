@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext(null);
@@ -28,6 +28,8 @@ export const AuthProvider = ({ children }) => {
   const [accessToken, setAccessToken] = useState(localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN));
   const [refreshToken, setRefreshToken] = useState(localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN));
   const [isOfflineSession, setIsOfflineSession] = useState(false);
+  const isRefreshing = useRef(false);
+  const refreshSubscribers = useRef([]);
 
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
   const API = `${BACKEND_URL}/api`;
@@ -67,22 +69,106 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Configura interceptor do axios para incluir token
+  // Função para renovar o token
+  const refreshAccessToken = useCallback(async () => {
+    const currentRefreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+    if (!currentRefreshToken) {
+      return null;
+    }
+
+    try {
+      const response = await axios.post(`${API}/auth/refresh`, {
+        refresh_token: currentRefreshToken
+      });
+      
+      const { access_token, refresh_token: newRefreshToken, user: userData } = response.data;
+      
+      // Atualiza tokens
+      setAccessToken(access_token);
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access_token);
+      
+      if (newRefreshToken) {
+        setRefreshToken(newRefreshToken);
+        localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
+      }
+      
+      if (userData) {
+        setUser(userData);
+        saveUserDataLocally(userData);
+      }
+      
+      console.log('[Auth] Token renovado com sucesso');
+      return access_token;
+    } catch (error) {
+      console.error('[Auth] Erro ao renovar token:', error);
+      return null;
+    }
+  }, [API]);
+
+  // Notifica subscribers após refresh
+  const onRefreshed = useCallback((token) => {
+    refreshSubscribers.current.forEach(callback => callback(token));
+    refreshSubscribers.current = [];
+  }, []);
+
+  // Adiciona subscriber para esperar refresh
+  const addRefreshSubscriber = useCallback((callback) => {
+    refreshSubscribers.current.push(callback);
+  }, []);
+
+  // Configura interceptor do axios para incluir token e renovar automaticamente
   useEffect(() => {
-    const interceptor = axios.interceptors.request.use(
+    const requestInterceptor = axios.interceptors.request.use(
       (config) => {
-        if (accessToken) {
-          config.headers.Authorization = `Bearer ${accessToken}`;
+        const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
       },
       (error) => Promise.reject(error)
     );
 
+    const responseInterceptor = axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+        
+        // Se o erro for 401 e não for uma tentativa de retry
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          // Se já está renovando, aguarda
+          if (isRefreshing.current) {
+            return new Promise((resolve) => {
+              addRefreshSubscriber((token) => {
+                originalRequest.headers.Authorization = `Bearer ${token}`;
+                resolve(axios(originalRequest));
+              });
+            });
+          }
+
+          originalRequest._retry = true;
+          isRefreshing.current = true;
+
+          const newToken = await refreshAccessToken();
+          
+          isRefreshing.current = false;
+
+          if (newToken) {
+            onRefreshed(newToken);
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            return axios(originalRequest);
+          }
+        }
+        
+        return Promise.reject(error);
+      }
+    );
+
     return () => {
-      axios.interceptors.request.eject(interceptor);
+      axios.interceptors.request.eject(requestInterceptor);
+      axios.interceptors.response.eject(responseInterceptor);
     };
-  }, [accessToken]);
+  }, [refreshAccessToken, onRefreshed, addRefreshSubscriber]);
 
   // Carrega usuário ao iniciar
   useEffect(() => {
