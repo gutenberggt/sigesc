@@ -864,6 +864,15 @@ def generate_boletim_pdf(
         ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f9fafb')]),
     ]))
     elements.append(grades_table)
+    
+    # ===== LEGENDA DE CONCEITOS (para Ed. Infantil e 1º/2º ano) =====
+    if usa_conceito:
+        legenda_elements = criar_legenda_conceitos(
+            is_educacao_infantil=is_educacao_infantil,
+            grade_level=student_grade_level
+        )
+        elements.extend(legenda_elements)
+    
     elements.append(Spacer(1, 20))
     
     # ===== AJUSTAR CARGA HORÁRIA TOTAL PARA ANOS INICIAIS =====
