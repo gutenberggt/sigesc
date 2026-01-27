@@ -32,9 +32,6 @@ COPY --from=build /app/build /usr/share/nginx/html
 # Copia configuração customizada do nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Headers para evitar cache do CDN
-RUN echo 'add_header X-Build-Version "$CACHEBUST";' >> /etc/nginx/conf.d/default.conf || true
-
 # Expõe a porta 80
 EXPOSE 80
 
