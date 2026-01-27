@@ -28,6 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
 import { BimestreBlockedAlert, BimestreDeadlineAlert } from '@/components/BimestreStatus';
 import { OfflineManagementPanel } from '@/components/OfflineManagementPanel';
+import { extractErrorMessage } from '@/utils/errorHandler';
 import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
 
