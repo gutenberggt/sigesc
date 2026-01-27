@@ -15,8 +15,8 @@ SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
 if not SECRET_KEY:
     raise ValueError("JWT_SECRET_KEY environment variable is required")
 ALGORITHM = 'HS256'
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 dias (uma semana)
+REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 dias
 
 # Context para hash de senhas
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
