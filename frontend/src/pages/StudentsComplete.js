@@ -251,12 +251,30 @@ export function StudentsComplete() {
   const nameInputRef = useRef(null);
   const cpfInputRef = useRef(null);
   
+  // Estados para Atestados Médicos
+  const [medicalCertificates, setMedicalCertificates] = useState([]);
+  const [loadingCertificates, setLoadingCertificates] = useState(false);
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [certificateForm, setCertificateForm] = useState({
+    start_date: '',
+    end_date: '',
+    reason: 'Atestado Médico',
+    document_url: '',
+    notes: ''
+  });
+  const [savingCertificate, setSavingCertificate] = useState(false);
+  
   // Permissões de edição:
   // - SEMED: apenas visualização (não pode editar/excluir)
   // - Coordenador: apenas visualização de alunos (não pode editar/excluir)
   // - Outros roles com acesso: podem editar/excluir
   const canEditStudents = user?.role !== 'semed' && user?.role !== 'coordenador';
   const canDeleteStudents = user?.role !== 'semed' && user?.role !== 'coordenador';
+  
+  // Permissão para registrar atestados (secretário e admin)
+  const canRegisterCertificates = user?.role === 'admin' || user?.role === 'secretario';
+  // Permissão para excluir atestados (apenas admin)
+  const canDeleteCertificates = user?.role === 'admin';
   
   // Mantém variáveis originais para compatibilidade
   const canEdit = canEditStudents;
