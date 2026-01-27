@@ -119,6 +119,9 @@ export const Attendance = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   
+  // Atestados médicos
+  const [medicalCertificates, setMedicalCertificates] = useState({});
+  
   // Relatórios
   const [classReport, setClassReport] = useState(null);
   const [alertsData, setAlertsData] = useState(null);
