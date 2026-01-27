@@ -73,6 +73,7 @@ from routers import (
     setup_enrollments_router
 )
 from routers.sync import setup_sync_router
+from routers.medical_certificates import setup_medical_certificates_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
