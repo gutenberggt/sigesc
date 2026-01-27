@@ -1716,6 +1716,41 @@ class MantenedoraUpdate(BaseModel):
     responsavel_cpf: Optional[str] = None
     responsavel_celular: Optional[str] = None
     responsavel_email: Optional[str] = None
+
+
+# ============= ATESTADO MÉDICO MODELS =============
+
+class MedicalCertificateBase(BaseModel):
+    """Base model para Atestado Médico"""
+    student_id: str
+    start_date: str  # Data inicial do afastamento (YYYY-MM-DD)
+    end_date: str    # Data final do afastamento (YYYY-MM-DD)
+    reason: str = "Atestado Médico"  # Motivo do afastamento
+    document_url: Optional[str] = None  # URL do documento digitalizado
+    notes: Optional[str] = None  # Observações adicionais
+
+class MedicalCertificateCreate(MedicalCertificateBase):
+    """Model para criação de Atestado Médico"""
+    pass
+
+class MedicalCertificateUpdate(BaseModel):
+    """Model para atualização de Atestado Médico"""
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    reason: Optional[str] = None
+    document_url: Optional[str] = None
+    notes: Optional[str] = None
+
+class MedicalCertificate(MedicalCertificateBase):
+    """Model completo do Atestado Médico"""
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_by: Optional[str] = None  # ID do usuário que registrou
+    created_by_name: Optional[str] = None  # Nome do usuário que registrou
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
     
     # Configurações de Exibição
     exibir_pre_matricula: Optional[bool] = None
