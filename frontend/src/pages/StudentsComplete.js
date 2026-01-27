@@ -366,6 +366,8 @@ export function StudentsComplete() {
     
     // Carrega histórico do aluno
     loadStudentHistory(student.id);
+    // Carrega atestados médicos do aluno
+    loadMedicalCertificates(student.id);
   };
   
   const loadStudentHistory = async (studentId) => {
@@ -378,6 +380,66 @@ export function StudentsComplete() {
       setStudentHistory([]);
     } finally {
       setLoadingHistory(false);
+    }
+  };
+
+  // Carrega atestados médicos do aluno
+  const loadMedicalCertificates = async (studentId) => {
+    setLoadingCertificates(true);
+    try {
+      const certificates = await medicalCertificatesAPI.getByStudent(studentId);
+      setMedicalCertificates(certificates);
+    } catch (error) {
+      console.error('Erro ao carregar atestados médicos:', error);
+      setMedicalCertificates([]);
+    } finally {
+      setLoadingCertificates(false);
+    }
+  };
+
+  // Salvar atestado médico
+  const handleSaveCertificate = async () => {
+    if (!certificateForm.start_date || !certificateForm.end_date) {
+      showAlert('error', 'Informe as datas de início e fim do afastamento');
+      return;
+    }
+    
+    setSavingCertificate(true);
+    try {
+      await medicalCertificatesAPI.create({
+        student_id: editingStudent.id,
+        ...certificateForm
+      });
+      showAlert('success', 'Atestado médico registrado com sucesso');
+      setShowCertificateModal(false);
+      setCertificateForm({
+        start_date: '',
+        end_date: '',
+        reason: 'Atestado Médico',
+        document_url: '',
+        notes: ''
+      });
+      // Recarrega a lista de atestados
+      loadMedicalCertificates(editingStudent.id);
+    } catch (error) {
+      showAlert('error', extractErrorMessage(error, 'Erro ao registrar atestado'));
+    } finally {
+      setSavingCertificate(false);
+    }
+  };
+
+  // Excluir atestado médico (apenas admin)
+  const handleDeleteCertificate = async (certificateId) => {
+    if (!window.confirm('Tem certeza que deseja excluir este atestado médico?')) {
+      return;
+    }
+    
+    try {
+      await medicalCertificatesAPI.delete(certificateId);
+      showAlert('success', 'Atestado médico excluído com sucesso');
+      loadMedicalCertificates(editingStudent.id);
+    } catch (error) {
+      showAlert('error', extractErrorMessage(error, 'Erro ao excluir atestado'));
     }
   };
 
