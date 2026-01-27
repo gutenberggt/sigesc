@@ -861,36 +861,73 @@ export const Attendance = () => {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {attendanceData.students.map(student => (
-                          <tr key={student.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 font-medium text-gray-900">{student.full_name}</td>
-                            <td className="px-4 py-3 text-sm text-gray-500">{student.enrollment_number || '-'}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex justify-center gap-2">
-                                {['P', 'F', 'J'].map(status => (
-                                  <button
-                                    key={status}
-                                    onClick={() => canEdit && dateCheck?.can_record && updateStudentStatus(student.id, status)}
-                                    disabled={!canEdit || !dateCheck?.can_record}
-                                    className={`w-10 h-10 rounded-lg font-bold transition-all
-                                      ${student.status === status 
-                                        ? status === 'P' ? 'bg-green-500 text-white ring-2 ring-green-300' 
-                                          : status === 'F' ? 'bg-red-500 text-white ring-2 ring-red-300'
-                                          : 'bg-yellow-500 text-white ring-2 ring-yellow-300'
-                                        : 'bg-gray-300 text-gray-500 hover:bg-gray-400'
-                                      }
-                                      ${(!canEdit || !dateCheck?.can_record) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-                                    `}
-                                  >
-                                    {status}
-                                  </button>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                        {attendanceData.students.map(student => {
+                          const hasCertificate = hasActiveCertificate(student.id);
+                          const certInfo = getCertificateInfo(student.id);
+                          
+                          return (
+                            <tr key={student.id} className={`hover:bg-gray-50 ${hasCertificate ? 'bg-red-50' : ''}`}>
+                              <td className="px-4 py-3 font-medium text-gray-900">
+                                <div className="flex items-center gap-2">
+                                  {student.full_name}
+                                  {hasCertificate && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full" title={certInfo?.period}>
+                                      <Stethoscope size={12} />
+                                      AM
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-500">{student.enrollment_number || '-'}</td>
+                              <td className="px-4 py-3">
+                                {hasCertificate ? (
+                                  <div className="flex justify-center">
+                                    <div className="px-4 py-2 bg-red-100 text-red-700 rounded-lg font-bold text-center" title={`${certInfo?.reason}: ${certInfo?.period}`}>
+                                      <div className="flex items-center gap-1">
+                                        <Stethoscope size={16} />
+                                        <span>AM</span>
+                                      </div>
+                                      <span className="text-xs font-normal">Atestado Médico</span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex justify-center gap-2">
+                                    {['P', 'F', 'J'].map(status => (
+                                      <button
+                                        key={status}
+                                        onClick={() => canEdit && dateCheck?.can_record && updateStudentStatus(student.id, status)}
+                                        disabled={!canEdit || !dateCheck?.can_record}
+                                        className={`w-10 h-10 rounded-lg font-bold transition-all
+                                          ${student.status === status 
+                                            ? status === 'P' ? 'bg-green-500 text-white ring-2 ring-green-300' 
+                                              : status === 'F' ? 'bg-red-500 text-white ring-2 ring-red-300'
+                                              : 'bg-yellow-500 text-white ring-2 ring-yellow-300'
+                                            : 'bg-gray-300 text-gray-500 hover:bg-gray-400'
+                                          }
+                                          ${(!canEdit || !dateCheck?.can_record) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
+                                        `}
+                                      >
+                                        {status}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
+                    
+                    {/* Legenda de status */}
+                    {Object.keys(medicalCertificates).length > 0 && (
+                      <div className="p-3 bg-red-50 border-t border-red-200 text-sm text-red-700">
+                        <div className="flex items-center gap-2">
+                          <Stethoscope size={16} />
+                          <span><strong>AM = Atestado Médico</strong> - Alunos com atestado médico não podem ter a frequência alterada.</span>
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Botões Salvar e Excluir */}
                     {canEdit && dateCheck?.can_record && (
