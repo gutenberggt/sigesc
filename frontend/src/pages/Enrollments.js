@@ -5,6 +5,7 @@ import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { enrollmentsAPI, studentsAPI, schoolsAPI, classesAPI, coursesAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { extractErrorMessage } from '@/utils/errorHandler';
 import { Plus, AlertCircle, CheckCircle, Home } from 'lucide-react';
 
 const STATUS_LABELS = {

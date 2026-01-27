@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { mantenedoraAPI, uploadAPI } from '@/services/api';
 import { formatCEP, formatPhone, formatCPF, formatCNPJ } from '@/utils/formatters';
+import { extractErrorMessage } from '@/utils/errorHandler';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 
 export default function Mantenedora() {
