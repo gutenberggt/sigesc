@@ -9,7 +9,9 @@ import { formatPhone, formatCEP } from '@/utils/formatters';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
-import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar } from 'lucide-react';
+import { useOffline } from '@/contexts/OfflineContext';
+import { offlineStudentsService } from '@/services/offlineStudentsService';
+import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, CloudOff, Cloud, RefreshCw } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
 
 // Estados brasileiros
