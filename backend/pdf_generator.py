@@ -1960,6 +1960,15 @@ def generate_ficha_individual_pdf(
     
     grades_table.setStyle(TableStyle(style_commands))
     elements.append(grades_table)
+    
+    # ===== LEGENDA DE CONCEITOS (para Ed. Infantil e 1º/2º ano) =====
+    if usa_conceito:
+        legenda_elements = criar_legenda_conceitos(
+            is_educacao_infantil=is_educacao_infantil,
+            grade_level=student_grade_level
+        )
+        elements.extend(legenda_elements)
+    
     elements.append(Spacer(1, 5))
     
     # ===== CALCULAR RESULTADO =====
