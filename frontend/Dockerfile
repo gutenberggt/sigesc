@@ -3,6 +3,10 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
+# Cache buster - mude este valor para forçar rebuild
+ARG CACHEBUST=20260127_2100
+RUN echo "Cache bust: $CACHEBUST"
+
 # Copia arquivos de dependências primeiro (melhor cache)
 COPY package.json yarn.lock* ./
 
@@ -27,6 +31,9 @@ COPY --from=build /app/build /usr/share/nginx/html
 
 # Copia configuração customizada do nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Headers para evitar cache do CDN
+RUN echo 'add_header X-Build-Version "$CACHEBUST";' >> /etc/nginx/conf.d/default.conf || true
 
 # Expõe a porta 80
 EXPOSE 80
