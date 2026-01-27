@@ -1,0 +1,11 @@
+{
+  "version": "2.1.0",
+  "build_date": "2025-01-27T03:15:00Z",
+  "features": [
+    "Atestados Médicos",
+    "Edição Offline de Alunos",
+    "Legendas em PDFs",
+    "Permissões de Secretário",
+    "Sessão Persistente"
+  ]
+}
