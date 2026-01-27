@@ -170,7 +170,8 @@ async def process_sync_operation(db, user, op: SyncOperation) -> SyncPushResult:
     # Mapeia nome da coleção para a collection do MongoDB
     collection_map = {
         'grades': db.grades,
-        'attendance': db.attendance
+        'attendance': db.attendance,
+        'students': db.students
     }
     
     if collection_name not in collection_map:
