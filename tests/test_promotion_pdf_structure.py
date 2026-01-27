@@ -12,7 +12,7 @@ import requests
 import os
 from io import BytesIO
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://edumanage-349.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://deploy-refresh-5.preview.emergentagent.com')
 
 # Test credentials
 TEST_EMAIL = "gutenberg@sigesc.com"

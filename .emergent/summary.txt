@@ -1,46 +1,46 @@
 <analysis>**original_problem_statement:**
-O usuário iniciou a sessão para migrar os dados de sua aplicação do ambiente de preview da Emergent para seu ambiente de produção no Coolify. Após a migração bem-sucedida do banco de dados e das imagens, a sessão evoluiu para abordar uma série de bugs e novos recursos solicitados pelo usuário, incluindo:
--   Correção de imagens que não apareciam (logo da mantenedora e fotos dos funcionários).
--   Correção e implementação da funcionalidade de login e sincronização offline (Background Sync).
--   Implementação de lógica de negócios para turmas integrais vs. turmas regulares, incluindo pré-seleção em formulários e avisos de alteração.
--   Correção de um bug onde turmas existentes em escolas integrais não eram exibidas corretamente.
--   Modificação da lógica de geração de PDFs (Boletim e Ficha Individual) para usar a configuração da turma em vez da escola.
--   Implementação de um novo sistema de avaliação por conceitos para o 1º e 2º ano do ensino fundamental, afetando tanto o frontend de lançamento de notas quanto a geração de PDFs no backend.
--   Adição do ano letivo à visualização de lotações de servidores.
--   Implementação de um filtro de servidores por ano letivo no quadro de pessoal da escola.
--   Depuração de uma falha de build (yarn run v1.22.22
-info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.) no ambiente de deploy do Coolify.
+O usuário iniciou a sessão para resolver um problema de deploy no ambiente de produção (Coolify), onde as alterações não estavam sendo refletidas. A sessão evoluiu para uma série de solicitações de funcionalidades e correções de bugs, incluindo:
+-   Ajustes na interface do usuário (remover e-mail do dashboard, substituir ).
+-   Implementação de um toggle para exibir/ocultar o botão de Pré-Matrícula na tela de login.
+-   Adição de campos de contato para o Responsável Legal da mantenedora.
+-   Correção de um bug de 404 ao clicar em notificações de mensagens.
+-   Refatoração das permissões de usuário para o perfil Secretário, restringindo o acesso a exclusões e criações.
+-   Correção de um crash no frontend (Objects are not valid as a React child) através da implementação de um tratador de erros global para erros de validação da API.
+-   Implementação de um sistema de sessão persistente, aumentando a duração do token JWT e adicionando um mecanismo de auto-refresh.
+-   Expansão da funcionalidade offline para permitir o cadastro e edição de alunos.
+-   Adição de legendas explicativas nos PDFs de boletins e fichas individuais para certos níveis de ensino.
+-   Implementação de um sistema completo de registro de atestados médicos, que bloqueia o lançamento de frequência pelo professor.
+-   Diagnóstico e fornecimento de uma solução para o problema central de deploy/cache, que envolve o CDN do usuário (StackPath/Convesio) e o processo de build do Docker.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-A aplicação full-stack (React + FastAPI + MongoDB) está funcional no ambiente de preview da Emergent. Os dados e imagens foram migrados para o ambiente de produção do usuário (Coolify), mas o deploy mais recente no Coolify está falhando. Várias funcionalidades foram implementadas e corrigidas com sucesso no ambiente de preview, incluindo a lógica de sincronização offline completa (Background Sync), o sistema de avaliação conceitual para 1º/2º ano e a filtragem de servidores por ano letivo. A última alteração foi uma correção no código frontend para resolver um erro de build.
+A aplicação full-stack (React + FastAPI + MongoDB) está funcional no ambiente de preview da Emergent, com várias novas funcionalidades e correções de bugs implementadas. O principal problema é que o ambiente de produção do usuário ( + ) está servindo uma versão antiga do frontend devido a um problema agressivo de cache. O agente implementou múltiplas soluções no código (cache-busting no Dockerfile, headers de cache no Nginx, meta tags no HTML e um arquivo  para verificação) e está aguardando o usuário realizar ações em sua infraestrutura externa (limpar o cache do CDN e forçar um novo build) para validar a correção.
 
 **Last working item**:
--   **Last item agent was working:** Depurando e corrigindo uma falha no build do frontend (yarn run v1.22.22
-info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.) que impedia o deploy no ambiente Coolify do usuário. O agente identificou que um comentário  incorreto e as dependências de um  estavam causando a falha. A correção foi aplicada e o comando yarn run v1.22.22
-info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command. foi executado com sucesso no ambiente da Emergent.
+-   **Last item agent was working:** Finalizando o diagnóstico do problema de deploy e cache em produção. O agente propôs uma solução focada em corrigir a configuração de cache (no , , ) e aguardou a confirmação do usuário para seguir com essa abordagem em vez de uma alternativa mais complexa (Nginx duplo). O usuário concordou com a abordagem recomendada.
 -   **Status:** USER VERIFICATION PENDING
--   **Agent Testing Done:** Y
--   **Which testing method agent to use?** N/A. O usuário precisa fazer o deploy no Coolify para verificar a correção. Se falhar, o próximo agente deverá analisar os novos logs de deploy.
+-   **Agent Testing Done:** Y (As alterações no código foram validadas e o build do frontend foi bem-sucedido.)
+-   **Which testing method agent to use?** N/A. A resolução depende de ações do usuário em sua infraestrutura externa (Coolify e StackPath CDN). O próximo agente deve aguardar o feedback do usuário.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Falha de Deploy do Frontend no Coolify**
-    -   **Description:** O processo de build do frontend ( no Dockerfile) está falhando no ambiente de deploy do Coolify, impedindo a aplicação das últimas alterações em produção.
+-   **Issue 1: (P0) Deploy em Produção (Coolify) não reflete as atualizações**
+    -   **Description:** O ambiente de produção do usuário, servido através do Coolify e um CDN (StackPath), está exibindo uma versão desatualizada do frontend. Os logs de acesso mostram que um arquivo JS antigo () está sendo servido, indicando um problema de cache no CDN ou no processo de build do Docker.
     -   **Attempted fixes:**
-        -   O agente primeiro corrigiu erros de lint relacionados a aspas não escapadas () dentro de JSX, substituindo-as por . O deploy falhou novamente.
-        -   Na segunda tentativa, o agente identificou que o problema real era um comentário  que estava quebrando o processo de build. O comentário foi removido e as dependências do hook  foram corrigidas. O yarn run v1.22.22
-info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command. local passou.
+        -   Adicionado o arquivo  para permitir a verificação da versão do build implantado.
+        -   Adicionado um argumento  ao  do frontend para invalidar o cache do Docker durante o build.
+        -   Modificado o  para adicionar headers de  específicos, instruindo a não cachear ,  e .
+        -   Adicionado meta tags  e  no  como uma camada extra de proteção.
     -   **Next debug checklist:**
-        1.  Aguardar a confirmação do usuário se o deploy no Coolify foi bem-sucedido após a última correção.
-        2.  Se o deploy falhar novamente, solicitar ao usuário os logs de erro completos do Coolify.
-        3.  Analisar o novo erro. É provável que seja outro problema de lint ou sintaxe no frontend que só é pego pelo processo de build de produção.
-        4.  Verificar o arquivo , que foi o último a ser modificado extensivamente.
-    -   **Why fix this issue and what will be achieved with the fix?** A resolução deste problema é crítica para que o usuário possa ter as últimas funcionalidades e correções de bugs em seu ambiente de produção.
+        1.  Aguardar a confirmação do usuário de que ele realizou a ação de **Purge Cache** no painel de controle de seu CDN (StackPath/Convesio).
+        2.  Aguardar a confirmação de que o usuário realizou um novo deploy no Coolify, utilizando uma opção de **Force rebuild** ou **Build without cache**.
+        3.  Pedir ao usuário para acessar a URL de produção  e verificar se o conteúdo corresponde à versão mais recente.
+        4.  Se o problema persistir, o foco deve ser guiar o usuário na configuração de regras de cache diretamente em sua plataforma de CDN.
+    -   **Why fix this issue and what will be achieved with the fix?** Este é um bloqueador crítico. Nenhuma das novas funcionalidades e correções de bugs está disponível para os usuários finais. A resolução permitirá que a versão de produção seja sincronizada com a de desenvolvimento.
     -   **Status:** USER VERIFICATION PENDING
     -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** Frontend.
+    -   **Should Test frontend/backend/both after fix?** Frontend
     -   **Blocked on other issue:** Não.
 
 **In progress Task List**:
@@ -52,102 +52,93 @@ Nenhuma.
     -   **(P1) Melhoria na Lista de Alunos:** Implementar a lógica na página  para usar o parâmetro de URL  e destacar o aluno recém-criado na lista.
 -   **Future Tasks:**
     -   **(P2) Refatoração do Backend:** Continuar movendo endpoints do  para routers modulares.
-    -   **(P2) Refatoração do Frontend:** Simplificar o componente  e o .
+    -   **(P2) Refatoração do Frontend:** Simplificar o componente , que se tornou muito complexo.
+    -   **(P2) Expansão Offline:** Estender a funcionalidade offline para o módulo de matrículas.
+    -   **(P2) Padronização de Erros:** Aplicar o novo utilitário  em todos os componentes restantes que fazem chamadas de API.
     -   **(P3) Limpeza de Código:** Remover o arquivo obsoleto .
+    -   **(P3) Relatórios:** Criar relatórios gerenciais para atestados médicos (ex: por período, por escola).
 
 **Completed work in this session**
--   **Migração de Dados e Imagens:** Migração completa e bem-sucedida do banco de dados MongoDB e dos arquivos de upload do ambiente Emergent para o servidor Coolify do usuário.
--   **Correção de Imagens 404:** Debugou e resolveu o problema de imagens que não carregavam em produção, adicionando uma rota explícita () no backend e corrigindo um registro duplicado no banco de dados.
--   **Funcionalidade Offline (Login e Background Sync):**
-    -   Corrigiu o login offline que falhava após o logout, ajustando a lógica para não exigir mais um .
-    -   Implementou o Background Sync completo, permitindo que as alterações feitas offline sejam sincronizadas com o servidor mesmo com o navegador fechado.
--   **Lógica de Turma Integral:**
-    -   Implementou a pré-seleção do Tipo de Atendimento como Escola Integral ao criar turmas em escolas integrais.
-    -   Adicionou um aviso ao alterar o tipo de atendimento de Integral para Regular.
-    -   Corrigiu um bug de validação do backend ao fazer essa alteração.
-    -   Executou um script para atualizar turmas existentes que não tinham o campo  definido.
--   **Lógica de Geração de PDF:** Modificou os endpoints de geração de Boletim e Ficha Individual para que os componentes curriculares sejam baseados na configuração da **turma** () e não na da escola.
--   **Sistema de Conceitos (1º/2º Ano):**
-    -   Implementou um novo sistema de avaliação por conceitos (, , ) para o 1º e 2º ano.
-    -   Atualizou o backend () e o frontend () para refletir essa nova lógica.
--   **Melhorias na Interface:**
-    -   Adicionou o ano letivo ao lado do nome da escola na lista de lotações do servidor.
-    -   Filtrou a lista do Quadro de Servidores de uma escola com base no ano letivo selecionado.
--   **Correção de Build do Frontend:** Diagnosticou e corrigiu múltiplos erros de lint que estavam causando a falha do comando yarn run v1.22.22
-info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command. no deploy.
+-   **Deploy/Cache:** Diagnosticado o problema de cache em produção e implementado múltiplas correções (cache-busting no Docker, headers de cache no Nginx, meta tags no HTML, ).
+-   **Atestados Médicos:** Implementada funcionalidade completa para registro de atestados médicos, incluindo backend (modelo, router, endpoints) e frontend (UI na página de alunos, modal de registro e bloqueio na tela de frequência).
+-   **Funcionalidade Offline (Alunos):** Expandido o suporte offline para permitir a criação e edição de alunos, com sincronização em segundo plano.
+-   **Sessão Persistente:** Aumentado o tempo de expiração do token JWT e implementado um mecanismo de auto-refresh para evitar logouts automáticos.
+-   **Tratamento de Erros:** Criado um utilitário global () e refatorado os principais componentes para tratar erros de validação da API de forma padronizada, corrigindo um crash de UI.
+-   **Permissões de Usuário:** Refinadas as permissões para o perfil 'Secretário', restringindo o acesso a ações de exclusão e criação em vários módulos.
+-   **Correções de UI e Bugs:** Removido o e-mail do dashboard, corrigido um erro 404 em notificações de mensagens, e atualizado o  principal.
+-   **Novos Campos:** Adicionados campos de Celular e E-mail para o Responsável Legal.
+-   **PDFs:** Adicionada uma legenda dinâmica nos PDFs (Boletim e Ficha Individual) para notas conceituais.
 
 **Earlier issues found/mentioned but not fixed**
 -   Nenhum.
 
 **Known issue recurrence from previous fork**
--   Nenhum.
+-   O problema de falha de build do frontend evoluiu para o atual problema de cache/deploy em produção, que é a questão principal desta sessão.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Depuração de Build de Frontend:** Diagnóstico de falhas no processo yarn run v1.22.22
-info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command., incluindo erros de lint e sintaxe (e.g.,  inválido, aspas não escapadas).
--   **PWA e Offline First:** Implementação avançada de Service Worker com estratégias de , , e  para sincronização de dados em segundo plano.
--   **IndexedDB:** Uso do Dexie.js para gerenciar um banco de dados local no navegador para armazenamento de dados offline e filas de sincronização.
--   **Docker & Nginx:** Depuração de problemas de roteamento de proxy reverso em um ambiente PaaS (Coolify), envolvendo  no Nginx para rotas de API.
--   **FastAPI & Pydantic:** Modificação de modelos Pydantic (, ) para ajustar regras de validação (e.g., permitir  para aceitar strings vazias).
--   **Geração de PDF (ReportLab):** Modificação da lógica condicional dentro do  para gerar layouts de tabela e conteúdo diferentes com base em regras de negócio (e.g., nível de ensino da turma).
+-   **CDN Cache Debugging:** Diagnóstico de problemas de cache em produção (StackPath/Convesio), uso de , e configuração de .
+-   **Docker Build Cache:** Uso de  como cache buster para forçar a reconstrução de camadas da imagem Docker.
+-   **Nginx Configuration:** Configuração de  por tipo de arquivo () para otimizar a entrega de conteúdo estático.
+-   **Offline First (Dexie.js):** Expansão da arquitetura offline para suportar operações de CRUD (Create/Update) em um novo módulo (Alunos) usando  e um service worker com background sync.
+-   **Error Handling (Frontend):** Criação de um utilitário global para parsear e exibir mensagens de erro de validação (Pydantic) de forma consistente na UI.
+-   **JWT Authentication:** Implementação de um interceptor de API () para refresh automático de tokens de acesso expirados, garantindo uma sessão de usuário persistente.
 
 **key DB schema**
--   **classes:**  - Campo central para a lógica de turmas integrais. Pode ser 'atendimento_integral' ou / para regular.
--   **school_assignments:**  - Usado para filtrar lotações de servidores por ano.
--   **mantenedora:**  - Contém as URLs das imagens.
+-   **medical_certificates:**  (nova coleção)
+-   **students:** A tabela agora pode ser manipulada offline via .
 
 **changes in tech stack**
--   Nenhuma.
+-   Frontend: Adicionada a dependência  para gerar IDs únicos para registros offline.
 
 **All files of reference**
--   **/app/frontend/src/pages/SchoolsComplete.js:** Modificado extensivamente para filtrar servidores por ano e corrigir erros de lint que quebravam o build.
--   **/app/frontend/public/sw.js:** Reescrevido para implementar Background Sync completo.
--   **/app/frontend/src/contexts/OfflineContext.jsx:** Atualizado para registrar e interagir com o Service Worker (Background Sync).
--   **/app/frontend/src/db/database.js:** Atualizado para registrar uma tag de  no Service Worker.
--   **/app/frontend/src/pages/Grades.js:** Modificado para adicionar o sistema de conceitos para o 1º/2º ano.
--   **/app/frontend/src/pages/Classes.js:** Modificado para pré-selecionar o tipo de atendimento e mostrar avisos.
--   **/app/backend/server.py:** Várias rotas modificadas, especialmente as de geração de PDF e a nova rota .
--   **/app/backend/pdf_generator.py:** Lógica de formatação de notas e estrutura de tabelas atualizada para o sistema de conceitos.
--   **/app/backend/models.py:** Modelos  e  atualizados para permitir  vazio.
+-    (adicionado )
+-    (adicionados )
+-    (adicionadas  tags de cache)
+-    (novo arquivo para verificação de versão)
+-    (novo utilitário de erro)
+-    (implementação de atestados e offline)
+-    (lógica para bloquear frequência com atestado)
+-    (novo serviço para alunos offline)
+-    (adicionado modelo )
+-    (novo router para atestados)
+-    (registro do novo router e índice)
+-    (aumento do tempo de expiração do token)
+-    (adicionado interceptor de refresh de token)
 
 **Areas that need refactoring**:
--   : Continua sendo um arquivo muito grande e precisa ser modularizado em mais routers.
--   : Tornou-se um componente muito complexo, gerenciando múltiplos estados e lógicas. Poderia ser dividido em subcomponentes.
+-   : Continua muito grande e necessita de mais modularização.
+-   : Componente extremamente grande e complexo, candidato ideal para ser dividido em subcomponentes menores.
+-   **Error Handling:** A nova função  em  deve ser aplicada em todos os  blocks restantes da aplicação para consistência.
 
 **key api endpoints**
--   : Rota GET para servir arquivos estáticos da pasta de uploads.
--   : Endpoint de atualização de turma, cuja validação foi corrigida.
--   : Geração de PDF de boletim, com lógica atualizada.
--   : Geração de PDF de ficha individual, com lógica atualizada.
+-    (POST, GET, DELETE): Novos endpoints para gerenciar atestados médicos.
+-   : Endpoint atualizado para processar criações e atualizações de alunos da fila de sincronização offline.
 
 **Critical Info for New Agent**
--   **A PRIORIDADE MÁXIMA É VALIDAR A CORREÇÃO DO DEPLOY.** O usuário precisa tentar fazer o deploy novamente no Coolify. O erro de build (yarn run v1.22.22
-info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.) foi corrigido no ambiente de preview, mas precisa ser validado no ambiente de produção do usuário.
--   O ambiente do usuário (Coolify) faz deploy a partir de um repositório Git. As correções feitas pelo agente estão no ambiente Emergent. O usuário precisa garantir que essas correções sejam enviadas para o seu repositório Git para que o Coolify as utilize.
--   A aplicação possui uma complexa lógica offline. Qualquer alteração no frontend, especialmente em ,  ou , deve ser feita com cuidado para não quebrar a sincronização.
--   O arquivo  é muito sensível e já causou a falha do build duas vezes. Edite-o com extrema cautela.
+-   **A PRIORIDADE MÁXIMA É RESOLVER O PROBLEMA DE DEPLOY/CACHE.** Não inicie nenhuma nova funcionalidade até que o usuário confirme que as últimas alterações estão visíveis em seu ambiente de produção. Sua primeira ação deve ser perguntar ao usuário sobre o status do Purge Cache no CDN (StackPath) e do novo deploy no Coolify.
+-   O arquivo  foi criado por engano e precisa ser removido, pois não é relevante para a infraestrutura do usuário (Coolify).
+-   A solução para o problema de deploy não está apenas no código, mas na infraestrutura externa do usuário (Coolify, StackPath). Esteja preparado para guiar o usuário sobre onde encontrar as configurações relevantes nessas plataformas.
 
 **documents and test reports created in this job**
--    foi atualizado.
+-   
 
 **Last 10 User Messages and any pending HUMAN messages**
-10.  - Usuário reporta o primeiro erro de deploy.
-9.   - Usuário pede para o agente prosseguir após um timeout.
-8.  Usuário envia novos logs de erro, mostrando que o deploy falhou novamente.
-7.  Usuário confirma que o build local passou com sucesso após a correção do agente.
-6.   - Usuário aprova a finalização da tarefa de implementação do Background Sync.
-5.   - Usuário aprova a implementação do Background Sync.
-4.  Usuário pergunta se pode desligar o computador com dados offline ou se precisa esperar a sincronização.
-3.  Usuário pergunta se o login offline é para qualquer usuário que já logou ou apenas para o último.
-2.   - Usuário questiona sobre as restrições do login offline.
-1.  Usuário confirma que a remoção do registro duplicado da mantenedora resolveu o problema da logo.
+10.  - Usuário escolhe a opção 1, concordando com a abordagem do agente de manter a arquitetura atual e focar na limpeza de cache do CDN.
+9.  Usuário pergunta se a proposta de adicionar um segundo Nginx para desabilitar o cache é viável.
+8.  Usuário envia logs de deploy do Coolify/produção.
+7.  Usuário confirma que usa o CDN Convesio / StackPath.
+6.   - Usuário reporta o problema central de deploy/cache.
+5.   - Usuário solicita sugestões de novas funcionalidades.
+4.  Usuário solicita a implementação do sistema de atestados médicos.
+3.  Usuário solicita a adição de legendas aos PDFs.
+2.   - Usuário solicita a funcionalidade de alunos offline.
+1.   - Usuário aprova a tarefa de tornar a expiração do token configurável.
 
 **Project Health Check:**
--   **Broken:** O pipeline de deploy do **frontend** para o ambiente de produção (Coolify) está quebrado, embora uma correção tenha sido preparada e aguarde validação.
--   **Mocked:** Nenhum.
+-   **Broken:** O pipeline de deploy para o ambiente de produção está funcionalmente quebrado. Embora os builds passem, o conteúdo servido ao usuário final está desatualizado devido a um cache agressivo no CDN e/ou no processo de build do Docker.
 
 **3rd Party Integrations**
 -   reportlab
@@ -155,15 +146,16 @@ info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this comm
 -   openpyxl
 -   slowapi
 -   dexie & dexie-react-hooks
+-   uuid (novo)
 
 **Testing status**
 -   **Testing agent used after significant changes:** NO
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** None
--   **Known regressions:** O processo de build do frontend regrediu e começou a falhar após as últimas alterações, embora uma correção tenha sido implementada.
+-   **Known regressions:** O deploy em produção está servindo uma versão antiga do frontend.
 
 **Credentials to test flow:**
 -   **Admin:**  / 
 
 **What agent forgot to execute**
--   Nada. O agente foi muito completo em todas as solicitações do usuário e na depuração dos problemas que surgiram.</analysis>
+-   O agente identificou que o arquivo  era desnecessário e afirmou que o removeria, mas não executou o comando  para de fato deletar o arquivo antes de finalizar a interação.</analysis>
