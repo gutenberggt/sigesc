@@ -1702,6 +1702,84 @@ export function StudentsComplete() {
           </label>
         )}
       </div>
+
+      {/* Seção de Atestados Médicos */}
+      {editingStudent && (
+        <>
+          <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 flex items-center gap-2 mt-8">
+            <Stethoscope className="text-red-600" size={20} />
+            Atestados Médicos
+          </h3>
+          <p className="text-sm text-gray-500 mb-2">
+            Registre atestados médicos para justificar ausências. Os dias cobertos pelo atestado aparecerão como "AM" na frequência.
+          </p>
+          
+          {loadingCertificates ? (
+            <div className="text-center py-4 text-gray-500">Carregando atestados...</div>
+          ) : (
+            <>
+              {/* Lista de Atestados */}
+              {medicalCertificates.length > 0 ? (
+                <div className="space-y-2">
+                  {medicalCertificates.map((cert) => (
+                    <div key={cert.id} className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <Stethoscope className="text-red-600 flex-shrink-0" size={20} />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-red-800">
+                          {cert.reason || 'Atestado Médico'}
+                        </p>
+                        <p className="text-xs text-red-600">
+                          Período: {new Date(cert.start_date + 'T12:00:00').toLocaleDateString('pt-BR')} a {new Date(cert.end_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                        </p>
+                        {cert.notes && (
+                          <p className="text-xs text-gray-600 mt-1">{cert.notes}</p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-1">
+                          Registrado por: {cert.created_by_name || 'Sistema'}
+                        </p>
+                      </div>
+                      {cert.document_url && (
+                        <a 
+                          href={uploadAPI.getUrl(cert.document_url)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 text-xs hover:underline"
+                        >
+                          Ver documento
+                        </a>
+                      )}
+                      {canDeleteCertificates && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCertificate(cert.id)}
+                          className="p-1 text-red-600 hover:bg-red-100 rounded"
+                          title="Excluir atestado (apenas admin)"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 italic">Nenhum atestado médico registrado.</p>
+              )}
+              
+              {/* Botão para Registrar Atestado */}
+              {canRegisterCertificates && !viewMode && (
+                <button
+                  type="button"
+                  onClick={() => setShowCertificateModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors mt-4"
+                >
+                  <Plus size={18} />
+                  Registrar Atestado Médico
+                </button>
+              )}
+            </>
+          )}
+        </>
+      )}
     </div>
   );
 
