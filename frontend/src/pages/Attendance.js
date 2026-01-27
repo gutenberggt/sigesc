@@ -362,6 +362,11 @@ export const Attendance = () => {
       }
       
       setHasChanges(false);
+      
+      // Carrega atestados médicos para os alunos da turma na data selecionada
+      if (isOnline && attendanceData?.students?.length > 0) {
+        await loadMedicalCertificates();
+      }
     } catch (error) {
       console.error('Erro ao carregar frequência:', error);
       showAlertMessage('error', 'Erro ao carregar frequência');
@@ -370,9 +375,39 @@ export const Attendance = () => {
     }
   };
   
+  // Carrega atestados médicos para os alunos da turma na data selecionada
+  const loadMedicalCertificates = async () => {
+    try {
+      if (!attendanceData?.students?.length) return;
+      
+      const studentIds = attendanceData.students.map(s => s.id);
+      const result = await medicalCertificatesAPI.checkBulk(selectedDate, studentIds);
+      setMedicalCertificates(result.certificates || {});
+    } catch (error) {
+      console.error('Erro ao carregar atestados médicos:', error);
+      // Não bloqueia a frequência se houver erro ao carregar atestados
+    }
+  };
+  
+  // Verifica se um aluno tem atestado médico na data selecionada
+  const hasActiveCertificate = (studentId) => {
+    return medicalCertificates[studentId] !== undefined;
+  };
+  
+  // Obtém informações do atestado médico de um aluno
+  const getCertificateInfo = (studentId) => {
+    return medicalCertificates[studentId];
+  };
+  
   // Atualiza status de um aluno
   const updateStudentStatus = (studentId, status) => {
     if (!attendanceData) return;
+    
+    // Bloqueia se aluno tem atestado médico
+    if (hasActiveCertificate(studentId)) {
+      showAlertMessage('error', 'Este aluno possui atestado médico para esta data. O status não pode ser alterado.');
+      return;
+    }
     
     const newStudents = attendanceData.students.map(s => 
       s.id === studentId ? { ...s, status } : s
@@ -382,11 +417,17 @@ export const Attendance = () => {
     setHasChanges(true);
   };
   
-  // Marca todos com o mesmo status
+  // Marca todos com o mesmo status (exceto alunos com atestado)
   const markAll = (status) => {
     if (!attendanceData) return;
     
-    const newStudents = attendanceData.students.map(s => ({ ...s, status }));
+    const newStudents = attendanceData.students.map(s => {
+      // Não altera alunos com atestado médico
+      if (hasActiveCertificate(s.id)) {
+        return s;
+      }
+      return { ...s, status };
+    });
     setAttendanceData({ ...attendanceData, students: newStudents });
     setHasChanges(true);
   };
