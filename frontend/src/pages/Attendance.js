@@ -518,7 +518,7 @@ export const Attendance = () => {
       await loadAttendance();
     } catch (error) {
       console.error('Erro ao excluir frequência:', error);
-      showAlertMessage('error', error.response?.data?.detail || 'Erro ao excluir frequência');
+      showAlertMessage('error', extractErrorMessage(error, 'Erro ao excluir frequência'));
     } finally {
       setDeleting(false);
     }
