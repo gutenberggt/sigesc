@@ -7273,6 +7273,7 @@ classes_router = setup_classes_router(db, audit_service)
 guardians_router = setup_guardians_router(db, audit_service)
 enrollments_router = setup_enrollments_router(db, audit_service)
 sync_router = setup_sync_router(db, AuthMiddleware)
+medical_certificates_router = setup_medical_certificates_router(db, AuthMiddleware)
 
 app.include_router(users_router, prefix="/api")
 app.include_router(schools_router, prefix="/api")
@@ -7281,6 +7282,7 @@ app.include_router(classes_router, prefix="/api")
 app.include_router(guardians_router, prefix="/api")
 app.include_router(enrollments_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
+app.include_router(medical_certificates_router, prefix="/api")
 
 # ============= WEBSOCKET ENDPOINT =============
 
