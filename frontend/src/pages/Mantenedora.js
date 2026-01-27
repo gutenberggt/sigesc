@@ -249,7 +249,7 @@ export default function Mantenedora() {
       showAlert('success', 'Dados salvos com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar:', error);
-      showAlert('error', error.response?.data?.detail || 'Erro ao salvar dados');
+      showAlert('error', extractErrorMessage(error, 'Erro ao salvar dados'));
     } finally {
       setSaving(false);
     }
