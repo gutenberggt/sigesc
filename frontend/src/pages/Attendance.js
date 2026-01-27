@@ -458,7 +458,7 @@ export const Attendance = () => {
       }
     } catch (error) {
       console.error('Erro ao salvar frequência:', error);
-      showAlertMessage('error', error.response?.data?.detail || 'Erro ao salvar frequência');
+      showAlertMessage('error', extractErrorMessage(error, 'Erro ao salvar frequência'));
     } finally {
       setSaving(false);
     }
