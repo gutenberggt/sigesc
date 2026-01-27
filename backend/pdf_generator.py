@@ -267,6 +267,67 @@ def conceito_para_valor(conceito):
         return CONCEITOS_ANOS_INICIAIS[conceito]['valor']
     return None
 
+def criar_legenda_conceitos(is_educacao_infantil=False, grade_level=None):
+    """
+    Cria uma tabela de legenda para os conceitos usados na avaliação.
+    Retorna uma lista de elementos para adicionar ao PDF.
+    """
+    from reportlab.platypus import Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER
+    from reportlab.lib.units import cm
+    
+    elements = []
+    
+    # Verifica qual sistema de conceitos usar
+    is_anos_iniciais_conceitual = grade_level and is_serie_conceitual_anos_iniciais(grade_level)
+    
+    # Estilo para o título da legenda
+    style_titulo = ParagraphStyle(
+        'LegendaTitulo',
+        fontSize=8,
+        fontName='Helvetica-Bold',
+        alignment=TA_LEFT,
+        spaceAfter=2
+    )
+    
+    # Estilo para os conceitos
+    style_conceito = ParagraphStyle(
+        'LegendaConceito',
+        fontSize=7,
+        fontName='Helvetica',
+        alignment=TA_LEFT
+    )
+    
+    elements.append(Spacer(1, 0.3*cm))
+    elements.append(Paragraph("LEGENDA:", style_titulo))
+    
+    if is_educacao_infantil:
+        # Legenda para Educação Infantil
+        conceitos_data = [
+            ['OD', '=', 'Objetivo Desenvolvido'],
+            ['DP', '=', 'Desenvolvido Parcialmente'],
+            ['ND', '=', 'Não Desenvolvido'],
+            ['NT', '=', 'Não Trabalhado'],
+        ]
+    elif is_anos_iniciais_conceitual:
+        # Legenda para 1º e 2º Ano
+        conceitos_data = [
+            ['C', '=', 'Consolidado'],
+            ['ED', '=', 'Em Desenvolvimento'],
+            ['ND', '=', 'Não Desenvolvido'],
+        ]
+    else:
+        # Não precisa de legenda para outros níveis
+        return []
+    
+    # Criar tabela de legenda em formato horizontal
+    legenda_texto = '   •   '.join([f"{c[0]} = {c[2]}" for c in conceitos_data])
+    elements.append(Paragraph(legenda_texto, style_conceito))
+    
+    return elements
+
 def calcular_media_conceitual(notas):
     """
     Calcula a média conceitual para Educação Infantil.
