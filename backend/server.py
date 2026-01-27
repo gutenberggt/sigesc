@@ -159,6 +159,11 @@ async def create_indexes():
         await db.audit_logs.create_index("collection")
         await db.audit_logs.create_index([("collection", 1), ("document_id", 1)])
         
+        # Índices para medical_certificates (atestados médicos)
+        await db.medical_certificates.create_index("id", unique=True)
+        await db.medical_certificates.create_index("student_id")
+        await db.medical_certificates.create_index([("student_id", 1), ("start_date", 1), ("end_date", 1)])
+        
         logger.info("Índices MongoDB criados/verificados com sucesso")
     except Exception as e:
         logger.error(f"Erro ao criar índices MongoDB: {e}")
