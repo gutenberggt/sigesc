@@ -962,3 +962,57 @@ export const getWebSocketUrl = () => {
   return `${wsProtocol}//${backendUrl.host}/api/ws/${token}`;
 };
 
+
+// ============= ATESTADOS MÉDICOS =============
+export const medicalCertificatesAPI = {
+  // Criar atestado médico
+  create: async (data) => {
+    const response = await axios.post(`${API}/medical-certificates`, data);
+    return response.data;
+  },
+  
+  // Listar atestados de um aluno
+  getByStudent: async (studentId) => {
+    const response = await axios.get(`${API}/medical-certificates/student/${studentId}`);
+    return response.data;
+  },
+  
+  // Verificar se há atestado para uma data
+  checkForDate: async (studentId, date) => {
+    const response = await axios.get(`${API}/medical-certificates/check/${studentId}/${date}`);
+    return response.data;
+  },
+  
+  // Verificar atestados para múltiplos alunos em uma data
+  checkBulk: async (date, studentIds) => {
+    const idsParam = studentIds.join(',');
+    const response = await axios.get(`${API}/medical-certificates/check-bulk/${date}?student_ids=${idsParam}`);
+    return response.data;
+  },
+  
+  // Obter detalhes de um atestado
+  getById: async (id) => {
+    const response = await axios.get(`${API}/medical-certificates/${id}`);
+    return response.data;
+  },
+  
+  // Atualizar atestado
+  update: async (id, data) => {
+    const response = await axios.put(`${API}/medical-certificates/${id}`, data);
+    return response.data;
+  },
+  
+  // Excluir atestado (apenas admin)
+  delete: async (id) => {
+    const response = await axios.delete(`${API}/medical-certificates/${id}`);
+    return response.data;
+  },
+  
+  // Listar todos os atestados com filtros
+  getAll: async (filters = {}) => {
+    const params = new URLSearchParams(filters).toString();
+    const response = await axios.get(`${API}/medical-certificates?${params}`);
+    return response.data;
+  }
+};
+
