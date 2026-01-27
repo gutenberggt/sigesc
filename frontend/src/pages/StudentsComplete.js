@@ -381,7 +381,7 @@ export function StudentsComplete() {
       showAlert('success', `PDF com ${displayedStudents.length} documento(s) gerado com sucesso!`);
     } catch (error) {
       console.error('Erro ao gerar documentos em lote:', error);
-      showAlert('error', error.response?.data?.detail || 'Erro ao gerar PDF em lote');
+      showAlert('error', extractErrorMessage(error, 'Erro ao gerar PDF em lote'));
     } finally {
       setBatchPrinting(false);
       setShowBatchPrintModal(false);
