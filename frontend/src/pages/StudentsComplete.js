@@ -435,12 +435,31 @@ export function StudentsComplete() {
     });
 
     try {
+      let result;
       if (editingStudent) {
-        await studentsAPI.update(editingStudent.id, cleanData);
-        showAlert('success', 'Aluno atualizado com sucesso');
+        // Atualização - usa serviço offline
+        result = await offlineStudentsService.updateStudent(editingStudent.id, cleanData);
+        if (result.success) {
+          if (result.pendingSync) {
+            showAlert('success', 'Aluno atualizado localmente. Será sincronizado quando a conexão for restaurada.');
+          } else {
+            showAlert('success', 'Aluno atualizado com sucesso');
+          }
+        } else {
+          throw new Error(result.error || 'Erro ao atualizar aluno');
+        }
       } else {
-        await studentsAPI.create(cleanData);
-        showAlert('success', 'Aluno cadastrado com sucesso');
+        // Criação - usa serviço offline
+        result = await offlineStudentsService.createStudent(cleanData);
+        if (result.success) {
+          if (result.pendingSync) {
+            showAlert('success', 'Aluno cadastrado localmente. Será sincronizado quando a conexão for restaurada.');
+          } else {
+            showAlert('success', 'Aluno cadastrado com sucesso');
+          }
+        } else {
+          throw new Error(result.error || 'Erro ao cadastrar aluno');
+        }
       }
       setIsModalOpen(false);
       reloadData();
@@ -460,6 +479,8 @@ export function StudentsComplete() {
         } else if (typeof detail === 'object' && detail.msg) {
           errorMessage = detail.msg;
         }
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       showAlert('error', errorMessage);
       console.error(error);
