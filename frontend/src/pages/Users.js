@@ -120,7 +120,7 @@ export const Users = () => {
       setIsModalOpen(false);
       reloadData();
     } catch (error) {
-      showAlert('error', error.response?.data?.detail || 'Erro ao salvar usuário');
+      showAlert('error', extractErrorMessage(error, 'Erro ao salvar usuário'));
       console.error(error);
     } finally {
       setSubmitting(false);
