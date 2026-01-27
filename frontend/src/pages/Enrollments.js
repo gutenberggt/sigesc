@@ -158,7 +158,7 @@ export const Enrollments = () => {
       setIsModalOpen(false);
       reloadData();
     } catch (error) {
-      showAlert('error', error.response?.data?.detail || 'Erro ao salvar matrícula');
+      showAlert('error', extractErrorMessage(error, 'Erro ao salvar matrícula'));
       console.error(error);
     } finally {
       setSubmitting(false);
