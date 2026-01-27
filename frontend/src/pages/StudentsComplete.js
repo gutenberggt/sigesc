@@ -1778,19 +1778,52 @@ export function StudentsComplete() {
               <span>Início</span>
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Alunos</h1>
-              <p className="text-gray-600 text-sm">Gerencie o cadastro completo de alunos</p>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                Alunos
+                {!isOnline && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                    <CloudOff size={12} />
+                    Modo Offline
+                  </span>
+                )}
+                {dataSource === 'local' && isOnline && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                    <Cloud size={12} />
+                    Cache Local
+                  </span>
+                )}
+              </h1>
+              <p className="text-gray-600 text-sm">
+                Gerencie o cadastro completo de alunos
+                {pendingSyncCount > 0 && (
+                  <span className="ml-2 text-amber-600">
+                    ({pendingSyncCount} alteração(ões) pendente(s) de sincronização)
+                  </span>
+                )}
+              </p>
             </div>
           </div>
-          {canEdit && (
-            <button
-              onClick={handleCreate}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            >
-              <Plus size={20} />
-              <span>Novo Aluno</span>
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {pendingSyncCount > 0 && isOnline && (
+              <button
+                onClick={triggerSync}
+                className="bg-amber-500 text-white px-3 py-2 rounded-lg hover:bg-amber-600 transition-colors flex items-center space-x-2"
+                title="Sincronizar alterações pendentes"
+              >
+                <RefreshCw size={18} />
+                <span>Sincronizar</span>
+              </button>
+            )}
+            {canEdit && (
+              <button
+                onClick={handleCreate}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              >
+                <Plus size={20} />
+                <span>Novo Aluno</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {alert && (
