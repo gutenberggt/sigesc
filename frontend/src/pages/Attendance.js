@@ -171,8 +171,17 @@ export const Attendance = () => {
   useEffect(() => {
     if (selectedDate) {
       checkDate();
+      // Limpa atestados médicos quando a data muda
+      setMedicalCertificates({});
     }
   }, [selectedDate]);
+  
+  // Carrega atestados médicos quando attendanceData muda (após carregar frequência)
+  useEffect(() => {
+    if (attendanceData?.students?.length > 0 && isOnline) {
+      loadMedicalCertificates();
+    }
+  }, [attendanceData?.students?.length, selectedDate]);
   
   const loadSchools = async () => {
     try {
