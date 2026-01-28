@@ -41,8 +41,10 @@ export function SchoolsComplete() {
   const canDelete = isAdmin; // Só admin pode excluir escolas
   const canCreate = isAdmin; // Só admin pode criar escolas
   
-  // IDs das escolas que o usuário tem vínculo (para secretário)
-  const userSchoolIds = user?.school_ids || user?.school_links?.map(link => link.school_id) || [];
+  // IDs das escolas que o usuário tem vínculo (para secretário) - usando useMemo para evitar recriação
+  const userSchoolIds = useMemo(() => {
+    return user?.school_ids || user?.school_links?.map(link => link.school_id) || [];
+  }, [user?.school_ids, user?.school_links]);
   
   // Dados padrão da mantenedora
   const defaultLocation = getDefaultLocation();
