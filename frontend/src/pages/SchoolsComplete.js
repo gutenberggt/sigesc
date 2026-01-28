@@ -240,7 +240,14 @@ export function SchoolsComplete() {
           calendarAPI.getCalendarioLetivo(currentYear).catch(() => null)
         ]);
         if (isMounted) {
-          setSchools(schoolsData);
+          // Filtrar escolas para secretário (apenas escolas vinculadas)
+          let filteredSchools = schoolsData;
+          if (isSecretario && userSchoolIds.length > 0) {
+            filteredSchools = schoolsData.filter(school => 
+              userSchoolIds.includes(school.id)
+            );
+          }
+          setSchools(filteredSchools);
           setClasses(classesData);
           setCalendarioLetivo(calendarioData);
         }
@@ -262,7 +269,7 @@ export function SchoolsComplete() {
     return () => {
       isMounted = false;
     };
-  }, [reloadTrigger]);
+  }, [reloadTrigger, isSecretario, userSchoolIds]);
 
   // Função para recarregar os dados
   const reloadData = () => {
