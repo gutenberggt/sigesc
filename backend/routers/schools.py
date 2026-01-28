@@ -92,8 +92,24 @@ def setup_router(db, audit_service):
 
     @router.put("/{school_id}", response_model=School)
     async def update_school(school_id: str, school_update: SchoolUpdate, request: Request):
-        """Atualiza escola"""
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        """Atualiza escola (admin ou secretário vinculado)"""
+        current_user = await AuthMiddleware.get_current_user(request)
+        
+        # Admin pode editar qualquer escola
+        # Secretário pode editar apenas escolas vinculadas
+        if current_user['role'] == 'admin':
+            pass  # Admin pode editar qualquer escola
+        elif current_user['role'] == 'secretario':
+            if school_id not in current_user.get('school_ids', []):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Você não tem permissão para editar esta escola"
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Apenas administradores e secretários podem editar escolas"
+            )
         
         update_data = school_update.model_dump(exclude_unset=True)
         
