@@ -244,10 +244,22 @@ export function SchoolsComplete() {
         if (isMounted) {
           // Filtrar escolas para secretário (apenas escolas vinculadas)
           let filteredSchools = schoolsData;
-          if (isSecretario && userSchoolIds.length > 0) {
-            filteredSchools = schoolsData.filter(school => 
-              userSchoolIds.includes(school.id)
-            );
+          
+          // Debug: verificar school_ids do usuário
+          console.log('[SchoolsComplete] user:', user);
+          console.log('[SchoolsComplete] userSchoolIds:', userSchoolIds);
+          console.log('[SchoolsComplete] isSecretario:', isSecretario);
+          
+          if (isSecretario) {
+            if (userSchoolIds.length > 0) {
+              filteredSchools = schoolsData.filter(school => 
+                userSchoolIds.includes(school.id)
+              );
+            }
+            // Se secretário não tem school_ids, mostra mensagem
+            if (filteredSchools.length === 0) {
+              console.log('[SchoolsComplete] Nenhuma escola encontrada para o secretário');
+            }
           }
           setSchools(filteredSchools);
           setClasses(classesData);
