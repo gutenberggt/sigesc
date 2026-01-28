@@ -515,7 +515,8 @@ def generate_boletim_pdf(
     }
     
     # Inferir nível de ensino da turma
-    nivel_ensino = class_info.get('nivel_ensino')
+    # Nota: O campo pode ser 'nivel_ensino' ou 'education_level' dependendo da versão
+    nivel_ensino = class_info.get('nivel_ensino') or class_info.get('education_level')
     grade_level = class_info.get('grade_level', '').lower()
     
     # Se não tem nivel_ensino definido, inferir pelo grade_level
@@ -1382,7 +1383,8 @@ def generate_ficha_individual_pdf(
     }
     
     # Inferir nível de ensino da turma
-    nivel_ensino = class_info.get('nivel_ensino')
+    # Nota: O campo pode ser 'nivel_ensino' ou 'education_level' dependendo da versão
+    nivel_ensino = class_info.get('nivel_ensino') or class_info.get('education_level')
     grade_level = class_info.get('grade_level', '').lower()
     
     # Se não tem nivel_ensino definido, inferir pelo grade_level
