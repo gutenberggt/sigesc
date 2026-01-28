@@ -80,9 +80,9 @@ export const Dashboard = () => {
         ];
       case 'secretario':
         return [
-          { title: 'Alunos', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'blue' },
-          { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'green' },
-          { title: 'Professores', icon: Users, value: loading ? '...' : '0', color: 'purple' },
+          { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
+          { title: 'Alunos', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
+          { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple' },
           { title: 'Avisos', icon: Bell, value: '0', color: 'orange' }
         ];
       case 'diretor':
