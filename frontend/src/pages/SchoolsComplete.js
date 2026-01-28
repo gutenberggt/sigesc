@@ -29,11 +29,20 @@ export function SchoolsComplete() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [novoAnoLetivo, setNovoAnoLetivo] = useState('');
 
-  // SEMED pode visualizar tudo, mas não pode editar/excluir
-  const canEdit = user?.role !== 'semed';
-  const canDelete = user?.role === 'admin'; // Só admin pode excluir escolas
-  const canCreate = user?.role === 'admin'; // Só admin pode criar escolas
+  // Permissões baseadas no papel do usuário
+  // Admin: pode tudo
+  // Secretário: pode visualizar e editar escolas onde tem vínculo, mas não criar/excluir
+  // SEMED: pode visualizar tudo, mas não pode editar/excluir
   const isAdmin = user?.role === 'admin';
+  const isSecretario = user?.role === 'secretario';
+  const isSemed = user?.role === 'semed';
+  
+  const canEdit = isAdmin || isSecretario; // Admin e secretário podem editar
+  const canDelete = isAdmin; // Só admin pode excluir escolas
+  const canCreate = isAdmin; // Só admin pode criar escolas
+  
+  // IDs das escolas que o usuário tem vínculo (para secretário)
+  const userSchoolIds = user?.school_ids || user?.school_links?.map(link => link.school_id) || [];
   
   // Dados padrão da mantenedora
   const defaultLocation = getDefaultLocation();
