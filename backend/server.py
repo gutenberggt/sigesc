@@ -946,17 +946,19 @@ async def list_students(request: Request, school_id: Optional[str] = None, class
     # Constrói filtro
     filter_query = {}
     
-    if current_user['role'] in ['admin', 'semed']:
+    # Admin, SEMED e Secretário podem ver TODOS os alunos
+    # (Secretário vê todos, mas só pode editar os da sua escola)
+    if current_user['role'] in ['admin', 'semed', 'secretario']:
         if school_id:
             filter_query['school_id'] = school_id
         if class_id:
             filter_query['class_id'] = class_id
     else:
-        # Outros papéis veem apenas das escolas vinculadas
-        if school_id and school_id in current_user['school_ids']:
+        # Outros papéis (coordenador, professor) veem apenas das escolas vinculadas
+        if school_id and school_id in current_user.get('school_ids', []):
             filter_query['school_id'] = school_id
         else:
-            filter_query['school_id'] = {"$in": current_user['school_ids']}
+            filter_query['school_id'] = {"$in": current_user.get('school_ids', [])}
         
         if class_id:
             filter_query['class_id'] = class_id
