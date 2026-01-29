@@ -28,8 +28,15 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - ✅ **Funcionalidade Offline:** Cadastro e edição de alunos offline com sincronização em background
 - ✅ **Legendas em PDFs:** Legenda dinâmica para notas conceituais (Educação Infantil e 1º/2º Ano)
 - ✅ **Sessão Persistente:** Token JWT com 7 dias de duração e auto-refresh
-- ✅ **Permissões de Secretário:** Perfil restrito sem acesso a exclusões e criações
+- ✅ **Permissões de Secretário:** Perfil com regras granulares de edição
 - ✅ **Tratamento de Erros Global:** Utilitário `errorHandler.js` para erros de validação
+
+### Permissões de Secretário (Jan 29, 2026)
+- ✅ **Visualização:** Secretário pode ver TODOS os alunos de todas as escolas
+- ✅ **Edição de Alunos:** Pode editar alunos ATIVOS apenas da sua escola; alunos NÃO ATIVOS de qualquer escola
+- ✅ **Geração de Documentos:** Botão "Documentos" visível apenas para alunos da escola vinculada ao secretário
+- ✅ **Filtro de Turmas:** Página de turmas filtrada para mostrar apenas turmas das escolas do secretário
+- ✅ **Estatísticas Dashboard:** Cards de estatísticas filtrados para escolas do secretário
 
 ## Correções de Deploy (Jan 28, 2026)
 - ✅ Bug do `nginx.conf` com regex `{8}` corrigido
