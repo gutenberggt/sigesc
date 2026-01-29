@@ -56,6 +56,15 @@ const EDUCATION_LEVELS = [
 
 export const Classes = () => {
   const { user } = useAuth();
+  
+  // IDs das escolas que o usuário (secretário) tem vínculo
+  const userSchoolIds = useMemo(() => {
+    return user?.school_ids || user?.school_links?.map(link => link.school_id) || [];
+  }, [user?.school_ids, user?.school_links]);
+  
+  const isAdmin = user?.role === 'admin';
+  const isSecretario = user?.role === 'secretario';
+  const isSemed = user?.role === 'semed';
   const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
   const [schools, setSchools] = useState([]);
