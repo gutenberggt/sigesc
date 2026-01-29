@@ -10,6 +10,8 @@ export const DataTable = ({
   loading = false,
   canEdit = true,
   canDelete = true,
+  canEditRow = null, // Função opcional para verificar permissão por linha (row) => boolean
+  canDeleteRow = null, // Função opcional para verificar permissão por linha (row) => boolean
   pageSize = 50
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
