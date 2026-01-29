@@ -495,11 +495,6 @@ export function SchoolsComplete() {
       )
     },
     {
-      header: 'Município',
-      accessor: 'municipio',
-      render: (row) => row.municipio || '-'
-    },
-    {
       header: 'Zona',
       accessor: 'zona_localizacao',
       render: (row) => row.zona_localizacao ? (row.zona_localizacao === 'urbana' ? 'Urbana' : 'Rural') : '-'
