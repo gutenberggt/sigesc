@@ -701,10 +701,15 @@ export function StudentsComplete() {
       render: (row) => {
         const statusConfig = {
           'active': { label: 'Ativo', class: 'bg-green-100 text-green-800' },
+          'Ativo': { label: 'Ativo', class: 'bg-green-100 text-green-800' },
           'inactive': { label: 'Inativo', class: 'bg-gray-100 text-gray-800' },
+          'Inativo': { label: 'Inativo', class: 'bg-gray-100 text-gray-800' },
           'dropout': { label: 'Desistente', class: 'bg-orange-100 text-orange-800' },
+          'Desistente': { label: 'Desistente', class: 'bg-orange-100 text-orange-800' },
           'transferred': { label: 'Transferido', class: 'bg-yellow-100 text-yellow-800' },
-          'deceased': { label: 'Falecido', class: 'bg-red-100 text-red-800' }
+          'Transferido': { label: 'Transferido', class: 'bg-yellow-100 text-yellow-800' },
+          'deceased': { label: 'Falecido', class: 'bg-red-100 text-red-800' },
+          'Falecido': { label: 'Falecido', class: 'bg-red-100 text-red-800' }
         };
         const config = statusConfig[row.status] || statusConfig['active'];
         return (
