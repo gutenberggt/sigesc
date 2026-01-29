@@ -87,12 +87,23 @@ http:
 
 ## Credenciais de Teste
 - **Admin:** gutenberg@sigesc.com / @Celta2007
+- **Secretários de teste:**
+  - ROSIMEIRE: rosimeireazevedo@sigesc.com (vinculada à escola "C M E I PROFESSORA NIVALDA MARIA DE GODOY")
+  - ADRIANA: adrianapereira@sigesc.com (vinculada à escola "E M E I E F PAROQUIAL CURUPIRA")
+
+## Documentação de Infraestrutura
+- `/app/memory/TRAEFIK_FIX_GUIDE.md` - Guia completo para resolver o problema do Traefik no Coolify
+- `/app/docker-compose.coolify.yml` - Docker Compose otimizado para deploy no Coolify
 
 ## Backlog
+
+### P0 - Crítico
+- ⚠️ **Configuração do Traefik no Coolify:** A configuração manual atual é frágil. Aplicar o guia `/app/memory/TRAEFIK_FIX_GUIDE.md` para solução permanente
 
 ### P1 - Próximas
 - Email de confirmação após pré-matrícula
 - Highlight do aluno recém-criado na lista
+- Padronizar valores de status dos alunos no banco de dados ("transferred" vs "Transferido")
 
 ### P2 - Futuras
 - Refatoração do `server.py` (modularização)
