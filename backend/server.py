@@ -1028,9 +1028,26 @@ async def update_student(student_id: str, student_update: StudentUpdate, request
     # Verifica se o usuário tem acesso à escola do aluno
     user_school_ids = current_user.get('school_ids', [])
     current_school_id = student_doc.get('school_id')
+    student_status = student_doc.get('status', '')
     
-    # Admin e SEMED têm acesso a todas as escolas
-    if current_user.get('role') not in ['admin', 'semed']:
+    # Admin tem acesso total
+    if current_user.get('role') == 'admin':
+        pass  # Admin pode editar qualquer aluno
+    # Secretário só pode editar alunos ATIVOS da sua escola
+    elif current_user.get('role') == 'secretario':
+        is_active = student_status in ['active', 'Ativo']
+        if current_school_id and current_school_id not in user_school_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você não tem permissão para editar alunos desta escola"
+            )
+        if not is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você só pode editar alunos com status Ativo"
+            )
+    # SEMED e outros roles com acesso limitado
+    elif current_user.get('role') not in ['semed']:
         if current_school_id and current_school_id not in user_school_ids:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
