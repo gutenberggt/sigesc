@@ -755,16 +755,31 @@ export function StudentsComplete() {
     {
       header: 'Documentos',
       accessor: 'documents',
-      render: (row) => (
-        <button
-          onClick={() => handleOpenDocuments(row)}
-          className="flex items-center gap-1 px-2 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-          title="Gerar documentos"
-        >
-          <Printer size={16} />
-          <span className="hidden sm:inline">PDF</span>
-        </button>
-      )
+      render: (row) => {
+        // Secretário só pode gerar documentos de alunos da sua escola
+        const canGenerateDocuments = isAdmin || isSemed || 
+          (isSecretario && userSchoolIds.includes(row.school_id)) ||
+          (!isSecretario && !isSemed);
+        
+        if (!canGenerateDocuments) {
+          return (
+            <span className="text-gray-400 text-sm" title="Sem permissão para gerar documentos deste aluno">
+              -
+            </span>
+          );
+        }
+        
+        return (
+          <button
+            onClick={() => handleOpenDocuments(row)}
+            className="flex items-center gap-1 px-2 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+            title="Gerar documentos"
+          >
+            <Printer size={16} />
+            <span className="hidden sm:inline">PDF</span>
+          </button>
+        );
+      }
     }
   ];
 
