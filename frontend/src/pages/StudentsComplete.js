@@ -285,10 +285,17 @@ export function StudentsComplete() {
     if (isAdmin) return true;
     if (isSemed || isCoordenador) return false;
     if (isSecretario) {
-      // Secretário só pode editar alunos ATIVOS da sua escola
       const isAtivo = student.status === 'active' || student.status === 'Ativo';
       const isFromUserSchool = userSchoolIds.includes(student.school_id);
-      return isAtivo && isFromUserSchool;
+      
+      // Secretário pode editar:
+      // 1. Alunos ATIVOS da sua escola
+      // 2. Alunos NÃO ATIVOS de qualquer escola
+      if (isAtivo) {
+        return isFromUserSchool; // Só pode editar ativos da sua escola
+      } else {
+        return true; // Pode editar não-ativos de qualquer escola
+      }
     }
     return true; // Outros roles podem editar
   }, [isAdmin, isSecretario, isSemed, isCoordenador, userSchoolIds]);
