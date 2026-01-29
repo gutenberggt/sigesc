@@ -2231,6 +2231,7 @@ export function StudentsComplete() {
           onDelete={handleDelete}
           canEdit={canEdit}
           canDelete={canDelete}
+          canEditRow={canEditStudent}
         />
 
         <Modal
