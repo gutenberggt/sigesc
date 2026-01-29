@@ -264,12 +264,38 @@ export function StudentsComplete() {
   });
   const [savingCertificate, setSavingCertificate] = useState(false);
   
-  // Permissões de edição:
+  // Permissões de edição/exclusão de alunos:
+  // - Admin: pode editar/excluir qualquer aluno
+  // - Secretário: pode editar apenas alunos ATIVOS da(s) escola(s) onde tem vínculo
   // - SEMED: apenas visualização (não pode editar/excluir)
   // - Coordenador: apenas visualização de alunos (não pode editar/excluir)
-  // - Outros roles com acesso: podem editar/excluir
-  const canEditStudents = user?.role !== 'semed' && user?.role !== 'coordenador';
-  const canDeleteStudents = user?.role !== 'semed' && user?.role !== 'coordenador';
+  
+  const isAdmin = user?.role === 'admin';
+  const isSecretario = user?.role === 'secretario';
+  const isSemed = user?.role === 'semed';
+  const isCoordenador = user?.role === 'coordenador';
+  
+  // IDs das escolas que o usuário (secretário) tem vínculo
+  const userSchoolIds = useMemo(() => {
+    return user?.school_ids || user?.school_links?.map(link => link.school_id) || [];
+  }, [user?.school_ids, user?.school_links]);
+  
+  // Função para verificar se o secretário pode editar um aluno específico
+  const canEditStudent = useCallback((student) => {
+    if (isAdmin) return true;
+    if (isSemed || isCoordenador) return false;
+    if (isSecretario) {
+      // Secretário só pode editar alunos ATIVOS da sua escola
+      const isAtivo = student.status === 'active' || student.status === 'Ativo';
+      const isFromUserSchool = userSchoolIds.includes(student.school_id);
+      return isAtivo && isFromUserSchool;
+    }
+    return true; // Outros roles podem editar
+  }, [isAdmin, isSecretario, isSemed, isCoordenador, userSchoolIds]);
+  
+  // Permissão geral para mostrar botões de edição (será refinada por aluno)
+  const canEditStudents = !isSemed && !isCoordenador;
+  const canDeleteStudents = isAdmin; // Apenas admin pode excluir alunos
   
   // Permissão para registrar atestados (secretário e admin)
   const canRegisterCertificates = user?.role === 'admin' || user?.role === 'secretario';
