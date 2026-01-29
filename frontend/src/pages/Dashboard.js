@@ -2,7 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI } from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -17,6 +17,13 @@ export const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
+
+  // IDs das escolas que o usuário (secretário) tem vínculo
+  const userSchoolIds = useMemo(() => {
+    return user?.school_ids || user?.school_links?.map(link => link.school_id) || [];
+  }, [user?.school_ids, user?.school_links]);
+  
+  const isSecretario = user?.role === 'secretario';
 
   useEffect(() => {
     // Não carrega stats se for professor (será redirecionado)
@@ -33,13 +40,27 @@ export const Dashboard = () => {
           profilesAPI.getMyProfile().catch(() => null)
         ]);
 
-        // Conta alunos ativos da coleção students
-        const activeStudentsCount = studentsData.filter(s => s.status === 'active').length;
+        // Para secretário, filtra apenas dados das escolas vinculadas
+        let filteredSchools = schoolsData;
+        let filteredClasses = classesData;
+        let filteredStudents = studentsData;
+        
+        if (isSecretario && userSchoolIds.length > 0) {
+          filteredSchools = schoolsData.filter(s => userSchoolIds.includes(s.id));
+          filteredClasses = classesData.filter(c => userSchoolIds.includes(c.school_id));
+          // Para alunos, mostra todos (secretário vê todos os alunos)
+          // mas a contagem de "ativos" considera todos
+        }
+
+        // Conta alunos ativos
+        const activeStudentsCount = filteredStudents.filter(s => 
+          s.status === 'active' || s.status === 'Ativo'
+        ).length;
 
         setStats({
-          schools: schoolsData.length,
+          schools: filteredSchools.length,
           users: usersData.length,
-          classes: classesData.length,
+          classes: filteredClasses.length,
           students: activeStudentsCount
         });
         
@@ -51,7 +72,7 @@ export const Dashboard = () => {
       }
     };
     loadData();
-  }, [user?.role]);
+  }, [user?.role, isSecretario, userSchoolIds]);
 
   // Redireciona professor para o dashboard específico
   if (user?.role === 'professor') {
