@@ -112,12 +112,22 @@ export const Classes = () => {
           classesAPI.getAll(),
           schoolsAPI.getAll()
         ]);
-        setClasses(classesData);
-        setSchools(schoolsData);
+        
+        // Secretário vê apenas turmas das escolas vinculadas
+        let filteredClasses = classesData;
+        let filteredSchools = schoolsData;
+        
+        if (isSecretario && userSchoolIds.length > 0) {
+          filteredClasses = classesData.filter(c => userSchoolIds.includes(c.school_id));
+          filteredSchools = schoolsData.filter(s => userSchoolIds.includes(s.id));
+        }
+        
+        setClasses(filteredClasses);
+        setSchools(filteredSchools);
         
         // Se não for admin/semed e tiver schools, seleciona a primeira
-        if (!['admin', 'semed'].includes(user?.role) && schoolsData.length > 0) {
-          setFormData(prev => ({ ...prev, school_id: schoolsData[0].id }));
+        if (!['admin', 'semed'].includes(user?.role) && filteredSchools.length > 0) {
+          setFormData(prev => ({ ...prev, school_id: filteredSchools[0].id }));
         }
       } catch (error) {
         setAlert({ type: 'error', message: 'Erro ao carregar dados' });
@@ -128,7 +138,7 @@ export const Classes = () => {
       }
     };
     fetchData();
-  }, [reloadTrigger, user?.role]);
+  }, [reloadTrigger, user?.role, isSecretario, userSchoolIds]);
   
   const reloadData = () => setReloadTrigger(prev => prev + 1);
 
