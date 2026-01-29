@@ -39,16 +39,16 @@ def setup_router(db, audit_service):
         # Constrói filtro
         filter_query = {}
         
-        if current_user['role'] in ['admin', 'semed']:
-            # Admin e SEMED podem filtrar por escola ou ver todas
+        # Admin, SEMED e Secretário podem ver todas as turmas
+        if current_user['role'] in ['admin', 'semed', 'secretario']:
             if school_id:
                 filter_query['school_id'] = school_id
         else:
             # Outros papéis veem apenas das escolas vinculadas
-            if school_id and school_id in current_user['school_ids']:
+            if school_id and school_id in current_user.get('school_ids', []):
                 filter_query['school_id'] = school_id
             else:
-                filter_query['school_id'] = {"$in": current_user['school_ids']}
+                filter_query['school_id'] = {"$in": current_user.get('school_ids', [])}
         
         classes = await db.classes.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         
