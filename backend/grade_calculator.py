@@ -33,7 +33,7 @@ MIN_ATTENDANCE = 75.0
 
 # Séries/Anos da Educação Infantil
 SERIES_EDUCACAO_INFANTIL = [
-    'Berçário', 'Berçário I', 'Berçário II',
+    'Berçário', 'Berçário I', 'Berçário II', 'Berçário III',
     'Maternal', 'Maternal I', 'Maternal II',
     'Pré', 'Pré I', 'Pré II', 'Pré-Escola',
     'Creche', 'Jardim', 'Jardim I', 'Jardim II'
