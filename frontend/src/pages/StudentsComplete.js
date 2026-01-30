@@ -826,22 +826,7 @@ export function StudentsComplete() {
   const tabIdentificacao = (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Identificação do Aluno</h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Escola *</label>
-          <select
-            value={formData.school_id}
-            onChange={(e) => updateFormData('school_id', e.target.value)}
-            required
-            disabled={viewMode}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-          >
-            <option value="">Selecione</option>
-            {schools.map(school => (
-              <option key={school.id} value={school.id}>{school.name}</option>
-            ))}
-          </select>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Código/Matrícula *</label>
           <input
