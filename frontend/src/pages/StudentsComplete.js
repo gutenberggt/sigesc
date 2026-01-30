@@ -257,6 +257,10 @@ export function StudentsComplete() {
   const [filterStatus, setFilterStatus] = useState('');
   const [showBatchPrintModal, setShowBatchPrintModal] = useState(false);
   
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+  
   // Ações em Lote
   const [batchMode, setBatchMode] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
