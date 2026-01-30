@@ -10,11 +10,13 @@ import { Plus, AlertCircle, CheckCircle, Home, Info } from 'lucide-react';
 // Mapeamento de níveis de ensino para séries/etapas
 const GRADE_LEVELS_BY_EDUCATION = {
   educacao_infantil: [
-    { value: 'Berçário', label: 'Berçário' },
-    { value: 'Maternal I', label: 'Maternal I' },
-    { value: 'Maternal II', label: 'Maternal II' },
-    { value: 'Pré I', label: 'Pré I' },
-    { value: 'Pré II', label: 'Pré II' }
+    { value: 'Berçário I', label: 'Berçário I (3 a 10 meses)' },
+    { value: 'Berçário II', label: 'Berçário II (11 meses a 1a4m)' },
+    { value: 'Berçário III', label: 'Berçário III (1a5m a 2 anos)' },
+    { value: 'Maternal I', label: 'Maternal I (2 a 2a11m)' },
+    { value: 'Maternal II', label: 'Maternal II (3 a 3a11m)' },
+    { value: 'Pré I', label: 'Pré I (4 anos)' },
+    { value: 'Pré II', label: 'Pré II (5 anos)' }
   ],
   fundamental_anos_iniciais: [
     { value: '1º Ano', label: '1º Ano' },
