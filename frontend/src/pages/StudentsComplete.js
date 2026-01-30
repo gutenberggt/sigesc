@@ -2268,6 +2268,29 @@ export function StudentsComplete() {
               </select>
             </div>
 
+            {/* Filtro por Status */}
+            <div className="flex-1 min-w-[150px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Filter size={14} className="inline mr-1" />
+                Filtrar por Status
+              </label>
+              <select
+                value={filterStatus}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setSelectedStudent(null);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Todos os status</option>
+                <option value="active">Ativo</option>
+                <option value="inactive">Inativo</option>
+                <option value="dropout">Desistente</option>
+                <option value="transferred">Transferido</option>
+                <option value="deceased">Falecido</option>
+              </select>
+            </div>
+
             {/* Botão Impressão em Lote (aparece quando uma turma é selecionada) */}
             {filterClassId && displayedStudents.length > 0 && (
               <button
