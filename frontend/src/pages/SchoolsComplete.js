@@ -179,11 +179,15 @@ export function SchoolsComplete() {
     tipo_avaliacao: '',
     
     // Sub-níveis Educação Infantil
-    educacao_infantil_bercario: false,
+    educacao_infantil_bercario_i: false,
+    educacao_infantil_bercario_ii: false,
+    educacao_infantil_bercario_iii: false,
     educacao_infantil_maternal_i: false,
     educacao_infantil_maternal_ii: false,
     educacao_infantil_pre_i: false,
     educacao_infantil_pre_ii: false,
+    // Retrocompatibilidade
+    educacao_infantil_bercario: false,
     
     // Sub-níveis Fundamental Inicial
     fundamental_inicial_1ano: false,
