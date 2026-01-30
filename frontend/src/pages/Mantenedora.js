@@ -968,6 +968,44 @@ export default function Mantenedora() {
               </p>
             </CardContent>
           </Card>
+
+          {/* Ferramentas de Migração */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Wrench className="w-5 h-5 text-gray-600" />
+                Ferramentas de Migração
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h4 className="font-medium text-yellow-800 mb-2">Migrar Berçário Antigo</h4>
+                <p className="text-sm text-yellow-700 mb-3">
+                  Remove o campo "Berçário" (antigo) de todas as escolas que ainda possuem essa configuração. 
+                  Use após atualizar as escolas para usar "Berçário I" e "Berçário II".
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleMigrateBercario}
+                  disabled={migratingBercario}
+                  className="bg-yellow-100 hover:bg-yellow-200 border-yellow-300"
+                >
+                  {migratingBercario ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Migrando...
+                    </>
+                  ) : (
+                    <>
+                      <Wrench className="w-4 h-4 mr-2" />
+                      Executar Migração
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Botão Salvar */}
