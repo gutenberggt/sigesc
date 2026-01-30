@@ -28,13 +28,6 @@ services:
     restart: unless-stopped
     depends_on:
       - mongo
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.sigesc-backend.rule=Host(`api.sigesc.aprenderdigital.top`)"
-      - "traefik.http.routers.sigesc-backend.entrypoints=https"
-      - "traefik.http.routers.sigesc-backend.tls=true"
-      - "traefik.http.routers.sigesc-backend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.sigesc-backend-service.loadbalancer.server.port=8001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
       interval: 30s
@@ -52,13 +45,6 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.sigesc-frontend.rule=Host(`sigesc.aprenderdigital.top`)"
-      - "traefik.http.routers.sigesc-frontend.entrypoints=https"
-      - "traefik.http.routers.sigesc-frontend.tls=true"
-      - "traefik.http.routers.sigesc-frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.sigesc-frontend-service.loadbalancer.server.port=80"
 
 volumes:
   sigesc-mongo-data:
