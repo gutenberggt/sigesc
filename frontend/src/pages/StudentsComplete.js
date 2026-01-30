@@ -373,6 +373,29 @@ export function StudentsComplete() {
       showAlert('error', 'Erro ao atualizar dados');
     }
   };
+  
+  // Descarta alterações pendentes com problema
+  const discardPendingChanges = async () => {
+    if (!window.confirm('Tem certeza que deseja descartar todas as alterações pendentes? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+    try {
+      setLoading(true);
+      await offlineStudentsService.discardPendingChanges();
+      // Atualiza contador do contexto offline
+      if (typeof updatePendingCount === 'function') {
+        await updatePendingCount();
+      }
+      // Recarrega dados do servidor
+      setReloadTrigger(prev => prev + 1);
+      showAlert('success', 'Alterações pendentes descartadas. Dados recarregados do servidor.');
+    } catch (error) {
+      console.error('Erro ao descartar alterações:', error);
+      showAlert('error', 'Erro ao descartar alterações');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const showAlert = (type, message) => {
     setAlert({ type, message });
