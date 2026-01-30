@@ -16,6 +16,44 @@ class OfflineStudentsService {
   }
 
   /**
+   * Limpa o cache local de alunos e a fila de sincronização
+   */
+  async clearCache() {
+    try {
+      // Limpa alunos do cache local
+      await db.students.clear();
+      
+      // Limpa fila de sincronização relacionada a alunos
+      await db.syncQueue.where('collection').equals('students').delete();
+      
+      console.log('[OfflineStudents] Cache limpo com sucesso');
+      return { success: true };
+    } catch (error) {
+      console.error('[OfflineStudents] Erro ao limpar cache:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Descarta todas as alterações pendentes (use com cuidado!)
+   */
+  async discardPendingChanges() {
+    try {
+      // Remove todos os itens da fila de sincronização
+      await db.syncQueue.clear();
+      
+      // Limpa alunos com status pendente
+      await db.students.where('syncStatus').equals('pending').delete();
+      
+      console.log('[OfflineStudents] Alterações pendentes descartadas');
+      return { success: true };
+    } catch (error) {
+      console.error('[OfflineStudents] Erro ao descartar alterações:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Busca alunos - SEMPRE usa servidor quando online
    */
   async getStudents(filters = {}) {
