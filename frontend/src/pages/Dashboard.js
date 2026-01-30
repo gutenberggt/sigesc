@@ -225,16 +225,6 @@ export const Dashboard = () => {
               </Card>
 
               <Card 
-                className="cursor-pointer hover:bg-green-50 transition-colors"
-                onClick={() => navigate('/admin/users')}
-              >
-                <CardContent className="p-4 text-center">
-                  <Users className="mx-auto mb-2 text-green-600" size={32} />
-                  <p className="font-medium">Usuários</p>
-                </CardContent>
-              </Card>
-
-              <Card 
                 className="cursor-pointer hover:bg-purple-50 transition-colors"
                 onClick={() => navigate('/admin/classes')}
               >
@@ -255,12 +245,22 @@ export const Dashboard = () => {
               </Card>
 
               <Card 
-                className="cursor-pointer hover:bg-indigo-50 transition-colors"
-                onClick={() => navigate('/profile')}
+                className="cursor-pointer hover:bg-amber-50 transition-colors"
+                onClick={() => navigate('/admin/staff')}
               >
                 <CardContent className="p-4 text-center">
-                  <User className="mx-auto mb-2 text-indigo-600" size={32} />
-                  <p className="font-medium">Meu Perfil</p>
+                  <Briefcase className="mx-auto mb-2 text-amber-600" size={32} />
+                  <p className="font-medium">Servidores</p>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:bg-green-50 transition-colors"
+                onClick={() => navigate('/admin/users')}
+              >
+                <CardContent className="p-4 text-center">
+                  <Users className="mx-auto mb-2 text-green-600" size={32} />
+                  <p className="font-medium">Usuários</p>
                 </CardContent>
               </Card>
             </div>
