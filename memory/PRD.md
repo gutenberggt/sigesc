@@ -31,6 +31,11 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - ✅ **Permissões de Secretário:** Perfil com regras granulares de edição
 - ✅ **Tratamento de Erros Global:** Utilitário `errorHandler.js` para erros de validação
 
+### Correções e Melhorias (Jan 30, 2026)
+- ✅ **Botão "Início":** Adicionado na página de Gestão de Pré-Matrículas para navegação rápida
+- ✅ **Cache Offline:** Melhorada a inicialização do banco IndexedDB com tratamento de erros de versão
+- ✅ **Banco de Dados Local:** Sistema de auto-recuperação quando há conflitos de versão do Dexie
+
 ### Permissões de Secretário (Jan 29, 2026)
 - ✅ **Visualização:** Secretário pode ver TODOS os alunos de todas as escolas
 - ✅ **Edição de Alunos:** Pode editar alunos ATIVOS apenas da sua escola; alunos NÃO ATIVOS de qualquer escola
@@ -81,8 +86,11 @@ http:
 
 ### Frontend
 - `/app/frontend/src/pages/StudentsComplete.js` - Gestão de alunos
+- `/app/frontend/src/pages/PreMatriculaManagement.jsx` - Gestão de pré-matrículas
 - `/app/frontend/src/pages/Attendance.js` - Lançamento de frequência
 - `/app/frontend/src/utils/errorHandler.js` - Tratamento de erros
+- `/app/frontend/src/db/database.js` - Banco de dados local (IndexedDB/Dexie)
+- `/app/frontend/src/contexts/OfflineContext.jsx` - Contexto de funcionalidade offline
 - `/app/frontend/nginx.conf` - Configuração do Nginx
 
 ## Credenciais de Teste
@@ -98,7 +106,7 @@ http:
 ## Backlog
 
 ### P0 - Crítico
-- ⚠️ **Configuração do Traefik no Coolify:** A configuração manual atual é frágil. Aplicar o guia `/app/memory/TRAEFIK_FIX_GUIDE.md` para solução permanente
+- ⚠️ **Configuração do Traefik no Coolify:** A configuração manual atual é frágil. Aplicar o guia `/app/memory/TRAEFIK_FIX_GUIDE.md` para solução permanente. **NOTA:** Este é um problema de infraestrutura externa que requer acesso ao servidor de produção.
 
 ### P1 - Próximas
 - Email de confirmação após pré-matrícula
