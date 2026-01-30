@@ -43,7 +43,7 @@ const VALOR_PARA_CONCEITO_ANOS_INICIAIS = {
 
 // Lista de séries/anos da Educação Infantil
 const SERIES_EDUCACAO_INFANTIL = [
-  'Berçário', 'Berçário I', 'Berçário II', 'Berçário III',
+  'Berçário', 'Berçário I', 'Berçário II',
   'Maternal', 'Maternal I', 'Maternal II',
   'Pré', 'Pré I', 'Pré II', 'Pré-Escola',
   'Creche', 'Jardim', 'Jardim I', 'Jardim II'
