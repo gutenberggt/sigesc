@@ -758,6 +758,18 @@ export function StudentsComplete() {
     return result;
   })();
 
+  // Paginação
+  const totalPages = Math.ceil(displayedStudents.length / itemsPerPage);
+  const paginatedStudents = displayedStudents.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset página quando filtros mudam
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterSchoolId, filterClassId, filterStatus, selectedStudent]);
+
   // Turmas filtradas para ação em lote (baseado na escola selecionada para lote)
   const batchClassOptions = classes.filter(c => c.school_id === batchSchoolId);
 
