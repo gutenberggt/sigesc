@@ -1200,7 +1200,6 @@ export function SchoolsComplete() {
         const subniveis = [];
         if (formData.educacao_infantil_bercario_i) subniveis.push('Berçário I');
         if (formData.educacao_infantil_bercario_ii) subniveis.push('Berçário II');
-        if (formData.educacao_infantil_bercario_iii) subniveis.push('Berçário III');
         if (formData.educacao_infantil_bercario) subniveis.push('Berçário'); // Retrocompatibilidade
         if (formData.educacao_infantil_maternal_i) subniveis.push('Maternal I');
         if (formData.educacao_infantil_maternal_ii) subniveis.push('Maternal II');
