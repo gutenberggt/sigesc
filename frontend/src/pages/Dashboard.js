@@ -101,9 +101,10 @@ export const Dashboard = () => {
       case 'admin':
         return [
           { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
-          { title: 'Usuários', icon: Users, value: loading ? '...' : stats.users.toString(), color: 'green' },
           { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple' },
-          { title: 'Alunos', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'orange' }
+          { title: 'Alunos', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'orange' },
+          { title: 'Servidores', icon: Briefcase, value: loading ? '...' : stats.staff.toString(), color: 'amber' },
+          { title: 'Usuários', icon: Users, value: loading ? '...' : stats.users.toString(), color: 'green' }
         ];
       case 'secretario':
         return [
