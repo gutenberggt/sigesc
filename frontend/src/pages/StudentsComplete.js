@@ -168,18 +168,38 @@ const calculateIdealGrade = (birthDate) => {
     } else {
       ageInMonths = (12 - birth.getMonth()) + 3; // Meses até março do próximo ano
     }
+  } else if (ageAtCutoff === 1) {
+    // Para crianças de 1 ano, calcular meses mais precisamente
+    const monthsFromBirth = ((currentYear - birth.getFullYear()) * 12) + (2 - birth.getMonth());
+    ageInMonths = monthsFromBirth;
+  } else if (ageAtCutoff === 2) {
+    // Para crianças de 2 anos, calcular meses mais precisamente
+    const monthsFromBirth = ((currentYear - birth.getFullYear()) * 12) + (2 - birth.getMonth());
+    ageInMonths = monthsFromBirth;
   }
   
-  // Educação Infantil - Creche (faixas específicas conforme MEC)
-  // Berçário: 4 meses até 1 ano e 11 meses
-  if (ageAtCutoff < 0) return 'Idade insuficiente';
-  if (ageAtCutoff === 0) return 'Berçário';
-  if (ageAtCutoff === 1) return 'Berçário';
+  // Educação Infantil - Creche (faixas específicas conforme novas diretrizes)
+  // Berçário I: 3 a 10 meses
+  // Berçário II: 11 meses a 1 ano e 4 meses (11 a 16 meses)
+  // Berçário III: 1 ano e 5 meses a 2 anos (17 a 24 meses)
+  // Maternal I: 2 anos a 2 anos e 11 meses (24 a 35 meses)
+  // Maternal II: 3 anos a 3 anos e 11 meses (36 a 47 meses)
   
-  // Maternal I: a partir de 2 anos (completos até 31/03)
+  if (ageAtCutoff < 0) return 'Idade insuficiente';
+  
+  // Berçário I: 3 a 10 meses
+  if (ageInMonths >= 3 && ageInMonths <= 10) return 'Berçário I';
+  
+  // Berçário II: 11 meses a 1 ano e 4 meses (11 a 16 meses)
+  if (ageInMonths >= 11 && ageInMonths <= 16) return 'Berçário II';
+  
+  // Berçário III: 1 ano e 5 meses a 2 anos (17 a 24 meses)
+  if (ageInMonths >= 17 && ageInMonths <= 24) return 'Berçário III';
+  
+  // Maternal I: 2 anos a 2 anos e 11 meses
   if (ageAtCutoff === 2) return 'Maternal I';
   
-  // Maternal II: a partir de 3 anos (completos até 31/03)
+  // Maternal II: 3 anos a 3 anos e 11 meses
   if (ageAtCutoff === 3) return 'Maternal II';
   
   // Pré I: a partir de 4 anos (completos até 31/03)
