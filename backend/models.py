@@ -1720,6 +1720,9 @@ class MantenedoraUpdate(BaseModel):
     responsavel_cpf: Optional[str] = None
     responsavel_celular: Optional[str] = None
     responsavel_email: Optional[str] = None
+    
+    # Configurações de Exibição
+    exibir_pre_matricula: Optional[bool] = None
 
 
 # ============= ATESTADO MÉDICO MODELS =============
@@ -1754,10 +1757,6 @@ class MedicalCertificate(MedicalCertificateBase):
     created_by_name: Optional[str] = None  # Nome do usuário que registrou
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
-
-    
-    # Configurações de Exibição
-    exibir_pre_matricula: Optional[bool] = None
 
 class Mantenedora(MantenedoraBase):
     model_config = ConfigDict(extra="ignore")
