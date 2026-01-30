@@ -28,12 +28,8 @@ services:
     restart: unless-stopped
     depends_on:
       - mongo
-    networks:
-      - default
-      - coolify
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=coolify"
       - "traefik.http.routers.sigesc-backend.rule=Host(`api.sigesc.aprenderdigital.top`)"
       - "traefik.http.routers.sigesc-backend.entrypoints=https"
       - "traefik.http.routers.sigesc-backend.tls=true"
@@ -56,12 +52,8 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-    networks:
-      - default
-      - coolify
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=coolify"
       - "traefik.http.routers.sigesc-frontend.rule=Host(`sigesc.aprenderdigital.top`)"
       - "traefik.http.routers.sigesc-frontend.entrypoints=https"
       - "traefik.http.routers.sigesc-frontend.tls=true"
@@ -70,7 +62,3 @@ services:
 
 volumes:
   sigesc-mongo-data:
-
-networks:
-  coolify:
-    external: true
