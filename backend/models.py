@@ -403,7 +403,9 @@ class SchoolBase(BaseModel):
     anos_letivos_ativos: List[int] = []
     
     # Educação Infantil - Sub-níveis
-    educacao_infantil_bercario: Optional[bool] = False
+    educacao_infantil_bercario: Optional[bool] = False  # Retrocompatibilidade
+    educacao_infantil_bercario_i: Optional[bool] = False
+    educacao_infantil_bercario_ii: Optional[bool] = False
     educacao_infantil_maternal_i: Optional[bool] = False
     educacao_infantil_maternal_ii: Optional[bool] = False
     educacao_infantil_pre_i: Optional[bool] = False
