@@ -519,9 +519,10 @@ const Announcements = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Enviar para *
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               {[
                 { value: 'role', label: 'Por Cargo', icon: Users },
+                { value: 'semed', label: 'SEMED', icon: Building },
                 { value: 'school', label: 'Por Escola', icon: Building },
                 { value: 'class', label: 'Por Turma', icon: BookOpen },
                 { value: 'individual', label: 'Individual', icon: User }
