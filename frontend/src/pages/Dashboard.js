@@ -38,7 +38,7 @@ export const Dashboard = () => {
           usersAPI.getAll().catch(() => []),
           classesAPI.getAll().catch(() => []),
           studentsAPI.getAll().catch(() => []),
-          staffAPI.getAll().catch(() => ({ items: [] })),
+          staffAPI.getAll().catch(() => []),
           profilesAPI.getMyProfile().catch(() => null)
         ]);
 
@@ -59,8 +59,8 @@ export const Dashboard = () => {
           s.status === 'active' || s.status === 'Ativo'
         ).length;
 
-        // Conta servidores
-        const staffCount = staffData?.items?.length || staffData?.length || 0;
+        // Conta servidores - staffData pode ser array ou objeto com items
+        const staffCount = Array.isArray(staffData) ? staffData.length : (staffData?.items?.length || 0);
 
         setStats({
           schools: filteredSchools.length,
