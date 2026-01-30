@@ -11,11 +11,13 @@ import { extractErrorMessage } from '@/utils/errorHandler';
 // Mapeamento de níveis de ensino para séries/etapas
 const GRADE_LEVELS_BY_EDUCATION = {
   educacao_infantil: [
-    { value: 'bercario', label: 'Berçário', field: 'educacao_infantil_bercario' },
-    { value: 'maternal_i', label: 'Maternal I', field: 'educacao_infantil_maternal_i' },
-    { value: 'maternal_ii', label: 'Maternal II', field: 'educacao_infantil_maternal_ii' },
-    { value: 'pre_i', label: 'Pré I', field: 'educacao_infantil_pre_i' },
-    { value: 'pre_ii', label: 'Pré II', field: 'educacao_infantil_pre_ii' }
+    { value: 'bercario_i', label: 'Berçário I', field: 'educacao_infantil_bercario_i', ageRange: '3 a 10 meses' },
+    { value: 'bercario_ii', label: 'Berçário II', field: 'educacao_infantil_bercario_ii', ageRange: '11 meses a 1 ano e 4 meses' },
+    { value: 'bercario_iii', label: 'Berçário III', field: 'educacao_infantil_bercario_iii', ageRange: '1 ano e 5 meses a 2 anos' },
+    { value: 'maternal_i', label: 'Maternal I', field: 'educacao_infantil_maternal_i', ageRange: '2 anos a 2 anos e 11 meses' },
+    { value: 'maternal_ii', label: 'Maternal II', field: 'educacao_infantil_maternal_ii', ageRange: '3 anos a 3 anos e 11 meses' },
+    { value: 'pre_i', label: 'Pré I', field: 'educacao_infantil_pre_i', ageRange: '4 anos' },
+    { value: 'pre_ii', label: 'Pré II', field: 'educacao_infantil_pre_ii', ageRange: '5 anos' }
   ],
   fundamental_anos_iniciais: [
     { value: '1ano', label: '1º Ano', field: 'fundamental_inicial_1ano' },
