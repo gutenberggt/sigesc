@@ -12,25 +12,30 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 // Mapeamento de séries/anos disponíveis por escola
 const SERIES_CONFIG = {
-  // Educação Infantil
-  educacao_infantil_bercario: { label: 'Berçário', nivel: 'Educação Infantil', order: 1 },
-  educacao_infantil_maternal_i: { label: 'Maternal I', nivel: 'Educação Infantil', order: 2 },
-  educacao_infantil_maternal_ii: { label: 'Maternal II', nivel: 'Educação Infantil', order: 3 },
-  educacao_infantil_pre_i: { label: 'Pré I', nivel: 'Educação Infantil', order: 4 },
-  educacao_infantil_pre_ii: { label: 'Pré II', nivel: 'Educação Infantil', order: 5 },
+  // Educação Infantil - Creche
+  educacao_infantil_bercario_i: { label: 'Berçário I', nivel: 'Educação Infantil', order: 1, ageRange: '3 a 10 meses' },
+  educacao_infantil_bercario_ii: { label: 'Berçário II', nivel: 'Educação Infantil', order: 2, ageRange: '11 meses a 1 ano e 4 meses' },
+  educacao_infantil_bercario_iii: { label: 'Berçário III', nivel: 'Educação Infantil', order: 3, ageRange: '1 ano e 5 meses a 2 anos' },
+  educacao_infantil_maternal_i: { label: 'Maternal I', nivel: 'Educação Infantil', order: 4, ageRange: '2 anos a 2 anos e 11 meses' },
+  educacao_infantil_maternal_ii: { label: 'Maternal II', nivel: 'Educação Infantil', order: 5, ageRange: '3 anos a 3 anos e 11 meses' },
+  // Educação Infantil - Pré-escola
+  educacao_infantil_pre_i: { label: 'Pré I', nivel: 'Educação Infantil', order: 6, ageRange: '4 anos' },
+  educacao_infantil_pre_ii: { label: 'Pré II', nivel: 'Educação Infantil', order: 7, ageRange: '5 anos' },
+  // Retrocompatibilidade com berçário antigo
+  educacao_infantil_bercario: { label: 'Berçário', nivel: 'Educação Infantil', order: 1, deprecated: true },
   
   // Fundamental Anos Iniciais
-  fundamental_inicial_1ano: { label: '1º Ano', nivel: 'Fundamental - Anos Iniciais', order: 6 },
-  fundamental_inicial_2ano: { label: '2º Ano', nivel: 'Fundamental - Anos Iniciais', order: 7 },
-  fundamental_inicial_3ano: { label: '3º Ano', nivel: 'Fundamental - Anos Iniciais', order: 8 },
-  fundamental_inicial_4ano: { label: '4º Ano', nivel: 'Fundamental - Anos Iniciais', order: 9 },
-  fundamental_inicial_5ano: { label: '5º Ano', nivel: 'Fundamental - Anos Iniciais', order: 10 },
+  fundamental_inicial_1ano: { label: '1º Ano', nivel: 'Fundamental - Anos Iniciais', order: 8 },
+  fundamental_inicial_2ano: { label: '2º Ano', nivel: 'Fundamental - Anos Iniciais', order: 9 },
+  fundamental_inicial_3ano: { label: '3º Ano', nivel: 'Fundamental - Anos Iniciais', order: 10 },
+  fundamental_inicial_4ano: { label: '4º Ano', nivel: 'Fundamental - Anos Iniciais', order: 11 },
+  fundamental_inicial_5ano: { label: '5º Ano', nivel: 'Fundamental - Anos Iniciais', order: 12 },
   
   // Fundamental Anos Finais
-  fundamental_final_6ano: { label: '6º Ano', nivel: 'Fundamental - Anos Finais', order: 11 },
-  fundamental_final_7ano: { label: '7º Ano', nivel: 'Fundamental - Anos Finais', order: 12 },
-  fundamental_final_8ano: { label: '8º Ano', nivel: 'Fundamental - Anos Finais', order: 13 },
-  fundamental_final_9ano: { label: '9º Ano', nivel: 'Fundamental - Anos Finais', order: 14 },
+  fundamental_final_6ano: { label: '6º Ano', nivel: 'Fundamental - Anos Finais', order: 13 },
+  fundamental_final_7ano: { label: '7º Ano', nivel: 'Fundamental - Anos Finais', order: 14 },
+  fundamental_final_8ano: { label: '8º Ano', nivel: 'Fundamental - Anos Finais', order: 15 },
+  fundamental_final_9ano: { label: '9º Ano', nivel: 'Fundamental - Anos Finais', order: 16 },
   
   // EJA Anos Iniciais
   eja_inicial_1etapa: { label: 'EJA 1ª Etapa', nivel: 'EJA - Anos Iniciais', order: 15 },
