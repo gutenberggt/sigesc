@@ -215,8 +215,8 @@ const Announcements = () => {
   };
 
   const availableRoles = () => {
-    // Admin pode enviar para todos
-    if (user?.role === 'admin') {
+    // Admin e SEMED podem enviar para todos
+    if (user?.role === 'admin' || user?.role === 'semed') {
       return ['secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel'];
     }
     // Secretário, Diretor, Coordenador podem enviar para professores e alunos
