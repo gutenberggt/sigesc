@@ -245,6 +245,14 @@ export function StudentsComplete() {
   const [filterStatus, setFilterStatus] = useState('');
   const [showBatchPrintModal, setShowBatchPrintModal] = useState(false);
   
+  // Ações em Lote
+  const [batchMode, setBatchMode] = useState(false);
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [batchSchoolId, setBatchSchoolId] = useState('');
+  const [batchClassId, setBatchClassId] = useState('');
+  const [batchStatus, setBatchStatus] = useState('');
+  const [savingBatch, setSavingBatch] = useState(false);
+  
   // Histórico do aluno
   const [studentHistory, setStudentHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
