@@ -742,6 +742,112 @@ export function StudentsComplete() {
     return result;
   })();
 
+  // Turmas filtradas para ação em lote (baseado na escola selecionada para lote)
+  const batchClassOptions = classes.filter(c => c.school_id === batchSchoolId);
+
+  // Funções para Ações em Lote
+  const handleToggleBatchMode = () => {
+    setBatchMode(!batchMode);
+    if (batchMode) {
+      // Ao desativar, limpa seleções
+      setSelectedStudentIds([]);
+      setBatchSchoolId('');
+      setBatchClassId('');
+      setBatchStatus('');
+    }
+  };
+
+  const handleSelectAllStudents = (checked) => {
+    if (checked) {
+      setSelectedStudentIds(displayedStudents.map(s => s.id));
+    } else {
+      setSelectedStudentIds([]);
+    }
+  };
+
+  const handleSelectStudent_Batch = (studentId, checked) => {
+    if (checked) {
+      setSelectedStudentIds(prev => [...prev, studentId]);
+    } else {
+      setSelectedStudentIds(prev => prev.filter(id => id !== studentId));
+    }
+  };
+
+  const handleSaveBatchActions = async () => {
+    if (selectedStudentIds.length === 0) {
+      showAlert('error', 'Selecione pelo menos um aluno');
+      return;
+    }
+
+    if (!batchSchoolId && !batchClassId && !batchStatus) {
+      showAlert('error', 'Selecione pelo menos uma ação (escola, turma ou status)');
+      return;
+    }
+
+    const confirmMessage = `Você está prestes a atualizar ${selectedStudentIds.length} aluno(s). Esta ação não pode ser desfeita. Deseja continuar?`;
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setSavingBatch(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const studentId of selectedStudentIds) {
+        const student = students.find(s => s.id === studentId);
+        if (!student) continue;
+
+        const updateData = {};
+        
+        if (batchSchoolId) {
+          updateData.school_id = batchSchoolId;
+          // Se mudar de escola, limpa a turma (a menos que uma nova turma seja selecionada)
+          if (!batchClassId) {
+            updateData.class_id = '';
+          }
+        }
+        
+        if (batchClassId) {
+          updateData.class_id = batchClassId;
+        }
+        
+        if (batchStatus) {
+          updateData.status = batchStatus;
+        }
+
+        try {
+          await studentsAPI.update(studentId, { ...student, ...updateData });
+          successCount++;
+        } catch (err) {
+          console.error(`Erro ao atualizar aluno ${studentId}:`, err);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        showAlert('success', `${successCount} aluno(s) atualizado(s) com sucesso${errorCount > 0 ? ` (${errorCount} erro(s))` : ''}`);
+        // Recarrega a lista
+        setReloadTrigger(prev => prev + 1);
+      } else {
+        showAlert('error', 'Nenhum aluno foi atualizado');
+      }
+
+      // Limpa seleções após salvar
+      setSelectedStudentIds([]);
+      setBatchSchoolId('');
+      setBatchClassId('');
+      setBatchStatus('');
+      setBatchMode(false);
+
+    } catch (error) {
+      console.error('Erro ao salvar ações em lote:', error);
+      showAlert('error', 'Erro ao salvar ações em lote');
+    } finally {
+      setSavingBatch(false);
+    }
+  };
+
   // Verifica se a turma selecionada é elegível para certificado (9º Ano ou EJA 4ª Etapa)
   const isClassEligibleForCertificate = (() => {
     if (!filterClassId) return false;
