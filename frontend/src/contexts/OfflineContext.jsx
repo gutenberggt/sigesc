@@ -55,13 +55,19 @@ export const OfflineProvider = ({ children }) => {
 
   // Atualiza contador de itens pendentes
   const updatePendingCount = useCallback(async () => {
+    if (!isDatabaseReady) return;
     try {
       const count = await countPendingSyncItems();
       setPendingSyncCount(count);
     } catch (err) {
       console.error('[PWA] Erro ao contar pendências:', err);
+      // Se for erro de versão, tenta reinicializar
+      if (err.name === 'VersionError') {
+        console.warn('[PWA] Erro de versão do banco, tentando reinicializar...');
+        await initializeDatabase();
+      }
     }
-  }, []);
+  }, [isDatabaseReady]);
 
   // Trigger de sincronização
   const triggerSync = useCallback(async () => {
