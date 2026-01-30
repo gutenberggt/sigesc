@@ -245,6 +245,8 @@ const Announcements = () => {
     switch (recipient.type) {
       case 'role':
         return `Para: ${recipient.target_roles?.map(r => roleLabels[r] || r).join(', ') || 'Todos'}`;
+      case 'semed':
+        return 'Para: Usuários SEMED';
       case 'school':
         const schoolNames = recipient.school_ids?.map(id => 
           schools.find(s => s.id === id)?.name || id
