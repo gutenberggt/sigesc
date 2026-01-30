@@ -358,6 +358,21 @@ export function StudentsComplete() {
   }, []);
 
   const reloadData = () => setReloadTrigger(prev => prev + 1);
+  
+  // Força recarregar dados do servidor, limpando cache
+  const forceRefreshFromServer = async () => {
+    try {
+      setLoading(true);
+      // Limpa cache local
+      await offlineStudentsService.clearCache();
+      // Recarrega dados
+      setReloadTrigger(prev => prev + 1);
+      showAlert('success', 'Dados atualizados do servidor');
+    } catch (error) {
+      console.error('Erro ao forçar atualização:', error);
+      showAlert('error', 'Erro ao atualizar dados');
+    }
+  };
 
   const showAlert = (type, message) => {
     setAlert({ type, message });
