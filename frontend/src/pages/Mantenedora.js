@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Save, MapPin, Phone, User, Loader2, Upload, Image, X, Home, CheckSquare, Settings } from 'lucide-react';
+import { Building2, Save, MapPin, Phone, User, Loader2, Upload, Image, X, Home, CheckSquare, Settings, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { mantenedoraAPI, uploadAPI } from '@/services/api';
+import { mantenedoraAPI, uploadAPI, schoolsAPI } from '@/services/api';
 import { formatCEP, formatPhone, formatCPF, formatCNPJ } from '@/utils/formatters';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
@@ -19,6 +19,7 @@ export default function Mantenedora() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingBrasao, setUploadingBrasao] = useState(false);
+  const [migratingBercario, setMigratingBercario] = useState(false);
   const [alert, setAlert] = useState(null);
   const fileInputRef = useRef(null);
   const brasaoInputRef = useRef(null);
