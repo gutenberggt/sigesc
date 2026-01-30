@@ -34,7 +34,7 @@ db_name = os.environ.get('DB_NAME', 'sigesc_db')
 
 # Mapeamento de séries por nível de ensino
 SERIES_POR_NIVEL = {
-    'educacao_infantil': ['Berçário I', 'Berçário II', 'Berçário III', 'Maternal I', 'Maternal II', 'Pré I', 'Pré II'],
+    'educacao_infantil': ['Berçário I', 'Berçário II', 'Maternal I', 'Maternal II', 'Pré I', 'Pré II'],
     'fundamental_anos_iniciais': ['1º Ano', '2º Ano', '3º Ano', '4º Ano', '5º Ano'],
     'fundamental_anos_finais': ['6º Ano', '7º Ano', '8º Ano', '9º Ano']
 }
