@@ -2510,9 +2510,10 @@ export function StudentsComplete() {
                     <th className="px-4 py-3 text-left">
                       <input
                         type="checkbox"
-                        checked={selectedStudentIds.length === displayedStudents.length && displayedStudents.length > 0}
+                        checked={paginatedStudents.length > 0 && paginatedStudents.every(s => selectedStudentIds.includes(s.id))}
                         onChange={(e) => handleSelectAllStudents(e.target.checked)}
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        title="Selecionar todos desta página"
                       />
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-blue-800">
