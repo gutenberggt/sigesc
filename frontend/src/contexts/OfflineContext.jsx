@@ -320,6 +320,7 @@ export const OfflineProvider = ({ children }) => {
   const value = {
     isOnline,
     isServiceWorkerReady,
+    isDatabaseReady,
     pendingSyncCount,
     lastSyncTime,
     syncStatus,
