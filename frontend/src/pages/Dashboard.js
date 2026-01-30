@@ -274,105 +274,6 @@ export const Dashboard = () => {
               {user?.role === 'semed' ? 'Consultar Módulos' : 'Menu de Administração'}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <button
-                onClick={() => navigate('/admin/schools')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
-                data-testid="nav-schools-button"
-              >
-                <School className="text-blue-600" size={24} />
-                <span className="font-medium text-gray-900">Escolas</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/admin/users')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-all"
-                data-testid="nav-users-button"
-              >
-                <Users className="text-green-600" size={24} />
-                <span className="font-medium text-gray-900">Usuários</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/admin/classes')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-all"
-                data-testid="nav-classes-button"
-              >
-                <BookOpen className="text-purple-600" size={24} />
-                <span className="font-medium text-gray-900">Turmas</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/admin/courses')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all"
-                data-testid="nav-courses-button"
-              >
-                <BookOpen className="text-orange-600" size={24} />
-                <span className="font-medium text-gray-900">Componentes Curriculares</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/admin/students')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all"
-                data-testid="nav-students-button"
-              >
-                <GraduationCap className="text-red-600" size={24} />
-                <span className="font-medium text-gray-900">Alunos</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/admin/pre-matriculas')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-pink-50 hover:border-pink-300 transition-all"
-                data-testid="nav-pre-matriculas-button"
-              >
-                <UserPlus className="text-pink-600" size={24} />
-                <span className="font-medium text-gray-900">Pré-Matrículas</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/admin/grades')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all"
-                data-testid="nav-grades-button"
-              >
-                <ClipboardList className="text-teal-600" size={24} />
-                <span className="font-medium text-gray-900">Notas</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/admin/calendar')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
-                data-testid="nav-calendar-button"
-              >
-                <Calendar className="text-indigo-600" size={24} />
-                <span className="font-medium text-gray-900">Calendário Letivo</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/admin/attendance')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-cyan-50 hover:border-cyan-300 transition-all"
-                data-testid="nav-attendance-button"
-              >
-                <ClipboardCheck className="text-cyan-600" size={24} />
-                <span className="font-medium text-gray-900">Frequência</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/admin/learning-objects')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-all"
-                data-testid="nav-learning-objects-button"
-              >
-                <BookOpen className="text-purple-600" size={24} />
-                <span className="font-medium text-gray-900">Objetos de Conhecimento</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/admin/staff')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 transition-all"
-                data-testid="nav-staff-button"
-              >
-                <Briefcase className="text-amber-600" size={24} />
-                <span className="font-medium text-gray-900">Servidores</span>
-              </button>
-              
               {/* Mantenedora - apenas para admin */}
               {user?.role === 'admin' && (
                 <button
@@ -393,6 +294,72 @@ export const Dashboard = () => {
                 <Bell className="text-orange-600" size={24} />
                 <span className="font-medium text-gray-900">Avisos</span>
               </button>
+              
+              <button
+                onClick={() => navigate('/admin/calendar')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
+                data-testid="nav-calendar-button"
+              >
+                <Calendar className="text-indigo-600" size={24} />
+                <span className="font-medium text-gray-900">Calendário</span>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/courses')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all"
+                data-testid="nav-courses-button"
+              >
+                <BookOpen className="text-orange-600" size={24} />
+                <span className="font-medium text-gray-900">Componentes Curriculares</span>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/grades')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all"
+                data-testid="nav-grades-button"
+              >
+                <ClipboardList className="text-teal-600" size={24} />
+                <span className="font-medium text-gray-900">Notas</span>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/attendance')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-cyan-50 hover:border-cyan-300 transition-all"
+                data-testid="nav-attendance-button"
+              >
+                <ClipboardCheck className="text-cyan-600" size={24} />
+                <span className="font-medium text-gray-900">Frequência</span>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/learning-objects')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-all"
+                data-testid="nav-learning-objects-button"
+              >
+                <BookOpen className="text-purple-600" size={24} />
+                <span className="font-medium text-gray-900">Registro de Conteúdos</span>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/pre-matriculas')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-pink-50 hover:border-pink-300 transition-all"
+                data-testid="nav-pre-matriculas-button"
+              >
+                <UserPlus className="text-pink-600" size={24} />
+                <span className="font-medium text-gray-900">Pré-Matrículas</span>
+              </button>
+              
+              {/* Livro de Promoção - admin, secretario, diretor, coordenador, semed */}
+              {['admin', 'secretario', 'diretor', 'coordenador', 'semed'].includes(user?.role) && (
+                <button
+                  onClick={() => navigate('/admin/promotion')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                  data-testid="nav-promotion-button"
+                >
+                  <Award className="text-emerald-600" size={24} />
+                  <span className="font-medium text-gray-900">Livro de Promoção</span>
+                </button>
+              )}
               
               {/* Log de Conversas - apenas para admin */}
               {user?.role === 'admin' && (
@@ -415,18 +382,6 @@ export const Dashboard = () => {
                 >
                   <Shield className="text-blue-600" size={24} />
                   <span className="font-medium text-gray-900">Auditoria</span>
-                </button>
-              )}
-              
-              {/* Livro de Promoção - admin, secretario, diretor, coordenador, semed */}
-              {['admin', 'secretario', 'diretor', 'coordenador', 'semed'].includes(user?.role) && (
-                <button
-                  onClick={() => navigate('/admin/promotion')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 transition-all"
-                  data-testid="nav-promotion-button"
-                >
-                  <Award className="text-emerald-600" size={24} />
-                  <span className="font-medium text-gray-900">Livro de Promoção</span>
                 </button>
               )}
             </div>
