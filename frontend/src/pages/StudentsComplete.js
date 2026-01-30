@@ -817,7 +817,8 @@ export function StudentsComplete() {
         }
 
         try {
-          await studentsAPI.update(studentId, { ...student, ...updateData });
+          // Envia apenas os campos que queremos atualizar, não o objeto completo
+          await studentsAPI.update(studentId, updateData);
           successCount++;
         } catch (err) {
           console.error(`Erro ao atualizar aluno ${studentId}:`, err);
