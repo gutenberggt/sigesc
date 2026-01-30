@@ -726,6 +726,11 @@ export function StudentsComplete() {
       result = result.filter(s => s.class_id === filterClassId);
     }
     
+    // Filtrar por status
+    if (filterStatus) {
+      result = result.filter(s => s.status === filterStatus);
+    }
+    
     return result;
   })();
 
