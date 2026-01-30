@@ -2450,17 +2450,244 @@ export function StudentsComplete() {
           )}
         </div>
 
-        <DataTable
-          columns={columns}
-          data={displayedStudents}
-          loading={loading}
-          onView={handleView}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          canEdit={canEdit}
-          canDelete={canDelete}
-          canEditRow={canEditStudent}
-        />
+        {/* Linha de Total e Toggle de Ações em Lote */}
+        <div className="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg mb-4">
+          <div className="text-sm text-gray-600">
+            <span className="font-medium">Total: {displayedStudents.length} registros</span>
+            {batchMode && selectedStudentIds.length > 0 && (
+              <span className="ml-2 text-blue-600">({selectedStudentIds.length} selecionado(s))</span>
+            )}
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={batchMode}
+              onChange={handleToggleBatchMode}
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span className="text-sm font-medium text-gray-700">Ações em Lote</span>
+          </label>
+        </div>
+
+        {/* Tabela com suporte a Ações em Lote */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              {/* Linha de Ações em Lote (aparece apenas quando batchMode está ativo) */}
+              {batchMode && (
+                <thead className="bg-blue-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left">
+                      <input
+                        type="checkbox"
+                        checked={selectedStudentIds.length === displayedStudents.length && displayedStudents.length > 0}
+                        onChange={(e) => handleSelectAllStudents(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-blue-800">
+                      {/* Vazio - coluna Nome */}
+                    </th>
+                    <th className="px-4 py-3 text-left">
+                      <div className="space-y-1">
+                        <span className="text-xs font-medium text-blue-800">Transferir para:</span>
+                        <select
+                          value={batchSchoolId}
+                          onChange={(e) => {
+                            setBatchSchoolId(e.target.value);
+                            setBatchClassId(''); // Limpa turma ao mudar escola
+                          }}
+                          className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Manter atual</option>
+                          {schools.map(school => (
+                            <option key={school.id} value={school.id}>{school.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left">
+                      <div className="space-y-1">
+                        <span className="text-xs font-medium text-blue-800">Turma:</span>
+                        <select
+                          value={batchClassId}
+                          onChange={(e) => setBatchClassId(e.target.value)}
+                          disabled={!batchSchoolId}
+                          className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                        >
+                          <option value="">Manter atual</option>
+                          {batchClassOptions.map(classItem => (
+                            <option key={classItem.id} value={classItem.id}>{classItem.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left">
+                      <div className="space-y-1">
+                        <span className="text-xs font-medium text-blue-800">Status:</span>
+                        <select
+                          value={batchStatus}
+                          onChange={(e) => setBatchStatus(e.target.value)}
+                          className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Manter atual</option>
+                          <option value="active">Ativo</option>
+                          <option value="inactive">Inativo</option>
+                          <option value="dropout">Desistente</option>
+                          <option value="transferred">Transferido</option>
+                          <option value="deceased">Falecido</option>
+                        </select>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left">
+                      <button
+                        onClick={handleSaveBatchActions}
+                        disabled={savingBatch || selectedStudentIds.length === 0}
+                        className="px-4 py-2 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1"
+                      >
+                        {savingBatch ? (
+                          <>
+                            <RefreshCw size={14} className="animate-spin" />
+                            Salvando...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle size={14} />
+                            Salvar
+                          </>
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-4 py-3">
+                      {/* Coluna Ações */}
+                    </th>
+                  </tr>
+                </thead>
+              )}
+              
+              {/* Cabeçalho normal da tabela */}
+              <thead className="bg-gray-50">
+                <tr>
+                  {batchMode && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      
+                    </th>
+                  )}
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Escola</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turma</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documentos</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                </tr>
+              </thead>
+              
+              <tbody className="bg-white divide-y divide-gray-200">
+                {loading ? (
+                  <tr>
+                    <td colSpan={batchMode ? 7 : 6} className="px-4 py-8 text-center">
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <span className="ml-2 text-gray-500">Carregando...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : displayedStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={batchMode ? 7 : 6} className="px-4 py-8 text-center text-gray-500">
+                      Nenhum aluno encontrado
+                    </td>
+                  </tr>
+                ) : (
+                  displayedStudents.map((row) => {
+                    const canEditThisStudent = canEditStudent(row);
+                    const canGenerateDocuments = isAdmin || isSemed || 
+                      (isSecretario && userSchoolIds.includes(row.school_id)) ||
+                      (!isSecretario && !isSemed);
+                    
+                    return (
+                      <tr key={row.id} className={`hover:bg-gray-50 ${selectedStudentIds.includes(row.id) ? 'bg-blue-50' : ''}`}>
+                        {batchMode && (
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedStudentIds.includes(row.id)}
+                              onChange={(e) => handleSelectStudent_Batch(row.id, e.target.checked)}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                          </td>
+                        )}
+                        <td className="px-4 py-3 text-sm text-gray-900">{row.full_name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">{getSchoolName(row.school_id)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">{getClassName(row.class_id)}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            row.status === 'active' ? 'bg-green-100 text-green-800' :
+                            row.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
+                            row.status === 'dropout' ? 'bg-red-100 text-red-800' :
+                            (row.status === 'transferred' || row.status === 'Transferido') ? 'bg-orange-100 text-orange-800' :
+                            row.status === 'deceased' ? 'bg-purple-100 text-purple-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {row.status === 'active' ? 'Ativo' :
+                             row.status === 'inactive' ? 'Inativo' :
+                             row.status === 'dropout' ? 'Desistente' :
+                             (row.status === 'transferred' || row.status === 'Transferido') ? 'Transferido' :
+                             row.status === 'deceased' ? 'Falecido' :
+                             row.status || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {canGenerateDocuments && (
+                            <button
+                              onClick={() => {
+                                setDocumentStudent(row);
+                                setShowDocumentsModal(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                            >
+                              <FileText size={16} />
+                              Documentos
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleView(row)}
+                              className="text-gray-600 hover:text-gray-800"
+                              title="Visualizar"
+                            >
+                              <Search size={16} />
+                            </button>
+                            {canEdit && canEditThisStudent && (
+                              <button
+                                onClick={() => handleEdit(row)}
+                                className="text-blue-600 hover:text-blue-800"
+                                title="Editar"
+                              >
+                                <FileText size={16} />
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDelete(row.id)}
+                                className="text-red-600 hover:text-red-800"
+                                title="Excluir"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         <Modal
           isOpen={isModalOpen}
