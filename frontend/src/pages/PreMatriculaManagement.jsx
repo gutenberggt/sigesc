@@ -290,6 +290,17 @@ export default function PreMatriculaManagement() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
+            {/* Breadcrumb com link Início */}
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={() => navigate('/admin')}
+                className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors"
+                data-testid="home-btn"
+              >
+                <Home className="w-4 h-4" />
+                <span className="text-sm">Início</span>
+              </button>
+            </div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Users className="w-7 h-7 text-blue-600" />
               Gestão de Pré-Matrículas
@@ -299,16 +310,10 @@ export default function PreMatriculaManagement() {
             </p>
           </div>
           
-          <div className="flex gap-2">
-            <Button onClick={() => navigate('/admin')} variant="outline" data-testid="home-btn">
-              <Home className="w-4 h-4 mr-2" />
-              Início
-            </Button>
-            <Button onClick={loadPreMatriculas} variant="outline" disabled={loading}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
-          </div>
+          <Button onClick={loadPreMatriculas} variant="outline" disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
         </div>
 
         {/* Contadores de Status */}
