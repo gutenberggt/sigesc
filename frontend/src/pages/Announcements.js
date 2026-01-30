@@ -113,7 +113,8 @@ const Announcements = () => {
     try {
       const recipient = {
         type: formData.recipientType,
-        target_roles: formData.recipientType === 'role' ? formData.targetRoles : [],
+        target_roles: formData.recipientType === 'role' ? formData.targetRoles : 
+                      formData.recipientType === 'semed' ? ['semed'] : [],
         school_ids: formData.recipientType === 'school' ? formData.schoolIds : [],
         class_ids: formData.recipientType === 'class' ? formData.classIds : [],
         user_ids: formData.recipientType === 'individual' ? formData.userIds : []
