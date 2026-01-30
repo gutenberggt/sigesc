@@ -2716,6 +2716,48 @@ export function StudentsComplete() {
               </tbody>
             </table>
           </div>
+          
+          {/* Paginação */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t">
+              <div className="text-sm text-gray-600">
+                Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, displayedStudents.length)} de {displayedStudents.length} registros
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Primeira
+                </button>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1 border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <span className="px-3 py-1 text-sm">
+                  Página <strong>{currentPage}</strong> de <strong>{totalPages}</strong>
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1 border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight size={18} />
+                </button>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Última
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <Modal
