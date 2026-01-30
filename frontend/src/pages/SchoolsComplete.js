@@ -181,7 +181,6 @@ export function SchoolsComplete() {
     // Sub-níveis Educação Infantil
     educacao_infantil_bercario_i: false,
     educacao_infantil_bercario_ii: false,
-    educacao_infantil_bercario_iii: false,
     educacao_infantil_maternal_i: false,
     educacao_infantil_maternal_ii: false,
     educacao_infantil_pre_i: false,
