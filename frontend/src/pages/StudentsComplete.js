@@ -172,29 +172,21 @@ const calculateIdealGrade = (birthDate) => {
     // Para crianças de 1 ano, calcular meses mais precisamente
     const monthsFromBirth = ((currentYear - birth.getFullYear()) * 12) + (2 - birth.getMonth());
     ageInMonths = monthsFromBirth;
-  } else if (ageAtCutoff === 2) {
-    // Para crianças de 2 anos, calcular meses mais precisamente
-    const monthsFromBirth = ((currentYear - birth.getFullYear()) * 12) + (2 - birth.getMonth());
-    ageInMonths = monthsFromBirth;
   }
   
-  // Educação Infantil - Creche (faixas específicas conforme novas diretrizes)
-  // Berçário I: 3 a 10 meses
-  // Berçário II: 11 meses a 1 ano e 4 meses (11 a 16 meses)
-  // Berçário III: 1 ano e 5 meses a 2 anos (17 a 24 meses)
-  // Maternal I: 2 anos a 2 anos e 11 meses (24 a 35 meses)
-  // Maternal II: 3 anos a 3 anos e 11 meses (36 a 47 meses)
+  // Educação Infantil - Creche (faixas específicas)
+  // Berçário I: 3 a 11 meses
+  // Berçário II: 1 ano a 1 ano e 11 meses (12 a 23 meses)
+  // Maternal I: 2 anos a 2 anos e 11 meses
+  // Maternal II: 3 anos a 3 anos e 11 meses
   
   if (ageAtCutoff < 0) return 'Idade insuficiente';
   
-  // Berçário I: 3 a 10 meses
-  if (ageInMonths >= 3 && ageInMonths <= 10) return 'Berçário I';
+  // Berçário I: 3 a 11 meses
+  if (ageInMonths >= 3 && ageInMonths <= 11) return 'Berçário I';
   
-  // Berçário II: 11 meses a 1 ano e 4 meses (11 a 16 meses)
-  if (ageInMonths >= 11 && ageInMonths <= 16) return 'Berçário II';
-  
-  // Berçário III: 1 ano e 5 meses a 2 anos (17 a 24 meses)
-  if (ageInMonths >= 17 && ageInMonths <= 24) return 'Berçário III';
+  // Berçário II: 1 ano a 1 ano e 11 meses (12 a 23 meses)
+  if (ageInMonths >= 12 && ageInMonths <= 23) return 'Berçário II';
   
   // Maternal I: 2 anos a 2 anos e 11 meses
   if (ageAtCutoff === 2) return 'Maternal I';
