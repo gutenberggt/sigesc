@@ -224,6 +224,24 @@ export default function Mantenedora() {
     setFormData(prev => ({ ...prev, [field]: formattedValue }));
   };
 
+  // Migração do Berçário antigo para Berçário I e II
+  const handleMigrateBercario = async () => {
+    if (!window.confirm('Esta ação irá remover o campo "Berçário" (antigo) de todas as escolas. Deseja continuar?')) {
+      return;
+    }
+    
+    try {
+      setMigratingBercario(true);
+      const response = await schoolsAPI.migrateBercario();
+      showAlert('success', `Migração concluída! ${response.escolas_atualizadas} escola(s) atualizada(s).`);
+    } catch (error) {
+      console.error('Erro na migração:', error);
+      showAlert('error', extractErrorMessage(error, 'Erro ao executar migração'));
+    } finally {
+      setMigratingBercario(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
