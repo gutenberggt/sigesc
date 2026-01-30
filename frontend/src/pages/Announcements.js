@@ -155,6 +155,7 @@ const Announcements = () => {
       classIds: [],
       userIds: []
     });
+    setSelectedSchoolForClass('');
   };
 
   const handleEdit = (announcement) => {
