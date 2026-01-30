@@ -2313,8 +2313,8 @@ export function StudentsComplete() {
             </div>
           )}
           
-          {/* Indicador de filtro por escola/turma */}
-          {!selectedStudent && (filterSchoolId || filterClassId) && (
+          {/* Indicador de filtro por escola/turma/status */}
+          {!selectedStudent && (filterSchoolId || filterClassId || filterStatus) && (
             <div className="mt-3 flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
               <span>Filtro ativo:</span>
               {filterSchoolId && <strong>{getSchoolName(filterSchoolId)}</strong>}
@@ -2322,6 +2322,12 @@ export function StudentsComplete() {
                 <>
                   <span className="text-gray-400">→</span>
                   <strong>{getClassName(filterClassId)}</strong>
+                </>
+              )}
+              {filterStatus && (
+                <>
+                  <span className="text-gray-400">→</span>
+                  <strong>{filterStatus === 'active' ? 'Ativo' : filterStatus === 'inactive' ? 'Inativo' : filterStatus === 'dropout' ? 'Desistente' : filterStatus === 'transferred' ? 'Transferido' : filterStatus === 'deceased' ? 'Falecido' : filterStatus}</strong>
                 </>
               )}
               <span className="text-gray-400">|</span>
