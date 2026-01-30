@@ -290,21 +290,21 @@ export default function PreMatriculaManagement() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            {/* Breadcrumb com link Início */}
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-3">
+              {/* Link Início ao lado do título */}
               <button
                 onClick={() => navigate('/admin')}
                 className="flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors"
                 data-testid="home-btn"
               >
-                <Home className="w-4 h-4" />
-                <span className="text-sm">Início</span>
+                <Home className="w-5 h-5" />
+                <span>Início</span>
               </button>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Users className="w-7 h-7 text-blue-600" />
+                Gestão de Pré-Matrículas
+              </h1>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Users className="w-7 h-7 text-blue-600" />
-              Gestão de Pré-Matrículas
-            </h1>
             <p className="text-gray-600 mt-1">
               Gerencie as solicitações de pré-matrícula recebidas
             </p>
