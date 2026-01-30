@@ -16,8 +16,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8001:8001"
     environment:
       - MONGO_URL=${MONGO_URL}
       - DB_NAME=${DB_NAME:-sigesc}
@@ -28,6 +26,17 @@ services:
     restart: unless-stopped
     depends_on:
       - mongo
+    networks:
+      - default
+      - coolify
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.http.routers.sigesc-backend.rule=Host(`api.sigesc.aprenderdigital.top`)"
+      - "traefik.http.routers.sigesc-backend.entrypoints=https"
+      - "traefik.http.routers.sigesc-backend.tls=true"
+      - "traefik.http.routers.sigesc-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.sigesc-backend-service.loadbalancer.server.port=8001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
       interval: 30s
@@ -40,11 +49,24 @@ services:
       dockerfile: Dockerfile
       args:
         - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}
-    ports:
-      - "3000:80"
     depends_on:
       - backend
     restart: unless-stopped
+    networks:
+      - default
+      - coolify
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.http.routers.sigesc-frontend.rule=Host(`sigesc.aprenderdigital.top`)"
+      - "traefik.http.routers.sigesc-frontend.entrypoints=https"
+      - "traefik.http.routers.sigesc-frontend.tls=true"
+      - "traefik.http.routers.sigesc-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.sigesc-frontend-service.loadbalancer.server.port=80"
 
 volumes:
   sigesc-mongo-data:
+
+networks:
+  coolify:
+    external: true
