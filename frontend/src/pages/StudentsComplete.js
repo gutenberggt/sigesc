@@ -787,7 +787,8 @@ export function StudentsComplete() {
 
   const handleSelectAllStudents = (checked) => {
     if (checked) {
-      setSelectedStudentIds(displayedStudents.map(s => s.id));
+      // Seleciona apenas os alunos da página atual
+      setSelectedStudentIds(paginatedStudents.map(s => s.id));
     } else {
       setSelectedStudentIds([]);
     }
