@@ -143,4 +143,23 @@ def setup_router(db, audit_service):
         
         return None
 
+    @router.post("/migrate-bercario", status_code=status.HTTP_200_OK)
+    async def migrate_bercario(request: Request):
+        """
+        Remove o campo 'educacao_infantil_bercario' (antigo) de todas as escolas.
+        Apenas admin pode executar.
+        """
+        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        
+        # Remove o campo educacao_infantil_bercario de todas as escolas
+        result = await db.schools.update_many(
+            {"educacao_infantil_bercario": {"$exists": True}},
+            {"$unset": {"educacao_infantil_bercario": ""}}
+        )
+        
+        return {
+            "message": "Migração concluída",
+            "escolas_atualizadas": result.modified_count
+        }
+
     return router
