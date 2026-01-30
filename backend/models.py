@@ -659,7 +659,9 @@ class SchoolUpdate(BaseModel):
     eja_final: Optional[bool] = None
     
     # Sub-níveis Educação Infantil
-    educacao_infantil_bercario: Optional[bool] = None
+    educacao_infantil_bercario: Optional[bool] = None  # Retrocompatibilidade
+    educacao_infantil_bercario_i: Optional[bool] = None
+    educacao_infantil_bercario_ii: Optional[bool] = None
     educacao_infantil_maternal_i: Optional[bool] = None
     educacao_infantil_maternal_ii: Optional[bool] = None
     educacao_infantil_pre_i: Optional[bool] = None
