@@ -38,7 +38,7 @@ export const Dashboard = () => {
           usersAPI.getAll().catch(() => []),
           classesAPI.getAll().catch(() => []),
           studentsAPI.getAll().catch(() => []),
-          staffAPI.getAll().catch(() => []),
+          staffAPI.list().catch(() => []),
           profilesAPI.getMyProfile().catch(() => null)
         ]);
 
