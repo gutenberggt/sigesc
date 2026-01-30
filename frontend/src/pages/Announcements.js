@@ -617,31 +617,67 @@ const Announcements = () => {
           )}
 
           {formData.recipientType === 'class' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Selecione as turmas
-              </label>
-              <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
-                {classes.map(cls => (
-                  <label
-                    key={cls.id}
-                    className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.classIds.includes(cls.id)}
-                      onChange={(e) => {
-                        const newIds = e.target.checked
-                          ? [...formData.classIds, cls.id]
-                          : formData.classIds.filter(id => id !== cls.id);
-                        setFormData({ ...formData, classIds: newIds });
-                      }}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm">{cls.name}</span>
-                  </label>
-                ))}
+            <div className="space-y-4">
+              {/* Seleção de Escola */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  1. Selecione a escola
+                </label>
+                <select
+                  value={selectedSchoolForClass}
+                  onChange={(e) => {
+                    setSelectedSchoolForClass(e.target.value);
+                    // Limpa as turmas selecionadas ao trocar de escola
+                    setFormData({ ...formData, classIds: [] });
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Selecione uma escola...</option>
+                  {schools.map(school => (
+                    <option key={school.id} value={school.id}>
+                      {school.name}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {/* Seleção de Turmas (só aparece após selecionar escola) */}
+              {selectedSchoolForClass && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    2. Selecione as turmas
+                  </label>
+                  {classes.filter(cls => cls.school_id === selectedSchoolForClass).length === 0 ? (
+                    <p className="text-sm text-gray-500 p-4 border border-gray-200 rounded-lg">
+                      Nenhuma turma encontrada para esta escola
+                    </p>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
+                      {classes
+                        .filter(cls => cls.school_id === selectedSchoolForClass)
+                        .map(cls => (
+                          <label
+                            key={cls.id}
+                            className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={formData.classIds.includes(cls.id)}
+                              onChange={(e) => {
+                                const newIds = e.target.checked
+                                  ? [...formData.classIds, cls.id]
+                                  : formData.classIds.filter(id => id !== cls.id);
+                                setFormData({ ...formData, classIds: newIds });
+                              }}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm">{cls.name}</span>
+                          </label>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
