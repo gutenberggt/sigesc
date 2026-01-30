@@ -1,4 +1,4 @@
-import { db, addToSyncQueue, SYNC_STATUS } from '@/db/database';
+import { db, addToSyncQueue, SYNC_STATUS, forceResetDatabase } from '@/db/database';
 import { studentsAPI } from '@/services/api';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -16,6 +16,24 @@ class OfflineStudentsService {
   }
 
   /**
+   * Trata erros do IndexedDB, resetando se necessário
+   */
+  async handleDatabaseError(error, operation) {
+    console.error(`[OfflineStudents] Erro em ${operation}:`, error);
+    
+    // Se for erro de versão, reseta o banco
+    if (error.name === 'VersionError' || error.message?.includes('version')) {
+      console.warn('[OfflineStudents] Erro de versão detectado, resetando banco...');
+      await forceResetDatabase();
+      window.location.reload();
+      return;
+    }
+    
+    // Para outros erros, apenas loga
+    return { success: false, error: error.message };
+  }
+
+  /**
    * Limpa o cache local de alunos e a fila de sincronização
    */
   async clearCache() {
@@ -29,8 +47,7 @@ class OfflineStudentsService {
       console.log('[OfflineStudents] Cache limpo com sucesso');
       return { success: true };
     } catch (error) {
-      console.error('[OfflineStudents] Erro ao limpar cache:', error);
-      return { success: false, error: error.message };
+      return this.handleDatabaseError(error, 'clearCache');
     }
   }
 
