@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { useOffline } from '@/contexts/OfflineContext';
 import { offlineStudentsService } from '@/services/offlineStudentsService';
-import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, CloudOff, Cloud, RefreshCw, Stethoscope, Filter } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, CloudOff, Cloud, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
 
 // Estados brasileiros
