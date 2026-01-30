@@ -2063,14 +2063,24 @@ export function StudentsComplete() {
               <span className="hidden sm:inline">Atualizar</span>
             </button>
             {pendingSyncCount > 0 && isOnline && (
-              <button
-                onClick={triggerSync}
-                className="bg-amber-500 text-white px-3 py-2 rounded-lg hover:bg-amber-600 transition-colors flex items-center space-x-2"
-                title="Sincronizar alterações pendentes"
-              >
-                <RefreshCw size={18} />
-                <span>Sincronizar</span>
-              </button>
+              <>
+                <button
+                  onClick={triggerSync}
+                  className="bg-amber-500 text-white px-3 py-2 rounded-lg hover:bg-amber-600 transition-colors flex items-center space-x-2"
+                  title="Sincronizar alterações pendentes"
+                >
+                  <RefreshCw size={18} />
+                  <span>Sincronizar</span>
+                </button>
+                <button
+                  onClick={discardPendingChanges}
+                  className="bg-red-100 text-red-700 px-3 py-2 rounded-lg hover:bg-red-200 transition-colors flex items-center space-x-2"
+                  title="Descartar alterações pendentes com problema"
+                >
+                  <Trash2 size={18} />
+                  <span className="hidden sm:inline">Descartar</span>
+                </button>
+              </>
             )}
             {canEdit && (
               <button
