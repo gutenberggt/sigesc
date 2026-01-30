@@ -35,6 +35,7 @@ const Announcements = () => {
     userIds: []
   });
   const [formLoading, setFormLoading] = useState(false);
+  const [selectedSchoolForClass, setSelectedSchoolForClass] = useState(''); // Escola selecionada para filtrar turmas
   
   // Data for selectors
   const [schools, setSchools] = useState([]);
