@@ -1364,7 +1364,7 @@ export function SchoolsComplete() {
                   disabled={viewMode}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">Berçário I <span className="text-xs text-gray-500">(3-10m)</span></span>
+                <span className="text-sm text-gray-700">Berçário I <span className="text-xs text-gray-500">(3-11m)</span></span>
               </label>
               <label className="flex items-center space-x-2">
                 <input
@@ -1374,17 +1374,7 @@ export function SchoolsComplete() {
                   disabled={viewMode}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">Berçário II <span className="text-xs text-gray-500">(11m-1a4m)</span></span>
-              </label>
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={formData.educacao_infantil_bercario_iii || false}
-                  onChange={(e) => updateFormData('educacao_infantil_bercario_iii', e.target.checked)}
-                  disabled={viewMode}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700">Berçário III <span className="text-xs text-gray-500">(1a5m-2a)</span></span>
+                <span className="text-sm text-gray-700">Berçário II <span className="text-xs text-gray-500">(1a-1a11m)</span></span>
               </label>
               <label className="flex items-center space-x-2">
                 <input
