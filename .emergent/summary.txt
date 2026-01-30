@@ -1,50 +1,63 @@
 <analysis>**original_problem_statement:**
-O usuário iniciou a sessão para resolver um problema crítico de deploy no ambiente de produção (Coolify), onde as alterações de frontend e backend não estavam sendo refletidas. A investigação revelou múltiplos problemas subjacentes, incluindo cache de imagem Docker, erros de configuração do Nginx, e uma configuração de rede/proxy (Traefik) incorreta.
+O usuário iniciou a sessão para resolver um problema crítico de deploy no ambiente de produção (Coolify), onde as alterações não estavam sendo refletidas. Isso evoluiu para uma série de depurações de infraestrutura, correções de bugs e implementação de novas funcionalidades.
 
-Após resolver o problema de deploy, a sessão evoluiu para uma série de solicitações de funcionalidades e correções, com foco principal no refinamento das permissões do perfil Secretário:
--   Corrigir título duplicado na barra de título do PWA.
--   Garantir que secretários possam visualizar todas as escolas, mas editar apenas aquelas a que estão vinculados.
--   Garantir que secretários possam visualizar todos os alunos, mas com permissões de edição e geração de documentos condicionais com base na escola do aluno e no seu status (ativo/inativo).
--   Filtrar a lista de turmas e as estatísticas do dashboard para que o secretário veja apenas dados de suas escolas.
--   Remover a coluna Município da lista de escolas.
--   Investigar e fornecer scripts para uma migração de dados em massa de alunos, o que revelou inconsistências nos dados de status dos alunos.
+As principais solicitações foram:
+-   Resolver problemas recorrentes de Gateway Timeout e Bad Gateway após cada deploy em produção.
+-   Corrigir inconsistências de dados e comportamento offline, onde a lista de alunos mostrava um status (Transferido) diferente do formulário de edição (Ativo).
+-   Implementar várias melhorias na página de gerenciamento de alunos, incluindo:
+    -   Mover o campo Escola do formulário de edição.
+    -   Adicionar um filtro por Status.
+    -   Implementar um sistema completo de Ações em Lote para atualizar múltiplos alunos de uma vez.
+    -   Adicionar paginação à lista de alunos.
+-   Reestruturar as séries/etapas da Educação Infantil com base em novas faixas etárias, dividindo Berçário em Berçário I e Berçário II.
+-   Corrigir um bug que impedia o salvamento da configuração Exibir botão de Pré-Matrícula.
+-   Adicionar um botão para migrar dados antigos de Berçário e um botão Início em outra página.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-A aplicação full-stack (React + FastAPI + MongoDB) está totalmente funcional no ambiente de produção do usuário (Coolify/DigitalOcean). O problema crítico de deploy e cache foi resolvido através de uma investigação profunda e uma série de correções no servidor, incluindo a criação de um arquivo de configuração manual para o proxy Traefik para garantir o roteamento correto para o backend. O sistema de permissões para o perfil Secretário foi extensivamente refatorado tanto no frontend quanto no backend para atender a regras de negócio complexas e granulares.
+A aplicação full-stack (React + FastAPI + MongoDB) está funcional no ambiente de produção do usuário (Coolify), mas o processo de deploy é extremamente frágil. Após cada , a aplicação fica inacessível (Gateway Timeout) e requer intervenção manual via SSH no servidor para reconectar os containers Docker à rede do proxy Traefik e recriar um arquivo de configuração dinâmica.
+
+Foram implementadas diversas funcionalidades, incluindo um sistema de ações em lote, paginação na lista de alunos e uma reestruturação completa dos níveis de ensino infantil. Também foram implementadas correções para bugs relacionados à funcionalidade offline e ao salvamento de configurações.
 
 **Last working item**:
--   **Last item agent was working:** Implementando a regra de negócio final para as permissões do secretário: exibir os botões para gerar documentos de um aluno apenas se o secretário estiver vinculado à escola daquele aluno.
--   **Status:** IN PROGRESS
+-   **Last item agent was working:** O agente concluiu três solicitações do usuário simultaneamente:
+    1.  **Correção do bug de salvamento:** Corrigido o problema onde a opção Exibir botão de Pré-Matrícula na tela de login não era salva. A causa era um campo mal posicionado no modelo Pydantic do backend.
+    2.  **Criação do botão de migração:** Adicionado um endpoint no backend () e um botão na interface de administração (Configurações -> Dados da Mantenedora) para limpar um campo obsoleto (Berçário) dos dados das escolas.
+    3.  **Adição do botão Início:** Adicionado um botão de navegação para Início na página de Gestão de Pré-Matrículas para melhorar a usabilidade.
+-   **Status:** USER VERIFICATION PENDING
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** Frontend testing agent. O agente deve fazer login como um usuário secretário e navegar para a página de gerenciamento de alunos (). O teste deve verificar se a lista contém alunos de todas as escolas e se o botão Documentos aparece apenas nas linhas correspondentes a alunos das escolas vinculadas ao secretário.
+-   **Which testing method agent to use?** Frontend testing agent. O agente deve fazer login como admin e verificar:
+    1.  Na página Configurações, se a opção Exibir botão de Pré-Matrícula agora salva o estado corretamente.
+    2.  Na mesma página, se o botão Migrar Dados do Berçário aparece e funciona.
+    3.  Na página Gestão de Pré-Matrículas, se o botão Início está presente e leva ao dashboard.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Configuração Manual e Frágil do Traefik**
-    -   **Description:** O roteamento do tráfego para o backend na produção depende de um arquivo de configuração manual () criado dentro do container do proxy Traefik. Esta solução foi necessária para resolver um problema de comunicação de rede do Docker, mas é frágil. Se o Coolify recriar o container do proxy ou se o nome de serviço do backend mudar, a API ficará inacessível.
-    -   **Attempted fixes:** Conectar os containers à mesma rede Docker e reiniciar o Traefik não resolveu o problema, forçando a solução manual.
+-   **Issue 1: (P0) Processo de Deploy em Produção Quebrado**
+    -   **Description:** Após cada  no Coolify, a aplicação fica inacessível (Gateway Timeout/Bad Gateway). Isso ocorre porque os containers do frontend e backend perdem a conexão com a rede  do proxy Traefik, e os nomes dos containers (que são dinâmicos) precisam ser atualizados em um arquivo de configuração manual do Traefik. A solução atual é totalmente manual e precisa ser executada via SSH a cada deploy.
+    -   **Attempted fixes:** Tentativas de usar um  com  do Traefik falharam, causando a indisponibilidade total dos serviços e forçando a reversão para o método manual. O problema parece estar na forma como o Coolify gerencia as redes e os nomes dos containers.
     -   **Next debug checklist:**
-        1.  Investigar a configuração do provedor Docker do Traefik no Coolify. Verificar se há  ou outros filtros que impedem o Traefik de descobrir automaticamente os containers em outras redes.
-        2.  Explorar a documentação do Coolify para entender a maneira correta de expor um serviço em uma rede para que o Traefik (proxy global) o detecte.
-        3.  Tentar adicionar o backend e o frontend à rede  diretamente através do  do projeto, se o Coolify permitir.
-    -   **Why fix this issue and what will be achieved with the fix?** Eliminará um ponto único de falha crítico na infraestrutura de produção, tornando os deploys mais robustos e alinhados com o gerenciamento automatizado do Coolify.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** N (Foi a solução para um problema recorrente).
-    -   **Should Test frontend/backend/both after fix?** Backend (verificando a acessibilidade da API via domínio público).
-    -   **Blocked on other issue:** Não.
-
--   **Issue 2: (P1) Inconsistência nos Dados de Status dos Alunos**
-    -   **Description:** A base de dados de produção contém valores diferentes para o status de um aluno, como  (Português, maiúscula) e  (Inglês, minúscula). Um patch foi aplicado no frontend () para exibir ambos corretamente, mas a inconsistência nos dados persiste.
-    -   **Attempted fixes:** O agente forneceu scripts para atualização em massa, mas o usuário relatou problemas. A correção no frontend foi uma mitigação.
-    -   **Next debug checklist:**
-        1.  Criar e fornecer ao usuário um script MongoDB final e validado para padronizar todos os valores de status na coleção  para um único formato (ex: ).
-        2.  Verificar no backend se alguma lógica de criação/atualização de aluno ainda pode gerar o valor incorreto.
-    -   **Why fix this issue and what will be achieved with the fix?** Garantirá a consistência dos dados, simplificará a lógica no código (removendo a necessidade de checar múltiplos valores) e evitará bugs futuros em relatórios ou outras funcionalidades que dependam do status do aluno.
+        1.  Investigar a documentação do Coolify v4 sobre a maneira canônica de expor serviços para o proxy Traefik global, especialmente quando se usa um  gerenciado pelo Git.
+        2.  Verificar se existe uma rede padrão ou uma forma de atribuir nomes de host estáticos aos serviços dentro do  que o Traefik possa usar, em vez dos nomes de container gerados dinamicamente.
+        3.  Explorar a possibilidade de usar o Docker Provider do Traefik de uma forma mais robusta, talvez definindo explicitamente a rede a ser monitorada nas configurações do Coolify, em vez de depender da conexão manual.
+    -   **Why fix this issue and what will be achieved with the fix?** A correção tornará o processo de deploy automático e robusto, eliminando a necessidade de intervenção manual e o risco de deixar o site fora do ar a cada atualização.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** Backend (verificando os dados no DB) e Frontend (verificando a exibição na lista de alunos).
+    -   **Should Test frontend/backend/both after fix?** Both (a acessibilidade do frontend e da API precisa ser confirmada).
+    -   **Blocked on other issue:** Não.
+
+-   **Issue 2: (P1) Inconsistência de Dados e Cache Offline**
+    -   **Description:** O usuário relatou que a lista de alunos mostrava o status Transferido, mas o formulário de edição mostrava Ativo. Isso foi causado pelo sistema de cache offline (IndexedDB/Dexie) que estava servindo dados desatualizados e entrando em conflito com os dados do servidor. O mesmo cache parece estar causando erros de sincronização ().
+    -   **Attempted fixes:** Foram adicionados botões de Atualizar (para forçar a limpeza do cache) e Descartar Alterações Pendentes para dar ao usuário uma forma de contornar o problema. A lógica do serviço offline também foi ajustada.
+    -   **Next debug checklist:**
+        1.  Investigar o arquivo  e o  para entender por que a versão do Dexie está causando o . Pode ser necessário implementar uma lógica de migração de schema do Dexie.
+        2.  Revisar o fluxo de dados em  para garantir que, quando online, os dados do servidor *sempre* tenham precedência sobre o cache local, invalidando-o se necessário.
+        3.  Considerar limpar programaticamente o  se a sincronização falhar repetidamente, em vez de depender do botão manual Descartar.
+    -   **Why fix this issue and what will be achieved with the fix?** A correção eliminará a confusão do usuário, garantirá a consistência dos dados exibidos e tornará a funcionalidade offline mais confiável.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Frontend (verificando a consistência dos dados do aluno na lista e no formulário).
     -   **Blocked on other issue:** Não.
 
 **In progress Task List**:
@@ -56,98 +69,99 @@ Nenhuma.
     -   **(P1) Melhoria na Lista de Alunos:** Implementar a lógica na página  para usar o parâmetro de URL  e destacar o aluno recém-criado na lista.
 -   **Future Tasks:**
     -   **(P2) Refatoração do Backend:** Continuar movendo endpoints do  para routers modulares.
-    -   **(P2) Refatoração do Frontend:** Simplificar o componente , que se tornou muito complexo.
+    -   **(P2) Refatoração do Frontend:** Simplificar o componente , que se tornou excessivamente complexo.
     -   **(P2) Expansão Offline:** Estender a funcionalidade offline para o módulo de matrículas.
-    -   **(P2) Padronização de Erros:** Aplicar o utilitário  em todos os componentes restantes que fazem chamadas de API.
+    -   **(P2) Padronização de Erros:** Aplicar o utilitário  em todos os componentes restantes.
     -   **(P3) Limpeza de Código:** Remover o arquivo obsoleto .
-    -   **(P3) Relatórios:** Criar relatórios gerenciais para atestados médicos (ex: por período, por escola).
+    -   **(P3) Relatórios:** Criar relatórios gerenciais para atestados médicos.
 
 **Completed work in this session**
--   **Resolução de Falha Crítica de Deploy:** Diagnosticado e resolvido um problema complexo de deploy em produção que envolvia cache de build do Docker, configuração do Nginx e, crucialmente, roteamento de rede do Traefik.
--   **Refatoração de Permissões (Secretário):** Implementadas regras de negócio detalhadas para o perfil secretário, incluindo:
-    -   Visualização de todos os alunos, mas com edição restrita àqueles de sua escola ou com status inativo.
-    -   Botão de Gerar Documentos condicional ao vínculo com a escola do aluno.
-    -   Listagem de turmas na página de turmas filtrada por escola.
-    -   Contagem de estatísticas no dashboard filtrada por escola.
--   **Correção de Inconsistência de Dados (Backend):** O backend () foi corrigido para reconhecer o campo  além de , resolvendo o problema das legendas ausentes nos PDFs.
--   **Correções de UI:**
-    -   Removida a coluna Município da tabela de escolas ().
-    -   Corrigido o título duplicado da aplicação quando instalada como PWA, ajustando o .
--   **Data Migration:** Fornecidos scripts para executar no MongoDB para atualizações em massa de status de alunos.
--   **Infraestrutura:** Identificado e resolvido um conflito com um container  antigo. Criado um arquivo de configuração manual para o Traefik para restaurar a funcionalidade da API.
+-   **Infraestrutura:** Resolvido (manualmente) o problema crítico de Gateway Timeout após deploys, fornecendo ao usuário um script para reconectar containers e atualizar a configuração do Traefik.
+-   **Funcionalidade Offline:** Implementados botões Atualizar e Descartar para limpar cache e alterações pendentes corrompidas no .
+-   **Bugfix (Ações em Lote):** Corrigido o erro 422 (Nenhum aluno foi atualizado) ao garantir que apenas os dados modificados sejam enviados para a API.
+-   **Bugfix (Configurações):** Corrigido o bug que impedia o salvamento da opção Exibir botão de Pré-Matrícula, ajustando o modelo  no backend.
+-   **Bugfix (Dados da Escola):** Corrigido o bug que impedia o salvamento das novas séries Berçário I/II, adicionando os campos aos modelos  e  no backend.
+-   **Feature (UI Alunos):**
+    -   Movido o campo Escola para a aba Turma/Observações no formulário do aluno.
+    -   Adicionado um filtro por Status na lista de alunos.
+    -   Implementado um sistema completo de Ações em Lote.
+    -   Implementada a paginação na lista de alunos (20 por página).
+-   **Feature (Educação Infantil):** Reestruturadas as séries/etapas da Educação Infantil (Berçário I/II, etc.) em todos os arquivos relevantes do frontend e backend.
+-   **Feature (Migração de Dados):** Criado um endpoint () e um botão na UI para limpar dados de Berçário obsoletos.
+-   **Feature (UI):** Adicionado um botão Início na página de Gestão de Pré-Matrículas.
 
 **Earlier issues found/mentioned but not fixed**
-- Nenhum.
+-   Nenhum que não esteja listado em .
 
 **Known issue recurrence from previous fork**
--   O problema de falha de build do frontend evoluiu para o problema de deploy em produção, que foi o foco principal e foi resolvido nesta sessão (embora com uma solução frágil - ver  em ).
+-   **Falha de deploy em produção:** Este é o problema mais recorrente e crítico. A solução manual é um paliativo, não uma correção.
+-   **Inconsistência de dados de alunos:** O problema de status conflitantes ( vs ) e problemas com o cache offline continuam a ser uma fonte de bugs.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Traefik Proxy Debugging:** Diagnóstico avançado de problemas de roteamento no Traefik, incluindo erros de parsing de regras (), problemas de rede entre containers Docker e criação de arquivos de configuração dinâmica manual.
--   **Docker Networking:** Análise e solução de problemas de comunicação entre containers em diferentes redes Docker ().
--   **Docker Build & Cache:** Utilização de  para forçar a limpeza completa do cache de build e garantir a utilização de código atualizado.
--   **Nginx Configuration:** Correção de erros de sintaxe em regex de  que eram incompatíveis com a substituição de variáveis do ambiente de deploy (Coolify).
--   **Conditional UI Rendering (React):** Implementação de lógica complexa para renderizar/habilitar botões e exibir dados com base no papel do usuário (), no vínculo com a escola e no status de um item específico (aluno).
--   **React Hooks Optimization:** Uso de  para evitar re-renderizações infinitas em  quando uma dependência é um array ou objeto recriado a cada render.
+-   **Docker Networking:** O problema central da sessão. Uso de , , e  para diagnosticar e resolver problemas de comunicação entre containers em redes diferentes ( vs ).
+-   **Traefik (Proxy Reverso):** Depuração de erros 5xx (Gateway Timeout). Criação de arquivos de configuração dinâmica () para o File Provider do Traefik, definindo routers e services manualmente.
+-   **React State & UI:** Gerenciamento de estado complexo em um único componente () com múltiplos filtros, modais, paginação e ações em lote.
+-   **FastAPI & Pydantic:** Depuração de erros de validação HTTP 422, identificando e corrigindo modelos Pydantic (, ) que não continham os campos esperados pela UI.
+-   **Offline First (Dexie.js):** Depuração de problemas de cache (IndexedDB), incluindo dados desatualizados e erros de versão do banco de dados, e implementação de estratégias de limpeza de cache.
 
 **key DB schema**
--   **students:** O campo  demonstrou ter valores inconsistentes (Transferido e transferred).
--   **classes:** O campo  existe na produção, enquanto o código esperava .
--   **users:** O campo  não estava sendo populado corretamente durante o login para usuários cujo vínculo escolar vinha de .
+-   **schools:** Adicionados campos  e . O campo antigo  foi tornado obsoleto.
+-   **mantenedora:** Adicionado campo .
 
 **changes in tech stack**
--   Nenhuma mudança de tecnologia, mas uma forte dependência de configuração manual foi introduzida na infraestrutura de produção (arquivo de configuração do Traefik).
+-   Nenhuma.
 
 **All files of reference**
--    (Permissões de  e )
--    (Permissões de )
--    (Permissões de )
--    (Correção do nome do campo )
--    (Lógica principal de permissões condicionais para secretários)
--    (Filtro de turmas para secretário)
--    (Filtro de estatísticas para secretário)
--    (Remoção da coluna Município)
--    (Refatorado para aceitar função  por linha)
--    (Correção do título do PWA)
--    (Arquivo CRÍTICO, criado manualmente no servidor de produção)
+-    (Tentativas de configuração do Traefik e reversão)
+-    (Modificado extensivamente para paginação, ações em lote, filtros e correções de bugs offline)
+-    (Adicionados campos a , , )
+-    (Adicionado endpoint )
+-    (Atualizado para a nova estrutura de Berçário)
+-    (Adicionado botão de migração e corrigido bug de salvamento)
+-    (Adicionado método )
+-    (Adicionadas funções de limpeza de cache)
+-    (Adicionadas funções de limpeza de cache)
+-    (Adicionado botão Início)
+-    (Atualizado com novas regras de idade para Berçário)
+-   , , ,  (Atualizados com novas séries da Educação Infantil)
 
 **Areas that need refactoring**:
--   **Infraestrutura de Deploy:** A solução manual do Traefik precisa ser substituída por uma configuração automática gerenciada pelo Coolify para garantir a robustez (ver ).
--   : Este componente continua a crescer em complexidade com a adição de mais lógicas de permissão. Ele é um forte candidato a ser quebrado em subcomponentes e hooks personalizados.
+-   **Processo de Deploy (URGENTE):** A solução de deploy manual via SSH é insustentável e deve ser substituída por uma configuração robusta e automatizada no Coolify.
+-   : Este componente é um god component que viola todos os princípios de responsabilidade única. Ele gerencia estado para filtros, pesquisa, paginação, modais, edição, criação, ações em lote, seleção, e lógica offline. Precisa ser decomposto em componentes menores e hooks customizados (ex: , , ).
 
 **key api endpoints**
--   : Usado extensivamente para depurar a conectividade do backend.
--   : Ponto central da investigação sobre por que os  do secretário não estavam sendo populados.
--   : Endpoint modificado para retornar todos os alunos para o secretário.
--   : Endpoint modificado para retornar todas as turmas para o secretário.
--   : A inacessibilidade deste endpoint (404) foi um indicador chave de que o backend em produção estava desatualizado.
+-   : Novo endpoint para limpar dados obsoletos de escolas.
+-   : Corrigido para aceitar o campo .
+-   : Corrigida a lógica de chamada no frontend para evitar erros 422.
 
 **Critical Info for New Agent**
--   **A MAIOR PRIORIDADE É TORNAR O DEPLOY ROBUSTO.** A configuração atual do backend em produção depende de um arquivo () que foi criado manualmente no servidor. Você deve trabalhar para substituir essa solução manual por uma configuração automática gerenciada pelo Coolify para evitar falhas em futuros deploys. Consulte o  para um plano de ação.
--   A base de dados de produção tem inconsistências no campo  dos alunos. Foi feito um patch no frontend, mas a fonte do problema (os dados) deve ser corrigida.
--   As permissões para o papel Secretário são complexas e distribuídas entre o frontend (renderização condicional) e o backend (validação da API). Qualquer alteração nessa área requer testes cuidadosos em ambos os lados.
+-   **O DEPLOY ESTÁ QUEBRADO.** A tarefa de maior prioridade é criar uma solução permanente para o deploy em produção. Até lá, após cada , o usuário precisará executar comandos manuais via SSH para restaurar o serviço. Forneci ao usuário um script com esses comandos.
+-   Os problemas de dados que o usuário relata (ex: status inconsistente) estão provavelmente ligados ao cache offline (IndexedDB) estar dessincronizado. As correções implementadas (botões Atualizar e Descartar) são paliativas; a causa raiz no serviço de sincronização (, ) precisa ser investigada.
+-   Os nomes dos containers no ambiente de produção do Coolify são dinâmicos (ex: ). Qualquer solução de configuração que dependa de nomes de host precisa levar isso em conta.
 
 **documents and test reports created in this job**
--    (Atualizado com o trabalho concluído).
+-    (Contém parte da investigação sobre o Traefik)
+-    (Versão experimental do compose, não utilizada)
+-    (Atualizado com o progresso)
 
 **Last 10 User Messages and any pending HUMAN messages**
-10. **Usuário:** Na lista de alunos, para o secretário, mostrar a escola e a turma.
-9.  **Usuário:** O secretário deve ter o card de estatísticas de turmas no dashboard filtrado para suas escolas.
-8.  **Usuário:** Na página de turmas, o secretário deve ver apenas as turmas de suas escolas.
-7.  **Usuário:** Remover a coluna Município da lista de escolas.
-6.  **Usuário:** O secretário deve poder editar alunos de qualquer escola, desde que o status não seja Ativo.
-5.  **Usuário:** O secretário deve ver TODOS os alunos, mas o botão de edição só deve aparecer para alunos ativos de sua escola.
-4.  **Usuário:** O status dos alunos está incorreto na UI. A mudança para Transferido não reflete.
-3.  **Usuário:** O script para mudar o status de todos os alunos para Transferido não funcionou, eles ainda aparecem como Ativo.
-2.  **Usuário:** O secretário deve ter acesso de edição aos dados da(s) escola(s) onde possui vínculo.
-1.  **Usuário:** O título do PWA está aparecendo duplicado.
+10. **Usuário:** Pediu para adicionar paginação (20 por página) à lista de alunos. (Status: **DONE**, pending verification)
+9.  **Usuário:** Pediu para criar um endpoint para limpar o campo Berçário obsoleto e um botão para acioná-lo. (Status: **DONE**, pending verification)
+8.  **Usuário:** Reportou que o checkbox Exibir botão de Pré-Matrícula não estava salvando e pediu um botão Início na página de pré-matrículas. (Status: **DONE**, pending verification)
+7.  **Usuário:** Reportou que, ao salvar Berçário I/II em uma escola, a informação não era persistida. (Status: **DONE**, pending verification)
+6.  **Usuário:** Corrigiu uma solicitação anterior sobre a estrutura do berçário. (Status: **DONE**, pending verification)
+5.  **Usuário:** Pediu para reorganizar as séries da Educação Infantil com novas faixas etárias. (Status: **DONE**, pending verification)
+4.  **Usuário:** Reportou que as ações em lote falhavam com a mensagem Nenhum aluno foi atualizado e um erro 422 no console. (Status: **DONE**, pending verification)
+3.  **Usuário:** Pediu os comandos para corrigir o deploy manualmente para salvar para uso futuro. (Status: **DONE**)
+2.  **Usuário:** Pediu para implementar um sistema de Ações em Lote na lista de alunos. (Status: **DONE**, pending verification)
+1.  **Usuário:** Pediu para adicionar um filtro por Status na lista de alunos. (Status: **DONE**, pending verification)
 
 **Project Health Check:**
--   **Broken:** Nada está funcionalmente quebrado para o usuário final no momento.
--   **Fragile:** O roteamento da API em produção é extremamente frágil devido à configuração manual do Traefik, representando um risco significativo para futuros deploys.
+-   **Broken:** O processo de deploy automatizado está quebrado. Cada atualização de código exige uma complexa intervenção manual no servidor de produção para que o site volte a funcionar.
+-   **Fragile:** A funcionalidade offline é frágil e propensa a causar inconsistências de dados para o usuário final devido a problemas de sincronização e cache.
 
 **3rd Party Integrations**
 -   reportlab
@@ -161,11 +175,11 @@ Nenhuma.
 -   **Testing agent used after significant changes:** NO
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** None
--   **Known regressions:** Nenhuma regressão funcional. A única regressão é na manutenibilidade da infraestrutura.
+-   **Known regressions:** A tentativa de consertar o  para automação do Traefik causou uma regressão que derrubou o site, forçando a reversão para o estado original + configuração manual.
 
 **Credentials to test flow:**
 -   **Admin:**  / 
 -   **Secretário:**  (a senha não foi fornecida, mas é o usuário de teste para as permissões de secretário).
 
 **What agent forgot to execute**
--   O agente não esqueceu nenhuma tarefa explícita. No entanto, a solução para o problema de deploy (a configuração manual do Traefik) introduziu uma fragilidade técnica significativa que agora se tornou a principal dívida técnica a ser resolvida.</analysis>
+-   O agente não conseguiu implementar uma solução *permanente* para o problema de deploy com o Traefik. As tentativas falharam e foi necessário reverter para a solução manual e frágil, que agora se tornou a principal dívida técnica do projeto.</analysis>
