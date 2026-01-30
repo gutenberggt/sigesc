@@ -214,7 +214,7 @@ const calculateIdealGrade = (birthDate) => {
 export function StudentsComplete() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isOnline, pendingSyncCount, triggerSync } = useOffline();
+  const { isOnline, pendingSyncCount, triggerSync, updatePendingCount } = useOffline();
   const [students, setStudents] = useState([]);
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
