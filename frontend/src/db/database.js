@@ -56,6 +56,50 @@ class SigescDatabase extends Dexie {
 export const db = new SigescDatabase();
 
 /**
+ * Tenta abrir o banco de dados, resetando se houver erro de versão
+ * Isso resolve o problema de VersionError quando a versão local é maior que a esperada
+ */
+export async function initializeDatabase() {
+  try {
+    await db.open();
+    console.log('[DB] Banco de dados aberto com sucesso');
+    return true;
+  } catch (error) {
+    if (error.name === 'VersionError') {
+      console.warn('[DB] VersionError detectado, resetando banco de dados...');
+      try {
+        await Dexie.delete('SigescOfflineDB');
+        console.log('[DB] Banco de dados antigo removido');
+        // Recarrega a página para recriar o banco
+        window.location.reload();
+        return false;
+      } catch (deleteError) {
+        console.error('[DB] Erro ao deletar banco:', deleteError);
+        return false;
+      }
+    }
+    console.error('[DB] Erro ao abrir banco:', error);
+    return false;
+  }
+}
+
+/**
+ * Força o reset completo do banco de dados
+ * Útil quando há corrupção ou inconsistências graves
+ */
+export async function forceResetDatabase() {
+  try {
+    db.close();
+    await Dexie.delete('SigescOfflineDB');
+    console.log('[DB] Banco de dados resetado com sucesso');
+    return true;
+  } catch (error) {
+    console.error('[DB] Erro ao resetar banco:', error);
+    return false;
+  }
+}
+
+/**
  * Status de sincronização dos registros
  */
 export const SYNC_STATUS = {
