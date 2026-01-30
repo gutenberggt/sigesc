@@ -16,26 +16,29 @@ class OfflineStudentsService {
   }
 
   /**
-   * Busca alunos - usa cache local se offline
+   * Busca alunos - SEMPRE usa servidor quando online
    */
   async getStudents(filters = {}) {
     if (this.isOnline()) {
       try {
-        // Online: busca do servidor e atualiza cache
+        // Online: SEMPRE busca do servidor (dados mais recentes)
         const response = await studentsAPI.getAll(filters);
         const students = response.items || response;
         
-        // Atualiza cache local
+        // Atualiza cache local para uso offline futuro
+        // Mas NÃO deixa o cache interferir nos dados do servidor
         await this.updateLocalCache(students);
         
+        console.log('[OfflineStudents] Dados carregados do servidor:', students.length, 'alunos');
         return { success: true, data: students, source: 'server' };
       } catch (error) {
         console.error('[OfflineStudents] Erro ao buscar do servidor:', error);
-        // Fallback para cache local
+        // Fallback para cache local APENAS em caso de erro
         return this.getFromLocalCache(filters);
       }
     } else {
       // Offline: busca do cache local
+      console.log('[OfflineStudents] Modo offline - usando cache local');
       return this.getFromLocalCache(filters);
     }
   }
