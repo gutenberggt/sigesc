@@ -59,6 +59,11 @@ export const schoolsAPI = {
   
   delete: async (id) => {
     await axios.delete(`${API}/schools/${id}`);
+  },
+  
+  migrateBercario: async () => {
+    const response = await axios.post(`${API}/schools/migrate-bercario`);
+    return response.data;
   }
 };
 
