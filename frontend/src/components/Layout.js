@@ -112,6 +112,11 @@ export const Layout = ({ children }) => {
         {children}
       </main>
       
+      {/* Footer com Copyright */}
+      <footer className="mt-auto py-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white">
+        © 2026 Aprender Digital — Gutenberg Barroso
+      </footer>
+      
       {/* Indicador flutuante de status */}
       <FloatingStatusIndicator />
     </div>
