@@ -299,10 +299,16 @@ export default function PreMatriculaManagement() {
             </p>
           </div>
           
-          <Button onClick={loadPreMatriculas} variant="outline" disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate('/admin')} variant="outline" data-testid="home-btn">
+              <Home className="w-4 h-4 mr-2" />
+              Início
+            </Button>
+            <Button onClick={loadPreMatriculas} variant="outline" disabled={loading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          </div>
         </div>
 
         {/* Contadores de Status */}
