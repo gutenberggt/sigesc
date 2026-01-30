@@ -1199,7 +1199,10 @@ export function SchoolsComplete() {
       // Educação Infantil
       if (formData.educacao_infantil) {
         const subniveis = [];
-        if (formData.educacao_infantil_bercario) subniveis.push('Berçário');
+        if (formData.educacao_infantil_bercario_i) subniveis.push('Berçário I');
+        if (formData.educacao_infantil_bercario_ii) subniveis.push('Berçário II');
+        if (formData.educacao_infantil_bercario_iii) subniveis.push('Berçário III');
+        if (formData.educacao_infantil_bercario) subniveis.push('Berçário'); // Retrocompatibilidade
         if (formData.educacao_infantil_maternal_i) subniveis.push('Maternal I');
         if (formData.educacao_infantil_maternal_ii) subniveis.push('Maternal II');
         if (formData.educacao_infantil_pre_i) subniveis.push('Pré I');
