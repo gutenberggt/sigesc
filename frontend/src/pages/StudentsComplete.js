@@ -239,9 +239,10 @@ export function StudentsComplete() {
   const [showCpfSuggestions, setShowCpfSuggestions] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   
-  // Filtros por Escola e Turma
+  // Filtros por Escola, Turma e Status
   const [filterSchoolId, setFilterSchoolId] = useState('');
   const [filterClassId, setFilterClassId] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [showBatchPrintModal, setShowBatchPrintModal] = useState(false);
   
   // Histórico do aluno
