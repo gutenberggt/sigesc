@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { syncService } from '@/services/syncService';
-import { countPendingSyncItems } from '@/db/database';
+import { countPendingSyncItems, initializeDatabase } from '@/db/database';
 import { notificationService } from '@/services/notificationService';
 
 const OfflineContext = createContext(null);
@@ -8,6 +8,7 @@ const OfflineContext = createContext(null);
 export const OfflineProvider = ({ children }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isServiceWorkerReady, setIsServiceWorkerReady] = useState(false);
+  const [isDatabaseReady, setIsDatabaseReady] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'error' | 'success'
@@ -17,6 +18,23 @@ export const OfflineProvider = ({ children }) => {
   // Ref para funções que precisam ser acessadas antes de serem declaradas
   const triggerSyncRef = useRef(null);
   const wasOfflineRef = useRef(false);
+
+  // Inicializa o banco de dados na montagem
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const success = await initializeDatabase();
+        setIsDatabaseReady(success);
+        if (success) {
+          console.log('[PWA] Banco de dados inicializado');
+        }
+      } catch (error) {
+        console.error('[PWA] Erro ao inicializar banco de dados:', error);
+        setIsDatabaseReady(false);
+      }
+    };
+    init();
+  }, []);
 
   // Solicita permissão para notificações ao carregar
   useEffect(() => {
