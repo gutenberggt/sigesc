@@ -2628,7 +2628,7 @@ export function StudentsComplete() {
                     </td>
                   </tr>
                 ) : (
-                  displayedStudents.map((row) => {
+                  paginatedStudents.map((row) => {
                     const canEditThisStudent = canEditStudent(row);
                     const canGenerateDocuments = isAdmin || isSemed || 
                       (isSecretario && userSchoolIds.includes(row.school_id)) ||
