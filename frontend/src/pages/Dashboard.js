@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
-import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI } from '@/services/api';
+import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI } from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 
 export const Dashboard = () => {
@@ -13,7 +13,8 @@ export const Dashboard = () => {
     schools: 0,
     users: 0,
     classes: 0,
-    students: 0
+    students: 0,
+    staff: 0
   });
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
@@ -32,11 +33,12 @@ export const Dashboard = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [schoolsData, usersData, classesData, studentsData, profileData] = await Promise.all([
+        const [schoolsData, usersData, classesData, studentsData, staffData, profileData] = await Promise.all([
           schoolsAPI.getAll().catch(() => []),
           usersAPI.getAll().catch(() => []),
           classesAPI.getAll().catch(() => []),
           studentsAPI.getAll().catch(() => []),
+          staffAPI.getAll().catch(() => ({ items: [] })),
           profilesAPI.getMyProfile().catch(() => null)
         ]);
 
@@ -57,11 +59,15 @@ export const Dashboard = () => {
           s.status === 'active' || s.status === 'Ativo'
         ).length;
 
+        // Conta servidores
+        const staffCount = staffData?.items?.length || staffData?.length || 0;
+
         setStats({
           schools: filteredSchools.length,
           users: usersData.length,
           classes: filteredClasses.length,
-          students: activeStudentsCount
+          students: activeStudentsCount,
+          staff: staffCount
         });
         
         setProfile(profileData);
