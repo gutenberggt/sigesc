@@ -262,7 +262,7 @@ const Announcements = () => {
   };
 
   // Verificar se pode criar avisos
-  const canCreate = ['admin', 'secretario', 'diretor', 'coordenador', 'professor'].includes(user?.role);
+  const canCreate = ['admin', 'semed', 'secretario', 'diretor', 'coordenador', 'professor'].includes(user?.role);
 
   return (
     <Layout>
