@@ -138,23 +138,26 @@ class OfflineStudentsService {
 
     if (this.isOnline()) {
       try {
-        // Online: atualiza no servidor
+        // Online: atualiza no servidor DIRETAMENTE
+        console.log('[OfflineStudents] Atualizando aluno no servidor:', studentId);
         const response = await studentsAPI.update(studentId, studentData);
         
-        // Atualiza cache local
+        // Atualiza cache local com dados do servidor
         await this.updateInLocalCache(studentId, {
           ...response,
           syncStatus: SYNC_STATUS.SYNCED
         });
         
+        console.log('[OfflineStudents] Aluno atualizado com sucesso no servidor');
         return { success: true, data: response, source: 'server' };
       } catch (error) {
         console.error('[OfflineStudents] Erro ao atualizar no servidor:', error);
-        // Fallback: salva localmente para sincronização posterior
-        return this.updateOffline(studentId, updatedData);
+        // Retorna o erro para o usuário VER, não salva offline silenciosamente
+        throw error;
       }
     } else {
       // Offline: salva localmente
+      console.log('[OfflineStudents] Modo offline - salvando localmente');
       return this.updateOffline(studentId, updatedData);
     }
   }
