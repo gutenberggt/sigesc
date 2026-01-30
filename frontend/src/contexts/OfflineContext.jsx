@@ -282,8 +282,10 @@ export const OfflineProvider = ({ children }) => {
     }
   }, [updatePendingCount]);
 
-  // Carrega contador inicial de pendências
+  // Carrega contador inicial de pendências (só após banco estar pronto)
   useEffect(() => {
+    if (!isDatabaseReady) return;
+    
     const loadInitialCount = async () => {
       try {
         const count = await countPendingSyncItems();
@@ -293,7 +295,7 @@ export const OfflineProvider = ({ children }) => {
       }
     };
     loadInitialCount();
-  }, []);
+  }, [isDatabaseReady]);
 
   // Força atualização do Service Worker
   const updateServiceWorker = useCallback(() => {
