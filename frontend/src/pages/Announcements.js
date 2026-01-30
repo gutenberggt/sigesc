@@ -577,6 +577,14 @@ const Announcements = () => {
             </div>
           )}
 
+          {formData.recipientType === 'semed' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>Aviso para SEMED:</strong> Este aviso será enviado exclusivamente para todos os usuários com perfil SEMED.
+              </p>
+            </div>
+          )}
+
           {formData.recipientType === 'school' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
