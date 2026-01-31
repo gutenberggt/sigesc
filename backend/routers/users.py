@@ -5,11 +5,15 @@ Endpoints para gestão de usuários do sistema (Admin only).
 
 from fastapi import APIRouter, HTTPException, status, Request
 from typing import List
+from passlib.context import CryptContext
 
 from models import UserResponse, UserUpdate
 from auth_middleware import AuthMiddleware
 
 router = APIRouter(prefix="/users", tags=["Usuários"])
+
+# Contexto para hash de senha
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def setup_router(db, audit_service):
@@ -59,6 +63,13 @@ def setup_router(db, audit_service):
         
         # Prepara atualização
         update_data = user_update.model_dump(exclude_unset=True)
+        
+        # Se a senha foi fornecida, faz o hash
+        if 'password' in update_data and update_data['password']:
+            update_data['password_hash'] = pwd_context.hash(update_data['password'])
+            del update_data['password']  # Remove o campo password, só salva password_hash
+        elif 'password' in update_data:
+            del update_data['password']  # Remove se estiver vazio
         
         if update_data:
             await db.users.update_one(
