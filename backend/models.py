@@ -29,6 +29,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
+    password: Optional[str] = None  # Nova senha (será hasheada antes de salvar)
     role: Optional[Literal['admin', 'secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel', 'semed']] = None
     status: Optional[Literal['active', 'inactive']] = None
     avatar_url: Optional[str] = None
