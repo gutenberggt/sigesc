@@ -30,7 +30,7 @@ export const Users = () => {
   // SEMED pode visualizar tudo, mas não pode editar/excluir
   // Secretário pode criar e editar, mas não excluir
   const canEdit = user?.role !== 'semed';
-  const canDelete = user?.role === 'admin'; // Só admin pode excluir usuários
+  const canDelete = user?.role === 'admin' || user?.role === 'admin_teste'; // Só admin pode excluir usuários
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
   useEffect(() => {
