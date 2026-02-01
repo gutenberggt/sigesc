@@ -162,9 +162,9 @@ class AuthMiddleware:
                 'can_view_all_school_data': True,
                 'is_read_only_except_diary': True
             }
-        elif user['role'] == 'admin':
+        elif user['role'] in ['admin', 'admin_teste']:
             return {
-                'role': 'admin',
+                'role': user['role'],
                 'can_edit_grades': True,
                 'can_edit_attendance': True,
                 'can_edit_learning_objects': True,
@@ -173,7 +173,8 @@ class AuthMiddleware:
                 'can_edit_staff': True,
                 'can_edit_enrollments': True,
                 'can_view_all_school_data': True,
-                'is_read_only_except_diary': False
+                'is_read_only_except_diary': False,
+                'is_sandbox': user.get('is_sandbox', False)
             }
         elif user['role'] == 'professor':
             return {
