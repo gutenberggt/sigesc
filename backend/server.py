@@ -83,6 +83,10 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ.get('DB_NAME', 'sigesc_db')]
 
+# Sandbox database para admin_teste
+sandbox_db_name = os.environ.get('DB_NAME', 'sigesc_db') + '_sandbox'
+sandbox_db = client[sandbox_db_name]
+
 # Inicializa o serviço de auditoria com a conexão do banco
 audit_service.set_db(db)
 
