@@ -33,7 +33,7 @@ export function SchoolsComplete() {
   // Admin: pode tudo
   // Secretário: pode visualizar e editar escolas onde tem vínculo, mas não criar/excluir
   // SEMED: pode visualizar tudo, mas não pode editar/excluir
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'admin_teste';
   const isSecretario = user?.role === 'secretario';
   const isSemed = user?.role === 'semed';
   
