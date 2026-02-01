@@ -252,11 +252,45 @@ const AnnualView = ({ year, events, onDayClick, onEventClick, periodosBimestrais
     );
   };
 
+  // Função para calcular dias letivos de um mês
+  const calcularDiasLetivosMes = (monthIndex) => {
+    const daysInMonth = getDaysInMonth(year, monthIndex);
+    let diasLetivos = 0;
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dayEvents = events.filter(e => dateStr >= e.start_date && dateStr <= e.end_date);
+      
+      const dateObj = new Date(dateStr + 'T12:00:00');
+      const dayOfWeek = dateObj.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isSaturday = dayOfWeek === 6;
+      
+      const hasFeriado = dayEvents.some(e => e.event_type?.includes('feriado'));
+      const hasRecesso = dayEvents.some(e => e.event_type === 'recesso_escolar');
+      const hasSabadoLetivo = dayEvents.some(e => e.event_type === 'sabado_letivo' || (e.is_school_day && isSaturday));
+      const hasNonSchoolDay = dayEvents.some(e => !e.is_school_day);
+      
+      const isInSchoolPeriod = isDateInSchoolPeriod(dateStr);
+      
+      // É dia letivo se: está no período + não é fds (ou é sábado letivo) + não tem feriado/recesso
+      const isSchoolDay = isInSchoolPeriod && !hasFeriado && !hasRecesso && !hasNonSchoolDay && 
+        (!isWeekend || hasSabadoLetivo);
+      
+      if (isSchoolDay) {
+        diasLetivos++;
+      }
+    }
+    
+    return diasLetivos;
+  };
+
   return (
     <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
       {MONTHS.map((month, monthIndex) => {
         const daysInMonth = getDaysInMonth(year, monthIndex);
         const firstDay = getFirstDayOfMonth(year, monthIndex);
+        const diasLetivosMes = calcularDiasLetivosMes(monthIndex);
         const days = [];
         
         // Dias vazios antes do primeiro dia
@@ -344,7 +378,10 @@ const AnnualView = ({ year, events, onDayClick, onEventClick, periodosBimestrais
         
         return (
           <div key={month} className="bg-white rounded-lg shadow-sm border p-3">
-            <h4 className="font-semibold text-sm text-center mb-2 text-gray-700">{month}</h4>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold text-sm text-gray-700">{month}</h4>
+              <span className="text-xs text-green-600 font-medium">{diasLetivosMes} dias letivos</span>
+            </div>
             <div className="grid grid-cols-7 gap-0.5 text-xs text-gray-500 mb-1">
               {WEEKDAYS.map(d => <div key={d} className="text-center">{d[0]}</div>)}
             </div>
