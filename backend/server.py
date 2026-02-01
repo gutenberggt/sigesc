@@ -170,6 +170,10 @@ async def create_indexes():
         await db.medical_certificates.create_index([("student_id", 1), ("start_date", 1), ("end_date", 1)])
         
         logger.info("Índices MongoDB criados/verificados com sucesso")
+        
+        # Inicializa o serviço de sandbox
+        await sandbox_service.initialize(client)
+        
     except Exception as e:
         logger.error(f"Erro ao criar índices MongoDB: {e}")
 
