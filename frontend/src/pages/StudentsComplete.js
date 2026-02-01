@@ -330,7 +330,7 @@ export function StudentsComplete() {
   const canDeleteStudents = isAdmin; // Apenas admin pode excluir alunos
   
   // Permissão para registrar atestados (secretário e admin)
-  const canRegisterCertificates = user?.role === 'admin' || user?.role === 'secretario';
+  const canRegisterCertificates = user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'secretario';
   // Permissão para excluir atestados (apenas admin)
   const canDeleteCertificates = user?.role === 'admin' || user?.role === 'admin_teste';
   
