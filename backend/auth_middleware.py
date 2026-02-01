@@ -66,7 +66,10 @@ class AuthMiddleware:
         async def role_checker(request: Request):
             user = await AuthMiddleware.get_current_user(request)
             
-            if user['role'] not in allowed_roles:
+            # admin_teste tem as mesmas permissões que admin
+            effective_role = 'admin' if user['role'] == 'admin_teste' else user['role']
+            
+            if effective_role not in allowed_roles:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f'Acesso negado. Papel requerido: {", ".join(allowed_roles)}'
