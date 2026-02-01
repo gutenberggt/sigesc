@@ -16,15 +16,22 @@ router = APIRouter(prefix="/users", tags=["Usuários"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def setup_router(db, audit_service):
+def setup_router(db, audit_service, sandbox_db=None):
     """Configura o router com as dependências necessárias"""
+    
+    def get_db_for_user(user: dict):
+        """Retorna o banco correto baseado no usuário"""
+        if sandbox_db and (user.get('is_sandbox') or user.get('role') == 'admin_teste'):
+            return sandbox_db
+        return db
 
     @router.get("", response_model=List[UserResponse])
     async def list_users(request: Request, skip: int = 0, limit: int = 1000):
         """Lista usuários (apenas admin e semed)"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'semed'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'semed'])(request)
+        current_db = get_db_for_user(current_user)
         
-        users = await db.users.find({}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+        users = await current_db.users.find({}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         
         # Remove password_hash de todos
         for user in users:
@@ -35,9 +42,10 @@ def setup_router(db, audit_service):
     @router.get("/{user_id}", response_model=UserResponse)
     async def get_user(user_id: str, request: Request):
         """Busca usuário por ID"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'semed'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'diretor', 'semed'])(request)
+        current_db = get_db_for_user(current_user)
         
-        user_doc = await db.users.find_one({"id": user_id}, {"_id": 0})
+        user_doc = await current_db.users.find_one({"id": user_id}, {"_id": 0})
         
         if not user_doc:
             raise HTTPException(
@@ -51,10 +59,11 @@ def setup_router(db, audit_service):
     @router.put("/{user_id}", response_model=UserResponse)
     async def update_user(user_id: str, user_update: UserUpdate, request: Request):
         """Atualiza usuário"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario'])(request)
+        current_db = get_db_for_user(current_user)
         
         # Busca usuário
-        user_doc = await db.users.find_one({"id": user_id}, {"_id": 0})
+        user_doc = await current_db.users.find_one({"id": user_id}, {"_id": 0})
         if not user_doc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -72,13 +81,13 @@ def setup_router(db, audit_service):
             del update_data['password']  # Remove se estiver vazio
         
         if update_data:
-            await db.users.update_one(
+            await current_db.users.update_one(
                 {"id": user_id},
                 {"$set": update_data}
             )
         
         # Retorna usuário atualizado
-        updated_user = await db.users.find_one({"id": user_id}, {"_id": 0})
+        updated_user = await current_db.users.find_one({"id": user_id}, {"_id": 0})
         updated_user.pop('password_hash', None)
         
         return UserResponse(**updated_user)
@@ -86,10 +95,11 @@ def setup_router(db, audit_service):
     @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_user(user_id: str, request: Request):
         """Deleta usuário definitivamente do sistema"""
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+        current_db = get_db_for_user(current_user)
         
         # Verificar se o usuário existe
-        user = await db.users.find_one({"id": user_id})
+        user = await current_db.users.find_one({"id": user_id})
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -104,7 +114,7 @@ def setup_router(db, audit_service):
             )
         
         # Excluir definitivamente o usuário
-        result = await db.users.delete_one({"id": user_id})
+        result = await current_db.users.delete_one({"id": user_id})
         
         if result.deleted_count == 0:
             raise HTTPException(
