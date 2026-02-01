@@ -94,7 +94,7 @@ export const UserProfile = () => {
   
   // Verificar permissões
   const isOwnProfile = !userId || userId === user?.id;
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'admin_teste';
   const canEdit = isOwnProfile || isAdmin;
 
   // Carregar status de conexão quando visualizar perfil de outro usuário
