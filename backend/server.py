@@ -51,6 +51,7 @@ from auth_utils import (
 )
 from auth_middleware import AuthMiddleware
 from audit_service import audit_service
+from sandbox_service import sandbox_service
 from pdf_generator import (
     generate_boletim_pdf,
     generate_declaracao_matricula_pdf,
