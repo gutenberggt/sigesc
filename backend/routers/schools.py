@@ -160,10 +160,11 @@ def setup_router(db, audit_service, sandbox_db=None):
         Remove o campo 'educacao_infantil_bercario' (antigo) de todas as escolas.
         Apenas admin pode executar.
         """
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+        current_db = get_db_for_user(current_user)
         
         # Remove o campo educacao_infantil_bercario de todas as escolas
-        result = await db.schools.update_many(
+        result = await current_db.schools.update_many(
             {"educacao_infantil_bercario": {"$exists": True}},
             {"$unset": {"educacao_infantil_bercario": ""}}
         )
