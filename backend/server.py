@@ -209,6 +209,13 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Helper para obter o banco de dados correto (produção ou sandbox)
+def get_db_for_user(user: dict):
+    """Retorna o banco de dados correto baseado no usuário"""
+    if user.get('is_sandbox') or user.get('role') == 'admin_teste':
+        return sandbox_db
+    return db
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
