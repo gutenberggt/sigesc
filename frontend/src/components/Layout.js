@@ -38,7 +38,7 @@ export const Layout = ({ children }) => {
       {isSandboxMode && (
         <div className="bg-amber-500 text-white px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-2 sticky top-0 z-50">
           <AlertTriangle size={18} />
-          <span>⚠️ MODO TESTE — Alterações não serão salvas no sistema real. Reset automático à meia-noite.</span>
+          <span>⚠️ MODO TESTE</span>
           <AlertTriangle size={18} />
         </div>
       )}
