@@ -87,8 +87,9 @@ def setup_router(db, audit_service, sandbox_db=None):
     async def get_school(school_id: str, request: Request):
         """Busca escola por ID"""
         current_user = await AuthMiddleware.verify_school_access(request, school_id)
+        current_db = get_db_for_user(current_user)
         
-        school = await db.schools.find_one({"id": school_id}, {"_id": 0})
+        school = await current_db.schools.find_one({"id": school_id}, {"_id": 0})
         
         if not school:
             raise HTTPException(
@@ -102,10 +103,11 @@ def setup_router(db, audit_service, sandbox_db=None):
     async def update_school(school_id: str, school_update: SchoolUpdate, request: Request):
         """Atualiza escola (admin ou secretário vinculado)"""
         current_user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(current_user)
         
         # Admin pode editar qualquer escola
         # Secretário pode editar apenas escolas vinculadas
-        if current_user['role'] == 'admin':
+        if current_user['role'] in ['admin', 'admin_teste']:
             pass  # Admin pode editar qualquer escola
         elif current_user['role'] == 'secretario':
             if school_id not in current_user.get('school_ids', []):
@@ -122,7 +124,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         update_data = school_update.model_dump(exclude_unset=True)
         
         if update_data:
-            result = await db.schools.update_one(
+            result = await current_db.schools.update_one(
                 {"id": school_id},
                 {"$set": update_data}
             )
@@ -133,15 +135,16 @@ def setup_router(db, audit_service, sandbox_db=None):
                     detail="Escola não encontrada"
                 )
         
-        updated_school = await db.schools.find_one({"id": school_id}, {"_id": 0})
+        updated_school = await current_db.schools.find_one({"id": school_id}, {"_id": 0})
         return School(**updated_school)
 
     @router.delete("/{school_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_school(school_id: str, request: Request):
         """Deleta escola definitivamente"""
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+        current_db = get_db_for_user(current_user)
         
-        result = await db.schools.delete_one({"id": school_id})
+        result = await current_db.schools.delete_one({"id": school_id})
         
         if result.deleted_count == 0:
             raise HTTPException(
