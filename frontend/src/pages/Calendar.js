@@ -401,6 +401,59 @@ const MonthlyView = ({ year, month, events, onDayClick, onEventClick, periodosBi
   const firstDay = getFirstDayOfMonth(year, month);
   const today = new Date().toISOString().split('T')[0];
   
+  // Função para determinar se uma data está dentro do período letivo
+  const isDateInSchoolPeriod = (dateStr) => {
+    if (periodosBimestrais && Object.keys(periodosBimestrais).some(k => periodosBimestrais[k])) {
+      for (let i = 1; i <= 4; i++) {
+        const inicio = periodosBimestrais[`bimestre_${i}_inicio`];
+        const fim = periodosBimestrais[`bimestre_${i}_fim`];
+        if (inicio && fim && dateStr >= inicio && dateStr <= fim) {
+          return true;
+        }
+      }
+      return false;
+    }
+    // Fallback para períodos padrão se não configurados
+    return (
+      (dateStr >= `${year}-02-09` && dateStr <= `${year}-06-30`) ||
+      (dateStr >= `${year}-08-03` && dateStr <= `${year}-12-18`)
+    );
+  };
+
+  // Calcular dias letivos do mês atual
+  const calcularDiasLetivosMes = () => {
+    let diasLetivos = 0;
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dayEvents = events.filter(e => dateStr >= e.start_date && dateStr <= e.end_date);
+      
+      const dateObj = new Date(dateStr + 'T12:00:00');
+      const dayOfWeek = dateObj.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isSaturday = dayOfWeek === 6;
+      
+      const hasFeriado = dayEvents.some(e => e.event_type?.includes('feriado'));
+      const hasRecesso = dayEvents.some(e => e.event_type === 'recesso_escolar');
+      const hasSabadoLetivo = dayEvents.some(e => e.event_type === 'sabado_letivo' || (e.is_school_day && isSaturday));
+      const hasNonSchoolDay = dayEvents.some(e => !e.is_school_day);
+      
+      const isInSchoolPeriod = isDateInSchoolPeriod(dateStr);
+      
+      // É dia letivo se: está no período + não é fds (ou é sábado letivo) + não tem feriado/recesso
+      const isSchoolDay = isInSchoolPeriod && !hasFeriado && !hasRecesso && !hasNonSchoolDay && 
+        (!isWeekend || hasSabadoLetivo);
+      
+      if (isSchoolDay) {
+        diasLetivos++;
+      }
+    }
+    
+    return diasLetivos;
+  };
+
+  const diasLetivosMes = calcularDiasLetivosMes();
+  
   // Dias do mês anterior
   const prevMonthDays = getDaysInMonth(year, month - 1);
   const prevMonth = month === 0 ? 11 : month - 1;
@@ -467,6 +520,11 @@ const MonthlyView = ({ year, month, events, onDayClick, onEventClick, periodosBi
   
   return (
     <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+      {/* Header com dias letivos */}
+      <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b">
+        <span className="text-sm font-medium text-gray-700">{MONTHS[month]} {year}</span>
+        <span className="text-sm text-green-600 font-medium">{diasLetivosMes} dias letivos</span>
+      </div>
       <div className="grid grid-cols-7 bg-gray-100">
         {WEEKDAYS.map(day => (
           <div key={day} className="p-2 text-center text-sm font-medium text-gray-600 border-b">
