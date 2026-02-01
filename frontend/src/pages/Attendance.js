@@ -127,8 +127,8 @@ export const Attendance = () => {
   const [alertsData, setAlertsData] = useState(null);
   
   // Permissões
-  const canEdit = user?.role === 'admin' || user?.role === 'secretario' || user?.role === 'professor';
-  const canConfigSettings = user?.role === 'admin' || user?.role === 'secretario';
+  const canEdit = user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'secretario' || user?.role === 'professor';
+  const canConfigSettings = user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'secretario';
   
   // Carrega escolas
   useEffect(() => {
