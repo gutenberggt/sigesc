@@ -859,7 +859,7 @@ export const Calendar = () => {
   };
   
   // Configurar Períodos Bimestrais - Exclusivo ao administrador
-  const canEditPeriodos = user?.role === 'admin';
+  const canEditPeriodos = user?.role === 'admin' || user?.role === 'admin_teste';
   
   // Navegação
   const navigate = (direction) => {
