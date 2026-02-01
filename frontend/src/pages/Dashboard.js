@@ -360,7 +360,7 @@ export const Dashboard = () => {
               </button>
               
               {/* Livro de Promoção - admin, secretario, diretor, coordenador, semed */}
-              {['admin', 'secretario', 'diretor', 'coordenador', 'semed'].includes(user?.role) && (
+              {['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'semed'].includes(user?.role) && (
                 <button
                   onClick={() => navigate('/admin/promotion')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 transition-all"
