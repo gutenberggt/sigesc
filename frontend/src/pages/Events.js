@@ -81,7 +81,7 @@ export const Events = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   
   // Verifica permissões
-  const canEdit = user?.role === 'admin' || user?.role === 'secretario';
+  const canEdit = user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'secretario';
   
   // Carrega eventos
   useEffect(() => {
