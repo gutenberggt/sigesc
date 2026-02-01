@@ -285,7 +285,7 @@ export const Dashboard = () => {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Mantenedora - apenas para admin */}
-              {user?.role === 'admin' && (
+              {['admin', 'admin_teste'].includes(user?.role) && (
                 <button
                   onClick={() => navigate('/admin/mantenedora')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
@@ -372,7 +372,7 @@ export const Dashboard = () => {
               )}
               
               {/* Log de Conversas - apenas para admin */}
-              {user?.role === 'admin' && (
+              {['admin', 'admin_teste'].includes(user?.role) && (
                 <button
                   onClick={() => navigate('/admin/logs')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all"
@@ -384,7 +384,7 @@ export const Dashboard = () => {
               )}
               
               {/* Logs de Auditoria - apenas admin */}
-              {user?.role === 'admin' && (
+              {['admin', 'admin_teste'].includes(user?.role) && (
                 <button
                   onClick={() => navigate('/admin/audit-logs')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
