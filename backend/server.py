@@ -1844,6 +1844,26 @@ async def health_check():
             }
         )
 
+# ============= SANDBOX (MODO TESTE) =============
+
+@api_router.get("/sandbox/status")
+async def get_sandbox_status(request: Request):
+    """Retorna o status do banco sandbox (apenas admin)"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+    return sandbox_service.get_status()
+
+@api_router.post("/sandbox/reset")
+async def reset_sandbox_manual(request: Request):
+    """Reseta o banco sandbox manualmente (apenas admin)"""
+    current_user = await AuthMiddleware.require_roles(['admin'])(request)
+    result = await sandbox_service.reset_sandbox()
+    if not result.get('success'):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.get('error', 'Erro ao resetar sandbox')
+        )
+    return result
+
 # ============= CALENDAR EVENTS =============
 
 # Cores padrão para cada tipo de evento
