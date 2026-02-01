@@ -981,12 +981,15 @@ async def list_students(request: Request, school_id: Optional[str] = None, class
     """Lista alunos"""
     current_user = await AuthMiddleware.get_current_user(request)
     
+    # Seleciona o banco correto (produção ou sandbox)
+    current_db = get_db_for_user(current_user)
+    
     # Constrói filtro
     filter_query = {}
     
-    # Admin, SEMED e Secretário podem ver TODOS os alunos
+    # Admin, admin_teste, SEMED e Secretário podem ver TODOS os alunos
     # (Secretário vê todos, mas só pode editar os da sua escola)
-    if current_user['role'] in ['admin', 'semed', 'secretario']:
+    if current_user['role'] in ['admin', 'admin_teste', 'semed', 'secretario']:
         if school_id:
             filter_query['school_id'] = school_id
         if class_id:
@@ -1001,7 +1004,7 @@ async def list_students(request: Request, school_id: Optional[str] = None, class
         if class_id:
             filter_query['class_id'] = class_id
     
-    students = await db.students.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+    students = await current_db.students.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
     
     # Garante que todos os campos existam (compatibilidade com registros antigos)
     for student in students:
