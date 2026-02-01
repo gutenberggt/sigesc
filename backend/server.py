@@ -2139,7 +2139,10 @@ async def calcular_dias_letivos(ano_letivo: int, request: Request, school_id: Op
             while current <= end_date:
                 if event_type in eventos_nao_letivos:
                     datas_nao_letivas.add(current)
+                # Sábado letivo: tipo sabado_letivo OU qualquer evento com is_school_day=True em sábado
                 elif event_type == 'sabado_letivo':
+                    datas_sabados_letivos.add(current)
+                elif event.get('is_school_day', False) and current.weekday() == 5:  # Sábado
                     datas_sabados_letivos.add(current)
                 current += timedelta(days=1)
         except (ValueError, TypeError):
