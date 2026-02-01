@@ -93,12 +93,14 @@ export const Dashboard = () => {
     professor: 'Professor(a)',
     aluno: 'Aluno',
     responsavel: 'Responsável',
-    semed: 'SEMED'
+    semed: 'SEMED',
+    admin_teste: 'Admin (Teste)'
   };
 
   const getDashboardCards = () => {
     switch (user?.role) {
       case 'admin':
+      case 'admin_teste':
         return [
           { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
           { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple' },
