@@ -17,7 +17,7 @@ def setup_router(db, audit_service, sandbox_db=None):
     
     def get_db_for_user(user: dict):
         """Retorna o banco correto baseado no usuário"""
-        if sandbox_db and (user.get('is_sandbox') or user.get('role') == 'admin_teste'):
+        if sandbox_db is not None and (user.get('is_sandbox') or user.get('role') == 'admin_teste'):
             return sandbox_db
         return db
 
