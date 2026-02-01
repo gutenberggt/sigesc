@@ -956,7 +956,7 @@ export const Calendar = () => {
           </div>
           
           <div className="flex gap-2">
-            {user?.role === 'admin' && (
+            {(user?.role === 'admin' || user?.role === 'admin_teste') && (
               <>
                 <Button variant="outline" onClick={() => {
                   setAnoSelecionadoPeriodos(currentYear);
