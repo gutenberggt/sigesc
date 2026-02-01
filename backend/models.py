@@ -14,7 +14,7 @@ class SchoolLink(BaseModel):
 class UserBase(BaseModel):
     full_name: str
     email: EmailStr
-    role: Literal['admin', 'secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel', 'semed']
+    role: Literal['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel', 'semed']
     status: Literal['active', 'inactive'] = 'active'
     avatar_url: Optional[str] = None
     school_links: List[SchoolLink] = []
@@ -23,14 +23,14 @@ class UserCreate(BaseModel):
     full_name: str
     email: EmailStr
     password: str
-    role: Literal['admin', 'secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel', 'semed']
+    role: Literal['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel', 'semed']
     school_links: List[SchoolLink] = []
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = None  # Nova senha (será hasheada antes de salvar)
-    role: Optional[Literal['admin', 'secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel', 'semed']] = None
+    role: Optional[Literal['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel', 'semed']] = None
     status: Optional[Literal['active', 'inactive']] = None
     avatar_url: Optional[str] = None
     school_links: Optional[List[SchoolLink]] = None
