@@ -12,19 +12,26 @@ from auth_middleware import AuthMiddleware
 router = APIRouter(prefix="/schools", tags=["Escolas"])
 
 
-def setup_router(db, audit_service):
+def setup_router(db, audit_service, sandbox_db=None):
     """Configura o router com as dependências necessárias"""
+    
+    def get_db_for_user(user: dict):
+        """Retorna o banco correto baseado no usuário"""
+        if sandbox_db and (user.get('is_sandbox') or user.get('role') == 'admin_teste'):
+            return sandbox_db
+        return db
 
     @router.post("", response_model=School, status_code=status.HTTP_201_CREATED)
     async def create_school(school: SchoolCreate, request: Request):
         """Cria nova escola (apenas admin)"""
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+        current_db = get_db_for_user(current_user)
         
         school_obj = School(**school.model_dump())
         doc = school_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
         
-        await db.schools.insert_one(doc)
+        await current_db.schools.insert_one(doc)
         
         return school_obj
 
@@ -32,13 +39,14 @@ def setup_router(db, audit_service):
     async def list_schools(request: Request, skip: int = 0, limit: int = 100, include_student_count: bool = True):
         """Lista escolas com contagem opcional de alunos ativos"""
         current_user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(current_user)
         
-        # Admin e SEMED veem todas as escolas
-        if current_user['role'] in ['admin', 'semed']:
-            schools = await db.schools.find({}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+        # Admin, admin_teste e SEMED veem todas as escolas
+        if current_user['role'] in ['admin', 'admin_teste', 'semed']:
+            schools = await current_db.schools.find({}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         else:
             # Outros papéis veem apenas escolas vinculadas
-            schools = await db.schools.find(
+            schools = await current_db.schools.find(
                 {"id": {"$in": current_user['school_ids']}},
                 {"_id": 0}
             ).skip(skip).limit(limit).to_list(limit)
@@ -53,7 +61,7 @@ def setup_router(db, audit_service):
                 {"$group": {"_id": "$school_id", "count": {"$sum": 1}}}
             ]
             
-            student_counts = await db.students.aggregate(pipeline).to_list(None)
+            student_counts = await current_db.students.aggregate(pipeline).to_list(None)
             count_map = {item['_id']: item['count'] for item in student_counts}
             
             # Adicionar contagem a cada escola
