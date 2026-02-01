@@ -113,8 +113,8 @@ class AuthMiddleware:
     @staticmethod
     def check_school_access(user: dict, school_id: str) -> bool:
         """Verifica se o usuário tem acesso à escola"""
-        # Admin e SEMED têm acesso a todas as escolas
-        if user['role'] in ['admin', 'semed']:
+        # Admin, admin_teste e SEMED têm acesso a todas as escolas
+        if user['role'] in ['admin', 'admin_teste', 'semed']:
             return True
         
         # Outros papéis precisam ter a escola vinculada
