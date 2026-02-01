@@ -19,7 +19,10 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+  // admin_teste tem as mesmas permissões de admin
+  const effectiveRole = user.role === 'admin_teste' ? 'admin' : user.role;
+
+  if (allowedRoles.length > 0 && !allowedRoles.includes(effectiveRole)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
