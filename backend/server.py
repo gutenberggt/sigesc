@@ -512,8 +512,18 @@ async def register(user_data: UserCreate):
 @limiter.limit("5/minute")
 async def login(credentials: LoginRequest, request: Request):
     """Autentica usuário e retorna tokens. Rate limited: 5 tentativas por minuto."""
-    # Busca usuário
-    user_doc = await db.users.find_one({"email": credentials.email}, {"_id": 0})
+    
+    # Verifica se é login de teste (email com sufixo +teste)
+    email = credentials.email
+    is_sandbox_login = '+teste@' in email
+    
+    if is_sandbox_login:
+        # Remove o sufixo +teste para buscar o usuário real
+        # Ex: gutenberg+teste@sigesc.com -> gutenberg@sigesc.com
+        email = email.replace('+teste@', '@')
+    
+    # Busca usuário no banco de produção
+    user_doc = await db.users.find_one({"email": email}, {"_id": 0})
     
     if not user_doc:
         # Registra tentativa de login falhada
@@ -530,6 +540,13 @@ async def login(credentials: LoginRequest, request: Request):
         )
     
     user = UserInDB(**user_doc)
+    
+    # Verifica se o usuário é admin para poder usar modo teste
+    if is_sandbox_login and user.role != 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas administradores podem usar o modo teste"
+        )
     
     # Verifica senha
     if not verify_password(credentials.password, user.password_hash):
@@ -553,11 +570,15 @@ async def login(credentials: LoginRequest, request: Request):
             detail="Usuário inativo"
         )
     
-    # Determina role efetivo baseado nas lotações (para roles que podem ter lotação)
+    # Determina role efetivo
     effective_role = user.role
     effective_school_links = user.school_links or []
     
-    if user.role in ['professor', 'secretario', 'coordenador', 'diretor']:
+    # Se for login de teste, muda o role para admin_teste
+    if is_sandbox_login:
+        effective_role = 'admin_teste'
+        logger.info(f"[Sandbox] Login de teste realizado: {user.email}")
+    elif user.role in ['professor', 'secretario', 'coordenador', 'diretor']:
         effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.email, user.role)
         
         # Usa school_links das lotações se existirem, senão usa os do cadastro
@@ -570,7 +591,8 @@ async def login(credentials: LoginRequest, request: Request):
         "sub": user.id,
         "email": user.email,
         "role": effective_role,
-        "school_ids": school_ids
+        "school_ids": school_ids,
+        "is_sandbox": is_sandbox_login  # Flag para identificar modo sandbox
     }
     
     access_token = create_access_token(token_data)
@@ -583,7 +605,7 @@ async def login(credentials: LoginRequest, request: Request):
         user={'id': user.id, 'email': user.email, 'role': effective_role, 'full_name': user.full_name},
         request=request,
         document_id=user.id,
-        description=f"Login realizado: {user.full_name}"
+        description=f"Login realizado: {user.full_name}" + (" (MODO TESTE)" if is_sandbox_login else "")
     )
     
     # Retorna usuário com role efetivo
