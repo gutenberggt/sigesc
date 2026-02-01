@@ -295,7 +295,7 @@ export function StudentsComplete() {
   // - SEMED: apenas visualização (não pode editar/excluir)
   // - Coordenador: apenas visualização de alunos (não pode editar/excluir)
   
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'admin_teste';
   const isSecretario = user?.role === 'secretario';
   const isSemed = user?.role === 'semed';
   const isCoordenador = user?.role === 'coordenador';
