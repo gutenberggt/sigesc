@@ -63,7 +63,7 @@ export const Classes = () => {
     return user?.school_ids || user?.school_links?.map(link => link.school_id) || [];
   }, [user?.school_ids, user?.school_links]);
   
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'admin_teste';
   const isSecretario = user?.role === 'secretario';
   const isSemed = user?.role === 'semed';
   const navigate = useNavigate();
