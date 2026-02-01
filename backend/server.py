@@ -7350,8 +7350,8 @@ async def get_audit_stats(request: Request, days: int = 7):
 app.include_router(api_router)
 
 # Include modular routers
-users_router = setup_users_router(db, audit_service)
-schools_router = setup_schools_router(db, audit_service)
+users_router = setup_users_router(db, audit_service, sandbox_db)
+schools_router = setup_schools_router(db, audit_service, sandbox_db)
 courses_router = setup_courses_router(db, audit_service)
 classes_router = setup_classes_router(db, audit_service)
 guardians_router = setup_guardians_router(db, audit_service)
