@@ -5,14 +5,15 @@ import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { Tabs } from '@/components/Tabs';
 import { studentsAPI, schoolsAPI, classesAPI, uploadAPI, documentsAPI, medicalCertificatesAPI } from '@/services/api';
-import { formatPhone, formatCEP } from '@/utils/formatters';
+import { formatPhone, formatCEP, formatCPF, formatNIS, formatSUS, isValidEmail } from '@/utils/formatters';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { useOffline } from '@/contexts/OfflineContext';
 import { offlineStudentsService } from '@/services/offlineStudentsService';
-import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, CloudOff, Cloud, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, CloudOff, Cloud, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
+import { CityAutocomplete } from '@/components/CityAutocomplete';
 
 // Estados brasileiros
 const STATES = [
