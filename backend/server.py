@@ -677,7 +677,11 @@ async def login(credentials: LoginRequest, request: Request):
 
 @api_router.post("/auth/refresh", response_model=TokenResponse)
 async def refresh_token(refresh_request: RefreshTokenRequest):
-    """Renova access token usando refresh token"""
+    """
+    Renova access token usando refresh token.
+    PATCH 3.2: Implementa rotação de tokens - o refresh token antigo é revogado.
+    PATCH 3.3: Verifica blacklist antes de aceitar o token.
+    """
     payload = decode_token(refresh_request.refresh_token)
     
     if not payload or payload.get('type') != 'refresh':
@@ -687,6 +691,16 @@ async def refresh_token(refresh_request: RefreshTokenRequest):
         )
     
     user_id = payload.get('sub')
+    token_jti = payload.get('jti')  # PATCH 3.2: ID único do token
+    token_iat = payload.get('iat')  # PATCH 3.3: Timestamp de criação
+    
+    # PATCH 3.3: Verifica se o token foi revogado
+    if await token_blacklist.is_token_revoked(jti=token_jti, user_id=user_id, issued_at=token_iat):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token revogado. Faça login novamente."
+        )
+    
     user_doc = await db.users.find_one({"id": user_id}, {"_id": 0})
     
     if not user_doc:
@@ -702,6 +716,19 @@ async def refresh_token(refresh_request: RefreshTokenRequest):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Usuário inativo"
         )
+    
+    # PATCH 3.2: Revoga o refresh token atual (rotação)
+    if token_jti:
+        token_exp = payload.get('exp')
+        if token_exp:
+            from datetime import datetime, timezone
+            exp_datetime = datetime.fromtimestamp(token_exp, tz=timezone.utc)
+            await token_blacklist.revoke_token(
+                jti=token_jti,
+                user_id=user_id,
+                expires_at=exp_datetime,
+                reason='token_rotation'
+            )
     
     # Determina role efetivo baseado nas lotações
     effective_role = user.role
@@ -722,7 +749,7 @@ async def refresh_token(refresh_request: RefreshTokenRequest):
     }
     
     access_token = create_access_token(token_data)
-    new_refresh_token = create_refresh_token({"sub": user.id})
+    new_refresh_token = create_refresh_token({"sub": user.id})  # PATCH 3.2: Novo refresh token com novo jti
     
     # Retorna usuário com role efetivo
     user_response_data = user.model_dump(exclude={'password_hash'})
@@ -734,6 +761,75 @@ async def refresh_token(refresh_request: RefreshTokenRequest):
         refresh_token=new_refresh_token,
         user=UserResponse(**user_response_data)
     )
+
+
+# PATCH 3.3: Endpoint de logout para revogar tokens
+@api_router.post("/auth/logout")
+async def logout(request: Request):
+    """
+    Revoga o refresh token atual do usuário.
+    PATCH 3.3: Implementa logout seguro com revogação de token.
+    """
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    # Tenta extrair o refresh token do body se fornecido
+    try:
+        body = await request.json()
+        refresh_token = body.get('refresh_token')
+        
+        if refresh_token:
+            payload = decode_token(refresh_token)
+            if payload and payload.get('jti'):
+                token_exp = payload.get('exp')
+                exp_datetime = datetime.fromtimestamp(token_exp, tz=timezone.utc) if token_exp else datetime.now(timezone.utc) + timedelta(days=7)
+                
+                await token_blacklist.revoke_token(
+                    jti=payload.get('jti'),
+                    user_id=current_user['id'],
+                    expires_at=exp_datetime,
+                    reason='user_logout'
+                )
+    except:
+        pass  # Body vazio ou sem refresh_token - ok
+    
+    # Registra logout
+    await audit_service.log(
+        action='logout',
+        collection='users',
+        user=current_user,
+        request=request,
+        document_id=current_user['id'],
+        description=f"Logout realizado"
+    )
+    
+    return {"message": "Logout realizado com sucesso"}
+
+
+# PATCH 3.3: Endpoint para revogar todas as sessões
+@api_router.post("/auth/logout-all")
+async def logout_all_sessions(request: Request):
+    """
+    Revoga TODOS os refresh tokens do usuário (logout de todas as sessões).
+    PATCH 3.3: Útil quando o usuário suspeita de acesso não autorizado.
+    """
+    current_user = await AuthMiddleware.get_current_user(request)
+    
+    await token_blacklist.revoke_all_user_tokens(
+        user_id=current_user['id'],
+        reason='user_logout_all'
+    )
+    
+    # Registra logout global
+    await audit_service.log(
+        action='logout_all',
+        collection='users',
+        user=current_user,
+        request=request,
+        document_id=current_user['id'],
+        description=f"Logout de todas as sessões realizado"
+    )
+    
+    return {"message": "Todas as sessões foram encerradas. Faça login novamente."}
 
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_current_user_info(request: Request):
