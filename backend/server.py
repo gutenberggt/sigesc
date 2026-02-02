@@ -1123,55 +1123,8 @@ async def create_student(student_data: StudentCreate, request: Request):
     
     return student_obj
 
-@api_router.get("/students")
-async def list_students(request: Request, school_id: Optional[str] = None, class_id: Optional[str] = None, skip: int = 0, limit: int = 5000):
-    """Lista alunos"""
-    current_user = await AuthMiddleware.get_current_user(request)
-    
-    # Seleciona o banco correto (produção ou sandbox)
-    current_db = get_db_for_user(current_user)
-    
-    # Constrói filtro
-    filter_query = {}
-    
-    # Admin, admin_teste, SEMED e Secretário podem ver TODOS os alunos
-    # (Secretário vê todos, mas só pode editar os da sua escola)
-    if current_user['role'] in ['admin', 'admin_teste', 'semed', 'secretario']:
-        if school_id:
-            filter_query['school_id'] = school_id
-        if class_id:
-            filter_query['class_id'] = class_id
-    else:
-        # Outros papéis (coordenador, professor) veem apenas das escolas vinculadas
-        if school_id and school_id in current_user.get('school_ids', []):
-            filter_query['school_id'] = school_id
-        else:
-            filter_query['school_id'] = {"$in": current_user.get('school_ids', [])}
-        
-        if class_id:
-            filter_query['class_id'] = class_id
-    
-    students = await current_db.students.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
-    
-    # Garante que todos os campos existam (compatibilidade com registros antigos)
-    for student in students:
-        student.setdefault('full_name', '')
-        student.setdefault('inep_code', None)
-        student.setdefault('sex', None)
-        student.setdefault('nationality', 'Brasileira')
-        student.setdefault('birth_city', None)
-        student.setdefault('birth_state', None)
-        student.setdefault('color_race', None)
-        student.setdefault('cpf', None)
-        student.setdefault('rg', None)
-        student.setdefault('nis', None)
-        student.setdefault('status', 'active')
-        student.setdefault('authorized_persons', [])
-        student.setdefault('benefits', [])
-        student.setdefault('disabilities', [])
-        student.setdefault('documents_urls', [])
-    
-    return students
+
+# REMOVED: students base (moved to modular router)
 
 @api_router.get("/students/{student_id}", response_model=Student)
 async def get_student(student_id: str, request: Request):
@@ -1334,27 +1287,8 @@ async def update_student(student_id: str, student_update: StudentUpdate, request
     return Student(**updated_student)
 
 
-@api_router.get("/students/{student_id}/history")
-async def get_student_history(student_id: str, request: Request):
-    """Retorna o histórico de movimentações do aluno"""
-    current_user = await AuthMiddleware.get_current_user(request)
-    
-    # Verifica se aluno existe
-    student = await db.students.find_one({"id": student_id}, {"_id": 0, "school_id": 1})
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Aluno não encontrado"
-        )
-    
-    # Busca histórico ordenado por data (mais recente primeiro)
-    history = await db.student_history.find(
-        {"student_id": student_id},
-        {"_id": 0}
-    ).sort("action_date", -1).to_list(100)
-    
-    return history
 
+# REMOVED: students history (moved to modular router)
 
 @api_router.post("/students/{student_id}/transfer")
 async def transfer_student(student_id: str, request: Request):
@@ -1523,195 +1457,20 @@ async def delete_student(student_id: str, request: Request):
 
 # ============= GRADES ROUTES =============
 
-@api_router.get("/grades")
-async def list_grades(
-    request: Request, 
-    student_id: Optional[str] = None,
-    class_id: Optional[str] = None,
-    course_id: Optional[str] = None,
-    academic_year: Optional[int] = None
-):
-    """Lista notas com filtros opcionais"""
-    current_user = await AuthMiddleware.get_current_user(request)
-    
-    filter_query = {}
-    
-    if student_id:
-        filter_query['student_id'] = student_id
-    if class_id:
-        filter_query['class_id'] = class_id
-    if course_id:
-        filter_query['course_id'] = course_id
-    if academic_year:
-        filter_query['academic_year'] = academic_year
-    
-    grades = await db.grades.find(filter_query, {"_id": 0}).to_list(1000)
-    return grades
+
+# REMOVED: grades list (moved to modular router)
 
 
-@api_router.get("/grades/by-class/{class_id}/{course_id}")
-async def get_grades_by_class(class_id: str, course_id: str, request: Request, academic_year: Optional[int] = None):
-    """Busca todas as notas de uma turma para um componente curricular"""
-    current_user = await AuthMiddleware.get_current_user(request)
-    
-    if not academic_year:
-        academic_year = datetime.now().year
-    
-    # Busca alunos matriculados na turma através da coleção enrollments
-    enrollments = await db.enrollments.find(
-        {"class_id": class_id, "status": "active", "academic_year": academic_year},
-        {"_id": 0, "student_id": 1, "enrollment_number": 1}
-    ).to_list(1000)
-    
-    student_ids = [e['student_id'] for e in enrollments]
-    enrollment_numbers = {e['student_id']: e.get('enrollment_number') for e in enrollments}
-    
-    # Busca dados dos alunos matriculados
-    students = []
-    if student_ids:
-        students = await db.students.find(
-            {"id": {"$in": student_ids}},
-            {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1}
-        ).sort("full_name", 1).to_list(1000)
-    
-    # Busca notas existentes
-    grades = await db.grades.find(
-        {"class_id": class_id, "course_id": course_id, "academic_year": academic_year},
-        {"_id": 0}
-    ).to_list(1000)
-    
-    # Mapeia notas por student_id
-    grades_map = {g['student_id']: g for g in grades}
-    
-    # Monta lista com todos os alunos e suas notas
-    result = []
-    for student in students:
-        grade = grades_map.get(student['id'], {
-            'student_id': student['id'],
-            'class_id': class_id,
-            'course_id': course_id,
-            'academic_year': academic_year,
-            'b1': None, 'b2': None, 'b3': None, 'b4': None,
-            'rec_s1': None, 'rec_s2': None,
-            'recovery': None, 'final_average': None, 'status': 'cursando'
-        })
-        # Adiciona enrollment_number da matrícula se disponível
-        student_data = {
-            'id': student['id'],
-            'full_name': student['full_name'],
-            'enrollment_number': enrollment_numbers.get(student['id']) or student.get('enrollment_number')
-        }
-        result.append({
-            'student': student_data,
-            'grade': grade
-        })
-    
-    return result
+# REMOVED: grades by class (moved to modular router)
 
 
-@api_router.get("/grades/by-student/{student_id}")
-async def get_grades_by_student(student_id: str, request: Request, academic_year: Optional[int] = None):
-    """Busca todas as notas de um aluno"""
-    current_user = await AuthMiddleware.get_current_user(request)
-    
-    if not academic_year:
-        academic_year = datetime.now().year
-    
-    # Busca dados do aluno
-    student = await db.students.find_one({"id": student_id}, {"_id": 0})
-    if not student:
-        raise HTTPException(status_code=404, detail="Aluno não encontrado")
-    
-    # Busca notas do aluno
-    grades = await db.grades.find(
-        {"student_id": student_id, "academic_year": academic_year},
-        {"_id": 0}
-    ).to_list(100)
-    
-    # Busca componentes curriculares para enriquecer dados
-    course_ids = list(set(g['course_id'] for g in grades))
-    courses = await db.courses.find({"id": {"$in": course_ids}}, {"_id": 0}).to_list(100)
-    courses_map = {c['id']: c for c in courses}
-    
-    # Enriquece notas com dados do componente
-    for grade in grades:
-        course = courses_map.get(grade['course_id'], {})
-        grade['course_name'] = course.get('name', 'N/A')
-    
-    return {
-        'student': student,
-        'grades': grades,
-        'academic_year': academic_year
-    }
+# REMOVED: grades by student (moved to modular router)
 
 
-@api_router.post("/grades", response_model=Grade)
-async def create_grade(grade_data: GradeCreate, request: Request):
-    """Cria ou atualiza nota de um aluno"""
-    # Coordenador PODE editar notas (área do diário)
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
-    
-    # Verifica se já existe nota para este aluno/turma/componente/ano
-    existing = await db.grades.find_one({
-        "student_id": grade_data.student_id,
-        "class_id": grade_data.class_id,
-        "course_id": grade_data.course_id,
-        "academic_year": grade_data.academic_year
-    }, {"_id": 0})
-    
-    if existing:
-        # Atualiza nota existente
-        update_data = grade_data.model_dump(exclude_unset=True, exclude={'student_id', 'class_id', 'course_id', 'academic_year'})
-        update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
-        
-        await db.grades.update_one(
-            {"id": existing['id']},
-            {"$set": update_data}
-        )
-        
-        # Recalcula média
-        updated = await calculate_and_update_grade(db, existing['id'])
-        return Grade(**updated)
-    
-    # Cria nova nota
-    grade_dict = grade_data.model_dump()
-    grade_dict['id'] = str(uuid.uuid4())
-    grade_dict['created_at'] = datetime.now(timezone.utc).isoformat()
-    grade_dict['final_average'] = None
-    grade_dict['status'] = 'cursando'
-    
-    await db.grades.insert_one(grade_dict)
-    
-    # Calcula média se houver notas
-    if any([grade_data.b1, grade_data.b2, grade_data.b3, grade_data.b4]):
-        updated = await calculate_and_update_grade(db, grade_dict['id'])
-        return Grade(**updated)
-    
-    return Grade(**grade_dict)
+# REMOVED: grades create (moved to modular router)
 
 
-@api_router.put("/grades/{grade_id}", response_model=Grade)
-async def update_grade(grade_id: str, grade_update: GradeUpdate, request: Request):
-    """Atualiza notas de um aluno"""
-    # Coordenador PODE editar notas (área do diário)
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
-    
-    grade = await db.grades.find_one({"id": grade_id}, {"_id": 0})
-    if not grade:
-        raise HTTPException(status_code=404, detail="Nota não encontrada")
-    
-    update_data = grade_update.model_dump(exclude_unset=True)
-    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
-    
-    await db.grades.update_one(
-        {"id": grade_id},
-        {"$set": update_data}
-    )
-    
-    # Recalcula média
-    updated = await calculate_and_update_grade(db, grade_id)
-    return Grade(**updated)
-
+# REMOVED: grades update (moved to modular router)
 
 @api_router.post("/grades/batch")
 async def update_grades_batch(request: Request, grades: List[dict]):
@@ -2029,93 +1788,20 @@ EVENT_COLORS = {
     'outros': '#6B7280'  # Cinza
 }
 
-@api_router.get("/calendar/events")
-async def list_calendar_events(
-    request: Request,
-    academic_year: Optional[int] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    event_type: Optional[str] = None
-):
-    """Lista eventos do calendário com filtros opcionais"""
-    await AuthMiddleware.get_current_user(request)
-    
-    query = {}
-    
-    if academic_year:
-        query["academic_year"] = academic_year
-    
-    if start_date and end_date:
-        # Eventos que intersectam com o período
-        query["$or"] = [
-            {"start_date": {"$gte": start_date, "$lte": end_date}},
-            {"end_date": {"$gte": start_date, "$lte": end_date}},
-            {"$and": [{"start_date": {"$lte": start_date}}, {"end_date": {"$gte": end_date}}]}
-        ]
-    elif start_date:
-        query["end_date"] = {"$gte": start_date}
-    elif end_date:
-        query["start_date"] = {"$lte": end_date}
-    
-    if event_type:
-        query["event_type"] = event_type
-    
-    events = await db.calendar_events.find(query, {"_id": 0}).sort("start_date", 1).to_list(1000)
-    return events
 
-@api_router.get("/calendar/events/{event_id}")
-async def get_calendar_event(event_id: str, request: Request):
-    """Obtém um evento específico"""
-    await AuthMiddleware.get_current_user(request)
-    
-    event = await db.calendar_events.find_one({"id": event_id}, {"_id": 0})
-    if not event:
-        raise HTTPException(status_code=404, detail="Evento não encontrado")
-    return event
+# REMOVED: calendar events list (moved to modular router)
 
-@api_router.post("/calendar/events", status_code=status.HTTP_201_CREATED)
-async def create_calendar_event(event: CalendarEventCreate, request: Request):
-    """Cria um novo evento no calendário"""
-    await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
-    
-    # Define cor padrão se não fornecida
-    event_dict = event.model_dump()
-    if not event_dict.get('color'):
-        event_dict['color'] = EVENT_COLORS.get(event_dict['event_type'], '#6B7280')
-    
-    new_event = {
-        "id": str(uuid.uuid4()),
-        **event_dict,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    
-    await db.calendar_events.insert_one(new_event)
-    return await db.calendar_events.find_one({"id": new_event["id"]}, {"_id": 0})
 
-@api_router.put("/calendar/events/{event_id}")
-async def update_calendar_event(event_id: str, event: CalendarEventUpdate, request: Request):
-    """Atualiza um evento existente"""
-    await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
-    
-    existing = await db.calendar_events.find_one({"id": event_id})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Evento não encontrado")
-    
-    update_data = {k: v for k, v in event.model_dump().items() if v is not None}
-    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-    
-    await db.calendar_events.update_one({"id": event_id}, {"$set": update_data})
-    return await db.calendar_events.find_one({"id": event_id}, {"_id": 0})
+# REMOVED: calendar events get (moved to modular router)
 
-@api_router.delete("/calendar/events/{event_id}")
-async def delete_calendar_event(event_id: str, request: Request):
-    """Remove um evento do calendário"""
-    await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
-    
-    result = await db.calendar_events.delete_one({"id": event_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Evento não encontrado")
-    return {"message": "Evento removido com sucesso"}
+
+# REMOVED: calendar events create (moved to modular router)
+
+
+# REMOVED: calendar events update (moved to modular router)
+
+
+# REMOVED: calendar events delete (moved to modular router)
 
 @api_router.get("/calendar/check-date/{date}")
 async def check_calendar_date(date: str, request: Request):
@@ -2522,323 +2208,20 @@ async def get_edit_status(ano_letivo: int, request: Request, bimestre: Optional[
 
 # ============= ATTENDANCE (FREQUÊNCIA) =============
 
-@api_router.get("/attendance/settings/{academic_year}")
-async def get_attendance_settings(academic_year: int, request: Request):
-    """Obtém configurações de frequência para o ano letivo"""
-    await AuthMiddleware.get_current_user(request)
-    
-    settings = await db.attendance_settings.find_one(
-        {"academic_year": academic_year}, 
-        {"_id": 0}
-    )
-    
-    if not settings:
-        # Retorna configurações padrão
-        return {
-            "academic_year": academic_year,
-            "allow_future_dates": False
-        }
-    
-    return settings
 
-@api_router.put("/attendance/settings/{academic_year}")
-async def update_attendance_settings(academic_year: int, request: Request, allow_future_dates: bool):
-    """Atualiza configurações de frequência (apenas Admin/Secretário)"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
-    
-    existing = await db.attendance_settings.find_one({"academic_year": academic_year})
-    
-    if existing:
-        await db.attendance_settings.update_one(
-            {"academic_year": academic_year},
-            {"$set": {
-                "allow_future_dates": allow_future_dates,
-                "updated_by": current_user['id'],
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            }}
-        )
-    else:
-        await db.attendance_settings.insert_one({
-            "id": str(uuid.uuid4()),
-            "academic_year": academic_year,
-            "allow_future_dates": allow_future_dates,
-            "updated_by": current_user['id'],
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        })
-    
-    return await db.attendance_settings.find_one({"academic_year": academic_year}, {"_id": 0})
+# REMOVED: attendance settings get (moved to modular router)
 
-@api_router.get("/attendance/check-date/{date}")
-async def check_attendance_date(date: str, request: Request):
-    """
-    Verifica se uma data é válida para lançamento de frequência.
-    Considera: dia letivo, feriados, finais de semana, permissão de data futura.
-    """
-    current_user = await AuthMiddleware.get_current_user(request)
-    
-    # Verifica se é data futura
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    is_future = date > today
-    
-    # Busca configurações do ano
-    year = int(date.split("-")[0])
-    settings = await db.attendance_settings.find_one({"academic_year": year}, {"_id": 0})
-    allow_future = settings.get("allow_future_dates", False) if settings else False
-    
-    # Verifica se usuário pode lançar em data futura
-    can_use_future = current_user['role'] in ['admin', 'secretario'] and allow_future
-    
-    # Verifica eventos do calendário nessa data (feriados, etc.)
-    events = await db.calendar_events.find({
-        "start_date": {"$lte": date},
-        "end_date": {"$gte": date}
-    }, {"_id": 0}).to_list(100)
-    
-    # Verifica se é dia letivo
-    is_school_day = True
-    blocking_events = []
-    
-    for event in events:
-        if not event.get('is_school_day', True):
-            is_school_day = False
-            blocking_events.append(event)
-    
-    # Verifica se é final de semana
-    date_obj = datetime.strptime(date, "%Y-%m-%d")
-    is_weekend = date_obj.weekday() in [5, 6]  # Sábado=5, Domingo=6
-    
-    # Determina se pode lançar
-    can_record = is_school_day and not is_weekend
-    if is_future and not can_use_future:
-        can_record = False
-    
-    return {
-        "date": date,
-        "is_school_day": is_school_day,
-        "is_weekend": is_weekend,
-        "is_future": is_future,
-        "allow_future_dates": allow_future,
-        "can_record": can_record,
-        "blocking_events": blocking_events,
-        "message": (
-            "Data futura não permitida" if is_future and not can_use_future
-            else "Final de semana" if is_weekend
-            else "Dia não letivo" if not is_school_day
-            else "Liberado para lançamento"
-        )
-    }
 
-@api_router.get("/attendance/by-class/{class_id}/{date}")
-async def get_attendance_by_class(
-    class_id: str, 
-    date: str, 
-    request: Request,
-    course_id: Optional[str] = None,
-    period: str = "regular"
-):
-    """
-    Obtém frequência de uma turma em uma data.
-    Se course_id fornecido, busca frequência por componente curricular.
-    """
-    await AuthMiddleware.get_current_user(request)
-    
-    # Busca dados da turma
-    turma = await db.classes.find_one({"id": class_id}, {"_id": 0})
-    if not turma:
-        raise HTTPException(status_code=404, detail="Turma não encontrada")
-    
-    # Determina tipo de frequência baseado no nível de ensino
-    education_level = turma.get('education_level', '')
-    
-    # Anos Iniciais = frequência diária, Anos Finais = por componente
-    if education_level in ['fundamental_anos_iniciais', 'eja']:
-        attendance_type = 'daily'
-    else:
-        attendance_type = 'by_component'
-    
-    # Para Escola Integral e Aulas Complementares, sempre por componente
-    if period in ['integral', 'complementar']:
-        attendance_type = 'by_component'
-    
-    # Busca frequência existente
-    query = {
-        "class_id": class_id,
-        "date": date,
-        "period": period
-    }
-    
-    if attendance_type == 'by_component' and course_id:
-        query["course_id"] = course_id
-    
-    attendance = await db.attendance.find_one(query, {"_id": 0})
-    
-    # Busca alunos matriculados na turma através da coleção enrollments
-    # Extrai o ano letivo da data selecionada
-    academic_year = int(date.split("-")[0])
-    
-    # Busca matrículas ativas na turma
-    enrollments = await db.enrollments.find(
-        {"class_id": class_id, "status": "active", "academic_year": academic_year},
-        {"_id": 0, "student_id": 1, "enrollment_number": 1}
-    ).to_list(1000)
-    
-    # Coleta IDs dos alunos matriculados
-    student_ids = [e['student_id'] for e in enrollments]
-    enrollment_numbers = {e['student_id']: e.get('enrollment_number') for e in enrollments}
-    
-    # Busca dados dos alunos matriculados
-    # Não filtra por status do aluno pois a matrícula ativa já indica que está estudando
-    students = []
-    if student_ids:
-        students_cursor = await db.students.find(
-            {"id": {"$in": student_ids}},
-            {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1}
-        ).sort("full_name", 1).to_list(1000)
-        students = students_cursor
-    
-    # Monta resposta com alunos e seus status de frequência
-    records_map = {}
-    if attendance and attendance.get('records'):
-        for record in attendance['records']:
-            records_map[record['student_id']] = record['status']
-    
-    result = {
-        "class_id": class_id,
-        "class_name": turma.get('name'),
-        "education_level": education_level,
-        "date": date,
-        "attendance_type": attendance_type,
-        "course_id": course_id,
-        "period": period,
-        "attendance_id": attendance.get('id') if attendance else None,
-        "observations": attendance.get('observations') if attendance else None,
-        "students": [
-            {
-                "id": s['id'],
-                "full_name": s['full_name'],
-                "enrollment_number": enrollment_numbers.get(s['id']) or s.get('enrollment_number'),
-                "status": records_map.get(s['id'], None)  # None = não lançado
-            }
-            for s in students
-        ]
-    }
-    
-    return result
+# REMOVED: attendance settings put (moved to modular router)
 
-@api_router.post("/attendance")
-async def save_attendance(attendance: AttendanceCreate, request: Request):
-    """Salva ou atualiza frequência de uma turma"""
-    # Coordenador PODE editar frequência (área do diário)
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
-    user_role = current_user.get('role', '')
-    
-    # Verifica se o ano letivo está aberto (apenas para não-admins)
-    if user_role != 'admin':
-        class_doc = await db.classes.find_one(
-            {"id": attendance.class_id},
-            {"_id": 0, "school_id": 1}
-        )
-        if class_doc:
-            await verify_academic_year_open_or_raise(
-                class_doc['school_id'],
-                attendance.academic_year
-            )
-    
-    # Verifica a data limite de edição por bimestre (apenas para não-admins e não-secretarios)
-    if user_role not in ['admin', 'secretario']:
-        # Determina qual bimestre a data de frequência pertence
-        calendario = await db.calendario_letivo.find_one(
-            {"ano_letivo": attendance.academic_year},
-            {"_id": 0}
-        )
-        if calendario:
-            attendance_date = attendance.date
-            for i in range(1, 5):
-                inicio = calendario.get(f"bimestre_{i}_inicio")
-                fim = calendario.get(f"bimestre_{i}_fim")
-                if inicio and fim and attendance_date >= inicio and attendance_date <= fim:
-                    await verify_bimestre_edit_deadline_or_raise(attendance.academic_year, i, user_role)
-                    break
-    
-    # Verifica se pode lançar nessa data
-    date_check = await check_attendance_date(attendance.date, request)
-    if not date_check['can_record']:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Não é possível lançar frequência: {date_check['message']}"
-        )
-    
-    # Verifica se já existe
-    query = {
-        "class_id": attendance.class_id,
-        "date": attendance.date,
-        "period": attendance.period
-    }
-    
-    if attendance.attendance_type == 'by_component' and attendance.course_id:
-        query["course_id"] = attendance.course_id
-    
-    existing = await db.attendance.find_one(query)
-    
-    if existing:
-        # Atualiza existente
-        await db.attendance.update_one(
-            {"id": existing['id']},
-            {"$set": {
-                "records": [r.model_dump() for r in attendance.records],
-                "observations": attendance.observations,
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            }}
-        )
-        
-        # Auditoria de atualização de frequência
-        class_info = await db.classes.find_one({"id": attendance.class_id}, {"_id": 0, "name": 1, "school_id": 1})
-        await audit_service.log(
-            action='update',
-            collection='attendance',
-            user=current_user,
-            request=request,
-            document_id=existing['id'],
-            description=f"Atualizou frequência da turma {class_info.get('name', 'N/A')} em {attendance.date}",
-            school_id=class_info.get('school_id') if class_info else None,
-            academic_year=attendance.academic_year,
-            extra_data={'date': attendance.date, 'records_count': len(attendance.records)}
-        )
-        
-        return await db.attendance.find_one({"id": existing['id']}, {"_id": 0})
-    else:
-        # Cria novo
-        new_attendance = {
-            "id": str(uuid.uuid4()),
-            "class_id": attendance.class_id,
-            "date": attendance.date,
-            "academic_year": attendance.academic_year,
-            "attendance_type": attendance.attendance_type,
-            "course_id": attendance.course_id,
-            "period": attendance.period,
-            "records": [r.model_dump() for r in attendance.records],
-            "observations": attendance.observations,
-            "created_by": current_user['id'],
-            "created_at": datetime.now(timezone.utc).isoformat()
-        }
-        
-        await db.attendance.insert_one(new_attendance)
-        
-        # Auditoria de criação de frequência
-        class_info = await db.classes.find_one({"id": attendance.class_id}, {"_id": 0, "name": 1, "school_id": 1})
-        await audit_service.log(
-            action='create',
-            collection='attendance',
-            user=current_user,
-            request=request,
-            document_id=new_attendance['id'],
-            description=f"Lançou frequência da turma {class_info.get('name', 'N/A')} em {attendance.date}",
-            school_id=class_info.get('school_id') if class_info else None,
-            academic_year=attendance.academic_year,
-            extra_data={'date': attendance.date, 'records_count': len(attendance.records)}
-        )
-        
-        return await db.attendance.find_one({"id": new_attendance['id']}, {"_id": 0})
+
+# REMOVED: attendance check date (moved to modular router)
+
+
+# REMOVED: attendance by class (moved to modular router)
+
+
+# REMOVED: attendance create (moved to modular router)
 
 @api_router.delete("/attendance/{attendance_id}")
 async def delete_attendance(attendance_id: str, request: Request):
@@ -3126,185 +2509,20 @@ async def get_attendance_alerts(
 
 # ============= STAFF (SERVIDORES) =============
 
-@api_router.get("/staff")
-async def list_staff(request: Request, school_id: Optional[str] = None, cargo: Optional[str] = None, status: Optional[str] = None):
-    """Lista todos os servidores"""
-    await AuthMiddleware.require_roles(['admin', 'secretario', 'semed'])(request)
-    
-    query = {}
-    if cargo:
-        query["cargo"] = cargo
-    if status:
-        query["status"] = status
-    
-    staff_list = await db.staff.find(query, {"_id": 0}).to_list(1000)
-    
-    # Se filtrar por escola, verificar lotações
-    if school_id:
-        filtered_staff = []
-        for staff in staff_list:
-            lotacao = await db.school_assignments.find_one({
-                "staff_id": staff['id'],
-                "school_id": school_id,
-                "status": "ativo"
-            }, {"_id": 0})
-            if lotacao:
-                staff['lotacao_atual'] = lotacao
-                filtered_staff.append(staff)
-        staff_list = filtered_staff
-    
-    return staff_list
 
-@api_router.get("/staff/{staff_id}")
-async def get_staff(staff_id: str, request: Request):
-    """Busca servidor por ID"""
-    await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'diretor'])(request)
-    
-    staff = await db.staff.find_one({"id": staff_id}, {"_id": 0})
-    if not staff:
-        raise HTTPException(status_code=404, detail="Servidor não encontrado")
-    
-    # Buscar lotações
-    lotacoes = await db.school_assignments.find({"staff_id": staff_id}, {"_id": 0}).to_list(100)
-    for lot in lotacoes:
-        school = await db.schools.find_one({"id": lot['school_id']}, {"_id": 0, "name": 1})
-        if school:
-            lot['school_name'] = school['name']
-    staff['lotacoes'] = lotacoes
-    
-    # Se for professor, buscar alocações de turmas
-    if staff['cargo'] == 'professor':
-        alocacoes = await db.teacher_assignments.find({"staff_id": staff_id}, {"_id": 0}).to_list(100)
-        for aloc in alocacoes:
-            turma = await db.classes.find_one({"id": aloc['class_id']}, {"_id": 0, "name": 1})
-            course = await db.courses.find_one({"id": aloc['course_id']}, {"_id": 0, "name": 1})
-            if turma:
-                aloc['class_name'] = turma['name']
-            if course:
-                aloc['course_name'] = course['name']
-        staff['alocacoes'] = alocacoes
-    
-    return staff
+# REMOVED: staff list (moved to modular router)
 
-async def generate_matricula():
-    """Gera matrícula automática no formato ANO + sequencial (ex: 202500001)"""
-    year = datetime.now().year
-    prefix = str(year)
-    
-    # Busca última matrícula do ano
-    last_staff = await db.staff.find(
-        {"matricula": {"$regex": f"^{prefix}"}},
-        {"_id": 0, "matricula": 1}
-    ).sort("matricula", -1).limit(1).to_list(1)
-    
-    if last_staff:
-        last_num = int(last_staff[0]['matricula'][4:])
-        new_num = last_num + 1
-    else:
-        new_num = 1
-    
-    return f"{prefix}{new_num:05d}"
 
-@api_router.post("/staff")
-async def create_staff(staff_data: StaffCreate, request: Request):
-    """Cria novo servidor com matrícula automática e cria usuário se for professor"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
-    
-    # Gera matrícula automática
-    matricula = await generate_matricula()
-    
-    user_id = None
-    
-    # Se for professor e tiver email e CPF, cria usuário automaticamente
-    if staff_data.cargo == 'professor' and staff_data.email and staff_data.cpf:
-        # Verifica se já existe usuário com este email
-        existing_user = await db.users.find_one({"email": staff_data.email})
-        if existing_user:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Já existe um usuário cadastrado com o email {staff_data.email}"
-            )
-        
-        # Extrai os 6 primeiros dígitos do CPF (sem pontos e traços)
-        cpf_limpo = ''.join(filter(str.isdigit, staff_data.cpf))
-        if len(cpf_limpo) < 6:
-            raise HTTPException(
-                status_code=400, 
-                detail="CPF inválido. O CPF deve ter pelo menos 6 dígitos para gerar a senha."
-            )
-        senha = cpf_limpo[:6]
-        
-        # Cria o usuário do professor
-        from passlib.context import CryptContext
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        
-        new_user = {
-            "id": str(uuid.uuid4()),
-            "full_name": staff_data.nome,
-            "email": staff_data.email,
-            "password_hash": pwd_context.hash(senha),
-            "role": "professor",
-            "status": "active",
-            "avatar_url": staff_data.foto_url,
-            "school_links": [],
-            "created_at": datetime.now(timezone.utc).isoformat()
-        }
-        
-        await db.users.insert_one(new_user)
-        user_id = new_user["id"]
-    
-    # Cria o servidor
-    staff_dict = staff_data.model_dump()
-    staff_dict['user_id'] = user_id
-    
-    new_staff = Staff(
-        matricula=matricula,
-        **staff_dict
-    )
-    
-    await db.staff.insert_one(new_staff.model_dump())
-    
-    result = await db.staff.find_one({"id": new_staff.id}, {"_id": 0})
-    
-    # Adiciona informação sobre criação do usuário
-    if user_id:
-        result['_user_created'] = True
-        result['_user_message'] = f"Usuário criado com email {staff_data.email} e senha: {cpf_limpo[:6]} (6 primeiros dígitos do CPF)"
-    
-    return result
+# REMOVED: staff get (moved to modular router)
 
-@api_router.put("/staff/{staff_id}")
-async def update_staff(staff_id: str, staff_data: StaffUpdate, request: Request):
-    """Atualiza servidor (matrícula não pode ser alterada)"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
-    
-    existing = await db.staff.find_one({"id": staff_id})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Servidor não encontrado")
-    
-    update_data = {k: v for k, v in staff_data.model_dump().items() if v is not None}
-    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
-    
-    await db.staff.update_one({"id": staff_id}, {"$set": update_data})
-    
-    return await db.staff.find_one({"id": staff_id}, {"_id": 0})
 
-@api_router.delete("/staff/{staff_id}")
-async def delete_staff(staff_id: str, request: Request):
-    """Remove servidor"""
-    await AuthMiddleware.require_roles(['admin'])(request)
-    
-    existing = await db.staff.find_one({"id": staff_id})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Servidor não encontrado")
-    
-    # Verifica se tem lotações ativas
-    active_assignments = await db.school_assignments.find_one({"staff_id": staff_id, "status": "ativo"})
-    if active_assignments:
-        raise HTTPException(status_code=400, detail="Servidor possui lotações ativas. Encerre-as primeiro.")
-    
-    await db.staff.delete_one({"id": staff_id})
-    return {"message": "Servidor removido com sucesso"}
+# REMOVED: staff create (moved to modular router)
+
+
+# REMOVED: staff update (moved to modular router)
+
+
+# REMOVED: staff delete (moved to modular router)
 
 @api_router.post("/staff/{staff_id}/photo")
 async def upload_staff_photo(staff_id: str, request: Request, file: UploadFile = File(...)):
@@ -6632,255 +5850,23 @@ async def get_announcement_target_users(db, recipient: dict, sender: dict) -> Li
     
     return list(set(target_user_ids))  # Remover duplicatas
 
-@api_router.post("/announcements", response_model=AnnouncementResponse, status_code=status.HTTP_201_CREATED)
-async def create_announcement(announcement_data: AnnouncementCreate, request: Request):
-    """Criar um novo aviso"""
-    current_user = await AuthMiddleware.get_current_user(request)
-    
-    # Buscar dados completos do usuário
-    user_data = await db.users.find_one({'id': current_user['id']}, {'_id': 0})
-    if not user_data:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    
-    # Verificar permissão
-    if not can_user_create_announcement(user_data, announcement_data.recipient.model_dump()):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Você não tem permissão para enviar avisos para esses destinatários"
-        )
-    
-    # Buscar foto do remetente
-    profile = await db.user_profiles.find_one({'user_id': current_user['id']}, {'_id': 0})
-    sender_foto = profile.get('foto_url') if profile else None
-    
-    # Criar aviso
-    announcement = {
-        'id': str(uuid.uuid4()),
-        'title': announcement_data.title,
-        'content': announcement_data.content,
-        'recipient': announcement_data.recipient.model_dump(),
-        'sender_id': current_user['id'],
-        'sender_name': user_data.get('full_name', 'Usuário'),
-        'sender_role': user_data.get('role', current_user['role']),
-        'sender_foto_url': sender_foto,
-        'created_at': datetime.now(timezone.utc).isoformat(),
-        'updated_at': None
-    }
-    
-    # Obter lista de usuários destinatários para facilitar buscas
-    target_users = await get_announcement_target_users(db, announcement_data.recipient.model_dump(), user_data)
-    announcement['target_user_ids'] = target_users
-    
-    await db.announcements.insert_one(announcement)
-    
-    # Notificar via WebSocket
-    for user_id in target_users:
-        await connection_manager.send_notification(user_id, {
-            'type': 'new_announcement',
-            'announcement': {
-                'id': announcement['id'],
-                'title': announcement['title'],
-                'sender_name': announcement['sender_name']
-            }
-        })
-    
-    return AnnouncementResponse(
-        id=announcement['id'],
-        title=announcement['title'],
-        content=announcement['content'],
-        recipient=announcement_data.recipient,
-        sender_id=announcement['sender_id'],
-        sender_name=announcement['sender_name'],
-        sender_role=announcement['sender_role'],
-        sender_foto_url=sender_foto,
-        created_at=datetime.fromisoformat(announcement['created_at']),
-        updated_at=None,
-        is_read=False,
-        read_at=None
-    )
 
-@api_router.get("/announcements", response_model=List[AnnouncementResponse])
-async def list_announcements(request: Request, skip: int = 0, limit: int = 50):
-    """Listar avisos do usuário atual"""
-    current_user = await AuthMiddleware.get_current_user(request)
-    user_id = current_user['id']
-    
-    # Buscar avisos onde o usuário é destinatário ou remetente
-    announcements = await db.announcements.find(
-        {'$or': [
-            {'target_user_ids': user_id},
-            {'sender_id': user_id}
-        ]},
-        {'_id': 0}
-    ).sort('created_at', -1).skip(skip).limit(limit).to_list(limit)
-    
-    # Buscar status de leitura
-    read_statuses = await db.announcement_reads.find(
-        {'user_id': user_id},
-        {'_id': 0}
-    ).to_list(1000)
-    
-    read_map = {r['announcement_id']: r['read_at'] for r in read_statuses}
-    
-    result = []
-    for ann in announcements:
-        is_read = ann['id'] in read_map
-        read_at = read_map.get(ann['id'])
-        
-        result.append(AnnouncementResponse(
-            id=ann['id'],
-            title=ann['title'],
-            content=ann['content'],
-            recipient=AnnouncementRecipient(**ann['recipient']),
-            sender_id=ann['sender_id'],
-            sender_name=ann['sender_name'],
-            sender_role=ann['sender_role'],
-            sender_foto_url=ann.get('sender_foto_url'),
-            created_at=datetime.fromisoformat(ann['created_at']) if isinstance(ann['created_at'], str) else ann['created_at'],
-            updated_at=datetime.fromisoformat(ann['updated_at']) if ann.get('updated_at') and isinstance(ann['updated_at'], str) else ann.get('updated_at'),
-            is_read=is_read,
-            read_at=datetime.fromisoformat(read_at) if read_at and isinstance(read_at, str) else read_at
-        ))
-    
-    return result
+# REMOVED: announcements create (moved to modular router)
 
-@api_router.get("/announcements/{announcement_id}", response_model=AnnouncementResponse)
-async def get_announcement(announcement_id: str, request: Request):
-    """Obter detalhes de um aviso"""
-    current_user = await AuthMiddleware.get_current_user(request)
-    user_id = current_user['id']
-    
-    announcement = await db.announcements.find_one(
-        {'id': announcement_id},
-        {'_id': 0}
-    )
-    
-    if not announcement:
-        raise HTTPException(status_code=404, detail="Aviso não encontrado")
-    
-    # Verificar se o usuário tem acesso
-    if user_id not in announcement.get('target_user_ids', []) and user_id != announcement['sender_id']:
-        raise HTTPException(status_code=403, detail="Acesso negado")
-    
-    # Buscar status de leitura
-    read_status = await db.announcement_reads.find_one(
-        {'announcement_id': announcement_id, 'user_id': user_id},
-        {'_id': 0}
-    )
-    
-    return AnnouncementResponse(
-        id=announcement['id'],
-        title=announcement['title'],
-        content=announcement['content'],
-        recipient=AnnouncementRecipient(**announcement['recipient']),
-        sender_id=announcement['sender_id'],
-        sender_name=announcement['sender_name'],
-        sender_role=announcement['sender_role'],
-        sender_foto_url=announcement.get('sender_foto_url'),
-        created_at=datetime.fromisoformat(announcement['created_at']) if isinstance(announcement['created_at'], str) else announcement['created_at'],
-        updated_at=datetime.fromisoformat(announcement['updated_at']) if announcement.get('updated_at') and isinstance(announcement['updated_at'], str) else announcement.get('updated_at'),
-        is_read=read_status is not None,
-        read_at=datetime.fromisoformat(read_status['read_at']) if read_status and isinstance(read_status.get('read_at'), str) else read_status.get('read_at') if read_status else None
-    )
 
-@api_router.put("/announcements/{announcement_id}", response_model=AnnouncementResponse)
-async def update_announcement(announcement_id: str, update_data: AnnouncementUpdate, request: Request):
-    """Atualizar um aviso (apenas o remetente pode editar)"""
-    current_user = await AuthMiddleware.get_current_user(request)
-    
-    announcement = await db.announcements.find_one({'id': announcement_id}, {'_id': 0})
-    
-    if not announcement:
-        raise HTTPException(status_code=404, detail="Aviso não encontrado")
-    
-    if announcement['sender_id'] != current_user['id'] and current_user['role'] != 'admin':
-        raise HTTPException(status_code=403, detail="Apenas o remetente pode editar o aviso")
-    
-    # Atualizar campos
-    update_fields = {}
-    if update_data.title is not None:
-        update_fields['title'] = update_data.title
-    if update_data.content is not None:
-        update_fields['content'] = update_data.content
-    if update_data.recipient is not None:
-        update_fields['recipient'] = update_data.recipient.model_dump()
-        # Recalcular destinatários
-        target_users = await get_announcement_target_users(db, update_data.recipient.model_dump(), current_user)
-        update_fields['target_user_ids'] = target_users
-    
-    update_fields['updated_at'] = datetime.now(timezone.utc).isoformat()
-    
-    await db.announcements.update_one(
-        {'id': announcement_id},
-        {'$set': update_fields}
-    )
-    
-    # Buscar aviso atualizado
-    updated = await db.announcements.find_one({'id': announcement_id}, {'_id': 0})
-    
-    return AnnouncementResponse(
-        id=updated['id'],
-        title=updated['title'],
-        content=updated['content'],
-        recipient=AnnouncementRecipient(**updated['recipient']),
-        sender_id=updated['sender_id'],
-        sender_name=updated['sender_name'],
-        sender_role=updated['sender_role'],
-        sender_foto_url=updated.get('sender_foto_url'),
-        created_at=datetime.fromisoformat(updated['created_at']) if isinstance(updated['created_at'], str) else updated['created_at'],
-        updated_at=datetime.fromisoformat(updated['updated_at']) if updated.get('updated_at') and isinstance(updated['updated_at'], str) else updated.get('updated_at'),
-        is_read=False,
-        read_at=None
-    )
+# REMOVED: announcements list (moved to modular router)
 
-@api_router.delete("/announcements/{announcement_id}")
-async def delete_announcement(announcement_id: str, request: Request):
-    """Excluir um aviso (apenas o remetente ou admin pode excluir)"""
-    current_user = await AuthMiddleware.get_current_user(request)
-    
-    announcement = await db.announcements.find_one({'id': announcement_id}, {'_id': 0})
-    
-    if not announcement:
-        raise HTTPException(status_code=404, detail="Aviso não encontrado")
-    
-    if announcement['sender_id'] != current_user['id'] and current_user['role'] != 'admin':
-        raise HTTPException(status_code=403, detail="Apenas o remetente ou admin pode excluir o aviso")
-    
-    # Excluir aviso e leituras relacionadas
-    await db.announcements.delete_one({'id': announcement_id})
-    await db.announcement_reads.delete_many({'announcement_id': announcement_id})
-    
-    return {"message": "Aviso excluído com sucesso"}
 
-@api_router.post("/announcements/{announcement_id}/read")
-async def mark_announcement_read(announcement_id: str, request: Request):
-    """Marcar um aviso como lido"""
-    current_user = await AuthMiddleware.get_current_user(request)
-    user_id = current_user['id']
-    
-    announcement = await db.announcements.find_one({'id': announcement_id}, {'_id': 0})
-    
-    if not announcement:
-        raise HTTPException(status_code=404, detail="Aviso não encontrado")
-    
-    # Verificar se o usuário tem acesso
-    if user_id not in announcement.get('target_user_ids', []) and user_id != announcement['sender_id']:
-        raise HTTPException(status_code=403, detail="Acesso negado")
-    
-    # Verificar se já foi lido
-    existing = await db.announcement_reads.find_one(
-        {'announcement_id': announcement_id, 'user_id': user_id}
-    )
-    
-    if not existing:
-        await db.announcement_reads.insert_one({
-            'id': str(uuid.uuid4()),
-            'announcement_id': announcement_id,
-            'user_id': user_id,
-            'read_at': datetime.now(timezone.utc).isoformat()
-        })
-    
-    return {"message": "Aviso marcado como lido"}
+# REMOVED: announcements get (moved to modular router)
+
+
+# REMOVED: announcements update (moved to modular router)
+
+
+# REMOVED: announcements delete (moved to modular router)
+
+
+# REMOVED: announcements read (moved to modular router)
 
 @api_router.get("/notifications/unread-count", response_model=NotificationCount)
 async def get_unread_count(request: Request):
