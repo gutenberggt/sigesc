@@ -83,7 +83,7 @@ class SyncPullResponse(BaseModel):
     pagination: Optional[Dict[str, Any]] = None
 
 
-def setup_sync_router(db, auth_middleware):
+def setup_sync_router(db, auth_middleware, limiter=None):
     """Configura o router de sincronização"""
     
     router = APIRouter(prefix="/sync", tags=["Sincronização Offline"])
@@ -93,8 +93,18 @@ def setup_sync_router(db, auth_middleware):
         """
         Recebe operações pendentes do cliente e processa no servidor.
         Usado quando o cliente volta online após edições offline.
+        
+        PATCH 2.3: Rate limited para evitar abuso
         """
         current_user = await auth_middleware.get_current_user(request)
+        
+        # PATCH 2.3: Limite de operações por requisição
+        MAX_OPERATIONS_PER_REQUEST = 100
+        if len(body.operations) > MAX_OPERATIONS_PER_REQUEST:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Máximo de {MAX_OPERATIONS_PER_REQUEST} operações por requisição. Envie em lotes menores."
+            )
         
         results = []
         succeeded = 0
@@ -129,33 +139,69 @@ def setup_sync_router(db, auth_middleware):
         """
         Envia dados do servidor para o cliente popular o cache local.
         Usado para sincronização inicial ou refresh de dados.
+        
+        PATCH 2.1: Campos sensíveis são filtrados automaticamente
+        PATCH 2.2: Suporta paginação para evitar sobrecarga
         """
         current_user = await auth_middleware.get_current_user(request)
         
+        # PATCH 2.2: Validar e limitar tamanho da página
+        page = max(1, body.page or 1)
+        page_size = min(MAX_PAGE_SIZE, max(1, body.pageSize or DEFAULT_PAGE_SIZE))
+        
+        # PATCH 2.3: Limite de coleções por requisição
+        MAX_COLLECTIONS_PER_REQUEST = 5
+        if len(body.collections) > MAX_COLLECTIONS_PER_REQUEST:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Máximo de {MAX_COLLECTIONS_PER_REQUEST} coleções por requisição."
+            )
+        
         data = {}
         counts = {}
+        pagination_info = {}
         
         for collection in body.collections:
             try:
-                collection_data = await fetch_collection_data(
+                # PATCH 2.2: Busca com paginação
+                collection_data, total_count = await fetch_collection_data_paginated(
                     db, 
                     current_user, 
                     collection, 
                     body.classId, 
                     body.academicYear,
-                    body.lastSync
+                    body.lastSync,
+                    page,
+                    page_size
                 )
-                data[collection] = collection_data
-                counts[collection] = len(collection_data)
+                
+                # PATCH 2.1: Filtrar campos sensíveis
+                filtered_data = filter_sensitive_fields(collection_data, collection)
+                
+                data[collection] = filtered_data
+                counts[collection] = len(filtered_data)
+                
+                # PATCH 2.2: Informações de paginação por coleção
+                total_pages = (total_count + page_size - 1) // page_size if total_count > 0 else 1
+                pagination_info[collection] = {
+                    "page": page,
+                    "pageSize": page_size,
+                    "totalItems": total_count,
+                    "totalPages": total_pages,
+                    "hasMore": page < total_pages
+                }
+                
             except Exception as e:
                 logger.error(f"[Sync] Erro ao buscar {collection}: {e}")
                 data[collection] = []
                 counts[collection] = 0
+                pagination_info[collection] = {"error": str(e)}
         
         return SyncPullResponse(
             data=data,
             syncedAt=datetime.now(timezone.utc).isoformat(),
-            counts=counts
+            counts=counts,
+            pagination=pagination_info
         )
     
     @router.get("/status")
