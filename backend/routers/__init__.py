@@ -1,6 +1,8 @@
 """
 Routers do SIGESC
 Organização modular dos endpoints da API.
+
+PATCH 4.x: Refatoração gradual do server.py para routers modulares.
 """
 
 from .auth import router as auth_router, setup_router as setup_auth_router
@@ -10,6 +12,7 @@ from .courses import router as courses_router, setup_router as setup_courses_rou
 from .classes import router as classes_router, setup_router as setup_classes_router
 from .guardians import router as guardians_router, setup_router as setup_guardians_router
 from .enrollments import router as enrollments_router, setup_router as setup_enrollments_router
+from .students import router as students_router, setup_students_router
 
 __all__ = [
     'auth_router', 'setup_auth_router',
@@ -18,5 +21,6 @@ __all__ = [
     'courses_router', 'setup_courses_router',
     'classes_router', 'setup_classes_router',
     'guardians_router', 'setup_guardians_router',
-    'enrollments_router', 'setup_enrollments_router'
+    'enrollments_router', 'setup_enrollments_router',
+    'students_router', 'setup_students_router'
 ]
