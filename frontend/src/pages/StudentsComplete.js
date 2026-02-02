@@ -2258,7 +2258,7 @@ export function StudentsComplete() {
   const tabTurma = (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Vínculo com Turma</h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Escola *</label>
           <select
@@ -2308,6 +2308,46 @@ export function StudentsComplete() {
             <option value="deceased">Falecido</option>
           </select>
         </div>
+        
+        {/* Campo de Ação */}
+        {editingStudent && !viewMode && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ação</label>
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  handleOpenActionModal(e.target.value);
+                  e.target.value = '';
+                }
+              }}
+              className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-blue-50 text-blue-700 font-medium cursor-pointer"
+            >
+              <option value="">Selecione uma ação...</option>
+              <option value="matricular" disabled={!canExecuteAction('matricular', editingStudent?.status)}>
+                📋 Matricular {!canExecuteAction('matricular', editingStudent?.status) ? '(indisponível)' : ''}
+              </option>
+              <option value="transferir" disabled={!canExecuteAction('transferir', editingStudent?.status)}>
+                🔄 Transferir {!canExecuteAction('transferir', editingStudent?.status) ? '(indisponível)' : ''}
+              </option>
+              <option value="remanejar" disabled={!canExecuteAction('remanejar', editingStudent?.status)}>
+                ↔️ Remanejar {!canExecuteAction('remanejar', editingStudent?.status) ? '(indisponível)' : ''}
+              </option>
+              <option value="progredir" disabled={!canExecuteAction('progredir', editingStudent?.status)}>
+                ⬆️ Progredir {!canExecuteAction('progredir', editingStudent?.status) ? '(indisponível)' : ''}
+              </option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              {formData.status === 'active' || formData.status === 'ativo' 
+                ? 'Disponível: Transferir, Remanejar, Progredir'
+                : formData.status === 'transferred' || formData.status === 'transferido'
+                ? 'Disponível: Matricular'
+                : formData.status === 'dropout' || formData.status === 'desistente'
+                ? 'Disponível: Matricular'
+                : 'Nenhuma ação disponível'}
+            </p>
+          </div>
+        )}
       </div>
 
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-8">Observações</h3>
