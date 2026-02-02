@@ -2425,11 +2425,7 @@ export function StudentsComplete() {
             <p className="text-xs text-gray-500 mt-1">
               {formData.status === 'active' || formData.status === 'ativo' 
                 ? 'Disponível: Transferir, Remanejar, Progredir'
-                : formData.status === 'transferred' || formData.status === 'transferido'
-                ? 'Disponível: Matricular'
-                : formData.status === 'dropout' || formData.status === 'desistente'
-                ? 'Disponível: Matricular'
-                : 'Nenhuma ação disponível'}
+                : 'Disponível: Matricular'}
             </p>
           </div>
         )}
