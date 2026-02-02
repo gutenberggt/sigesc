@@ -181,11 +181,32 @@ async def create_indexes():
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
 
-# Explicit route to serve uploaded files (works better with reverse proxies)
+# PATCH 1.2: Rota de uploads com validação anti-traversal
 @app.get("/api/uploads/{file_path:path}")
 async def serve_upload(file_path: str):
-    """Serve uploaded files"""
-    file_location = UPLOADS_DIR / file_path
+    """Serve uploaded files com validação de segurança"""
+    # Validação anti-traversal: rejeita caminhos com ".." ou absolutos
+    if '..' in file_path or file_path.startswith('/') or file_path.startswith('\\'):
+        logger.warning(f"Tentativa de path traversal detectada: {file_path}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Caminho de arquivo inválido"
+        )
+    
+    # Resolve o caminho e verifica se está dentro do diretório de uploads
+    file_location = (UPLOADS_DIR / file_path).resolve()
+    uploads_resolved = UPLOADS_DIR.resolve()
+    
+    # Verifica se o arquivo está realmente dentro do diretório de uploads
+    try:
+        file_location.relative_to(uploads_resolved)
+    except ValueError:
+        logger.warning(f"Tentativa de acesso fora do diretório de uploads: {file_path}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Acesso negado"
+        )
+    
     if file_location.exists() and file_location.is_file():
         # Determine content type
         suffix = file_location.suffix.lower()
@@ -223,13 +244,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Temporary route for backup download
+# PATCH 1.1: Rotas de backup DESATIVADAS por segurança
+# Para reativar em ambiente controlado, defina ENABLE_BACKUP_DOWNLOAD=true no .env
+ENABLE_BACKUP_DOWNLOAD = os.environ.get('ENABLE_BACKUP_DOWNLOAD', 'false').lower() == 'true'
+
 @app.get("/api/download-backup")
-async def download_backup():
-    """Download database backup file"""
+async def download_backup(request: Request):
+    """Download database backup file - RESTRITO"""
+    if not ENABLE_BACKUP_DOWNLOAD:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Download de backup desativado por segurança. Contate o administrador."
+        )
+    
+    # Requer autenticação de admin
+    current_user = await AuthMiddleware.require_roles(['admin'])(request)
+    
     backup_path = STATIC_DIR / "backup_sigesc.tar.gz"
     if backup_path.exists():
-        from fastapi.responses import FileResponse
         return FileResponse(
             path=str(backup_path),
             filename="backup_sigesc.tar.gz",
@@ -238,11 +270,19 @@ async def download_backup():
     return {"error": "Backup file not found"}
 
 @app.get("/api/download-uploads")
-async def download_uploads():
-    """Download uploads backup file"""
+async def download_uploads(request: Request):
+    """Download uploads backup file - RESTRITO"""
+    if not ENABLE_BACKUP_DOWNLOAD:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Download de backup desativado por segurança. Contate o administrador."
+        )
+    
+    # Requer autenticação de admin
+    current_user = await AuthMiddleware.require_roles(['admin'])(request)
+    
     backup_path = STATIC_DIR / "uploads_backup.tar.gz"
     if backup_path.exists():
-        from fastapi.responses import FileResponse
         return FileResponse(
             path=str(backup_path),
             filename="uploads_backup.tar.gz",
@@ -1716,14 +1756,16 @@ async def delete_grade(grade_id: str, request: Request):
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
+# PATCH 1.3: Rota de upload restrita a roles autorizados
 @api_router.post("/upload")
 async def upload_file(
     request: Request, 
     file: UploadFile = File(...), 
     file_type: Optional[str] = "default"
 ):
-    """Upload de arquivo (foto, documento, laudo, etc.) para servidor externo via FTP"""
-    current_user = await AuthMiddleware.get_current_user(request)
+    """Upload de arquivo (foto, documento, laudo, etc.) para servidor externo via FTP - RESTRITO"""
+    # Apenas roles autorizados podem fazer upload
+    current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador'])(request)
     
     # Verifica extensão
     file_ext = Path(file.filename).suffix.lower()
