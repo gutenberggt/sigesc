@@ -1097,9 +1097,6 @@ async def create_student(student_data: StudentCreate, request: Request):
     # ... movido para routers/students.py
     pass
 """
-"""
-# === ROTAS LEGADAS DE STUDENTS (MOVIDAS PARA routers/students.py) ===
-
     
     # Verifica acesso à escola
     await AuthMiddleware.verify_school_access(request, student_data.school_id)
@@ -1519,9 +1516,6 @@ async def delete_student(student_id: str, request: Request):
     )
     
     return None
-
-
-"""
 
 # ============= GUARDIAN (RESPONSÁVEL) ROUTES - MOVIDO PARA routers/guardians.py =============
 
