@@ -31,6 +31,17 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - ✅ **Permissões de Secretário:** Perfil com regras granulares de edição
 - ✅ **Tratamento de Erros Global:** Utilitário `errorHandler.js` para erros de validação
 
+### Melhorias no Cadastro de Alunos (Fev 02, 2026)
+- ✅ **Campos Telefone e E-mail:** Adicionados na mesma linha do Nome Completo na identificação
+- ✅ **Formatação de Telefone:** Formato (00)00000-0000 automático
+- ✅ **Validação de E-mail:** Verifica formato válido de e-mail
+- ✅ **Formatação de CPF:** Formato 000.000.000-00 (máx 11 dígitos)
+- ✅ **Formatação de NIS/PIS/PASEP:** Formato 000.00000.00-0 (máx 11 dígitos)
+- ✅ **Formatação de Número SUS:** Formato 000.0000.0000.0000 (máx 15 dígitos)
+- ✅ **Autocomplete de Cidades:** Campo Naturalidade (Cidade) e Cidade da Certidão Civil com sugestões de cidades brasileiras a partir do 3º caractere
+- ✅ **E-mail nos Responsáveis:** Campos de e-mail adicionados para Pai, Mãe e Outro Responsável
+- ✅ **Formatação nos Responsáveis:** CPF e Telefone formatados automaticamente
+
 ### Funcionalidade de Ação do Aluno (Fev 02, 2026)
 - ✅ **Campo "Ação":** Adicionado na aba Turma/Observações da página de edição de aluno
 - ✅ **Opções de Ação:** Matricular, Transferir, Remanejar, Progredir
