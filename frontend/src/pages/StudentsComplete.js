@@ -3316,6 +3316,278 @@ export function StudentsComplete() {
             </div>
           </div>
         </Modal>
+
+        {/* Modal de Ação de Vínculo (Matricular, Transferir, Remanejar, Progredir) */}
+        <Modal 
+          isOpen={showActionModal} 
+          onClose={() => setShowActionModal(false)} 
+          title={
+            selectedAction === 'matricular' ? '📋 Matricular Aluno' :
+            selectedAction === 'transferir' ? '🔄 Transferir Aluno' :
+            selectedAction === 'remanejar' ? '↔️ Remanejar Aluno' :
+            selectedAction === 'progredir' ? '⬆️ Progredir Aluno' :
+            'Ação do Aluno'
+          }
+          size="md"
+        >
+          <div className="space-y-4">
+            {/* Info do Aluno */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <p className="text-sm text-gray-700">
+                <strong>Aluno:</strong> {editingStudent?.full_name}
+              </p>
+              <p className="text-sm text-gray-500">
+                <strong>Status atual:</strong>{' '}
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                  editingStudent?.status === 'active' || editingStudent?.status === 'ativo' 
+                    ? 'bg-green-100 text-green-700' 
+                    : editingStudent?.status === 'transferred' || editingStudent?.status === 'transferido'
+                    ? 'bg-orange-100 text-orange-700'
+                    : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {editingStudent?.status === 'active' ? 'Ativo' : 
+                   editingStudent?.status === 'transferred' ? 'Transferido' :
+                   editingStudent?.status === 'dropout' ? 'Desistente' :
+                   editingStudent?.status || 'N/A'}
+                </span>
+              </p>
+            </div>
+
+            {/* Campos específicos por ação */}
+            
+            {/* MATRICULAR - Seleciona escola e turma */}
+            {selectedAction === 'matricular' && (
+              <div className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-800">
+                    <strong>ℹ️ Matricular:</strong> O aluno será reativado e matriculado na escola/turma selecionada.
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Escola de Destino <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={actionData.targetSchoolId}
+                    onChange={(e) => setActionData(prev => ({ 
+                      ...prev, 
+                      targetSchoolId: e.target.value,
+                      targetClassId: '' // Limpa turma ao mudar escola
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Selecione a escola...</option>
+                    {schools.map(school => (
+                      <option key={school.id} value={school.id}>{school.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Turma de Destino <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={actionData.targetClassId}
+                    onChange={(e) => setActionData(prev => ({ ...prev, targetClassId: e.target.value }))}
+                    disabled={!actionData.targetSchoolId}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+                  >
+                    <option value="">
+                      {actionData.targetSchoolId ? 'Selecione a turma...' : 'Selecione a escola primeiro'}
+                    </option>
+                    {actionTargetClasses.map(cls => (
+                      <option key={cls.id} value={cls.id}>{cls.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* TRANSFERIR - Motivo da transferência */}
+            {selectedAction === 'transferir' && (
+              <div className="space-y-4">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                  <p className="text-sm text-orange-800">
+                    <strong>⚠️ Transferir:</strong> O aluno será marcado como "Transferido" e não aparecerá mais nas listas de alunos ativos.
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Motivo da Transferência
+                  </label>
+                  <select
+                    value={actionData.reason}
+                    onChange={(e) => setActionData(prev => ({ ...prev, reason: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option value="">Selecione o motivo...</option>
+                    <option value="Mudança de cidade">Mudança de cidade</option>
+                    <option value="Mudança de bairro">Mudança de bairro</option>
+                    <option value="Transferência para escola particular">Transferência para escola particular</option>
+                    <option value="Transferência para outra rede">Transferência para outra rede (estadual/federal)</option>
+                    <option value="Solicitação da família">Solicitação da família</option>
+                    <option value="Outro motivo">Outro motivo</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* REMANEJAR - Seleciona turma na mesma escola */}
+            {selectedAction === 'remanejar' && (
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-800">
+                    <strong>ℹ️ Remanejar:</strong> O aluno será movido para outra turma na mesma escola.
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">Turma atual:</span>
+                    <p className="font-medium">{classes.find(c => c.id === formData.class_id)?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Escola:</span>
+                    <p className="font-medium">{schools.find(s => s.id === formData.school_id)?.name || 'N/A'}</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nova Turma <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={actionData.targetClassId}
+                    onChange={(e) => setActionData(prev => ({ ...prev, targetClassId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Selecione a nova turma...</option>
+                    {classes
+                      .filter(c => c.school_id === formData.school_id && c.id !== formData.class_id)
+                      .map(cls => (
+                        <option key={cls.id} value={cls.id}>{cls.name}</option>
+                      ))
+                    }
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* PROGREDIR - Com ou sem histórico */}
+            {selectedAction === 'progredir' && (
+              <div className="space-y-4">
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                  <p className="text-sm text-purple-800">
+                    <strong>ℹ️ Progredir:</strong> O aluno avançará para a próxima série/turma ou será concluído com emissão de histórico.
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="emitirHistorico"
+                    checked={actionData.emitirHistorico}
+                    onChange={(e) => setActionData(prev => ({ 
+                      ...prev, 
+                      emitirHistorico: e.target.checked,
+                      targetClassId: e.target.checked ? '' : prev.targetClassId
+                    }))}
+                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                  <label htmlFor="emitirHistorico" className="text-sm font-medium text-gray-700">
+                    Emitir Histórico Escolar (conclusão do ciclo)
+                  </label>
+                </div>
+                
+                {actionData.emitirHistorico ? (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <p className="text-sm text-yellow-800">
+                      <strong>📄 Conclusão:</strong> O aluno será marcado como "Transferido" (concluído) e o histórico escolar deverá ser gerado manualmente.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nova Turma (próxima série) <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={actionData.targetClassId}
+                      onChange={(e) => setActionData(prev => ({ ...prev, targetClassId: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="">Selecione a próxima turma...</option>
+                      {classes
+                        .filter(c => c.school_id === formData.school_id && c.id !== formData.class_id)
+                        .map(cls => (
+                          <option key={cls.id} value={cls.id}>{cls.name}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Observações (comum a todas as ações) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Observações
+              </label>
+              <textarea
+                value={actionData.notes}
+                onChange={(e) => setActionData(prev => ({ ...prev, notes: e.target.value }))}
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Anotações adicionais sobre esta ação..."
+              />
+            </div>
+
+            {/* Botões de Ação */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <button
+                type="button"
+                onClick={() => setShowActionModal(false)}
+                disabled={executingAction}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={executeVinculoAction}
+                disabled={executingAction || (
+                  (selectedAction === 'matricular' && (!actionData.targetSchoolId || !actionData.targetClassId)) ||
+                  (selectedAction === 'remanejar' && !actionData.targetClassId) ||
+                  (selectedAction === 'progredir' && !actionData.emitirHistorico && !actionData.targetClassId)
+                )}
+                className={`px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
+                  selectedAction === 'matricular' ? 'bg-green-600 hover:bg-green-700' :
+                  selectedAction === 'transferir' ? 'bg-orange-600 hover:bg-orange-700' :
+                  selectedAction === 'remanejar' ? 'bg-blue-600 hover:bg-blue-700' :
+                  selectedAction === 'progredir' ? 'bg-purple-600 hover:bg-purple-700' :
+                  'bg-gray-600 hover:bg-gray-700'
+                }`}
+              >
+                {executingAction ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    Processando...
+                  </>
+                ) : (
+                  <>
+                    {selectedAction === 'matricular' && '📋 Confirmar Matrícula'}
+                    {selectedAction === 'transferir' && '🔄 Confirmar Transferência'}
+                    {selectedAction === 'remanejar' && '↔️ Confirmar Remanejamento'}
+                    {selectedAction === 'progredir' && '⬆️ Confirmar Progressão'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </Layout>
   );
