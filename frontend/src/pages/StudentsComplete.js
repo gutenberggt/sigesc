@@ -289,6 +289,18 @@ export function StudentsComplete() {
   });
   const [savingCertificate, setSavingCertificate] = useState(false);
   
+  // Estados para Ações de Vínculo (Matricular, Transferir, Remanejar, Progredir)
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [selectedAction, setSelectedAction] = useState('');
+  const [actionData, setActionData] = useState({
+    targetSchoolId: '',
+    targetClassId: '',
+    reason: '',
+    notes: '',
+    emitirHistorico: false
+  });
+  const [executingAction, setExecutingAction] = useState(false);
+  
   // Permissões de edição/exclusão de alunos:
   // - Admin: pode editar/excluir qualquer aluno
   // - Secretário: pode editar apenas alunos ATIVOS da(s) escola(s) onde tem vínculo
