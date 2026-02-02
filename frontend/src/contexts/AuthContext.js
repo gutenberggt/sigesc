@@ -36,12 +36,38 @@ export const AuthProvider = ({ children }) => {
   const [isOfflineSession, setIsOfflineSession] = useState(false);
   const isRefreshing = useRef(false);
   const refreshSubscribers = useRef([]);
+  
+  // PATCH 3.1: Refs para controle de atividade e refresh proativo
+  const lastActivityRef = useRef(Date.now());
+  const refreshTimerRef = useRef(null);
+  const activityThrottleRef = useRef(null);
 
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
   const API = `${BACKEND_URL}/api`;
 
   // Verifica se está online
   const isOnline = () => navigator.onLine;
+
+  // PATCH 3.1: Atualiza timestamp de última atividade (throttled)
+  const updateActivity = useCallback(() => {
+    const now = Date.now();
+    lastActivityRef.current = now;
+    
+    // Throttle para não atualizar localStorage muito frequentemente
+    if (!activityThrottleRef.current) {
+      activityThrottleRef.current = setTimeout(() => {
+        localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, now.toString());
+        activityThrottleRef.current = null;
+      }, ACTIVITY_THROTTLE_MS);
+    }
+  }, []);
+
+  // PATCH 3.1: Verifica se o usuário está inativo
+  const isUserIdle = useCallback(() => {
+    const lastActivity = lastActivityRef.current;
+    const now = Date.now();
+    return (now - lastActivity) > IDLE_TIMEOUT_MS;
+  }, []);
 
   // Salva dados do usuário localmente para acesso offline
   const saveUserDataLocally = (userData) => {
