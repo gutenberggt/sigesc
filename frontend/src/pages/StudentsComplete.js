@@ -650,7 +650,7 @@ export function StudentsComplete() {
       const currentStatus = statusLabels[editingStudent.status?.toLowerCase()] || editingStudent.status;
       
       const actionMessages = {
-        'matricular': 'A ação "Matricular" só é permitida para alunos com status "Transferido" ou "Desistente".',
+        'matricular': 'A ação "Matricular" só é permitida para alunos com status "Transferido", "Desistente", "Inativo" ou sem status definido.',
         'transferir': 'A ação "Transferir" só é permitida para alunos com status "Ativo".',
         'remanejar': 'A ação "Remanejar" só é permitida para alunos com status "Ativo".',
         'progredir': 'A ação "Progredir" só é permitida para alunos com status "Ativo".'
