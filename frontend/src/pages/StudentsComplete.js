@@ -2401,6 +2401,7 @@ export function StudentsComplete() {
                       item.action_type === 'remanejamento' ? 'bg-blue-100 text-blue-700' :
                       item.action_type === 'transferencia_saida' ? 'bg-orange-100 text-orange-700' :
                       item.action_type === 'transferencia_entrada' ? 'bg-purple-100 text-purple-700' :
+                      item.action_type === 'progressao' ? 'bg-purple-100 text-purple-700' :
                       item.action_type === 'mudanca_status' ? 'bg-yellow-100 text-yellow-700' :
                       'bg-gray-100 text-gray-700'
                     }`}>
@@ -2408,6 +2409,7 @@ export function StudentsComplete() {
                        item.action_type === 'remanejamento' ? 'Remanejamento' :
                        item.action_type === 'transferencia_saida' ? 'Transf. Saída' :
                        item.action_type === 'transferencia_entrada' ? 'Transf. Entrada' :
+                       item.action_type === 'progressao' ? 'Progressão' :
                        item.action_type === 'mudanca_status' ? 'Mudança Status' :
                        'Edição'}
                     </span>
