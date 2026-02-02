@@ -31,6 +31,11 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - ✅ **Permissões de Secretário:** Perfil com regras granulares de edição
 - ✅ **Tratamento de Erros Global:** Utilitário `errorHandler.js` para erros de validação
 
+### Patches de Segurança - FASE 2 (Fev 02, 2026)
+- ✅ **PATCH 2.1 - Filtragem de Dados Sensíveis:** Campos como CPF, RG, NIS, dados bancários e senhas são automaticamente removidos dos dados de sincronização offline
+- ✅ **PATCH 2.2 - Paginação no Sync:** Endpoint `/api/sync/pull` agora suporta paginação (`page`, `pageSize`) para evitar sobrecarga de memória. Padrão: 100 itens, máximo: 500
+- ✅ **PATCH 2.3 - Rate Limiting no Sync:** Limites implementados - máximo 5 coleções por pull e 100 operações por push
+
 ### Patches de Segurança - FASE 1 (Fev 02, 2026)
 - ✅ **PATCH 1.1 - Download de Backup:** Rotas `/api/download-backup` e `/api/download-uploads` desativadas por padrão. Requerem `ENABLE_BACKUP_DOWNLOAD=true` no `.env` e autenticação de admin
 - ✅ **PATCH 1.2 - Anti-Traversal:** Rota `/api/uploads/{file_path}` protegida contra path traversal (`../`), paths absolutos e acesso fora do diretório de uploads
