@@ -1789,7 +1789,7 @@ export function StudentsComplete() {
 
       {/* Mostrar campos de outro responsável apenas se "Outro" estiver selecionado */}
       {formData.legal_guardian_type === 'other' && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 bg-gray-50 rounded-lg">
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
             <input
@@ -1822,19 +1822,11 @@ export function StudentsComplete() {
             <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
             <input
               type="text"
-              value={formData.guardian_cpf}
-              onChange={(e) => updateFormData('guardian_cpf', e.target.value)}
+              value={formatCPF(formData.guardian_cpf || '')}
+              onChange={(e) => updateFormData('guardian_cpf', e.target.value.replace(/\D/g, '').slice(0, 11))}
               disabled={viewMode}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">RG</label>
-            <input
-              type="text"
-              value={formData.guardian_rg}
-              onChange={(e) => updateFormData('guardian_rg', e.target.value)}
-              disabled={viewMode}
+              maxLength={14}
+              placeholder="000.000.000-00"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             />
           </div>
@@ -1848,6 +1840,19 @@ export function StudentsComplete() {
               maxLength={14}
               placeholder="(00)00000-0000"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+            <input
+              type="email"
+              value={formData.guardian_email || ''}
+              onChange={(e) => updateFormData('guardian_email', e.target.value)}
+              disabled={viewMode}
+              placeholder="email@exemplo.com"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 ${
+                formData.guardian_email && !isValidEmail(formData.guardian_email) ? 'border-red-500' : 'border-gray-300'
+              }`}
             />
           </div>
         </div>
