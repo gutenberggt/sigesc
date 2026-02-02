@@ -128,8 +128,7 @@ http:
 - Highlight do aluno recém-criado na lista
 - Padronizar valores de status dos alunos no banco de dados ("transferred" vs "Transferido")
 
-### P2 - Futuras (Segurança - FASE 3 e 4)
-- **PATCH 3.x:** Melhorar segurança dos tokens JWT (reduzir TTL, implementar rotação de refresh tokens)
+### P2 - Futuras (Segurança - FASE 4)
 - **PATCH 4.x:** Refatorar `server.py` para padrão App Factory e modularizar rotas
 - Refatoração do `SchoolsComplete.js`
 - Expansão offline para matrículas
