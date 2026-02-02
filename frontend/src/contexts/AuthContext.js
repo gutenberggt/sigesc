@@ -401,19 +401,62 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // PATCH 3.3: Tenta revogar o token no backend antes de limpar localmente
+    const currentRefreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+    const currentAccessToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    
+    if (isOnline() && currentAccessToken && currentRefreshToken) {
+      try {
+        await axios.post(`${API}/auth/logout`, {
+          refresh_token: currentRefreshToken
+        }, {
+          headers: { Authorization: `Bearer ${currentAccessToken}` }
+        });
+        console.log('[Auth] Logout no servidor realizado');
+      } catch (error) {
+        // Ignora erros de logout no servidor (pode já estar expirado)
+        console.log('[Auth] Erro ao fazer logout no servidor (ignorado):', error.message);
+      }
+    }
+
+    // PATCH 3.1: Limpa timers de refresh proativo
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+    if (activityThrottleRef.current) {
+      clearTimeout(activityThrottleRef.current);
+      activityThrottleRef.current = null;
+    }
+
     setUser(null);
     setAccessToken(null);
     setRefreshToken(null);
     setIsOfflineSession(false);
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.LAST_ACTIVITY);
     // Mantém USER_DATA e LAST_LOGIN para permitir login offline futuro
   };
 
   // Logout completo (remove também dados offline)
-  const logoutComplete = () => {
-    logout();
+  const logoutComplete = async () => {
+    // PATCH 3.3: Tenta revogar TODAS as sessões no backend
+    const currentAccessToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    
+    if (isOnline() && currentAccessToken) {
+      try {
+        await axios.post(`${API}/auth/logout-all`, {}, {
+          headers: { Authorization: `Bearer ${currentAccessToken}` }
+        });
+        console.log('[Auth] Logout de todas as sessões realizado');
+      } catch (error) {
+        console.log('[Auth] Erro ao fazer logout-all (ignorado):', error.message);
+      }
+    }
+
+    await logout();
     localStorage.removeItem(STORAGE_KEYS.USER_DATA);
     localStorage.removeItem(STORAGE_KEYS.LAST_LOGIN);
   };
