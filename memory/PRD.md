@@ -128,15 +128,11 @@ http:
 - Highlight do aluno recém-criado na lista
 - Padronizar valores de status dos alunos no banco de dados ("transferred" vs "Transferido")
 
-### P2 - Futuras (Segurança - FASE 4)
-- ✅ **PATCH 4.1 - Router de Students:** Criado `/app/backend/routers/students.py`
-- ✅ **PATCH 4.2 - Router de Grades:** Criado `/app/backend/routers/grades.py`
-- ✅ **PATCH 4.3 - Router de Attendance:** Criado `/app/backend/routers/attendance.py`
-- ✅ **PATCH 4.4 - Router de Calendar:** Criado `/app/backend/routers/calendar.py`
-- ✅ **PATCH 4.5 - Router de Staff:** Criado `/app/backend/routers/staff.py`
-- ✅ **PATCH 4.6 - Router de Announcements:** Criado `/app/backend/routers/announcements.py`
+### P2 - Futuras (FASE 4 Concluída)
+- ✅ **Routers Extraídos:** students, grades, attendance, calendar, staff, announcements
+- ✅ **Rotas Legadas Removidas:** 28 rotas duplicadas removidas do server.py
+- ✅ **Redução de Código:** server.py reduzido de 7588 para 6470 linhas (~15%)
 - ✅ **App Factory:** Criado `/app/backend/app_factory.py` com padrão Factory
-- ⏳ **Próximo:** Remover rotas legadas do server.py após validação completa
 - Refatoração do `SchoolsComplete.js`
 - Expansão offline para matrículas
 - Padronização de erros em todos componentes
