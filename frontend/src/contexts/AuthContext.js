@@ -221,6 +221,61 @@ export const AuthProvider = ({ children }) => {
     };
   }, [refreshAccessToken, onRefreshed, addRefreshSubscriber]);
 
+  // PATCH 3.1: Monitora atividade do usuário para idle timeout
+  useEffect(() => {
+    if (!user) return;  // Só monitora se estiver logado
+
+    // Eventos que indicam atividade do usuário
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+    
+    // Handler para eventos de atividade
+    const handleActivity = () => {
+      updateActivity();
+    };
+
+    // Adiciona listeners para todos os eventos de atividade
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    // Inicializa timestamp de atividade
+    updateActivity();
+
+    return () => {
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [user, updateActivity]);
+
+  // PATCH 3.1: Refresh proativo do token enquanto usuário está ativo
+  useEffect(() => {
+    if (!user || !accessToken || isOfflineSession) return;
+
+    // Função para verificar e renovar token
+    const checkAndRefresh = async () => {
+      if (!isUserIdle() && isOnline()) {
+        console.log('[Auth] Renovação proativa do token (usuário ativo)');
+        await refreshAccessToken(false);  // false = não força se inativo
+      } else if (isUserIdle()) {
+        console.log('[Auth] Usuário inativo, pulando renovação proativa');
+      }
+    };
+
+    // Configura intervalo para renovação proativa
+    refreshTimerRef.current = setInterval(checkAndRefresh, TOKEN_REFRESH_INTERVAL_MS);
+
+    // Faz uma renovação inicial após 1 minuto
+    const initialRefresh = setTimeout(checkAndRefresh, 60 * 1000);
+
+    return () => {
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+      }
+      clearTimeout(initialRefresh);
+    };
+  }, [user, accessToken, isOfflineSession, isUserIdle, refreshAccessToken]);
+
   // Carrega usuário ao iniciar
   useEffect(() => {
     const loadUser = async () => {
