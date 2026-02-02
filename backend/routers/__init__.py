@@ -15,6 +15,9 @@ from .enrollments import router as enrollments_router, setup_router as setup_enr
 from .students import router as students_router, setup_students_router
 from .grades import router as grades_router, setup_grades_router
 from .attendance import router as attendance_router, setup_attendance_router
+from .calendar import router as calendar_router, setup_calendar_router
+from .staff import router as staff_router, setup_staff_router
+from .announcements import router as announcements_router, setup_announcements_router
 
 __all__ = [
     'auth_router', 'setup_auth_router',
@@ -26,5 +29,8 @@ __all__ = [
     'enrollments_router', 'setup_enrollments_router',
     'students_router', 'setup_students_router',
     'grades_router', 'setup_grades_router',
-    'attendance_router', 'setup_attendance_router'
+    'attendance_router', 'setup_attendance_router',
+    'calendar_router', 'setup_calendar_router',
+    'staff_router', 'setup_staff_router',
+    'announcements_router', 'setup_announcements_router'
 ]
