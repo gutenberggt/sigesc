@@ -104,760 +104,760 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.on_event("startup")
 async def create_indexes():
-    """Cria índices otimizados no MongoDB durante o startup"""
-    try:
+    # Cria índices otimizados no MongoDB durante o startup"""
+#     try:
         # Índices para students
-        await db.students.create_index("id", unique=True)
-        await db.students.create_index("cpf", sparse=True)
-        await db.students.create_index("school_id")
-        await db.students.create_index("class_id")
-        await db.students.create_index([("full_name", 1)])
+#         await db.students.create_index("id", unique=True)
+#         await db.students.create_index("cpf", sparse=True)
+#         await db.students.create_index("school_id")
+#         await db.students.create_index("class_id")
+#         await db.students.create_index([("full_name", 1)])
         
         # Índices para grades (notas) - muito consultada
-        await db.grades.create_index("id", unique=True)
-        await db.grades.create_index([("student_id", 1), ("academic_year", 1)])
-        await db.grades.create_index([("class_id", 1), ("course_id", 1), ("academic_year", 1)])
-        await db.grades.create_index("student_id")
+#         await db.grades.create_index("id", unique=True)
+#         await db.grades.create_index([("student_id", 1), ("academic_year", 1)])
+#         await db.grades.create_index([("class_id", 1), ("course_id", 1), ("academic_year", 1)])
+#         await db.grades.create_index("student_id")
         
         # Índices para attendance (frequência)
-        await db.attendance.create_index("id", unique=True)
-        await db.attendance.create_index([("class_id", 1), ("date", 1)])
-        await db.attendance.create_index([("class_id", 1), ("academic_year", 1)])
+#         await db.attendance.create_index("id", unique=True)
+#         await db.attendance.create_index([("class_id", 1), ("date", 1)])
+#         await db.attendance.create_index([("class_id", 1), ("academic_year", 1)])
         
         # Índices para enrollments (matrículas)
-        await db.enrollments.create_index("id", unique=True)
-        await db.enrollments.create_index([("student_id", 1), ("academic_year", 1)])
-        await db.enrollments.create_index("school_id")
+#         await db.enrollments.create_index("id", unique=True)
+#         await db.enrollments.create_index([("student_id", 1), ("academic_year", 1)])
+#         await db.enrollments.create_index("school_id")
         
         # Índices para classes (turmas)
-        await db.classes.create_index("id", unique=True)
-        await db.classes.create_index("school_id")
-        await db.classes.create_index([("school_id", 1), ("academic_year", 1)])
+#         await db.classes.create_index("id", unique=True)
+#         await db.classes.create_index("school_id")
+#         await db.classes.create_index([("school_id", 1), ("academic_year", 1)])
         
         # Índices para staff (servidores)
-        await db.staff.create_index("id", unique=True)
-        await db.staff.create_index("email", sparse=True)
-        await db.staff.create_index("cpf", sparse=True)
+#         await db.staff.create_index("id", unique=True)
+#         await db.staff.create_index("email", sparse=True)
+#         await db.staff.create_index("cpf", sparse=True)
         
         # Índices para school_assignments (lotações)
-        await db.school_assignments.create_index("id", unique=True)
-        await db.school_assignments.create_index([("staff_id", 1), ("academic_year", 1)])
-        await db.school_assignments.create_index([("school_id", 1), ("academic_year", 1)])
+#         await db.school_assignments.create_index("id", unique=True)
+#         await db.school_assignments.create_index([("staff_id", 1), ("academic_year", 1)])
+#         await db.school_assignments.create_index([("school_id", 1), ("academic_year", 1)])
         
         # Índices para teacher_assignments (alocações)
-        await db.teacher_assignments.create_index("id", unique=True)
-        await db.teacher_assignments.create_index([("staff_id", 1), ("academic_year", 1)])
-        await db.teacher_assignments.create_index([("class_id", 1), ("course_id", 1)])
+#         await db.teacher_assignments.create_index("id", unique=True)
+#         await db.teacher_assignments.create_index([("staff_id", 1), ("academic_year", 1)])
+#         await db.teacher_assignments.create_index([("class_id", 1), ("course_id", 1)])
         
         # Índices para courses (componentes)
-        await db.courses.create_index("id", unique=True)
-        await db.courses.create_index("nivel_ensino")
+#         await db.courses.create_index("id", unique=True)
+#         await db.courses.create_index("nivel_ensino")
         
         # Índices para schools
-        await db.schools.create_index("id", unique=True)
+#         await db.schools.create_index("id", unique=True)
         
         # Índices para users
-        await db.users.create_index("id", unique=True)
-        await db.users.create_index("email", unique=True)
+#         await db.users.create_index("id", unique=True)
+#         await db.users.create_index("email", unique=True)
         
         # Índices para audit_logs
-        await db.audit_logs.create_index([("timestamp", -1)])
-        await db.audit_logs.create_index("user_id")
-        await db.audit_logs.create_index("collection")
-        await db.audit_logs.create_index([("collection", 1), ("document_id", 1)])
+#         await db.audit_logs.create_index([("timestamp", -1)])
+#         await db.audit_logs.create_index("user_id")
+#         await db.audit_logs.create_index("collection")
+#         await db.audit_logs.create_index([("collection", 1), ("document_id", 1)])
         
         # Índices para medical_certificates (atestados médicos)
-        await db.medical_certificates.create_index("id", unique=True)
-        await db.medical_certificates.create_index("student_id")
-        await db.medical_certificates.create_index([("student_id", 1), ("start_date", 1), ("end_date", 1)])
+#         await db.medical_certificates.create_index("id", unique=True)
+#         await db.medical_certificates.create_index("student_id")
+#         await db.medical_certificates.create_index([("student_id", 1), ("start_date", 1), ("end_date", 1)])
         
-        logger.info("Índices MongoDB criados/verificados com sucesso")
+#         logger.info("Índices MongoDB criados/verificados com sucesso")
         
         # Inicializa o serviço de sandbox
-        await sandbox_service.initialize(client)
+#         await sandbox_service.initialize(client)
         
         # PATCH 3.3: Inicializa o serviço de blacklist de tokens
-        token_blacklist.set_db(db)
-        await token_blacklist.ensure_index()
+#         token_blacklist.set_db(db)
+#         await token_blacklist.ensure_index()
         
-    except Exception as e:
-        logger.error(f"Erro ao criar índices MongoDB: {e}")
+#     except Exception as e:
+#         logger.error(f"Erro ao criar índices MongoDB: {e}")
 
 # Create uploads directory
-UPLOADS_DIR = ROOT_DIR / "uploads"
-UPLOADS_DIR.mkdir(exist_ok=True)
+# UPLOADS_DIR = ROOT_DIR / "uploads"
+# UPLOADS_DIR.mkdir(exist_ok=True)
 
 # PATCH 1.2: Rota de uploads com validação anti-traversal
-@app.get("/api/uploads/{file_path:path}")
-async def serve_upload(file_path: str):
-    """Serve uploaded files com validação de segurança"""
+# @app.get("/api/uploads/{file_path:path}")
+# async def serve_upload(file_path: str):
+#     """Serve uploaded files com validação de segurança"""
     # Validação anti-traversal: rejeita caminhos com ".." ou absolutos
-    if '..' in file_path or file_path.startswith('/') or file_path.startswith('\\'):
-        logger.warning(f"Tentativa de path traversal detectada: {file_path}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Caminho de arquivo inválido"
-        )
+#     if '..' in file_path or file_path.startswith('/') or file_path.startswith('\\'):
+#         logger.warning(f"Tentativa de path traversal detectada: {file_path}")
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail="Caminho de arquivo inválido"
+#         )
     
     # Resolve o caminho e verifica se está dentro do diretório de uploads
-    file_location = (UPLOADS_DIR / file_path).resolve()
-    uploads_resolved = UPLOADS_DIR.resolve()
+#     file_location = (UPLOADS_DIR / file_path).resolve()
+#     uploads_resolved = UPLOADS_DIR.resolve()
     
     # Verifica se o arquivo está realmente dentro do diretório de uploads
-    try:
-        file_location.relative_to(uploads_resolved)
-    except ValueError:
-        logger.warning(f"Tentativa de acesso fora do diretório de uploads: {file_path}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Acesso negado"
-        )
+#     try:
+#         file_location.relative_to(uploads_resolved)
+#     except ValueError:
+#         logger.warning(f"Tentativa de acesso fora do diretório de uploads: {file_path}")
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail="Acesso negado"
+#         )
     
-    if file_location.exists() and file_location.is_file():
+#     if file_location.exists() and file_location.is_file():
         # Determine content type
-        suffix = file_location.suffix.lower()
-        content_types = {
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.png': 'image/png',
-            '.gif': 'image/gif',
-            '.webp': 'image/webp',
-            '.pdf': 'application/pdf',
-        }
-        content_type = content_types.get(suffix, 'application/octet-stream')
-        return FileResponse(str(file_location), media_type=content_type)
-    raise HTTPException(status_code=404, detail="File not found")
+#         suffix = file_location.suffix.lower()
+#         content_types = {
+#             '.jpg': 'image/jpeg',
+#             '.jpeg': 'image/jpeg',
+#             '.png': 'image/png',
+#             '.gif': 'image/gif',
+#             '.webp': 'image/webp',
+#             '.pdf': 'application/pdf',
+#         }
+#         content_type = content_types.get(suffix, 'application/octet-stream')
+#         return FileResponse(str(file_location), media_type=content_type)
+#     raise HTTPException(status_code=404, detail="File not found")
 
 # Mount static files directory for backups
-STATIC_DIR = ROOT_DIR / "static"
-STATIC_DIR.mkdir(exist_ok=True)
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+# STATIC_DIR = ROOT_DIR / "static"
+# STATIC_DIR.mkdir(exist_ok=True)
+# app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Create a router with the /api prefix
-api_router = APIRouter(prefix="/api")
+# api_router = APIRouter(prefix="/api")
 
 # Helper para obter o banco de dados correto (produção ou sandbox)
-def get_db_for_user(user: dict):
-    """Retorna o banco de dados correto baseado no usuário"""
-    if user.get('is_sandbox') or user.get('role') == 'admin_teste':
-        return sandbox_db
-    return db
+# def get_db_for_user(user: dict):
+#     """Retorna o banco de dados correto baseado no usuário"""
+#     if user.get('is_sandbox') or user.get('role') == 'admin_teste':
+#         return sandbox_db
+#     return db
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# )
+# logger = logging.getLogger(__name__)
 
 # PATCH 1.1: Rotas de backup DESATIVADAS por segurança
 # Para reativar em ambiente controlado, defina ENABLE_BACKUP_DOWNLOAD=true no .env
-ENABLE_BACKUP_DOWNLOAD = os.environ.get('ENABLE_BACKUP_DOWNLOAD', 'false').lower() == 'true'
+# ENABLE_BACKUP_DOWNLOAD = os.environ.get('ENABLE_BACKUP_DOWNLOAD', 'false').lower() == 'true'
 
-@app.get("/api/download-backup")
-async def download_backup(request: Request):
-    """Download database backup file - RESTRITO"""
-    if not ENABLE_BACKUP_DOWNLOAD:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Download de backup desativado por segurança. Contate o administrador."
-        )
+# @app.get("/api/download-backup")
+# async def download_backup(request: Request):
+#     """Download database backup file - RESTRITO"""
+#     if not ENABLE_BACKUP_DOWNLOAD:
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail="Download de backup desativado por segurança. Contate o administrador."
+#         )
     
     # Requer autenticação de admin
-    current_user = await AuthMiddleware.require_roles(['admin'])(request)
+#     current_user = await AuthMiddleware.require_roles(['admin'])(request)
     
-    backup_path = STATIC_DIR / "backup_sigesc.tar.gz"
-    if backup_path.exists():
-        return FileResponse(
-            path=str(backup_path),
-            filename="backup_sigesc.tar.gz",
-            media_type="application/gzip"
-        )
-    return {"error": "Backup file not found"}
+#     backup_path = STATIC_DIR / "backup_sigesc.tar.gz"
+#     if backup_path.exists():
+#         return FileResponse(
+#             path=str(backup_path),
+#             filename="backup_sigesc.tar.gz",
+#             media_type="application/gzip"
+#         )
+#     return {"error": "Backup file not found"}
 
-@app.get("/api/download-uploads")
-async def download_uploads(request: Request):
-    """Download uploads backup file - RESTRITO"""
-    if not ENABLE_BACKUP_DOWNLOAD:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Download de backup desativado por segurança. Contate o administrador."
-        )
+# @app.get("/api/download-uploads")
+# async def download_uploads(request: Request):
+#     """Download uploads backup file - RESTRITO"""
+#     if not ENABLE_BACKUP_DOWNLOAD:
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail="Download de backup desativado por segurança. Contate o administrador."
+#         )
     
     # Requer autenticação de admin
-    current_user = await AuthMiddleware.require_roles(['admin'])(request)
+#     current_user = await AuthMiddleware.require_roles(['admin'])(request)
     
-    backup_path = STATIC_DIR / "uploads_backup.tar.gz"
-    if backup_path.exists():
-        return FileResponse(
-            path=str(backup_path),
-            filename="uploads_backup.tar.gz",
-            media_type="application/gzip"
-        )
-    return {"error": "Uploads backup file not found"}
+#     backup_path = STATIC_DIR / "uploads_backup.tar.gz"
+#     if backup_path.exists():
+#         return FileResponse(
+#             path=str(backup_path),
+#             filename="uploads_backup.tar.gz",
+#             media_type="application/gzip"
+#         )
+#     return {"error": "Uploads backup file not found"}
 
 # ============= WEBSOCKET CONNECTION MANAGER =============
 
-class ConnectionManager:
-    """Gerenciador de conexões WebSocket para mensagens em tempo real"""
+# class ConnectionManager:
+#     """Gerenciador de conexões WebSocket para mensagens em tempo real"""
     
-    def __init__(self):
+#     def __init__(self):
         # Mapeia user_id -> lista de WebSocket connections
-        self.active_connections: Dict[str, List[WebSocket]] = {}
+#         self.active_connections: Dict[str, List[WebSocket]] = {}
     
-    async def connect(self, websocket: WebSocket, user_id: str):
-        """Aceita nova conexão WebSocket"""
-        await websocket.accept()
-        if user_id not in self.active_connections:
-            self.active_connections[user_id] = []
-        self.active_connections[user_id].append(websocket)
-        logger.info(f"WebSocket conectado: user_id={user_id}")
+#     async def connect(self, websocket: WebSocket, user_id: str):
+#         """Aceita nova conexão WebSocket"""
+#         await websocket.accept()
+#         if user_id not in self.active_connections:
+#             self.active_connections[user_id] = []
+#         self.active_connections[user_id].append(websocket)
+#         logger.info(f"WebSocket conectado: user_id={user_id}")
     
-    def disconnect(self, websocket: WebSocket, user_id: str):
-        """Remove conexão WebSocket"""
-        if user_id in self.active_connections:
-            if websocket in self.active_connections[user_id]:
-                self.active_connections[user_id].remove(websocket)
-            if not self.active_connections[user_id]:
-                del self.active_connections[user_id]
-        logger.info(f"WebSocket desconectado: user_id={user_id}")
+#     def disconnect(self, websocket: WebSocket, user_id: str):
+#         """Remove conexão WebSocket"""
+#         if user_id in self.active_connections:
+#             if websocket in self.active_connections[user_id]:
+#                 self.active_connections[user_id].remove(websocket)
+#             if not self.active_connections[user_id]:
+#                 del self.active_connections[user_id]
+#         logger.info(f"WebSocket desconectado: user_id={user_id}")
     
-    async def send_message(self, user_id: str, message: dict):
-        """Envia mensagem para um usuário específico"""
-        if user_id in self.active_connections:
-            disconnected = []
-            for connection in self.active_connections[user_id]:
-                try:
-                    await connection.send_json(message)
-                except Exception as e:
-                    logger.error(f"Erro ao enviar mensagem WebSocket: {e}")
-                    disconnected.append(connection)
+#     async def send_message(self, user_id: str, message: dict):
+#         """Envia mensagem para um usuário específico"""
+#         if user_id in self.active_connections:
+#             disconnected = []
+#             for connection in self.active_connections[user_id]:
+#                 try:
+#                     await connection.send_json(message)
+#                 except Exception as e:
+#                     logger.error(f"Erro ao enviar mensagem WebSocket: {e}")
+#                     disconnected.append(connection)
             # Remover conexões falhas
-            for conn in disconnected:
-                self.active_connections[user_id].remove(conn)
+#             for conn in disconnected:
+#                 self.active_connections[user_id].remove(conn)
     
-    async def send_notification(self, user_id: str, notification: dict):
-        """Envia notificação para um usuário"""
-        await self.send_message(user_id, notification)
+#     async def send_notification(self, user_id: str, notification: dict):
+#         """Envia notificação para um usuário"""
+#         await self.send_message(user_id, notification)
     
-    async def broadcast(self, message: dict, exclude_user_id: str = None):
-        """Envia mensagem para todos os usuários conectados"""
-        for user_id, connections in self.active_connections.items():
-            if user_id != exclude_user_id:
-                await self.send_message(user_id, message)
+#     async def broadcast(self, message: dict, exclude_user_id: str = None):
+#         """Envia mensagem para todos os usuários conectados"""
+#         for user_id, connections in self.active_connections.items():
+#             if user_id != exclude_user_id:
+#                 await self.send_message(user_id, message)
 
 # Instância global do gerenciador de conexões
-connection_manager = ConnectionManager()
+# connection_manager = ConnectionManager()
 
 # ============= ACADEMIC YEAR STATUS VERIFICATION =============
 
-async def check_academic_year_open(school_id: str, academic_year: int) -> bool:
-    """
-    Verifica se o ano letivo está aberto para uma escola específica.
-    Retorna True se o ano está aberto ou não configurado, False se está fechado.
-    """
-    school = await db.schools.find_one(
-        {"id": school_id},
-        {"_id": 0, "anos_letivos": 1}
-    )
+# async def check_academic_year_open(school_id: str, academic_year: int) -> bool:
+#     """
+#     Verifica se o ano letivo está aberto para uma escola específica.
+#     Retorna True se o ano está aberto ou não configurado, False se está fechado.
+#     """
+#     school = await db.schools.find_one(
+#         {"id": school_id},
+#         {"_id": 0, "anos_letivos": 1}
+#     )
     
-    if not school or not school.get('anos_letivos'):
-        return True  # Se não há configuração, permite edição
+#     if not school or not school.get('anos_letivos'):
+#         return True  # Se não há configuração, permite edição
     
-    year_config = school['anos_letivos'].get(str(academic_year))
-    if not year_config:
-        return True  # Se o ano não está configurado, permite edição
+#     year_config = school['anos_letivos'].get(str(academic_year))
+#     if not year_config:
+#         return True  # Se o ano não está configurado, permite edição
     
-    return year_config.get('status', 'aberto') != 'fechado'
+#     return year_config.get('status', 'aberto') != 'fechado'
 
-async def verify_academic_year_open_or_raise(school_id: str, academic_year: int):
-    """
-    Verifica se o ano letivo está aberto e lança exceção se estiver fechado.
-    """
-    is_open = await check_academic_year_open(school_id, academic_year)
-    if not is_open:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"O ano letivo {academic_year} está fechado para esta escola. Não é possível fazer alterações."
-        )
+# async def verify_academic_year_open_or_raise(school_id: str, academic_year: int):
+#     """
+#     Verifica se o ano letivo está aberto e lança exceção se estiver fechado.
+#     """
+#     is_open = await check_academic_year_open(school_id, academic_year)
+#     if not is_open:
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail=f"O ano letivo {academic_year} está fechado para esta escola. Não é possível fazer alterações."
+#         )
 
-async def check_bimestre_edit_deadline(academic_year: int, bimestre: int = None) -> dict:
-    """
-    Verifica se a data limite de edição do bimestre foi ultrapassada.
-    Se bimestre não for especificado, verifica todos os bimestres.
+# async def check_bimestre_edit_deadline(academic_year: int, bimestre: int = None) -> dict:
+#     """
+#     Verifica se a data limite de edição do bimestre foi ultrapassada.
+#     Se bimestre não for especificado, verifica todos os bimestres.
     
-    Retorna:
-        {
-            "can_edit": bool,
-            "bimestre": int or None,
-            "data_limite": str or None,
-            "message": str
-        }
-    """
-    from datetime import date
+#     Retorna:
+#         {
+#             "can_edit": bool,
+#             "bimestre": int or None,
+#             "data_limite": str or None,
+#             "message": str
+#         }
+#     """
+#     from datetime import date
     
-    today = date.today().isoformat()
+#     today = date.today().isoformat()
     
     # Busca o calendário letivo do ano
-    calendario = await db.calendario_letivo.find_one(
-        {"ano_letivo": academic_year},
-        {"_id": 0}
-    )
+#     calendario = await db.calendario_letivo.find_one(
+#         {"ano_letivo": academic_year},
+#         {"_id": 0}
+#     )
     
-    if not calendario:
-        return {"can_edit": True, "bimestre": None, "data_limite": None, "message": "Calendário letivo não configurado"}
+#     if not calendario:
+#         return {"can_edit": True, "bimestre": None, "data_limite": None, "message": "Calendário letivo não configurado"}
     
     # Se bimestre específico
-    if bimestre:
-        data_limite = calendario.get(f"bimestre_{bimestre}_data_limite")
-        if not data_limite:
-            return {"can_edit": True, "bimestre": bimestre, "data_limite": None, "message": f"Data limite do {bimestre}º bimestre não configurada"}
+#     if bimestre:
+#         data_limite = calendario.get(f"bimestre_{bimestre}_data_limite")
+#         if not data_limite:
+#             return {"can_edit": True, "bimestre": bimestre, "data_limite": None, "message": f"Data limite do {bimestre}º bimestre não configurada"}
         
-        if today > data_limite:
-            return {
-                "can_edit": False, 
-                "bimestre": bimestre, 
-                "data_limite": data_limite,
-                "message": f"O prazo para edição do {bimestre}º bimestre encerrou em {data_limite}"
-            }
-        return {"can_edit": True, "bimestre": bimestre, "data_limite": data_limite, "message": "Dentro do prazo"}
+#         if today > data_limite:
+#             return {
+#                 "can_edit": False, 
+#                 "bimestre": bimestre, 
+#                 "data_limite": data_limite,
+#                 "message": f"O prazo para edição do {bimestre}º bimestre encerrou em {data_limite}"
+#             }
+#         return {"can_edit": True, "bimestre": bimestre, "data_limite": data_limite, "message": "Dentro do prazo"}
     
     # Verifica todos os bimestres e retorna o bimestre atual baseado na data
-    for i in range(1, 5):
-        inicio = calendario.get(f"bimestre_{i}_inicio")
-        fim = calendario.get(f"bimestre_{i}_fim")
-        data_limite = calendario.get(f"bimestre_{i}_data_limite")
+#     for i in range(1, 5):
+#         inicio = calendario.get(f"bimestre_{i}_inicio")
+#         fim = calendario.get(f"bimestre_{i}_fim")
+#         data_limite = calendario.get(f"bimestre_{i}_data_limite")
         
-        if inicio and fim and today >= inicio and today <= fim:
+#         if inicio and fim and today >= inicio and today <= fim:
             # Estamos dentro deste bimestre
-            if data_limite and today > data_limite:
-                return {
-                    "can_edit": False,
-                    "bimestre": i,
-                    "data_limite": data_limite,
-                    "message": f"O prazo para edição do {i}º bimestre encerrou em {data_limite}"
-                }
-            return {"can_edit": True, "bimestre": i, "data_limite": data_limite, "message": "Dentro do prazo"}
+#             if data_limite and today > data_limite:
+#                 return {
+#                     "can_edit": False,
+#                     "bimestre": i,
+#                     "data_limite": data_limite,
+#                     "message": f"O prazo para edição do {i}º bimestre encerrou em {data_limite}"
+#                 }
+#             return {"can_edit": True, "bimestre": i, "data_limite": data_limite, "message": "Dentro do prazo"}
     
-    return {"can_edit": True, "bimestre": None, "data_limite": None, "message": "Fora do período letivo"}
+#     return {"can_edit": True, "bimestre": None, "data_limite": None, "message": "Fora do período letivo"}
 
-async def verify_bimestre_edit_deadline_or_raise(academic_year: int, bimestre: int, user_role: str):
-    """
-    Verifica se pode editar notas/frequência do bimestre e lança exceção se não puder.
-    Admin e secretário podem editar mesmo após a data limite.
-    """
+# async def verify_bimestre_edit_deadline_or_raise(academic_year: int, bimestre: int, user_role: str):
+#     """
+#     Verifica se pode editar notas/frequência do bimestre e lança exceção se não puder.
+#     Admin e secretário podem editar mesmo após a data limite.
+#     """
     # Admin e secretário podem sempre editar
-    if user_role in ['admin', 'secretario']:
-        return True
+#     if user_role in ['admin', 'secretario']:
+#         return True
     
-    check = await check_bimestre_edit_deadline(academic_year, bimestre)
+#     check = await check_bimestre_edit_deadline(academic_year, bimestre)
     
-    if not check["can_edit"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=check["message"]
-        )
+#     if not check["can_edit"]:
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail=check["message"]
+#         )
     
-    return True
+#     return True
 
 # Hierarquia de roles (maior valor = maior permissão)
-ROLE_HIERARCHY = {
-    'diretor': 5,
-    'coordenador': 4,
-    'secretario': 3,
-    'professor': 2,
-    'aluno': 1,
-    'responsavel': 1
-}
+# ROLE_HIERARCHY = {
+#     'diretor': 5,
+#     'coordenador': 4,
+#     'secretario': 3,
+#     'professor': 2,
+#     'aluno': 1,
+#     'responsavel': 1
+# }
 
-async def get_effective_role_from_lotacoes(user_email: str, base_role: str) -> tuple:
-    """
-    Determina o role efetivo do usuário baseado nas suas lotações.
-    Retorna (effective_role, school_links)
+# async def get_effective_role_from_lotacoes(user_email: str, base_role: str) -> tuple:
+#     """
+#     Determina o role efetivo do usuário baseado nas suas lotações.
+#     Retorna (effective_role, school_links)
     
-    Hierarquia: diretor > coordenador > secretario > professor
-    """
+#     Hierarquia: diretor > coordenador > secretario > professor
+#     """
     # Busca servidor vinculado ao email do usuário
-    staff = await db.staff.find_one(
-        {"email": {"$regex": f"^{user_email}$", "$options": "i"}},
-        {"_id": 0, "id": 1, "nome": 1, "full_name": 1}
-    )
+#     staff = await db.staff.find_one(
+#         {"email": {"$regex": f"^{user_email}$", "$options": "i"}},
+#         {"_id": 0, "id": 1, "nome": 1, "full_name": 1}
+#     )
     
-    if not staff:
+#     if not staff:
         # Tenta buscar pelo user_id
-        user = await db.users.find_one({"email": user_email}, {"_id": 0, "id": 1, "full_name": 1})
-        if user:
-            staff = await db.staff.find_one(
-                {"user_id": user['id']},
-                {"_id": 0, "id": 1, "nome": 1, "full_name": 1}
-            )
+#         user = await db.users.find_one({"email": user_email}, {"_id": 0, "id": 1, "full_name": 1})
+#         if user:
+#             staff = await db.staff.find_one(
+#                 {"user_id": user['id']},
+#                 {"_id": 0, "id": 1, "nome": 1, "full_name": 1}
+#             )
     
-    if not staff:
-        return base_role, []
+#     if not staff:
+#         return base_role, []
     
     # Busca todas as lotações ativas do servidor
-    lotacoes = await db.school_assignments.find(
-        {"staff_id": staff['id'], "status": "ativo"},
-        {"_id": 0, "school_id": 1, "funcao": 1}
-    ).to_list(100)
+#     lotacoes = await db.school_assignments.find(
+#         {"staff_id": staff['id'], "status": "ativo"},
+#         {"_id": 0, "school_id": 1, "funcao": 1}
+#     ).to_list(100)
     
-    if not lotacoes:
-        return base_role, []
+#     if not lotacoes:
+#         return base_role, []
     
     # Determina o role de maior hierarquia e coleta school_links
-    highest_role = base_role
-    highest_priority = ROLE_HIERARCHY.get(base_role, 0)
+#     highest_role = base_role
+#     highest_priority = ROLE_HIERARCHY.get(base_role, 0)
     
     # Agrupa lotações por escola
-    school_roles = {}
-    for lotacao in lotacoes:
-        funcao = lotacao.get('funcao', 'professor')
-        school_id = lotacao.get('school_id')
+#     school_roles = {}
+#     for lotacao in lotacoes:
+#         funcao = lotacao.get('funcao', 'professor')
+#         school_id = lotacao.get('school_id')
         
-        if school_id not in school_roles:
-            school_roles[school_id] = []
-        school_roles[school_id].append(funcao)
+#         if school_id not in school_roles:
+#             school_roles[school_id] = []
+#         school_roles[school_id].append(funcao)
         
         # Verifica se é o role de maior hierarquia
-        role_priority = ROLE_HIERARCHY.get(funcao, 0)
-        if role_priority > highest_priority:
-            highest_priority = role_priority
-            highest_role = funcao
+#         role_priority = ROLE_HIERARCHY.get(funcao, 0)
+#         if role_priority > highest_priority:
+#             highest_priority = role_priority
+#             highest_role = funcao
     
     # Monta school_links no formato correto (SchoolLink)
-    school_links = [
-        {
-            "school_id": school_id,
-            "roles": roles,
-            "class_ids": []
-        }
-        for school_id, roles in school_roles.items()
-    ]
+#     school_links = [
+#         {
+#             "school_id": school_id,
+#             "roles": roles,
+#             "class_ids": []
+#         }
+#         for school_id, roles in school_roles.items()
+#     ]
     
-    return highest_role, school_links
+#     return highest_role, school_links
 
 # ============= AUTH ROUTES =============
 
-@api_router.post("/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserCreate):
-    """Registra novo usuário"""
+# @api_router.post("/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+# async def register(user_data: UserCreate):
+#     """Registra novo usuário"""
     # Verifica se email já existe
-    existing_user = await db.users.find_one({"email": user_data.email})
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email já cadastrado"
-        )
+#     existing_user = await db.users.find_one({"email": user_data.email})
+#     if existing_user:
+#         raise HTTPException(
+#             status_code=status.HTTP_400_BAD_REQUEST,
+#             detail="Email já cadastrado"
+#         )
     
     # Cria usuário
-    user_dict = user_data.model_dump(exclude={'password'})
-    user_obj = UserInDB(
-        **user_dict,
-        password_hash=hash_password(user_data.password)
-    )
+#     user_dict = user_data.model_dump(exclude={'password'})
+#     user_obj = UserInDB(
+#         **user_dict,
+#         password_hash=hash_password(user_data.password)
+#     )
     
     # Salva no banco
-    doc = user_obj.model_dump()
-    doc['created_at'] = doc['created_at'].isoformat()
+#     doc = user_obj.model_dump()
+#     doc['created_at'] = doc['created_at'].isoformat()
     
-    await db.users.insert_one(doc)
+#     await db.users.insert_one(doc)
     
     # Retorna sem password_hash
-    return UserResponse(**user_obj.model_dump(exclude={'password_hash'}))
+#     return UserResponse(**user_obj.model_dump(exclude={'password_hash'}))
 
-@api_router.post("/auth/login", response_model=TokenResponse)
-@limiter.limit("5/minute")
-async def login(credentials: LoginRequest, request: Request):
-    """Autentica usuário e retorna tokens. Rate limited: 5 tentativas por minuto."""
+# @api_router.post("/auth/login", response_model=TokenResponse)
+# @limiter.limit("5/minute")
+# async def login(credentials: LoginRequest, request: Request):
+#     """Autentica usuário e retorna tokens. Rate limited: 5 tentativas por minuto."""
     
     # Verifica se é login de teste (email com sufixo +teste)
-    email = credentials.email
-    is_sandbox_login = '+teste@' in email
+#     email = credentials.email
+#     is_sandbox_login = '+teste@' in email
     
-    if is_sandbox_login:
+#     if is_sandbox_login:
         # Remove o sufixo +teste para buscar o usuário real
         # Ex: gutenberg+teste@sigesc.com -> gutenberg@sigesc.com
-        email = email.replace('+teste@', '@')
+#         email = email.replace('+teste@', '@')
     
     # Busca usuário no banco de produção
-    user_doc = await db.users.find_one({"email": email}, {"_id": 0})
+#     user_doc = await db.users.find_one({"email": email}, {"_id": 0})
     
-    if not user_doc:
+#     if not user_doc:
         # Registra tentativa de login falhada
-        await audit_service.log(
-            action='login',
-            collection='users',
-            user={'id': 'unknown', 'email': credentials.email, 'role': 'unknown'},
-            request=request,
-            description=f"Tentativa de login falhada - usuário não encontrado: {credentials.email}"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos"
-        )
+#         await audit_service.log(
+#             action='login',
+#             collection='users',
+#             user={'id': 'unknown', 'email': credentials.email, 'role': 'unknown'},
+#             request=request,
+#             description=f"Tentativa de login falhada - usuário não encontrado: {credentials.email}"
+#         )
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Email ou senha incorretos"
+#         )
     
-    user = UserInDB(**user_doc)
+#     user = UserInDB(**user_doc)
     
     # Verifica se o usuário é admin para poder usar modo teste
-    if is_sandbox_login and user.role != 'admin':
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Apenas administradores podem usar o modo teste"
-        )
+#     if is_sandbox_login and user.role != 'admin':
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail="Apenas administradores podem usar o modo teste"
+#         )
     
     # Verifica senha
-    if not verify_password(credentials.password, user.password_hash):
+#     if not verify_password(credentials.password, user.password_hash):
         # Registra tentativa de login falhada
-        await audit_service.log(
-            action='login',
-            collection='users',
-            user={'id': user.id, 'email': user.email, 'role': user.role},
-            request=request,
-            description=f"Tentativa de login falhada - senha incorreta: {credentials.email}"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou senha incorretos"
-        )
+#         await audit_service.log(
+#             action='login',
+#             collection='users',
+#             user={'id': user.id, 'email': user.email, 'role': user.role},
+#             request=request,
+#             description=f"Tentativa de login falhada - senha incorreta: {credentials.email}"
+#         )
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Email ou senha incorretos"
+#         )
     
     # Verifica se usuário está ativo
-    if user.status != 'active':
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuário inativo"
-        )
+#     if user.status != 'active':
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail="Usuário inativo"
+#         )
     
     # Determina role efetivo
-    effective_role = user.role
-    effective_school_links = user.school_links or []
+#     effective_role = user.role
+#     effective_school_links = user.school_links or []
     
     # Se for login de teste, muda o role para admin_teste
-    if is_sandbox_login:
-        effective_role = 'admin_teste'
-        logger.info(f"[Sandbox] Login de teste realizado: {user.email}")
-    elif user.role in ['professor', 'secretario', 'coordenador', 'diretor']:
-        effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.email, user.role)
+#     if is_sandbox_login:
+#         effective_role = 'admin_teste'
+#         logger.info(f"[Sandbox] Login de teste realizado: {user.email}")
+#     elif user.role in ['professor', 'secretario', 'coordenador', 'diretor']:
+#         effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.email, user.role)
         
         # Usa school_links das lotações se existirem, senão usa os do cadastro
-        if lotacao_school_links:
-            effective_school_links = lotacao_school_links
+#         if lotacao_school_links:
+#             effective_school_links = lotacao_school_links
     
     # Cria tokens com role efetivo
-    school_ids = [link.get('school_id') for link in effective_school_links if link.get('school_id')]
-    token_data = {
-        "sub": user.id,
-        "email": user.email,
-        "role": effective_role,
-        "school_ids": school_ids,
-        "is_sandbox": is_sandbox_login  # Flag para identificar modo sandbox
-    }
+#     school_ids = [link.get('school_id') for link in effective_school_links if link.get('school_id')]
+#     token_data = {
+#         "sub": user.id,
+#         "email": user.email,
+#         "role": effective_role,
+#         "school_ids": school_ids,
+#         "is_sandbox": is_sandbox_login  # Flag para identificar modo sandbox
+#     }
     
-    access_token = create_access_token(token_data)
-    refresh_token = create_refresh_token({"sub": user.id})
+#     access_token = create_access_token(token_data)
+#     refresh_token = create_refresh_token({"sub": user.id})
     
     # Registra login bem sucedido
-    await audit_service.log(
-        action='login',
-        collection='users',
-        user={'id': user.id, 'email': user.email, 'role': effective_role, 'full_name': user.full_name},
-        request=request,
-        document_id=user.id,
-        description=f"Login realizado: {user.full_name}" + (" (MODO TESTE)" if is_sandbox_login else "")
-    )
+#     await audit_service.log(
+#         action='login',
+#         collection='users',
+#         user={'id': user.id, 'email': user.email, 'role': effective_role, 'full_name': user.full_name},
+#         request=request,
+#         document_id=user.id,
+#         description=f"Login realizado: {user.full_name}" + (" (MODO TESTE)" if is_sandbox_login else "")
+#     )
     
     # Retorna usuário com role efetivo
-    user_response_data = user.model_dump(exclude={'password_hash'})
-    user_response_data['role'] = effective_role
-    user_response_data['school_links'] = effective_school_links
+#     user_response_data = user.model_dump(exclude={'password_hash'})
+#     user_response_data['role'] = effective_role
+#     user_response_data['school_links'] = effective_school_links
     
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        user=UserResponse(**user_response_data)
-    )
+#     return TokenResponse(
+#         access_token=access_token,
+#         refresh_token=refresh_token,
+#         user=UserResponse(**user_response_data)
+#     )
 
-@api_router.post("/auth/refresh", response_model=TokenResponse)
-async def refresh_token(refresh_request: RefreshTokenRequest):
-    """
-    Renova access token usando refresh token.
-    PATCH 3.2: Implementa rotação de tokens - o refresh token antigo é revogado.
-    PATCH 3.3: Verifica blacklist antes de aceitar o token.
-    """
-    payload = decode_token(refresh_request.refresh_token)
+# @api_router.post("/auth/refresh", response_model=TokenResponse)
+# async def refresh_token(refresh_request: RefreshTokenRequest):
+#     """
+#     Renova access token usando refresh token.
+#     PATCH 3.2: Implementa rotação de tokens - o refresh token antigo é revogado.
+#     PATCH 3.3: Verifica blacklist antes de aceitar o token.
+#     """
+#     payload = decode_token(refresh_request.refresh_token)
     
-    if not payload or payload.get('type') != 'refresh':
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token inválido"
-        )
+#     if not payload or payload.get('type') != 'refresh':
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Refresh token inválido"
+#         )
     
-    user_id = payload.get('sub')
-    token_jti = payload.get('jti')  # PATCH 3.2: ID único do token
-    token_iat = payload.get('iat')  # PATCH 3.3: Timestamp de criação
+#     user_id = payload.get('sub')
+#     token_jti = payload.get('jti')  # PATCH 3.2: ID único do token
+#     token_iat = payload.get('iat')  # PATCH 3.3: Timestamp de criação
     
     # PATCH 3.3: Verifica se o token foi revogado
-    if await token_blacklist.is_token_revoked(jti=token_jti, user_id=user_id, issued_at=token_iat):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token revogado. Faça login novamente."
-        )
+#     if await token_blacklist.is_token_revoked(jti=token_jti, user_id=user_id, issued_at=token_iat):
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Token revogado. Faça login novamente."
+#         )
     
-    user_doc = await db.users.find_one({"id": user_id}, {"_id": 0})
+#     user_doc = await db.users.find_one({"id": user_id}, {"_id": 0})
     
-    if not user_doc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário não encontrado"
-        )
+#     if not user_doc:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Usuário não encontrado"
+#         )
     
-    user = UserInDB(**user_doc)
+#     user = UserInDB(**user_doc)
     
-    if user.status != 'active':
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuário inativo"
-        )
+#     if user.status != 'active':
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail="Usuário inativo"
+#         )
     
     # PATCH 3.2: Revoga o refresh token atual (rotação)
-    if token_jti:
-        token_exp = payload.get('exp')
-        if token_exp:
-            from datetime import datetime, timezone
-            exp_datetime = datetime.fromtimestamp(token_exp, tz=timezone.utc)
-            await token_blacklist.revoke_token(
-                jti=token_jti,
-                user_id=user_id,
-                expires_at=exp_datetime,
-                reason='token_rotation'
-            )
+#     if token_jti:
+#         token_exp = payload.get('exp')
+#         if token_exp:
+#             from datetime import datetime, timezone
+#             exp_datetime = datetime.fromtimestamp(token_exp, tz=timezone.utc)
+#             await token_blacklist.revoke_token(
+#                 jti=token_jti,
+#                 user_id=user_id,
+#                 expires_at=exp_datetime,
+#                 reason='token_rotation'
+#             )
     
     # Determina role efetivo baseado nas lotações
-    effective_role = user.role
-    effective_school_links = user.school_links or []
+#     effective_role = user.role
+#     effective_school_links = user.school_links or []
     
-    if user.role in ['professor', 'secretario', 'coordenador', 'diretor']:
-        effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.email, user.role)
-        if lotacao_school_links:
-            effective_school_links = lotacao_school_links
+#     if user.role in ['professor', 'secretario', 'coordenador', 'diretor']:
+#         effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.email, user.role)
+#         if lotacao_school_links:
+#             effective_school_links = lotacao_school_links
     
     # Cria novos tokens com role efetivo
-    school_ids = [link.get('school_id') for link in effective_school_links if link.get('school_id')]
-    token_data = {
-        "sub": user.id,
-        "email": user.email,
-        "role": effective_role,
-        "school_ids": school_ids
-    }
+#     school_ids = [link.get('school_id') for link in effective_school_links if link.get('school_id')]
+#     token_data = {
+#         "sub": user.id,
+#         "email": user.email,
+#         "role": effective_role,
+#         "school_ids": school_ids
+#     }
     
-    access_token = create_access_token(token_data)
-    new_refresh_token = create_refresh_token({"sub": user.id})  # PATCH 3.2: Novo refresh token com novo jti
+#     access_token = create_access_token(token_data)
+#     new_refresh_token = create_refresh_token({"sub": user.id})  # PATCH 3.2: Novo refresh token com novo jti
     
     # Retorna usuário com role efetivo
-    user_response_data = user.model_dump(exclude={'password_hash'})
-    user_response_data['role'] = effective_role
-    user_response_data['school_links'] = effective_school_links
+#     user_response_data = user.model_dump(exclude={'password_hash'})
+#     user_response_data['role'] = effective_role
+#     user_response_data['school_links'] = effective_school_links
     
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=new_refresh_token,
-        user=UserResponse(**user_response_data)
-    )
+#     return TokenResponse(
+#         access_token=access_token,
+#         refresh_token=new_refresh_token,
+#         user=UserResponse(**user_response_data)
+#     )
 
 
 # PATCH 3.3: Endpoint de logout para revogar tokens
-@api_router.post("/auth/logout")
-async def logout(request: Request):
-    """
-    Revoga o refresh token atual do usuário.
-    PATCH 3.3: Implementa logout seguro com revogação de token.
-    """
-    current_user = await AuthMiddleware.get_current_user(request)
+# @api_router.post("/auth/logout")
+# async def logout(request: Request):
+#     """
+#     Revoga o refresh token atual do usuário.
+#     PATCH 3.3: Implementa logout seguro com revogação de token.
+#     """
+#     current_user = await AuthMiddleware.get_current_user(request)
     
     # Tenta extrair o refresh token do body se fornecido
-    try:
-        body = await request.json()
-        refresh_token = body.get('refresh_token')
+#     try:
+#         body = await request.json()
+#         refresh_token = body.get('refresh_token')
         
-        if refresh_token:
-            payload = decode_token(refresh_token)
-            if payload and payload.get('jti'):
-                token_exp = payload.get('exp')
-                exp_datetime = datetime.fromtimestamp(token_exp, tz=timezone.utc) if token_exp else datetime.now(timezone.utc) + timedelta(days=7)
+#         if refresh_token:
+#             payload = decode_token(refresh_token)
+#             if payload and payload.get('jti'):
+#                 token_exp = payload.get('exp')
+#                 exp_datetime = datetime.fromtimestamp(token_exp, tz=timezone.utc) if token_exp else datetime.now(timezone.utc) + timedelta(days=7)
                 
-                await token_blacklist.revoke_token(
-                    jti=payload.get('jti'),
-                    user_id=current_user['id'],
-                    expires_at=exp_datetime,
-                    reason='user_logout'
-                )
-    except:
-        pass  # Body vazio ou sem refresh_token - ok
+#                 await token_blacklist.revoke_token(
+#                     jti=payload.get('jti'),
+#                     user_id=current_user['id'],
+#                     expires_at=exp_datetime,
+#                     reason='user_logout'
+#                 )
+#     except:
+#         pass  # Body vazio ou sem refresh_token - ok
     
     # Registra logout
-    await audit_service.log(
-        action='logout',
-        collection='users',
-        user=current_user,
-        request=request,
-        document_id=current_user['id'],
-        description=f"Logout realizado"
-    )
+#     await audit_service.log(
+#         action='logout',
+#         collection='users',
+#         user=current_user,
+#         request=request,
+#         document_id=current_user['id'],
+#         description=f"Logout realizado"
+#     )
     
-    return {"message": "Logout realizado com sucesso"}
+#     return {"message": "Logout realizado com sucesso"}
 
 
 # PATCH 3.3: Endpoint para revogar todas as sessões
-@api_router.post("/auth/logout-all")
-async def logout_all_sessions(request: Request):
-    """
-    Revoga TODOS os refresh tokens do usuário (logout de todas as sessões).
-    PATCH 3.3: Útil quando o usuário suspeita de acesso não autorizado.
-    """
-    current_user = await AuthMiddleware.get_current_user(request)
+# @api_router.post("/auth/logout-all")
+# async def logout_all_sessions(request: Request):
+#     """
+#     Revoga TODOS os refresh tokens do usuário (logout de todas as sessões).
+#     PATCH 3.3: Útil quando o usuário suspeita de acesso não autorizado.
+#     """
+#     current_user = await AuthMiddleware.get_current_user(request)
     
-    await token_blacklist.revoke_all_user_tokens(
-        user_id=current_user['id'],
-        reason='user_logout_all'
-    )
+#     await token_blacklist.revoke_all_user_tokens(
+#         user_id=current_user['id'],
+#         reason='user_logout_all'
+#     )
     
     # Registra logout global
-    await audit_service.log(
-        action='logout_all',
-        collection='users',
-        user=current_user,
-        request=request,
-        document_id=current_user['id'],
-        description=f"Logout de todas as sessões realizado"
-    )
+#     await audit_service.log(
+#         action='logout_all',
+#         collection='users',
+#         user=current_user,
+#         request=request,
+#         document_id=current_user['id'],
+#         description=f"Logout de todas as sessões realizado"
+#     )
     
-    return {"message": "Todas as sessões foram encerradas. Faça login novamente."}
+#     return {"message": "Todas as sessões foram encerradas. Faça login novamente."}
 
-@api_router.get("/auth/me", response_model=UserResponse)
-async def get_current_user_info(request: Request):
-    """Retorna informações do usuário autenticado com role efetivo"""
-    current_user = await AuthMiddleware.get_current_user(request)
+# @api_router.get("/auth/me", response_model=UserResponse)
+# async def get_current_user_info(request: Request):
+#     """Retorna informações do usuário autenticado com role efetivo"""
+#     current_user = await AuthMiddleware.get_current_user(request)
     
-    user_doc = await db.users.find_one({"id": current_user['id']}, {"_id": 0})
-    if not user_doc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuário não encontrado"
-        )
+#     user_doc = await db.users.find_one({"id": current_user['id']}, {"_id": 0})
+#     if not user_doc:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="Usuário não encontrado"
+#         )
     
     # Substitui o role do banco pelo role efetivo do token (que já considera lotações)
-    user_doc['role'] = current_user.get('role', user_doc.get('role'))
+#     user_doc['role'] = current_user.get('role', user_doc.get('role'))
     
-    return UserResponse(**user_doc)
+#     return UserResponse(**user_doc)
 
-@api_router.get("/auth/permissions")
-async def get_user_permissions(request: Request):
-    """Retorna as permissões do usuário autenticado baseado no seu role"""
-    current_user = await AuthMiddleware.get_current_user(request)
+# @api_router.get("/auth/permissions")
+# async def get_user_permissions(request: Request):
+#     """Retorna as permissões do usuário autenticado baseado no seu role"""
+#     current_user = await AuthMiddleware.get_current_user(request)
     
-    permissions = AuthMiddleware.get_user_permissions(current_user)
-    permissions['school_ids'] = current_user.get('school_ids', [])
+#     permissions = AuthMiddleware.get_user_permissions(current_user)
+#     permissions['school_ids'] = current_user.get('school_ids', [])
     
-    return permissions
+#     return permissions
 
 # ============= USER ROUTES - MOVIDO PARA routers/users.py =============
 
@@ -866,222 +866,222 @@ async def get_user_permissions(request: Request):
 # ============= CLASS (TURMA) ROUTES - CRUD MOVIDO PARA routers/classes.py =============
 # Os endpoints de detalhes permanecem aqui por sua complexidade
 
-@api_router.get("/classes/{class_id}/details")
-async def get_class_details(class_id: str, request: Request):
-    """
-    Busca detalhes completos da turma incluindo:
-    - Dados cadastrais da turma
-    - Escola
-    - Professor(es) alocado(s)
-    - Lista de alunos matriculados com responsáveis
-    """
-    current_user = await AuthMiddleware.get_current_user(request)
+# @api_router.get("/classes/{class_id}/details")
+# async def get_class_details(class_id: str, request: Request):
+#     """
+#     Busca detalhes completos da turma incluindo:
+#     - Dados cadastrais da turma
+#     - Escola
+#     - Professor(es) alocado(s)
+#     - Lista de alunos matriculados com responsáveis
+#     """
+#     current_user = await AuthMiddleware.get_current_user(request)
     
     # Busca turma
-    class_doc = await db.classes.find_one({"id": class_id}, {"_id": 0})
-    if not class_doc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Turma não encontrada"
-        )
+#     class_doc = await db.classes.find_one({"id": class_id}, {"_id": 0})
+#     if not class_doc:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="Turma não encontrada"
+#         )
     
     # Busca escola
-    school = await db.schools.find_one({"id": class_doc.get('school_id')}, {"_id": 0, "id": 1, "name": 1})
+#     school = await db.schools.find_one({"id": class_doc.get('school_id')}, {"_id": 0, "id": 1, "name": 1})
     
     # Busca professores alocados na turma
-    alocacoes = await db.teacher_assignments.find(
-        {"class_id": class_id},
-        {"_id": 0}
-    ).to_list(100)
+#     alocacoes = await db.teacher_assignments.find(
+#         {"class_id": class_id},
+#         {"_id": 0}
+#     ).to_list(100)
     
     # Agrupa por professor para evitar duplicação
-    teachers_map = {}
-    for alocacao in alocacoes:
-        staff_id = alocacao.get('staff_id')
-        if staff_id not in teachers_map:
-            staff = await db.staff.find_one(
-                {"id": staff_id},
-                {"_id": 0, "id": 1, "nome": 1, "full_name": 1, "email": 1, "celular": 1}
-            )
-            if staff:
-                teachers_map[staff_id] = {
-                    "staff_id": staff.get('id'),
-                    "nome": staff.get('nome') or staff.get('full_name'),
-                    "email": staff.get('email'),
-                    "celular": staff.get('celular'),
-                    "componentes": []
-                }
+#     teachers_map = {}
+#     for alocacao in alocacoes:
+#         staff_id = alocacao.get('staff_id')
+#         if staff_id not in teachers_map:
+#             staff = await db.staff.find_one(
+#                 {"id": staff_id},
+#                 {"_id": 0, "id": 1, "nome": 1, "full_name": 1, "email": 1, "celular": 1}
+#             )
+#             if staff:
+#                 teachers_map[staff_id] = {
+#                     "staff_id": staff.get('id'),
+#                     "nome": staff.get('nome') or staff.get('full_name'),
+#                     "email": staff.get('email'),
+#                     "celular": staff.get('celular'),
+#                     "componentes": []
+#                 }
         
         # Adiciona componente se existir
-        if staff_id in teachers_map and alocacao.get('course_id'):
-            course = await db.courses.find_one(
-                {"id": alocacao.get('course_id')},
-                {"_id": 0, "id": 1, "name": 1, "nome": 1}
-            )
-            if course:
-                comp_name = course.get('name') or course.get('nome')
-                if comp_name and comp_name not in teachers_map[staff_id]["componentes"]:
-                    teachers_map[staff_id]["componentes"].append(comp_name)
+#         if staff_id in teachers_map and alocacao.get('course_id'):
+#             course = await db.courses.find_one(
+#                 {"id": alocacao.get('course_id')},
+#                 {"_id": 0, "id": 1, "name": 1, "nome": 1}
+#             )
+#             if course:
+#                 comp_name = course.get('name') or course.get('nome')
+#                 if comp_name and comp_name not in teachers_map[staff_id]["componentes"]:
+#                     teachers_map[staff_id]["componentes"].append(comp_name)
     
     # Formata lista de professores
-    teachers = []
-    for teacher_data in teachers_map.values():
-        componentes = teacher_data.pop("componentes", [])
-        teacher_data["componente"] = ", ".join(componentes) if componentes else None
-        teachers.append(teacher_data)
+#     teachers = []
+#     for teacher_data in teachers_map.values():
+#         componentes = teacher_data.pop("componentes", [])
+#         teacher_data["componente"] = ", ".join(componentes) if componentes else None
+#         teachers.append(teacher_data)
     
     # Busca alunos matriculados
-    academic_year = class_doc.get('academic_year', datetime.now().year)
-    enrollments = await db.enrollments.find(
-        {"class_id": class_id, "status": "active", "academic_year": academic_year},
-        {"_id": 0, "student_id": 1, "enrollment_number": 1}
-    ).to_list(1000)
+#     academic_year = class_doc.get('academic_year', datetime.now().year)
+#     enrollments = await db.enrollments.find(
+#         {"class_id": class_id, "status": "active", "academic_year": academic_year},
+#         {"_id": 0, "student_id": 1, "enrollment_number": 1}
+#     ).to_list(1000)
     
-    student_ids = [e['student_id'] for e in enrollments]
-    enrollment_map = {e['student_id']: e.get('enrollment_number') for e in enrollments}
+#     student_ids = [e['student_id'] for e in enrollments]
+#     enrollment_map = {e['student_id']: e.get('enrollment_number') for e in enrollments}
     
-    students_list = []
-    if student_ids:
-        students = await db.students.find(
-            {"id": {"$in": student_ids}},
-            {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "guardian_name": 1, "guardian_phone": 1, "guardian_relationship": 1, "mother_name": 1, "mother_phone": 1, "father_name": 1, "father_phone": 1}
-        ).sort("full_name", 1).to_list(1000)
+#     students_list = []
+#     if student_ids:
+#         students = await db.students.find(
+#             {"id": {"$in": student_ids}},
+#             {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "guardian_name": 1, "guardian_phone": 1, "guardian_relationship": 1, "mother_name": 1, "mother_phone": 1, "father_name": 1, "father_phone": 1}
+#         ).sort("full_name", 1).to_list(1000)
         
-        for student in students:
+#         for student in students:
             # Determina responsável principal
-            guardian_name = student.get('guardian_name') or student.get('mother_name') or student.get('father_name') or '-'
-            guardian_phone = student.get('guardian_phone') or student.get('mother_phone') or student.get('father_phone') or ''
+#             guardian_name = student.get('guardian_name') or student.get('mother_name') or student.get('father_name') or '-'
+#             guardian_phone = student.get('guardian_phone') or student.get('mother_phone') or student.get('father_phone') or ''
             
-            students_list.append({
-                "id": student.get('id'),
-                "full_name": student.get('full_name'),
-                "enrollment_number": enrollment_map.get(student.get('id')),
-                "birth_date": student.get('birth_date'),
-                "guardian_name": guardian_name,
-                "guardian_phone": guardian_phone
-            })
+#             students_list.append({
+#                 "id": student.get('id'),
+#                 "full_name": student.get('full_name'),
+#                 "enrollment_number": enrollment_map.get(student.get('id')),
+#                 "birth_date": student.get('birth_date'),
+#                 "guardian_name": guardian_name,
+#                 "guardian_phone": guardian_phone
+#             })
     
-    return {
-        "class": class_doc,
-        "school": school,
-        "teachers": teachers,
-        "students": students_list,
-        "total_students": len(students_list)
-    }
+#     return {
+#         "class": class_doc,
+#         "school": school,
+#         "teachers": teachers,
+#         "students": students_list,
+#         "total_students": len(students_list)
+#     }
 
 
-@api_router.get("/classes/{class_id}/details/pdf")
-async def get_class_details_pdf(class_id: str, request: Request):
-    """
-    Gera PDF com detalhes completos da turma
-    """
-    current_user = await AuthMiddleware.get_current_user(request)
+# @api_router.get("/classes/{class_id}/details/pdf")
+# async def get_class_details_pdf(class_id: str, request: Request):
+#     """
+#     Gera PDF com detalhes completos da turma
+#     """
+#     current_user = await AuthMiddleware.get_current_user(request)
     
     # Busca turma
-    class_doc = await db.classes.find_one({"id": class_id}, {"_id": 0})
-    if not class_doc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Turma não encontrada"
-        )
+#     class_doc = await db.classes.find_one({"id": class_id}, {"_id": 0})
+#     if not class_doc:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="Turma não encontrada"
+#         )
     
     # Busca escola
-    school = await db.schools.find_one({"id": class_doc.get('school_id')}, {"_id": 0})
-    if not school:
-        school = {"name": "Escola Municipal"}
+#     school = await db.schools.find_one({"id": class_doc.get('school_id')}, {"_id": 0})
+#     if not school:
+#         school = {"name": "Escola Municipal"}
     
     # Busca mantenedora
-    mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+#     mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
     
     # Busca professores alocados na turma
-    alocacoes = await db.teacher_assignments.find(
-        {"class_id": class_id},
-        {"_id": 0}
-    ).to_list(100)
+#     alocacoes = await db.teacher_assignments.find(
+#         {"class_id": class_id},
+#         {"_id": 0}
+#     ).to_list(100)
     
     # Agrupa por professor para evitar duplicação
-    teachers_map = {}
-    for alocacao in alocacoes:
-        staff_id = alocacao.get('staff_id')
-        if staff_id not in teachers_map:
-            staff = await db.staff.find_one(
-                {"id": staff_id},
-                {"_id": 0, "id": 1, "nome": 1, "full_name": 1, "celular": 1}
-            )
-            if staff:
-                teachers_map[staff_id] = {
-                    "nome": staff.get('nome') or staff.get('full_name'),
-                    "celular": staff.get('celular'),
-                    "componentes": []
-                }
+#     teachers_map = {}
+#     for alocacao in alocacoes:
+#         staff_id = alocacao.get('staff_id')
+#         if staff_id not in teachers_map:
+#             staff = await db.staff.find_one(
+#                 {"id": staff_id},
+#                 {"_id": 0, "id": 1, "nome": 1, "full_name": 1, "celular": 1}
+#             )
+#             if staff:
+#                 teachers_map[staff_id] = {
+#                     "nome": staff.get('nome') or staff.get('full_name'),
+#                     "celular": staff.get('celular'),
+#                     "componentes": []
+#                 }
         
         # Adiciona componente se existir
-        if staff_id in teachers_map and alocacao.get('course_id'):
-            course = await db.courses.find_one(
-                {"id": alocacao.get('course_id')},
-                {"_id": 0, "name": 1, "nome": 1}
-            )
-            if course:
-                comp_name = course.get('name') or course.get('nome')
-                if comp_name and comp_name not in teachers_map[staff_id]["componentes"]:
-                    teachers_map[staff_id]["componentes"].append(comp_name)
+#         if staff_id in teachers_map and alocacao.get('course_id'):
+#             course = await db.courses.find_one(
+#                 {"id": alocacao.get('course_id')},
+#                 {"_id": 0, "name": 1, "nome": 1}
+#             )
+#             if course:
+#                 comp_name = course.get('name') or course.get('nome')
+#                 if comp_name and comp_name not in teachers_map[staff_id]["componentes"]:
+#                     teachers_map[staff_id]["componentes"].append(comp_name)
     
     # Formata lista de professores
-    teachers = []
-    for teacher_data in teachers_map.values():
-        componentes = teacher_data.pop("componentes", [])
-        teacher_data["componente"] = ", ".join(componentes) if componentes else None
-        teachers.append(teacher_data)
+#     teachers = []
+#     for teacher_data in teachers_map.values():
+#         componentes = teacher_data.pop("componentes", [])
+#         teacher_data["componente"] = ", ".join(componentes) if componentes else None
+#         teachers.append(teacher_data)
     
     # Busca alunos matriculados
-    academic_year = class_doc.get('academic_year', datetime.now().year)
-    enrollments = await db.enrollments.find(
-        {"class_id": class_id, "status": "active", "academic_year": academic_year},
-        {"_id": 0, "student_id": 1}
-    ).to_list(1000)
+#     academic_year = class_doc.get('academic_year', datetime.now().year)
+#     enrollments = await db.enrollments.find(
+#         {"class_id": class_id, "status": "active", "academic_year": academic_year},
+#         {"_id": 0, "student_id": 1}
+#     ).to_list(1000)
     
-    student_ids = [e['student_id'] for e in enrollments]
+#     student_ids = [e['student_id'] for e in enrollments]
     
-    students_list = []
-    if student_ids:
-        students = await db.students.find(
-            {"id": {"$in": student_ids}},
-            {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "guardian_name": 1, "guardian_phone": 1, "mother_name": 1, "mother_phone": 1, "father_name": 1, "father_phone": 1}
-        ).sort("full_name", 1).to_list(1000)
+#     students_list = []
+#     if student_ids:
+#         students = await db.students.find(
+#             {"id": {"$in": student_ids}},
+#             {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "guardian_name": 1, "guardian_phone": 1, "mother_name": 1, "mother_phone": 1, "father_name": 1, "father_phone": 1}
+#         ).sort("full_name", 1).to_list(1000)
         
-        for student in students:
-            guardian_name = student.get('guardian_name') or student.get('mother_name') or student.get('father_name') or '-'
-            guardian_phone = student.get('guardian_phone') or student.get('mother_phone') or student.get('father_phone') or ''
+#         for student in students:
+#             guardian_name = student.get('guardian_name') or student.get('mother_name') or student.get('father_name') or '-'
+#             guardian_phone = student.get('guardian_phone') or student.get('mother_phone') or student.get('father_phone') or ''
             
-            students_list.append({
-                "full_name": student.get('full_name'),
-                "birth_date": student.get('birth_date'),
-                "guardian_name": guardian_name,
-                "guardian_phone": guardian_phone
-            })
+#             students_list.append({
+#                 "full_name": student.get('full_name'),
+#                 "birth_date": student.get('birth_date'),
+#                 "guardian_name": guardian_name,
+#                 "guardian_phone": guardian_phone
+#             })
     
-    try:
-        pdf_buffer = generate_class_details_pdf(
-            class_info=class_doc,
-            school=school,
-            teachers=teachers,
-            students=students_list,
-            mantenedora=mantenedora
-        )
+#     try:
+#         pdf_buffer = generate_class_details_pdf(
+#             class_info=class_doc,
+#             school=school,
+#             teachers=teachers,
+#             students=students_list,
+#             mantenedora=mantenedora
+#         )
         
-        class_name = class_doc.get('name', 'turma').replace(' ', '_')
-        filename = f"Detalhes_Turma_{class_name}_{academic_year}.pdf"
+#         class_name = class_doc.get('name', 'turma').replace(' ', '_')
+#         filename = f"Detalhes_Turma_{class_name}_{academic_year}.pdf"
         
-        return StreamingResponse(
-            pdf_buffer,
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": f'inline; filename="{filename}"'
-            }
-        )
-    except Exception as e:
-        logger.error(f"Erro ao gerar PDF de detalhes da turma: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+#         return StreamingResponse(
+#             pdf_buffer,
+#             media_type="application/pdf",
+#             headers={
+#                 "Content-Disposition": f'inline; filename="{filename}"'
+#             }
+#         )
+#     except Exception as e:
+#         logger.error(f"Erro ao gerar PDF de detalhes da turma: {e}")
+#         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
 
 # ============= COURSE (COMPONENTE CURRICULAR) ROUTES - MOVIDO PARA routers/courses.py =============
@@ -1091,44 +1091,44 @@ async def get_class_details_pdf(class_id: str, request: Request):
 # para melhor organização e manutenibilidade do código.
 
 # ROTAS LEGADAS COMENTADAS - REMOVER EM VERSÃO FUTURA
-"""
-@api_router.post("/students", response_model=Student, status_code=status.HTTP_201_CREATED)
-async def create_student(student_data: StudentCreate, request: Request):
+# """
+# @api_router.post("/students", response_model=Student, status_code=status.HTTP_201_CREATED)
+# async def create_student(student_data: StudentCreate, request: Request):
     # ... movido para routers/students.py
-    pass
-"""
-"""
+#     pass
+# """
+# """
 # === ROTAS LEGADAS DE STUDENTS (MOVIDAS PARA routers/students.py) ===
 
     
     # Verifica acesso à escola
-    await AuthMiddleware.verify_school_access(request, student_data.school_id)
+#     await AuthMiddleware.verify_school_access(request, student_data.school_id)
     
-    student_obj = Student(**student_data.model_dump())
-    doc = student_obj.model_dump()
-    doc['created_at'] = doc['created_at'].isoformat()
+#     student_obj = Student(**student_data.model_dump())
+#     doc = student_obj.model_dump()
+#     doc['created_at'] = doc['created_at'].isoformat()
     
-    await db.students.insert_one(doc)
+#     await db.students.insert_one(doc)
     
     # Registra auditoria
-    school = await db.schools.find_one({"id": student_data.school_id}, {"_id": 0, "name": 1})
-    await audit_service.log(
-        action='create',
-        collection='students',
-        user=current_user,
-        request=request,
-        document_id=student_obj.id,
-        description=f"Cadastrou aluno: {student_obj.full_name}",
-        school_id=student_data.school_id,
-        school_name=school.get('name') if school else None,
-        new_value={'full_name': student_obj.full_name, 'cpf': student_obj.cpf, 'class_id': student_obj.class_id}
-    )
+#     school = await db.schools.find_one({"id": student_data.school_id}, {"_id": 0, "name": 1})
+#     await audit_service.log(
+#         action='create',
+#         collection='students',
+#         user=current_user,
+#         request=request,
+#         document_id=student_obj.id,
+#         description=f"Cadastrou aluno: {student_obj.full_name}",
+#         school_id=student_data.school_id,
+#         school_name=school.get('name') if school else None,
+#         new_value={'full_name': student_obj.full_name, 'cpf': student_obj.cpf, 'class_id': student_obj.class_id}
+#     )
     
-    return student_obj
+#     return student_obj
 
-@api_router.get("/students")
-async def list_students(request: Request, school_id: Optional[str] = None, class_id: Optional[str] = None, skip: int = 0, limit: int = 5000):
-    """Lista alunos"""
+# @api_router.get("/students")
+# async def list_students(request: Request, school_id: Optional[str] = None, class_id: Optional[str] = None, skip: int = 0, limit: int = 5000):
+    Lista alunos"""
     current_user = await AuthMiddleware.get_current_user(request)
     
     # Seleciona o banco correto (produção ou sandbox)
