@@ -106,7 +106,6 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-
 @app.on_event("startup")
 async def create_indexes():
     """Cria índices otimizados no MongoDB durante o startup"""
@@ -768,7 +767,6 @@ async def refresh_token(refresh_request: RefreshTokenRequest):
         user=UserResponse(**user_response_data)
     )
 
-
 # PATCH 3.3: Endpoint de logout para revogar tokens
 @api_router.post("/auth/logout")
 async def logout(request: Request):
@@ -809,7 +807,6 @@ async def logout(request: Request):
     )
     
     return {"message": "Logout realizado com sucesso"}
-
 
 # PATCH 3.3: Endpoint para revogar todas as sessões
 @api_router.post("/auth/logout-all")
@@ -974,7 +971,6 @@ async def get_class_details(class_id: str, request: Request):
         "total_students": len(students_list)
     }
 
-
 @api_router.get("/classes/{class_id}/details/pdf")
 async def get_class_details_pdf(class_id: str, request: Request):
     """
@@ -1088,7 +1084,6 @@ async def get_class_details_pdf(class_id: str, request: Request):
         logger.error(f"Erro ao gerar PDF de detalhes da turma: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
-
 # ============= COURSE (COMPONENTE CURRICULAR) ROUTES - MOVIDO PARA routers/courses.py =============
 
 # ============= STUDENT (ALUNO) ROUTES =============
@@ -1123,14 +1118,10 @@ async def create_student(student_data: StudentCreate, request: Request):
     
     return student_obj
 
-
-# REMOVED: students base (moved to modular router)
-
 @api_router.get("/students/{student_id}", response_model=Student)
 async def get_student(student_id: str, request: Request):
     """Busca aluno por ID"""
     current_user = await AuthMiddleware.get_current_user(request)
-    
     student_doc = await db.students.find_one({"id": student_id}, {"_id": 0})
     
     if not student_doc:
@@ -1286,10 +1277,6 @@ async def update_student(student_id: str, student_update: StudentUpdate, request
     updated_student = await db.students.find_one({"id": student_id}, {"_id": 0})
     return Student(**updated_student)
 
-
-
-# REMOVED: students history (moved to modular router)
-
 @api_router.post("/students/{student_id}/transfer")
 async def transfer_student(student_id: str, request: Request):
     """
@@ -1297,7 +1284,6 @@ async def transfer_student(student_id: str, request: Request):
     Requer que o aluno esteja com status 'transferred' na escola de origem.
     """
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
-    
     body = await request.json()
     new_school_id = body.get('school_id')
     new_class_id = body.get('class_id')
@@ -1410,7 +1396,6 @@ async def transfer_student(student_id: str, request: Request):
         "enrollment": new_enrollment
     }
 
-
 @api_router.delete("/students/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_student(student_id: str, request: Request):
     """Deleta aluno"""
@@ -1457,28 +1442,12 @@ async def delete_student(student_id: str, request: Request):
 
 # ============= GRADES ROUTES =============
 
-
-# REMOVED: grades list (moved to modular router)
-
-
-# REMOVED: grades by class (moved to modular router)
-
-
-# REMOVED: grades by student (moved to modular router)
-
-
-# REMOVED: grades create (moved to modular router)
-
-
-# REMOVED: grades update (moved to modular router)
-
 @api_router.post("/grades/batch")
 async def update_grades_batch(request: Request, grades: List[dict]):
     """Atualiza notas em lote (por turma)"""
     # Coordenador PODE editar notas (área do diário)
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
     user_role = current_user.get('role', '')
-    
     # Verifica se o ano letivo está aberto (apenas para não-admins)
     if grades and user_role != 'admin':
         first_grade = grades[0]
@@ -1604,7 +1573,6 @@ async def update_grades_batch(request: Request, grades: List[dict]):
     
     return {"updated": len(results), "grades": results}
 
-
 @api_router.delete("/grades/{grade_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_grade(grade_id: str, request: Request):
     """Remove uma nota"""
@@ -1697,7 +1665,6 @@ async def delete_file(filename: str, request: Request):
     
     return {"message": "Arquivo removido com sucesso"}
 
-
 @api_router.get("/uploads/{filename}")
 async def serve_uploaded_file(filename: str):
     """Serve arquivos de upload com o content-type correto"""
@@ -1788,21 +1755,6 @@ EVENT_COLORS = {
     'outros': '#6B7280'  # Cinza
 }
 
-
-# REMOVED: calendar events list (moved to modular router)
-
-
-# REMOVED: calendar events get (moved to modular router)
-
-
-# REMOVED: calendar events create (moved to modular router)
-
-
-# REMOVED: calendar events update (moved to modular router)
-
-
-# REMOVED: calendar events delete (moved to modular router)
-
 @api_router.get("/calendar/check-date/{date}")
 async def check_calendar_date(date: str, request: Request):
     """
@@ -1810,7 +1762,6 @@ async def check_calendar_date(date: str, request: Request):
     Retorna informações sobre eventos nessa data.
     """
     await AuthMiddleware.get_current_user(request)
-    
     # Busca eventos que incluem essa data
     events = await db.calendar_events.find({
         "start_date": {"$lte": date},
@@ -1914,7 +1865,6 @@ async def get_calendario_letivo(ano_letivo: int, request: Request, school_id: Op
         }
     
     return calendario
-
 
 @api_router.get("/calendario-letivo/{ano_letivo}/dias-letivos")
 async def calcular_dias_letivos(ano_letivo: int, request: Request, school_id: Optional[str] = None):
@@ -2039,7 +1989,6 @@ async def calcular_dias_letivos(ano_letivo: int, request: Request, school_id: Op
         "total_dias_letivos": b1 + b2 + b3 + b4
     }
 
-
 @api_router.put("/calendario-letivo/{ano_letivo}")
 async def update_calendario_letivo(ano_letivo: int, request: Request, school_id: Optional[str] = None):
     """
@@ -2090,7 +2039,6 @@ async def update_calendario_letivo(ano_letivo: int, request: Request, school_id:
     
     return await db.calendario_letivo.find_one(query, {"_id": 0})
 
-
 @api_router.get("/calendario-letivo/{ano_letivo}/periodos")
 async def get_periodos_bimestrais(ano_letivo: int, request: Request, school_id: Optional[str] = None):
     """
@@ -2127,7 +2075,6 @@ async def get_periodos_bimestrais(ano_letivo: int, request: Request, school_id: 
             "fim": calendario.get("recesso_fim") if calendario else None
         } if calendario else None
     }
-
 
 @api_router.get("/calendario-letivo/{ano_letivo}/status-edicao")
 async def get_edit_status(ano_letivo: int, request: Request, bimestre: Optional[int] = None):
@@ -2205,30 +2152,13 @@ async def get_edit_status(ano_letivo: int, request: Request, bimestre: Optional[
         "bimestres": bimestres_status
     }
 
-
 # ============= ATTENDANCE (FREQUÊNCIA) =============
-
-
-# REMOVED: attendance settings get (moved to modular router)
-
-
-# REMOVED: attendance settings put (moved to modular router)
-
-
-# REMOVED: attendance check date (moved to modular router)
-
-
-# REMOVED: attendance by class (moved to modular router)
-
-
-# REMOVED: attendance create (moved to modular router)
 
 @api_router.delete("/attendance/{attendance_id}")
 async def delete_attendance(attendance_id: str, request: Request):
     """Remove um registro de frequência"""
     # Coordenador PODE editar frequência (área do diário)
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'professor', 'coordenador'])(request)
-    
     # Verifica se existe
     existing = await db.attendance.find_one({"id": attendance_id})
     if not existing:
@@ -2509,26 +2439,10 @@ async def get_attendance_alerts(
 
 # ============= STAFF (SERVIDORES) =============
 
-
-# REMOVED: staff list (moved to modular router)
-
-
-# REMOVED: staff get (moved to modular router)
-
-
-# REMOVED: staff create (moved to modular router)
-
-
-# REMOVED: staff update (moved to modular router)
-
-
-# REMOVED: staff delete (moved to modular router)
-
 @api_router.post("/staff/{staff_id}/photo")
 async def upload_staff_photo(staff_id: str, request: Request, file: UploadFile = File(...)):
     """Upload de foto do servidor para servidor externo via FTP"""
     current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
-    
     existing = await db.staff.find_one({"id": staff_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Servidor não encontrado")
@@ -4501,7 +4415,6 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
         logger.error(f"Erro ao gerar boletim: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
-
 @api_router.get("/documents/declaracao-matricula/{student_id}")
 async def generate_declaracao_matricula(
     student_id: str, 
@@ -4590,7 +4503,6 @@ async def generate_declaracao_matricula(
     except Exception as e:
         logger.error(f"Erro ao gerar declaração: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
-
 
 @api_router.get("/documents/declaracao-frequencia/{student_id}")
 async def generate_declaracao_frequencia(
@@ -4707,7 +4619,6 @@ async def generate_declaracao_frequencia(
     except Exception as e:
         logger.error(f"Erro ao gerar declaração de frequência: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
-
 
 @api_router.get("/documents/ficha-individual/{student_id}")
 async def get_ficha_individual(
@@ -5014,7 +4925,6 @@ async def get_ficha_individual(
         logger.error(f"Erro ao gerar ficha individual: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
-
 @api_router.get("/documents/certificado/{student_id}")
 async def get_certificado(
     student_id: str,
@@ -5089,7 +4999,6 @@ async def get_certificado(
     except Exception as e:
         logger.error(f"Erro ao gerar certificado: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
-
 
 @api_router.get("/documents/promotion/{class_id}")
 async def get_livro_promocao_pdf(
@@ -5287,7 +5196,6 @@ async def get_livro_promocao_pdf(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
-
 @api_router.get("/documents/batch/{class_id}/{document_type}")
 async def get_batch_documents(
     class_id: str,
@@ -5466,7 +5374,6 @@ async def get_batch_documents(
         logger.error(f"Erro ao gerar documentos em lote: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
-
 # ============= PRÉ-MATRÍCULA ENDPOINTS (PÚBLICOS) =============
 
 @api_router.post("/pre-matricula", response_model=PreMatricula, status_code=status.HTTP_201_CREATED)
@@ -5586,7 +5493,6 @@ async def update_pre_matricula_status(
         )
     
     return {"message": "Status atualizado com sucesso"}
-
 
 @api_router.post("/pre-matriculas/{pre_matricula_id}/convert")
 async def convert_pre_matricula_to_student(
@@ -5748,7 +5654,6 @@ async def convert_pre_matricula_to_student(
         "student_name": pre_matricula.get('aluno_nome')
     }
 
-
 # ============= ANNOUNCEMENT ENDPOINTS =============
 
 def can_user_create_announcement(user: dict, recipient: dict) -> bool:
@@ -5850,30 +5755,11 @@ async def get_announcement_target_users(db, recipient: dict, sender: dict) -> Li
     
     return list(set(target_user_ids))  # Remover duplicatas
 
-
-# REMOVED: announcements create (moved to modular router)
-
-
-# REMOVED: announcements list (moved to modular router)
-
-
-# REMOVED: announcements get (moved to modular router)
-
-
-# REMOVED: announcements update (moved to modular router)
-
-
-# REMOVED: announcements delete (moved to modular router)
-
-
-# REMOVED: announcements read (moved to modular router)
-
 @api_router.get("/notifications/unread-count", response_model=NotificationCount)
 async def get_unread_count(request: Request):
     """Obter contagem de notificações não lidas (mensagens + avisos)"""
     current_user = await AuthMiddleware.get_current_user(request)
     user_id = current_user['id']
-    
     # Contar mensagens não lidas
     unread_messages = await db.messages.count_documents({
         'receiver_id': user_id,
@@ -6103,7 +5989,6 @@ async def check_orphan_data(request: Request):
     
     return results
 
-
 @api_router.delete("/maintenance/orphan-cleanup")
 async def cleanup_orphan_data(request: Request, dry_run: bool = True):
     """
@@ -6161,7 +6046,6 @@ async def cleanup_orphan_data(request: Request, dry_run: bool = True):
         'deleted': deleted
     }
 
-
 @api_router.get("/maintenance/duplicate-courses")
 async def check_duplicate_courses(request: Request):
     """
@@ -6195,7 +6079,6 @@ async def check_duplicate_courses(request: Request):
         'total_duplicates': len(duplicates),
         'duplicates': duplicates
     }
-
 
 @api_router.post("/maintenance/consolidate-courses")
 async def consolidate_duplicate_courses(request: Request, dry_run: bool = True):
@@ -6275,7 +6158,6 @@ async def consolidate_duplicate_courses(request: Request, dry_run: bool = True):
         'total': len(consolidated)
     }
 
-
 # ============= UNIDADE MANTENEDORA ENDPOINTS =============
 
 @api_router.get("/mantenedora", response_model=Mantenedora)
@@ -6351,7 +6233,6 @@ async def update_mantenedora(
     updated = await db.mantenedora.find_one({"id": mantenedora["id"]}, {"_id": 0})
     return updated
 
-
 # ============= AUDIT LOG ENDPOINTS =============
 
 @api_router.get("/audit-logs")
@@ -6403,7 +6284,6 @@ async def list_audit_logs(
         'limit': limit
     }
 
-
 @api_router.get("/audit-logs/user/{user_id}")
 async def get_user_audit_logs(user_id: str, request: Request, limit: int = 20):
     """Retorna atividades recentes de um usuário específico"""
@@ -6411,7 +6291,6 @@ async def get_user_audit_logs(user_id: str, request: Request, limit: int = 20):
     
     logs = await audit_service.get_user_activity(user_id, limit)
     return {'items': logs}
-
 
 @api_router.get("/audit-logs/document/{collection}/{document_id}")
 async def get_document_audit_history(collection: str, document_id: str, request: Request):
@@ -6421,7 +6300,6 @@ async def get_document_audit_history(collection: str, document_id: str, request:
     logs = await audit_service.get_document_history(collection, document_id)
     return {'items': logs}
 
-
 @api_router.get("/audit-logs/critical")
 async def get_critical_audit_events(request: Request, hours: int = 24):
     """Retorna eventos críticos das últimas X horas"""
@@ -6429,7 +6307,6 @@ async def get_critical_audit_events(request: Request, hours: int = 24):
     
     logs = await audit_service.get_critical_events(hours)
     return {'items': logs, 'hours': hours}
-
 
 @api_router.get("/audit-logs/stats")
 async def get_audit_stats(request: Request, days: int = 7):
@@ -6482,7 +6359,6 @@ async def get_audit_stats(request: Request, days: int = 7):
         'by_user': by_user,
         'by_severity': by_severity
     }
-
 
 # Include modular routers FIRST (take precedence over legacy routes in api_router)
 # PATCH 4.x: Routers modulares têm preferência sobre rotas legadas
