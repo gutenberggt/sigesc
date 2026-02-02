@@ -31,6 +31,18 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - ✅ **Permissões de Secretário:** Perfil com regras granulares de edição
 - ✅ **Tratamento de Erros Global:** Utilitário `errorHandler.js` para erros de validação
 
+### Funcionalidade de Ação do Aluno (Fev 02, 2026)
+- ✅ **Campo "Ação":** Adicionado na aba Turma/Observações da página de edição de aluno
+- ✅ **Opções de Ação:** Matricular, Transferir, Remanejar, Progredir
+- ✅ **Lógica de Disponibilidade:** Opções habilitadas/desabilitadas com base no status do aluno:
+  - **Alunos Transferidos/Desistentes:** Podem ser Matriculados
+  - **Alunos Ativos:** Podem ser Transferidos, Remanejados ou Progredidos
+- ✅ **Modal de Matricular:** Permite selecionar escola e turma de destino
+- ✅ **Modal de Transferir:** Permite informar motivo da transferência
+- ✅ **Modal de Remanejar:** Permite selecionar nova turma na mesma escola
+- ✅ **Modal de Progredir:** Permite avançar para próxima série ou emitir histórico escolar
+- ✅ **Registro no Histórico:** Todas as ações são registradas com tipo (matricula, transferencia_saida, remanejamento, progressao)
+
 ### Patches de Segurança - FASE 3 (Fev 02, 2026)
 - ✅ **PATCH 3.1 - Idle Timeout:** Access token expira em 15 minutos, mas é renovado automaticamente enquanto o usuário está ATIVO. O frontend detecta atividade (mouse, teclado, scroll) e renova proativamente a cada 10 minutos. Usuários inativos por 15 minutos precisam fazer login novamente
 - ✅ **PATCH 3.2 - Rotação de Tokens:** Cada uso do refresh token gera um novo par de tokens e revoga o antigo. Impede reutilização de tokens vazados
