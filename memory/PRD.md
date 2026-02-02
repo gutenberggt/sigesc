@@ -70,7 +70,28 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - ✅ **Filtro de Turmas:** Página de turmas filtrada para mostrar apenas turmas das escolas do secretário
 - ✅ **Estatísticas Dashboard:** Cards de estatísticas filtrados para escolas do secretário
 
-## Correções de Deploy (Jan 28, 2026)
+## Tarefas Pendentes (Backlog)
+
+### P0 - Crítico
+- [ ] **Deploy em Produção:** Resolver Gateway Timeout após redeploy via Coolify
+
+### P1 - Alta Prioridade
+- [ ] **Refatoração Backend FASE 4:** Extrair rotas restantes e implementar App Factory em `app_factory.py`
+- [ ] **Email de Confirmação na Pré-Matrícula:** Enviar email para responsável
+- [ ] **Destaque de Aluno Recém-Criado:** Implementar highlight via URL na lista
+
+### P2 - Média Prioridade
+- [ ] **Refatoração Frontend:** Decompor o "god component" StudentsComplete.js
+- [ ] **Expansão Offline:** Estender funcionalidade offline para módulo de matrículas
+- [ ] **Padronização de Erros:** Aplicar errorHandler.js em componentes restantes
+
+### P3 - Baixa Prioridade
+- [ ] **Limpeza de Código:** Remover arquivo obsoleto Courses.js
+- [ ] **Relatórios Gerenciais:** Criar relatórios para atestados médicos
+
+## Última Atualização
+**Data:** 02 de Fevereiro de 2026
+**Funcionalidade:** Campo "Ação" do Aluno (Matricular, Transferir, Remanejar, Progredir) - CONCLUÍDA
 - ✅ Bug do `nginx.conf` com regex `{8}` corrigido
 - ✅ Bug do campo `education_level` vs `nivel_ensino` corrigido
 - ✅ Container antigo `backend-temp` removido
