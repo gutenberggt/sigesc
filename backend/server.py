@@ -1520,8 +1520,7 @@ async def create_indexes():
     
 #     return None
 
-
-# """
+# """ FIM DAS ROTAS LEGADAS DE STUDENTS
 
 # ============= GUARDIAN (RESPONSÁVEL) ROUTES - MOVIDO PARA routers/guardians.py =============
 
