@@ -31,6 +31,11 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - ✅ **Permissões de Secretário:** Perfil com regras granulares de edição
 - ✅ **Tratamento de Erros Global:** Utilitário `errorHandler.js` para erros de validação
 
+### Patches de Segurança - FASE 1 (Fev 02, 2026)
+- ✅ **PATCH 1.1 - Download de Backup:** Rotas `/api/download-backup` e `/api/download-uploads` desativadas por padrão. Requerem `ENABLE_BACKUP_DOWNLOAD=true` no `.env` e autenticação de admin
+- ✅ **PATCH 1.2 - Anti-Traversal:** Rota `/api/uploads/{file_path}` protegida contra path traversal (`../`), paths absolutos e acesso fora do diretório de uploads
+- ✅ **PATCH 1.3 - Upload Restrito:** Rota `/api/upload` restrita a roles autorizados (admin, admin_teste, secretario, diretor, coordenador)
+
 ### Correções e Melhorias (Jan 30, 2026)
 - ✅ **Botão "Início":** Adicionado na página de Gestão de Pré-Matrículas para navegação rápida
 - ✅ **Cache Offline:** Melhorada a inicialização do banco IndexedDB com tratamento de erros de versão
@@ -108,13 +113,17 @@ http:
 ### P0 - Crítico
 - ⚠️ **Configuração do Traefik no Coolify:** A configuração manual atual é frágil. Aplicar o guia `/app/memory/TRAEFIK_FIX_GUIDE.md` para solução permanente. **NOTA:** Este é um problema de infraestrutura externa que requer acesso ao servidor de produção.
 
-### P1 - Próximas
+### P1 - Próximas (Segurança - FASE 2)
+- **PATCH 2.1:** Corrigir vazamento de dados no sync offline - filtrar dados sensíveis
+- **PATCH 2.2:** Implementar paginação no sync para evitar sobrecarga
+- **PATCH 2.3:** Adicionar rate limiting específico para sync
 - Email de confirmação após pré-matrícula
 - Highlight do aluno recém-criado na lista
 - Padronizar valores de status dos alunos no banco de dados ("transferred" vs "Transferido")
 
-### P2 - Futuras
-- Refatoração do `server.py` (modularização)
+### P2 - Futuras (Segurança - FASE 3 e 4)
+- **PATCH 3.x:** Melhorar segurança dos tokens JWT (reduzir TTL, implementar rotação de refresh tokens)
+- **PATCH 4.x:** Refatorar `server.py` para padrão App Factory e modularizar rotas
 - Refatoração do `SchoolsComplete.js`
 - Expansão offline para matrículas
 - Padronização de erros em todos componentes
