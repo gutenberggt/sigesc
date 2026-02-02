@@ -130,10 +130,13 @@ http:
 
 ### P2 - Futuras (Segurança - FASE 4)
 - ✅ **PATCH 4.1 - Router de Students:** Criado `/app/backend/routers/students.py`
-- ✅ **PATCH 4.2 - Router de Grades:** Criado `/app/backend/routers/grades.py` com CRUD de notas e cálculo automático de médias
-- ✅ **PATCH 4.3 - Router de Attendance:** Criado `/app/backend/routers/attendance.py` com lançamento de frequência e relatórios
+- ✅ **PATCH 4.2 - Router de Grades:** Criado `/app/backend/routers/grades.py`
+- ✅ **PATCH 4.3 - Router de Attendance:** Criado `/app/backend/routers/attendance.py`
+- ✅ **PATCH 4.4 - Router de Calendar:** Criado `/app/backend/routers/calendar.py`
+- ✅ **PATCH 4.5 - Router de Staff:** Criado `/app/backend/routers/staff.py`
+- ✅ **PATCH 4.6 - Router de Announcements:** Criado `/app/backend/routers/announcements.py`
 - ✅ **App Factory:** Criado `/app/backend/app_factory.py` com padrão Factory
-- ⏳ **Próximo:** Extrair rotas de calendar, staff, announcements
+- ⏳ **Próximo:** Remover rotas legadas do server.py após validação completa
 - Refatoração do `SchoolsComplete.js`
 - Expansão offline para matrículas
 - Padronização de erros em todos componentes
