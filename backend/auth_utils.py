@@ -162,10 +162,11 @@ class TokenBlacklistService:
             logger.error(f"[TokenBlacklist] Erro ao revogar todos tokens: {e}")
             return False
     
-    async def is_token_revoked(self, jti: str = None, user_id: str = None, issued_at: str = None) -> bool:
+    async def is_token_revoked(self, jti: str = None, user_id: str = None, issued_at = None) -> bool:
         """
         Verifica se um token foi revogado.
         Retorna True se o token está na blacklist ou se foi emitido antes de um revoke_all.
+        issued_at pode ser string ISO, timestamp numérico ou datetime.
         """
         if self.db is None:
             return False  # Se não há DB, assume que não está revogado
@@ -180,9 +181,12 @@ class TokenBlacklistService:
             # Verifica se há revoke_all para este usuário
             if user_id and issued_at:
                 try:
-                    # Converte issued_at para datetime se for string
+                    # Converte issued_at para datetime
                     if isinstance(issued_at, str):
                         token_issued = datetime.fromisoformat(issued_at.replace('Z', '+00:00'))
+                    elif isinstance(issued_at, (int, float)):
+                        # Timestamp numérico
+                        token_issued = datetime.fromtimestamp(issued_at, tz=timezone.utc)
                     else:
                         token_issued = issued_at
                     
