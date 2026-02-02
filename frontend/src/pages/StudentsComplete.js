@@ -1417,9 +1417,10 @@ export function StudentsComplete() {
           <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
           <input
             type="text"
-            value={formData.cpf}
-            onChange={(e) => updateFormData('cpf', e.target.value)}
+            value={formatCPF(formData.cpf || '')}
+            onChange={(e) => updateFormData('cpf', e.target.value.replace(/\D/g, '').slice(0, 11))}
             disabled={viewMode}
+            maxLength={14}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             placeholder="000.000.000-00"
           />
@@ -1428,21 +1429,24 @@ export function StudentsComplete() {
           <label className="block text-sm font-medium text-gray-700 mb-1">NIS (PIS/PASEP)</label>
           <input
             type="text"
-            value={formData.nis}
-            onChange={(e) => updateFormData('nis', e.target.value)}
+            value={formatNIS(formData.nis || '')}
+            onChange={(e) => updateFormData('nis', e.target.value.replace(/\D/g, '').slice(0, 11))}
             disabled={viewMode}
+            maxLength={14}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            placeholder="000.00000.00-0"
           />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Número SUS</label>
           <input
             type="text"
-            value={formData.sus_number}
-            onChange={(e) => updateFormData('sus_number', e.target.value)}
+            value={formatSUS(formData.sus_number || '')}
+            onChange={(e) => updateFormData('sus_number', e.target.value.replace(/\D/g, '').slice(0, 15))}
             disabled={viewMode}
+            maxLength={19}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-            placeholder="000 0000 0000 0000"
+            placeholder="000.0000.0000.0000"
           />
         </div>
       </div>
