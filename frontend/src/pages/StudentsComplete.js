@@ -610,13 +610,15 @@ export function StudentsComplete() {
   
   // Verifica se a ação é permitida para o status atual do aluno
   const canExecuteAction = (action, studentStatus) => {
-    const status = studentStatus?.toLowerCase();
+    const status = studentStatus?.toLowerCase()?.trim();
     
     switch (action) {
       case 'matricular':
-        // Matricular: só se transferido ou desistente
+        // Matricular: só se transferido, desistente, inativo ou sem status
         return status === 'transferred' || status === 'transferido' || 
-               status === 'dropout' || status === 'desistente';
+               status === 'dropout' || status === 'desistente' ||
+               status === 'inactive' || status === 'inativo' ||
+               !status || status === '' || status === 'null' || status === 'undefined';
       case 'transferir':
         // Transferir: só se ativo
         return status === 'active' || status === 'ativo';
