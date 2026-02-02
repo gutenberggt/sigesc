@@ -123,10 +123,7 @@ http:
 ### P0 - Crítico
 - ⚠️ **Configuração do Traefik no Coolify:** A configuração manual atual é frágil. Aplicar o guia `/app/memory/TRAEFIK_FIX_GUIDE.md` para solução permanente. **NOTA:** Este é um problema de infraestrutura externa que requer acesso ao servidor de produção.
 
-### P1 - Próximas (Segurança - FASE 3)
-- **PATCH 3.1:** Reduzir TTL do access token JWT (atualmente muito longo)
-- **PATCH 3.2:** Implementar rotação de refresh tokens
-- **PATCH 3.3:** Adicionar blacklist de tokens revogados
+### P1 - Próximas
 - Email de confirmação após pré-matrícula
 - Highlight do aluno recém-criado na lista
 - Padronizar valores de status dos alunos no banco de dados ("transferred" vs "Transferido")
