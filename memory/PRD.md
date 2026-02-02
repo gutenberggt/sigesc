@@ -31,6 +31,11 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - ✅ **Permissões de Secretário:** Perfil com regras granulares de edição
 - ✅ **Tratamento de Erros Global:** Utilitário `errorHandler.js` para erros de validação
 
+### Patches de Segurança - FASE 3 (Fev 02, 2026)
+- ✅ **PATCH 3.1 - TTL Reduzido:** Access token agora expira em 15 minutos (antes: 7 dias). Refresh token expira em 7 dias (antes: 30 dias). Configurável via `.env`
+- ✅ **PATCH 3.2 - Rotação de Tokens:** Cada uso do refresh token gera um novo par de tokens e revoga o antigo. Impede reutilização de tokens vazados
+- ✅ **PATCH 3.3 - Blacklist de Tokens:** Sistema de revogação com endpoints `/api/auth/logout` (sessão atual) e `/api/auth/logout-all` (todas as sessões). Tokens revogados são rejeitados automaticamente
+
 ### Patches de Segurança - FASE 2 (Fev 02, 2026)
 - ✅ **PATCH 2.1 - Filtragem de Dados Sensíveis:** Campos como CPF, RG, NIS, dados bancários e senhas são automaticamente removidos dos dados de sincronização offline
 - ✅ **PATCH 2.2 - Paginação no Sync:** Endpoint `/api/sync/pull` agora suporta paginação (`page`, `pageSize`) para evitar sobrecarga de memória. Padrão: 100 itens, máximo: 500
