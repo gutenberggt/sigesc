@@ -64,7 +64,7 @@ def create_refresh_token(data: Dict[str, Any]) -> str:
         'exp': expire, 
         'type': 'refresh',
         'jti': token_id,  # PATCH 3.2: ID único do token
-        'iat': datetime.now(timezone.utc).isoformat()  # Timestamp de criação
+        'iat': int(datetime.now(timezone.utc).timestamp())  # Timestamp de criação (numérico)
     })
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
