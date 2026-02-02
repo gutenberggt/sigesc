@@ -1,6 +1,11 @@
 """
 Router de Sincronização Offline - SIGESC
 Endpoints para sincronização bidirecional de dados offline/online
+
+PATCHES DE SEGURANÇA FASE 2:
+- PATCH 2.1: Filtragem de campos sensíveis
+- PATCH 2.2: Paginação no sync pull
+- PATCH 2.3: Rate limiting específico
 """
 from fastapi import APIRouter, HTTPException, status, Request
 from typing import List, Optional, Dict, Any
@@ -9,6 +14,27 @@ from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
+
+# PATCH 2.1: Campos sensíveis que NUNCA devem ser sincronizados
+SENSITIVE_FIELDS = {
+    'students': ['password_hash', 'nis', 'cpf', 'rg', 'cartao_sus', 'certidao_nascimento', 
+                 'guardian_cpf', 'mother_cpf', 'father_cpf', 'mother_rg', 'father_rg',
+                 'bank_account', 'pix_key', 'income', 'bolsa_familia'],
+    'users': ['password_hash', 'refresh_token', 'cpf', 'rg'],
+    'staff': ['password_hash', 'cpf', 'rg', 'pis_pasep', 'bank_account', 'salary'],
+    'schools': ['cnpj', 'bank_account', 'pix_key'],
+    'guardians': ['cpf', 'rg', 'bank_account', 'pix_key', 'income'],
+    # Coleções sem campos sensíveis
+    'grades': [],
+    'attendance': [],
+    'classes': [],
+    'courses': [],
+    'enrollments': []
+}
+
+# PATCH 2.2: Limites de paginação
+DEFAULT_PAGE_SIZE = 100
+MAX_PAGE_SIZE = 500
 
 # ============= MODELOS PYDANTIC =============
 
