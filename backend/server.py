@@ -7493,10 +7493,8 @@ async def get_audit_stats(request: Request, days: int = 7):
     }
 
 
-# Include the router in the main app
-app.include_router(api_router)
-
-# Include modular routers
+# Include modular routers FIRST (take precedence over legacy routes in api_router)
+# PATCH 4.x: Routers modulares têm preferência sobre rotas legadas
 users_router = setup_users_router(db, audit_service, sandbox_db)
 schools_router = setup_schools_router(db, audit_service, sandbox_db)
 courses_router = setup_courses_router(db, audit_service)
@@ -7505,8 +7503,10 @@ guardians_router = setup_guardians_router(db, audit_service)
 enrollments_router = setup_enrollments_router(db, audit_service)
 sync_router = setup_sync_router(db, AuthMiddleware)
 medical_certificates_router = setup_medical_certificates_router(db, AuthMiddleware)
-students_router = setup_students_router(db, audit_service, sandbox_db)  # PATCH 4.x
+students_router = setup_students_router(db, audit_service, sandbox_db)
 
+# Routers modulares (prioridade)
+app.include_router(students_router, prefix="/api")  # PATCH 4.x: Students primeiro
 app.include_router(users_router, prefix="/api")
 app.include_router(schools_router, prefix="/api")
 app.include_router(courses_router, prefix="/api")
@@ -7515,7 +7515,9 @@ app.include_router(guardians_router, prefix="/api")
 app.include_router(enrollments_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
 app.include_router(medical_certificates_router, prefix="/api")
-app.include_router(students_router, prefix="/api")  # PATCH 4.x
+
+# Include the legacy api_router AFTER modular routers
+app.include_router(api_router)
 
 # ============= WEBSOCKET ENDPOINT =============
 
