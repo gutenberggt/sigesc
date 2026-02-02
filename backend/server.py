@@ -73,9 +73,12 @@ from routers import (
     setup_classes_router,
     setup_guardians_router,
     setup_enrollments_router,
-    setup_students_router,  # PATCH 4.x: Router de alunos extraído
-    setup_grades_router,    # PATCH 4.x: Router de notas extraído
-    setup_attendance_router # PATCH 4.x: Router de frequência extraído
+    setup_students_router,       # PATCH 4.x
+    setup_grades_router,         # PATCH 4.x
+    setup_attendance_router,     # PATCH 4.x
+    setup_calendar_router,       # PATCH 4.x
+    setup_staff_router,          # PATCH 4.x
+    setup_announcements_router   # PATCH 4.x
 )
 from routers.sync import setup_sync_router
 from routers.medical_certificates import setup_medical_certificates_router
