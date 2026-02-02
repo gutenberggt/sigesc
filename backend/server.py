@@ -47,7 +47,8 @@ from models import (
 )
 from auth_utils import (
     hash_password, verify_password, create_access_token, 
-    create_refresh_token, decode_token, get_school_ids_from_links
+    create_refresh_token, decode_token, get_school_ids_from_links,
+    token_blacklist  # PATCH 3.3: Serviço de blacklist de tokens
 )
 from auth_middleware import AuthMiddleware
 from audit_service import audit_service
