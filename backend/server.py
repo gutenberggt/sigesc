@@ -1086,17 +1086,12 @@ async def get_class_details_pdf(class_id: str, request: Request):
 
 # ============= COURSE (COMPONENTE CURRICULAR) ROUTES - MOVIDO PARA routers/courses.py =============
 
-# ============= STUDENT (ALUNO) ROUTES - MOVIDO PARA routers/students.py (PATCH 4.x) =============
-# As rotas de alunos foram extraídas para /app/backend/routers/students.py
-# para melhor organização e manutenibilidade do código.
+# ============= STUDENT (ALUNO) ROUTES =============
 
-# ROTAS LEGADAS COMENTADAS - REMOVER EM VERSÃO FUTURA
-"""
 @api_router.post("/students", response_model=Student, status_code=status.HTTP_201_CREATED)
 async def create_student(student_data: StudentCreate, request: Request):
-    # ... movido para routers/students.py
-    pass
-"""
+    """Cria novo aluno"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
     
     # Verifica acesso à escola
     await AuthMiddleware.verify_school_access(request, student_data.school_id)
