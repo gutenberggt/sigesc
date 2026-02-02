@@ -175,6 +175,10 @@ async def create_indexes():
         # Inicializa o serviço de sandbox
         await sandbox_service.initialize(client)
         
+        # PATCH 3.3: Inicializa o serviço de blacklist de tokens
+        token_blacklist.set_db(db)
+        await token_blacklist.ensure_index()
+        
     except Exception as e:
         logger.error(f"Erro ao criar índices MongoDB: {e}")
 
