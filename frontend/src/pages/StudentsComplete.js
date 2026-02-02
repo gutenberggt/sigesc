@@ -53,6 +53,8 @@ const initialFormData = {
   
   // Dados Pessoais
   full_name: '',
+  phone: '',
+  email: '',
   birth_date: '',
   sex: '',
   nationality: 'Brasileira',
@@ -86,15 +88,18 @@ const initialFormData = {
   father_cpf: '',
   father_rg: '',
   father_phone: '',
+  father_email: '',
   mother_name: '',
   mother_cpf: '',
   mother_rg: '',
   mother_phone: '',
+  mother_email: '',
   legal_guardian_type: '',  // 'mother', 'father', 'both', 'other'
   guardian_name: '',
   guardian_cpf: '',
   guardian_rg: '',
   guardian_phone: '',
+  guardian_email: '',
   guardian_relationship: '',
   authorized_persons: [],
   
