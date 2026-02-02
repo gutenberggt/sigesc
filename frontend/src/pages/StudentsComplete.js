@@ -600,6 +600,240 @@ export function StudentsComplete() {
     }
   };
 
+  // ===== FUNÇÕES DE AÇÕES DE VÍNCULO =====
+  
+  // Verifica se a ação é permitida para o status atual do aluno
+  const canExecuteAction = (action, studentStatus) => {
+    const status = studentStatus?.toLowerCase();
+    
+    switch (action) {
+      case 'matricular':
+        // Matricular: só se transferido ou desistente
+        return status === 'transferred' || status === 'transferido' || 
+               status === 'dropout' || status === 'desistente';
+      case 'transferir':
+        // Transferir: só se ativo
+        return status === 'active' || status === 'ativo';
+      case 'remanejar':
+        // Remanejar: só se ativo
+        return status === 'active' || status === 'ativo';
+      case 'progredir':
+        // Progredir: só se ativo
+        return status === 'active' || status === 'ativo';
+      default:
+        return false;
+    }
+  };
+
+  // Abre o modal de ação
+  const handleOpenActionModal = (action) => {
+    if (!editingStudent) {
+      showAlert('error', 'Nenhum aluno selecionado');
+      return;
+    }
+    
+    if (!canExecuteAction(action, editingStudent.status)) {
+      const statusLabels = {
+        'active': 'Ativo', 'ativo': 'Ativo',
+        'transferred': 'Transferido', 'transferido': 'Transferido',
+        'dropout': 'Desistente', 'desistente': 'Desistente',
+        'inactive': 'Inativo'
+      };
+      const currentStatus = statusLabels[editingStudent.status?.toLowerCase()] || editingStudent.status;
+      
+      const actionMessages = {
+        'matricular': 'A ação "Matricular" só é permitida para alunos com status "Transferido" ou "Desistente".',
+        'transferir': 'A ação "Transferir" só é permitida para alunos com status "Ativo".',
+        'remanejar': 'A ação "Remanejar" só é permitida para alunos com status "Ativo".',
+        'progredir': 'A ação "Progredir" só é permitida para alunos com status "Ativo".'
+      };
+      
+      showAlert('error', `${actionMessages[action]} Status atual: ${currentStatus}`);
+      return;
+    }
+    
+    setSelectedAction(action);
+    setActionData({
+      targetSchoolId: action === 'remanejar' ? formData.school_id : '',
+      targetClassId: '',
+      reason: '',
+      notes: '',
+      emitirHistorico: false
+    });
+    setShowActionModal(true);
+  };
+
+  // Executa a ação selecionada
+  const executeVinculoAction = async () => {
+    if (!editingStudent || !selectedAction) return;
+    
+    setExecutingAction(true);
+    
+    try {
+      const currentYear = new Date().getFullYear();
+      let updateData = {};
+      let historyEntry = {
+        action_type: selectedAction,
+        previous_status: editingStudent.status,
+        observations: actionData.notes,
+        user_name: user?.full_name || user?.email
+      };
+      
+      switch (selectedAction) {
+        case 'matricular':
+          // Validações
+          if (!actionData.targetSchoolId || !actionData.targetClassId) {
+            showAlert('error', 'Selecione a escola e a turma para matrícula');
+            setExecutingAction(false);
+            return;
+          }
+          
+          updateData = {
+            school_id: actionData.targetSchoolId,
+            class_id: actionData.targetClassId,
+            status: 'active'
+          };
+          
+          historyEntry = {
+            ...historyEntry,
+            action_type: 'matricula',
+            new_status: 'active',
+            school_id: actionData.targetSchoolId,
+            class_id: actionData.targetClassId,
+            observations: actionData.notes || `Matrícula realizada em ${currentYear}`
+          };
+          break;
+          
+        case 'transferir':
+          updateData = {
+            status: 'transferred'
+          };
+          
+          historyEntry = {
+            ...historyEntry,
+            action_type: 'transferencia_saida',
+            new_status: 'transferred',
+            school_id: formData.school_id,
+            class_id: formData.class_id,
+            observations: actionData.reason || 'Transferência solicitada'
+          };
+          break;
+          
+        case 'remanejar':
+          // Validações
+          if (!actionData.targetClassId) {
+            showAlert('error', 'Selecione a turma de destino para remanejamento');
+            setExecutingAction(false);
+            return;
+          }
+          
+          if (actionData.targetClassId === formData.class_id) {
+            showAlert('error', 'A turma de destino deve ser diferente da turma atual');
+            setExecutingAction(false);
+            return;
+          }
+          
+          const turmaOrigem = classes.find(c => c.id === formData.class_id);
+          const turmaDestino = classes.find(c => c.id === actionData.targetClassId);
+          
+          updateData = {
+            class_id: actionData.targetClassId
+          };
+          
+          historyEntry = {
+            ...historyEntry,
+            action_type: 'remanejamento',
+            new_status: 'active',
+            school_id: formData.school_id,
+            class_id: actionData.targetClassId,
+            observations: `Remanejado de ${turmaOrigem?.name || 'turma anterior'} para ${turmaDestino?.name || 'nova turma'}. ${actionData.notes || ''}`
+          };
+          break;
+          
+        case 'progredir':
+          // Se emitir histórico, apenas muda o status para transferido
+          if (actionData.emitirHistorico) {
+            updateData = {
+              status: 'transferred'
+            };
+            
+            historyEntry = {
+              ...historyEntry,
+              action_type: 'progressao',
+              new_status: 'transferred',
+              school_id: formData.school_id,
+              class_id: formData.class_id,
+              observations: `Progressão com emissão de histórico escolar. ${actionData.notes || ''}`
+            };
+          } else {
+            // Se não emitir histórico, seleciona nova turma
+            if (!actionData.targetClassId) {
+              showAlert('error', 'Selecione a turma de destino ou marque "Emitir Histórico Escolar"');
+              setExecutingAction(false);
+              return;
+            }
+            
+            const turmaProgressao = classes.find(c => c.id === actionData.targetClassId);
+            
+            updateData = {
+              class_id: actionData.targetClassId
+            };
+            
+            historyEntry = {
+              ...historyEntry,
+              action_type: 'progressao',
+              new_status: 'active',
+              school_id: formData.school_id,
+              class_id: actionData.targetClassId,
+              observations: `Progressão para ${turmaProgressao?.name || 'nova turma'}. Base legal aplicada. ${actionData.notes || ''}`
+            };
+          }
+          break;
+          
+        default:
+          showAlert('error', 'Ação inválida');
+          setExecutingAction(false);
+          return;
+      }
+      
+      // Executa a atualização
+      await studentsAPI.update(editingStudent.id, updateData);
+      
+      // Atualiza o formData local
+      setFormData(prev => ({ ...prev, ...updateData }));
+      setEditingStudent(prev => ({ ...prev, ...updateData }));
+      
+      // Recarrega o histórico
+      if (editingStudent.id) {
+        const historyResponse = await studentsAPI.getHistory(editingStudent.id);
+        setStudentHistory(historyResponse.data || []);
+      }
+      
+      const actionLabels = {
+        'matricular': 'Matrícula',
+        'transferir': 'Transferência',
+        'remanejar': 'Remanejamento',
+        'progredir': 'Progressão'
+      };
+      
+      showAlert('success', `${actionLabels[selectedAction]} realizada com sucesso!`);
+      setShowActionModal(false);
+      reloadData();
+      
+    } catch (error) {
+      console.error('Erro ao executar ação:', error);
+      showAlert('error', extractErrorMessage(error, 'Erro ao executar ação'));
+    } finally {
+      setExecutingAction(false);
+    }
+  };
+
+  // Turmas filtradas para a escola de destino (usado nas ações)
+  const actionTargetClasses = useMemo(() => {
+    if (!actionData.targetSchoolId) return [];
+    return classes.filter(c => c.school_id === actionData.targetSchoolId);
+  }, [classes, actionData.targetSchoolId]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
