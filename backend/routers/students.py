@@ -44,6 +44,37 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         
         await current_db.students.insert_one(doc)
         
+        # Se o aluno tem turma, cria a matrícula automaticamente
+        if student_obj.class_id and student_obj.status == 'active':
+            academic_year = datetime.now().year
+            
+            # Gera número de matrícula
+            last_enrollment = await current_db.enrollments.find_one(
+                {"academic_year": academic_year},
+                sort=[("enrollment_number", -1)]
+            )
+            if last_enrollment and last_enrollment.get('enrollment_number'):
+                try:
+                    last_num = int(str(last_enrollment['enrollment_number'])[-5:])
+                    new_enrollment_number = f"{academic_year}{str(last_num + 1).zfill(5)}"
+                except:
+                    new_enrollment_number = f"{academic_year}00001"
+            else:
+                new_enrollment_number = f"{academic_year}00001"
+            
+            enrollment_doc = {
+                "id": str(uuid.uuid4()),
+                "student_id": student_obj.id,
+                "school_id": student_obj.school_id,
+                "class_id": student_obj.class_id,
+                "academic_year": academic_year,
+                "status": "active",
+                "enrollment_number": new_enrollment_number,
+                "enrollment_date": datetime.now().isoformat(),
+                "created_at": datetime.now().isoformat()
+            }
+            await current_db.enrollments.insert_one(enrollment_doc)
+        
         # Registra auditoria
         school = await current_db.schools.find_one({"id": student_data.school_id}, {"_id": 0, "name": 1})
         await audit_service.log(
