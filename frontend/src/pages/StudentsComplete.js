@@ -1256,16 +1256,52 @@ export function StudentsComplete() {
       
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-6">Dados Pessoais</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
-          <input
-            type="text"
-            value={formData.full_name}
-            onChange={(e) => updateFormData('full_name', e.target.value)}
-            required
-            disabled={viewMode}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-          />
+        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
+            <input
+              type="text"
+              value={formData.full_name}
+              onChange={(e) => updateFormData('full_name', e.target.value)}
+              required
+              disabled={viewMode}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Phone size={14} className="inline mr-1" />
+              Telefone
+            </label>
+            <input
+              type="text"
+              value={formatPhone(formData.phone || '')}
+              onChange={(e) => updateFormData('phone', e.target.value.replace(/\D/g, '').slice(0, 11))}
+              disabled={viewMode}
+              maxLength={14}
+              placeholder="(00)00000-0000"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Mail size={14} className="inline mr-1" />
+              E-mail
+            </label>
+            <input
+              type="email"
+              value={formData.email || ''}
+              onChange={(e) => updateFormData('email', e.target.value)}
+              disabled={viewMode}
+              placeholder="aluno@email.com"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 ${
+                formData.email && !isValidEmail(formData.email) ? 'border-red-500' : 'border-gray-300'
+              }`}
+            />
+            {formData.email && !isValidEmail(formData.email) && (
+              <p className="text-xs text-red-500 mt-1">E-mail inválido</p>
+            )}
+          </div>
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div>
