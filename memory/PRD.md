@@ -129,9 +129,11 @@ http:
 - Padronizar valores de status dos alunos no banco de dados ("transferred" vs "Transferido")
 
 ### P2 - Futuras (Segurança - FASE 4)
-- ✅ **PATCH 4.1 - Router de Students:** Criado `/app/backend/routers/students.py` com todas as rotas de CRUD de alunos extraídas do `server.py`. As rotas legadas permanecem no `server.py` mas são sobrescritas pelos routers modulares que têm prioridade.
-- ⏳ **PATCH 4.2 - App Factory:** Criado `/app/backend/app_factory.py` com padrão Factory (parcialmente implementado)
-- ⏳ **PATCH 4.3 - Outros Routers:** Pendente extrair rotas de grades, attendance, calendar, staff, etc.
+- ✅ **PATCH 4.1 - Router de Students:** Criado `/app/backend/routers/students.py`
+- ✅ **PATCH 4.2 - Router de Grades:** Criado `/app/backend/routers/grades.py` com CRUD de notas e cálculo automático de médias
+- ✅ **PATCH 4.3 - Router de Attendance:** Criado `/app/backend/routers/attendance.py` com lançamento de frequência e relatórios
+- ✅ **App Factory:** Criado `/app/backend/app_factory.py` com padrão Factory
+- ⏳ **Próximo:** Extrair rotas de calendar, staff, announcements
 - Refatoração do `SchoolsComplete.js`
 - Expansão offline para matrículas
 - Padronização de erros em todos componentes
