@@ -65,3 +65,42 @@ export const unformat = (value) => {
   if (!value) return '';
   return value.replace(/\D/g, '');
 };
+
+/**
+ * Formata NIS/PIS/PASEP no padrão 000.00000.00-0
+ * @param {string} value - Valor a ser formatado
+ * @returns {string} Valor formatado
+ */
+export const formatNIS = (value) => {
+  if (!value) return '';
+  const numbers = value.replace(/\D/g, '').slice(0, 11);
+  if (numbers.length <= 3) return numbers;
+  if (numbers.length <= 8) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
+  if (numbers.length <= 10) return `${numbers.slice(0, 3)}.${numbers.slice(3, 8)}.${numbers.slice(8)}`;
+  return `${numbers.slice(0, 3)}.${numbers.slice(3, 8)}.${numbers.slice(8, 10)}-${numbers.slice(10, 11)}`;
+};
+
+/**
+ * Formata Número SUS no padrão 000.0000.0000.0000
+ * @param {string} value - Valor a ser formatado
+ * @returns {string} Valor formatado
+ */
+export const formatSUS = (value) => {
+  if (!value) return '';
+  const numbers = value.replace(/\D/g, '').slice(0, 15);
+  if (numbers.length <= 3) return numbers;
+  if (numbers.length <= 7) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
+  if (numbers.length <= 11) return `${numbers.slice(0, 3)}.${numbers.slice(3, 7)}.${numbers.slice(7)}`;
+  return `${numbers.slice(0, 3)}.${numbers.slice(3, 7)}.${numbers.slice(7, 11)}.${numbers.slice(11, 15)}`;
+};
+
+/**
+ * Valida formato de e-mail
+ * @param {string} email - E-mail a ser validado
+ * @returns {boolean} True se válido
+ */
+export const isValidEmail = (email) => {
+  if (!email) return true; // Vazio é válido (não obrigatório)
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
