@@ -16,11 +16,17 @@ const STORAGE_KEYS = {
   ACCESS_TOKEN: 'accessToken',
   REFRESH_TOKEN: 'refreshToken',
   USER_DATA: 'userData',
-  LAST_LOGIN: 'lastLoginTime'
+  LAST_LOGIN: 'lastLoginTime',
+  LAST_ACTIVITY: 'lastActivityTime'  // PATCH 3.1: Para idle timeout
 };
 
 // Tempo máximo para sessão offline (7 dias em ms)
 const MAX_OFFLINE_SESSION = 7 * 24 * 60 * 60 * 1000;
+
+// PATCH 3.1: Configurações de idle timeout
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000;  // 15 minutos de inatividade para expirar
+const TOKEN_REFRESH_INTERVAL_MS = 10 * 60 * 1000;  // Renova token a cada 10 minutos se ativo
+const ACTIVITY_THROTTLE_MS = 30 * 1000;  // Atualiza timestamp de atividade a cada 30s
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
