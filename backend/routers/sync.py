@@ -353,17 +353,49 @@ def clean_sync_data(data: dict) -> dict:
     return cleaned
 
 
-async def fetch_collection_data(
+# PATCH 2.1: Função para filtrar campos sensíveis
+def filter_sensitive_fields(data: List[Dict[str, Any]], collection: str) -> List[Dict[str, Any]]:
+    """
+    Remove campos sensíveis dos dados antes de enviar ao cliente.
+    PATCH 2.1: Proteção contra vazamento de dados pessoais no sync offline.
+    """
+    sensitive = SENSITIVE_FIELDS.get(collection, [])
+    
+    if not sensitive:
+        return data  # Nenhum campo sensível para esta coleção
+    
+    filtered = []
+    for item in data:
+        # Cria cópia sem os campos sensíveis
+        filtered_item = {k: v for k, v in item.items() if k not in sensitive}
+        filtered.append(filtered_item)
+    
+    if data and sensitive:
+        logger.debug(f"[Sync] Filtrados {len(sensitive)} campos sensíveis de {len(data)} registros em {collection}")
+    
+    return filtered
+
+
+# PATCH 2.2: Função de busca com paginação
+async def fetch_collection_data_paginated(
     db, 
     user, 
     collection: str, 
     class_id: Optional[str],
     academic_year: Optional[str],
-    last_sync: Optional[str]
-) -> List[Dict[str, Any]]:
-    """Busca dados de uma coleção para sincronização"""
+    last_sync: Optional[str],
+    page: int = 1,
+    page_size: int = DEFAULT_PAGE_SIZE
+) -> tuple:
+    """
+    Busca dados de uma coleção para sincronização com paginação.
+    Retorna tupla (dados, total_count) para suportar paginação.
+    
+    PATCH 2.2: Implementa paginação para evitar sobrecarga de memória.
+    """
     
     query = {}
+    skip = (page - 1) * page_size
     
     # Filtros comuns
     if class_id:
@@ -383,12 +415,14 @@ async def fetch_collection_data(
     
     # Busca baseada na coleção
     if collection == 'grades':
-        cursor = db.grades.find(query, {'_id': 0})
-        return await cursor.to_list(5000)
+        total = await db.grades.count_documents(query)
+        cursor = db.grades.find(query, {'_id': 0}).skip(skip).limit(page_size)
+        return await cursor.to_list(page_size), total
         
     elif collection == 'attendance':
-        cursor = db.attendance.find(query, {'_id': 0})
-        return await cursor.to_list(5000)
+        total = await db.attendance.count_documents(query)
+        cursor = db.attendance.find(query, {'_id': 0}).skip(skip).limit(page_size)
+        return await cursor.to_list(page_size), total
         
     elif collection == 'students':
         student_query = {}
@@ -402,8 +436,9 @@ async def fetch_collection_data(
             student_ids = [e['student_id'] for e in enrollments]
             student_query['id'] = {'$in': student_ids}
         
-        cursor = db.students.find(student_query, {'_id': 0})
-        return await cursor.to_list(1000)
+        total = await db.students.count_documents(student_query)
+        cursor = db.students.find(student_query, {'_id': 0}).skip(skip).limit(page_size)
+        return await cursor.to_list(page_size), total
         
     elif collection == 'classes':
         class_query = {}
@@ -411,32 +446,55 @@ async def fetch_collection_data(
             class_query['academic_year'] = academic_year
             
         # Filtra por escolas do usuário se não for admin
-        if user['role'] != 'admin' and user.get('school_ids'):
+        if user['role'] not in ['admin', 'admin_teste'] and user.get('school_ids'):
             class_query['school_id'] = {'$in': user['school_ids']}
         
-        cursor = db.classes.find(class_query, {'_id': 0})
-        return await cursor.to_list(500)
+        total = await db.classes.count_documents(class_query)
+        cursor = db.classes.find(class_query, {'_id': 0}).skip(skip).limit(page_size)
+        return await cursor.to_list(page_size), total
         
     elif collection == 'courses':
         course_query = {}
         
         # Filtra por escolas do usuário se não for admin
-        if user['role'] != 'admin' and user.get('school_ids'):
+        if user['role'] not in ['admin', 'admin_teste'] and user.get('school_ids'):
             course_query['school_id'] = {'$in': user['school_ids']}
         
-        cursor = db.courses.find(course_query, {'_id': 0})
-        return await cursor.to_list(500)
+        total = await db.courses.count_documents(course_query)
+        cursor = db.courses.find(course_query, {'_id': 0}).skip(skip).limit(page_size)
+        return await cursor.to_list(page_size), total
         
     elif collection == 'schools':
         school_query = {}
         
         # Filtra por escolas do usuário se não for admin
-        if user['role'] != 'admin' and user.get('school_ids'):
+        if user['role'] not in ['admin', 'admin_teste'] and user.get('school_ids'):
             school_query['id'] = {'$in': user['school_ids']}
         
-        cursor = db.schools.find(school_query, {'_id': 0})
-        return await cursor.to_list(100)
+        total = await db.schools.count_documents(school_query)
+        cursor = db.schools.find(school_query, {'_id': 0}).skip(skip).limit(page_size)
+        return await cursor.to_list(page_size), total
     
     else:
         logger.warning(f"[Sync] Coleção desconhecida para pull: {collection}")
-        return []
+        return [], 0
+
+
+# Mantém função antiga para compatibilidade (deprecated)
+async def fetch_collection_data(
+    db, 
+    user, 
+    collection: str, 
+    class_id: Optional[str],
+    academic_year: Optional[str],
+    last_sync: Optional[str]
+) -> List[Dict[str, Any]]:
+    """
+    DEPRECATED: Use fetch_collection_data_paginated
+    Mantida para compatibilidade com código existente.
+    """
+    data, _ = await fetch_collection_data_paginated(
+        db, user, collection, class_id, academic_year, last_sync, 
+        page=1, page_size=5000  # Limite alto para compatibilidade
+    )
+    return data
