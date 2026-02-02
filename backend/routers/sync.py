@@ -70,12 +70,17 @@ class SyncPullRequest(BaseModel):
     classId: Optional[str] = None  # Filtro por turma
     academicYear: Optional[str] = None  # Filtro por ano letivo
     lastSync: Optional[str] = None  # Data da última sincronização (para delta sync)
+    # PATCH 2.2: Parâmetros de paginação
+    page: Optional[int] = 1  # Página atual (começa em 1)
+    pageSize: Optional[int] = DEFAULT_PAGE_SIZE  # Itens por página
 
 class SyncPullResponse(BaseModel):
     """Response do endpoint de pull"""
     data: Dict[str, List[Dict[str, Any]]]
     syncedAt: str
     counts: Dict[str, int]
+    # PATCH 2.2: Informações de paginação
+    pagination: Optional[Dict[str, Any]] = None
 
 
 def setup_sync_router(db, auth_middleware):
