@@ -5,6 +5,10 @@ from typing import Optional, Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Carrega variáveis de ambiente do .env
 ROOT_DIR = Path(__file__).parent
@@ -16,9 +20,11 @@ if not SECRET_KEY:
     raise ValueError("JWT_SECRET_KEY environment variable is required")
 ALGORITHM = 'HS256'
 
-# Configurações de expiração via variáveis de ambiente (com valores padrão)
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES', 60 * 24 * 7))  # Padrão: 7 dias
-REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get('REFRESH_TOKEN_EXPIRE_DAYS', 30))  # Padrão: 30 dias
+# PATCH 3.1: Configurações de expiração com valores seguros
+# Access token: curto (15 min padrão) - pode ser configurado via .env
+# Refresh token: longo (7 dias padrão) - pode ser configurado via .env
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES', 15))  # PATCH 3.1: Reduzido de 7 dias para 15 minutos
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get('REFRESH_TOKEN_EXPIRE_DAYS', 7))  # PATCH 3.1: Reduzido de 30 dias para 7 dias
 
 # Context para hash de senhas
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
