@@ -102,9 +102,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Função para renovar o token
-  const refreshAccessToken = useCallback(async () => {
+  const refreshAccessToken = useCallback(async (force = false) => {
     const currentRefreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
     if (!currentRefreshToken) {
+      return null;
+    }
+
+    // PATCH 3.1: Não renova se usuário está inativo (a menos que seja forçado)
+    if (!force && isUserIdle()) {
+      console.log('[Auth] Usuário inativo, não renovando token automaticamente');
       return null;
     }
 
@@ -129,13 +135,26 @@ export const AuthProvider = ({ children }) => {
         saveUserDataLocally(userData);
       }
       
+      // PATCH 3.1: Atualiza timestamp de atividade ao renovar
+      updateActivity();
+      
       console.log('[Auth] Token renovado com sucesso');
       return access_token;
     } catch (error) {
       console.error('[Auth] Erro ao renovar token:', error);
+      
+      // PATCH 3.3: Se o token foi revogado, faz logout
+      if (error.response?.status === 401) {
+        const detail = error.response?.data?.detail || '';
+        if (detail.includes('revogado') || detail.includes('revoked')) {
+          console.log('[Auth] Token revogado, fazendo logout');
+          logout();
+        }
+      }
+      
       return null;
     }
-  }, [API]);
+  }, [API, isUserIdle, updateActivity]);
 
   // Notifica subscribers após refresh
   const onRefreshed = useCallback((token) => {
