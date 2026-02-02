@@ -7511,11 +7511,17 @@ medical_certificates_router = setup_medical_certificates_router(db, AuthMiddlewa
 students_router = setup_students_router(db, audit_service, sandbox_db)
 grades_router = setup_grades_router(db, audit_service, verify_academic_year_open_or_raise, verify_bimestre_edit_deadline_or_raise, sandbox_db)
 attendance_router = setup_attendance_router(db, audit_service, sandbox_db)
+calendar_router = setup_calendar_router(db, audit_service, sandbox_db)
+staff_router = setup_staff_router(db, audit_service, None, sandbox_db)  # ftp_upload_func=None for now
+announcements_router = setup_announcements_router(db, audit_service, connection_manager, sandbox_db)
 
 # Routers modulares (prioridade)
-app.include_router(students_router, prefix="/api")  # PATCH 4.x: Students
-app.include_router(grades_router, prefix="/api")    # PATCH 4.x: Grades
-app.include_router(attendance_router, prefix="/api") # PATCH 4.x: Attendance
+app.include_router(students_router, prefix="/api")
+app.include_router(grades_router, prefix="/api")
+app.include_router(attendance_router, prefix="/api")
+app.include_router(calendar_router, prefix="/api")
+app.include_router(staff_router, prefix="/api")
+app.include_router(announcements_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(schools_router, prefix="/api")
 app.include_router(courses_router, prefix="/api")
