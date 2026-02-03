@@ -5,11 +5,9 @@ Script para gerar apresentação PowerPoint do SIGESC
 
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from pptx.dml.color import RgbColor
+from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
-from pptx.oxml.xmlchemy import OxmlElement
-from pptx.oxml.ns import qn
 
 def set_shape_gradient(shape, color1, color2):
     """Define gradiente para um shape"""
