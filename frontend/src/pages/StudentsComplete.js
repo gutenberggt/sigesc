@@ -2470,28 +2470,6 @@ export function StudentsComplete() {
           </div>
         </div>
       )}
-              <option value="">Selecione uma ação...</option>
-              <option value="matricular" disabled={!canExecuteAction('matricular', editingStudent?.status)}>
-                📋 Matricular {!canExecuteAction('matricular', editingStudent?.status) ? '(indisponível)' : ''}
-              </option>
-              <option value="transferir" disabled={!canExecuteAction('transferir', editingStudent?.status)}>
-                🔄 Transferir {!canExecuteAction('transferir', editingStudent?.status) ? '(indisponível)' : ''}
-              </option>
-              <option value="remanejar" disabled={!canExecuteAction('remanejar', editingStudent?.status)}>
-                ↔️ Remanejar {!canExecuteAction('remanejar', editingStudent?.status) ? '(indisponível)' : ''}
-              </option>
-              <option value="progredir" disabled={!canExecuteAction('progredir', editingStudent?.status)}>
-                ⬆️ Progredir {!canExecuteAction('progredir', editingStudent?.status) ? '(indisponível)' : ''}
-              </option>
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              {formData.status === 'active' || formData.status === 'ativo' 
-                ? 'Disponível: Transferir, Remanejar, Progredir'
-                : 'Disponível: Matricular'}
-            </p>
-          </div>
-        )}
-      </div>
 
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-8">Observações</h3>
       <textarea
