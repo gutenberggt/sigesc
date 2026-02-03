@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from typing import Optional, List
 from datetime import datetime
 from bson import ObjectId
+from auth_middleware import AuthMiddleware
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -29,7 +30,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         Retorna visão geral das estatísticas do município/escola
         """
         current_db = get_current_db(request)
-        user = request.state.user
+        user = await AuthMiddleware.get_current_user(request)
         
         # Determina se usuário tem visão global ou restrita
         is_global = user.get('role') in ['admin', 'admin_teste', 'semed']
