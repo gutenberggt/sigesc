@@ -3497,24 +3497,44 @@ export function StudentsComplete() {
                   </p>
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Escola de Destino <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={actionData.targetSchoolId}
-                    onChange={(e) => setActionData(prev => ({ 
-                      ...prev, 
-                      targetSchoolId: e.target.value,
-                      targetClassId: '' // Limpa turma ao mudar escola
-                    }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="">Selecione a escola...</option>
-                    {schools.map(school => (
-                      <option key={school.id} value={school.id}>{school.name}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ano Letivo <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={actionData.academicYear}
+                      onChange={(e) => setActionData(prev => ({ ...prev, academicYear: parseInt(e.target.value) }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value={2025}>2025</option>
+                      <option value={2026}>2026</option>
+                      <option value={2027}>2027</option>
+                      <option value={2028}>2028</option>
+                      <option value={2029}>2029</option>
+                      <option value={2030}>2030</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Escola de Destino <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={actionData.targetSchoolId}
+                      onChange={(e) => setActionData(prev => ({ 
+                        ...prev, 
+                        targetSchoolId: e.target.value,
+                        targetClassId: '' // Limpa turma ao mudar escola
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value="">Selecione a escola...</option>
+                      {schools.map(school => (
+                        <option key={school.id} value={school.id}>{school.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 
                 <div>
