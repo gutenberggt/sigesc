@@ -206,7 +206,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         Retorna tendência de matrículas por ano letivo
         """
         current_db = get_current_db(request)
-        user = request.state.user
+        user = await AuthMiddleware.get_current_user(request)
         
         is_global = user.get('role') in ['admin', 'admin_teste', 'semed']
         user_school_ids = user.get('school_ids', []) or []
@@ -277,7 +277,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         Retorna frequência mensal
         """
         current_db = get_current_db(request)
-        user = request.state.user
+        user = await AuthMiddleware.get_current_user(request)
         
         is_global = user.get('role') in ['admin', 'admin_teste', 'semed']
         user_school_ids = user.get('school_ids', []) or []
@@ -355,7 +355,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         Retorna média de notas por componente curricular
         """
         current_db = get_current_db(request)
-        user = request.state.user
+        user = await AuthMiddleware.get_current_user(request)
         
         is_global = user.get('role') in ['admin', 'admin_teste', 'semed']
         user_school_ids = user.get('school_ids', []) or []
@@ -436,7 +436,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         Retorna média de notas por bimestre/período
         """
         current_db = get_current_db(request)
-        user = request.state.user
+        user = await AuthMiddleware.get_current_user(request)
         
         is_global = user.get('role') in ['admin', 'admin_teste', 'semed']
         user_school_ids = user.get('school_ids', []) or []
@@ -510,7 +510,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         Retorna ranking das escolas por desempenho
         """
         current_db = get_current_db(request)
-        user = request.state.user
+        user = await AuthMiddleware.get_current_user(request)
         
         is_global = user.get('role') in ['admin', 'admin_teste', 'semed']
         user_school_ids = user.get('school_ids', []) or []
@@ -634,7 +634,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         Retorna desempenho individual dos alunos
         """
         current_db = get_current_db(request)
-        user = request.state.user
+        user = await AuthMiddleware.get_current_user(request)
         
         is_global = user.get('role') in ['admin', 'admin_teste', 'semed']
         user_school_ids = user.get('school_ids', []) or []
@@ -750,7 +750,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         Retorna distribuição de notas por faixa
         """
         current_db = get_current_db(request)
-        user = request.state.user
+        user = await AuthMiddleware.get_current_user(request)
         
         is_global = user.get('role') in ['admin', 'admin_teste', 'semed']
         user_school_ids = user.get('school_ids', []) or []
