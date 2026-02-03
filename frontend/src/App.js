@@ -28,6 +28,7 @@ import Announcements from '@/pages/Announcements';
 import Mantenedora from '@/pages/Mantenedora';
 import AuditLogs from '@/pages/AuditLogs';
 import Promotion from '@/pages/Promotion';
+import { AnalyticsDashboard } from '@/pages/AnalyticsDashboard';
 import '@/App.css';
 
 function App() {
