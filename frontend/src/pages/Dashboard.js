@@ -25,7 +25,7 @@ export const Dashboard = () => {
   }, [user?.school_ids, user?.school_links]);
   
   const isSecretario = user?.role === 'secretario';
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = ['admin', 'admin_teste'].includes(user?.role);
 
   useEffect(() => {
     // Não carrega stats se for professor (será redirecionado)
