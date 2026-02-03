@@ -14,7 +14,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
     
     def get_current_db(request: Request):
         """Get current database based on sandbox mode"""
-        if sandbox_db and hasattr(request.state, 'is_sandbox') and request.state.is_sandbox:
+        if sandbox_db is not None and hasattr(request.state, 'is_sandbox') and request.state.is_sandbox:
             return sandbox_db
         return db
     
