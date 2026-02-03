@@ -48,8 +48,14 @@ export function AnalyticsDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
-  // Dados analíticos
-  const [overview, setOverview] = useState(null);
+  // Dados analíticos - com valores default
+  const [overview, setOverview] = useState({
+    schools: { total: 0 },
+    classes: { total: 0 },
+    enrollments: { total: 0, active: 0, by_status: {} },
+    attendance: { total_records: 0, present: 0, absent: 0, justified: 0, rate: 0 },
+    grades: { average: 0, total: 0, approved: 0, failed: 0, approval_rate: 0 }
+  });
   const [enrollmentsTrend, setEnrollmentsTrend] = useState([]);
   const [attendanceMonthly, setAttendanceMonthly] = useState([]);
   const [gradesBySubject, setGradesBySubject] = useState([]);
