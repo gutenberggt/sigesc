@@ -38,27 +38,14 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         if user.get('school_links'):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
         
-        # Filtros base
-        school_filter = {}
+        # Contagem de escolas (sem filtro de status para pegar todas)
+        school_query = {}
         if school_id:
-            school_filter['school_id'] = school_id
+            school_query['id'] = school_id
         elif not is_global and user_school_ids:
-            school_filter['school_id'] = {'$in': user_school_ids}
+            school_query['id'] = {'$in': user_school_ids}
         
-        enrollment_filter = {**school_filter}
-        if academic_year:
-            enrollment_filter['academic_year'] = str(academic_year)
-        
-        if class_id:
-            enrollment_filter['class_id'] = class_id
-        
-        # Contagem de escolas
-        if is_global and not school_id:
-            total_schools = await current_db.schools.count_documents({'status': 'active'})
-        elif school_id:
-            total_schools = 1
-        else:
-            total_schools = len(user_school_ids)
+        total_schools = await current_db.schools.count_documents(school_query)
         
         # Contagem de turmas
         class_filter = {}
@@ -69,7 +56,31 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         if academic_year:
             class_filter['academic_year'] = str(academic_year)
         
+        # Se não encontrar turmas com o ano especificado, buscar todas
         total_classes = await current_db.classes.count_documents(class_filter)
+        if total_classes == 0 and academic_year:
+            class_filter_no_year = {k: v for k, v in class_filter.items() if k != 'academic_year'}
+            total_classes = await current_db.classes.count_documents(class_filter_no_year)
+        
+        # Contagem de alunos (via students collection diretamente)
+        student_filter = {}
+        if school_id:
+            student_filter['school_id'] = school_id
+        elif not is_global and user_school_ids:
+            student_filter['school_id'] = {'$in': user_school_ids}
+        
+        total_students = await current_db.students.count_documents(student_filter)
+        
+        # Filtros base para enrollments
+        enrollment_filter = {}
+        if school_id:
+            enrollment_filter['school_id'] = school_id
+        elif not is_global and user_school_ids:
+            enrollment_filter['school_id'] = {'$in': user_school_ids}
+        if academic_year:
+            enrollment_filter['academic_year'] = str(academic_year)
+        if class_id:
+            enrollment_filter['class_id'] = class_id
         
         # Contagem de matrículas por status
         enrollments_pipeline = [
