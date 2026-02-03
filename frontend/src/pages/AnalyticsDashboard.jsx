@@ -149,6 +149,18 @@ export function AnalyticsDashboard() {
       
       const headers = { 'Authorization': `Bearer ${token}` };
       
+      // Função auxiliar para fetch com tratamento de erro
+      const safeFetch = async (url) => {
+        try {
+          const res = await fetch(url, { headers });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return await res.json();
+        } catch (e) {
+          console.error(`Erro ao buscar ${url}:`, e);
+          return null;
+        }
+      };
+      
       // Carregar todos os dados em paralelo
       const [
         overviewRes,
@@ -160,19 +172,19 @@ export function AnalyticsDashboard() {
         performanceRes,
         distributionRes
       ] = await Promise.all([
-        fetch(`${API_URL}/api/analytics/overview?${params}`, { headers }).then(r => r.json()),
-        fetch(`${API_URL}/api/analytics/enrollments/trend?${params}`, { headers }).then(r => r.json()),
-        fetch(`${API_URL}/api/analytics/attendance/monthly?${params}`, { headers }).then(r => r.json()),
-        fetch(`${API_URL}/api/analytics/grades/by-subject?${params}`, { headers }).then(r => r.json()),
-        fetch(`${API_URL}/api/analytics/grades/by-period?${params}`, { headers }).then(r => r.json()),
-        fetch(`${API_URL}/api/analytics/schools/ranking?${params}`, { headers }).then(r => r.json()),
-        fetch(`${API_URL}/api/analytics/students/performance?${params}`, { headers }).then(r => r.json()),
-        fetch(`${API_URL}/api/analytics/distribution/grades?${params}`, { headers }).then(r => r.json())
+        safeFetch(`${API_URL}/api/analytics/overview?${params}`),
+        safeFetch(`${API_URL}/api/analytics/enrollments/trend?${params}`),
+        safeFetch(`${API_URL}/api/analytics/attendance/monthly?${params}`),
+        safeFetch(`${API_URL}/api/analytics/grades/by-subject?${params}`),
+        safeFetch(`${API_URL}/api/analytics/grades/by-period?${params}`),
+        safeFetch(`${API_URL}/api/analytics/schools/ranking?${params}`),
+        safeFetch(`${API_URL}/api/analytics/students/performance?${params}`),
+        safeFetch(`${API_URL}/api/analytics/distribution/grades?${params}`)
       ]);
       
-      setOverview(overviewRes);
-      setEnrollmentsTrend(trendRes);
-      setAttendanceMonthly(monthlyRes);
+      if (overviewRes) setOverview(overviewRes);
+      if (trendRes) setEnrollmentsTrend(trendRes);
+      if (monthlyRes) setAttendanceMonthly(monthlyRes);
       setGradesBySubject(subjectRes);
       setGradesByPeriod(periodRes);
       setSchoolsRanking(rankingRes);
