@@ -444,7 +444,7 @@ export function AnalyticsDashboard() {
     </div>
   );
   
-  if (loading && !overview) {
+  if (loading) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-[60vh]">
