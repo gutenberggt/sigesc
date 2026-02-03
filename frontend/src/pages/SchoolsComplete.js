@@ -1696,6 +1696,36 @@ export function SchoolsComplete() {
     // Filtra turmas da escola atual
     const schoolClasses = classes.filter(c => c.school_id === (editingSchool?.id || formData.school_id));
 
+    // Função para renderizar o badge de tipo/programa
+    const renderTipoBadge = (atendimentoPrograma) => {
+      if (!atendimentoPrograma) return <span className="text-gray-400 text-xs">Regular</span>;
+      
+      const programaLabels = {
+        'atendimento_integral': { label: 'Integral', color: 'bg-purple-100 text-purple-800' },
+        'reforco_escolar': { label: 'Reforço', color: 'bg-orange-100 text-orange-800' },
+        'aulas_complementares': { label: 'Complementar', color: 'bg-teal-100 text-teal-800' },
+        'aee': { label: 'AEE', color: 'bg-blue-100 text-blue-800' }
+      };
+      
+      const programa = programaLabels[atendimentoPrograma];
+      if (!programa) return atendimentoPrograma;
+      
+      return (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${programa.color}`}>
+          {programa.label}
+        </span>
+      );
+    };
+
+    // Funções para ações da turma
+    const handleViewClass = (classItem) => {
+      navigate(`/admin/classes?view=${classItem.id}`);
+    };
+
+    const handleEditClass = (classItem) => {
+      navigate(`/admin/classes?edit=${classItem.id}`);
+    };
+
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center mb-4">
@@ -1727,6 +1757,8 @@ export function SchoolsComplete() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turma</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ano Letivo</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -1734,6 +1766,27 @@ export function SchoolsComplete() {
                   <tr key={index} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">{classItem.name}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{classItem.academic_year}</td>
+                    <td className="px-4 py-3 text-sm">{renderTipoBadge(classItem.atendimento_programa)}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleViewClass(classItem)}
+                          className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                          title="Visualizar turma"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEditClass(classItem)}
+                          className="p-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
+                          title="Editar turma"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
