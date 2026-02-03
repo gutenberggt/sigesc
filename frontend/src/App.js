@@ -39,6 +39,9 @@ function App() {
           {/* Landing Page */}
           <Route path="/" element={<LandingPage />} />
           
+          {/* Tutoriais */}
+          <Route path="/tutoriais" element={<TutorialsPage />} />
+          
           {/* Rotas públicas */}
           <Route path="/login" element={<Login />} />
           <Route path="/pre-matricula" element={<PreMatricula />} />
