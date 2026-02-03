@@ -701,7 +701,8 @@ export function StudentsComplete() {
           updateData = {
             school_id: actionData.targetSchoolId,
             class_id: actionData.targetClassId,
-            status: 'active'
+            status: 'active',
+            academic_year: actionData.academicYear
           };
           
           historyEntry = {
@@ -710,7 +711,8 @@ export function StudentsComplete() {
             new_status: 'active',
             school_id: actionData.targetSchoolId,
             class_id: actionData.targetClassId,
-            observations: actionData.notes || `Matrícula realizada em ${currentYear}`
+            academic_year: actionData.academicYear,
+            observations: actionData.notes || `Matrícula realizada para o ano letivo ${actionData.academicYear}`
           };
           break;
           
