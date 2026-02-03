@@ -206,6 +206,32 @@ export const Login = () => {
           )}
 
         </div>
+        
+        {/* Link para a página de apresentação */}
+        <div className="text-center mt-6">
+          <Link
+            to="/"
+            className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+            data-testid="landing-page-link"
+          >
+            ← Conheça mais sobre o SIGESC
+          </Link>
+        </div>
+        
+        {/* Rodapé com créditos */}
+        <div className="text-center mt-4">
+          <p className="text-xs text-gray-400">
+            Desenvolvido por{' '}
+            <a 
+              href="https://aprenderdigital.top" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:text-blue-700 hover:underline"
+            >
+              Aprender Digital
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );
