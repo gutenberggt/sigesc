@@ -306,16 +306,35 @@ export default function TutorialsPage() {
                         <ul className="space-y-2">
                           {block.tutorials.map((tutorial, index) => {
                             const TutorialIcon = tutorial.icon;
-                            return (
-                              <li 
-                                key={index}
-                                className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors cursor-pointer group"
-                              >
+                            const content = (
+                              <>
                                 <TutorialIcon size={18} className={`${colors.text} flex-shrink-0`} />
-                                <span className="text-slate-300 text-sm group-hover:text-white transition-colors">
+                                <span className="text-slate-300 text-sm group-hover:text-white transition-colors flex-1">
                                   {tutorial.title}
                                 </span>
-                                <ChevronRight size={16} className="text-slate-600 ml-auto group-hover:text-slate-400 transition-colors" />
+                                {tutorial.link ? (
+                                  <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full mr-2">Disponível</span>
+                                ) : (
+                                  <span className="text-xs bg-slate-700 text-slate-400 px-2 py-0.5 rounded-full mr-2">Em breve</span>
+                                )}
+                                <ChevronRight size={16} className="text-slate-600 group-hover:text-slate-400 transition-colors" />
+                              </>
+                            );
+                            
+                            return tutorial.link ? (
+                              <Link
+                                key={index}
+                                to={tutorial.link}
+                                className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors group"
+                              >
+                                {content}
+                              </Link>
+                            ) : (
+                              <li 
+                                key={index}
+                                className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 opacity-60 cursor-not-allowed"
+                              >
+                                {content}
                               </li>
                             );
                           })}
