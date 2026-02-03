@@ -81,10 +81,21 @@ export function AnalyticsDashboard() {
     loadInitialData();
   }, []);
   
-  // Carregar analytics quando filtros mudam
+  // Carregar analytics quando filtros mudam ou token fica disponível
   useEffect(() => {
     if (token) {
+      console.log('[Analytics] Token disponível, carregando dados para ano:', selectedYear);
       loadAnalytics();
+    } else {
+      console.log('[Analytics] Aguardando token...');
+      // Se não tiver token após 2 segundos, remove loading para mostrar conteúdo
+      const timeout = setTimeout(() => {
+        if (!token) {
+          console.log('[Analytics] Timeout sem token, removendo loading');
+          setLoading(false);
+        }
+      }, 2000);
+      return () => clearTimeout(timeout);
     }
   }, [selectedYear, selectedSchool, selectedClass, selectedStudent, token]);
   
