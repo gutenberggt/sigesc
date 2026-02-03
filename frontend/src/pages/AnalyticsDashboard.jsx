@@ -185,11 +185,11 @@ export function AnalyticsDashboard() {
       if (overviewRes) setOverview(overviewRes);
       if (trendRes) setEnrollmentsTrend(trendRes);
       if (monthlyRes) setAttendanceMonthly(monthlyRes);
-      setGradesBySubject(subjectRes);
-      setGradesByPeriod(periodRes);
-      setSchoolsRanking(rankingRes);
-      setStudentsPerformance(performanceRes);
-      setGradesDistribution(distributionRes);
+      if (subjectRes) setGradesBySubject(subjectRes);
+      if (periodRes) setGradesByPeriod(periodRes);
+      if (rankingRes) setSchoolsRanking(rankingRes);
+      if (performanceRes) setStudentsPerformance(performanceRes);
+      if (distributionRes) setGradesDistribution(distributionRes);
     } catch (error) {
       console.error('Erro ao carregar analytics:', error);
     } finally {
