@@ -25,13 +25,13 @@ def add_title_slide(prs, title, subtitle=""):
     # Background gradient shape
     bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
     bg.fill.solid()
-    bg.fill.fore_color.rgb = RgbColor(15, 23, 42)  # slate-900
+    bg.fill.fore_color.rgb = RGBColor(15, 23, 42)  # slate-900
     bg.line.fill.background()
     
     # Decorative circle
     circle = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(7), Inches(-1), Inches(5), Inches(5))
     circle.fill.solid()
-    circle.fill.fore_color.rgb = RgbColor(30, 64, 175)  # blue-800
+    circle.fill.fore_color.rgb = RGBColor(30, 64, 175)  # blue-800
     circle.fill.fore_color.brightness = 0.3
     circle.line.fill.background()
     
@@ -42,7 +42,7 @@ def add_title_slide(prs, title, subtitle=""):
     p.text = title
     p.font.size = Pt(44)
     p.font.bold = True
-    p.font.color.rgb = RgbColor(255, 255, 255)
+    p.font.color.rgb = RGBColor(255, 255, 255)
     p.alignment = PP_ALIGN.LEFT
     
     # Subtitle
@@ -52,12 +52,12 @@ def add_title_slide(prs, title, subtitle=""):
         p = tf.paragraphs[0]
         p.text = subtitle
         p.font.size = Pt(24)
-        p.font.color.rgb = RgbColor(148, 163, 184)  # slate-400
+        p.font.color.rgb = RGBColor(148, 163, 184)  # slate-400
         p.alignment = PP_ALIGN.LEFT
     
     return slide
 
-def add_content_slide(prs, title, content_items, accent_color=RgbColor(59, 130, 246)):
+def add_content_slide(prs, title, content_items, accent_color=RGBColor(59, 130, 246)):
     """Adiciona slide de conteúdo com bullets"""
     slide_layout = prs.slide_layouts[6]  # Blank
     slide = prs.slides.add_slide(slide_layout)
@@ -65,7 +65,7 @@ def add_content_slide(prs, title, content_items, accent_color=RgbColor(59, 130, 
     # Background
     bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
     bg.fill.solid()
-    bg.fill.fore_color.rgb = RgbColor(15, 23, 42)
+    bg.fill.fore_color.rgb = RGBColor(15, 23, 42)
     bg.line.fill.background()
     
     # Accent bar
@@ -81,7 +81,7 @@ def add_content_slide(prs, title, content_items, accent_color=RgbColor(59, 130, 
     p.text = title
     p.font.size = Pt(36)
     p.font.bold = True
-    p.font.color.rgb = RgbColor(255, 255, 255)
+    p.font.color.rgb = RGBColor(255, 255, 255)
     
     # Content
     content_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(9), Inches(5))
@@ -96,7 +96,7 @@ def add_content_slide(prs, title, content_items, accent_color=RgbColor(59, 130, 
         
         p.text = f"• {item}"
         p.font.size = Pt(22)
-        p.font.color.rgb = RgbColor(226, 232, 240)  # slate-200
+        p.font.color.rgb = RGBColor(226, 232, 240)  # slate-200
         p.space_after = Pt(12)
         p.level = 0
     
@@ -110,7 +110,7 @@ def add_two_column_slide(prs, title, left_title, left_items, right_title, right_
     # Background
     bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
     bg.fill.solid()
-    bg.fill.fore_color.rgb = RgbColor(15, 23, 42)
+    bg.fill.fore_color.rgb = RGBColor(15, 23, 42)
     bg.line.fill.background()
     
     # Title
@@ -120,7 +120,7 @@ def add_two_column_slide(prs, title, left_title, left_items, right_title, right_
     p.text = title
     p.font.size = Pt(32)
     p.font.bold = True
-    p.font.color.rgb = RgbColor(255, 255, 255)
+    p.font.color.rgb = RGBColor(255, 255, 255)
     
     # Left column title
     left_title_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(4.5), Inches(0.5))
@@ -129,7 +129,7 @@ def add_two_column_slide(prs, title, left_title, left_items, right_title, right_
     p.text = left_title
     p.font.size = Pt(22)
     p.font.bold = True
-    p.font.color.rgb = RgbColor(34, 197, 94)  # green-500
+    p.font.color.rgb = RGBColor(34, 197, 94)  # green-500
     
     # Left content
     left_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.7), Inches(4.5), Inches(4.5))
@@ -142,7 +142,7 @@ def add_two_column_slide(prs, title, left_title, left_items, right_title, right_
             p = tf.paragraphs[0]
         p.text = f"✓ {item}"
         p.font.size = Pt(18)
-        p.font.color.rgb = RgbColor(203, 213, 225)
+        p.font.color.rgb = RGBColor(203, 213, 225)
         p.space_after = Pt(8)
     
     # Right column title
@@ -152,7 +152,7 @@ def add_two_column_slide(prs, title, left_title, left_items, right_title, right_
     p.text = right_title
     p.font.size = Pt(22)
     p.font.bold = True
-    p.font.color.rgb = RgbColor(59, 130, 246)  # blue-500
+    p.font.color.rgb = RGBColor(59, 130, 246)  # blue-500
     
     # Right content
     right_box = slide.shapes.add_textbox(Inches(5.2), Inches(1.7), Inches(4.5), Inches(4.5))
@@ -165,7 +165,7 @@ def add_two_column_slide(prs, title, left_title, left_items, right_title, right_
             p = tf.paragraphs[0]
         p.text = f"→ {item}"
         p.font.size = Pt(18)
-        p.font.color.rgb = RgbColor(203, 213, 225)
+        p.font.color.rgb = RGBColor(203, 213, 225)
         p.space_after = Pt(8)
     
     return slide
@@ -178,7 +178,7 @@ def add_stats_slide(prs):
     # Background
     bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
     bg.fill.solid()
-    bg.fill.fore_color.rgb = RgbColor(15, 23, 42)
+    bg.fill.fore_color.rgb = RGBColor(15, 23, 42)
     bg.line.fill.background()
     
     # Title
@@ -188,14 +188,14 @@ def add_stats_slide(prs):
     p.text = "SIGESC em Números"
     p.font.size = Pt(36)
     p.font.bold = True
-    p.font.color.rgb = RgbColor(255, 255, 255)
+    p.font.color.rgb = RGBColor(255, 255, 255)
     
     # Stats boxes
     stats = [
-        ("5.000+", "Alunos Gerenciados", RgbColor(59, 130, 246)),
-        ("15+", "Escolas Atendidas", RgbColor(34, 197, 94)),
-        ("99,9%", "Disponibilidade", RgbColor(168, 85, 247)),
-        ("24/7", "Suporte Técnico", RgbColor(249, 115, 22)),
+        ("5.000+", "Alunos Gerenciados", RGBColor(59, 130, 246)),
+        ("15+", "Escolas Atendidas", RGBColor(34, 197, 94)),
+        ("99,9%", "Disponibilidade", RGBColor(168, 85, 247)),
+        ("24/7", "Suporte Técnico", RGBColor(249, 115, 22)),
     ]
     
     start_x = 0.3
@@ -208,8 +208,8 @@ def add_stats_slide(prs):
         # Box background
         box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(x), Inches(2), Inches(box_width), Inches(2.5))
         box.fill.solid()
-        box.fill.fore_color.rgb = RgbColor(30, 41, 59)  # slate-800
-        box.line.color.rgb = RgbColor(51, 65, 85)  # slate-700
+        box.fill.fore_color.rgb = RGBColor(30, 41, 59)  # slate-800
+        box.line.color.rgb = RGBColor(51, 65, 85)  # slate-700
         
         # Value
         value_box = slide.shapes.add_textbox(Inches(x), Inches(2.3), Inches(box_width), Inches(1))
@@ -227,7 +227,7 @@ def add_stats_slide(prs):
         p = tf.paragraphs[0]
         p.text = label
         p.font.size = Pt(16)
-        p.font.color.rgb = RgbColor(148, 163, 184)
+        p.font.color.rgb = RGBColor(148, 163, 184)
         p.alignment = PP_ALIGN.CENTER
     
     # Subtitle
@@ -237,7 +237,7 @@ def add_stats_slide(prs):
     p.text = "Números em constante crescimento com a expansão da rede de escolas atendidas"
     p.font.size = Pt(18)
     p.font.italic = True
-    p.font.color.rgb = RgbColor(100, 116, 139)
+    p.font.color.rgb = RGBColor(100, 116, 139)
     p.alignment = PP_ALIGN.CENTER
     
     return slide
@@ -250,13 +250,13 @@ def add_contact_slide(prs):
     # Background gradient
     bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
     bg.fill.solid()
-    bg.fill.fore_color.rgb = RgbColor(30, 64, 175)  # blue-800
+    bg.fill.fore_color.rgb = RGBColor(30, 64, 175)  # blue-800
     bg.line.fill.background()
     
     # Decorative element
     circle = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(6), Inches(3), Inches(6), Inches(6))
     circle.fill.solid()
-    circle.fill.fore_color.rgb = RgbColor(37, 99, 235)  # blue-600
+    circle.fill.fore_color.rgb = RGBColor(37, 99, 235)  # blue-600
     circle.line.fill.background()
     
     # Title
@@ -266,7 +266,7 @@ def add_contact_slide(prs):
     p.text = "Vamos Conversar?"
     p.font.size = Pt(44)
     p.font.bold = True
-    p.font.color.rgb = RgbColor(255, 255, 255)
+    p.font.color.rgb = RGBColor(255, 255, 255)
     p.alignment = PP_ALIGN.LEFT
     
     # Subtitle
@@ -275,13 +275,13 @@ def add_contact_slide(prs):
     p = tf.paragraphs[0]
     p.text = "Entre em contato para uma demonstração gratuita"
     p.font.size = Pt(22)
-    p.font.color.rgb = RgbColor(191, 219, 254)  # blue-200
+    p.font.color.rgb = RGBColor(191, 219, 254)  # blue-200
     
     # Contact info
     contacts = [
-        ("📱 WhatsApp:", "(94) 98422-3453"),
-        ("📧 E-mail:", "contato@aprenderdigital.top"),
-        ("🌐 Site:", "aprenderdigital.top"),
+        ("WhatsApp:", "(94) 98422-3453"),
+        ("E-mail:", "contato@aprenderdigital.top"),
+        ("Site:", "aprenderdigital.top"),
     ]
     
     y_pos = 3.5
@@ -292,16 +292,16 @@ def add_contact_slide(prs):
         p = tf.paragraphs[0]
         p.text = icon_text
         p.font.size = Pt(20)
-        p.font.color.rgb = RgbColor(191, 219, 254)
+        p.font.color.rgb = RGBColor(191, 219, 254)
         
         # Value
-        value_box = slide.shapes.add_textbox(Inches(2.8), Inches(y_pos), Inches(4), Inches(0.5))
+        value_box = slide.shapes.add_textbox(Inches(2.5), Inches(y_pos), Inches(4), Inches(0.5))
         tf = value_box.text_frame
         p = tf.paragraphs[0]
         p.text = value
         p.font.size = Pt(20)
         p.font.bold = True
-        p.font.color.rgb = RgbColor(255, 255, 255)
+        p.font.color.rgb = RGBColor(255, 255, 255)
         
         y_pos += 0.6
     
@@ -311,7 +311,7 @@ def add_contact_slide(prs):
     p = tf.paragraphs[0]
     p.text = "Projeto de propriedade da Aprender Digital"
     p.font.size = Pt(14)
-    p.font.color.rgb = RgbColor(147, 197, 253)  # blue-300
+    p.font.color.rgb = RGBColor(147, 197, 253)  # blue-300
     
     return slide
 
