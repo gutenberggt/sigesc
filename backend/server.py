@@ -78,7 +78,8 @@ from routers import (
     setup_attendance_router,     # PATCH 4.x
     setup_calendar_router,       # PATCH 4.x
     setup_staff_router,          # PATCH 4.x
-    setup_announcements_router   # PATCH 4.x
+    setup_announcements_router,  # PATCH 4.x
+    setup_analytics_router       # Dashboard Analítico
 )
 from routers.sync import setup_sync_router
 from routers.medical_certificates import setup_medical_certificates_router
