@@ -59,6 +59,16 @@ function App() {
             }
           />
           
+          {/* Dashboard Analítico */}
+          <Route
+            path="/admin/analytics"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'semed', 'diretor', 'coordenador', 'secretario']}>
+                <AnalyticsDashboard />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* Rotas de administração */}
           <Route
             path="/admin/schools"
