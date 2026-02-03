@@ -259,7 +259,7 @@ export function AnalyticsDashboard() {
         </div>
         
         {/* Cards de Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -284,12 +284,24 @@ export function AnalyticsDashboard() {
             </CardContent>
           </Card>
           
+          <Card className="bg-gradient-to-br from-teal-500 to-teal-600 text-white">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-teal-100 text-sm">Alunos</p>
+                  <p className="text-3xl font-bold">{overview?.students?.total || 0}</p>
+                </div>
+                <Users className="h-10 w-10 text-teal-200" />
+              </div>
+            </CardContent>
+          </Card>
+          
           <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-sm">Matrículas Ativas</p>
-                  <p className="text-3xl font-bold">{overview?.enrollments?.active || 0}</p>
+                  <p className="text-green-100 text-sm">Matrículas</p>
+                  <p className="text-3xl font-bold">{overview?.enrollments?.active || overview?.enrollments?.total || 0}</p>
                 </div>
                 <GraduationCap className="h-10 w-10 text-green-200" />
               </div>
