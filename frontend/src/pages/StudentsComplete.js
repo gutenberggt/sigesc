@@ -665,6 +665,7 @@ export function StudentsComplete() {
     setActionData({
       targetSchoolId: action === 'remanejar' ? formData.school_id : '',
       targetClassId: '',
+      academicYear: new Date().getFullYear(),
       reason: '',
       notes: '',
       emitirHistorico: false
