@@ -301,6 +301,7 @@ export function StudentsComplete() {
   const [actionData, setActionData] = useState({
     targetSchoolId: '',
     targetClassId: '',
+    academicYear: new Date().getFullYear(),
     reason: '',
     notes: '',
     emitirHistorico: false
