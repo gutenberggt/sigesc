@@ -332,7 +332,7 @@ def create_presentation():
         "Interface moderna, intuitiva e fácil de usar",
         "Funciona até mesmo sem conexão com a internet (modo offline)",
         "Segurança de dados com backup automático na nuvem",
-    ], RgbColor(59, 130, 246))
+    ], RGBColor(59, 130, 246))
     
     # Slide 3: Estatísticas
     add_stats_slide(prs)
@@ -346,7 +346,7 @@ def create_presentation():
         "Busca e filtros avançados por nome, turma, status e escola",
         "Geração de declarações, fichas e documentos em PDF",
         "Registro de atestados médicos com bloqueio de frequência",
-    ], RgbColor(34, 197, 94))
+    ], RGBColor(34, 197, 94))
     
     # Slide 5: Funcionalidades - Notas e Frequência
     add_content_slide(prs, "Notas e Frequência", [
@@ -357,7 +357,7 @@ def create_presentation():
         "Atas de resultados finais para impressão",
         "Ficha individual do aluno completa",
         "Relatórios gerenciais para acompanhamento",
-    ], RgbColor(168, 85, 247))
+    ], RGBColor(168, 85, 247))
     
     # Slide 6: Funcionalidades - Gestão Escolar
     add_content_slide(prs, "Gestão de Escolas e Turmas", [
@@ -368,7 +368,7 @@ def create_presentation():
         "Controle de servidores (professores, funcionários)",
         "Sistema de avisos e comunicação interna",
         "Dashboard com visão geral da rede de ensino",
-    ], RgbColor(249, 115, 22))
+    ], RGBColor(249, 115, 22))
     
     # Slide 7: Funcionalidades - Secretaria
     add_content_slide(prs, "Ferramentas para Secretaria", [
@@ -379,7 +379,7 @@ def create_presentation():
         "Auditoria de todas as alterações no sistema",
         "Notificações em tempo real de novas pré-matrículas",
         "Exportação de dados para planilhas Excel",
-    ], RgbColor(236, 72, 153))
+    ], RGBColor(236, 72, 153))
     
     # Slide 8: Diferenciais
     add_content_slide(prs, "Diferenciais do SIGESC", [
@@ -390,13 +390,13 @@ def create_presentation():
         "Dados seguros na nuvem com backup automático",
         "Personalização com a identidade visual do município",
         "Custo-benefício superior às soluções do mercado",
-    ], RgbColor(20, 184, 166))
+    ], RGBColor(20, 184, 166))
     
     # Slide 9: O que está implementado vs Futuro
     add_two_column_slide(
         prs,
         "Roadmap do SIGESC",
-        "✅ Já Implementado",
+        "Já Implementado",
         [
             "Gestão completa de alunos",
             "Matrículas e transferências",
@@ -409,7 +409,7 @@ def create_presentation():
             "Modo offline",
             "Atestados médicos",
         ],
-        "🚀 Em Desenvolvimento",
+        "Em Desenvolvimento",
         [
             "App mobile nativo",
             "Portal do responsável",
@@ -433,7 +433,7 @@ def create_presentation():
         "Facilidade na tomada de decisões com dados atualizados",
         "Padronização de processos em todas as escolas",
         "Economia de recursos com digitalização de documentos",
-    ], RgbColor(234, 179, 8))
+    ], RGBColor(234, 179, 8))
     
     # Slide 11: Contato
     add_contact_slide(prs)
