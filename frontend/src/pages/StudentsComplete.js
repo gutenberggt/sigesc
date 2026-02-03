@@ -3134,7 +3134,13 @@ export function StudentsComplete() {
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          title={viewMode ? 'Visualizar Aluno' : (editingStudent ? 'Editar Aluno' : 'Novo Aluno')}
+          title={
+            viewMode 
+              ? `Visualizar Aluno${editingStudent ? `: ${editingStudent.full_name}` : ''}` 
+              : (editingStudent 
+                  ? `Editar Aluno: ${editingStudent.full_name}` 
+                  : 'Novo Aluno')
+          }
           size="xl"
         >
           <form onSubmit={handleSubmit}>
