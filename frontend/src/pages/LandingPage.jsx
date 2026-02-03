@@ -111,6 +111,13 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <Link
+                to="/tutoriais"
+                className="hidden sm:flex items-center gap-2 text-slate-300 hover:text-blue-400 transition-colors"
+              >
+                <BookOpen size={18} />
+                <span className="text-sm">Tutoriais</span>
+              </Link>
               <a 
                 href={`https://wa.me/${whatsappNumber}?text=${whatsappMessage}`}
                 target="_blank"
