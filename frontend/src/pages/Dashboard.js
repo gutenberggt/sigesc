@@ -315,6 +315,15 @@ export const Dashboard = () => {
                 <span className="font-medium text-gray-900">Calendário</span>
               </button>
               
+              <button
+                onClick={() => navigate('/admin/analytics')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                data-testid="nav-analytics-button"
+              >
+                <BarChart3 className="text-emerald-600" size={24} />
+                <span className="font-medium text-gray-900">Dashboard Analítico</span>
+              </button>
+              
               {isAdmin && (
                 <button
                   onClick={() => navigate('/admin/courses')}
