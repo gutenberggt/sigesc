@@ -250,6 +250,54 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                     {"student_id": student_id, "status": "active"},
                     {"$set": {"status": "transferred"}}
                 )
+            
+            # Se está sendo matriculado (de transferido/inativo para ativo)
+            elif new_status == 'active' and old_status in ['transferred', 'inactive', 'dropout', None, '']:
+                action_type = 'matricula'
+                academic_year = update_data.get('academic_year', datetime.now().year)
+                
+                # Verifica se já existe matrícula ativa para esse ano
+                existing_enrollment = await current_db.enrollments.find_one({
+                    "student_id": student_id,
+                    "class_id": new_class_id,
+                    "academic_year": academic_year,
+                    "status": "active"
+                })
+                
+                if not existing_enrollment and new_school_id and new_class_id:
+                    # Gera número de matrícula
+                    last_enrollment = await current_db.enrollments.find_one(
+                        {"academic_year": academic_year},
+                        sort=[("enrollment_number", -1)]
+                    )
+                    if last_enrollment and last_enrollment.get('enrollment_number'):
+                        try:
+                            last_num = int(str(last_enrollment['enrollment_number'])[-5:])
+                            new_enrollment_number = f"{academic_year}{str(last_num + 1).zfill(5)}"
+                        except:
+                            new_enrollment_number = f"{academic_year}00001"
+                    else:
+                        new_enrollment_number = f"{academic_year}00001"
+                    
+                    # Cria nova matrícula
+                    new_enrollment = {
+                        "id": str(uuid.uuid4()),
+                        "student_id": student_id,
+                        "school_id": new_school_id,
+                        "class_id": new_class_id,
+                        "academic_year": academic_year,
+                        "enrollment_number": new_enrollment_number,
+                        "status": "active",
+                        "enrollment_date": datetime.now(timezone.utc).isoformat(),
+                        "created_at": datetime.now(timezone.utc).isoformat()
+                    }
+                    await current_db.enrollments.insert_one(new_enrollment)
+                    
+                    new_class = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
+                    history_obs = f"Matriculado na turma {new_class.get('name') if new_class else new_class_id} - Ano letivo {academic_year} - Matrícula: {new_enrollment_number}"
+        
+        # Remove academic_year do update_data pois não é um campo do aluno
+        update_data.pop('academic_year', None)
         
         # Atualiza o aluno
         await current_db.students.update_one(
