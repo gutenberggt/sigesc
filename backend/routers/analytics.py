@@ -186,6 +186,9 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             'classes': {
                 'total': total_classes
             },
+            'students': {
+                'total': total_students
+            },
             'enrollments': {
                 'total': total_enrollments,
                 'active': active_enrollments,
