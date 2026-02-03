@@ -18,6 +18,7 @@ from .attendance import router as attendance_router, setup_attendance_router
 from .calendar import router as calendar_router, setup_calendar_router
 from .staff import router as staff_router, setup_staff_router
 from .announcements import router as announcements_router, setup_announcements_router
+from .analytics import router as analytics_router, setup_analytics_router
 
 __all__ = [
     'auth_router', 'setup_auth_router',
@@ -32,5 +33,6 @@ __all__ = [
     'attendance_router', 'setup_attendance_router',
     'calendar_router', 'setup_calendar_router',
     'staff_router', 'setup_staff_router',
-    'announcements_router', 'setup_announcements_router'
+    'announcements_router', 'setup_announcements_router',
+    'analytics_router', 'setup_analytics_router'
 ]
