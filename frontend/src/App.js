@@ -4,6 +4,7 @@ import { MantenedoraProvider } from '@/contexts/MantenedoraContext';
 import { OfflineProvider } from '@/contexts/OfflineContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Login } from '@/pages/Login';
+import LandingPage from '@/pages/LandingPage';
 import PreMatricula from '@/pages/PreMatricula';
 import PreMatriculaManagement from '@/pages/PreMatriculaManagement';
 import { Dashboard } from '@/pages/Dashboard';
@@ -34,6 +35,9 @@ function App() {
       <MantenedoraProvider>
       <BrowserRouter>
         <Routes>
+          {/* Landing Page */}
+          <Route path="/" element={<LandingPage />} />
+          
           {/* Rotas públicas */}
           <Route path="/login" element={<Login />} />
           <Route path="/pre-matricula" element={<PreMatricula />} />
