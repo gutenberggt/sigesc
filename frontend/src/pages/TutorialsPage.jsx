@@ -84,7 +84,7 @@ export default function TutorialsPage() {
       color: 'green',
       description: 'Tutoriais para gestão de documentos, matrículas e cadastros',
       tutorials: [
-        { title: 'Acesso ao sistema e permissões', icon: Key },
+        { title: 'Acesso ao sistema e permissões', icon: Key, link: '/tutoriais/secretarios/acesso' },
         { title: 'Cadastro de novos alunos', icon: UserPlus },
         { title: 'Matrícula de alunos em turmas', icon: CheckSquare },
         { title: 'Transferência de alunos entre escolas', icon: Users },
