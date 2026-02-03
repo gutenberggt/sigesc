@@ -42,6 +42,7 @@ function App() {
           
           {/* Tutoriais */}
           <Route path="/tutoriais" element={<TutorialsPage />} />
+          <Route path="/tutoriais/secretarios/acesso" element={<TutorialAcesso />} />
           
           {/* Rotas públicas */}
           <Route path="/login" element={<Login />} />
