@@ -115,25 +115,6 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         total_enrollments = sum(enrollment_stats.values())
         active_enrollments = enrollment_stats.get('active', 0) + enrollment_stats.get('Ativo', 0) + enrollment_stats.get('ativo', 0)
         
-        # Se não encontrou matrículas, tenta sem filtro de ano
-        if total_enrollments == 0 and academic_year:
-            enrollments_pipeline_no_year = [
-                {'$match': enrollment_base_filter},
-                {'$group': {
-                    '_id': '$status',
-                    'count': {'$sum': 1}
-                }}
-            ]
-            async for doc in current_db.enrollments.aggregate(enrollments_pipeline_no_year):
-                enrollment_stats[doc['_id'] or 'active'] = doc['count']
-            total_enrollments = sum(enrollment_stats.values())
-            active_enrollments = enrollment_stats.get('active', 0) + enrollment_stats.get('Ativo', 0) + enrollment_stats.get('ativo', 0)
-        
-        # Se ainda não tem matrículas, usa a contagem de alunos como referência
-        if total_enrollments == 0 and total_students > 0:
-            total_enrollments = total_students
-            active_enrollments = total_students
-        
         # Estatísticas de frequência
         attendance_base_filter = {}
         if school_id:
