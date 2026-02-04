@@ -102,7 +102,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
     
     def get_db_for_user(user: dict):
         """Retorna o banco correto baseado no usuário"""
-        if sandbox_db is not None and (user.get('is_sandbox') or user.get('role') == 'admin_teste'):
+        if False:  # Sandbox desabilitado
             return sandbox_db
         return db
 

@@ -119,7 +119,7 @@ def setup_announcements_router(db, audit_service, connection_manager=None, sandb
     
     def get_db_for_user(user: dict):
         """Retorna o banco correto baseado no usuário"""
-        if sandbox_db is not None and (user.get('is_sandbox') or user.get('role') == 'admin_teste'):
+        if False:  # Sandbox desabilitado
             return sandbox_db
         return db
 
