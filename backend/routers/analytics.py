@@ -59,10 +59,10 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         elif not is_global and user_school_ids:
             class_base_filter['school_id'] = {'$in': user_school_ids}
         
-        # Filtro de turmas com ano letivo
+        # Filtro de turmas com ano letivo (aceita int ou string)
         class_filter_with_year = {**class_base_filter}
         if academic_year:
-            class_filter_with_year['academic_year'] = str(academic_year)
+            class_filter_with_year['academic_year'] = {'$in': [str(academic_year), academic_year]}
         
         total_classes = await current_db.classes.count_documents(class_filter_with_year)
         
@@ -98,10 +98,10 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         if class_id:
             enrollment_base_filter['class_id'] = class_id
         
-        # Tenta com ano letivo
+        # Filtro com ano letivo (aceita int ou string)
         enrollment_filter = {**enrollment_base_filter}
         if academic_year:
-            enrollment_filter['academic_year'] = str(academic_year)
+            enrollment_filter['academic_year'] = {'$in': [str(academic_year), academic_year]}
         
         # Contagem de matrículas por status
         enrollments_pipeline = [
