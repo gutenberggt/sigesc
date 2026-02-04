@@ -403,7 +403,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
         
         match_filter = {
-            'academic_year': str(academic_year)
+            'academic_year': year_filter(academic_year)
         }
         
         if student_id:
@@ -484,7 +484,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
         
         match_filter = {
-            'academic_year': str(academic_year)
+            'academic_year': year_filter(academic_year)
         }
         
         if student_id:
@@ -580,7 +580,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         enrollment_pipeline = [
             {'$match': {
                 'school_id': {'$in': school_ids},
-                'academic_year': str(academic_year),
+                'academic_year': year_filter(academic_year),
                 'status': {'$in': ['active', 'ativo', 'Ativo', None]}
             }},
             {'$group': {
@@ -613,7 +613,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         # Notas por escola (através das turmas)
         classes_map = {}
         async for cls in current_db.classes.find(
-            {'school_id': {'$in': school_ids}, 'academic_year': str(academic_year)},
+            {'school_id': {'$in': school_ids}, 'academic_year': year_filter(academic_year)},
             {'id': 1, 'school_id': 1}
         ):
             classes_map[cls['id']] = cls['school_id']
@@ -622,7 +622,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             grades_pipeline = [
                 {'$match': {
                     'class_id': {'$in': list(classes_map.keys())},
-                    'academic_year': str(academic_year)
+                    'academic_year': year_filter(academic_year)
                 }},
                 {'$group': {
                     '_id': '$class_id',
@@ -683,7 +683,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         # Filtro de matrículas
         enrollment_filter = {
-            'academic_year': str(academic_year),
+            'academic_year': year_filter(academic_year),
             'status': {'$in': ['active', 'ativo', 'Ativo', None]}
         }
         
@@ -725,7 +725,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         grades_pipeline = [
             {'$match': {
                 'student_id': {'$in': student_ids},
-                'academic_year': str(academic_year)
+                'academic_year': year_filter(academic_year)
             }},
             {'$group': {
                 '_id': '$student_id',
@@ -798,7 +798,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
         
         match_filter = {
-            'academic_year': str(academic_year)
+            'academic_year': year_filter(academic_year)
         }
         
         if class_id:
