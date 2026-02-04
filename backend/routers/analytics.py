@@ -261,6 +261,14 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 'active': active_enrollments,
                 'by_status': enrollment_stats
             },
+            'transfers': {
+                'total': transfer_count,
+                'rate': transfer_rate
+            },
+            'dropouts': {
+                'total': desistencia_count,
+                'rate': desistencia_rate
+            },
             'attendance': {
                 'total_records': attendance_stats.get('total_records', 0),
                 'present': attendance_stats.get('present_count', 0),
