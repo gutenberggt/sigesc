@@ -103,8 +103,8 @@ export function AnalyticsDashboard() {
       
       if (!token) {
         console.log('[Analytics] Token ausente, aguardando...');
-        const timeout = setTimeout(() => setLoading(false), 2000);
-        return () => clearTimeout(timeout);
+        // Não seta loading false imediatamente - espera o token
+        return;
       }
       
       setLoading(true);
