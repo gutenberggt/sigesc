@@ -144,8 +144,7 @@ async def create_indexes(db):
 def get_db_for_user(user: dict, production_db, sandbox_db):
     """
     Retorna o banco de dados correto baseado no usuário.
-    Usuários com role 'admin_teste' ou flag 'is_sandbox' usam o sandbox.
+    Agora todos os usuários usam o banco de produção (sandbox desabilitado).
     """
-    if user.get('is_sandbox') or user.get('role') == 'admin_teste':
-        return sandbox_db
+    # Sandbox desabilitado - todos usam produção
     return production_db
