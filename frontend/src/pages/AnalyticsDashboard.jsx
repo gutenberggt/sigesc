@@ -293,8 +293,11 @@ export function AnalyticsDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-teal-100 text-sm">Alunos</p>
-                  <p className="text-3xl font-bold">{overview?.students?.total || 0}</p>
+                  <p className="text-teal-100 text-sm">Alunos Ativos</p>
+                  <p className="text-3xl font-bold">{overview?.students?.active || 0}</p>
+                  {overview?.students?.total > 0 && overview?.students?.active !== overview?.students?.total && (
+                    <p className="text-teal-200 text-xs">de {overview?.students?.total} cadastrados</p>
+                  )}
                 </div>
                 <Users className="h-10 w-10 text-teal-200" />
               </div>
@@ -305,8 +308,11 @@ export function AnalyticsDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-sm">Matrículas</p>
-                  <p className="text-3xl font-bold">{overview?.enrollments?.active || overview?.enrollments?.total || 0}</p>
+                  <p className="text-green-100 text-sm">Matrículas {selectedYear}</p>
+                  <p className="text-3xl font-bold">{overview?.enrollments?.total || 0}</p>
+                  {overview?.enrollments?.active > 0 && overview?.enrollments?.active !== overview?.enrollments?.total && (
+                    <p className="text-green-200 text-xs">{overview?.enrollments?.active} ativas</p>
+                  )}
                 </div>
                 <GraduationCap className="h-10 w-10 text-green-200" />
               </div>
