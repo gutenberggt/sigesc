@@ -120,6 +120,47 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         total_enrollments = sum(enrollment_stats.values())
         active_enrollments = enrollment_stats.get('active', 0) + enrollment_stats.get('Ativo', 0) + enrollment_stats.get('ativo', 0)
         
+        # ============ TRANSFERÊNCIAS ============
+        # Lógica: 
+        # - Se escola específica: contar matrículas transferidas daquela escola (da collection enrollments)
+        # - Se todas as escolas: contar apenas alunos com status "Transferido" (saíram da rede)
+        
+        if school_id:
+            # Escola específica: contar transferências da escola via enrollments
+            transfer_count = enrollment_stats.get('transferred', 0) + enrollment_stats.get('Transferido', 0) + enrollment_stats.get('transferido', 0)
+        else:
+            # Todas as escolas: contar alunos com status "Transferido" (saíram da rede municipal)
+            student_transfer_filter = {
+                'status': {'$in': ['Transferido', 'transferred', 'transferido']}
+            }
+            if not is_global and user_school_ids:
+                student_transfer_filter['school_id'] = {'$in': user_school_ids}
+            transfer_count = await current_db.students.count_documents(student_transfer_filter)
+        
+        # Calcular porcentagem de transferências
+        transfer_base = total_enrollments if school_id else total_students_all
+        transfer_rate = round((transfer_count / transfer_base * 100), 1) if transfer_base > 0 else 0
+        
+        # ============ DESISTÊNCIAS ============
+        # Contar matrículas/alunos com status de desistência
+        desistencia_statuses = ['desistente', 'Desistente', 'desistencia', 'Desistência', 'dropout', 'Dropout', 'cancelled', 'Cancelado', 'cancelado']
+        
+        if school_id:
+            # Escola específica: contar via enrollments
+            desistencia_count = sum(enrollment_stats.get(s, 0) for s in desistencia_statuses)
+        else:
+            # Todas as escolas: contar via students
+            student_desistencia_filter = {
+                'status': {'$in': desistencia_statuses}
+            }
+            if not is_global and user_school_ids:
+                student_desistencia_filter['school_id'] = {'$in': user_school_ids}
+            desistencia_count = await current_db.students.count_documents(student_desistencia_filter)
+        
+        # Calcular porcentagem de desistências
+        desistencia_base = total_enrollments if school_id else total_students_all
+        desistencia_rate = round((desistencia_count / desistencia_base * 100), 1) if desistencia_base > 0 else 0
+        
         # Estatísticas de frequência
         attendance_base_filter = {}
         if school_id:
