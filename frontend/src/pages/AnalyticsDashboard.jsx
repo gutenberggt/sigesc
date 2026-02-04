@@ -28,7 +28,8 @@ const CHART_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#e
 
 export function AnalyticsDashboard() {
   const navigate = useNavigate();
-  const { user, token } = useAuth();
+  const { user, accessToken } = useAuth();
+  const token = accessToken;
   
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedSchool, setSelectedSchool] = useState('');
