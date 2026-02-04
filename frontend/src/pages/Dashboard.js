@@ -95,7 +95,7 @@ export const Dashboard = () => {
     aluno: 'Aluno',
     responsavel: 'Responsável',
     semed: 'SEMED',
-    admin_teste: 'Admin (Teste)'
+    admin_teste: 'Administrador'
   };
 
   const getDashboardCards = () => {
