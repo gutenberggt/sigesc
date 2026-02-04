@@ -67,9 +67,13 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         total_classes = await current_db.classes.count_documents(class_filter_with_year)
         
         # ============ CONTAGEM DE ALUNOS ATIVOS ============
-        # Conta apenas alunos com status "Ativo" ou "active"
+        # Conta alunos com status "Ativo", "active" ou sem status definido
+        # Nota: status "transferred" não é contabilizado como ativo
         student_filter = {
-            'status': {'$in': ['Ativo', 'ativo', 'active', 'Active']}
+            '$or': [
+                {'status': {'$in': ['Ativo', 'ativo', 'active', 'Active', None]}},
+                {'status': {'$exists': False}}
+            ]
         }
         if school_id:
             student_filter['school_id'] = school_id
@@ -78,12 +82,11 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         total_students = await current_db.students.count_documents(student_filter)
         
-        # Se não encontrou com school_id no filtro, tenta sem (campo pode não estar preenchido)
-        if total_students == 0 and not school_id:
-            student_filter_no_school = {
-                'status': {'$in': ['Ativo', 'ativo', 'active', 'Active']}
-            }
-            total_students = await current_db.students.count_documents(student_filter_no_school)
+        # Também conta o total geral de alunos (para informação)
+        total_students_all = await current_db.students.count_documents(
+            {'school_id': school_id} if school_id else 
+            {'school_id': {'$in': user_school_ids}} if not is_global and user_school_ids else {}
+        )
         
         # ============ CONTAGEM DE MATRÍCULAS ============
         # Matrículas são os vínculos aluno-turma por ano letivo
