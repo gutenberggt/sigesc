@@ -59,20 +59,18 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         elif not is_global and user_school_ids:
             class_base_filter['school_id'] = {'$in': user_school_ids}
         
-        # Tenta com ano letivo
+        # Filtro de turmas com ano letivo
         class_filter_with_year = {**class_base_filter}
         if academic_year:
             class_filter_with_year['academic_year'] = str(academic_year)
         
         total_classes = await current_db.classes.count_documents(class_filter_with_year)
         
-        # Se não encontrou, busca sem filtro de ano
-        if total_classes == 0:
-            total_classes = await current_db.classes.count_documents(class_base_filter)
-        
-        # ============ CONTAGEM DE ALUNOS ============
-        # Conta da collection students diretamente (mais confiável)
-        student_filter = {}
+        # ============ CONTAGEM DE ALUNOS ATIVOS ============
+        # Conta apenas alunos com status "Ativo" ou "active"
+        student_filter = {
+            'status': {'$in': ['Ativo', 'ativo', 'active', 'Active']}
+        }
         if school_id:
             student_filter['school_id'] = school_id
         elif not is_global and user_school_ids:
@@ -80,11 +78,15 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         total_students = await current_db.students.count_documents(student_filter)
         
-        # Se não encontrou com school_id, conta todos (pode ser que school_id não esteja preenchido)
+        # Se não encontrou com school_id no filtro, tenta sem (campo pode não estar preenchido)
         if total_students == 0 and not school_id:
-            total_students = await current_db.students.count_documents({})
+            student_filter_no_school = {
+                'status': {'$in': ['Ativo', 'ativo', 'active', 'Active']}
+            }
+            total_students = await current_db.students.count_documents(student_filter_no_school)
         
         # ============ CONTAGEM DE MATRÍCULAS ============
+        # Matrículas são os vínculos aluno-turma por ano letivo
         enrollment_base_filter = {}
         if school_id:
             enrollment_base_filter['school_id'] = school_id
