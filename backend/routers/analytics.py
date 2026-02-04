@@ -38,7 +38,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         if user.get('school_links'):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
         
-        # Contagem de escolas (sem filtro de status para pegar todas)
+        # ============ CONTAGEM DE ESCOLAS ============
+        # Conta TODAS as escolas (sem filtro de status)
         school_query = {}
         if school_id:
             school_query['id'] = school_id
@@ -47,22 +48,27 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         total_schools = await current_db.schools.count_documents(school_query)
         
-        # Contagem de turmas
-        class_filter = {}
+        # ============ CONTAGEM DE TURMAS ============
+        # Primeiro tenta com o ano especificado, depois sem
+        class_base_filter = {}
         if school_id:
-            class_filter['school_id'] = school_id
+            class_base_filter['school_id'] = school_id
         elif not is_global and user_school_ids:
-            class_filter['school_id'] = {'$in': user_school_ids}
+            class_base_filter['school_id'] = {'$in': user_school_ids}
+        
+        # Tenta com ano letivo
+        class_filter_with_year = {**class_base_filter}
         if academic_year:
-            class_filter['academic_year'] = str(academic_year)
+            class_filter_with_year['academic_year'] = str(academic_year)
         
-        # Se não encontrar turmas com o ano especificado, buscar todas
-        total_classes = await current_db.classes.count_documents(class_filter)
-        if total_classes == 0 and academic_year:
-            class_filter_no_year = {k: v for k, v in class_filter.items() if k != 'academic_year'}
-            total_classes = await current_db.classes.count_documents(class_filter_no_year)
+        total_classes = await current_db.classes.count_documents(class_filter_with_year)
         
-        # Contagem de alunos (via students collection diretamente)
+        # Se não encontrou, busca sem filtro de ano
+        if total_classes == 0:
+            total_classes = await current_db.classes.count_documents(class_base_filter)
+        
+        # ============ CONTAGEM DE ALUNOS ============
+        # Conta da collection students diretamente (mais confiável)
         student_filter = {}
         if school_id:
             student_filter['school_id'] = school_id
@@ -71,16 +77,23 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         total_students = await current_db.students.count_documents(student_filter)
         
-        # Filtros base para enrollments
-        enrollment_filter = {}
+        # Se não encontrou com school_id, conta todos (pode ser que school_id não esteja preenchido)
+        if total_students == 0 and not school_id:
+            total_students = await current_db.students.count_documents({})
+        
+        # ============ CONTAGEM DE MATRÍCULAS ============
+        enrollment_base_filter = {}
         if school_id:
-            enrollment_filter['school_id'] = school_id
+            enrollment_base_filter['school_id'] = school_id
         elif not is_global and user_school_ids:
-            enrollment_filter['school_id'] = {'$in': user_school_ids}
+            enrollment_base_filter['school_id'] = {'$in': user_school_ids}
+        if class_id:
+            enrollment_base_filter['class_id'] = class_id
+        
+        # Tenta com ano letivo
+        enrollment_filter = {**enrollment_base_filter}
         if academic_year:
             enrollment_filter['academic_year'] = str(academic_year)
-        if class_id:
-            enrollment_filter['class_id'] = class_id
         
         # Contagem de matrículas por status
         enrollments_pipeline = [
