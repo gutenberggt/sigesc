@@ -394,6 +394,36 @@ export function AnalyticsDashboard() {
               </div>
             </CardContent>
           </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-orange-100">
+                  <LogOut className="h-6 w-6 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Transferências</p>
+                  <p className="text-2xl font-bold text-gray-900">{overview?.transfers?.total || 0}</p>
+                  <p className="text-xs text-gray-400">{overview?.transfers?.rate || 0}% do total</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-rose-100">
+                  <UserMinus className="h-6 w-6 text-rose-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Desistências</p>
+                  <p className="text-2xl font-bold text-gray-900">{overview?.dropouts?.total || 0}</p>
+                  <p className="text-xs text-gray-400">{overview?.dropouts?.rate || 0}% do total</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
         
         {/* Gráficos - Primeira Linha */}
