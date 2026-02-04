@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Menu, X, AlertTriangle } from 'lucide-react';
+import { LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { NotificationBell, MessagesBadge } from '@/components/notifications';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
@@ -12,9 +12,6 @@ export const Layout = ({ children }) => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Verifica se está em modo teste (sandbox)
-  const isSandboxMode = user?.role === 'admin_teste';
-
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -22,7 +19,7 @@ export const Layout = ({ children }) => {
 
   const roleLabels = {
     admin: 'Administrador',
-    admin_teste: 'Admin (Teste)',
+    admin_teste: 'Administrador',
     secretario: 'Secretário',
     diretor: 'Diretor',
     coordenador: 'Coordenador',
@@ -34,17 +31,8 @@ export const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Barra de aviso do Modo Teste */}
-      {isSandboxMode && (
-        <div className="bg-amber-500 text-white px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-2 sticky top-0 z-50">
-          <AlertTriangle size={18} />
-          <span>⚠️ MODO TESTE</span>
-          <AlertTriangle size={18} />
-        </div>
-      )}
-      
       {/* Header */}
-      <header className={`bg-white shadow-sm border-b border-gray-200 sticky ${isSandboxMode ? 'top-10' : 'top-0'} z-40`}>
+      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo e Mantenedora */}
