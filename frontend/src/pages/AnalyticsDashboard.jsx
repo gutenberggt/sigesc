@@ -136,6 +136,7 @@ export function AnalyticsDashboard() {
           safeFetch(`${API_URL}/api/analytics/distribution/grades?${params}`)
         ]);
         
+        console.log('[Analytics] Overview response:', ovRes);
         if (ovRes) setOverview(ovRes);
         if (trendRes) setEnrollmentsTrend(trendRes);
         if (monthlyRes) setAttendanceMonthly(monthlyRes);
