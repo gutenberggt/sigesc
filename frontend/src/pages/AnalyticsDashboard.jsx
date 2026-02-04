@@ -47,6 +47,8 @@ export function AnalyticsDashboard() {
     classes: { total: 0 },
     students: { active: 0, total: 0 },
     enrollments: { total: 0, active: 0, by_status: {} },
+    transfers: { total: 0, rate: 0 },
+    dropouts: { total: 0, rate: 0 },
     attendance: { total_records: 0, present: 0, absent: 0, justified: 0, rate: 0 },
     grades: { average: 0, total: 0, approved: 0, failed: 0, approval_rate: 0 }
   });
