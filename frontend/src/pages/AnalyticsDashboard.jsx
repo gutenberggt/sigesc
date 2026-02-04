@@ -99,7 +99,10 @@ export function AnalyticsDashboard() {
 
   useEffect(() => {
     const loadAnalytics = async () => {
+      console.log('[Analytics] loadAnalytics chamado, token:', token ? 'presente' : 'ausente');
+      
       if (!token) {
+        console.log('[Analytics] Token ausente, aguardando...');
         const timeout = setTimeout(() => setLoading(false), 2000);
         return () => clearTimeout(timeout);
       }
