@@ -6,16 +6,21 @@ import os
 from pathlib import Path
 from typing import Optional, Tuple
 import uuid
+from dotenv import load_dotenv
 
-# Configurações FTP - lidas de variáveis de ambiente
-FTP_CONFIG = {
-    "host": os.environ.get("FTP_HOST", ""),
-    "port": int(os.environ.get("FTP_PORT", "21")),
-    "user": os.environ.get("FTP_USER", ""),
-    "password": os.environ.get("FTP_PASSWORD", ""),
-    "base_path": os.environ.get("FTP_BASE_PATH", "/public_html/imagens"),
-    "base_url": os.environ.get("FTP_BASE_URL", "https://aprenderdigital.top/imagens")
-}
+# Carrega variáveis do .env
+load_dotenv(override=True)
+
+def get_ftp_config():
+    """Retorna configuração FTP lida das variáveis de ambiente"""
+    return {
+        "host": os.environ.get("FTP_HOST", ""),
+        "port": int(os.environ.get("FTP_PORT", "21")),
+        "user": os.environ.get("FTP_USER", ""),
+        "password": os.environ.get("FTP_PASSWORD", ""),
+        "base_path": os.environ.get("FTP_BASE_PATH", "/public_html/imagens"),
+        "base_url": os.environ.get("FTP_BASE_URL", "https://aprenderdigital.top/imagens")
+    }
 
 # Mapeamento de tipo de arquivo para pasta
 FILE_TYPE_FOLDERS = {
@@ -27,6 +32,7 @@ FILE_TYPE_FOLDERS = {
     "document": "doc",      # Documentos (PDFs, etc.)
     "laudo": "doc",         # Laudos médicos
     "logotipo": "logotipo", # Logotipos (mantenedora, escolas)
+    "brasao": "brasao",     # Brasões
     "default": "user"       # Padrão
 }
 
