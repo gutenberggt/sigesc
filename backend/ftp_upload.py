@@ -138,6 +138,9 @@ def delete_from_ftp(file_url: str) -> Tuple[bool, str]:
     Returns:
         Tuple[success, message]
     """
+    # Obtém configuração FTP atualizada
+    FTP_CONFIG = get_ftp_config()
+    
     ftp = None
     try:
         # Extrai o caminho do arquivo da URL
