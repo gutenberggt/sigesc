@@ -69,6 +69,7 @@ export const Users = () => {
       email: '',
       password: '',
       role: 'aluno',
+      roles: [],
       status: 'active',
       school_links: []
     });
@@ -82,6 +83,7 @@ export const Users = () => {
       email: user.email,
       password: '',
       role: user.role,
+      roles: user.roles || [],
       status: user.status,
       school_links: user.school_links || []
     });
