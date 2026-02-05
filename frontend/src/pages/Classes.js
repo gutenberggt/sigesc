@@ -217,7 +217,9 @@ export const Classes = () => {
       education_level: '',
       grade_level: '',
       teacher_ids: [],
-      atendimento_programa: defaultAtendimento
+      atendimento_programa: defaultAtendimento,
+      is_multi_grade: false,
+      series: []
     });
     setIsModalOpen(true);
   };
