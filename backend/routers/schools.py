@@ -43,13 +43,13 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         # Admin, admin_teste e SEMED veem todas as escolas
         if current_user['role'] in ['admin', 'admin_teste', 'semed']:
-            schools = await current_db.schools.find({}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+            schools = await current_db.schools.find({}, {"_id": 0}).sort("name", 1).skip(skip).limit(limit).to_list(limit)
         else:
             # Outros papéis veem apenas escolas vinculadas
             schools = await current_db.schools.find(
                 {"id": {"$in": current_user['school_ids']}},
                 {"_id": 0}
-            ).skip(skip).limit(limit).to_list(limit)
+            ).sort("name", 1).skip(skip).limit(limit).to_list(limit)
         
         # Adicionar contagem de alunos ativos se solicitado
         if include_student_count and schools:
