@@ -175,17 +175,41 @@ export function AnalyticsDashboard() {
     loadAnalytics();
   }, [selectedYear, selectedSchool, selectedClass, selectedStudent, token]);
 
+  // Carregar alunos da turma selecionada via matrículas (enrollments)
   useEffect(() => {
-    if (selectedClass) {
-      studentsAPI.getAll().then(allStudents => {
-        const filtered = allStudents.filter(s => s.class_id === selectedClass || s.turma_id === selectedClass);
-        setStudents(filtered);
-      }).catch(() => setStudents([]));
-    } else {
-      setStudents([]);
-      setSelectedStudent('');
-    }
-  }, [selectedClass]);
+    const loadStudentsByClass = async () => {
+      if (!selectedClass || !token) {
+        setStudents([]);
+        setSelectedStudent('');
+        return;
+      }
+      
+      try {
+        // Buscar detalhes da turma que inclui a lista de alunos matriculados
+        const response = await fetch(`${API_URL}/api/classes/${selectedClass}/details`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Os alunos já vêm filtrados pela turma através das matrículas ativas
+          setStudents(data.students || []);
+        } else {
+          // Fallback: buscar todos e filtrar localmente
+          const allStudents = await studentsAPI.getAll();
+          const filtered = allStudents.filter(s => 
+            s.class_id === selectedClass || s.turma_id === selectedClass
+          );
+          setStudents(filtered);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar alunos da turma:', error);
+        setStudents([]);
+      }
+    };
+    
+    loadStudentsByClass();
+  }, [selectedClass, token]);
 
   const handleRefresh = () => {
     setRefreshing(true);
