@@ -152,7 +152,20 @@ export const Users = () => {
     {
       header: 'Papel',
       accessor: 'role',
-      render: (row) => roleLabels[row.role]
+      render: (row) => (
+        <div className="flex flex-col gap-1">
+          <span className="font-medium">{roleLabels[row.role]}</span>
+          {row.roles && row.roles.length > 1 && (
+            <div className="flex flex-wrap gap-1">
+              {row.roles.filter(r => r !== row.role).map(r => (
+                <span key={r} className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
+                  +{roleLabels[r] || r}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )
     },
     {
       header: 'Status',
