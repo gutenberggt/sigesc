@@ -31,6 +31,8 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - ✅ **Frontend - Badge na Tabela:** Turmas multisseriadas exibem badge "Multi" com contagem de séries
 - ✅ **Frontend - Modal de Matrícula:** Dropdown de série do aluno aparece ao selecionar turma multisseriada
 - ✅ **Validação:** Botão de confirmar matrícula desabilitado se turma multisseriada e série não selecionada
+- ✅ **Relatório por Série:** Modal de detalhes da turma exibe "Distribuição por Série" com contagem de alunos por série
+- ✅ **Coluna Série na Tabela:** Lista de alunos matriculados mostra a série de cada aluno (apenas em turmas multisseriadas)
 
 ### Funcionalidades Recentes (Jan 2026)
 - ✅ **Atestados Médicos:** Sistema completo para registro de atestados que bloqueia lançamento de frequência
