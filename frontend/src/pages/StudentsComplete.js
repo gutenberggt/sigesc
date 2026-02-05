@@ -3764,11 +3764,20 @@ export function StudentsComplete() {
               <button
                 type="button"
                 onClick={executeVinculoAction}
-                disabled={executingAction || (
-                  (selectedAction === 'matricular' && (!actionData.targetSchoolId || !actionData.targetClassId)) ||
-                  (selectedAction === 'remanejar' && !actionData.targetClassId) ||
-                  (selectedAction === 'progredir' && !actionData.emitirHistorico && !actionData.targetClassId)
-                )}
+                disabled={executingAction || (() => {
+                  if (selectedAction === 'matricular') {
+                    if (!actionData.targetSchoolId || !actionData.targetClassId) return true;
+                    // Verifica se é turma multisseriada e se a série foi selecionada
+                    const targetClass = classes.find(c => c.id === actionData.targetClassId);
+                    if (targetClass?.is_multi_grade && targetClass?.series?.length > 0 && !actionData.studentSeries) {
+                      return true;
+                    }
+                    return false;
+                  }
+                  if (selectedAction === 'remanejar' && !actionData.targetClassId) return true;
+                  if (selectedAction === 'progredir' && !actionData.emitirHistorico && !actionData.targetClassId) return true;
+                  return false;
+                })()}
                 className={`px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
                   selectedAction === 'matricular' ? 'bg-green-600 hover:bg-green-700' :
                   selectedAction === 'transferir' ? 'bg-orange-600 hover:bg-orange-700' :
