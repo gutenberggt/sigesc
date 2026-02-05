@@ -23,6 +23,15 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - ✅ Notificações em tempo real (WebSocket)
 - ✅ Sistema de mensagens entre usuários
 
+### Turmas Multisseriadas (Fev 05, 2026) - NOVO
+- ✅ **Backend - Modelo Class:** Adicionados campos `is_multi_grade` (bool) e `series` (List[str])
+- ✅ **Backend - Modelo Enrollment:** Adicionado campo `student_series` (str) para especificar série do aluno
+- ✅ **Frontend - Formulário de Turmas:** Checkbox "Turma Multisseriada" aparece quando nível de ensino tem múltiplas séries
+- ✅ **Frontend - Seleção de Séries:** Quando multisseriada ativada, permite selecionar múltiplas séries via checkboxes
+- ✅ **Frontend - Badge na Tabela:** Turmas multisseriadas exibem badge "Multi" com contagem de séries
+- ✅ **Frontend - Modal de Matrícula:** Dropdown de série do aluno aparece ao selecionar turma multisseriada
+- ✅ **Validação:** Botão de confirmar matrícula desabilitado se turma multisseriada e série não selecionada
+
 ### Funcionalidades Recentes (Jan 2026)
 - ✅ **Atestados Médicos:** Sistema completo para registro de atestados que bloqueia lançamento de frequência
 - ✅ **Funcionalidade Offline:** Cadastro e edição de alunos offline com sincronização em background
