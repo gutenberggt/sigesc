@@ -124,4 +124,54 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         return None
 
+    @router.post("/switch-role")
+    async def switch_active_role(request: Request):
+        """
+        Alterna o papel ativo do usuário logado.
+        O novo papel deve estar na lista de papéis (roles) do usuário.
+        """
+        current_user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(current_user)
+        
+        body = await request.json()
+        new_role = body.get('role')
+        
+        if not new_role:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="O campo 'role' é obrigatório"
+            )
+        
+        # Busca o usuário no banco
+        user_doc = await current_db.users.find_one({"id": current_user['id']}, {"_id": 0})
+        if not user_doc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuário não encontrado"
+            )
+        
+        # Verifica se o papel está na lista de papéis do usuário
+        user_roles = user_doc.get('roles', [])
+        # Se roles estiver vazio, usa o role principal como único papel disponível
+        if not user_roles:
+            user_roles = [user_doc.get('role')]
+        
+        if new_role not in user_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Você não possui o papel '{new_role}'. Papéis disponíveis: {user_roles}"
+            )
+        
+        # Atualiza o papel ativo
+        await current_db.users.update_one(
+            {"id": current_user['id']},
+            {"$set": {"role": new_role}}
+        )
+        
+        return {
+            "message": f"Papel alterado para '{new_role}' com sucesso",
+            "new_role": new_role,
+            "available_roles": user_roles
+        }
+
     return router
