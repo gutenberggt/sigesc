@@ -937,11 +937,14 @@ async def get_class_details(class_id: str, request: Request):
     academic_year = class_doc.get('academic_year', datetime.now().year)
     enrollments = await db.enrollments.find(
         {"class_id": class_id, "status": "active", "academic_year": academic_year},
-        {"_id": 0, "student_id": 1, "enrollment_number": 1}
+        {"_id": 0, "student_id": 1, "enrollment_number": 1, "student_series": 1}
     ).to_list(1000)
     
     student_ids = [e['student_id'] for e in enrollments]
-    enrollment_map = {e['student_id']: e.get('enrollment_number') for e in enrollments}
+    enrollment_map = {e['student_id']: {
+        'enrollment_number': e.get('enrollment_number'),
+        'student_series': e.get('student_series')
+    } for e in enrollments}
     
     students_list = []
     if student_ids:
@@ -955,21 +958,34 @@ async def get_class_details(class_id: str, request: Request):
             guardian_name = student.get('guardian_name') or student.get('mother_name') or student.get('father_name') or '-'
             guardian_phone = student.get('guardian_phone') or student.get('mother_phone') or student.get('father_phone') or ''
             
+            enrollment_info = enrollment_map.get(student.get('id'), {})
             students_list.append({
                 "id": student.get('id'),
                 "full_name": student.get('full_name'),
-                "enrollment_number": enrollment_map.get(student.get('id')),
+                "enrollment_number": enrollment_info.get('enrollment_number'),
+                "student_series": enrollment_info.get('student_series'),
                 "birth_date": student.get('birth_date'),
                 "guardian_name": guardian_name,
                 "guardian_phone": guardian_phone
             })
+    
+    # Calcula contagem por série para turmas multisseriadas
+    series_count = {}
+    if class_doc.get('is_multi_grade') and class_doc.get('series'):
+        for serie in class_doc.get('series', []):
+            series_count[serie] = 0
+        for student in students_list:
+            serie = student.get('student_series')
+            if serie and serie in series_count:
+                series_count[serie] += 1
     
     return {
         "class": class_doc,
         "school": school,
         "teachers": teachers,
         "students": students_list,
-        "total_students": len(students_list)
+        "total_students": len(students_list),
+        "series_count": series_count if series_count else None
     }
 
 @api_router.get("/classes/{class_id}/details/pdf")
