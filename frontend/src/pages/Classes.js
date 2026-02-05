@@ -525,6 +525,25 @@ export const Classes = () => {
     },
     { header: 'Ano Letivo', accessor: 'academic_year' },
     {
+      header: 'Série/Etapa',
+      accessor: 'grade_level',
+      render: (row) => {
+        if (row.is_multi_grade && row.series?.length > 0) {
+          return (
+            <div className="flex items-center gap-1">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                Multi
+              </span>
+              <span className="text-xs text-gray-600" title={row.series.join(', ')}>
+                {row.series.length} séries
+              </span>
+            </div>
+          );
+        }
+        return row.grade_level || '-';
+      }
+    },
+    {
       header: 'Tipo',
       accessor: 'atendimento_programa',
       render: (row) => {
