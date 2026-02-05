@@ -356,6 +356,13 @@ export const Classes = () => {
     setSubmitting(true);
 
     try {
+      // Validação para turma multisseriada
+      if (formData.is_multi_grade && formData.series.length < 2) {
+        showAlert('error', 'Selecione pelo menos 2 séries para uma turma multisseriada');
+        setSubmitting(false);
+        return;
+      }
+      
       const dataToSend = {
         ...formData,
         // Salva o label da série/etapa em vez do value
