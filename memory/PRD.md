@@ -110,12 +110,15 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - [ ] **Relatórios Gerenciais:** Criar relatórios para atestados médicos
 
 ## Última Atualização
-**Data:** 02 de Fevereiro de 2026
-**Funcionalidade:** Campo "Ação" do Aluno (Matricular, Transferir, Remanejar, Progredir) - CONCLUÍDA
-- ✅ Bug do `nginx.conf` com regex `{8}` corrigido
-- ✅ Bug do campo `education_level` vs `nivel_ensino` corrigido
-- ✅ Container antigo `backend-temp` removido
-- ✅ Configuração manual do Traefik criada em `/traefik/dynamic/sigesc-backend.yaml`
+**Data:** 05 de Fevereiro de 2026
+**Funcionalidade:** Turmas Multisseriadas - CONCLUÍDA
+- ✅ Backend: Modelo `Class` com campos `is_multi_grade` e `series`
+- ✅ Backend: Modelo `Enrollment` com campo `student_series`
+- ✅ Frontend: Checkbox "Turma Multisseriada" no formulário de turmas
+- ✅ Frontend: Seleção múltipla de séries via checkboxes
+- ✅ Frontend: Badge "Multi" na tabela de turmas
+- ✅ Frontend: Dropdown de série no modal de matrícula
+- ✅ Testes: 7/7 testes passaram (pytest + Playwright)
 
 ## Arquitetura de Deploy
 
