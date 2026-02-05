@@ -937,29 +937,104 @@ export const Classes = () => {
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Série/Etapa *</label>
-              <select
-                value={formData.grade_level}
-                onChange={(e) => setFormData({ ...formData, grade_level: e.target.value })}
-                required
-                disabled={!formData.education_level}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                data-testid="class-grade-select"
-              >
-                <option value="">Selecione a série/etapa</option>
-                {availableGradeLevels.map((grade) => (
-                  <option key={grade.value} value={grade.label}>
-                    {grade.label}
-                  </option>
-                ))}
-              </select>
-              {formData.education_level && availableGradeLevels.length === 0 && (
-                <p className="text-sm text-orange-600 mt-1">
-                  ⚠️ Esta escola não possui séries/etapas cadastradas para este nível
-                </p>
-              )}
-            </div>
+            {/* Checkbox para Turma Multisseriada */}
+            {formData.education_level && availableGradeLevels.length > 1 && (
+              <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                <input
+                  type="checkbox"
+                  id="is_multi_grade"
+                  checked={formData.is_multi_grade}
+                  onChange={(e) => handleMultiGradeToggle(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  data-testid="class-multi-grade-checkbox"
+                />
+                <label htmlFor="is_multi_grade" className="text-sm font-medium text-indigo-900 cursor-pointer">
+                  Turma Multisseriada
+                </label>
+                <span className="text-xs text-indigo-600">
+                  (atende múltiplas séries/etapas simultaneamente)
+                </span>
+              </div>
+            )}
+
+            {/* Seleção de Série - modo único */}
+            {!formData.is_multi_grade && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Série/Etapa *</label>
+                <select
+                  value={formData.grade_level}
+                  onChange={(e) => setFormData({ ...formData, grade_level: e.target.value })}
+                  required
+                  disabled={!formData.education_level}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                  data-testid="class-grade-select"
+                >
+                  <option value="">Selecione a série/etapa</option>
+                  {availableGradeLevels.map((grade) => (
+                    <option key={grade.value} value={grade.label}>
+                      {grade.label}
+                    </option>
+                  ))}
+                </select>
+                {formData.education_level && availableGradeLevels.length === 0 && (
+                  <p className="text-sm text-orange-600 mt-1">
+                    ⚠️ Esta escola não possui séries/etapas cadastradas para este nível
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Seleção de Séries - modo multisseriada */}
+            {formData.is_multi_grade && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Séries/Etapas da Turma *
+                  <span className="text-xs text-gray-500 font-normal ml-2">
+                    (selecione ao menos 2 séries)
+                  </span>
+                </label>
+                <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto bg-white">
+                  {availableGradeLevels.map((grade) => (
+                    <label 
+                      key={grade.value} 
+                      className="flex items-center gap-2 py-1.5 px-2 hover:bg-gray-50 rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.series.includes(grade.label)}
+                        onChange={(e) => handleSeriesChange(grade.label, e.target.checked)}
+                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      />
+                      <span className="text-sm text-gray-700">{grade.label}</span>
+                    </label>
+                  ))}
+                </div>
+                {formData.series.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {formData.series.map((serie) => (
+                      <span 
+                        key={serie}
+                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800"
+                      >
+                        {serie}
+                        <button
+                          type="button"
+                          onClick={() => handleSeriesChange(serie, false)}
+                          className="ml-1 text-indigo-600 hover:text-indigo-900"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {formData.series.length < 2 && formData.is_multi_grade && (
+                  <p className="text-sm text-orange-600 mt-1">
+                    ⚠️ Selecione pelo menos 2 séries para uma turma multisseriada
+                  </p>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Turno *</label>
