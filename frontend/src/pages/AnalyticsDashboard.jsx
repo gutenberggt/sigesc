@@ -107,11 +107,12 @@ export function AnalyticsDashboard() {
           classesAPI.getAll()
         ]);
         
-        let filteredSchools = schoolsData;
+        // Filtra apenas escolas ATIVAS
+        let filteredSchools = schoolsData.filter(s => s.status === 'active' || !s.status);
         let filteredClasses = classesData;
         
         if (!isGlobal && userSchoolIds.length > 0) {
-          filteredSchools = schoolsData.filter(s => userSchoolIds.includes(s.id));
+          filteredSchools = filteredSchools.filter(s => userSchoolIds.includes(s.id));
           filteredClasses = classesData.filter(c => userSchoolIds.includes(c.school_id));
         }
         
