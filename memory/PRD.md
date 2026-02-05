@@ -113,17 +113,36 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 
 ## Última Atualização
 **Data:** 05 de Fevereiro de 2026
-**Funcionalidade:** Turmas Multisseriadas + Relatório por Série - CONCLUÍDA
-- ✅ Backend: Modelo `Class` com campos `is_multi_grade` e `series`
-- ✅ Backend: Modelo `Enrollment` com campo `student_series`
-- ✅ Backend: Endpoint de detalhes retorna `series_count` com distribuição de alunos
-- ✅ Frontend: Checkbox "Turma Multisseriada" no formulário de turmas
-- ✅ Frontend: Seleção múltipla de séries via checkboxes
-- ✅ Frontend: Badge "Multi" na tabela de turmas
-- ✅ Frontend: Dropdown de série no modal de matrícula
-- ✅ Frontend: **Seção "Distribuição por Série"** no modal de detalhes da turma
-- ✅ Frontend: **Coluna "Série"** na tabela de alunos matriculados
-- ✅ Testes: 7/7 testes passaram (pytest + Playwright)
+**Funcionalidade:** Condições do Dashboard Analítico e Bloqueios de Edição para Professores
+
+### Implementado:
+1. **Ordenação Alfabética**
+   - ✅ Escolas, turmas e alunos ordenados alfabeticamente nos filtros do Dashboard Analítico
+   
+2. **Bloqueio de Alunos Transferidos**
+   - ✅ Alunos com status "transferido" têm frequência e notas bloqueadas para edição pelo professor
+   - ✅ Badge "🔒 Bloqueado" exibido na lista de alunos
+   
+3. **Remanejamento - Cópia de Dados**
+   - ✅ 100% dos dados de frequência E notas são copiados para turma destino
+   - ✅ Dados na turma de origem ficam bloqueados para o professor
+   - ✅ Endpoint `/api/students/{id}/copy-data` criado
+   
+4. **Progressão - Cópia de Dados**
+   - ✅ 100% dos dados de frequência são copiados para turma destino
+   - ✅ Dados na turma de origem ficam bloqueados para o professor
+   
+5. **Bloqueio de Alunos Falecidos**
+   - ✅ Alunos com status "falecido/deceased" têm frequência e notas bloqueadas para professor
+
+### Arquivos Modificados:
+- `/app/frontend/src/pages/AnalyticsDashboard.jsx` - Ordenação alfabética
+- `/app/frontend/src/pages/Attendance.js` - Bloqueio de edição por status
+- `/app/frontend/src/pages/Grades.js` - Bloqueio de edição por status
+- `/app/backend/routers/attendance.py` - Retorna status do aluno
+- `/app/backend/routers/grades.py` - Retorna status do aluno
+- `/app/backend/routers/students.py` - Endpoint para copiar dados
+- `/app/frontend/src/pages/StudentsComplete.js` - Chama endpoint de cópia
 
 ## Arquitetura de Deploy
 
