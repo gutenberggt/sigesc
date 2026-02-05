@@ -281,7 +281,7 @@ export function AnalyticsDashboard() {
               <select value={selectedSchool} onChange={(e) => { setSelectedSchool(e.target.value); setSelectedClass(''); setSelectedStudent(''); }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                 <option value="">{isGlobal ? 'Todas as escolas' : 'Selecione'}</option>
-                {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {sortedSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             
