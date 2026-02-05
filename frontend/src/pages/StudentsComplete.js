@@ -3558,7 +3558,11 @@ export function StudentsComplete() {
                   </label>
                   <select
                     value={actionData.targetClassId}
-                    onChange={(e) => setActionData(prev => ({ ...prev, targetClassId: e.target.value }))}
+                    onChange={(e) => setActionData(prev => ({ 
+                      ...prev, 
+                      targetClassId: e.target.value,
+                      studentSeries: '' // Limpa série ao mudar turma
+                    }))}
                     disabled={!actionData.targetSchoolId}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
                   >
@@ -3566,10 +3570,44 @@ export function StudentsComplete() {
                       {actionData.targetSchoolId ? 'Selecione a turma...' : 'Selecione a escola primeiro'}
                     </option>
                     {actionTargetClasses.map(cls => (
-                      <option key={cls.id} value={cls.id}>{cls.name}</option>
+                      <option key={cls.id} value={cls.id}>
+                        {cls.name}
+                        {cls.is_multi_grade && ' (Multisseriada)'}
+                      </option>
                     ))}
                   </select>
                 </div>
+                
+                {/* Seleção de Série para Turmas Multisseriadas */}
+                {(() => {
+                  const selectedClass = classes.find(c => c.id === actionData.targetClassId);
+                  if (selectedClass?.is_multi_grade && selectedClass?.series?.length > 0) {
+                    return (
+                      <div className="mt-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Série do Aluno <span className="text-red-500">*</span>
+                          <span className="text-xs text-indigo-600 font-normal ml-2">
+                            (turma multisseriada)
+                          </span>
+                        </label>
+                        <select
+                          value={actionData.studentSeries}
+                          onChange={(e) => setActionData(prev => ({ ...prev, studentSeries: e.target.value }))}
+                          className="w-full px-3 py-2 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-indigo-50"
+                        >
+                          <option value="">Selecione a série do aluno...</option>
+                          {selectedClass.series.map(serie => (
+                            <option key={serie} value={serie}>{serie}</option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-indigo-600 mt-1">
+                          Esta turma atende às séries: {selectedClass.series.join(', ')}
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             )}
 
