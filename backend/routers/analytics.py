@@ -44,8 +44,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
         
         # ============ CONTAGEM DE ESCOLAS ============
-        # Conta TODAS as escolas (sem filtro de status)
-        school_query = {}
+        # Conta apenas escolas ATIVAS (status = "active")
+        school_query = {"status": "active"}
         if school_id:
             school_query['id'] = school_id
         elif not is_global and user_school_ids:
