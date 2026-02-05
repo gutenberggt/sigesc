@@ -65,6 +65,13 @@ def upload_to_ftp(
     Returns:
         Tuple[success, url_or_error, filename]
     """
+    # Obtém configuração FTP atualizada
+    FTP_CONFIG = get_ftp_config()
+    
+    # Verifica se FTP está configurado
+    if not FTP_CONFIG["host"] or not FTP_CONFIG["user"]:
+        return False, "FTP não configurado (FTP_HOST ou FTP_USER ausente)", None
+    
     ftp = None
     try:
         # Gera nome único para o arquivo
