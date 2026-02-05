@@ -264,6 +264,8 @@ export function SchoolsComplete() {
               console.log('[SchoolsComplete] Nenhuma escola encontrada para o secretário');
             }
           }
+          // Ordena escolas alfabeticamente por nome
+          filteredSchools.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
           setSchools(filteredSchools);
           setClasses(classesData);
           setCalendarioLetivo(calendarioData);
