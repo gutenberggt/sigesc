@@ -700,12 +700,25 @@ export function StudentsComplete() {
             return;
           }
           
+          // Verifica se é turma multisseriada e se a série foi selecionada
+          const targetClassForMatricula = classes.find(c => c.id === actionData.targetClassId);
+          if (targetClassForMatricula?.is_multi_grade && targetClassForMatricula?.series?.length > 0) {
+            if (!actionData.studentSeries) {
+              showAlert('error', 'Selecione a série do aluno para esta turma multisseriada');
+              setExecutingAction(false);
+              return;
+            }
+          }
+          
           updateData = {
             school_id: actionData.targetSchoolId,
             class_id: actionData.targetClassId,
             status: 'active',
             academic_year: actionData.academicYear
           };
+          
+          // Adiciona informação da série na observação se for turma multisseriada
+          const seriesNote = actionData.studentSeries ? ` (Série: ${actionData.studentSeries})` : '';
           
           historyEntry = {
             ...historyEntry,
@@ -714,7 +727,7 @@ export function StudentsComplete() {
             school_id: actionData.targetSchoolId,
             class_id: actionData.targetClassId,
             academic_year: actionData.academicYear,
-            observations: actionData.notes || `Matrícula realizada para o ano letivo ${actionData.academicYear}`
+            observations: (actionData.notes || `Matrícula realizada para o ano letivo ${actionData.academicYear}`) + seriesNote
           };
           break;
           
