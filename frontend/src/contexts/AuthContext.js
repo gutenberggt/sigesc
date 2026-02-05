@@ -461,6 +461,55 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem(STORAGE_KEYS.LAST_LOGIN);
   };
 
+  // Função para trocar o papel ativo (quando usuário tem múltiplos papéis)
+  const switchRole = async (newRole) => {
+    if (!isOnline()) {
+      return {
+        success: false,
+        error: 'Sem conexão com a internet. A troca de papel requer conexão online.'
+      };
+    }
+    
+    const currentToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    if (!currentToken) {
+      return {
+        success: false,
+        error: 'Usuário não autenticado'
+      };
+    }
+    
+    try {
+      const response = await axios.post(`${API}/users/switch-role`, 
+        { role: newRole },
+        { headers: { Authorization: `Bearer ${currentToken}` } }
+      );
+      
+      // Atualiza o usuário com o novo papel
+      const updatedUser = { ...user, role: newRole };
+      setUser(updatedUser);
+      saveUserDataLocally(updatedUser);
+      
+      return { 
+        success: true, 
+        message: response.data.message,
+        newRole: newRole 
+      };
+    } catch (error) {
+      console.error('Erro ao trocar papel:', error);
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Erro ao trocar papel'
+      };
+    }
+  };
+
+  // Retorna a lista de papéis disponíveis para o usuário
+  const getAvailableRoles = () => {
+    if (!user) return [];
+    // Se tem lista de roles, usa ela; senão usa apenas o role principal
+    return user.roles && user.roles.length > 0 ? user.roles : [user.role];
+  };
+
   const value = {
     user,
     loading,
@@ -468,6 +517,8 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     logoutComplete,
+    switchRole,
+    getAvailableRoles,
     isAuthenticated: !!user,
     accessToken,
     isOfflineSession,
