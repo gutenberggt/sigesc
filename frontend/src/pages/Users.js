@@ -112,6 +112,11 @@ export const Users = () => {
       if (editingUser && !submitData.password) {
         delete submitData.password;
       }
+      
+      // Garante que o papel principal esteja sempre na lista de roles
+      if (!submitData.roles.includes(submitData.role)) {
+        submitData.roles = [submitData.role, ...submitData.roles].slice(0, 3);
+      }
 
       if (editingUser) {
         await usersAPI.update(editingUser.id, submitData);
