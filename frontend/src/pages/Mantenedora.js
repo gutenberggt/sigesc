@@ -149,8 +149,26 @@ export default function Mantenedora() {
       const result = await uploadAPI.upload(file, 'logotipo');
       
       if (result.url) {
-        setFormData(prev => ({ ...prev, logotipo_url: result.url }));
-        showAlert('success', 'Logotipo enviado com sucesso!');
+        // Atualiza o formData local
+        const newFormData = { ...formData, logotipo_url: result.url };
+        setFormData(newFormData);
+        
+        // Salva automaticamente no servidor
+        try {
+          const dataToSend = {
+            ...newFormData,
+            media_aprovacao: newFormData.media_aprovacao ? parseFloat(newFormData.media_aprovacao) : null,
+            frequencia_minima: newFormData.frequencia_minima ? parseFloat(newFormData.frequencia_minima) : null,
+            max_componentes_dependencia: newFormData.max_componentes_dependencia ? parseInt(newFormData.max_componentes_dependencia) : null,
+            qtd_componentes_apenas_dependencia: newFormData.qtd_componentes_apenas_dependencia ? parseInt(newFormData.qtd_componentes_apenas_dependencia) : null,
+          };
+          await mantenedoraAPI.update(dataToSend);
+          refreshMantenedora();
+          showAlert('success', 'Logotipo salvo com sucesso!');
+        } catch (saveError) {
+          console.error('Erro ao salvar logotipo:', saveError);
+          showAlert('warning', 'Logotipo enviado, mas houve erro ao salvar. Clique em Salvar novamente.');
+        }
       }
     } catch (error) {
       console.error('Erro ao enviar logotipo:', error);
