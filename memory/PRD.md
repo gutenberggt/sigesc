@@ -113,13 +113,16 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 
 ## Última Atualização
 **Data:** 05 de Fevereiro de 2026
-**Funcionalidade:** Turmas Multisseriadas - CONCLUÍDA
+**Funcionalidade:** Turmas Multisseriadas + Relatório por Série - CONCLUÍDA
 - ✅ Backend: Modelo `Class` com campos `is_multi_grade` e `series`
 - ✅ Backend: Modelo `Enrollment` com campo `student_series`
+- ✅ Backend: Endpoint de detalhes retorna `series_count` com distribuição de alunos
 - ✅ Frontend: Checkbox "Turma Multisseriada" no formulário de turmas
 - ✅ Frontend: Seleção múltipla de séries via checkboxes
 - ✅ Frontend: Badge "Multi" na tabela de turmas
 - ✅ Frontend: Dropdown de série no modal de matrícula
+- ✅ Frontend: **Seção "Distribuição por Série"** no modal de detalhes da turma
+- ✅ Frontend: **Coluna "Série"** na tabela de alunos matriculados
 - ✅ Testes: 7/7 testes passaram (pytest + Playwright)
 
 ## Arquitetura de Deploy
