@@ -839,6 +839,9 @@ export const Classes = () => {
                         <tr className="bg-gray-200">
                           <th className="px-3 py-2 text-left font-medium">#</th>
                           <th className="px-3 py-2 text-left font-medium">Aluno</th>
+                          {classDetails.class?.is_multi_grade && (
+                            <th className="px-3 py-2 text-left font-medium">Série</th>
+                          )}
                           <th className="px-3 py-2 text-left font-medium">Data Nasc.</th>
                           <th className="px-3 py-2 text-left font-medium">Responsável</th>
                           <th className="px-3 py-2 text-left font-medium">Celular</th>
@@ -850,6 +853,17 @@ export const Classes = () => {
                           <tr key={student.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="px-3 py-2">{idx + 1}</td>
                             <td className="px-3 py-2 font-medium">{student.full_name}</td>
+                            {classDetails.class?.is_multi_grade && (
+                              <td className="px-3 py-2">
+                                {student.student_series ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                                    {student.student_series}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">N/D</span>
+                                )}
+                              </td>
+                            )}
                             <td className="px-3 py-2">{formatDate(student.birth_date)}</td>
                             <td className="px-3 py-2">{student.guardian_name}</td>
                             <td className="px-3 py-2">
