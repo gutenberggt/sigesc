@@ -826,6 +826,33 @@ export function StudentsComplete() {
       // Executa a atualização
       await studentsAPI.update(editingStudent.id, updateData);
       
+      // Se for remanejamento ou progressão (sem emitir histórico), copia dados para a nova turma
+      if ((selectedAction === 'remanejar' || (selectedAction === 'progredir' && !actionData.emitirHistorico)) && formData.class_id && actionData.targetClassId) {
+        try {
+          const copyType = selectedAction === 'remanejar' ? 'remanejamento' : 'progressao';
+          const API_URL = process.env.REACT_APP_BACKEND_URL;
+          const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+          
+          await fetch(`${API_URL}/api/students/${editingStudent.id}/copy-data`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              source_class_id: formData.class_id,
+              target_class_id: actionData.targetClassId,
+              copy_type: copyType,
+              academic_year: new Date().getFullYear()
+            })
+          });
+          console.log(`Dados copiados (${copyType}) da turma ${formData.class_id} para ${actionData.targetClassId}`);
+        } catch (copyError) {
+          console.error('Erro ao copiar dados:', copyError);
+          // Não interrompe o fluxo - a ação principal já foi concluída
+        }
+      }
+      
       // Atualiza o formData local
       setFormData(prev => ({ ...prev, ...updateData }));
       setEditingStudent(prev => ({ ...prev, ...updateData }));
