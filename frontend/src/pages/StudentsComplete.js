@@ -304,7 +304,8 @@ export function StudentsComplete() {
     academicYear: new Date().getFullYear(),
     reason: '',
     notes: '',
-    emitirHistorico: false
+    emitirHistorico: false,
+    studentSeries: '' // Série do aluno para turmas multisseriadas
   });
   const [executingAction, setExecutingAction] = useState(false);
   
