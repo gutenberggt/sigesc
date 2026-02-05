@@ -259,7 +259,7 @@ export function AnalyticsDashboard() {
             
             <div className="flex-1 min-w-[140px] max-w-[180px]">
               <label className="block text-xs text-gray-500 mb-1">Ano Letivo</label>
-              <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}
+              <select value={selectedYear} onChange={(e) => { setSelectedYear(Number(e.target.value)); setSelectedClass(''); setSelectedStudent(''); }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                 {years.map(year => <option key={year} value={year}>{year}</option>)}
               </select>
