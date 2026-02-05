@@ -669,7 +669,8 @@ export function StudentsComplete() {
       academicYear: new Date().getFullYear(),
       reason: '',
       notes: '',
-      emitirHistorico: false
+      emitirHistorico: false,
+      studentSeries: '' // Limpa série ao abrir modal
     });
     setShowActionModal(true);
   };
