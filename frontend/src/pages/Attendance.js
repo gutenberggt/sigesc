@@ -904,9 +904,11 @@ export const Attendance = () => {
                         {attendanceData.students.map(student => {
                           const hasCertificate = hasActiveCertificate(student.id);
                           const certInfo = getCertificateInfo(student.id);
+                          const isBlocked = isStudentBlockedForProfessor(student);
+                          const blockedMessage = getBlockedMessage(student);
                           
                           return (
-                            <tr key={student.id} className={`hover:bg-gray-50 ${hasCertificate ? 'bg-red-50' : ''}`}>
+                            <tr key={student.id} className={`hover:bg-gray-50 ${hasCertificate ? 'bg-red-50' : ''} ${isBlocked ? 'bg-gray-100' : ''}`}>
                               <td className="px-4 py-3 font-medium text-gray-900">
                                 <div className="flex items-center gap-2">
                                   {student.full_name}
@@ -914,6 +916,11 @@ export const Attendance = () => {
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full" title={certInfo?.period}>
                                       <Stethoscope size={12} />
                                       AM
+                                    </span>
+                                  )}
+                                  {isBlocked && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-600 text-xs font-medium rounded-full" title={blockedMessage}>
+                                      🔒 Bloqueado
                                     </span>
                                   )}
                                 </div>
@@ -928,6 +935,13 @@ export const Attendance = () => {
                                         <span>AM</span>
                                       </div>
                                       <span className="text-xs font-normal">Atestado Médico</span>
+                                    </div>
+                                  </div>
+                                ) : isBlocked ? (
+                                  <div className="flex justify-center">
+                                    <div className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-center" title={blockedMessage}>
+                                      <span className="text-sm">🔒</span>
+                                      <span className="text-xs block">Edição bloqueada</span>
                                     </div>
                                   </div>
                                 ) : (
