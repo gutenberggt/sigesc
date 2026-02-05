@@ -177,9 +177,10 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         
         students = []
         if student_ids:
+            # Inclui status do aluno para verificação de bloqueio
             students = await current_db.students.find(
                 {"id": {"$in": student_ids}},
-                {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1}
+                {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "status": 1, "class_id": 1}
             ).sort("full_name", 1).to_list(1000)
         
         # Busca frequência existente
@@ -209,7 +210,12 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                     "id": s['id'],
                     "full_name": s['full_name'],
                     "enrollment_number": enrollment_numbers.get(s['id']) or s.get('enrollment_number'),
-                    "status": records_map.get(s['id'], None)
+                    "status": records_map.get(s['id'], None),
+                    # Inclui status do aluno e turma atual para verificação de bloqueio
+                    "student_status": s.get('status', 'active'),
+                    "current_class_id": s.get('class_id'),
+                    # Indica se o aluno foi remanejado/progredido para outra turma
+                    "is_transferred_from_class": s.get('class_id') and s.get('class_id') != class_id
                 }
                 for s in students
             ]
