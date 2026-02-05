@@ -1,13 +1,13 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
-import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus } from 'lucide-react';
+import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI } from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 
 export const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, switchRole, getAvailableRoles } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     schools: 0,
@@ -18,6 +18,8 @@ export const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
+  const [showRoleSelector, setShowRoleSelector] = useState(false);
+  const [switchingRole, setSwitchingRole] = useState(false);
 
   // IDs das escolas que o usuário (secretário) tem vínculo
   const userSchoolIds = useMemo(() => {
