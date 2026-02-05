@@ -79,7 +79,7 @@ def setup_router(db, audit_service, sandbox_db=None):
                 "status": "active"
             },
             {"_id": 0}
-        ).to_list(100)
+        ).sort("name", 1).to_list(100)
         
         return schools
 
