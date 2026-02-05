@@ -1,46 +1,63 @@
 <analysis>**original_problem_statement:**
 O usuário iniciou a sessão para resolver um problema crítico de deploy, que evoluiu para abordar uma vasta gama de solicitações, incluindo:
--   Resolver problemas de Gateway Timeout em produção.
--   Corrigir inconsistências de dados do cache offline.
--   Melhorar a página de alunos e o formulário de cadastro (novos campos, formatação, autocomplete).
--   Implementar uma nova funcionalidade de Ação (Matricular, Transferir, etc.).
--   Corrigir bugs de dados, como inconsistências na matrícula de alunos em turmas.
--   Criar uma página de apresentação (landing page) para o sistema.
--   Criar uma apresentação em PowerPoint para vendas.
--   Criar uma central de tutoriais.
--   Fornecer múltiplos scripts e comandos Current Mongosh Log ID:	698243dbeb821c9f6b284d0b
+- Resolver problemas de Gateway Timeout em produção.
+- Corrigir inconsistências de dados do cache offline.
+- Melhorar a página de alunos e o formulário de cadastro (novos campos, formatação, autocomplete).
+- Implementar uma nova funcionalidade de Ação (Matricular, Transferir, etc.).
+- Corrigir bugs de dados, como inconsistências na matrícula de alunos em turmas.
+- Criar uma página de apresentação (landing page) para o sistema.
+- Criar uma apresentação em PowerPoint para vendas.
+- Criar uma central de tutoriais e corrigir imagens faltantes.
+- Adicionar colunas e restringir acesso a certas páginas.
+- Fornecer múltiplos scripts e comandos Current Mongosh Log ID:	6983e5802e1bfb8051284d0b
 Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.28
+Using MongoDB:		7.0.29
 Using Mongosh:		2.6.0
 
 For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
 
 ------
    The server generated these startup warnings when booting
-   2026-02-03T18:52:08.823+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-03T18:52:10.032+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-03T18:52:10.032+00:00: You are running this process as the root user, which is not recommended
-   2026-02-03T18:52:10.032+00:00: Soft rlimits for open file descriptors too low
+   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
+   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
+   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
 ------
 
 test>  para manipulação de dados em lote no servidor de produção.
+- Criar um dashboard analítico completo com gráficos e filtros, e depurar extensivamente as inconsistências de dados reportadas.
+- Remover completamente o modo de teste (sandbox) do sistema.
+- **Solicitação Atual:** Implementar suporte para turmas multisseriadas.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-A aplicação full-stack (React + FastAPI + MongoDB) está funcional. As principais funcionalidades recentes incluem:
--   **Funcionalidade Ação do Aluno:** Implementada e testada, permite matricular, transferir, etc., diretamente da ficha do aluno. O processo foi aprimorado para incluir a seleção do Ano Letivo.
--   **Melhorias no Cadastro de Aluno:** O formulário foi extensamente aprimorado com novos campos (telefone, e-mail), máscaras de formatação para documentos (CPF, NIS, SUS) e um componente de autocomplete para cidades brasileiras.
--   **Correção de Inconsistência de Matrícula:** Foi identificado e corrigido um bug crítico onde a criação de alunos não gerava um registro de matrícula (), causando inconsistências. O backend foi ajustado, e um script de migração de dados foi fornecido para corrigir os alunos existentes.
--   **Página de Apresentação (Landing Page):** Uma página de marketing completa foi criada em , com informações sobre o sistema, funcionalidades, benefícios e contatos. Um link para ela foi adicionado à página de login.
--   **Apresentação PowerPoint:** Um script gerou o arquivo , que foi disponibilizado para download em um link público.
--   **Central de Ajuda:** Foi criada uma página de índice de tutoriais () e a primeira página de tutorial detalhada (Acesso ao sistema e permissões) com screenshots.
+A aplicação full-stack (React + FastAPI + MongoDB) está funcional e agora aponta para o banco de dados de produção , após a remoção completa da funcionalidade de modo teste/sandbox.
+As principais funcionalidades recentes são:
+- **Dashboard Analítico:** Uma página completa em  que exibe métricas chave sobre escolas, turmas, alunos e matrículas. Inclui múltiplos cards, gráficos (usando Recharts) e filtros (Ano Letivo, Escola). A API backend e o frontend foram extensivamente depurados para garantir que os dados corretos sejam exibidos.
+- **Correções e Melhorias:** Foram corrigidas as imagens de um tutorial, adicionadas novas colunas em tabelas, e implementado controle de acesso para páginas específicas.
+- **Manipulação de Dados:** Foram fornecidos ao usuário comandos Current Mongosh Log ID:	6983e58171608c55ee284d0b
+Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
+Using MongoDB:		7.0.29
+Using Mongosh:		2.6.0
+
+For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
+
+------
+   The server generated these startup warnings when booting
+   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
+   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
+   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
+------
+
+test>  para manipulação de dados em produção, incluindo a identificação do nome correto do container e do banco de dados.
 
 **Last working item**:
--   **Last item agent was working:** Criação do tutorial Acesso ao sistema e permissões. O agente criou uma nova página React (), adicionou a rota e capturou screenshots do sistema para ilustrar o passo a passo.
--   **Status:** USER VERIFICATION PENDING
--   **Agent Testing Done:** Y
--   **Which testing method agent to use?** Manual verification. O próximo agente deve perguntar ao usuário se o tutorial criado está satisfatório e se deseja criar os próximos tutoriais da lista.
+-   **Last item agent was working:** O agente estava iniciando a implementação da funcionalidade de **turmas multisseriadas**. A tarefa consiste em permitir que uma turma possa abranger múltiplas séries/anos e que, ao matricular um aluno, seja possível especificar em qual série daquela turma ele está ingressando.
+-   **Status:** IN PROGRESS
+-   **Agent Testing Done:** N
+-   **Which testing method agent to use?** both. Esta é uma funcionalidade complexa que exige alterações significativas tanto no backend (modelos de dados, lógica da API) quanto no frontend (formulários de criação e matrícula), necessitando de testes de integração completos.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
@@ -51,45 +68,68 @@ A aplicação full-stack (React + FastAPI + MongoDB) está funcional. As princip
 
 -   **Issue 2: (P1) Inconsistência de Dados e Cache Offline**
     -   **Description:** Conflitos entre dados do servidor e do cache local (IndexedDB) podem causar inconsistências.
-    -   **Status:** NOT STARTED (Nesta sessão)
+    -   **Status:** NOT STARTED
 
 -   **Issue 3: (P1) Inconsistência na Exclusão do Histórico do Aluno**
-    -   **Description:** O usuário tentou executar um comando  para apagar o histórico de alunos, mas os dados persistiram no frontend. A saída do comando estava incompleta.
-    -   **Attempted fixes:** O agente forneceu um método alternativo para executar o comando de forma interativa (), mas a depuração foi interrompida para tratar outro problema.
+    -   **Description:** Uma tentativa anterior do usuário de limpar o histórico de alunos via  falhou. A depuração foi pausada.
     -   **Next debug checklist:**
-        1. Pedir ao usuário para entrar no Current Mongosh Log ID:	698243dbea39097441284d0b
+        1.  Pedir ao usuário para entrar no Current Mongosh Log ID:	6983e5813738a810f0284d0b
 Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.28
+Using MongoDB:		7.0.29
 Using Mongosh:		2.6.0
 
 For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
 
 ------
    The server generated these startup warnings when booting
-   2026-02-03T18:52:08.823+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-03T18:52:10.032+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-03T18:52:10.032+00:00: You are running this process as the root user, which is not recommended
-   2026-02-03T18:52:10.032+00:00: Soft rlimits for open file descriptors too low
+   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
+   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
+   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
 ------
 
-test>  interativo novamente.
-        2. Executar .
-        3. Confirmar com .
-        4. Se o resultado for 0, instruir o usuário a fazer um hard refresh no navegador () para limpar o cache.
-    -   **Status:** BLOCKED (Aguardando ação do usuário para continuar a depuração).
+test>  interativo novamente no container correto ().
+        2.  Executar .
+        3.  Executar .
+        4.  Confirmar com .
+    -   **Status:** BLOCKED (Aguardando ação do usuário).
     -   **Is recurring issue?** N
 
 **In progress Task List**:
--   **Task 1: (P1) Continuar Refatoração do Backend (FASE 4)**
-    -   **Where to resume:** Continuar extraindo as rotas restantes (documentos, relatórios) do  e implementar completamente o padrão App Factory em .
-    -   **Status:** NOT STARTED (Nesta sessão)
+-   **Task 1: (P0) Implementar Suporte a Turmas Multisseriadas**
+    -   **Where to resume:** O agente já analisou os arquivos iniciais (, ). O próximo passo é o planejamento e a implementação:
+        1.  **Backend:**
+            -   Alterar o modelo  em  para substituir o campo  (string) por  para armazenar múltiplas séries.
+            -   Alterar o modelo  para adicionar um campo  para registrar a série específica do aluno dentro da turma multisseriada.
+            -   Atualizar os endpoints de criação/atualização de turmas e matrículas para refletir os novos modelos.
+        2.  **Frontend:**
+            -   No formulário de criação/edição de turmas (), substituir o campo de série por um componente de seleção múltipla (multi-select).
+            -   No formulário de matrícula de aluno (), ao selecionar uma turma multisseriada, exibir dinamicamente um novo campo para escolher a série do aluno dentre as disponíveis naquela turma.
+    -   **What will be achieved with this?** O sistema permitirá o cadastro e gerenciamento de turmas que atendem a mais de uma série simultaneamente, uma necessidade para escolas com turmas mistas.
+    -   **Status:** IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?** both
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   (P0) **Executar Script de Migração de Matrículas:** O usuário precisa ser lembrado de executar o script fornecido para criar os registros de  faltantes no ambiente de produção.
-    -   (P1) **Criar os Tutoriais Restantes:** Continuar o desenvolvimento da Central de Ajuda, criando as páginas para os outros tutoriais listados.
-    -   (P1) Melhoria Pré-Matrícula: Enviar um email de confirmação para o responsável.
-    -   (P1) Melhoria na Lista de Alunos: Implementar o destaque do aluno recém-criado na lista.
+    -   (P1) **Confirmar Migração de Status de Alunos:** Verificar com o usuário se o comando Current Mongosh Log ID:	6983e582303695b409284d0b
+Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
+Using MongoDB:		7.0.29
+Using Mongosh:		2.6.0
+
+For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
+
+------
+   The server generated these startup warnings when booting
+   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
+   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
+   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
+------
+
+test>  para mudar alunos de Transferido para Inativo foi executado em produção e se o Dashboard Analítico agora reflete a contagem correta de Alunos Ativos.
+    -   (P1) **Refatoração do Backend (FASE 4):** Continuar extraindo as rotas restantes do  e implementar completamente o padrão App Factory.
+    -   (P1) **Melhoria Pré-Matrícula:** Enviar um email de confirmação para o responsável.
+    -   (P1) **Melhoria na Lista de Alunos:** Implementar o destaque do aluno recém-criado na lista.
 -   **Future Tasks:**
     -   (P2) Refatoração do Frontend: Simplificar o god component .
     -   (P2) Expansão Offline: Estender a funcionalidade offline para o módulo de matrículas.
@@ -97,170 +137,158 @@ test>  interativo novamente.
     -   (P3) Limpeza de Código: Remover o arquivo obsoleto .
 
 **Completed work in this session**
--   **Funcionalidade Ação do Aluno:** Finalizada e testada, incluindo a adição do campo Ano Letivo.
--   **Melhorias no Formulário de Aluno:** Implementados novos campos (telefone, e-mail), máscaras de formatação (CPF, NIS, SUS) e autocomplete de cidades.
--   **Correção de Bug de Matrícula:** Corrigido o endpoint  para criar um registro na coleção . Foi fornecido um script de migração para dados existentes.
--   **Melhoria de UX no Modal de Edição:** O modal de edição de aluno agora exibe o nome do aluno no título e os campos de vínculo (escola/turma) são somente leitura.
--   **Criação de Página de Apresentação:** Uma landing page completa foi criada e está acessível.
--   **Criação de Apresentação PPTX:** Um arquivo PowerPoint foi gerado e disponibilizado para download.
--   **Criação da Central de Ajuda:** Criada a página de índice de tutoriais e o primeiro tutorial detalhado.
--   **Suporte ao Usuário:** Fornecidos múltiplos comandos Current Mongosh Log ID:	698243dcd1d22d5101284d0b
+-   **Dashboard Analítico (Criação e Depuração):**
+    -   Criada a página completa com cards, gráficos e filtros.
+    -   Resolvido o problema de dados zerados, corrigindo múltiplos bugs: variável de token incorreta (), API não usando o banco de dados correto (), e uma race condition no carregamento do token.
+    -   Aprimorados os cálculos da API para refletir as regras de negócio do usuário (ex: Alunos Ativos vs. Cadastrados, lógica de transferências).
+-   **Remoção do Modo de Teste (Sandbox):**
+    -   Toda a lógica de sandbox foi removida do backend e frontend.
+    -   A aplicação foi configurada para usar o banco de dados de produção .
+-   **Melhorias de UI e Acesso:**
+    -   Adicionadas colunas Tipo e Ações na aba de turmas do modal de edição de escola.
+    -   Restringido o acesso à página Componentes Curriculares apenas para administradores.
+-   **Suporte ao Usuário:**
+    -   Fornecido comando Current Mongosh Log ID:	6983e583714a85ccb5284d0b
 Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.28
+Using MongoDB:		7.0.29
 Using Mongosh:		2.6.0
 
 For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
 
 ------
    The server generated these startup warnings when booting
-   2026-02-03T18:52:08.823+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-03T18:52:10.032+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-03T18:52:10.032+00:00: You are running this process as the root user, which is not recommended
-   2026-02-03T18:52:10.032+00:00: Soft rlimits for open file descriptors too low
+   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
+   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
+   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
 ------
 
-test>  para manipulação de dados em lote.
+test>  para atualizar o status de milhares de alunos de transferred para inactive.
+    -   Corrigido problema de imagens faltantes em uma página de tutorial.
 
 **Earlier issues found/mentioned but not fixed**
 -   Nenhum que não esteja listado em .
 
 **Known issue recurrence from previous fork**
--   **Falha de deploy em produção:** Continua sendo o problema P0 não abordado.
--   **Inconsistência de dados:** O problema da matrícula () foi uma nova manifestação desse tipo de bug recorrente.
+-   **Falha de deploy em produção:** O problema P0 do fork anterior continua sem solução.
+-   **Recurrence count:** 2
+-   **Status:** NOT STARTED
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   React (State, Props, Components, Router)
--   Input Masking e Validação no Frontend
--   Criação de componentes reutilizáveis (CityAutocomplete)
--   Manipulação de dados em MongoDB via Current Mongosh Log ID:	698243dd573380875d284d0b
+-   **React:** Hooks (, , ), depuração de ciclo de vida de componentes e contexto de autenticação, uso da biblioteca  para gráficos.
+-   **FastAPI:** Criação de routers, depuração de lógica de API, uso de pipelines de agregação do MongoDB para criar endpoints analíticos complexos.
+-   **MongoDB (Current Mongosh Log ID:	6983e5839d85138189284d0b
 Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.28
+Using MongoDB:		7.0.29
 Using Mongosh:		2.6.0
 
 For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
 
 ------
    The server generated these startup warnings when booting
-   2026-02-03T18:52:08.823+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-03T18:52:10.032+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-03T18:52:10.032+00:00: You are running this process as the root user, which is not recommended
-   2026-02-03T18:52:10.032+00:00: Soft rlimits for open file descriptors too low
+   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
+   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
+   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
 ------
 
-test>  (scripts de migração e correção)
--   Geração de arquivos programaticamente com Python ()
--   Depuração de inconsistências de dados entre diferentes coleções ( vs. ).
+test> , ):** Depuração de conexões de banco de dados, identificação do banco de dados correto ( vs ), execução de queries de agregação e atualização em massa.
+-   **Gerenciamento de Ambiente:** Remoção de uma funcionalidade inteira (sandbox) que estava espalhada pelo código, alteração de variáveis de ambiente () e reinicialização de serviços para aplicar mudanças.
 
 **key DB schema**
--   : Coleção usada para vincular alunos a turmas por ano letivo. Contém , , , , . A consistência entre esta coleção e a  é crucial.
+-   **classes:** Atualmente possui um campo . **Será modificado** para .
+-   **enrollments:** Atualmente vincula  a  e . **Será modificado** para incluir .
+-   **students:** Contém o campo  (, , ) que é crucial para as métricas do dashboard.
+
+**changes in tech stack**
+-   A biblioteca  foi adicionada ao frontend.
 
 **All files of reference**
--   : Principal arquivo modificado, com a implementação da feature de Ação, melhorias no formulário e ajustes de UX.
--   : Modificado para corrigir o bug da criação de matrículas.
--   : Nova página de apresentação.
--   : Nova página de índice de tutoriais.
--   : Nova página de tutorial.
--   : Script para gerar a apresentação PowerPoint.
+-   : Componente principal criado e depurado nesta sessão.
+-   : Rota de API principal criada e depurada nesta sessão.
+-   : Contém os modelos de dados que serão modificados para a próxima tarefa.
+-   : Formulário de criação de turmas que será modificado.
+-   : Local onde a matrícula de alunos é feita, também será modificado.
+-   : Arquivo de configuração atualizado para .
 
 **Areas that need refactoring**:
 -   **Processo de Deploy (URGENTE):** Solução manual via SSH insustentável.
--   : Continua sendo um god component e precisa ser decomposto.
--   : A refatoração precisa ser concluída.
+-   : Continua sendo um god component.
+-   : A refatoração do backend precisa ser concluída.
 
 **key api endpoints**
--   : Lógica atualizada para criar um registro de  junto com o aluno.
--   : Lógica atualizada para criar um registro de  ao realizar a ação de Matricular.
+-   : Endpoint principal do dashboard, que recebe filtros (, ) e retorna um resumo de dados agregados.
 
 **Critical Info for New Agent**
--   A prioridade máxima (não iniciada) continua sendo o problema de deploy em produção.
--   **Ação Crítica para o Usuário:** O usuário precisa ser instruído a executar o script de migração de  no ambiente de produção para corrigir as inconsistências de dados dos alunos existentes. Sem isso, as turmas continuarão aparecendo vazias.
--   O usuário é tecnicamente proficiente e executa comandos  e Current Mongosh Log ID:	698243dda012d10524284d0b
-Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.28
-Using Mongosh:		2.6.0
-
-For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
-
-------
-   The server generated these startup warnings when booting
-   2026-02-03T18:52:08.823+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-03T18:52:10.032+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-03T18:52:10.032+00:00: You are running this process as the root user, which is not recommended
-   2026-02-03T18:52:10.032+00:00: Soft rlimits for open file descriptors too low
-------
-
-test>  diretamente no servidor. As instruções devem ser claras e precisas.
--   O problema de exclusão do histórico de alunos não foi concluído e precisa de acompanhamento.
+-   **Foco na Tarefa Atual:** A prioridade é implementar o suporte a **turmas multisseriadas**. Comece planejando as alterações nos modelos do backend ( e ) e depois no frontend.
+-   **Ambiente Unificado:** O sistema não possui mais um modo de teste/sandbox. Todas as operações, inclusive no ambiente de desenvolvimento, usam uma conexão com o banco de dados configurado no  ().
+-   **Dados de Produção:** Lembre-se que a base de dados  possui cerca de 4.500 alunos com status transferido e matrículas concentradas no ano de 2025. Isso é vital para entender os resultados ao testar o dashboard.
+-   **Credenciais de Teste:** Utilize o usuário  com a senha  para testes, pois ele possui o perfil de administrador.
 
 **documents and test reports created in this job**
 -   
--   
--   
--   
--   
 
 **Last 10 User Messages and any pending HUMAN messages**
-10. **User:** Pediu para criar o tutorial Acesso ao sistema e permissões com elementos gráficos. (Status: **DONE**, pendente de verificação)
-9.  **User:** Pediu para criar uma página de índice de tutoriais. (Status: **DONE**)
-8.  **User:** Não conseguiu entender como baixar o arquivo PowerPoint. (Status: **DONE**, agente forneceu um link direto)
-7.  **User:** Pediu uma apresentação em PowerPoint para apresentar o SIGESC. (Status: **DONE**)
-6.  **User:** Pediu para criar uma página de apresentação (landing page) para o SIGESC. (Status: **DONE**)
-5.  **User:** Pediu para adicionar um campo de seleção de ano (2025-2030) no modal de Matrícula. (Status: **DONE**)
-4.  **User:** Pediu um comando Current Mongosh Log ID:	698243de6202467e04284d0b
+1.  **User:** Solicitou a implementação de turmas multisseriadas. (Status: **IN PROGRESS**)
+2.  **User:** Confirmou o nome correto do container do Mongo e executou o script para alterar o status dos alunos, mas o resultado foi . (Status: **DONE**, levou à descoberta do banco de dados incorreto).
+3.  **User:** Pediu para identificar o nome do container do Mongo, pois o comando falhou. (Status: **DONE**)
+4.  **User:** Pediu um comando Current Mongosh Log ID:	6983e58477f3f4fa6d284d0b
 Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.28
+Using MongoDB:		7.0.29
 Using Mongosh:		2.6.0
 
 For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
 
 ------
    The server generated these startup warnings when booting
-   2026-02-03T18:52:08.823+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-03T18:52:10.032+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-03T18:52:10.032+00:00: You are running this process as the root user, which is not recommended
-   2026-02-03T18:52:10.032+00:00: Soft rlimits for open file descriptors too low
+   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
+   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
+   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
 ------
 
-test>  para mudar todos os alunos para o status Transferido. (Status: **DONE**)
-3.  **User:** Pediu um comando Current Mongosh Log ID:	698243de6f0f331be8284d0b
-Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.28
-Using Mongosh:		2.6.0
-
-For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
-
-------
-   The server generated these startup warnings when booting
-   2026-02-03T18:52:08.823+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-03T18:52:10.032+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-03T18:52:10.032+00:00: You are running this process as the root user, which is not recommended
-   2026-02-03T18:52:10.032+00:00: Soft rlimits for open file descriptors too low
-------
-
-test>  para remover o vínculo de todos os alunos com escolas e turmas. (Status: **DONE**)
-2.  **User:** Pediu alterações na UI de Editar Aluno: nome no título e campos de vínculo somente leitura. (Status: **DONE**)
-1.  **User:** Perguntou sobre a criação de novos alunos (E os novos alunos a serem matriculados?), levando à descoberta e correção do bug de . (Status: **DONE**)
+test>  para mudar o status de todos os alunos Transferidos para Inativos. (Status: **DONE**)
+5.  **User:** Solicitou adicionar cards de Transferências e Desistências ao dashboard, com lógica específica. (Status: **DONE**)
+6.  **User:** Apontou que o filtro de ano letivo não funcionava e que a contagem de Alunos vs Matrículas estava confusa. (Status: **DONE**)
+7.  **User:** Confirmou que o dashboard continuava com dados zerados em produção. (Status: **DONE**, levou a mais depuração).
+8.  **User:** Enviou imagens mostrando a divergência de dados entre o sistema e o novo dashboard. (Status: **DONE**)
+9.  **User:** Solicitou a criação do dashboard analítico. (Status: **DONE**)
+10. **User:** Pediu para remover o modo de teste, pois o  estava causando confusão. (Status: **DONE**)
 
 **Project Health Check:**
--   **Broken:** O processo de deploy automatizado.
--   **Fragile:** A consistência de dados entre a UI e o banco de dados, especialmente em relação ao cache e múltiplas fontes de verdade (ex:  vs ).
--   **Incomplete:** A Central de Ajuda (apenas 1 tutorial foi criado).
+-   **Broken:** O processo de deploy automatizado no Coolify.
+-   **Mocked:** N/A (o modo sandbox foi removido).
+-   **Fragile:** Consistência de dados, especialmente com a funcionalidade de cache offline ainda presente, mas não revisada.
 
 **3rd Party Integrations**
+-   recharts (para gráficos)
 -   python-pptx
--   (As demais da sessão anterior)
 
 **Testing status**
--   **Testing agent used after significant changes:** YES (para a feature de Ação e para as melhorias no formulário)
--   **Test files created:**
-    - 
-    - 
+-   **Testing agent used after significant changes:** NO (As mudanças no dashboard foram verificadas manualmente com screenshots e ).
+-   **Test files created:** None.
 
 **Credentials to test flow:**
--   **Admin (Modo Teste):**  / 
+-   **Administrador:**  / 
 
 **What agent forgot to execute**
--   Nada foi esquecido. As prioridades foram sendo definidas pelas solicitações sequenciais do usuário. As tarefas de longo prazo (deploy, refatoração) foram adiadas em favor de novas features e correções de bugs imediatas.</analysis>
+-   O agente não abordou o problema P0 de deploy que foi herdado do fork anterior.
+-   O agente não confirmou com o usuário se o script Current Mongosh Log ID:	6983e58400a8c90daf284d0b
+Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
+Using MongoDB:		7.0.29
+Using Mongosh:		2.6.0
+
+For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
+
+------
+   The server generated these startup warnings when booting
+   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
+   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
+   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
+------
+
+test>  para atualizar o status dos alunos foi finalmente executado com sucesso no banco de dados correto (), o que impacta diretamente a precisão do dashboard analítico.</analysis>

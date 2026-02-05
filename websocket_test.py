@@ -14,7 +14,7 @@ from datetime import datetime
 import time
 
 # Get backend URL from environment
-BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://school-admin-62.preview.emergentagent.com')
+BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://mixed-grade.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 WS_BASE = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://')
 
