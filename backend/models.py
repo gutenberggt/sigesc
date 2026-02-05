@@ -15,6 +15,7 @@ class UserBase(BaseModel):
     full_name: str
     email: EmailStr
     role: Literal['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel', 'semed']
+    roles: List[str] = []  # Lista de papéis do usuário (até 3)
     status: Literal['active', 'inactive'] = 'active'
     avatar_url: Optional[str] = None
     school_links: List[SchoolLink] = []
@@ -24,6 +25,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: Literal['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel', 'semed']
+    roles: List[str] = []  # Lista de papéis (até 3)
     school_links: List[SchoolLink] = []
 
 class UserUpdate(BaseModel):
@@ -31,6 +33,7 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = None  # Nova senha (será hasheada antes de salvar)
     role: Optional[Literal['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel', 'semed']] = None
+    roles: Optional[List[str]] = None  # Lista de papéis (até 3)
     status: Optional[Literal['active', 'inactive']] = None
     avatar_url: Optional[str] = None
     school_links: Optional[List[SchoolLink]] = None
