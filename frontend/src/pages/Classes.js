@@ -722,7 +722,22 @@ export const Classes = () => {
                   </div>
                   <div>
                     <span className="text-gray-500">Série/Etapa:</span>
-                    <p className="font-medium">{classDetails.class?.grade_level || '-'}</p>
+                    {classDetails.class?.is_multi_grade && classDetails.class?.series?.length > 0 ? (
+                      <div className="mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 mr-2">
+                          Multisseriada
+                        </span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {classDetails.class.series.map((serie) => (
+                            <span key={serie} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
+                              {serie}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="font-medium">{classDetails.class?.grade_level || '-'}</p>
+                    )}
                   </div>
                   <div>
                     <span className="text-gray-500">Turno:</span>
