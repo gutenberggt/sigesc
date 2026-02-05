@@ -257,8 +257,26 @@ export default function Mantenedora() {
     }
   };
 
-  const handleRemoveBrasao = () => {
-    setFormData(prev => ({ ...prev, brasao_url: '' }));
+  const handleRemoveBrasao = async () => {
+    const newFormData = { ...formData, brasao_url: '' };
+    setFormData(newFormData);
+    
+    // Salva automaticamente no servidor
+    try {
+      const dataToSend = {
+        ...newFormData,
+        media_aprovacao: newFormData.media_aprovacao ? parseFloat(newFormData.media_aprovacao) : null,
+        frequencia_minima: newFormData.frequencia_minima ? parseFloat(newFormData.frequencia_minima) : null,
+        max_componentes_dependencia: newFormData.max_componentes_dependencia ? parseInt(newFormData.max_componentes_dependencia) : null,
+        qtd_componentes_apenas_dependencia: newFormData.qtd_componentes_apenas_dependencia ? parseInt(newFormData.qtd_componentes_apenas_dependencia) : null,
+      };
+      await mantenedoraAPI.update(dataToSend);
+      refreshMantenedora();
+      showAlert('success', 'Brasão removido com sucesso!');
+    } catch (error) {
+      console.error('Erro ao remover brasão:', error);
+      showAlert('error', 'Erro ao remover brasão');
+    }
   };
 
   const handleInputChange = (field, value) => {
