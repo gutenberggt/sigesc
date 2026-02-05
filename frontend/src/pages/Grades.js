@@ -269,10 +269,58 @@ export function Grades() {
   // SEMED pode visualizar, mas não editar
   const canEdit = user?.role !== 'semed';
   
+  // Função para verificar se um aluno está bloqueado para edição pelo professor
+  // Condições de bloqueio:
+  // 2. Aluno "transferido" - bloqueado para professor
+  // 3. Aluno "remanejado" para outra turma - bloqueado na turma de origem
+  // 4. Aluno "progredido" para outra turma - bloqueado na turma de origem
+  // 5. Aluno "falecido" - bloqueado para professor
+  const isStudentBlockedForProfessor = useCallback((student) => {
+    if (!isProfessor) return false; // Apenas bloqueia para professor
+    
+    const studentStatus = (student.student_status || '').toLowerCase();
+    
+    // Status que bloqueiam totalmente
+    if (['transferred', 'transferido', 'deceased', 'falecido'].includes(studentStatus)) {
+      return true;
+    }
+    
+    // Verifica se foi remanejado/progredido para outra turma
+    if (student.is_transferred_from_class) {
+      return true;
+    }
+    
+    return false;
+  }, [isProfessor]);
+  
+  // Retorna mensagem de bloqueio
+  const getBlockedMessage = useCallback((student) => {
+    const studentStatus = (student.student_status || '').toLowerCase();
+    
+    if (['transferred', 'transferido'].includes(studentStatus)) {
+      return 'Aluno transferido - edição bloqueada';
+    }
+    if (['deceased', 'falecido'].includes(studentStatus)) {
+      return 'Aluno falecido - edição bloqueada';
+    }
+    if (student.is_transferred_from_class) {
+      return 'Aluno remanejado/progredido - dados da turma de origem bloqueados';
+    }
+    return '';
+  }, []);
+  
   // Função auxiliar para verificar se pode editar um bimestre específico
   const canEditField = (bimestre) => {
     return canEdit && canEditBimestre(bimestre);
   };
+  
+  // Função para verificar se pode editar notas de um aluno específico
+  const canEditStudentGrade = useCallback((student, bimestre) => {
+    if (isStudentBlockedForProfessor(student)) {
+      return false;
+    }
+    return canEditField(bimestre);
+  }, [isStudentBlockedForProfessor, canEditField]);
   
   // Carrega dados iniciais
   useEffect(() => {
