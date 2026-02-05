@@ -161,6 +161,35 @@ export const Dashboard = () => {
     amber: 'bg-amber-100 text-amber-600'
   };
 
+  // Obtém os papéis disponíveis para o usuário
+  const availableRoles = getAvailableRoles ? getAvailableRoles() : [user?.role];
+  const hasMultipleRoles = availableRoles.length > 1;
+
+  // Handler para trocar de papel
+  const handleSwitchRole = async (newRole) => {
+    if (newRole === user?.role) {
+      setShowRoleSelector(false);
+      return;
+    }
+    
+    setSwitchingRole(true);
+    try {
+      const result = await switchRole(newRole);
+      if (result.success) {
+        setShowRoleSelector(false);
+        // Recarrega a página para aplicar as novas permissões
+        window.location.reload();
+      } else {
+        alert(result.error || 'Erro ao trocar papel');
+      }
+    } catch (error) {
+      console.error('Erro ao trocar papel:', error);
+      alert('Erro ao trocar papel');
+    } finally {
+      setSwitchingRole(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -194,14 +223,57 @@ export const Dashboard = () => {
                 </p>
               </div>
             </div>
-            {/* Botão de Perfil */}
-            <button
-              onClick={() => navigate('/profile')}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors"
-            >
-              <User size={18} />
-              <span>Meu Perfil</span>
-            </button>
+            
+            {/* Seção direita: Seletor de Papel + Botão Perfil */}
+            <div className="flex items-center gap-3">
+              {/* Seletor de Papel - só aparece se usuário tem múltiplos papéis */}
+              {hasMultipleRoles && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowRoleSelector(!showRoleSelector)}
+                    disabled={switchingRole}
+                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/20"
+                  >
+                    <Shield size={18} />
+                    <span>Trocar Papel</span>
+                    <ChevronDown size={16} className={`transition-transform ${showRoleSelector ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {/* Dropdown de papéis */}
+                  {showRoleSelector && (
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                      <div className="px-3 py-2 border-b border-gray-100">
+                        <p className="text-xs text-gray-500 font-medium">Selecione o papel:</p>
+                      </div>
+                      {availableRoles.map((role) => (
+                        <button
+                          key={role}
+                          onClick={() => handleSwitchRole(role)}
+                          disabled={switchingRole}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center justify-between ${
+                            role === user?.role ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                          }`}
+                        >
+                          <span>{roleLabels[role] || role}</span>
+                          {role === user?.role && (
+                            <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">Atual</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Botão de Perfil */}
+              <button
+                onClick={() => navigate('/profile')}
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors"
+              >
+                <User size={18} />
+                <span>Meu Perfil</span>
+              </button>
+            </div>
           </div>
         </div>
 
