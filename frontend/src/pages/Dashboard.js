@@ -55,6 +55,11 @@ export const Dashboard = () => {
           // mas a contagem de "ativos" considera todos
         }
 
+        // Conta apenas escolas ATIVAS
+        const activeSchoolsCount = filteredSchools.filter(s => 
+          s.status === 'active' || s.status === 'Active' || !s.status
+        ).length;
+
         // Conta apenas alunos ATIVOS
         const activeStudentsCount = filteredStudents.filter(s => 
           s.status === 'active' || s.status === 'Ativo' || s.status === 'ativo'
@@ -64,7 +69,7 @@ export const Dashboard = () => {
         const staffCount = Array.isArray(staffData) ? staffData.length : (staffData?.items?.length || 0);
 
         setStats({
-          schools: filteredSchools.length,
+          schools: activeSchoolsCount,
           users: usersData.length,
           classes: filteredClasses.length,
           students: activeStudentsCount,
