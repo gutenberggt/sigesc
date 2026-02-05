@@ -1029,7 +1029,7 @@ export function Grades() {
                                   <GradeInput
                                     value={item.grade.b4}
                                     onChange={(v) => updateLocalGrade(index, 'b4', v)}
-                                    disabled={!canEditField(4)}
+                                    disabled={!canEditField(4) || isBlocked}
                                   />
                                 )}
                               </td>
@@ -1038,7 +1038,7 @@ export function Grades() {
                                   <GradeInput
                                     value={item.grade.rec_s2}
                                     onChange={(v) => updateLocalGrade(index, 'rec_s2', v)}
-                                    disabled={!canEditField(3) && !canEditField(4)}
+                                    disabled={(!canEditField(3) && !canEditField(4)) || isBlocked}
                                     placeholder="-"
                                   />
                                 </td>
@@ -1066,7 +1066,7 @@ export function Grades() {
                                 {renderStatus(item.grade.status, null)}
                               </td>
                             </tr>
-                          ))}
+                          )})}
                         </tbody>
                       </table>
                     </div>
