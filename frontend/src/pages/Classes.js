@@ -80,7 +80,9 @@ export const Classes = () => {
     education_level: '',
     grade_level: '',
     teacher_ids: [],
-    atendimento_programa: ''
+    atendimento_programa: '',
+    is_multi_grade: false,
+    series: []
   });
   
   // Permissões de edição:
