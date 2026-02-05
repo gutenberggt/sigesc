@@ -70,10 +70,23 @@ export function AnalyticsDashboard() {
     return Array.from({ length: 6 }, (_, i) => currentYear - 2 + i);
   }, []);
 
+  // Filtrar turmas por escola E ano letivo
   const filteredClasses = useMemo(() => {
-    if (!selectedSchool) return classes;
-    return classes.filter(c => c.school_id === selectedSchool);
-  }, [selectedSchool, classes]);
+    let filtered = classes;
+    
+    // Filtrar por escola se selecionada
+    if (selectedSchool) {
+      filtered = filtered.filter(c => c.school_id === selectedSchool);
+    }
+    
+    // Filtrar por ano letivo (aceita int ou string)
+    filtered = filtered.filter(c => {
+      const classYear = c.academic_year;
+      return classYear === selectedYear || classYear === String(selectedYear) || String(classYear) === String(selectedYear);
+    });
+    
+    return filtered;
+  }, [selectedSchool, selectedYear, classes]);
 
   useEffect(() => {
     const loadInitialData = async () => {
