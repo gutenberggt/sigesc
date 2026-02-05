@@ -407,7 +407,9 @@ export const Classes = () => {
       school_id: schoolId,
       education_level: '',
       grade_level: '',
-      atendimento_programa: defaultAtendimento
+      atendimento_programa: defaultAtendimento,
+      is_multi_grade: false,
+      series: []
     });
   };
 
@@ -415,7 +417,51 @@ export const Classes = () => {
     setFormData({
       ...formData,
       education_level: level,
-      grade_level: ''
+      grade_level: '',
+      is_multi_grade: false,
+      series: []
+    });
+  };
+
+  // Handler para toggle de turma multisseriada
+  const handleMultiGradeToggle = (checked) => {
+    if (checked) {
+      // Ao ativar multisseriada, limpa grade_level e prepara para seleção múltipla
+      setFormData({
+        ...formData,
+        is_multi_grade: true,
+        grade_level: '',
+        series: []
+      });
+    } else {
+      // Ao desativar, limpa series e volta ao modo single
+      setFormData({
+        ...formData,
+        is_multi_grade: false,
+        grade_level: '',
+        series: []
+      });
+    }
+  };
+
+  // Handler para seleção de séries (modo multisseriada)
+  const handleSeriesChange = (gradeLabel, checked) => {
+    let newSeries = [...formData.series];
+    if (checked) {
+      if (!newSeries.includes(gradeLabel)) {
+        newSeries.push(gradeLabel);
+      }
+    } else {
+      newSeries = newSeries.filter(s => s !== gradeLabel);
+    }
+    
+    // Define grade_level como a primeira série selecionada (para compatibilidade)
+    const firstSeries = newSeries.length > 0 ? newSeries[0] : '';
+    
+    setFormData({
+      ...formData,
+      series: newSeries,
+      grade_level: firstSeries
     });
   };
 
