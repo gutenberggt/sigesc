@@ -940,41 +940,54 @@ export function Grades() {
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {gradesData.map((item, index) => (
-                            <tr key={item.student.id} className="hover:bg-gray-50">
+                          {gradesData.map((item, index) => {
+                            const isBlocked = isStudentBlockedForProfessor(item.student);
+                            const blockedMessage = getBlockedMessage(item.student);
+                            
+                            return (
+                            <tr key={item.student.id} className={`hover:bg-gray-50 ${isBlocked ? 'bg-gray-100' : ''}`}>
                               <td className="px-4 py-3">
-                                <div className="text-sm font-medium text-gray-900">{item.student.full_name}</div>
-                                <div className="text-xs text-gray-500">{item.student.enrollment_number}</div>
+                                <div className="flex items-center gap-2">
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">{item.student.full_name}</div>
+                                    <div className="text-xs text-gray-500">{item.student.enrollment_number}</div>
+                                  </div>
+                                  {isBlocked && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-600 text-xs font-medium rounded-full" title={blockedMessage}>
+                                      🔒
+                                    </span>
+                                  )}
+                                </div>
                               </td>
-                              <td className={`px-4 py-3 text-center ${!canEditField(1) ? 'bg-red-50/50' : ''}`}>
+                              <td className={`px-4 py-3 text-center ${!canEditField(1) || isBlocked ? 'bg-red-50/50' : ''}`}>
                                 {usaConceito ? (
                                   <ConceitoSelect
                                     value={item.grade.b1}
                                     onChange={(v) => updateLocalGrade(index, 'b1', v)}
-                                    disabled={!canEditField(1)}
+                                    disabled={!canEditField(1) || isBlocked}
                                     gradeLevel={currentGradeLevel}
                                   />
                                 ) : (
                                   <GradeInput
                                     value={item.grade.b1}
                                     onChange={(v) => updateLocalGrade(index, 'b1', v)}
-                                    disabled={!canEditField(1)}
+                                    disabled={!canEditField(1) || isBlocked}
                                   />
                                 )}
                               </td>
-                              <td className={`px-4 py-3 text-center ${!canEditField(2) ? 'bg-red-50/50' : ''}`}>
+                              <td className={`px-4 py-3 text-center ${!canEditField(2) || isBlocked ? 'bg-red-50/50' : ''}`}>
                                 {usaConceito ? (
                                   <ConceitoSelect
                                     value={item.grade.b2}
                                     onChange={(v) => updateLocalGrade(index, 'b2', v)}
-                                    disabled={!canEditField(2)}
+                                    disabled={!canEditField(2) || isBlocked}
                                     gradeLevel={currentGradeLevel}
                                   />
                                 ) : (
                                   <GradeInput
                                     value={item.grade.b2}
                                     onChange={(v) => updateLocalGrade(index, 'b2', v)}
-                                    disabled={!canEditField(2)}
+                                    disabled={!canEditField(2) || isBlocked}
                                   />
                                 )}
                               </td>
@@ -983,28 +996,28 @@ export function Grades() {
                                   <GradeInput
                                     value={item.grade.rec_s1}
                                     onChange={(v) => updateLocalGrade(index, 'rec_s1', v)}
-                                    disabled={!canEditField(1) && !canEditField(2)}
+                                    disabled={(!canEditField(1) && !canEditField(2)) || isBlocked}
                                     placeholder="-"
                                   />
                                 </td>
                               )}
-                              <td className={`px-4 py-3 text-center ${!canEditField(3) ? 'bg-red-50/50' : ''}`}>
+                              <td className={`px-4 py-3 text-center ${!canEditField(3) || isBlocked ? 'bg-red-50/50' : ''}`}>
                                 {usaConceito ? (
                                   <ConceitoSelect
                                     value={item.grade.b3}
                                     onChange={(v) => updateLocalGrade(index, 'b3', v)}
-                                    disabled={!canEditField(3)}
+                                    disabled={!canEditField(3) || isBlocked}
                                     gradeLevel={currentGradeLevel}
                                   />
                                 ) : (
                                   <GradeInput
                                     value={item.grade.b3}
                                     onChange={(v) => updateLocalGrade(index, 'b3', v)}
-                                    disabled={!canEditField(3)}
+                                    disabled={!canEditField(3) || isBlocked}
                                   />
                                 )}
                               </td>
-                              <td className={`px-4 py-3 text-center ${!canEditField(4) ? 'bg-red-50/50' : ''}`}>
+                              <td className={`px-4 py-3 text-center ${!canEditField(4) || isBlocked ? 'bg-red-50/50' : ''}`}>
                                 {usaConceito ? (
                                   <ConceitoSelect
                                     value={item.grade.b4}
