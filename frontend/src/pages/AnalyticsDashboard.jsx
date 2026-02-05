@@ -85,8 +85,19 @@ export function AnalyticsDashboard() {
       return classYear === selectedYear || classYear === String(selectedYear) || String(classYear) === String(selectedYear);
     });
     
-    return filtered;
+    // Ordenar alfabeticamente por nome
+    return filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
   }, [selectedSchool, selectedYear, classes]);
+  
+  // Ordenar escolas alfabeticamente
+  const sortedSchools = useMemo(() => {
+    return [...schools].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+  }, [schools]);
+  
+  // Ordenar alunos alfabeticamente
+  const sortedStudents = useMemo(() => {
+    return [...students].sort((a, b) => (a.full_name || a.name || '').localeCompare(b.full_name || b.name || '', 'pt-BR'));
+  }, [students]);
 
   useEffect(() => {
     const loadInitialData = async () => {
