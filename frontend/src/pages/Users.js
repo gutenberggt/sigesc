@@ -21,6 +21,7 @@ export const Users = () => {
     email: '',
     password: '',
     role: 'aluno',
+    roles: [],  // Lista de papéis (até 3)
     status: 'active',
     school_links: []
   });
