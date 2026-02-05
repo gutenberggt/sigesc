@@ -734,9 +734,12 @@ class ClassBase(BaseModel):
     name: str
     shift: Literal['morning', 'afternoon', 'evening', 'full_time']
     education_level: Optional[str] = None  # Nível de ensino (educacao_infantil, fundamental_anos_iniciais, etc.)
-    grade_level: str  # Ex: "1º Ano", "6º Ano", "Berçário", etc
+    grade_level: str  # Ex: "1º Ano", "6º Ano", "Berçário", etc (série principal ou primeira série para multisseriadas)
     teacher_ids: List[str] = []
     atendimento_programa: Optional[str] = None  # Permite qualquer valor incluindo string vazia para "Turma Regular"
+    # Campos para turmas multisseriadas
+    is_multi_grade: bool = False  # Indica se a turma é multisseriada
+    series: List[str] = []  # Lista de séries que a turma atende (ex: ["1º Ano", "2º Ano", "3º Ano"])
 
 class ClassCreate(ClassBase):
     pass
@@ -748,6 +751,8 @@ class ClassUpdate(BaseModel):
     grade_level: Optional[str] = None
     teacher_ids: Optional[List[str]] = None
     atendimento_programa: Optional[str] = None  # Permite string vazia para "Turma Regular"
+    is_multi_grade: Optional[bool] = None
+    series: Optional[List[str]] = None
 
 class Class(ClassBase):
     model_config = ConfigDict(extra="ignore")
@@ -1114,6 +1119,9 @@ class EnrollmentBase(BaseModel):
     enrollment_date: Optional[str] = None
     enrollment_number: Optional[str] = None  # Número da matrícula
     
+    # Série do aluno (para turmas multisseriadas - ex: "1º Ano", "2º Ano")
+    student_series: Optional[str] = None
+    
     # Situação
     status: Literal['active', 'completed', 'cancelled', 'transferred'] = 'active'
     
@@ -1128,6 +1136,7 @@ class EnrollmentUpdate(BaseModel):
     course_ids: Optional[List[str]] = None
     enrollment_date: Optional[str] = None
     enrollment_number: Optional[str] = None
+    student_series: Optional[str] = None
     status: Optional[Literal['active', 'completed', 'cancelled', 'transferred']] = None
     observations: Optional[str] = None
 
