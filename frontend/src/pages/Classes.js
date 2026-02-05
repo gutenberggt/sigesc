@@ -248,7 +248,9 @@ export const Classes = () => {
       education_level: educationLevel,
       grade_level: classItem.grade_level,
       teacher_ids: classItem.teacher_ids || [],
-      atendimento_programa: classItem.atendimento_programa || ''
+      atendimento_programa: classItem.atendimento_programa || '',
+      is_multi_grade: classItem.is_multi_grade || false,
+      series: classItem.series || []
     });
     setIsModalOpen(true);
   };
