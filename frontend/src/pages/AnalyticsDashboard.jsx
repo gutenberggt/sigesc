@@ -587,6 +587,9 @@ export function AnalyticsDashboard() {
                 <Award className="h-5 w-5 text-amber-600" />
                 Ranking de Escolas
               </CardTitle>
+              <p className="text-xs text-gray-500 mt-1">
+                Score = 40% Frequência + 40% Nota Média + 20% Taxa de Ocupação (0-100 pontos)
+              </p>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -598,7 +601,7 @@ export function AnalyticsDashboard() {
                       <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Matrículas</th>
                       <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Frequência</th>
                       <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Média</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Score</th>
+                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-500" title="40% Frequência + 40% Nota + 20% Ocupação">Score</th>
                     </tr>
                   </thead>
                   <tbody>
