@@ -694,11 +694,39 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 if school_grade_counts[school_id] > 0:
                     schools[school_id]['avg_grade'] = round(total / school_grade_counts[school_id], 1)
         
-        # Calcular score e ordenar
+        # ============================================
+        # CÁLCULO DO SCORE - RANKING DE ESCOLAS
+        # ============================================
+        # O Score é uma pontuação de 0 a 100 que indica o desempenho geral da escola.
+        # 
+        # COMPOSIÇÃO DO SCORE:
+        # - 40% Frequência Média (0-100%)
+        # - 40% Nota/Conceito Médio (0-10, normalizado para 0-100)
+        # - 20% Taxa de Ocupação (matrículas / capacidade estimada)
+        #
+        # FÓRMULA:
+        # Score = (Frequência × 0.4) + (Nota × 10 × 0.4) + (Taxa_Ocupação × 0.2)
+        #
+        # EXEMPLO:
+        # Escola com 85% frequência, nota 7.5 e 80% ocupação:
+        # Score = (85 × 0.4) + (75 × 0.4) + (80 × 0.2) = 34 + 30 + 16 = 80 pontos
+        # ============================================
+        
         result = []
+        max_enrollments = max([data['enrollments'] for data in schools.values()]) if schools else 1
+        
         for school_id, data in schools.items():
-            # Score composto: 40% frequência + 40% nota + 20% matrículas (normalizado)
-            score = (data['avg_attendance'] * 0.4) + (data['avg_grade'] * 4 * 0.4)  # nota * 10 para normalizar
+            # Componentes do score
+            freq_score = data['avg_attendance'] * 0.4  # 40% da frequência
+            grade_score = data['avg_grade'] * 10 * 0.4  # 40% da nota (normalizada 0-100)
+            
+            # Taxa de ocupação relativa (comparado com a escola com mais matrículas)
+            occupancy_rate = (data['enrollments'] / max_enrollments * 100) if max_enrollments > 0 else 0
+            occupancy_score = occupancy_rate * 0.2  # 20% da taxa de ocupação
+            
+            # Score final
+            score = freq_score + grade_score + occupancy_score
+            
             result.append({
                 'school_id': school_id,
                 'school_name': data['name'],
