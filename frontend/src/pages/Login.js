@@ -210,7 +210,7 @@ export const Login = () => {
         {/* Link para a página de apresentação */}
         <div className="text-center mt-6">
           <Link
-            to="/"
+            to="/sobre"
             className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
             data-testid="landing-page-link"
           >
