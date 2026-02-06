@@ -38,8 +38,11 @@ function App() {
       <MantenedoraProvider>
       <BrowserRouter>
         <Routes>
-          {/* Landing Page */}
-          <Route path="/" element={<LandingPage />} />
+          {/* Página inicial = Login */}
+          <Route path="/" element={<Login />} />
+          
+          {/* Página Sobre (antiga landing page) */}
+          <Route path="/sobre" element={<LandingPage />} />
           
           {/* Tutoriais */}
           <Route path="/tutoriais" element={<TutorialsPage />} />
