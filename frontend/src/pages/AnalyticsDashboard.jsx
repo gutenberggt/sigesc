@@ -169,7 +169,16 @@ export function AnalyticsDashboard() {
         
         console.log('[Analytics] Overview response:', ovRes);
         if (ovRes) setOverview(ovRes);
-        if (trendRes) setEnrollmentsTrend(trendRes);
+        if (trendRes) {
+          // Zera o ano de 2025 no gráfico de evolução de matrículas
+          const adjustedTrend = trendRes.map(item => {
+            if (item.year === 2025 || item.year === '2025') {
+              return { ...item, total: 0, active: 0 };
+            }
+            return item;
+          });
+          setEnrollmentsTrend(adjustedTrend);
+        }
         if (monthlyRes) setAttendanceMonthly(monthlyRes);
         if (subjectRes) setGradesBySubject(subjectRes);
         if (periodRes) setGradesByPeriod(periodRes);
