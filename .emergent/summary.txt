@@ -1,15 +1,14 @@
 <analysis>**original_problem_statement:**
-O usuário iniciou a sessão para resolver um problema crítico de deploy, que evoluiu para abordar uma vasta gama de solicitações, incluindo:
-- Resolver problemas de Gateway Timeout em produção.
+O usuário iniciou a sessão para resolver um problema crítico de deploy e, ao longo da sessão, solicitou uma vasta gama de funcionalidades e correções, incluindo:
+- Resolver problemas de Gateway Timeout em produção após o .
 - Corrigir inconsistências de dados do cache offline.
-- Melhorar a página de alunos e o formulário de cadastro (novos campos, formatação, autocomplete).
-- Implementar uma nova funcionalidade de Ação (Matricular, Transferir, etc.).
-- Corrigir bugs de dados, como inconsistências na matrícula de alunos em turmas.
-- Criar uma página de apresentação (landing page) para o sistema.
-- Criar uma apresentação em PowerPoint para vendas.
-- Criar uma central de tutoriais e corrigir imagens faltantes.
-- Adicionar colunas e restringir acesso a certas páginas.
-- Fornecer múltiplos scripts e comandos Current Mongosh Log ID:	6983e5802e1bfb8051284d0b
+- Implementar suporte para turmas multisseriadas, permitindo que uma turma tenha várias séries e que a matrícula do aluno especifique a série.
+- Melhorar o Dashboard Analítico com filtros condicionais e lógicas de pontuação para ranking de escolas.
+- Implementar um sistema de múltiplos papéis para usuários, permitindo que um usuário tenha até 3 papéis e possa alternar entre eles.
+- Implementar regras de negócio específicas para o bloqueio de edição de dados de alunos por professores com base em status como Transferido, Remanejado, Progredido e Falecido.
+- Implementar a cópia de dados (notas e frequência) quando um aluno é remanejado ou progredido.
+- Corrigir bugs de acesso para o perfil Secretário.
+- Fornecer múltiplos scripts Current Mongosh Log ID:	69865676c0d85408cc284d0b
 Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
 Using MongoDB:		7.0.29
 Using Mongosh:		2.6.0
@@ -18,100 +17,72 @@ For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
 
 ------
    The server generated these startup warnings when booting
-   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
-   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
+   2026-02-06T21:00:31.702+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
+   2026-02-06T21:00:32.756+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+   2026-02-06T21:00:32.756+00:00: You are running this process as the root user, which is not recommended
+   2026-02-06T21:00:32.756+00:00: Soft rlimits for open file descriptors too low
 ------
 
 test>  para manipulação de dados em lote no servidor de produção.
-- Criar um dashboard analítico completo com gráficos e filtros, e depurar extensivamente as inconsistências de dados reportadas.
-- Remover completamente o modo de teste (sandbox) do sistema.
-- **Solicitação Atual:** Implementar suporte para turmas multisseriadas.
+- **Solicitação Atual:** Corrigir um bug crítico no upload do logotipo da Unidade Mantenedora no ambiente de produção.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-A aplicação full-stack (React + FastAPI + MongoDB) está funcional e agora aponta para o banco de dados de produção , após a remoção completa da funcionalidade de modo teste/sandbox.
-As principais funcionalidades recentes são:
-- **Dashboard Analítico:** Uma página completa em  que exibe métricas chave sobre escolas, turmas, alunos e matrículas. Inclui múltiplos cards, gráficos (usando Recharts) e filtros (Ano Letivo, Escola). A API backend e o frontend foram extensivamente depurados para garantir que os dados corretos sejam exibidos.
-- **Correções e Melhorias:** Foram corrigidas as imagens de um tutorial, adicionadas novas colunas em tabelas, e implementado controle de acesso para páginas específicas.
-- **Manipulação de Dados:** Foram fornecidos ao usuário comandos Current Mongosh Log ID:	6983e58171608c55ee284d0b
-Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.29
-Using Mongosh:		2.6.0
+A aplicação full-stack (React + FastAPI + MongoDB) está funcional, apontando para o banco de dados de produção . As principais funcionalidades implementadas nesta sessão são:
+- **Turmas Multisseriadas:** O sistema agora suporta a criação de turmas com múltiplas séries e a matrícula de alunos em uma série específica dentro dessas turmas.
+- **Relatório de Turma:** A visualização de detalhes da turma agora inclui uma distribuição de quantos alunos estão em cada série.
+- **Dashboard Analítico Aprimorado:** Os filtros foram aprimorados para que as turmas sejam filtradas por escola e ano letivo. Foi implementada uma lógica de pontuação (Score) para o ranking de escolas.
+- **Sistema de Múltiplos Papéis:** Usuários agora podem ter múltiplos papéis. A interface do Dashboard foi atualizada para permitir a troca de papel ativo se o usuário tiver mais de um.
+- **Lógicas de Bloqueio:** As páginas de Frequência e Notas agora bloqueiam a edição para professores com base no status do aluno (transferido, falecido, etc.), conforme as regras de negócio.
+- **Cópia de Dados:** Foi criado um endpoint de backend que copia as notas e a frequência de um aluno ao ser remanejado ou progredido.
+- O roteamento da aplicação foi alterado para que a página de login seja a página inicial ().
 
-For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
-
-------
-   The server generated these startup warnings when booting
-   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
-   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
-------
-
-test>  para manipulação de dados em produção, incluindo a identificação do nome correto do container e do banco de dados.
+No entanto, há um problema crítico e não resolvido com o upload de imagens em produção.
 
 **Last working item**:
--   **Last item agent was working:** O agente estava iniciando a implementação da funcionalidade de **turmas multisseriadas**. A tarefa consiste em permitir que uma turma possa abranger múltiplas séries/anos e que, ao matricular um aluno, seja possível especificar em qual série daquela turma ele está ingressando.
--   **Status:** IN PROGRESS
+-   **Last item agent was working:** Depuração de um bug crítico no upload de imagens (logotipo da Mantenedora) que ocorre exclusivamente no ambiente de produção. O agente e o usuário descobriram, através de uma longa sessão de depuração via , que o problema raiz é a ausência de variáveis de ambiente de FTP no container do backend. O arquivo  não é persistente entre reinicializações do container no Coolify.
+-   **Status:** BLOCKED
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** both. Esta é uma funcionalidade complexa que exige alterações significativas tanto no backend (modelos de dados, lógica da API) quanto no frontend (formulários de criação e matrícula), necessitando de testes de integração completos.
--   **User Testing Done:** N
+-   **Which testing method agent to use?** O próximo agente deve guiar o usuário para aplicar a solução permanente, que é configurar as variáveis de ambiente diretamente no painel do Coolify, pois o agente não tem acesso para fazer isso. A depuração continuará a ser feita via comandos  executados pelo usuário.
+-   **User Testing Done:** N (O usuário está no meio do processo de depuração e precisa aplicar a solução permanente).
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Processo de Deploy em Produção Quebrado**
-    -   **Description:** Após cada  no Coolify, a aplicação fica inacessível (Gateway Timeout), exigindo reconexão manual dos containers Docker à rede do proxy.
+-   **Issue 1: (P0) Upload de Imagem (FTP) Falhando em Produção**
+    -   **Description:** O upload de imagens falha em produção porque as variáveis de ambiente de FTP (, , etc.) não estão sendo carregadas no container do backend. O código foi corrigido para carregar as variáveis dinamicamente, mas o ambiente de produção não possui o arquivo  configurado de forma persistente.
+    -   **Attempted fixes:**
+        1.  Adição manual de um arquivo  dentro do container via . Funcionou, mas o arquivo foi perdido após o reinício do container.
+        2.  Correção do código em  para carregar as variáveis de ambiente dinamicamente usando  e . Este código corrigido precisa ser implantado (deploy) ou copiado manualmente para o container.
+        3.  Tentativa de reiniciar o serviço  dentro do container para recarregar o  sem reiniciar o container, mas o comando  não estava disponível.
+    -   **Next debug checklist:**
+        1.  Instruir o usuário, de forma clara e com passo-a-passo, a adicionar as variáveis de ambiente de FTP (, , , , ) na seção Environment Variables do serviço de backend no painel do **Coolify**.
+        2.  Instruir o usuário a fazer **Redeploy** do serviço de backend através do Coolify para que as variáveis sejam aplicadas permanentemente.
+        3.  Após o redeploy, pedir para o usuário testar o upload do logotipo novamente pela interface.
+        4.  Se o problema persistir, verificar o valor do campo  no banco de dados para garantir que não está mais salvando uma URL local ().
+    -   **Why fix this issue and what will be achieved with the fix?** É um bug crítico que impede a personalização da aplicação com o logotipo da mantenedora. A correção restaurará a funcionalidade de upload.
+    -   **Status:** BLOCKED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** both (verificar se o upload funciona no backend e se a imagem aparece no frontend).
+
+-   **Issue 2: (P0) Processo de Deploy em Produção Quebrado**
+    -   **Description:** Conforme o handoff anterior, após cada  no Coolify, a aplicação fica inacessível (Gateway Timeout), exigindo reconexão manual dos containers Docker.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
 
--   **Issue 2: (P1) Inconsistência de Dados e Cache Offline**
+-   **Issue 3: (P1) Inconsistência de Dados e Cache Offline**
     -   **Description:** Conflitos entre dados do servidor e do cache local (IndexedDB) podem causar inconsistências.
     -   **Status:** NOT STARTED
 
--   **Issue 3: (P1) Inconsistência na Exclusão do Histórico do Aluno**
-    -   **Description:** Uma tentativa anterior do usuário de limpar o histórico de alunos via  falhou. A depuração foi pausada.
-    -   **Next debug checklist:**
-        1.  Pedir ao usuário para entrar no Current Mongosh Log ID:	6983e5813738a810f0284d0b
-Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.29
-Using Mongosh:		2.6.0
-
-For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
-
-------
-   The server generated these startup warnings when booting
-   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
-   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
-------
-
-test>  interativo novamente no container correto ().
-        2.  Executar .
-        3.  Executar .
-        4.  Confirmar com .
+-   **Issue 4: (P1) Inconsistência na Exclusão do Histórico do Aluno**
+    -   **Description:** Uma tentativa anterior de limpar o histórico de alunos falhou. A depuração foi pausada.
     -   **Status:** BLOCKED (Aguardando ação do usuário).
-    -   **Is recurring issue?** N
 
 **In progress Task List**:
--   **Task 1: (P0) Implementar Suporte a Turmas Multisseriadas**
-    -   **Where to resume:** O agente já analisou os arquivos iniciais (, ). O próximo passo é o planejamento e a implementação:
-        1.  **Backend:**
-            -   Alterar o modelo  em  para substituir o campo  (string) por  para armazenar múltiplas séries.
-            -   Alterar o modelo  para adicionar um campo  para registrar a série específica do aluno dentro da turma multisseriada.
-            -   Atualizar os endpoints de criação/atualização de turmas e matrículas para refletir os novos modelos.
-        2.  **Frontend:**
-            -   No formulário de criação/edição de turmas (), substituir o campo de série por um componente de seleção múltipla (multi-select).
-            -   No formulário de matrícula de aluno (), ao selecionar uma turma multisseriada, exibir dinamicamente um novo campo para escolher a série do aluno dentre as disponíveis naquela turma.
-    -   **What will be achieved with this?** O sistema permitirá o cadastro e gerenciamento de turmas que atendem a mais de uma série simultaneamente, uma necessidade para escolas com turmas mistas.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** both
+-   Nenhum.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   (P1) **Confirmar Migração de Status de Alunos:** Verificar com o usuário se o comando Current Mongosh Log ID:	6983e582303695b409284d0b
+    -   (P1) **Confirmar Migração de Status de Alunos:** Verificar com o usuário se o comando Current Mongosh Log ID:	6986567725109445d4284d0b
 Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
 Using MongoDB:		7.0.29
 Using Mongosh:		2.6.0
@@ -120,175 +91,128 @@ For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
 
 ------
    The server generated these startup warnings when booting
-   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
-   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
+   2026-02-06T21:00:31.702+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
+   2026-02-06T21:00:32.756+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+   2026-02-06T21:00:32.756+00:00: You are running this process as the root user, which is not recommended
+   2026-02-06T21:00:32.756+00:00: Soft rlimits for open file descriptors too low
 ------
 
-test>  para mudar alunos de Transferido para Inativo foi executado em produção e se o Dashboard Analítico agora reflete a contagem correta de Alunos Ativos.
+test>  para mudar alunos de Transferido para Inativo foi executado em produção e se o Dashboard Analítico reflete a contagem correta.
     -   (P1) **Refatoração do Backend (FASE 4):** Continuar extraindo as rotas restantes do  e implementar completamente o padrão App Factory.
     -   (P1) **Melhoria Pré-Matrícula:** Enviar um email de confirmação para o responsável.
     -   (P1) **Melhoria na Lista de Alunos:** Implementar o destaque do aluno recém-criado na lista.
 -   **Future Tasks:**
-    -   (P2) Refatoração do Frontend: Simplificar o god component .
+    -   (P2) Refatoração do Frontend: Simplificar o componente .
     -   (P2) Expansão Offline: Estender a funcionalidade offline para o módulo de matrículas.
     -   (P2) Padronização de Erros: Aplicar o utilitário  em todos os componentes.
     -   (P3) Limpeza de Código: Remover o arquivo obsoleto .
 
 **Completed work in this session**
--   **Dashboard Analítico (Criação e Depuração):**
-    -   Criada a página completa com cards, gráficos e filtros.
-    -   Resolvido o problema de dados zerados, corrigindo múltiplos bugs: variável de token incorreta (), API não usando o banco de dados correto (), e uma race condition no carregamento do token.
-    -   Aprimorados os cálculos da API para refletir as regras de negócio do usuário (ex: Alunos Ativos vs. Cadastrados, lógica de transferências).
--   **Remoção do Modo de Teste (Sandbox):**
-    -   Toda a lógica de sandbox foi removida do backend e frontend.
-    -   A aplicação foi configurada para usar o banco de dados de produção .
--   **Melhorias de UI e Acesso:**
-    -   Adicionadas colunas Tipo e Ações na aba de turmas do modal de edição de escola.
-    -   Restringido o acesso à página Componentes Curriculares apenas para administradores.
--   **Suporte ao Usuário:**
-    -   Fornecido comando Current Mongosh Log ID:	6983e583714a85ccb5284d0b
-Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.29
-Using Mongosh:		2.6.0
-
-For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
-
-------
-   The server generated these startup warnings when booting
-   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
-   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
-------
-
-test>  para atualizar o status de milhares de alunos de transferred para inactive.
-    -   Corrigido problema de imagens faltantes em uma página de tutorial.
+- **Funcionalidade de Turmas Multisseriadas:** Implementado o fluxo completo no backend e frontend.
+- **Relatório de Distribuição por Série:** Adicionado ao modal de detalhes da turma.
+- **Aprimoramento do Dashboard Analítico:** Implementados filtros condicionais (turmas por ano e escola) e zerado o ano de 2025 no gráfico de evolução.
+- **Lógica de Score para Ranking de Escolas:** Definida e implementada uma nova lógica de pontuação no backend e adicionado um tooltip explicativo no frontend.
+- **Ordenação Alfabética:** Aplicada em todas as listas de escolas, turmas e alunos.
+- **Sistema de Múltiplos Papéis:** Usuários agora podem ter até 3 papéis, com um seletor no dashboard para alternar entre eles.
+- **Regras de Negócio e Bloqueios:** Implementado o bloqueio de edição de notas e frequência para professores com base no status do aluno (transferido, falecido, etc.).
+- **Cópia de Dados (Remanejamento/Progressão):** Criado endpoint e lógica no frontend para copiar dados de notas e frequência quando um aluno muda de turma.
+- **Correção de Acesso:** Corrigido o erro que impedia o perfil Secretário de acessar a página de gerenciamento de usuários.
+- **Correção de Contagem de Escolas:** Ajustado para exibir apenas escolas ativas nos dashboards.
+- **Alteração de Rota Padrão:** A página inicial da aplicação agora é a tela de login.
+- **Correção de Código FTP:** O arquivo  foi refatorado para carregar as variáveis de ambiente dinamicamente, resolvendo um bug de escopo.
 
 **Earlier issues found/mentioned but not fixed**
--   Nenhum que não esteja listado em .
+-   **Issue 1: Processo de Deploy em Produção Quebrado (Gateway Timeout):** Herdado do fork anterior, permanece sem solução.
+-   **Issue 2: Inconsistência de Dados e Cache Offline:** Herdado do fork anterior, permanece sem solução.
 
 **Known issue recurrence from previous fork**
--   **Falha de deploy em produção:** O problema P0 do fork anterior continua sem solução.
--   **Recurrence count:** 2
+-   **Falha de deploy em produção:** O problema de Gateway Timeout continua ocorrendo a cada .
+-   **Recurrence count:** 3
 -   **Status:** NOT STARTED
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **React:** Hooks (, , ), depuração de ciclo de vida de componentes e contexto de autenticação, uso da biblioteca  para gráficos.
--   **FastAPI:** Criação de routers, depuração de lógica de API, uso de pipelines de agregação do MongoDB para criar endpoints analíticos complexos.
--   **MongoDB (Current Mongosh Log ID:	6983e5839d85138189284d0b
-Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.29
-Using Mongosh:		2.6.0
-
-For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
-
-------
-   The server generated these startup warnings when booting
-   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
-   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
-------
-
-test> , ):** Depuração de conexões de banco de dados, identificação do banco de dados correto ( vs ), execução de queries de agregação e atualização em massa.
--   **Gerenciamento de Ambiente:** Remoção de uma funcionalidade inteira (sandbox) que estava espalhada pelo código, alteração de variáveis de ambiente () e reinicialização de serviços para aplicar mudanças.
+-   **Depuração em Produção:** Uso intensivo de  e análise de logs para diagnosticar problemas de ambiente (DNS, variáveis de ambiente).
+-   **Gerenciamento de Ambiente Docker:** Entendimento da natureza efêmera dos arquivos de container e da necessidade de configurar variáveis de ambiente através da orquestração (Coolify).
+-   **Python/FastAPI:** Refatoração de código para carregamento dinâmico de configurações (), criação de endpoints para ações complexas (), modificação de queries de agregação e permissões de rota.
+-   **React:** Gerenciamento de estado complexo com  e , atualização do  para suportar múltiplos papéis e troca de contexto, renderização condicional avançada para lógicas de negócio (bloqueio de UI).
+-   **FTP:** Integração e depuração de upload de arquivos via FTP em Python.
 
 **key DB schema**
--   **classes:** Atualmente possui um campo . **Será modificado** para .
--   **enrollments:** Atualmente vincula  a  e . **Será modificado** para incluir .
--   **students:** Contém o campo  (, , ) que é crucial para as métricas do dashboard.
+-   **classes:** Campo  (string) foi complementado por  e .
+-   **enrollments:** Adicionado  para registrar a série do aluno em turmas multisseriadas. Adicionado  e .
+-   **users:** Campo  agora representa o papel ativo. Adicionado  para armazenar todos os papéis do usuário.
 
 **changes in tech stack**
--   A biblioteca  foi adicionada ao frontend.
+-   Nenhuma nova biblioteca foi adicionada.
 
 **All files of reference**
--   : Componente principal criado e depurado nesta sessão.
--   : Rota de API principal criada e depurada nesta sessão.
--   : Contém os modelos de dados que serão modificados para a próxima tarefa.
--   : Formulário de criação de turmas que será modificado.
--   : Local onde a matrícula de alunos é feita, também será modificado.
--   : Arquivo de configuração atualizado para .
+-   : Arquivo central do bug de upload, foi refatorado.
+-   : Implementação do backend para múltiplos papéis.
+-   : Implementação do frontend para múltiplos papéis.
+-   : Lógica de autenticação e troca de papel.
+-   : Interface para troca de papel.
+-   : Página onde o bug de upload se manifesta.
+-   : Arquivo crítico que está causando o problema em produção por não ser persistente.
 
 **Areas that need refactoring**:
--   **Processo de Deploy (URGENTE):** Solução manual via SSH insustentável.
--   : Continua sendo um god component.
--   : A refatoração do backend precisa ser concluída.
+-   **Processo de Deploy (URGENTE):** A solução manual para o Gateway Timeout e a necessidade de configurar variáveis manualmente indicam um problema fundamental no setup de deploy do Coolify.
+-   : Continua sendo um componente monolítico e complexo.
+-   : A extração de rotas para arquivos dedicados precisa ser concluída.
 
 **key api endpoints**
--   : Endpoint principal do dashboard, que recebe filtros (, ) e retorna um resumo de dados agregados.
+-   : Novo endpoint para trocar o papel ativo do usuário.
+-   : Novo endpoint para copiar dados de frequência/notas durante remanejamento/progressão.
+-   : Endpoint para salvar os dados da mantenedora, incluindo a URL do logotipo.
+-   : Endpoint de upload de arquivos, que está falhando em produção.
+-   : Endpoint modificado com a nova lógica de score.
 
 **Critical Info for New Agent**
--   **Foco na Tarefa Atual:** A prioridade é implementar o suporte a **turmas multisseriadas**. Comece planejando as alterações nos modelos do backend ( e ) e depois no frontend.
--   **Ambiente Unificado:** O sistema não possui mais um modo de teste/sandbox. Todas as operações, inclusive no ambiente de desenvolvimento, usam uma conexão com o banco de dados configurado no  ().
--   **Dados de Produção:** Lembre-se que a base de dados  possui cerca de 4.500 alunos com status transferido e matrículas concentradas no ano de 2025. Isso é vital para entender os resultados ao testar o dashboard.
--   **Credenciais de Teste:** Utilize o usuário  com a senha  para testes, pois ele possui o perfil de administrador.
+-   **O problema é o AMBIENTE, não o CÓDIGO:** O bug do FTP está corrigido no código do agente, mas não em produção. O foco deve ser guiar o usuário a aplicar a **solução permanente**: configurar as variáveis de ambiente no **Coolify**. Não tente mais corrigir o código , pois ele já está correto.
+-   **Produção é Frágil:** O container do backend perde as alterações de arquivos () a cada reinício. A única maneira de fazer mudanças persistentes é através do Coolify (variáveis de ambiente, redeploy).
+-   **Seja o Guia do Usuário:** Você não pode executar comandos no servidor de produção. Sua tarefa é fornecer comandos claros e seguros para o usuário executar e interpretar os resultados que ele te envia.
+-   **Credenciais de Teste:**  / .
 
 **documents and test reports created in this job**
 -   
+-    (atualizado múltiplas vezes)
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Solicitou a implementação de turmas multisseriadas. (Status: **IN PROGRESS**)
-2.  **User:** Confirmou o nome correto do container do Mongo e executou o script para alterar o status dos alunos, mas o resultado foi . (Status: **DONE**, levou à descoberta do banco de dados incorreto).
-3.  **User:** Pediu para identificar o nome do container do Mongo, pois o comando falhou. (Status: **DONE**)
-4.  **User:** Pediu um comando Current Mongosh Log ID:	6983e58477f3f4fa6d284d0b
-Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.29
-Using Mongosh:		2.6.0
-
-For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
-
-------
-   The server generated these startup warnings when booting
-   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
-   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
-------
-
-test>  para mudar o status de todos os alunos Transferidos para Inativos. (Status: **DONE**)
-5.  **User:** Solicitou adicionar cards de Transferências e Desistências ao dashboard, com lógica específica. (Status: **DONE**)
-6.  **User:** Apontou que o filtro de ano letivo não funcionava e que a contagem de Alunos vs Matrículas estava confusa. (Status: **DONE**)
-7.  **User:** Confirmou que o dashboard continuava com dados zerados em produção. (Status: **DONE**, levou a mais depuração).
-8.  **User:** Enviou imagens mostrando a divergência de dados entre o sistema e o novo dashboard. (Status: **DONE**)
-9.  **User:** Solicitou a criação do dashboard analítico. (Status: **DONE**)
-10. **User:** Pediu para remover o modo de teste, pois o  estava causando confusão. (Status: **DONE**)
+1.  **User:** Pergunta como configurar as variáveis no Coolify. (Status: **PENDING RESPONSE**)
+2.  **User:** Reporta que o comando  não foi encontrado no container. (Status: RESOLVED, agente propôs alternativa)
+3.  **User:** Reporta que o comando  para o logotipo não resolveu o problema visualmente e fornece logs mostrando que o upload FTP falhou novamente por FTP não configurado. (Status: ANALYZED)
+4.  **User:** Mostra uma imagem onde o Brasão funciona, mas o Logotipo não. (Status: ANALYZED)
+5.  **User:** Reporta que o  para o teste de upload falhou por ocker: command not found. (Status: RESOLVED, erro de digitação)
+6.  **User:** Pergunta como configurar as variáveis de ambiente no Coolify. (Status: **PENDING RESPONSE**)
+7.  **User:** Reporta que o arquivo  não existe no container. (Status: RESOLVED, agente forneceu comando para criar)
+8.  **User:** Reporta que o teste de upload Python falhou com FTP não configurado mesmo após o arquivo  ser copiado e o container reiniciado. (Status: ANALYZED, levou à descoberta de que o  se perde)
+9.  **User:** Executa o comando para copiar o arquivo  corrigido para o container. (Status: DONE)
+10. **User:** Reporta que a imagem de upload ainda está quebrada e fornece o link SVG que indica erro de carregamento. (Status: ANALYZED)
 
 **Project Health Check:**
--   **Broken:** O processo de deploy automatizado no Coolify.
--   **Mocked:** N/A (o modo sandbox foi removido).
--   **Fragile:** Consistência de dados, especialmente com a funcionalidade de cache offline ainda presente, mas não revisada.
+-   **Broken:**
+    -   Upload de arquivos em produção.
+    -   Processo de deploy automatizado no Coolify (causa Gateway Timeout).
+    -   Persistência de configuração de ambiente no container do backend.
+-   **Mocked:** N/A.
+-   **Fragile:** A conexão com o banco de dados em produção depende de uma variável de ambiente () passada pelo Docker, o que é correto, mas a falha em carregar outras variáveis do  mostra fragilidade no setup geral.
 
 **3rd Party Integrations**
--   recharts (para gráficos)
--   python-pptx
+-   **recharts:** Utilizada para gráficos no dashboard.
+-   **python-pptx:** Utilizada para geração de apresentações.
+-   **FTP:** Integração para upload de arquivos, atualmente quebrada em produção.
 
 **Testing status**
--   **Testing agent used after significant changes:** NO (As mudanças no dashboard foram verificadas manualmente com screenshots e ).
--   **Test files created:** None.
+-   **Testing agent used after significant changes:** YES, para a funcionalidade de turmas multisseriadas.
+-   **Troubleshoot agent used after agent stuck in loop:** NO
+-   **Test files created:** []
+-   **Known regressions:** A funcionalidade de upload de logotipo, que possivelmente funcionava antes, está agora quebrada em produção devido a problemas de configuração de ambiente.
 
 **Credentials to test flow:**
 -   **Administrador:**  / 
 
 **What agent forgot to execute**
--   O agente não abordou o problema P0 de deploy que foi herdado do fork anterior.
--   O agente não confirmou com o usuário se o script Current Mongosh Log ID:	6983e58400a8c90daf284d0b
-Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.29
-Using Mongosh:		2.6.0
-
-For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
-
-------
-   The server generated these startup warnings when booting
-   2026-02-05T00:34:05.671+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-05T00:34:06.767+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-05T00:34:06.767+00:00: You are running this process as the root user, which is not recommended
-   2026-02-05T00:34:06.767+00:00: Soft rlimits for open file descriptors too low
-------
-
-test>  para atualizar o status dos alunos foi finalmente executado com sucesso no banco de dados correto (), o que impacta diretamente a precisão do dashboard analítico.</analysis>
+-   O problema P0 de **Gateway Timeout no deploy**, herdado do fork anterior, não foi abordado. Embora o foco tenha sido nas solicitações ativas do usuário, este continua sendo um problema crítico de infraestrutura.
+-   A verificação da migração de status de alunos (Transferido para Inativo) no banco de dados de produção, solicitada no handoff anterior, não foi confirmada com o usuário.</analysis>
