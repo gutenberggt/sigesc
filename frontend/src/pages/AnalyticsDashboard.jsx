@@ -30,6 +30,57 @@ const COLORS = {
   purple: '#8b5cf6'
 };
 
+/**
+ * Exporta o ranking completo de todas as escolas para Excel
+ */
+const exportRankingToExcel = (schools, year) => {
+  const data = [
+    ['RANKING DE ESCOLAS - SCORE V2.1'],
+    [`Ano Letivo: ${year}`],
+    [`Data de Geração: ${new Date().toLocaleDateString('pt-BR')}`],
+    [''],
+    ['#', 'Escola', 'Matrículas', 'Nota', 'Aprovação', 'Evolução', 'Frequência', 'Retenção', 'Cobertura', 'SLA Freq', 'SLA Notas', 'Distorção', 'Aprend.', 'Perman.', 'Gestão', 'SCORE'],
+  ];
+  
+  schools.forEach((school, index) => {
+    const ind = school.indicators || {};
+    data.push([
+      index + 1,
+      school.school_name,
+      school.raw_data?.enrollments_active || 0,
+      ind.nota_media || 0,
+      `${ind.aprovacao_pct || 0}%`,
+      ind.ganho_100 || 50,
+      `${ind.frequencia_pct || 0}%`,
+      `${ind.retencao_pct || 0}%`,
+      `${ind.cobertura_pct || 0}%`,
+      `${ind.sla_frequencia_pct || 0}%`,
+      `${ind.sla_notas_pct || 0}%`,
+      `${ind.distorcao_idade_serie_pct || 0}%`,
+      school.score_aprendizagem || 0,
+      school.score_permanencia || 0,
+      school.score_gestao || 0,
+      school.score,
+    ]);
+  });
+  
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  ws['!cols'] = [
+    { wch: 5 }, { wch: 35 }, { wch: 10 }, { wch: 8 }, { wch: 10 },
+    { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+    { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 },
+  ];
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'Ranking');
+  
+  const fileName = `Ranking_Escolas_${year}.xlsx`;
+  const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, fileName);
+};
+
 const CHART_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
 // ============================================
