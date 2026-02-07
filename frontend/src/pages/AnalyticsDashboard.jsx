@@ -1790,6 +1790,73 @@ export function AnalyticsDashboard() {
           </Card>
         )}
       </div>
+      
+      {/* Modal Termo de Responsabilidade - SEMED */}
+      {showSemedTerms && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-6 rounded-t-xl">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-8 w-8" />
+                <div>
+                  <h2 className="text-xl font-bold">Termo de Responsabilidade</h2>
+                  <p className="text-amber-100 text-sm">Acesso a Dados Sensíveis - SEMED</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <h3 className="font-semibold text-amber-800 mb-2">Atenção:</h3>
+                <p className="text-amber-700 text-sm">
+                  Você está prestes a acessar dados sensíveis e confidenciais do sistema educacional municipal.
+                </p>
+              </div>
+              
+              <div className="space-y-3 text-sm text-gray-700">
+                <p><strong>Ao aceitar este termo, você declara que:</strong></p>
+                <ul className="list-disc pl-5 space-y-2">
+                  <li>Compreende que os dados apresentados são <strong>confidenciais</strong> e protegidos pela LGPD (Lei Geral de Proteção de Dados);</li>
+                  <li>Utilizará as informações <strong>exclusivamente para fins de gestão educacional</strong> no âmbito de suas atribuições;</li>
+                  <li><strong>Não compartilhará, divulgará ou publicará</strong> dados individuais de alunos ou rankings comparativos de escolas em meios não autorizados;</li>
+                  <li>Reconhece que o <strong>uso indevido</strong> dos dados pode resultar em responsabilização administrativa, civil e penal;</li>
+                  <li>Compromete-se a <strong>reportar imediatamente</strong> qualquer incidente de segurança ou uso inadequado das informações.</li>
+                </ul>
+              </div>
+              
+              <div className="bg-gray-100 rounded-lg p-4 text-xs text-gray-600">
+                <p><strong>Dados acessíveis após aceite:</strong></p>
+                <ul className="mt-2 space-y-1">
+                  <li>• Ranking de Escolas (Score V2.1)</li>
+                  <li>• Desempenho individual de alunos (notas e frequência)</li>
+                  <li>• Indicadores de distorção idade-série</li>
+                  <li>• Taxas de evasão e aprovação por escola</li>
+                </ul>
+                <p className="mt-2 text-gray-500">Este aceite é válido por 30 dias.</p>
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    setShowSemedTerms(false);
+                    // Redireciona para dashboard se não aceitar
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Recusar e Voltar
+                </button>
+                <button
+                  onClick={handleAcceptSemedTerms}
+                  className="flex-1 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
+                  data-testid="accept-semed-terms-btn"
+                >
+                  Li e Aceito o Termo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
