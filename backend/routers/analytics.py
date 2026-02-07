@@ -1226,7 +1226,17 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         # Ordenar por média de nota (decrescente)
         result.sort(key=lambda x: x['avg_grade'], reverse=True)
-        return result[:limit]
+        
+        return {
+            "data": result[:limit],
+            "restricted": False,
+            "user_role": user_role,
+            "filter_applied": {
+                "school_id": school_id,
+                "class_id": class_id,
+                "subject_id": subject_id if is_professor else None
+            }
+        }
     
     @router.get("/distribution/grades")
     async def get_grades_distribution(
