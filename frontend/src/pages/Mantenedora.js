@@ -82,8 +82,7 @@ export default function Mantenedora() {
         cnpj: data.cnpj || '',
         codigo_inep: data.codigo_inep || '',
         natureza_juridica: data.natureza_juridica || 'Pública Municipal',
-        logotipo_url: data.logotipo_url || '',
-        brasao_url: data.brasao_url || '',
+        brasao_url: data.brasao_url || data.logotipo_url || '',  // Usa brasao ou fallback para logotipo antigo
         slogan: data.slogan || '',
         // Condicionais para aprovação - garantir formato correto para Select
         media_aprovacao: data.media_aprovacao != null ? Number(data.media_aprovacao).toFixed(1) : '6.0',
