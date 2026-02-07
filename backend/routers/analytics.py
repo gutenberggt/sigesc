@@ -3,7 +3,7 @@ Analytics Router - Dashboard Analítico para acompanhamento do município
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 from bson import ObjectId
 from auth_middleware import AuthMiddleware
 
