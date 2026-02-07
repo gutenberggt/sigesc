@@ -798,14 +798,22 @@ export function AnalyticsDashboard() {
                 
                 {/* Resumo por Escola */}
                 <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Resumo por Escola</h4>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                    Resumo por Escola 
+                    <span className="text-xs font-normal text-gray-500 ml-2">(clique para detalhes)</span>
+                  </h4>
                   {schoolsRanking.slice(0, 5).map((school, index) => {
                     const aprendPct = ((school.score_aprendizagem || 0) / 45 * 100).toFixed(0);
                     const permanPct = ((school.score_permanencia || 0) / 35 * 100).toFixed(0);
                     const gestaoPct = ((school.score_gestao || 0) / 20 * 100).toFixed(0);
                     
                     return (
-                      <div key={school.school_id} className="p-3 bg-gray-50 rounded-lg">
+                      <div 
+                        key={school.school_id} 
+                        className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 hover:shadow-md transition-all"
+                        onClick={() => setSelectedSchoolDetail(school)}
+                        data-testid={`school-radar-item-${index}`}
+                      >
                         <div className="flex items-center gap-2 mb-2">
                           <div 
                             className="w-3 h-3 rounded-full" 
@@ -814,6 +822,7 @@ export function AnalyticsDashboard() {
                           <span className="font-medium text-sm text-gray-800 truncate">
                             {school.school_name}
                           </span>
+                          <Info className="h-3 w-3 text-gray-400 ml-1" />
                           <span className="ml-auto text-sm font-bold text-blue-600">
                             {school.score} pts
                           </span>
@@ -882,6 +891,388 @@ export function AnalyticsDashboard() {
               </div>
             </CardContent>
           </Card>
+        )}
+        
+        {/* Modal de Drill-Down - Detalhes da Escola */}
+        {selectedSchoolDetail && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setSelectedSchoolDetail(null)}
+          >
+            <div 
+              className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header do Modal */}
+              <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-4 rounded-t-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold">{selectedSchoolDetail.school_name}</h2>
+                    <p className="text-indigo-100 text-sm">Análise Detalhada do Score V2.1</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold">{selectedSchoolDetail.score}</div>
+                      <div className="text-xs text-indigo-200">Score Total</div>
+                    </div>
+                    <button 
+                      onClick={() => setSelectedSchoolDetail(null)}
+                      className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                      data-testid="close-school-detail-modal"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                {/* Resumo dos Blocos */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-blue-50 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {selectedSchoolDetail.score_aprendizagem || 0}
+                      <span className="text-sm font-normal text-blue-400">/45</span>
+                    </div>
+                    <div className="text-sm text-blue-700 font-medium">Aprendizagem</div>
+                    <div className="text-xs text-blue-500 mt-1">
+                      {((selectedSchoolDetail.score_aprendizagem || 0) / 45 * 100).toFixed(0)}% do máximo
+                    </div>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {selectedSchoolDetail.score_permanencia || 0}
+                      <span className="text-sm font-normal text-green-400">/35</span>
+                    </div>
+                    <div className="text-sm text-green-700 font-medium">Permanência</div>
+                    <div className="text-xs text-green-500 mt-1">
+                      {((selectedSchoolDetail.score_permanencia || 0) / 35 * 100).toFixed(0)}% do máximo
+                    </div>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {selectedSchoolDetail.score_gestao || 0}
+                      <span className="text-sm font-normal text-purple-400">/20</span>
+                    </div>
+                    <div className="text-sm text-purple-700 font-medium">Gestão</div>
+                    <div className="text-xs text-purple-500 mt-1">
+                      {((selectedSchoolDetail.score_gestao || 0) / 20 * 100).toFixed(0)}% do máximo
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Detalhamento dos 8 Indicadores */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-gray-600" />
+                    Detalhamento dos Indicadores
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* BLOCO APRENDIZAGEM */}
+                    <div className="space-y-3">
+                      <div className="text-sm font-semibold text-blue-700 bg-blue-50 px-3 py-1 rounded-md inline-block">
+                        Bloco Aprendizagem (45 pts)
+                      </div>
+                      
+                      {/* Nota Média */}
+                      <div className="bg-white border rounded-lg p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-700">Nota Média</span>
+                          <span className="text-sm font-bold text-gray-900">
+                            {selectedSchoolDetail.indicators?.nota_media || 0} / 10
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div 
+                            className="bg-blue-500 h-2.5 rounded-full transition-all"
+                            style={{ width: `${selectedSchoolDetail.indicators?.nota_100 || 0}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>Peso: 25 pts</span>
+                          <span>Contribuição: {((selectedSchoolDetail.indicators?.nota_100 || 0) * 0.25).toFixed(1)} pts</span>
+                        </div>
+                      </div>
+                      
+                      {/* Taxa de Aprovação */}
+                      <div className="bg-white border rounded-lg p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-700">Taxa de Aprovação</span>
+                          <span className="text-sm font-bold text-gray-900">
+                            {selectedSchoolDetail.indicators?.aprovacao_pct || 0}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div 
+                            className="bg-blue-400 h-2.5 rounded-full transition-all"
+                            style={{ width: `${selectedSchoolDetail.indicators?.aprovacao_pct || 0}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>Peso: 10 pts</span>
+                          <span>Contribuição: {((selectedSchoolDetail.indicators?.aprovacao_pct || 0) * 0.10).toFixed(1)} pts</span>
+                        </div>
+                      </div>
+                      
+                      {/* Evolução Bimestral */}
+                      <div className="bg-white border rounded-lg p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                            Evolução Bimestral
+                            {(selectedSchoolDetail.indicators?.ganho_100 || 50) > 50 ? (
+                              <TrendingUp className="h-4 w-4 text-green-500" />
+                            ) : (selectedSchoolDetail.indicators?.ganho_100 || 50) < 50 ? (
+                              <TrendingDown className="h-4 w-4 text-red-500" />
+                            ) : (
+                              <Minus className="h-4 w-4 text-gray-400" />
+                            )}
+                          </span>
+                          <span className="text-sm font-bold text-gray-900">
+                            {selectedSchoolDetail.indicators?.ganho_100 || 50} / 100
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div 
+                            className={`h-2.5 rounded-full transition-all ${
+                              (selectedSchoolDetail.indicators?.ganho_100 || 50) >= 60 ? 'bg-green-500' :
+                              (selectedSchoolDetail.indicators?.ganho_100 || 50) >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}
+                            style={{ width: `${selectedSchoolDetail.indicators?.ganho_100 || 50}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>Peso: 10 pts (50 = estável)</span>
+                          <span>Contribuição: {((selectedSchoolDetail.indicators?.ganho_100 || 50) * 0.10).toFixed(1)} pts</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* BLOCO PERMANÊNCIA + GESTÃO */}
+                    <div className="space-y-3">
+                      <div className="text-sm font-semibold text-green-700 bg-green-50 px-3 py-1 rounded-md inline-block">
+                        Bloco Permanência (35 pts)
+                      </div>
+                      
+                      {/* Frequência */}
+                      <div className="bg-white border rounded-lg p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-700">Frequência Média</span>
+                          <span className="text-sm font-bold text-gray-900">
+                            {selectedSchoolDetail.indicators?.frequencia_pct || 0}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div 
+                            className="bg-green-500 h-2.5 rounded-full transition-all"
+                            style={{ width: `${selectedSchoolDetail.indicators?.frequencia_pct || 0}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>Peso: 25 pts</span>
+                          <span>Contribuição: {((selectedSchoolDetail.indicators?.frequencia_pct || 0) * 0.25).toFixed(1)} pts</span>
+                        </div>
+                      </div>
+                      
+                      {/* Retenção */}
+                      <div className="bg-white border rounded-lg p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-700">Retenção (Anti-evasão)</span>
+                          <span className="text-sm font-bold text-gray-900">
+                            {selectedSchoolDetail.indicators?.retencao_pct || 0}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div 
+                            className="bg-green-400 h-2.5 rounded-full transition-all"
+                            style={{ width: `${selectedSchoolDetail.indicators?.retencao_pct || 0}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>Peso: 10 pts</span>
+                          <span>Contribuição: {((selectedSchoolDetail.indicators?.retencao_pct || 0) * 0.10).toFixed(1)} pts</span>
+                        </div>
+                      </div>
+                      
+                      <div className="text-sm font-semibold text-purple-700 bg-purple-50 px-3 py-1 rounded-md inline-block mt-2">
+                        Bloco Gestão (20 pts)
+                      </div>
+                      
+                      {/* Cobertura Curricular */}
+                      <div className="bg-white border rounded-lg p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-700">Cobertura Curricular</span>
+                          <span className="text-sm font-bold text-gray-900">
+                            {selectedSchoolDetail.indicators?.cobertura_pct || 0}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                          <div 
+                            className="bg-purple-500 h-2.5 rounded-full transition-all"
+                            style={{ width: `${Math.min(100, selectedSchoolDetail.indicators?.cobertura_pct || 0)}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>Peso: 10 pts</span>
+                          <span>Contribuição: {((selectedSchoolDetail.indicators?.cobertura_pct || 0) * 0.10).toFixed(1)} pts</span>
+                        </div>
+                      </div>
+                      
+                      {/* SLA Frequência + Notas (agrupados) */}
+                      <div className="bg-white border rounded-lg p-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <div className="text-xs font-medium text-gray-600 mb-1">SLA Frequência (3 dias)</div>
+                            <div className="text-lg font-bold text-purple-600">
+                              {selectedSchoolDetail.indicators?.sla_frequencia_pct || 0}%
+                            </div>
+                            <div className="text-xs text-gray-500">Peso: 5 pts</div>
+                          </div>
+                          <div>
+                            <div className="text-xs font-medium text-gray-600 mb-1">SLA Notas (7 dias)</div>
+                            <div className="text-lg font-bold text-purple-600">
+                              {selectedSchoolDetail.indicators?.sla_notas_pct || 0}%
+                            </div>
+                            <div className="text-xs text-gray-500">Peso: 5 pts</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Evolução das Notas por Bimestre */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-gray-600" />
+                    Evolução das Notas por Bimestre
+                  </h3>
+                  
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <AreaChart
+                        data={[
+                          { bimestre: '1º Bim', nota: selectedSchoolDetail.grade_evolution?.b1 || 0 },
+                          { bimestre: '2º Bim', nota: selectedSchoolDetail.grade_evolution?.b2 || 0 },
+                          { bimestre: '3º Bim', nota: selectedSchoolDetail.grade_evolution?.b3 || 0 },
+                          { bimestre: '4º Bim', nota: selectedSchoolDetail.grade_evolution?.b4 || 0 },
+                        ]}
+                        margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient id="colorNota" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="bimestre" tick={{ fontSize: 12 }} />
+                        <YAxis domain={[0, 10]} tick={{ fontSize: 12 }} />
+                        <Tooltip 
+                          formatter={(value) => [`${value.toFixed(2)}`, 'Média']}
+                          contentStyle={{ fontSize: '12px' }}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="nota" 
+                          stroke="#3b82f6" 
+                          fillOpacity={1} 
+                          fill="url(#colorNota)"
+                          strokeWidth={2}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                    
+                    {/* Análise da Evolução */}
+                    <div className="mt-4 grid grid-cols-4 gap-2 text-center">
+                      {[
+                        { label: '1º Bim', value: selectedSchoolDetail.grade_evolution?.b1 },
+                        { label: '2º Bim', value: selectedSchoolDetail.grade_evolution?.b2 },
+                        { label: '3º Bim', value: selectedSchoolDetail.grade_evolution?.b3 },
+                        { label: '4º Bim', value: selectedSchoolDetail.grade_evolution?.b4 },
+                      ].map((bim, idx, arr) => {
+                        const prevValue = idx > 0 ? arr[idx - 1].value : null;
+                        const diff = prevValue !== null && bim.value ? (bim.value - prevValue).toFixed(2) : null;
+                        return (
+                          <div key={bim.label} className="bg-white rounded-lg p-2 border">
+                            <div className="text-xs text-gray-500">{bim.label}</div>
+                            <div className="text-lg font-bold text-gray-800">
+                              {bim.value ? bim.value.toFixed(1) : '-'}
+                            </div>
+                            {diff !== null && (
+                              <div className={`text-xs font-medium ${
+                                parseFloat(diff) > 0 ? 'text-green-600' : 
+                                parseFloat(diff) < 0 ? 'text-red-600' : 'text-gray-400'
+                              }`}>
+                                {parseFloat(diff) > 0 ? '+' : ''}{diff}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Indicador Informativo - Distorção */}
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-6 w-6 text-amber-600" />
+                    <div>
+                      <div className="text-sm font-semibold text-amber-800">
+                        Distorção Idade-Série (Indicador Informativo)
+                      </div>
+                      <div className="text-xs text-amber-600">
+                        Este indicador não entra no cálculo do score, mas é importante para análise
+                      </div>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <div className="text-2xl font-bold text-amber-700">
+                        {selectedSchoolDetail.indicators?.distorcao_idade_serie_pct || 0}%
+                      </div>
+                      <div className="text-xs text-amber-600">
+                        dos alunos com 2+ anos acima da idade esperada
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Dados Brutos */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-gray-600" />
+                    Dados Brutos
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <div className="text-gray-500 text-xs">Matrículas Ativas</div>
+                      <div className="text-xl font-bold text-gray-800">
+                        {selectedSchoolDetail.raw_data?.enrollments_active || 0}
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <div className="text-gray-500 text-xs">Aprovados</div>
+                      <div className="text-xl font-bold text-green-600">
+                        {selectedSchoolDetail.raw_data?.approved_count || 0}
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <div className="text-gray-500 text-xs">Evasões</div>
+                      <div className="text-xl font-bold text-red-600">
+                        {selectedSchoolDetail.raw_data?.dropouts || 0}
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <div className="text-gray-500 text-xs">Objetos de Conhecimento</div>
+                      <div className="text-xl font-bold text-purple-600">
+                        {selectedSchoolDetail.raw_data?.learning_objects_count || 0}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
         
         {/* Desempenho dos Alunos */}
