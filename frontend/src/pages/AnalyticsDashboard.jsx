@@ -440,6 +440,51 @@ export function AnalyticsDashboard() {
     return [...students].sort((a, b) => (a.full_name || a.name || '').localeCompare(b.full_name || b.name || '', 'pt-BR'));
   }, [students]);
 
+  // Verificar termo de responsabilidade para SEMED
+  useEffect(() => {
+    const checkSemedTerms = async () => {
+      if (!isSemed || !token) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/api/analytics/semed/check-terms`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.needs_acceptance) {
+          setShowSemedTerms(true);
+          setSemedTermsAccepted(false);
+        } else {
+          setSemedTermsAccepted(true);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar termo SEMED:', error);
+      }
+    };
+    
+    checkSemedTerms();
+  }, [isSemed, token]);
+
+  // Função para aceitar o termo SEMED
+  const handleAcceptSemedTerms = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/analytics/semed/accept-terms`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        setSemedTermsAccepted(true);
+        setShowSemedTerms(false);
+      }
+    } catch (error) {
+      console.error('Erro ao aceitar termo:', error);
+    }
+  };
+
   useEffect(() => {
     const loadInitialData = async () => {
       try {
