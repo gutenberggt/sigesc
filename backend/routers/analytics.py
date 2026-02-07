@@ -1260,6 +1260,81 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             }
         }
     
+    @router.post("/semed/accept-terms")
+    async def accept_semed_terms(
+        request: Request
+    ):
+        """
+        Registra a aceitação do termo de responsabilidade pela SEMED.
+        O termo é válido por 30 dias.
+        """
+        current_db = get_current_db(request)
+        user = await AuthMiddleware.get_current_user(request)
+        user_role = user.get('role', '').lower()
+        
+        if user_role != 'semed':
+            raise HTTPException(status_code=403, detail="Apenas usuários SEMED podem aceitar este termo")
+        
+        user_id = user.get('id') or user.get('user_id')
+        
+        # Registrar aceite do termo
+        await current_db.user_terms.update_one(
+            {'user_id': user_id, 'term_type': 'analytics_access'},
+            {
+                '$set': {
+                    'user_id': user_id,
+                    'term_type': 'analytics_access',
+                    'accepted_at': datetime.utcnow(),
+                    'expires_at': datetime.utcnow() + timedelta(days=30),
+                    'ip_address': request.client.host if request.client else None,
+                    'user_agent': request.headers.get('user-agent', '')
+                }
+            },
+            upsert=True
+        )
+        
+        return {
+            "success": True,
+            "message": "Termo de responsabilidade aceito com sucesso",
+            "expires_at": (datetime.utcnow() + timedelta(days=30)).isoformat()
+        }
+    
+    @router.get("/semed/check-terms")
+    async def check_semed_terms(
+        request: Request
+    ):
+        """
+        Verifica se o usuário SEMED aceitou o termo de responsabilidade.
+        """
+        current_db = get_current_db(request)
+        user = await AuthMiddleware.get_current_user(request)
+        user_role = user.get('role', '').lower()
+        
+        if user_role != 'semed':
+            return {"needs_acceptance": False, "is_semed": False}
+        
+        user_id = user.get('id') or user.get('user_id')
+        
+        # Verificar se há termo válido
+        term = await current_db.user_terms.find_one({
+            'user_id': user_id,
+            'term_type': 'analytics_access',
+            'expires_at': {'$gt': datetime.utcnow()}
+        })
+        
+        if term:
+            return {
+                "needs_acceptance": False,
+                "is_semed": True,
+                "accepted_at": term['accepted_at'].isoformat(),
+                "expires_at": term['expires_at'].isoformat()
+            }
+        
+        return {
+            "needs_acceptance": True,
+            "is_semed": True
+        }
+    
     @router.get("/distribution/grades")
     async def get_grades_distribution(
         request: Request,
