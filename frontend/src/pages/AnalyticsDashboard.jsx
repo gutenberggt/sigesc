@@ -1715,52 +1715,90 @@ export function AnalyticsDashboard() {
           </div>
         )}
         
-        {/* Desempenho dos Alunos */}
-        {studentsPerformance.length > 0 && (
+        {/* Desempenho dos Alunos - Com restrições de acesso */}
+        {canViewStudentData && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Users className="h-5 w-5 text-green-600" />
-                Desempenho dos Alunos (Top {studentsPerformance.length})
+                Desempenho dos Alunos
+                {isProfessor && !selectedClass && (
+                  <span className="text-xs font-normal text-amber-600 ml-2">(Selecione uma turma)</span>
+                )}
               </CardTitle>
+              {/* Indicador de restrição por perfil */}
+              <div className="mt-1 text-xs text-gray-500">
+                {isProfessor && (
+                  <span className="flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" />
+                    Visualização restrita às suas turmas e componentes curriculares
+                  </span>
+                )}
+                {isSchoolStaff && (
+                  <span className="flex items-center gap-1">
+                    <Info className="h-3 w-3 text-blue-500" />
+                    Visualização restrita à sua escola
+                  </span>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">#</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Aluno</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Turma</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Média</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Frequência</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {studentsPerformance.map((student, index) => (
-                      <tr key={student.student_id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-gray-500">{index + 1}</td>
-                        <td className="py-3 px-4 font-medium text-gray-900">{student.student_name}</td>
-                        <td className="py-3 px-4 text-gray-600">{student.class_name}</td>
-                        <td className="py-3 px-4 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            student.avg_grade >= 7 ? 'bg-green-100 text-green-700' :
-                            student.avg_grade >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                            {student.avg_grade}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            student.attendance_rate >= 75 ? 'bg-green-100 text-green-700' :
-                            student.attendance_rate >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                            {student.attendance_rate}%
-                          </span>
-                        </td>
+              {/* Mensagem quando professor não selecionou turma */}
+              {isProfessor && !selectedClass ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p className="font-medium">Selecione uma turma para visualizar o desempenho dos alunos</p>
+                  <p className="text-sm mt-1">Como professor, você tem acesso apenas aos dados das suas turmas.</p>
+                </div>
+              ) : performanceRestricted ? (
+                <div className="text-center py-8 text-amber-600">
+                  <AlertTriangle className="h-12 w-12 mx-auto mb-3 text-amber-400" />
+                  <p className="font-medium">Acesso Restrito</p>
+                  <p className="text-sm mt-1 text-gray-500">Você não tem permissão para visualizar estes dados.</p>
+                </div>
+              ) : studentsPerformance.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">#</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Aluno</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Turma</th>
+                        <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Média</th>
+                        <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Frequência</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {studentsPerformance.map((student, index) => (
+                        <tr key={student.student_id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4 text-gray-500">{index + 1}</td>
+                          <td className="py-3 px-4 font-medium text-gray-900">{student.student_name}</td>
+                          <td className="py-3 px-4 text-gray-600">{student.class_name}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              student.avg_grade >= 7 ? 'bg-green-100 text-green-700' :
+                              student.avg_grade >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                              {student.avg_grade}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              student.attendance_rate >= 75 ? 'bg-green-100 text-green-700' :
+                              student.attendance_rate >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                              {student.attendance_rate}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p>Nenhum dado de desempenho disponível para os filtros selecionados.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
