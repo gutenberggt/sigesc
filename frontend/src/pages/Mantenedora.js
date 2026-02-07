@@ -17,11 +17,9 @@ export default function Mantenedora() {
   const { refreshMantenedora } = useMantenedora();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [uploadingBrasao, setUploadingBrasao] = useState(false);
   const [migratingBercario, setMigratingBercario] = useState(false);
   const [alert, setAlert] = useState(null);
-  const fileInputRef = useRef(null);
   const brasaoInputRef = useRef(null);
   const [formData, setFormData] = useState({
     // Identificação
