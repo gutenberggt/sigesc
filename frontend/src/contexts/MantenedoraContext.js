@@ -18,7 +18,7 @@ export const MantenedoraProvider = ({ children }) => {
         nome: 'Prefeitura Municipal',
         municipio: 'Floresta do Araguaia',
         estado: 'PA',
-        logotipo_url: ''
+        brasao_url: ''
       });
     } finally {
       setLoading(false);
@@ -42,14 +42,15 @@ export const MantenedoraProvider = ({ children }) => {
     state: mantenedora?.estado || 'PA'
   });
 
-  const getLogotipoUrl = () => mantenedora?.logotipo_url || '';
+  // Retorna o brasão (ou fallback para logotipo antigo)
+  const getBrasaoUrl = () => mantenedora?.brasao_url || mantenedora?.logotipo_url || '';
 
   const value = {
     mantenedora,
     loading,
     refreshMantenedora,
     getDefaultLocation,
-    getLogotipoUrl
+    getBrasaoUrl
   };
 
   return (
