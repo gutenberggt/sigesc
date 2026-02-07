@@ -12,7 +12,8 @@ import {
 import {
   Home, TrendingUp, Users, GraduationCap, School, BookOpen,
   Filter, RefreshCw, Award, Target, AlertTriangle, CheckCircle,
-  BarChart3, PieChart as PieChartIcon, Activity, UserMinus, LogOut, Radar as RadarIcon
+  BarChart3, PieChart as PieChartIcon, Activity, UserMinus, LogOut, Radar as RadarIcon,
+  X, Info, TrendingDown, Minus
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
