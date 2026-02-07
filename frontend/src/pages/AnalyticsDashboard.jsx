@@ -548,8 +548,8 @@ export function AnalyticsDashboard() {
           safeFetch(`${API_URL}/api/analytics/attendance/monthly?${params}`),
           safeFetch(`${API_URL}/api/analytics/grades/by-subject?${params}`),
           safeFetch(`${API_URL}/api/analytics/grades/by-period?${params}`),
-          safeFetch(`${API_URL}/api/analytics/schools/ranking?${params}`),
-          safeFetch(`${API_URL}/api/analytics/students/performance?${params}`),
+          canViewRanking ? safeFetch(`${API_URL}/api/analytics/schools/ranking?${params}`) : null,
+          canViewStudentData ? safeFetch(`${API_URL}/api/analytics/students/performance?${params}`) : null,
           safeFetch(`${API_URL}/api/analytics/distribution/grades?${params}`)
         ]);
         
@@ -568,8 +568,25 @@ export function AnalyticsDashboard() {
         if (monthlyRes) setAttendanceMonthly(monthlyRes);
         if (subjectRes) setGradesBySubject(subjectRes);
         if (periodRes) setGradesByPeriod(periodRes);
-        if (rankingRes) setSchoolsRanking(rankingRes);
-        if (perfRes) setStudentsPerformance(perfRes);
+        
+        // Ranking - trata resposta com restrição
+        if (rankingRes && !rankingRes.restricted) {
+          setSchoolsRanking(Array.isArray(rankingRes) ? rankingRes : (rankingRes.data || []));
+        } else {
+          setSchoolsRanking([]);
+        }
+        
+        // Performance de alunos - trata resposta com restrição
+        if (perfRes) {
+          if (perfRes.restricted) {
+            setPerformanceRestricted(true);
+            setStudentsPerformance([]);
+          } else {
+            setPerformanceRestricted(false);
+            setStudentsPerformance(Array.isArray(perfRes) ? perfRes : (perfRes.data || []));
+          }
+        }
+        
         if (distRes) setGradesDistribution(distRes);
       } catch (error) {
         console.error('Erro ao carregar analytics:', error);
