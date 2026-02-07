@@ -600,6 +600,12 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         Retorna ranking das escolas por desempenho usando Score V2.1
         
         ============================================
+        RESTRIÇÕES DE ACESSO:
+        - Admin/SEMED: Ranking completo de todas as escolas
+        - Diretor/Coordenador/Secretário: NÃO vê ranking (apenas dados da própria escola)
+        - Professor: NÃO vê ranking
+        ============================================
+        
         SCORE V2.1 - COMPOSIÇÃO (100 pontos)
         ============================================
         
@@ -625,8 +631,24 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
+        user_role = user.get('role', '').lower()
         
-        is_global = user.get('role') in ['admin', 'admin_teste', 'semed']
+        # ============================================
+        # RESTRIÇÃO DE ACESSO AO RANKING
+        # ============================================
+        is_admin = user_role in ['admin', 'admin_teste']
+        is_semed = user_role == 'semed'
+        is_global = is_admin or is_semed
+        
+        # Apenas Admin e SEMED podem ver o ranking completo
+        if not is_global:
+            return {
+                "error": "Acesso restrito",
+                "message": "O ranking de escolas é visível apenas para Administradores e SEMED.",
+                "restricted": True,
+                "data": []
+            }
+        
         user_school_ids = user.get('school_ids', []) or []
         if user.get('school_links'):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
