@@ -113,7 +113,29 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 
 ## Última Atualização
 **Data:** 07 de Fevereiro de 2026
-**Funcionalidade:** Score V2.1 - Novo Sistema de Ranking de Escolas
+**Funcionalidade:** Simplificação de Imagem - Unificação Brasão/Logotipo
+
+### Unificação Brasão/Logotipo (Fev 07, 2026):
+Removido o campo "Logotipo" separado, mantendo apenas o "Brasão" como imagem única do sistema.
+
+**Motivo:** Resolver problema de upload FTP em produção simplificando a estrutura.
+
+**Alterações:**
+- ✅ Removido campo `logotipo_url` do formulário de Mantenedora
+- ✅ Campo `brasao_url` agora é a única imagem do sistema
+- ✅ Fallback automático: se `brasao_url` não existir, usa `logotipo_url` (retrocompatibilidade)
+- ✅ Layout.js atualizado para usar `brasao_url || logotipo_url`
+- ✅ MantenedoraContext.js: função `getBrasaoUrl()` substituiu `getLogotipoUrl()`
+- ✅ pdf_generator.py: todas as referências atualizadas para `brasao_url or logotipo_url`
+- ✅ Label atualizado: "Brasão / Logotipo" com descrição explicativa
+
+**Arquivos Modificados:**
+- `/app/frontend/src/pages/Mantenedora.js`
+- `/app/frontend/src/components/Layout.js`
+- `/app/frontend/src/contexts/MantenedoraContext.js`
+- `/app/backend/pdf_generator.py`
+
+---
 
 ### Score V2.1 - Implementado (Fev 07, 2026):
 Sistema de pontuação de 0-100 pontos para ranking de escolas, baseado em indicadores objetivos.
