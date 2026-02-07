@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,8 +13,12 @@ import {
   Home, TrendingUp, Users, GraduationCap, School, BookOpen,
   Filter, RefreshCw, Award, Target, AlertTriangle, CheckCircle,
   BarChart3, PieChart as PieChartIcon, Activity, UserMinus, LogOut, Radar as RadarIcon,
-  X, Info, TrendingDown, Minus
+  X, Info, TrendingDown, Minus, Download, FileSpreadsheet, FileText
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
