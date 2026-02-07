@@ -1141,7 +1141,7 @@ export function AnalyticsDashboard() {
         )}
         
         {/* Gráfico de Radar - Comparativo de Escolas por Bloco */}
-        {isGlobal && !selectedSchool && schoolsRanking.length > 0 && (
+        {canViewRanking && !selectedSchool && schoolsRanking.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
