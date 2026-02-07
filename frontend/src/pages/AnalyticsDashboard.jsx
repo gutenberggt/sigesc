@@ -579,62 +579,140 @@ export function AnalyticsDashboard() {
           </Card>
         </div>
         
-        {/* Ranking de Escolas */}
+        {/* Ranking de Escolas - Score V2.1 */}
         {isGlobal && !selectedSchool && schoolsRanking.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Award className="h-5 w-5 text-amber-600" />
-                Ranking de Escolas
+                Ranking de Escolas - Score V2.1
               </CardTitle>
-              <p className="text-xs text-gray-500 mt-1">
-                Score = 40% Frequência + 40% Nota Média + 20% Taxa de Ocupação (0-100 pontos)
-              </p>
+              <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-600 font-medium mb-2">Composição do Score (0-100 pontos):</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+                    <span><strong>Aprendizagem (45 pts):</strong> Nota (25) + Aprovação (10) + Evolução (10)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                    <span><strong>Permanência (35 pts):</strong> Frequência (25) + Retenção (10)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-purple-500"></span>
+                    <span><strong>Gestão (20 pts):</strong> Cobertura (10) + SLA Freq (5) + SLA Notas (5)</span>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="min-w-full">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">#</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Escola</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Matrículas</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Frequência</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Média</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-500" title="40% Frequência + 40% Nota + 20% Ocupação">Score</th>
+                      <th className="text-left py-3 px-2 text-xs font-medium text-gray-500">#</th>
+                      <th className="text-left py-3 px-2 text-xs font-medium text-gray-500">Escola</th>
+                      <th className="text-center py-3 px-2 text-xs font-medium text-gray-500">Matr.</th>
+                      <th className="text-center py-3 px-2 text-xs font-medium text-gray-500 bg-blue-50" title="Nota Média (0-10)">Nota</th>
+                      <th className="text-center py-3 px-2 text-xs font-medium text-gray-500 bg-blue-50" title="Taxa de Aprovação">Aprov.</th>
+                      <th className="text-center py-3 px-2 text-xs font-medium text-gray-500 bg-blue-50" title="Evolução Bimestral">Evol.</th>
+                      <th className="text-center py-3 px-2 text-xs font-medium text-gray-500 bg-green-50" title="Frequência Média">Freq.</th>
+                      <th className="text-center py-3 px-2 text-xs font-medium text-gray-500 bg-green-50" title="Retenção (anti-evasão)">Ret.</th>
+                      <th className="text-center py-3 px-2 text-xs font-medium text-gray-500 bg-purple-50" title="Cobertura Curricular">Cob.</th>
+                      <th className="text-center py-3 px-2 text-xs font-medium text-gray-500 bg-amber-50" title="Distorção Idade-Série (informativo)">Dist.</th>
+                      <th className="text-center py-3 px-2 text-xs font-medium text-gray-500 border-l-2 border-gray-300" title="Pontuação Total">Score</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {schoolsRanking.map((school, index) => (
-                      <tr key={school.school_id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4">
-                          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                            index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' :
-                            index === 2 ? 'bg-amber-100 text-amber-700' : 'bg-gray-50 text-gray-500'}`}>
-                            {index + 1}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 font-medium text-gray-900">{school.school_name}</td>
-                        <td className="py-3 px-4 text-center text-gray-600">{school.enrollments}</td>
-                        <td className="py-3 px-4 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            school.avg_attendance >= 75 ? 'bg-green-100 text-green-700' :
-                            school.avg_attendance >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                            {school.avg_attendance}%
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            school.avg_grade >= 7 ? 'bg-green-100 text-green-700' :
-                            school.avg_grade >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
-                            {school.avg_grade}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center font-bold text-blue-600">{school.score}</td>
-                      </tr>
-                    ))}
+                    {schoolsRanking.map((school, index) => {
+                      const ind = school.indicators || {};
+                      const raw = school.raw_data || {};
+                      return (
+                        <tr key={school.school_id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-2 px-2">
+                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                              index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' :
+                              index === 2 ? 'bg-amber-100 text-amber-700' : 'bg-gray-50 text-gray-500'}`}>
+                              {index + 1}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2">
+                            <div className="font-medium text-gray-900 text-sm">{school.school_name}</div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              Blocos: 
+                              <span className="text-blue-600 ml-1">{school.score_aprendizagem || 0}</span> | 
+                              <span className="text-green-600 ml-1">{school.score_permanencia || 0}</span> | 
+                              <span className="text-purple-600 ml-1">{school.score_gestao || 0}</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2 text-center text-gray-600 text-sm">{raw.enrollments_active || 0}</td>
+                          <td className="py-2 px-2 text-center bg-blue-50/30">
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                              (ind.nota_media || 0) >= 7 ? 'bg-green-100 text-green-700' :
+                              (ind.nota_media || 0) >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                              {ind.nota_media || 0}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-center bg-blue-50/30">
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                              (ind.aprovacao_pct || 0) >= 70 ? 'bg-green-100 text-green-700' :
+                              (ind.aprovacao_pct || 0) >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                              {ind.aprovacao_pct || 0}%
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-center bg-blue-50/30">
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                              (ind.ganho_100 || 0) >= 60 ? 'bg-green-100 text-green-700' :
+                              (ind.ganho_100 || 0) >= 40 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                              {ind.ganho_100 || 0}
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-center bg-green-50/30">
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                              (ind.frequencia_pct || 0) >= 75 ? 'bg-green-100 text-green-700' :
+                              (ind.frequencia_pct || 0) >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                              {ind.frequencia_pct || 0}%
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-center bg-green-50/30">
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                              (ind.retencao_pct || 0) >= 95 ? 'bg-green-100 text-green-700' :
+                              (ind.retencao_pct || 0) >= 85 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                              {ind.retencao_pct || 0}%
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-center bg-purple-50/30">
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                              (ind.cobertura_pct || 0) >= 70 ? 'bg-green-100 text-green-700' :
+                              (ind.cobertura_pct || 0) >= 40 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                              {ind.cobertura_pct || 0}%
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-center bg-amber-50/30" title="Distorção idade-série (2+ anos acima da idade esperada)">
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                              (ind.distorcao_idade_serie_pct || 0) <= 10 ? 'bg-green-100 text-green-700' :
+                              (ind.distorcao_idade_serie_pct || 0) <= 25 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                              {ind.distorcao_idade_serie_pct || 0}%
+                            </span>
+                          </td>
+                          <td className="py-2 px-2 text-center border-l-2 border-gray-300">
+                            <span className="text-lg font-bold text-blue-600">{school.score}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
+              </div>
+              <div className="mt-4 p-3 bg-amber-50 rounded-lg text-xs text-amber-800">
+                <strong>Legenda:</strong> 
+                <span className="ml-2">Nota = Média (0-10)</span> |
+                <span className="ml-2">Aprov. = Taxa de Aprovação</span> |
+                <span className="ml-2">Evol. = Evolução Bimestral (50=estável)</span> |
+                <span className="ml-2">Freq. = Frequência Média</span> |
+                <span className="ml-2">Ret. = Retenção (100-evasão%)</span> |
+                <span className="ml-2">Cob. = Cobertura Curricular</span> |
+                <span className="ml-2">Dist. = Distorção Idade-Série (informativo, não entra no score)</span>
               </div>
             </CardContent>
           </Card>
