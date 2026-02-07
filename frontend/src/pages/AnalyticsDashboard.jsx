@@ -631,7 +631,12 @@ export function AnalyticsDashboard() {
                       const ind = school.indicators || {};
                       const raw = school.raw_data || {};
                       return (
-                        <tr key={school.school_id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <tr 
+                          key={school.school_id} 
+                          className="border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors"
+                          onClick={() => setSelectedSchoolDetail(school)}
+                          data-testid={`ranking-row-${index}`}
+                        >
                           <td className="py-2 px-2">
                             <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
                               index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' :
@@ -640,7 +645,10 @@ export function AnalyticsDashboard() {
                             </span>
                           </td>
                           <td className="py-2 px-2">
-                            <div className="font-medium text-gray-900 text-sm">{school.school_name}</div>
+                            <div className="font-medium text-gray-900 text-sm flex items-center gap-1">
+                              {school.school_name}
+                              <Info className="h-3 w-3 text-gray-400" />
+                            </div>
                             <div className="text-xs text-gray-500 mt-0.5">
                               Blocos: 
                               <span className="text-blue-600 ml-1">{school.score_aprendizagem || 0}</span> | 
