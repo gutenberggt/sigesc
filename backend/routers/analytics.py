@@ -1061,20 +1061,63 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         academic_year: int = Query(..., description="Ano letivo"),
         school_id: Optional[str] = Query(None),
         class_id: Optional[str] = Query(None),
+        subject_id: Optional[str] = Query(None, description="ID do componente curricular"),
         limit: int = Query(20, description="Limite de resultados")
     ):
         """
-        Retorna desempenho individual dos alunos
+        Retorna desempenho individual dos alunos com restrições por perfil:
+        - Professor: apenas alunos da sua turma e componentes vinculados
+        - Coordenador/Diretor/Secretário: apenas alunos da escola vinculada
+        - Admin/SEMED: acesso global
         """
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
+        user_role = user.get('role', '').lower()
         
-        is_global = user.get('role') in ['admin', 'admin_teste', 'semed']
+        # ============================================
+        # RESTRIÇÕES DE ACESSO POR PERFIL
+        # ============================================
+        is_admin = user_role in ['admin', 'admin_teste']
+        is_semed = user_role == 'semed'
+        is_global = is_admin or is_semed
+        is_school_staff = user_role in ['diretor', 'coordenador', 'secretario', 'secretário']
+        is_professor = user_role == 'professor'
+        
         user_school_ids = user.get('school_ids', []) or []
         if user.get('school_links'):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
         
-        # Filtro de matrículas
+        # Turmas do professor (se aplicável)
+        user_class_ids = user.get('class_ids', []) or []
+        if user.get('class_links'):
+            user_class_ids = [link.get('class_id') for link in user.get('class_links', [])]
+        
+        # Componentes curriculares do professor (se aplicável)
+        user_subject_ids = user.get('subject_ids', []) or []
+        if user.get('subject_links'):
+            user_subject_ids = [link.get('subject_id') for link in user.get('subject_links', [])]
+        
+        # ============================================
+        # VALIDAÇÃO DE ACESSO
+        # ============================================
+        
+        # Professor: OBRIGATÓRIO ter turma selecionada e só vê suas turmas
+        if is_professor:
+            if not class_id:
+                return {"error": "Professor deve selecionar uma turma", "restricted": True, "data": []}
+            if user_class_ids and class_id not in user_class_ids:
+                return {"error": "Acesso negado: turma não vinculada ao professor", "restricted": True, "data": []}
+        
+        # Staff da escola: só vê dados da sua escola
+        if is_school_staff:
+            if school_id and user_school_ids and school_id not in user_school_ids:
+                return {"error": "Acesso negado: escola não vinculada", "restricted": True, "data": []}
+            if not school_id and user_school_ids:
+                school_id = user_school_ids[0]  # Força filtro pela escola do usuário
+        
+        # ============================================
+        # FILTRO DE MATRÍCULAS
+        # ============================================
         enrollment_filter = {
             'academic_year': year_filter(academic_year),
             'status': {'$in': ['active', 'ativo', 'Ativo', None]}
@@ -1082,6 +1125,9 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         if class_id:
             enrollment_filter['class_id'] = class_id
+        elif is_professor and user_class_ids:
+            enrollment_filter['class_id'] = {'$in': user_class_ids}
+        
         if school_id:
             enrollment_filter['school_id'] = school_id
         elif not is_global and user_school_ids:
@@ -1094,7 +1140,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         ).to_list(None)
         
         if not enrollments:
-            return []
+            return {"data": [], "restricted": False}
         
         student_ids = [e['student_id'] for e in enrollments]
         enrollment_map = {e['student_id']: e for e in enrollments}
@@ -1114,12 +1160,22 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 'total_attendance': 0
             }
         
-        # Notas por aluno
+        # ============================================
+        # NOTAS - Com filtro por componente curricular para professor
+        # ============================================
+        grades_match = {
+            'student_id': {'$in': student_ids},
+            'academic_year': year_filter(academic_year)
+        }
+        
+        # Professor só vê notas dos componentes vinculados
+        if is_professor and user_subject_ids:
+            grades_match['subject_id'] = {'$in': user_subject_ids}
+        elif subject_id:
+            grades_match['subject_id'] = subject_id
+        
         grades_pipeline = [
-            {'$match': {
-                'student_id': {'$in': student_ids},
-                'academic_year': year_filter(academic_year)
-            }},
+            {'$match': grades_match},
             {'$group': {
                 '_id': '$student_id',
                 'avg_grade': {'$avg': '$grade'},
