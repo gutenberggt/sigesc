@@ -150,6 +150,8 @@ Sistema de pontuação de 0-100 pontos para ranking de escolas, baseado em indic
 - ✅ Breakdown por bloco (Aprendizagem | Permanência | Gestão)
 - ✅ Legenda explicativa dos indicadores
 - ✅ Tooltip com descrição de cada coluna
+- ✅ **Gráfico de Radar** comparando Top 5 escolas nos 3 blocos
+- ✅ **Barras de progresso** mostrando % de aproveitamento por bloco
 
 ### Arquivos Modificados:
 - `/app/backend/routers/analytics.py` - Endpoint `/schools/ranking` completamente reescrito
