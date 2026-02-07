@@ -163,6 +163,46 @@ Sistema de pontuação de 0-100 pontos para ranking de escolas, baseado em indic
   - Botão "Excel" no modal de drill-down (planilha detalhada da escola)
   - Botão "PDF" no modal de drill-down (relatório formatado com gráficos e tabelas)
 
+### Restrições de Acesso - LGPD (Fev 07, 2026):
+Sistema de controle de acesso por perfil para proteger dados sensíveis conforme LGPD.
+
+#### Matriz de Permissões:
+
+| Funcionalidade | Admin | SEMED | Diretor | Coord. | Secret. | Professor |
+|----------------|-------|-------|---------|--------|---------|-----------|
+| Ranking de Escolas | ✅ | ✅* | ❌ | ❌ | ❌ | ❌ |
+| Gráfico de Radar | ✅ | ✅* | ❌ | ❌ | ❌ | ❌ |
+| Drill-Down Escolas | ✅ | ✅* | ❌ | ❌ | ❌ | ❌ |
+| Desempenho Alunos (global) | ✅ | ✅* | ❌ | ❌ | ❌ | ❌ |
+| Desempenho Alunos (escola) | ✅ | ✅* | ✅ | ✅ | ✅ | ❌ |
+| Desempenho Alunos (turma) | ✅ | ✅* | ✅ | ✅ | ✅ | ✅** |
+
+*\* SEMED requer aceite do Termo de Responsabilidade (válido por 30 dias)*
+*\*\* Professor vê apenas suas turmas e componentes curriculares vinculados*
+
+#### Implementações:
+
+**Backend:**
+- ✅ Endpoint `/api/analytics/schools/ranking`: Restrito a Admin/SEMED
+- ✅ Endpoint `/api/analytics/students/performance`: Filtrado por perfil
+  - Professor: Obrigatório selecionar turma vinculada
+  - Staff escola: Filtrado pela escola vinculada
+- ✅ Endpoint `/api/analytics/semed/check-terms`: Verifica aceite do termo
+- ✅ Endpoint `/api/analytics/semed/accept-terms`: Registra aceite (30 dias)
+- ✅ Collection `user_terms`: Armazena aceites com data de expiração
+
+**Frontend:**
+- ✅ Variáveis de controle: `canViewRanking`, `canViewStudentData`, `isProfessor`, `isSchoolStaff`
+- ✅ Modal do Termo de Responsabilidade para SEMED com:
+  - Descrição dos dados acessíveis
+  - Compromissos LGPD
+  - Validade de 30 dias
+- ✅ Mensagens de restrição contextuais para cada perfil
+- ✅ Card "Desempenho dos Alunos" com estados:
+  - Professor sem turma: "Selecione uma turma"
+  - Sem permissão: "Acesso Restrito"
+  - Sem dados: "Nenhum dado disponível"
+
 ### Arquivos Modificados:
 - `/app/backend/routers/analytics.py` - Endpoint `/schools/ranking` completamente reescrito
 - `/app/frontend/src/pages/AnalyticsDashboard.jsx` - Nova tabela de ranking com Score V2.1
