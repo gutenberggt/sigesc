@@ -58,9 +58,9 @@ export const Layout = ({ children }) => {
               </div>
               
               {/* Brasão da Mantenedora */}
-              {mantenedora?.logotipo_url && (
+              {(mantenedora?.brasao_url || mantenedora?.logotipo_url) && (
                 <img
-                  src={mantenedora.logotipo_url}
+                  src={mantenedora?.brasao_url || mantenedora?.logotipo_url}
                   alt="Brasão"
                   className="h-10 w-auto object-contain"
                   onError={(e) => { e.target.style.display = 'none'; }}
