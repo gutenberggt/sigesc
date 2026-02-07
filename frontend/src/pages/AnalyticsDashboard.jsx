@@ -719,6 +719,169 @@ export function AnalyticsDashboard() {
           </Card>
         )}
         
+        {/* Gráfico de Radar - Comparativo de Escolas por Bloco */}
+        {isGlobal && !selectedSchool && schoolsRanking.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <RadarIcon className="h-5 w-5 text-indigo-600" />
+                Análise Comparativa por Bloco - Top {Math.min(5, schoolsRanking.length)} Escolas
+              </CardTitle>
+              <p className="text-xs text-gray-500 mt-1">
+                Visualização dos pontos fortes e fracos de cada escola nos 3 blocos do Score V2.1
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Gráfico de Radar Principal */}
+                <div>
+                  <ResponsiveContainer width="100%" height={350}>
+                    <RadarChart 
+                      data={[
+                        { 
+                          bloco: 'Aprendizagem', 
+                          maximo: 45,
+                          ...Object.fromEntries(
+                            schoolsRanking.slice(0, 5).map((s, i) => [`escola${i}`, s.score_aprendizagem || 0])
+                          )
+                        },
+                        { 
+                          bloco: 'Permanência', 
+                          maximo: 35,
+                          ...Object.fromEntries(
+                            schoolsRanking.slice(0, 5).map((s, i) => [`escola${i}`, s.score_permanencia || 0])
+                          )
+                        },
+                        { 
+                          bloco: 'Gestão', 
+                          maximo: 20,
+                          ...Object.fromEntries(
+                            schoolsRanking.slice(0, 5).map((s, i) => [`escola${i}`, s.score_gestao || 0])
+                          )
+                        }
+                      ]}
+                    >
+                      <PolarGrid stroke="#e5e7eb" />
+                      <PolarAngleAxis 
+                        dataKey="bloco" 
+                        tick={{ fontSize: 12, fill: '#374151' }}
+                      />
+                      <PolarRadiusAxis 
+                        angle={90} 
+                        domain={[0, 45]} 
+                        tick={{ fontSize: 10 }}
+                        tickCount={5}
+                      />
+                      {schoolsRanking.slice(0, 5).map((school, index) => (
+                        <Radar
+                          key={school.school_id}
+                          name={school.school_name.length > 20 ? school.school_name.substring(0, 20) + '...' : school.school_name}
+                          dataKey={`escola${index}`}
+                          stroke={CHART_COLORS[index]}
+                          fill={CHART_COLORS[index]}
+                          fillOpacity={0.15}
+                          strokeWidth={2}
+                        />
+                      ))}
+                      <Legend 
+                        wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+                      />
+                      <Tooltip 
+                        formatter={(value, name) => [`${value} pts`, name]}
+                        contentStyle={{ fontSize: '12px' }}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                {/* Resumo por Escola */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Resumo por Escola</h4>
+                  {schoolsRanking.slice(0, 5).map((school, index) => {
+                    const aprendPct = ((school.score_aprendizagem || 0) / 45 * 100).toFixed(0);
+                    const permanPct = ((school.score_permanencia || 0) / 35 * 100).toFixed(0);
+                    const gestaoPct = ((school.score_gestao || 0) / 20 * 100).toFixed(0);
+                    
+                    return (
+                      <div key={school.school_id} className="p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: CHART_COLORS[index] }}
+                          />
+                          <span className="font-medium text-sm text-gray-800 truncate">
+                            {school.school_name}
+                          </span>
+                          <span className="ml-auto text-sm font-bold text-blue-600">
+                            {school.score} pts
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div className="text-center">
+                            <div className="text-gray-500 mb-1">Aprendizagem</div>
+                            <div className="flex items-center justify-center gap-1">
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-blue-500 h-2 rounded-full transition-all"
+                                  style={{ width: `${aprendPct}%` }}
+                                />
+                              </div>
+                              <span className="text-gray-700 font-medium w-8">{aprendPct}%</span>
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-gray-500 mb-1">Permanência</div>
+                            <div className="flex items-center justify-center gap-1">
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-green-500 h-2 rounded-full transition-all"
+                                  style={{ width: `${permanPct}%` }}
+                                />
+                              </div>
+                              <span className="text-gray-700 font-medium w-8">{permanPct}%</span>
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-gray-500 mb-1">Gestão</div>
+                            <div className="flex items-center justify-center gap-1">
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-purple-500 h-2 rounded-full transition-all"
+                                  style={{ width: `${gestaoPct}%` }}
+                                />
+                              </div>
+                              <span className="text-gray-700 font-medium w-8">{gestaoPct}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Legenda dos Blocos */}
+                  <div className="mt-4 p-3 bg-indigo-50 rounded-lg text-xs">
+                    <div className="font-semibold text-indigo-800 mb-2">Máximo por Bloco:</div>
+                    <div className="grid grid-cols-3 gap-2 text-indigo-700">
+                      <div className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                        <span>Aprendizagem: 45 pts</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                        <span>Permanência: 35 pts</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                        <span>Gestão: 20 pts</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
         {/* Desempenho dos Alunos */}
         {studentsPerformance.length > 0 && (
           <Card>
