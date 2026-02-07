@@ -6,7 +6,8 @@ import { schoolsAPI, classesAPI, studentsAPI } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, AreaChart, Area
+  LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
 import {
   Home, TrendingUp, Users, GraduationCap, School, BookOpen,
