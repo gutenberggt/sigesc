@@ -158,6 +158,10 @@ Sistema de pontuação de 0-100 pontos para ranking de escolas, baseado em indic
   - Gráfico de evolução das notas por bimestre (AreaChart)
   - Indicador informativo de Distorção Idade-Série
   - Dados brutos (matrículas, aprovados, evasões, objetos de conhecimento)
+- ✅ **Exportação de Relatórios:**
+  - Botão "Exportar Ranking" no card de ranking (Excel com todas as escolas)
+  - Botão "Excel" no modal de drill-down (planilha detalhada da escola)
+  - Botão "PDF" no modal de drill-down (relatório formatado com gráficos e tabelas)
 
 ### Arquivos Modificados:
 - `/app/backend/routers/analytics.py` - Endpoint `/schools/ranking` completamente reescrito
