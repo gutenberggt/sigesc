@@ -495,7 +495,7 @@ def generate_boletim_pdf(
     
     # ===== CABEÇALHO =====
     # Usar logotipo da mantenedora se disponível
-    logo_url = mantenedora.get('logotipo_url')
+    logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
     logo = get_logo_image(width=2.7*cm, height=1.8*cm, logo_url=logo_url)
     
     # Usar dados da mantenedora
@@ -1084,7 +1084,7 @@ def generate_declaracao_matricula_pdf(
     mantenedora = mantenedora or {}
     
     # Usar logotipo da mantenedora se disponível
-    logo_url = mantenedora.get('logotipo_url')
+    logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
     logo = get_logo_image(width=3.75*cm, height=2.5*cm, logo_url=logo_url)
     if logo:
         logo_table = Table([[logo]], colWidths=[16*cm])
@@ -1203,7 +1203,7 @@ def generate_declaracao_frequencia_pdf(
     mantenedora = mantenedora or {}
     
     # Usar logotipo da mantenedora se disponível
-    logo_url = mantenedora.get('logotipo_url')
+    logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
     logo = get_logo_image(width=3.75*cm, height=2.5*cm, logo_url=logo_url)
     if logo:
         logo_table = Table([[logo]], colWidths=[16*cm])
@@ -1363,7 +1363,7 @@ def generate_ficha_individual_pdf(
     
     # ===== CABEÇALHO =====
     # Usar logotipo da mantenedora se disponível
-    logo_url = mantenedora.get('logotipo_url')
+    logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
     logo = get_logo_image(width=2.4*cm, height=1.6*cm, logo_url=logo_url)
     
     # Usar cidade/estado da mantenedora
@@ -2651,7 +2651,7 @@ def generate_livro_promocao_pdf(
     mant_estado = mantenedora.get('estado', 'PA')
     mant_nome = mantenedora.get('nome', f'Prefeitura Municipal de {mant_municipio}')
     slogan = mantenedora.get('slogan', '')
-    logo_url = mantenedora.get('logotipo_url')
+    logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
     logo = get_logo_image(width=2.4*cm, height=1.6*cm, logo_url=logo_url)
     
     # ===== DADOS DA TURMA =====
