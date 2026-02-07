@@ -61,6 +61,7 @@ export function AnalyticsDashboard() {
   const [schoolsRanking, setSchoolsRanking] = useState([]);
   const [studentsPerformance, setStudentsPerformance] = useState([]);
   const [gradesDistribution, setGradesDistribution] = useState([]);
+  const [selectedSchoolDetail, setSelectedSchoolDetail] = useState(null); // Para o modal de drill-down
   
   const isGlobal = ['admin', 'admin_teste', 'semed'].includes(user?.role);
   const userSchoolIds = useMemo(() => {
