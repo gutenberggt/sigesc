@@ -152,6 +152,12 @@ Sistema de pontuação de 0-100 pontos para ranking de escolas, baseado em indic
 - ✅ Tooltip com descrição de cada coluna
 - ✅ **Gráfico de Radar** comparando Top 5 escolas nos 3 blocos
 - ✅ **Barras de progresso** mostrando % de aproveitamento por bloco
+- ✅ **Modal de Drill-Down** com detalhamento completo ao clicar em uma escola:
+  - Resumo dos 3 blocos com pontuação e percentual
+  - Detalhamento dos 8 indicadores com contribuição individual
+  - Gráfico de evolução das notas por bimestre (AreaChart)
+  - Indicador informativo de Distorção Idade-Série
+  - Dados brutos (matrículas, aprovados, evasões, objetos de conhecimento)
 
 ### Arquivos Modificados:
 - `/app/backend/routers/analytics.py` - Endpoint `/schools/ranking` completamente reescrito
