@@ -112,10 +112,52 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - [ ] **Relatórios Gerenciais:** Criar relatórios para atestados médicos
 
 ## Última Atualização
-**Data:** 05 de Fevereiro de 2026
-**Funcionalidade:** Condições do Dashboard Analítico e Bloqueios de Edição para Professores
+**Data:** 07 de Fevereiro de 2026
+**Funcionalidade:** Score V2.1 - Novo Sistema de Ranking de Escolas
 
-### Implementado:
+### Score V2.1 - Implementado (Fev 07, 2026):
+Sistema de pontuação de 0-100 pontos para ranking de escolas, baseado em indicadores objetivos.
+
+#### Composição do Score (100 pontos):
+
+**BLOCO APRENDIZAGEM (45 pts):**
+- ✅ **Nota Média (25 pts):** `(média_final / 10) × 100`
+- ✅ **Taxa de Aprovação (10 pts):** `(aprovados / total_avaliados) × 100`
+- ✅ **Ganho/Evolução (10 pts):** `clamp(50 + delta×25, 0, 100)` - Mede evolução entre bimestres
+
+**BLOCO PERMANÊNCIA/FLUXO (35 pts):**
+- ✅ **Frequência Média (25 pts):** `(P + J) / total × 100`
+- ✅ **Retenção/Anti-evasão (10 pts):** `100 - (dropouts / matrículas) × 100`
+
+**BLOCO GESTÃO/PROCESSO (20 pts):**
+- ✅ **Cobertura Curricular (10 pts):** `(aulas_com_registro / aulas_previstas) × 100` (proxy)
+- ✅ **SLA Frequência - 3 dias úteis (5 pts):** `(lançamentos_no_prazo / total) × 100`
+- ✅ **SLA Notas - 7 dias (5 pts):** `(lançamentos_no_prazo / total) × 100`
+
+**INDICADOR INFORMATIVO (não entra no score):**
+- ✅ **Distorção Idade-Série:** % de alunos com 2+ anos acima da idade esperada para a série
+
+#### Endpoint Atualizado:
+- `GET /api/analytics/schools/ranking?academic_year=YYYY&limit=N&bimestre=B`
+  - Retorna: `score`, `score_aprendizagem`, `score_permanencia`, `score_gestao`
+  - Retorna: `indicators` com todos os indicadores detalhados
+  - Retorna: `raw_data` com dados brutos para auditoria
+  - Retorna: `grade_evolution` com médias bimestrais (b1, b2, b3, b4)
+
+#### Frontend Atualizado:
+- ✅ Tabela de ranking com todas as colunas de indicadores
+- ✅ Cores indicativas (verde/amarelo/vermelho) por faixa de desempenho
+- ✅ Breakdown por bloco (Aprendizagem | Permanência | Gestão)
+- ✅ Legenda explicativa dos indicadores
+- ✅ Tooltip com descrição de cada coluna
+
+### Arquivos Modificados:
+- `/app/backend/routers/analytics.py` - Endpoint `/schools/ranking` completamente reescrito
+- `/app/frontend/src/pages/AnalyticsDashboard.jsx` - Nova tabela de ranking com Score V2.1
+
+---
+
+### Implementações Anteriores (Fev 05, 2026):
 1. **Ordenação Alfabética**
    - ✅ Escolas, turmas e alunos ordenados alfabeticamente nos filtros do Dashboard Analítico
    
@@ -134,15 +176,6 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
    
 5. **Bloqueio de Alunos Falecidos**
    - ✅ Alunos com status "falecido/deceased" têm frequência e notas bloqueadas para professor
-
-### Arquivos Modificados:
-- `/app/frontend/src/pages/AnalyticsDashboard.jsx` - Ordenação alfabética
-- `/app/frontend/src/pages/Attendance.js` - Bloqueio de edição por status
-- `/app/frontend/src/pages/Grades.js` - Bloqueio de edição por status
-- `/app/backend/routers/attendance.py` - Retorna status do aluno
-- `/app/backend/routers/grades.py` - Retorna status do aluno
-- `/app/backend/routers/students.py` - Endpoint para copiar dados
-- `/app/frontend/src/pages/StudentsComplete.js` - Chama endpoint de cópia
 
 ## Arquitetura de Deploy
 
