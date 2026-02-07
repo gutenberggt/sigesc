@@ -29,8 +29,7 @@ export default function Mantenedora() {
     cnpj: '',
     codigo_inep: '',
     natureza_juridica: 'Pública Municipal',
-    logotipo_url: '',
-    brasao_url: '',  // URL do brasão
+    brasao_url: '',  // URL do brasão (usado em todos os lugares)
     slogan: '',  // Slogan para cabeçalhos dos documentos
     
     // Condicionais para aprovação
