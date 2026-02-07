@@ -1187,7 +1187,28 @@ export function AnalyticsDashboard() {
                     <p className="text-indigo-100 text-sm">Análise Detalhada do Score V2.1</p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="text-center">
+                    {/* Botões de Exportação */}
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => exportToExcel(selectedSchoolDetail, selectedYear)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 rounded-lg text-sm font-medium transition-colors"
+                        data-testid="export-excel-btn"
+                        title="Exportar para Excel"
+                      >
+                        <FileSpreadsheet className="h-4 w-4" />
+                        Excel
+                      </button>
+                      <button 
+                        onClick={() => exportToPDF(selectedSchoolDetail, selectedYear)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-lg text-sm font-medium transition-colors"
+                        data-testid="export-pdf-btn"
+                        title="Exportar para PDF"
+                      >
+                        <FileText className="h-4 w-4" />
+                        PDF
+                      </button>
+                    </div>
+                    <div className="text-center border-l border-white/30 pl-4">
                       <div className="text-3xl font-bold">{selectedSchoolDetail.score}</div>
                       <div className="text-xs text-indigo-200">Score Total</div>
                     </div>
