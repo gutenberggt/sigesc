@@ -905,10 +905,21 @@ export function AnalyticsDashboard() {
         {isGlobal && !selectedSchool && schoolsRanking.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Award className="h-5 w-5 text-amber-600" />
-                Ranking de Escolas - Score V2.1
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Award className="h-5 w-5 text-amber-600" />
+                  Ranking de Escolas - Score V2.1
+                </CardTitle>
+                <button 
+                  onClick={() => exportRankingToExcel(schoolsRanking, selectedYear)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  data-testid="export-ranking-excel-btn"
+                  title="Exportar Ranking para Excel"
+                >
+                  <Download className="h-4 w-4" />
+                  Exportar Ranking
+                </button>
+              </div>
               <div className="mt-2 p-3 bg-gray-50 rounded-lg">
                 <p className="text-xs text-gray-600 font-medium mb-2">Composição do Score (0-100 pontos):</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
