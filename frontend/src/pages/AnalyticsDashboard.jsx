@@ -32,6 +32,270 @@ const COLORS = {
 
 const CHART_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
+// ============================================
+// FUNÇÕES DE EXPORTAÇÃO
+// ============================================
+
+/**
+ * Exporta o relatório da escola para Excel
+ */
+const exportToExcel = (school, year) => {
+  const ind = school.indicators || {};
+  const raw = school.raw_data || {};
+  const evolution = school.grade_evolution || {};
+  
+  // Dados do resumo
+  const resumoData = [
+    ['RELATÓRIO DE DESEMPENHO ESCOLAR - SCORE V2.1'],
+    [''],
+    ['Escola:', school.school_name],
+    ['Ano Letivo:', year],
+    ['Data de Geração:', new Date().toLocaleDateString('pt-BR')],
+    [''],
+    ['SCORE TOTAL:', school.score, 'pontos'],
+    [''],
+    ['COMPOSIÇÃO POR BLOCO:'],
+    ['Bloco', 'Pontuação', 'Máximo', '% Aproveitamento'],
+    ['Aprendizagem', school.score_aprendizagem || 0, 45, `${((school.score_aprendizagem || 0) / 45 * 100).toFixed(1)}%`],
+    ['Permanência', school.score_permanencia || 0, 35, `${((school.score_permanencia || 0) / 35 * 100).toFixed(1)}%`],
+    ['Gestão', school.score_gestao || 0, 20, `${((school.score_gestao || 0) / 20 * 100).toFixed(1)}%`],
+  ];
+  
+  // Dados dos indicadores
+  const indicadoresData = [
+    [''],
+    ['DETALHAMENTO DOS INDICADORES:'],
+    ['Indicador', 'Valor', 'Peso (pts)', 'Contribuição (pts)'],
+    ['Nota Média', `${ind.nota_media || 0} / 10`, 25, ((ind.nota_100 || 0) * 0.25).toFixed(1)],
+    ['Taxa de Aprovação', `${ind.aprovacao_pct || 0}%`, 10, ((ind.aprovacao_pct || 0) * 0.10).toFixed(1)],
+    ['Evolução Bimestral', `${ind.ganho_100 || 50} / 100`, 10, ((ind.ganho_100 || 50) * 0.10).toFixed(1)],
+    ['Frequência Média', `${ind.frequencia_pct || 0}%`, 25, ((ind.frequencia_pct || 0) * 0.25).toFixed(1)],
+    ['Retenção (Anti-evasão)', `${ind.retencao_pct || 0}%`, 10, ((ind.retencao_pct || 0) * 0.10).toFixed(1)],
+    ['Cobertura Curricular', `${ind.cobertura_pct || 0}%`, 10, ((ind.cobertura_pct || 0) * 0.10).toFixed(1)],
+    ['SLA Frequência', `${ind.sla_frequencia_pct || 0}%`, 5, ((ind.sla_frequencia_pct || 0) * 0.05).toFixed(1)],
+    ['SLA Notas', `${ind.sla_notas_pct || 0}%`, 5, ((ind.sla_notas_pct || 0) * 0.05).toFixed(1)],
+    [''],
+    ['INDICADOR INFORMATIVO (não entra no score):'],
+    ['Distorção Idade-Série', `${ind.distorcao_idade_serie_pct || 0}%`],
+  ];
+  
+  // Dados de evolução
+  const evolucaoData = [
+    [''],
+    ['EVOLUÇÃO DAS NOTAS POR BIMESTRE:'],
+    ['Bimestre', 'Média', 'Variação'],
+    ['1º Bimestre', evolution.b1 || '-', '-'],
+    ['2º Bimestre', evolution.b2 || '-', evolution.b1 && evolution.b2 ? (evolution.b2 - evolution.b1).toFixed(2) : '-'],
+    ['3º Bimestre', evolution.b3 || '-', evolution.b2 && evolution.b3 ? (evolution.b3 - evolution.b2).toFixed(2) : '-'],
+    ['4º Bimestre', evolution.b4 || '-', evolution.b3 && evolution.b4 ? (evolution.b4 - evolution.b3).toFixed(2) : '-'],
+  ];
+  
+  // Dados brutos
+  const dadosBrutosData = [
+    [''],
+    ['DADOS BRUTOS:'],
+    ['Indicador', 'Valor'],
+    ['Matrículas Ativas', raw.enrollments_active || 0],
+    ['Matrículas Início do Ano', raw.enrollments_start || 0],
+    ['Alunos Aprovados', raw.approved_count || 0],
+    ['Alunos Avaliados', raw.evaluated_count || 0],
+    ['Evasões', raw.dropouts || 0],
+    ['Presenças Registradas', raw.attendance_present || 0],
+    ['Total Registros Frequência', raw.attendance_total || 0],
+    ['Objetos de Conhecimento', raw.learning_objects_count || 0],
+    ['Alunos com Distorção', raw.age_distortion_count || 0],
+  ];
+  
+  // Combinar todos os dados
+  const allData = [...resumoData, ...indicadoresData, ...evolucaoData, ...dadosBrutosData];
+  
+  // Criar workbook
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(allData);
+  
+  // Ajustar largura das colunas
+  ws['!cols'] = [
+    { wch: 25 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 18 },
+  ];
+  
+  XLSX.utils.book_append_sheet(wb, ws, 'Score V2.1');
+  
+  // Gerar arquivo
+  const fileName = `Score_${school.school_name.replace(/[^a-zA-Z0-9]/g, '_')}_${year}.xlsx`;
+  const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, fileName);
+};
+
+/**
+ * Exporta o relatório da escola para PDF
+ */
+const exportToPDF = (school, year) => {
+  const ind = school.indicators || {};
+  const raw = school.raw_data || {};
+  const evolution = school.grade_evolution || {};
+  
+  // Criar documento PDF
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  
+  // Cabeçalho
+  doc.setFillColor(79, 70, 229); // Indigo
+  doc.rect(0, 0, pageWidth, 35, 'F');
+  
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RELATÓRIO DE DESEMPENHO ESCOLAR', pageWidth / 2, 15, { align: 'center' });
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Score V2.1 - ${school.school_name}`, pageWidth / 2, 25, { align: 'center' });
+  doc.text(`Ano Letivo: ${year}`, pageWidth / 2, 32, { align: 'center' });
+  
+  // Score Total
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('SCORE TOTAL:', 14, 50);
+  
+  doc.setFontSize(28);
+  doc.setTextColor(59, 130, 246); // Blue
+  doc.text(`${school.score}`, 60, 50);
+  
+  doc.setFontSize(12);
+  doc.setTextColor(100, 100, 100);
+  doc.text('pontos', 85, 50);
+  
+  // Composição por Bloco
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('COMPOSIÇÃO POR BLOCO:', 14, 65);
+  
+  doc.autoTable({
+    startY: 70,
+    head: [['Bloco', 'Pontuação', 'Máximo', '% Aproveitamento']],
+    body: [
+      ['Aprendizagem', `${school.score_aprendizagem || 0}`, '45', `${((school.score_aprendizagem || 0) / 45 * 100).toFixed(1)}%`],
+      ['Permanência', `${school.score_permanencia || 0}`, '35', `${((school.score_permanencia || 0) / 35 * 100).toFixed(1)}%`],
+      ['Gestão', `${school.score_gestao || 0}`, '20', `${((school.score_gestao || 0) / 20 * 100).toFixed(1)}%`],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: [79, 70, 229], textColor: 255 },
+    styles: { fontSize: 10 },
+    columnStyles: {
+      0: { fontStyle: 'bold' },
+      1: { halign: 'center' },
+      2: { halign: 'center' },
+      3: { halign: 'center' },
+    },
+  });
+  
+  // Detalhamento dos Indicadores
+  let yPos = doc.lastAutoTable.finalY + 15;
+  doc.setFont('helvetica', 'bold');
+  doc.text('DETALHAMENTO DOS INDICADORES:', 14, yPos);
+  
+  doc.autoTable({
+    startY: yPos + 5,
+    head: [['Indicador', 'Valor', 'Peso', 'Contribuição']],
+    body: [
+      ['Nota Média', `${ind.nota_media || 0} / 10`, '25 pts', `${((ind.nota_100 || 0) * 0.25).toFixed(1)} pts`],
+      ['Taxa de Aprovação', `${ind.aprovacao_pct || 0}%`, '10 pts', `${((ind.aprovacao_pct || 0) * 0.10).toFixed(1)} pts`],
+      ['Evolução Bimestral', `${ind.ganho_100 || 50} / 100`, '10 pts', `${((ind.ganho_100 || 50) * 0.10).toFixed(1)} pts`],
+      ['Frequência Média', `${ind.frequencia_pct || 0}%`, '25 pts', `${((ind.frequencia_pct || 0) * 0.25).toFixed(1)} pts`],
+      ['Retenção', `${ind.retencao_pct || 0}%`, '10 pts', `${((ind.retencao_pct || 0) * 0.10).toFixed(1)} pts`],
+      ['Cobertura Curricular', `${ind.cobertura_pct || 0}%`, '10 pts', `${((ind.cobertura_pct || 0) * 0.10).toFixed(1)} pts`],
+      ['SLA Frequência', `${ind.sla_frequencia_pct || 0}%`, '5 pts', `${((ind.sla_frequencia_pct || 0) * 0.05).toFixed(1)} pts`],
+      ['SLA Notas', `${ind.sla_notas_pct || 0}%`, '5 pts', `${((ind.sla_notas_pct || 0) * 0.05).toFixed(1)} pts`],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+    styles: { fontSize: 9 },
+    columnStyles: {
+      1: { halign: 'center' },
+      2: { halign: 'center' },
+      3: { halign: 'center' },
+    },
+  });
+  
+  // Evolução por Bimestre
+  yPos = doc.lastAutoTable.finalY + 15;
+  doc.setFont('helvetica', 'bold');
+  doc.text('EVOLUÇÃO DAS NOTAS POR BIMESTRE:', 14, yPos);
+  
+  doc.autoTable({
+    startY: yPos + 5,
+    head: [['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre']],
+    body: [
+      [
+        evolution.b1 ? evolution.b1.toFixed(2) : '-',
+        evolution.b2 ? evolution.b2.toFixed(2) : '-',
+        evolution.b3 ? evolution.b3.toFixed(2) : '-',
+        evolution.b4 ? evolution.b4.toFixed(2) : '-',
+      ],
+    ],
+    theme: 'grid',
+    headStyles: { fillColor: [34, 197, 94], textColor: 255 },
+    styles: { fontSize: 11, halign: 'center' },
+  });
+  
+  // Indicador Informativo
+  yPos = doc.lastAutoTable.finalY + 15;
+  doc.setFillColor(255, 243, 205); // Amber light
+  doc.rect(14, yPos - 5, pageWidth - 28, 20, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(146, 64, 14); // Amber dark
+  doc.text('INDICADOR INFORMATIVO (não entra no score):', 18, yPos + 3);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Distorção Idade-Série: ${ind.distorcao_idade_serie_pct || 0}% dos alunos com 2+ anos acima da idade esperada`, 18, yPos + 11);
+  
+  // Dados Brutos
+  yPos = yPos + 25;
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DADOS BRUTOS:', 14, yPos);
+  
+  doc.autoTable({
+    startY: yPos + 5,
+    head: [['Indicador', 'Valor']],
+    body: [
+      ['Matrículas Ativas', raw.enrollments_active || 0],
+      ['Alunos Aprovados', raw.approved_count || 0],
+      ['Evasões', raw.dropouts || 0],
+      ['Objetos de Conhecimento', raw.learning_objects_count || 0],
+    ],
+    theme: 'striped',
+    headStyles: { fillColor: [107, 114, 128], textColor: 255 },
+    styles: { fontSize: 10 },
+    columnStyles: {
+      1: { halign: 'center' },
+    },
+  });
+  
+  // Rodapé
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(
+      `SIGESC - Sistema de Gestão Escolar | Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`,
+      pageWidth / 2,
+      doc.internal.pageSize.getHeight() - 10,
+      { align: 'center' }
+    );
+  }
+  
+  // Salvar PDF
+  const fileName = `Score_${school.school_name.replace(/[^a-zA-Z0-9]/g, '_')}_${year}.pdf`;
+  doc.save(fileName);
+};
+
 export function AnalyticsDashboard() {
   const navigate = useNavigate();
   const { user, accessToken } = useAuth();
