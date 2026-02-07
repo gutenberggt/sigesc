@@ -381,10 +381,29 @@ export function AnalyticsDashboard() {
   const [studentsPerformance, setStudentsPerformance] = useState([]);
   const [gradesDistribution, setGradesDistribution] = useState([]);
   const [selectedSchoolDetail, setSelectedSchoolDetail] = useState(null); // Para o modal de drill-down
+  const [showSemedTerms, setShowSemedTerms] = useState(false); // Modal do termo SEMED
+  const [semedTermsAccepted, setSemedTermsAccepted] = useState(false); // Status do termo
+  const [performanceRestricted, setPerformanceRestricted] = useState(false); // Restrição de dados de alunos
   
-  const isGlobal = ['admin', 'admin_teste', 'semed'].includes(user?.role);
+  const userRole = (user?.role || '').toLowerCase();
+  const isAdmin = ['admin', 'admin_teste'].includes(userRole);
+  const isSemed = userRole === 'semed';
+  const isGlobal = isAdmin || isSemed;
+  const isSchoolStaff = ['diretor', 'coordenador', 'secretario', 'secretário'].includes(userRole);
+  const isProfessor = userRole === 'professor';
+  
+  // Determina se pode ver ranking (apenas admin/semed)
+  const canViewRanking = isAdmin || (isSemed && semedTermsAccepted);
+  
+  // Determina se pode ver dados de alunos
+  const canViewStudentData = isGlobal || isSchoolStaff || isProfessor;
+  
   const userSchoolIds = useMemo(() => {
     return user?.school_ids || user?.school_links?.map(link => link.school_id) || [];
+  }, [user]);
+  
+  const userClassIds = useMemo(() => {
+    return user?.class_ids || user?.class_links?.map(link => link.class_id) || [];
   }, [user]);
   
   const years = useMemo(() => {
