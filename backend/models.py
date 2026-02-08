@@ -117,6 +117,7 @@ class UserProfileBase(BaseModel):
     linkedin_url: Optional[str] = None
     facebook_url: Optional[str] = None
     instagram_url: Optional[str] = None
+    tiktok_url: Optional[str] = None  # TikTok
     whatsapp: Optional[str] = None  # Número do WhatsApp
     
     # Foto de capa e avatar
