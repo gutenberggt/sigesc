@@ -145,6 +145,7 @@ class UserProfileUpdate(BaseModel):
     linkedin_url: Optional[str] = None
     facebook_url: Optional[str] = None
     instagram_url: Optional[str] = None
+    tiktok_url: Optional[str] = None  # TikTok
     whatsapp: Optional[str] = None
     foto_capa_url: Optional[str] = None
     foto_url: Optional[str] = None
