@@ -11,7 +11,7 @@ import {
   Home, User, Edit, Plus, Trash2, MapPin, Phone, Mail, Globe, Linkedin,
   Briefcase, GraduationCap, Award, Star, Camera, Lock, Unlock, Save, X,
   Calendar, Building2, CheckCircle, AlertCircle, Search, Facebook, Instagram,
-  MessageCircle, Upload, UserPlus, UserCheck, Clock, Users
+  MessageCircle, Upload, UserPlus, UserCheck, Clock, Users, Music2
 } from 'lucide-react';
 
 // Mapa de roles para exibição
