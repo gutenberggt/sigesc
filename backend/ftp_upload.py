@@ -31,8 +31,8 @@ FILE_TYPE_FOLDERS = {
     "cover": "capa",        # Fotos de capa
     "document": "doc",      # Documentos (PDFs, etc.)
     "laudo": "doc",         # Laudos médicos
-    "logotipo": "logotipo", # Logotipos (mantenedora, escolas)
-    "brasao": "brasao",     # Brasões
+    "logotipo": "user",     # Logotipos (mantenedora, escolas) - salvo em /user
+    "brasao": "user",       # Brasões - salvo em /user
     "default": "user"       # Padrão
 }
 
