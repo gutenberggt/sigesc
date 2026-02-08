@@ -786,6 +786,17 @@ export const UserProfile = () => {
                     Instagram
                   </a>
                 )}
+                {profile.tiktok_url && (
+                  <a 
+                    href={profile.tiktok_url.startsWith('http') ? profile.tiktok_url : `https://tiktok.com/@${profile.tiktok_url.replace('@', '')}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-gray-900 hover:bg-gray-800 rounded-full text-white text-sm transition-colors"
+                  >
+                    <Music2 size={14} />
+                    TikTok
+                  </a>
+                )}
                 {profile.whatsapp && (
                   <a 
                     href={getWhatsAppLink(profile.whatsapp)} 
