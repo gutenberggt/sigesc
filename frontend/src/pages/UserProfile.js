@@ -1265,6 +1265,18 @@ export const UserProfile = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <Music2 size={14} className="text-gray-800" /> TikTok
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.tiktok_url || ''}
+                    onChange={(e) => setEditData({ ...editData, tiktok_url: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="@seutiktok"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
                     <MessageCircle size={14} className="text-green-600" /> WhatsApp
                   </label>
                   <input
