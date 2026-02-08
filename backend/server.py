@@ -241,6 +241,28 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Endpoint de diagnóstico FTP (temporário - remover após debug)
+@api_router.get("/debug/ftp-config")
+async def debug_ftp_config(request: Request):
+    """Endpoint temporário para verificar configuração FTP em produção"""
+    from ftp_upload import get_ftp_config
+    config = get_ftp_config()
+    return {
+        "ftp_host": config["host"] if config["host"] else "NÃO CONFIGURADO",
+        "ftp_port": config["port"],
+        "ftp_user": config["user"] if config["user"] else "NÃO CONFIGURADO",
+        "ftp_password": "***" if config["password"] else "NÃO CONFIGURADO",
+        "ftp_base_path": config["base_path"],
+        "ftp_base_url": config["base_url"],
+        "env_vars_found": {
+            "FTP_HOST": bool(os.environ.get("FTP_HOST")),
+            "FTP_USER": bool(os.environ.get("FTP_USER")),
+            "FTP_PASSWORD": bool(os.environ.get("FTP_PASSWORD")),
+            "FTP_BASE_PATH": bool(os.environ.get("FTP_BASE_PATH")),
+            "FTP_BASE_URL": bool(os.environ.get("FTP_BASE_URL")),
+        }
+    }
+
 # Helper para obter o banco de dados correto (produção ou sandbox)
 def get_db_for_user(user: dict):
     """Retorna o banco de dados correto baseado no usuário"""
