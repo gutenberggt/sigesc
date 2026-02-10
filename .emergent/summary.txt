@@ -1,88 +1,56 @@
 <analysis>**original_problem_statement:**
-O usuário iniciou a sessão para resolver um problema crítico de deploy e, ao longo da sessão, solicitou uma vasta gama de funcionalidades e correções, incluindo:
-- Resolver problemas de Gateway Timeout em produção após o .
-- Corrigir inconsistências de dados do cache offline.
-- Implementar suporte para turmas multisseriadas, permitindo que uma turma tenha várias séries e que a matrícula do aluno especifique a série.
-- Melhorar o Dashboard Analítico com filtros condicionais e lógicas de pontuação para ranking de escolas.
-- Implementar um sistema de múltiplos papéis para usuários, permitindo que um usuário tenha até 3 papéis e possa alternar entre eles.
-- Implementar regras de negócio específicas para o bloqueio de edição de dados de alunos por professores com base em status como Transferido, Remanejado, Progredido e Falecido.
-- Implementar a cópia de dados (notas e frequência) quando um aluno é remanejado ou progredido.
-- Corrigir bugs de acesso para o perfil Secretário.
-- Fornecer múltiplos scripts Current Mongosh Log ID:	69865676c0d85408cc284d0b
-Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
-Using MongoDB:		7.0.29
-Using Mongosh:		2.6.0
-
-For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
-
-------
-   The server generated these startup warnings when booting
-   2026-02-06T21:00:31.702+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-06T21:00:32.756+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-06T21:00:32.756+00:00: You are running this process as the root user, which is not recommended
-   2026-02-06T21:00:32.756+00:00: Soft rlimits for open file descriptors too low
-------
-
-test>  para manipulação de dados em lote no servidor de produção.
-- **Solicitação Atual:** Corrigir um bug crítico no upload do logotipo da Unidade Mantenedora no ambiente de produção.
+O usuário iniciou a sessão para resolver um problema crítico de deploy, mas o escopo se expandiu para incluir uma vasta gama de funcionalidades, correções e melhorias, sendo as principais:
+- **Resolução de Bugs Críticos:** Corrigir uma falha no upload de imagens (logotipo) em produção, que foi posteriormente simplificado para usar apenas o Brasão, e diagnosticar a causa raiz como sendo a falta de variáveis de ambiente FTP no container de produção.
+- **Melhoria do Dashboard Analítico:** Implementar um sistema de pontuação avançado (Score V2.1) para o ranking de escolas, com múltiplos indicadores de aprendizagem, permanência e gestão.
+- **Visualização de Dados:** Adicionar um gráfico de radar para análise comparativa dos blocos do score e um modal de drill-down para detalhar os indicadores de cada escola.
+- **Funcionalidade de Exportação:** Permitir a exportação de relatórios (ranking geral e detalhes da escola) para PDF e Excel.
+- **Segurança e LGPD:** Implementar regras de controle de acesso rigorosas no Dashboard Analítico para restringir a visualização de dados sensíveis (nomes e notas de alunos) com base no papel do usuário (Admin, SEMED, Diretor, Professor).
+- **Correções de Bugs:**
+    - O telefone do aluno não era salvo ao editar o perfil.
+    - Nomes dos alunos não apareciam no relatório de frequência.
+    - O campo TikTok não era salvo no perfil do usuário.
+- **Solicitação Atual:** Na seção Auditoria, exibir o nome do usuário em vez do e-mail, para melhorar a legibilidade.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-A aplicação full-stack (React + FastAPI + MongoDB) está funcional, apontando para o banco de dados de produção . As principais funcionalidades implementadas nesta sessão são:
-- **Turmas Multisseriadas:** O sistema agora suporta a criação de turmas com múltiplas séries e a matrícula de alunos em uma série específica dentro dessas turmas.
-- **Relatório de Turma:** A visualização de detalhes da turma agora inclui uma distribuição de quantos alunos estão em cada série.
-- **Dashboard Analítico Aprimorado:** Os filtros foram aprimorados para que as turmas sejam filtradas por escola e ano letivo. Foi implementada uma lógica de pontuação (Score) para o ranking de escolas.
-- **Sistema de Múltiplos Papéis:** Usuários agora podem ter múltiplos papéis. A interface do Dashboard foi atualizada para permitir a troca de papel ativo se o usuário tiver mais de um.
-- **Lógicas de Bloqueio:** As páginas de Frequência e Notas agora bloqueiam a edição para professores com base no status do aluno (transferido, falecido, etc.), conforme as regras de negócio.
-- **Cópia de Dados:** Foi criado um endpoint de backend que copia as notas e a frequência de um aluno ao ser remanejado ou progredido.
-- O roteamento da aplicação foi alterado para que a página de login seja a página inicial ().
-
-No entanto, há um problema crítico e não resolvido com o upload de imagens em produção.
+A aplicação full-stack (React + FastAPI + MongoDB) está funcional. As principais funcionalidades implementadas e corrigidas nesta sessão incluem:
+- **Score de Escolas (V2.1):** Um novo endpoint de backend () e uma interface de frontend () foram criados para calcular e exibir um ranking detalhado de escolas com base em 8 indicadores.
+- **Visualização de Dados:** O dashboard agora possui um gráfico de radar para comparar os blocos de desempenho das escolas e um modal de drill-down para análise aprofundada.
+- **Exportação de Relatórios:** Funcionalidades para exportar o ranking e os detalhes da escola para PDF e Excel foram adicionadas.
+- **Controle de Acesso (LGPD):** Foram implementadas regras rigorosas de acesso ao dashboard. Perfis como  e  têm visão global (após aceitar um termo de responsabilidade), enquanto outros (Diretor, Professor) têm a visão restrita à sua própria escola ou turma, protegendo dados sensíveis dos alunos.
+- **Unificação de Brasão/Logotipo:** O Logotipo foi removido da aplicação para simplificar a gestão de imagens e resolver um bug de upload. A aplicação agora usa exclusivamente o Brasão, cujo upload foi corrigido.
+- **Correções de Backend:** Foram corrigidos os modelos de dados para permitir salvar o telefone do aluno e o link do TikTok do usuário. O endpoint do relatório de frequência foi ajustado para retornar os dados no formato esperado pelo frontend.
 
 **Last working item**:
--   **Last item agent was working:** Depuração de um bug crítico no upload de imagens (logotipo da Mantenedora) que ocorre exclusivamente no ambiente de produção. O agente e o usuário descobriram, através de uma longa sessão de depuração via , que o problema raiz é a ausência de variáveis de ambiente de FTP no container do backend. O arquivo  não é persistente entre reinicializações do container no Coolify.
--   **Status:** BLOCKED
+-   **Last item agent was working:** O agente estava prestes a iniciar a implementação da solicitação do usuário para substituir os e-mails pelos nomes completos dos usuários na página de Auditoria, a fim de tornar os logs mais legíveis.
+-   **Status:** NOT STARTED
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** O próximo agente deve guiar o usuário para aplicar a solução permanente, que é configurar as variáveis de ambiente diretamente no painel do Coolify, pois o agente não tem acesso para fazer isso. A depuração continuará a ser feita via comandos  executados pelo usuário.
--   **User Testing Done:** N (O usuário está no meio do processo de depuração e precisa aplicar a solução permanente).
+-   **Which testing method agent to use?** Frontend testing agent. O agente deve verificar se, após a alteração, a interface da página de Auditoria exibe corretamente os nomes dos usuários em vez dos e-mails.
+-   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Upload de Imagem (FTP) Falhando em Produção**
-    -   **Description:** O upload de imagens falha em produção porque as variáveis de ambiente de FTP (, , etc.) não estão sendo carregadas no container do backend. O código foi corrigido para carregar as variáveis dinamicamente, mas o ambiente de produção não possui o arquivo  configurado de forma persistente.
-    -   **Attempted fixes:**
-        1.  Adição manual de um arquivo  dentro do container via . Funcionou, mas o arquivo foi perdido após o reinício do container.
-        2.  Correção do código em  para carregar as variáveis de ambiente dinamicamente usando  e . Este código corrigido precisa ser implantado (deploy) ou copiado manualmente para o container.
-        3.  Tentativa de reiniciar o serviço  dentro do container para recarregar o  sem reiniciar o container, mas o comando  não estava disponível.
-    -   **Next debug checklist:**
-        1.  Instruir o usuário, de forma clara e com passo-a-passo, a adicionar as variáveis de ambiente de FTP (, , , , ) na seção Environment Variables do serviço de backend no painel do **Coolify**.
-        2.  Instruir o usuário a fazer **Redeploy** do serviço de backend através do Coolify para que as variáveis sejam aplicadas permanentemente.
-        3.  Após o redeploy, pedir para o usuário testar o upload do logotipo novamente pela interface.
-        4.  Se o problema persistir, verificar o valor do campo  no banco de dados para garantir que não está mais salvando uma URL local ().
-    -   **Why fix this issue and what will be achieved with the fix?** É um bug crítico que impede a personalização da aplicação com o logotipo da mantenedora. A correção restaurará a funcionalidade de upload.
-    -   **Status:** BLOCKED
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** both (verificar se o upload funciona no backend e se a imagem aparece no frontend).
-
+-   **Issue 1: (P0) Unificar exibição de usuário na Auditoria**
+    -   **Description:** A página de Auditoria exibe os e-mails dos usuários em vez de seus nomes, dificultando a identificação. A tarefa é alterar para exibir o nome completo.
+    -   **Status:** NOT STARTED
 -   **Issue 2: (P0) Processo de Deploy em Produção Quebrado**
-    -   **Description:** Conforme o handoff anterior, após cada  no Coolify, a aplicação fica inacessível (Gateway Timeout), exigindo reconexão manual dos containers Docker.
+    -   **Description:** Um problema crítico herdado de forks anteriores. Após cada  no Coolify, a aplicação fica inacessível (Gateway Timeout), exigindo intervenção manual.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
-
--   **Issue 3: (P1) Inconsistência de Dados e Cache Offline**
-    -   **Description:** Conflitos entre dados do servidor e do cache local (IndexedDB) podem causar inconsistências.
+-   **Issue 3: (P0) Variáveis de Ambiente FTP não são persistentes em produção**
+    -   **Description:** A correção para o upload de imagens (adicionar  e  via ) é temporária e será perdida no próximo deploy. O agente adicionou valores padrão no código como um paliativo, mas isso precisa ser validado em produção.
+    -   **Status:** USER VERIFICATION PENDING
+    -   **Is recurring issue?** Y
+-   **Issue 4: (P1) Inconsistência de Dados e Cache Offline**
+    -   **Description:** Um problema antigo sobre conflitos entre dados do servidor e o cache local (IndexedDB) que pode causar inconsistências.
     -   **Status:** NOT STARTED
-
--   **Issue 4: (P1) Inconsistência na Exclusão do Histórico do Aluno**
-    -   **Description:** Uma tentativa anterior de limpar o histórico de alunos falhou. A depuração foi pausada.
-    -   **Status:** BLOCKED (Aguardando ação do usuário).
 
 **In progress Task List**:
 -   Nenhum.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   (P1) **Confirmar Migração de Status de Alunos:** Verificar com o usuário se o comando Current Mongosh Log ID:	6986567725109445d4284d0b
+    -   (P1) **Confirmar Migração de Status de Alunos:** Verificar com o usuário se o comando Current Mongosh Log ID:	698b8dcb83d9a5e6cf284d0b
 Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
 Using MongoDB:		7.0.29
 Using Mongosh:		2.6.0
@@ -91,128 +59,3648 @@ For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
 
 ------
    The server generated these startup warnings when booting
-   2026-02-06T21:00:31.702+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-02-06T21:00:32.756+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-02-06T21:00:32.756+00:00: You are running this process as the root user, which is not recommended
-   2026-02-06T21:00:32.756+00:00: Soft rlimits for open file descriptors too low
+   2026-02-10T19:57:57.169+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
+   2026-02-10T19:57:59.549+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+   2026-02-10T19:57:59.549+00:00: You are running this process as the root user, which is not recommended
+   2026-02-10T19:57:59.549+00:00: Soft rlimits for open file descriptors too low
 ------
 
-test>  para mudar alunos de Transferido para Inativo foi executado em produção e se o Dashboard Analítico reflete a contagem correta.
-    -   (P1) **Refatoração do Backend (FASE 4):** Continuar extraindo as rotas restantes do  e implementar completamente o padrão App Factory.
+test>  para mudar alunos de Transferido para Inativo foi executado em produção.
+    -   (P1) **Refatoração do Backend (FASE 4):** Continuar extraindo rotas do  e implementar completamente o padrão App Factory.
     -   (P1) **Melhoria Pré-Matrícula:** Enviar um email de confirmação para o responsável.
-    -   (P1) **Melhoria na Lista de Alunos:** Implementar o destaque do aluno recém-criado na lista.
 -   **Future Tasks:**
-    -   (P2) Refatoração do Frontend: Simplificar o componente .
+    -   (P2) Refatoração do Frontend: Simplificar o componente monolítico .
     -   (P2) Expansão Offline: Estender a funcionalidade offline para o módulo de matrículas.
-    -   (P2) Padronização de Erros: Aplicar o utilitário  em todos os componentes.
     -   (P3) Limpeza de Código: Remover o arquivo obsoleto .
 
 **Completed work in this session**
-- **Funcionalidade de Turmas Multisseriadas:** Implementado o fluxo completo no backend e frontend.
-- **Relatório de Distribuição por Série:** Adicionado ao modal de detalhes da turma.
-- **Aprimoramento do Dashboard Analítico:** Implementados filtros condicionais (turmas por ano e escola) e zerado o ano de 2025 no gráfico de evolução.
-- **Lógica de Score para Ranking de Escolas:** Definida e implementada uma nova lógica de pontuação no backend e adicionado um tooltip explicativo no frontend.
-- **Ordenação Alfabética:** Aplicada em todas as listas de escolas, turmas e alunos.
-- **Sistema de Múltiplos Papéis:** Usuários agora podem ter até 3 papéis, com um seletor no dashboard para alternar entre eles.
-- **Regras de Negócio e Bloqueios:** Implementado o bloqueio de edição de notas e frequência para professores com base no status do aluno (transferido, falecido, etc.).
-- **Cópia de Dados (Remanejamento/Progressão):** Criado endpoint e lógica no frontend para copiar dados de notas e frequência quando um aluno muda de turma.
-- **Correção de Acesso:** Corrigido o erro que impedia o perfil Secretário de acessar a página de gerenciamento de usuários.
-- **Correção de Contagem de Escolas:** Ajustado para exibir apenas escolas ativas nos dashboards.
-- **Alteração de Rota Padrão:** A página inicial da aplicação agora é a tela de login.
-- **Correção de Código FTP:** O arquivo  foi refatorado para carregar as variáveis de ambiente dinamicamente, resolvendo um bug de escopo.
+- **Implementação do Score de Escolas (V2.1):** Sistema de pontuação com múltiplos indicadores, backend e frontend. (, )
+- **Visualizações de Dados Avançadas:** Adição de Gráfico de Radar e modal de drill-down no dashboard. ()
+- **Exportação de Relatórios (PDF/Excel):** Implementada no dashboard analítico. ()
+- **Implementação de Restrições de Acesso (LGPD):** Controle de acesso baseado em papéis para proteger dados sensíveis. (, )
+- **Simplificação e Correção do Upload de Imagem:** Logotipo foi removido; a aplicação agora usa apenas Brasão, e o problema de upload em produção foi diagnosticado e corrigido temporariamente. (, )
+- **Adição do TikTok ao Perfil:** Campo adicionado no frontend e backend. (, )
+- **Correção no Cadastro de Alunos:** O campo telefone do aluno agora é salvo corretamente. ()
+- **Correção no Relatório de Frequência:** Os nomes dos alunos agora são exibidos corretamente. ()
 
 **Earlier issues found/mentioned but not fixed**
--   **Issue 1: Processo de Deploy em Produção Quebrado (Gateway Timeout):** Herdado do fork anterior, permanece sem solução.
--   **Issue 2: Inconsistência de Dados e Cache Offline:** Herdado do fork anterior, permanece sem solução.
+-   **Issue 1: Processo de Deploy em Produção Quebrado (Gateway Timeout):** Herdado de forks anteriores, permanece sem solução e é de criticidade alta.
+-   **Issue 2: Inconsistência de Dados e Cache Offline:** Herdado de forks anteriores, permanece sem solução.
 
 **Known issue recurrence from previous fork**
 -   **Falha de deploy em produção:** O problema de Gateway Timeout continua ocorrendo a cada .
--   **Recurrence count:** 3
+-   **Recurrence count:** >3
 -   **Status:** NOT STARTED
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Depuração em Produção:** Uso intensivo de  e análise de logs para diagnosticar problemas de ambiente (DNS, variáveis de ambiente).
--   **Gerenciamento de Ambiente Docker:** Entendimento da natureza efêmera dos arquivos de container e da necessidade de configurar variáveis de ambiente através da orquestração (Coolify).
--   **Python/FastAPI:** Refatoração de código para carregamento dinâmico de configurações (), criação de endpoints para ações complexas (), modificação de queries de agregação e permissões de rota.
--   **React:** Gerenciamento de estado complexo com  e , atualização do  para suportar múltiplos papéis e troca de contexto, renderização condicional avançada para lógicas de negócio (bloqueio de UI).
--   **FTP:** Integração e depuração de upload de arquivos via FTP em Python.
+- **FastAPI & Pydantic:** Uso de modelos Pydantic para validação e lógica de negócio no backend.
+- **React & Context API:** Gerenciamento de estado global e de componentes.
+- **MongoDB Aggregation:** Criação de pipelines de agregação complexos para calcular os indicadores do Score V2.1.
+- **Role-Based Access Control (RBAC):** Implementação de lógica de permissão em endpoints de backend e componentes de frontend para conformidade com a LGPD.
+- **Data Visualization (Recharts):** Uso da biblioteca para criar gráficos interativos (RadarChart).
+- **Client-Side File Generation:** Uso de  e  para criar relatórios em PDF e Excel no navegador.
+- **Production Debugging (Docker/Coolify):** Diagnóstico de problemas de ambiente em produção, especificamente a falha do Coolify em propagar variáveis de ambiente para containers Docker.
 
 **key DB schema**
--   **classes:** Campo  (string) foi complementado por  e .
--   **enrollments:** Adicionado  para registrar a série do aluno em turmas multisseriadas. Adicionado  e .
--   **users:** Campo  agora representa o papel ativo. Adicionado  para armazenar todos os papéis do usuário.
+-   **users:** Adicionado  e  para rastrear a aceitação dos termos de privacidade de dados.
+-   **students:** Adicionado  nos modelos  e  para permitir o salvamento do telefone do aluno.
 
 **changes in tech stack**
--   Nenhuma nova biblioteca foi adicionada.
+-   **Frontend:** Adicionadas as bibliotecas ,  e  para a funcionalidade de exportação de relatórios.
 
 **All files of reference**
--   : Arquivo central do bug de upload, foi refatorado.
--   : Implementação do backend para múltiplos papéis.
--   : Implementação do frontend para múltiplos papéis.
--   : Lógica de autenticação e troca de papel.
--   : Interface para troca de papel.
--   : Página onde o bug de upload se manifesta.
--   : Arquivo crítico que está causando o problema em produção por não ser persistente.
+-   : Componente central das novas funcionalidades de dashboard, score, gráficos e LGPD.
+-   : Endpoint principal para o cálculo do score e controle de acesso.
+-   : Arquivo de modelos de dados, modificado para adicionar novos campos (, ).
+-   : Componente modificado para remover a funcionalidade de upload do logotipo.
+-   : Arquivo modificado com valores padrão para contornar o problema das variáveis de ambiente em produção.
+-   : Componente modificado para adicionar o campo TikTok.
+-   : Corrigido para retornar os dados do relatório de frequência no formato esperado.
+-   : Documento de requisitos, atualizado extensivamente.
 
 **Areas that need refactoring**:
--   **Processo de Deploy (URGENTE):** A solução manual para o Gateway Timeout e a necessidade de configurar variáveis manualmente indicam um problema fundamental no setup de deploy do Coolify.
--   : Continua sendo um componente monolítico e complexo.
--   : A extração de rotas para arquivos dedicados precisa ser concluída.
+-   **Processo de Deploy (URGENTE):** O problema de Gateway Timeout após o  precisa ser investigado e resolvido, pois afeta a estabilidade da produção.
+-   **Gestão de Configuração em Produção:** A falha do Coolify em propagar variáveis de ambiente é um risco. Uma solução robusta, em vez de paliativos no código, deve ser buscada.
+-   : A extração de rotas para arquivos dedicados precisa ser concluída para melhorar a organização do backend.
+-   Remover o endpoint de diagnóstico temporário  do arquivo .
 
 **key api endpoints**
--   : Novo endpoint para trocar o papel ativo do usuário.
--   : Novo endpoint para copiar dados de frequência/notas durante remanejamento/progressão.
--   : Endpoint para salvar os dados da mantenedora, incluindo a URL do logotipo.
--   : Endpoint de upload de arquivos, que está falhando em produção.
--   : Endpoint modificado com a nova lógica de score.
+-   : Novo endpoint para o Score V2.1, que é a fonte de dados do ranking.
+-   : Endpoint para desempenho de alunos, agora com forte controle de acesso (RBAC).
+-    e : Endpoints para gerenciar o termo de responsabilidade de dados.
+-   : Rota de atualização de aluno, agora funcionando para o campo .
+-   : Endpoint do relatório de frequência, agora com a resposta corrigida.
+-   : Rota de atualização de perfil, agora aceitando o campo .
 
 **Critical Info for New Agent**
--   **O problema é o AMBIENTE, não o CÓDIGO:** O bug do FTP está corrigido no código do agente, mas não em produção. O foco deve ser guiar o usuário a aplicar a **solução permanente**: configurar as variáveis de ambiente no **Coolify**. Não tente mais corrigir o código , pois ele já está correto.
--   **Produção é Frágil:** O container do backend perde as alterações de arquivos () a cada reinício. A única maneira de fazer mudanças persistentes é através do Coolify (variáveis de ambiente, redeploy).
--   **Seja o Guia do Usuário:** Você não pode executar comandos no servidor de produção. Sua tarefa é fornecer comandos claros e seguros para o usuário executar e interpretar os resultados que ele te envia.
--   **Credenciais de Teste:**  / .
+-   **Foco na Tarefa Atual:** A próxima tarefa é modificar a página de Auditoria para exibir nomes de usuário em vez de e-mails. Você precisará localizar o componente/página, a API correspondente e, provavelmente, enriquecer a resposta da API com os nomes dos usuários.
+-   **Ambiente de Produção Instável:** Esteja ciente de que o ambiente de produção no Coolify é frágil. A configuração de variáveis de ambiente não é confiável e o processo de  quebra a aplicação (Gateway Timeout). Planeje as soluções de código para serem o mais independentes possível da configuração do ambiente.
+-   **O Usuário é seu Terminal de Produção:** Você não tem acesso direto ao servidor de produção. Todos os comandos  ou Current Mongosh Log ID:	698b8dcd5688ecc79c284d0b
+Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.6.0
+Using MongoDB:		7.0.29
+Using Mongosh:		2.6.0
+
+For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
+
+------
+   The server generated these startup warnings when booting
+   2026-02-10T19:57:57.169+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
+   2026-02-10T19:57:59.549+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+   2026-02-10T19:57:59.549+00:00: You are running this process as the root user, which is not recommended
+   2026-02-10T19:57:59.549+00:00: Soft rlimits for open file descriptors too low
+------
+
+test>  devem ser fornecidos de forma clara e precisa para que o usuário os execute.
+-   **LGPD e RBAC:** As regras de acesso implementadas no Dashboard Analítico são um requisito crítico. Qualquer modificação nessa área deve ser feita com extremo cuidado para não expor dados sensíveis.
 
 **documents and test reports created in this job**
--   
--    (atualizado múltiplas vezes)
+-   : Foi atualizado extensivamente com as novas funcionalidades, regras de negócio e status dos bugs.
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Pergunta como configurar as variáveis no Coolify. (Status: **PENDING RESPONSE**)
-2.  **User:** Reporta que o comando  não foi encontrado no container. (Status: RESOLVED, agente propôs alternativa)
-3.  **User:** Reporta que o comando  para o logotipo não resolveu o problema visualmente e fornece logs mostrando que o upload FTP falhou novamente por FTP não configurado. (Status: ANALYZED)
-4.  **User:** Mostra uma imagem onde o Brasão funciona, mas o Logotipo não. (Status: ANALYZED)
-5.  **User:** Reporta que o  para o teste de upload falhou por ocker: command not found. (Status: RESOLVED, erro de digitação)
-6.  **User:** Pergunta como configurar as variáveis de ambiente no Coolify. (Status: **PENDING RESPONSE**)
-7.  **User:** Reporta que o arquivo  não existe no container. (Status: RESOLVED, agente forneceu comando para criar)
-8.  **User:** Reporta que o teste de upload Python falhou com FTP não configurado mesmo após o arquivo  ser copiado e o container reiniciado. (Status: ANALYZED, levou à descoberta de que o  se perde)
-9.  **User:** Executa o comando para copiar o arquivo  corrigido para o container. (Status: DONE)
-10. **User:** Reporta que a imagem de upload ainda está quebrada e fornece o link SVG que indica erro de carregamento. (Status: ANALYZED)
+1.  **Usuário:** Relata que o campo TikTok é exibido no formulário de edição do perfil, mas não é exibido na página de visualização do perfil após salvar.
+2.  **Agente:** Investiga e descobre que o campo  faltava nos modelos do backend, impedindo que o dado fosse salvo.
+3.  **Agente:** Corrige o backend adicionando o campo  aos modelos de dados.
+4.  **Agente:** Finaliza a tarefa e resume a correção.
+5.  **Usuário:** Reporta um novo bug: ao editar o telefone de um aluno, a informação não é salva, embora a mensagem de sucesso seja exibida.
+6.  **Agente:** Investiga e descobre que o campo  não existia no modelo  do backend.
+7.  **Agente:** Corrige o backend adicionando o campo  aos modelos  e .
+8.  **Agente:** Finaliza a tarefa e resume a correção.
+9.  **Usuário:** Reporta um novo bug com screenshot: no relatório de frequência, os nomes dos alunos não estão sendo exibidos na coluna Aluno.
+10. **Agente:** Investiga e descobre que o backend retornava  enquanto o frontend esperava . Corrige o endpoint do backend.
+11. **Usuário:** Solicita uma nova alteração com screenshot: na página de Auditoria, o nome do usuário deve ser exibido em vez do e-mail. (Status: **PENDENTE DE IMPLEMENTAÇÃO**)
 
 **Project Health Check:**
 -   **Broken:**
-    -   Upload de arquivos em produção.
-    -   Processo de deploy automatizado no Coolify (causa Gateway Timeout).
-    -   Persistência de configuração de ambiente no container do backend.
+    -   O processo de deploy automatizado no Coolify, que resulta em Gateway Timeout.
+    -   A propagação e persistência de variáveis de ambiente para os containers em produção.
 -   **Mocked:** N/A.
--   **Fragile:** A conexão com o banco de dados em produção depende de uma variável de ambiente () passada pelo Docker, o que é correto, mas a falha em carregar outras variáveis do  mostra fragilidade no setup geral.
+-   **Fragile:** Toda a configuração do ambiente de produção é frágil e depende de soluções manuais e paliativos no código para funcionar, especialmente para o upload de arquivos via FTP.
 
 **3rd Party Integrations**
 -   **recharts:** Utilizada para gráficos no dashboard.
--   **python-pptx:** Utilizada para geração de apresentações.
--   **FTP:** Integração para upload de arquivos, atualmente quebrada em produção.
+-   **jspdf, jspdf-autotable, xlsx:** Utilizadas para a exportação de relatórios no frontend.
+-   **python-pptx:** Presente no projeto para geração de apresentações.
+-   **FTP (via ftplib):** Integração para upload do brasão. A conexão em produção depende de variáveis de ambiente que foram configuradas manualmente e de forma temporária.
 
 **Testing status**
--   **Testing agent used after significant changes:** YES, para a funcionalidade de turmas multisseriadas.
+-   **Testing agent used after significant changes:** NO
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** []
--   **Known regressions:** A funcionalidade de upload de logotipo, que possivelmente funcionava antes, está agora quebrada em produção devido a problemas de configuração de ambiente.
+-   **Known regressions:** Nenhuma regressão explícita foi identificada, mas a falta de testes automatizados para as novas e complexas funcionalidades (Score V2.1, LGPD) representa um risco.
 
 **Credentials to test flow:**
 -   **Administrador:**  / 
 
 **What agent forgot to execute**
--   O problema P0 de **Gateway Timeout no deploy**, herdado do fork anterior, não foi abordado. Embora o foco tenha sido nas solicitações ativas do usuário, este continua sendo um problema crítico de infraestrutura.
--   A verificação da migração de status de alunos (Transferido para Inativo) no banco de dados de produção, solicitada no handoff anterior, não foi confirmada com o usuário.</analysis>
+-   O agente não abordou o problema P0 mais crítico e recorrente: o **Gateway Timeout que ocorre a cada deploy em produção**.
+-   O agente não removeu o endpoint de diagnóstico temporário () criado em , que não é mais necessário e não deve existir em código de produção.
+-   Não foram criados testes automatizados (ex: ============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
+rootdir: /app
+plugins: anyio-4.12.0
+collected 104 items
+
+backend/tests/test_multi_grade.py EEEEEEE                                [  6%]
+backend/tests/test_student_actions.py FFEEEEEEEEEEEEEFFF                 [ 24%]
+test_boletim_focused.py .                                                [ 25%]
+test_coordinator_only.py .                                               [ 25%]
+tests/test_mandatory_no_grade_bug.py .............                       [ 38%]
+tests/test_pdf_generator_media.py .......                                [ 45%]
+tests/test_pre_matricula.py FFFEFE                                       [ 50%]
+tests/test_promotion_pdf.py FFF..F.F.                                    [ 59%]
+tests/test_promotion_pdf_structure.py FFFFFFF                            [ 66%]
+tests/test_sync_endpoints.py FEFEEEEFEEEEEEEEE                           [ 82%]
+tests/test_zero_grade_bug.py ..................                          [100%]
+
+==================================== ERRORS ====================================
+_____ ERROR at setup of TestClassMultiGradeModel.test_create_regular_class _____
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token"""
+>       response = requests.post(f"{BASE_URL}/api/auth/login", json={
+            "email": TEST_EMAIL,
+            "password": TEST_PASSWORD
+        })
+
+backend/tests/test_multi_grade.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+___ ERROR at setup of TestClassMultiGradeModel.test_create_multi_grade_class ___
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token"""
+>       response = requests.post(f"{BASE_URL}/api/auth/login", json={
+            "email": TEST_EMAIL,
+            "password": TEST_PASSWORD
+        })
+
+backend/tests/test_multi_grade.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestClassMultiGradeModel.test_update_class_to_multi_grade __
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token"""
+>       response = requests.post(f"{BASE_URL}/api/auth/login", json={
+            "email": TEST_EMAIL,
+            "password": TEST_PASSWORD
+        })
+
+backend/tests/test_multi_grade.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestClassMultiGradeModel.test_get_class_with_multi_grade_fields _
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token"""
+>       response = requests.post(f"{BASE_URL}/api/auth/login", json={
+            "email": TEST_EMAIL,
+            "password": TEST_PASSWORD
+        })
+
+backend/tests/test_multi_grade.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestEnrollmentStudentSeries.test_create_enrollment_with_student_series _
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token"""
+>       response = requests.post(f"{BASE_URL}/api/auth/login", json={
+            "email": TEST_EMAIL,
+            "password": TEST_PASSWORD
+        })
+
+backend/tests/test_multi_grade.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestEnrollmentStudentSeries.test_enrollment_without_student_series _
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token"""
+>       response = requests.post(f"{BASE_URL}/api/auth/login", json={
+            "email": TEST_EMAIL,
+            "password": TEST_PASSWORD
+        })
+
+backend/tests/test_multi_grade.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestClassListWithMultiGrade.test_list_classes_includes_multi_grade_fields _
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token"""
+>       response = requests.post(f"{BASE_URL}/api/auth/login", json={
+            "email": TEST_EMAIL,
+            "password": TEST_PASSWORD
+        })
+
+backend/tests/test_multi_grade.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+________ ERROR at setup of TestStudentActionsAPI.test_get_students_list ________
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9203b10>
+
+    @pytest.fixture(scope="class")
+    def auth_token(self):
+        """Get authentication token for sandbox user"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_____ ERROR at setup of TestStudentActionsAPI.test_get_students_with_limit _____
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9203b10>
+
+    @pytest.fixture(scope="class")
+    def auth_token(self):
+        """Get authentication token for sandbox user"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestStudentActionsAPI.test_students_have_transferred_status _
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9203b10>
+
+    @pytest.fixture(scope="class")
+    def auth_token(self):
+        """Get authentication token for sandbox user"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+___ ERROR at setup of TestStudentActionsAPI.test_update_student_observations ___
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9203b10>
+
+    @pytest.fixture(scope="class")
+    def auth_token(self):
+        """Get authentication token for sandbox user"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestStudentActionsAPI.test_update_student_status_to_active _
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9203b10>
+
+    @pytest.fixture(scope="class")
+    def auth_token(self):
+        """Get authentication token for sandbox user"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+___ ERROR at setup of TestStudentActionsAPI.test_update_nonexistent_student ____
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9203b10>
+
+    @pytest.fixture(scope="class")
+    def auth_token(self):
+        """Get authentication token for sandbox user"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_______ ERROR at setup of TestStudentActionsAPI.test_get_student_history _______
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9203b10>
+
+    @pytest.fixture(scope="class")
+    def auth_token(self):
+        """Get authentication token for sandbox user"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+__ ERROR at setup of TestStudentActionsAPI.test_history_contains_action_types __
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9203b10>
+
+    @pytest.fixture(scope="class")
+    def auth_token(self):
+        """Get authentication token for sandbox user"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+___ ERROR at setup of TestStudentActionsAPI.test_history_nonexistent_student ___
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9203b10>
+
+    @pytest.fixture(scope="class")
+    def auth_token(self):
+        """Get authentication token for sandbox user"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+___________ ERROR at setup of TestStudentActionsAPI.test_get_schools ___________
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9203b10>
+
+    @pytest.fixture(scope="class")
+    def auth_token(self):
+        """Get authentication token for sandbox user"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+___________ ERROR at setup of TestStudentActionsAPI.test_get_classes ___________
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9203b10>
+
+    @pytest.fixture(scope="class")
+    def auth_token(self):
+        """Get authentication token for sandbox user"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestStudentActionsAPI.test_matricular_action_requires_transferred_status _
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9203b10>
+
+    @pytest.fixture(scope="class")
+    def auth_token(self):
+        """Get authentication token for sandbox user"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+__ ERROR at setup of TestStudentActionsAPI.test_update_creates_history_entry ___
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9203b10>
+
+    @pytest.fixture(scope="class")
+    def auth_token(self):
+        """Get authentication token for sandbox user"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestPreMatriculaAuthenticatedEndpoints.test_list_pre_matriculas _
+
+self = <tests.test_pre_matricula.TestPreMatriculaAuthenticatedEndpoints object at 0xf9f3a8e2fbd0>
+
+    @pytest.fixture
+    def auth_token(self):
+        """Get authentication token"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={
+                "email": "gutenberg@sigesc.com",
+                "password": "@Celta2007"
+            }
+        )
+
+tests/test_pre_matricula.py:117: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestSchoolPreMatriculaToggle.test_school_has_pre_matricula_field _
+
+self = <tests.test_pre_matricula.TestSchoolPreMatriculaToggle object at 0xf9f3a8e32fd0>
+
+    @pytest.fixture
+    def auth_token(self):
+        """Get authentication token"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={
+                "email": "gutenberg@sigesc.com",
+                "password": "@Celta2007"
+            }
+        )
+
+tests/test_pre_matricula.py:165: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestSyncStatusEndpoint.test_sync_status_returns_collection_counts _
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestSyncPullEndpoint.test_sync_pull_returns_data_for_collections _
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+___ ERROR at setup of TestSyncPullEndpoint.test_sync_pull_with_class_filter ____
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestSyncPullEndpoint.test_sync_pull_with_academic_year_filter _
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestSyncPullEndpoint.test_sync_pull_unknown_collection_returns_empty _
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+____ ERROR at setup of TestSyncPushEndpoint.test_sync_push_empty_operations ____
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+____ ERROR at setup of TestSyncPushEndpoint.test_sync_push_create_operation ____
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+____ ERROR at setup of TestSyncPushEndpoint.test_sync_push_update_operation ____
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+____ ERROR at setup of TestSyncPushEndpoint.test_sync_push_delete_operation ____
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestSyncPushEndpoint.test_sync_push_unknown_collection_fails _
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestSyncPushEndpoint.test_sync_push_unknown_operation_fails _
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestSyncPushEndpoint.test_sync_push_update_nonexistent_record_fails _
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+__ ERROR at setup of TestSyncPushEndpoint.test_sync_push_multiple_operations ___
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ ERROR at setup of TestSyncAttendanceOperations.test_sync_push_create_attendance _
+
+    @pytest.fixture(scope="module")
+    def auth_token():
+        """Get authentication token for tests"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+tests/test_sync_endpoints.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+=================================== FAILURES ===================================
+___________________ TestStudentActionsAPI.test_login_success ___________________
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9218550>
+
+    def test_login_success(self):
+        """Test login with sandbox credentials"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": TEST_EMAIL, "password": TEST_PASSWORD}
+        )
+
+backend/tests/test_student_actions.py:68: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_____________ TestStudentActionsAPI.test_login_invalid_credentials _____________
+
+self = <test_student_actions.TestStudentActionsAPI object at 0xf9f3a9218b90>
+
+    def test_login_invalid_credentials(self):
+        """Test login with invalid credentials"""
+>       response = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": "invalid@test.com", "password": "wrongpassword"}
+        )
+
+backend/tests/test_student_actions.py:80: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:115: in post
+    return request("post", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/auth/login', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/auth/login': No scheme supplied. Perhaps you meant https:///api/auth/login?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+__________ TestStudentActionsWithoutAuth.test_students_requires_auth ___________
+
+self = <test_student_actions.TestStudentActionsWithoutAuth object at 0xf9f3a9225250>
+
+    def test_students_requires_auth(self):
+        """Test GET /api/students requires authentication"""
+>       response = requests.get(f"{BASE_URL}/api/students")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend/tests/test_student_actions.py:294: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:73: in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [GET]>, url = '/api/students', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/students': No scheme supplied. Perhaps you meant https:///api/students?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_______ TestStudentActionsWithoutAuth.test_student_update_requires_auth ________
+
+self = <test_student_actions.TestStudentActionsWithoutAuth object at 0xf9f3a9225890>
+
+    def test_student_update_requires_auth(self):
+        """Test PUT /api/students/{id} requires authentication"""
+        fake_id = str(uuid.uuid4())
+>       response = requests.put(
+            f"{BASE_URL}/api/students/{fake_id}",
+            json={"observations": "test"}
+        )
+
+backend/tests/test_student_actions.py:300: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:130: in put
+    return request("put", url, data=data, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [PUT]>
+url = '/api/students/58d6b0d6-0854-4efa-a1f7-09bb76b8f668'
+params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/students/58d6b0d6-0854-4efa-a1f7-09bb76b8f668': No scheme supplied. Perhaps you meant https:///api/students/58d6b0d6-0854-4efa-a1f7-09bb76b8f668?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_______ TestStudentActionsWithoutAuth.test_student_history_requires_auth _______
+
+self = <test_student_actions.TestStudentActionsWithoutAuth object at 0xf9f3a9225ed0>
+
+    def test_student_history_requires_auth(self):
+        """Test GET /api/students/{id}/history requires authentication"""
+        fake_id = str(uuid.uuid4())
+>       response = requests.get(f"{BASE_URL}/api/students/{fake_id}/history")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend/tests/test_student_actions.py:309: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:73: in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [GET]>
+url = '/api/students/179b5a9c-7d50-4f5d-998f-1fce7700aeea/history'
+params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/students/179b5a9c-7d50-4f5d-998f-1fce7700aeea/history': No scheme supplied. Perhaps you meant https:///api/students/179b5a9c-7d50-4f5d-998f-1fce7700aeea/history?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+__ TestPreMatriculaPublicEndpoints.test_get_schools_with_pre_matricula_active __
+
+self = <tests.test_pre_matricula.TestPreMatriculaPublicEndpoints object at 0xf9f3a8f80890>
+
+    def test_get_schools_with_pre_matricula_active(self):
+        """Test GET /api/schools/pre-matricula returns schools with pre_matricula_ativa=true"""
+>       response = requests.get(f"{BASE_URL}/api/schools/pre-matricula")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_pre_matricula.py:17: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:73: in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [GET]>, url = '/api/schools/pre-matricula'
+params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/schools/pre-matricula': No scheme supplied. Perhaps you meant https:///api/schools/pre-matricula?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+______ TestPreMatriculaPublicEndpoints.test_submit_pre_matricula_success _______
+
+self = <tests.test_pre_matricula.TestPreMatriculaPublicEndpoints object at 0xf9f3a8f83650>
+
+    def test_submit_pre_matricula_success(self):
+        """Test POST /api/pre-matricula creates a new pre-matricula record"""
+        # First get a school with pre-matricula active
+>       schools_response = requests.get(f"{BASE_URL}/api/schools/pre-matricula")
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_pre_matricula.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:73: in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [GET]>, url = '/api/schools/pre-matricula'
+params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/schools/pre-matricula': No scheme supplied. Perhaps you meant https:///api/schools/pre-matricula?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ TestPreMatriculaPublicEndpoints.test_submit_pre_matricula_missing_required_fields _
+
+self = <tests.test_pre_matricula.TestPreMatriculaPublicEndpoints object at 0xf9f3a8f81a90>
+
+    def test_submit_pre_matricula_missing_required_fields(self):
+        """Test POST /api/pre-matricula fails with missing required fields"""
+        # First get a school with pre-matricula active
+>       schools_response = requests.get(f"{BASE_URL}/api/schools/pre-matricula")
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_pre_matricula.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:73: in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [GET]>, url = '/api/schools/pre-matricula'
+params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/schools/pre-matricula': No scheme supplied. Perhaps you meant https:///api/schools/pre-matricula?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_ TestPreMatriculaAuthenticatedEndpoints.test_list_pre_matriculas_without_auth _
+
+self = <tests.test_pre_matricula.TestPreMatriculaAuthenticatedEndpoints object at 0xf9f3a9239610>
+
+    def test_list_pre_matriculas_without_auth(self):
+        """Test GET /api/pre-matriculas requires authentication"""
+>       response = requests.get(f"{BASE_URL}/api/pre-matriculas")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_pre_matricula.py:153: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/api.py:73: in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/api.py:59: in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [GET]>, url = '/api/pre-matriculas'
+params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/pre-matriculas': No scheme supplied. Perhaps you meant https:///api/pre-matriculas?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+______________ TestPromotionPDFEndpoint.test_pdf_generation_3ano _______________
+
+self = <tests.test_promotion_pdf.TestPromotionPDFEndpoint object at 0xf9f3a90d4f10>
+api_client = <requests.sessions.Session object at 0xf9f3a912a2d0>
+
+    def test_pdf_generation_3ano(self, api_client):
+        """Test PDF generation for 3º Ano A"""
+        class_id = TEST_CLASSES["3º Ano A"]
+        response = api_client.get(
+            f"{BASE_URL}/api/documents/promotion/{class_id}?academic_year=2025"
+        )
+    
+>       assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+E       AssertionError: Expected 200, got 404: {"detail":"Turma não encontrada"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_promotion_pdf.py:61: AssertionError
+______________ TestPromotionPDFEndpoint.test_pdf_generation_6ano _______________
+
+self = <tests.test_promotion_pdf.TestPromotionPDFEndpoint object at 0xf9f3a90d4290>
+api_client = <requests.sessions.Session object at 0xf9f3a8e1a210>
+
+    def test_pdf_generation_6ano(self, api_client):
+        """Test PDF generation for 6º Ano A"""
+        class_id = TEST_CLASSES["6º Ano A"]
+        response = api_client.get(
+            f"{BASE_URL}/api/documents/promotion/{class_id}?academic_year=2025"
+        )
+    
+>       assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+E       AssertionError: Expected 200, got 404: {"detail":"Turma não encontrada"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_promotion_pdf.py:73: AssertionError
+______________ TestPromotionPDFEndpoint.test_pdf_generation_9ano _______________
+
+self = <tests.test_promotion_pdf.TestPromotionPDFEndpoint object at 0xf9f3a90d4810>
+api_client = <requests.sessions.Session object at 0xf9f3a90d1cd0>
+
+    def test_pdf_generation_9ano(self, api_client):
+        """Test PDF generation for 9º Ano A"""
+        class_id = TEST_CLASSES["9º Ano A"]
+        response = api_client.get(
+            f"{BASE_URL}/api/documents/promotion/{class_id}?academic_year=2025"
+        )
+    
+>       assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+E       AssertionError: Expected 200, got 404: {"detail":"Turma não encontrada"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_promotion_pdf.py:85: AssertionError
+___________ TestPromotionPDFEndpoint.test_pdf_default_academic_year ____________
+
+self = <tests.test_promotion_pdf.TestPromotionPDFEndpoint object at 0xf9f3a90d5fd0>
+api_client = <requests.sessions.Session object at 0xf9f3a8ecd690>
+
+    def test_pdf_default_academic_year(self, api_client):
+        """Test PDF generation without specifying academic_year (should default to 2025)"""
+        class_id = TEST_CLASSES["6º Ano A"]
+        response = api_client.get(
+            f"{BASE_URL}/api/documents/promotion/{class_id}"
+        )
+    
+>       assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+E       AssertionError: Expected 200, got 404: {"detail":"Turma não encontrada"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_promotion_pdf.py:116: AssertionError
+___________________ TestPromotionPageData.test_classes_list ____________________
+
+self = <tests.test_promotion_pdf.TestPromotionPageData object at 0xf9f3a90d6450>
+api_client = <requests.sessions.Session object at 0xf9f3a8ecf2d0>
+
+    def test_classes_list(self, api_client):
+        """Test that classes list is accessible"""
+        response = api_client.get(f"{BASE_URL}/api/classes")
+    
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) > 0, "No classes found"
+    
+        # Check for eligible classes (3º-9º Ano)
+        eligible = [c for c in data if any(
+            x in c.get('grade_level', '').lower()
+            for x in ['3º', '4º', '5º', '6º', '7º', '8º', '9º', 'etapa']
+        )]
+>       assert len(eligible) > 0, "No eligible classes for Livro de Promoção"
+E       AssertionError: No eligible classes for Livro de Promoção
+E       assert 0 > 0
+E        +  where 0 = len([])
+
+tests/test_promotion_pdf.py:146: AssertionError
+____________________ TestPDFStructure.test_pdf_has_2_pages _____________________
+
+self = <tests.test_promotion_pdf_structure.TestPDFStructure object at 0xf9f3a9084cd0>
+api_client = <requests.sessions.Session object at 0xf9f3a8ece910>
+
+    def test_pdf_has_2_pages(self, api_client):
+        """Test that PDF has exactly 2 pages"""
+        try:
+            from PyPDF2 import PdfReader
+        except ImportError:
+            pytest.skip("PyPDF2 not installed")
+    
+        class_id = TEST_CLASSES["6º Ano A"]
+        response = api_client.get(
+            f"{BASE_URL}/api/documents/promotion/{class_id}?academic_year=2025"
+        )
+    
+>       assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+E       AssertionError: Expected 200, got 404
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_promotion_pdf_structure.py:66: AssertionError
+__________ TestPDFStructure.test_page1_contains_1st_semester_content ___________
+
+self = <tests.test_promotion_pdf_structure.TestPDFStructure object at 0xf9f3a9087d90>
+api_client = <requests.sessions.Session object at 0xf9f3a871bc90>
+
+    def test_page1_contains_1st_semester_content(self, api_client):
+        """Test that Page 1 contains 1st semester content"""
+        try:
+            from PyPDF2 import PdfReader
+        except ImportError:
+            pytest.skip("PyPDF2 not installed")
+    
+        class_id = TEST_CLASSES["6º Ano A"]
+        response = api_client.get(
+            f"{BASE_URL}/api/documents/promotion/{class_id}?academic_year=2025"
+        )
+    
+>       assert response.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_promotion_pdf_structure.py:88: AssertionError
+_________ TestPDFStructure.test_page2_contains_2nd_semester_and_result _________
+
+self = <tests.test_promotion_pdf_structure.TestPDFStructure object at 0xf9f3a9086d90>
+api_client = <requests.sessions.Session object at 0xf9f3a89d9f50>
+
+    def test_page2_contains_2nd_semester_and_result(self, api_client):
+        """Test that Page 2 contains 2nd semester content and results"""
+        try:
+            from PyPDF2 import PdfReader
+        except ImportError:
+            pytest.skip("PyPDF2 not installed")
+    
+        class_id = TEST_CLASSES["6º Ano A"]
+        response = api_client.get(
+            f"{BASE_URL}/api/documents/promotion/{class_id}?academic_year=2025"
+        )
+    
+>       assert response.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_promotion_pdf_structure.py:116: AssertionError
+___________ TestPDFStructure.test_pdf_contains_institutional_header ____________
+
+self = <tests.test_promotion_pdf_structure.TestPDFStructure object at 0xf9f3a9084090>
+api_client = <requests.sessions.Session object at 0xf9f3a91f3890>
+
+    def test_pdf_contains_institutional_header(self, api_client):
+        """Test that PDF contains institutional header"""
+        try:
+            from PyPDF2 import PdfReader
+        except ImportError:
+            pytest.skip("PyPDF2 not installed")
+    
+        class_id = TEST_CLASSES["6º Ano A"]
+        response = api_client.get(
+            f"{BASE_URL}/api/documents/promotion/{class_id}?academic_year=2025"
+        )
+    
+>       assert response.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_promotion_pdf_structure.py:148: AssertionError
+________________ TestPDFStructure.test_pdf_contains_signatures _________________
+
+self = <tests.test_promotion_pdf_structure.TestPDFStructure object at 0xf9f3a9084890>
+api_client = <requests.sessions.Session object at 0xf9f3a8720150>
+
+    def test_pdf_contains_signatures(self, api_client):
+        """Test that PDF contains signature fields"""
+        try:
+            from PyPDF2 import PdfReader
+        except ImportError:
+            pytest.skip("PyPDF2 not installed")
+    
+        class_id = TEST_CLASSES["6º Ano A"]
+        response = api_client.get(
+            f"{BASE_URL}/api/documents/promotion/{class_id}?academic_year=2025"
+        )
+    
+>       assert response.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_promotion_pdf_structure.py:178: AssertionError
+___________________ TestPDFStructure.test_pdf_contains_date ____________________
+
+self = <tests.test_promotion_pdf_structure.TestPDFStructure object at 0xf9f3a9085810>
+api_client = <requests.sessions.Session object at 0xf9f3a8726090>
+
+    def test_pdf_contains_date(self, api_client):
+        """Test that PDF contains date"""
+        try:
+            from PyPDF2 import PdfReader
+        except ImportError:
+            pytest.skip("PyPDF2 not installed")
+    
+        class_id = TEST_CLASSES["6º Ano A"]
+        response = api_client.get(
+            f"{BASE_URL}/api/documents/promotion/{class_id}?academic_year=2025"
+        )
+    
+>       assert response.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_promotion_pdf_structure.py:207: AssertionError
+__________________ TestPDFStructure.test_pdf_size_reasonable ___________________
+
+self = <tests.test_promotion_pdf_structure.TestPDFStructure object at 0xf9f3a9086410>
+api_client = <requests.sessions.Session object at 0xf9f3a873dc50>
+
+    def test_pdf_size_reasonable(self, api_client):
+        """Test that PDF size is reasonable (~34KB as mentioned)"""
+        class_id = TEST_CLASSES["6º Ano A"]
+        response = api_client.get(
+            f"{BASE_URL}/api/documents/promotion/{class_id}?academic_year=2025"
+        )
+    
+>       assert response.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404]>.status_code
+
+tests/test_promotion_pdf_structure.py:232: AssertionError
+_______ TestSyncStatusEndpoint.test_sync_status_requires_authentication ________
+
+self = <tests.test_sync_endpoints.TestSyncStatusEndpoint object at 0xf9f3a90bfad0>
+api_client = <requests.sessions.Session object at 0xf9f3a9085650>
+
+    def test_sync_status_requires_authentication(self, api_client):
+        """Test that /api/sync/status returns 401 without token"""
+>       response = api_client.get(f"{BASE_URL}/api/sync/status")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_sync_endpoints.py:52: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:602: in get
+    return self.request("GET", url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [GET]>, url = '/api/sync/status', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/sync/status': No scheme supplied. Perhaps you meant https:///api/sync/status?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_________ TestSyncPullEndpoint.test_sync_pull_requires_authentication __________
+
+self = <tests.test_sync_endpoints.TestSyncPullEndpoint object at 0xf9f3a90bd310>
+api_client = <requests.sessions.Session object at 0xf9f3a8cd9e10>
+
+    def test_sync_pull_requires_authentication(self, api_client):
+        """Test that /api/sync/pull returns 401 without token"""
+>       response = api_client.post(
+            f"{BASE_URL}/api/sync/pull",
+            json={"collections": ["classes"]}
+        )
+
+tests/test_sync_endpoints.py:93: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:637: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/sync/pull', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/sync/pull': No scheme supplied. Perhaps you meant https:///api/sync/pull?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+_________ TestSyncPushEndpoint.test_sync_push_requires_authentication __________
+
+self = <tests.test_sync_endpoints.TestSyncPushEndpoint object at 0xf9f3a90bc110>
+api_client = <requests.sessions.Session object at 0xf9f3a89dac90>
+
+    def test_sync_push_requires_authentication(self, api_client):
+        """Test that /api/sync/push returns 401 without token"""
+>       response = api_client.post(
+            f"{BASE_URL}/api/sync/push",
+            json={"operations": []}
+        )
+
+tests/test_sync_endpoints.py:188: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:637: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:575: in request
+    prep = self.prepare_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:484: in prepare_request
+    p.prepare(
+/root/.venv/lib/python3.11/site-packages/requests/models.py:367: in prepare
+    self.prepare_url(url, params)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <PreparedRequest [POST]>, url = '/api/sync/push', params = OrderedDict()
+
+    def prepare_url(self, url, params):
+        """Prepares the given HTTP URL."""
+        #: Accept objects that have string representations.
+        #: We're unable to blindly call unicode/str functions
+        #: as this will include the bytestring indicator (b'')
+        #: on python 3.x.
+        #: https://github.com/psf/requests/pull/2238
+        if isinstance(url, bytes):
+            url = url.decode("utf8")
+        else:
+            url = str(url)
+    
+        # Remove leading whitespaces from url
+        url = url.lstrip()
+    
+        # Don't do any URL preparation for non-HTTP schemes like `mailto`,
+        # `data` etc to work around exceptions from `url_parse`, which
+        # handles RFC 3986 only.
+        if ":" in url and not url.lower().startswith("http"):
+            self.url = url
+            return
+    
+        # Support for unicode domain names and paths.
+        try:
+            scheme, auth, host, port, path, query, fragment = parse_url(url)
+        except LocationParseError as e:
+            raise InvalidURL(*e.args)
+    
+        if not scheme:
+>           raise MissingSchema(
+                f"Invalid URL {url!r}: No scheme supplied. "
+                f"Perhaps you meant https://{url}?"
+            )
+E           requests.exceptions.MissingSchema: Invalid URL '/api/sync/push': No scheme supplied. Perhaps you meant https:///api/sync/push?
+
+/root/.venv/lib/python3.11/site-packages/requests/models.py:438: MissingSchema
+=============================== warnings summary ===============================
+test_boletim_focused.py::test_boletim_component_filtering
+  /root/.venv/lib/python3.11/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but test_boletim_focused.py::test_boletim_component_filtering returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+test_coordinator_only.py::test_coordinator_permissions
+  /root/.venv/lib/python3.11/site-packages/_pytest/python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but test_coordinator_only.py::test_coordinator_permissions returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_promotion_pdf_structure.py::TestPDFStructure::test_pdf_has_2_pages
+  /root/.venv/lib/python3.11/site-packages/PyPDF2/__init__.py:21: DeprecationWarning: PyPDF2 is deprecated. Please move to the pypdf library instead.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_student_actions.py::TestStudentActionsAPI::test_login_success
+FAILED backend/tests/test_student_actions.py::TestStudentActionsAPI::test_login_invalid_credentials
+FAILED backend/tests/test_student_actions.py::TestStudentActionsWithoutAuth::test_students_requires_auth
+FAILED backend/tests/test_student_actions.py::TestStudentActionsWithoutAuth::test_student_update_requires_auth
+FAILED backend/tests/test_student_actions.py::TestStudentActionsWithoutAuth::test_student_history_requires_auth
+FAILED tests/test_pre_matricula.py::TestPreMatriculaPublicEndpoints::test_get_schools_with_pre_matricula_active
+FAILED tests/test_pre_matricula.py::TestPreMatriculaPublicEndpoints::test_submit_pre_matricula_success
+FAILED tests/test_pre_matricula.py::TestPreMatriculaPublicEndpoints::test_submit_pre_matricula_missing_required_fields
+FAILED tests/test_pre_matricula.py::TestPreMatriculaAuthenticatedEndpoints::test_list_pre_matriculas_without_auth
+FAILED tests/test_promotion_pdf.py::TestPromotionPDFEndpoint::test_pdf_generation_3ano
+FAILED tests/test_promotion_pdf.py::TestPromotionPDFEndpoint::test_pdf_generation_6ano
+FAILED tests/test_promotion_pdf.py::TestPromotionPDFEndpoint::test_pdf_generation_9ano
+FAILED tests/test_promotion_pdf.py::TestPromotionPDFEndpoint::test_pdf_default_academic_year
+FAILED tests/test_promotion_pdf.py::TestPromotionPageData::test_classes_list
+FAILED tests/test_promotion_pdf_structure.py::TestPDFStructure::test_pdf_has_2_pages
+FAILED tests/test_promotion_pdf_structure.py::TestPDFStructure::test_page1_contains_1st_semester_content
+FAILED tests/test_promotion_pdf_structure.py::TestPDFStructure::test_page2_contains_2nd_semester_and_result
+FAILED tests/test_promotion_pdf_structure.py::TestPDFStructure::test_pdf_contains_institutional_header
+FAILED tests/test_promotion_pdf_structure.py::TestPDFStructure::test_pdf_contains_signatures
+FAILED tests/test_promotion_pdf_structure.py::TestPDFStructure::test_pdf_contains_date
+FAILED tests/test_promotion_pdf_structure.py::TestPDFStructure::test_pdf_size_reasonable
+FAILED tests/test_sync_endpoints.py::TestSyncStatusEndpoint::test_sync_status_requires_authentication
+FAILED tests/test_sync_endpoints.py::TestSyncPullEndpoint::test_sync_pull_requires_authentication
+FAILED tests/test_sync_endpoints.py::TestSyncPushEndpoint::test_sync_push_requires_authentication
+ERROR backend/tests/test_multi_grade.py::TestClassMultiGradeModel::test_create_regular_class
+ERROR backend/tests/test_multi_grade.py::TestClassMultiGradeModel::test_create_multi_grade_class
+ERROR backend/tests/test_multi_grade.py::TestClassMultiGradeModel::test_update_class_to_multi_grade
+ERROR backend/tests/test_multi_grade.py::TestClassMultiGradeModel::test_get_class_with_multi_grade_fields
+ERROR backend/tests/test_multi_grade.py::TestEnrollmentStudentSeries::test_create_enrollment_with_student_series
+ERROR backend/tests/test_multi_grade.py::TestEnrollmentStudentSeries::test_enrollment_without_student_series
+ERROR backend/tests/test_multi_grade.py::TestClassListWithMultiGrade::test_list_classes_includes_multi_grade_fields
+ERROR backend/tests/test_student_actions.py::TestStudentActionsAPI::test_get_students_list
+ERROR backend/tests/test_student_actions.py::TestStudentActionsAPI::test_get_students_with_limit
+ERROR backend/tests/test_student_actions.py::TestStudentActionsAPI::test_students_have_transferred_status
+ERROR backend/tests/test_student_actions.py::TestStudentActionsAPI::test_update_student_observations
+ERROR backend/tests/test_student_actions.py::TestStudentActionsAPI::test_update_student_status_to_active
+ERROR backend/tests/test_student_actions.py::TestStudentActionsAPI::test_update_nonexistent_student
+ERROR backend/tests/test_student_actions.py::TestStudentActionsAPI::test_get_student_history
+ERROR backend/tests/test_student_actions.py::TestStudentActionsAPI::test_history_contains_action_types
+ERROR backend/tests/test_student_actions.py::TestStudentActionsAPI::test_history_nonexistent_student
+ERROR backend/tests/test_student_actions.py::TestStudentActionsAPI::test_get_schools
+ERROR backend/tests/test_student_actions.py::TestStudentActionsAPI::test_get_classes
+ERROR backend/tests/test_student_actions.py::TestStudentActionsAPI::test_matricular_action_requires_transferred_status
+ERROR backend/tests/test_student_actions.py::TestStudentActionsAPI::test_update_creates_history_entry
+ERROR tests/test_pre_matricula.py::TestPreMatriculaAuthenticatedEndpoints::test_list_pre_matriculas
+ERROR tests/test_pre_matricula.py::TestSchoolPreMatriculaToggle::test_school_has_pre_matricula_field
+ERROR tests/test_sync_endpoints.py::TestSyncStatusEndpoint::test_sync_status_returns_collection_counts
+ERROR tests/test_sync_endpoints.py::TestSyncPullEndpoint::test_sync_pull_returns_data_for_collections
+ERROR tests/test_sync_endpoints.py::TestSyncPullEndpoint::test_sync_pull_with_class_filter
+ERROR tests/test_sync_endpoints.py::TestSyncPullEndpoint::test_sync_pull_with_academic_year_filter
+ERROR tests/test_sync_endpoints.py::TestSyncPullEndpoint::test_sync_pull_unknown_collection_returns_empty
+ERROR tests/test_sync_endpoints.py::TestSyncPushEndpoint::test_sync_push_empty_operations
+ERROR tests/test_sync_endpoints.py::TestSyncPushEndpoint::test_sync_push_create_operation
+ERROR tests/test_sync_endpoints.py::TestSyncPushEndpoint::test_sync_push_update_operation
+ERROR tests/test_sync_endpoints.py::TestSyncPushEndpoint::test_sync_push_delete_operation
+ERROR tests/test_sync_endpoints.py::TestSyncPushEndpoint::test_sync_push_unknown_collection_fails
+ERROR tests/test_sync_endpoints.py::TestSyncPushEndpoint::test_sync_push_unknown_operation_fails
+ERROR tests/test_sync_endpoints.py::TestSyncPushEndpoint::test_sync_push_update_nonexistent_record_fails
+ERROR tests/test_sync_endpoints.py::TestSyncPushEndpoint::test_sync_push_multiple_operations
+ERROR tests/test_sync_endpoints.py::TestSyncAttendanceOperations::test_sync_push_create_attendance
+============= 24 failed, 44 passed, 3 warnings, 36 errors in 7.78s =============) para as novas e complexas lógicas de backend, como o cálculo do Score V2.1 e as regras de acesso, o que aumenta a dívida técnica.</analysis>
