@@ -840,6 +840,8 @@ class StudentBase(BaseModel):
     birth_city: Optional[str] = None  # Naturalidade
     birth_state: Optional[str] = None
     color_race: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarada']] = None
+    phone: Optional[str] = None  # Telefone do aluno
+    email: Optional[str] = None  # Email do aluno
     
     # === DOCUMENTOS ===
     cpf: Optional[str] = None
