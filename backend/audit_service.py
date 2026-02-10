@@ -243,6 +243,7 @@ class AuditService:
     ) -> tuple:
         """
         Busca logs de auditoria com filtros.
+        Enriquece os logs com os nomes dos usuários da coleção users.
         
         Returns:
             Tuple (logs, total_count)
@@ -285,11 +286,42 @@ class AuditService:
         # Conta total
         total = await self.db.audit_logs.count_documents(query)
         
-        # Busca com paginação
-        cursor = self.db.audit_logs.find(query, {'_id': 0})
-        cursor = cursor.sort(sort_by, sort_order).skip(skip).limit(limit)
+        # Pipeline de agregação com lookup para enriquecer com nomes de usuários
+        pipeline = [
+            {'$match': query},
+            {'$sort': {sort_by: sort_order}},
+            {'$skip': skip},
+            {'$limit': limit},
+            # Lookup para buscar o nome do usuário na coleção users
+            {
+                '$lookup': {
+                    'from': 'users',
+                    'localField': 'user_id',
+                    'foreignField': 'id',
+                    'as': 'user_info'
+                }
+            },
+            # Adiciona o nome do usuário encontrado ou usa o existente
+            {
+                '$addFields': {
+                    'user_name': {
+                        '$ifNull': [
+                            '$user_name',  # Usa o nome existente no log se disponível
+                            {'$arrayElemAt': ['$user_info.full_name', 0]}  # Senão busca do lookup
+                        ]
+                    }
+                }
+            },
+            # Remove o campo temporário user_info e _id
+            {
+                '$project': {
+                    '_id': 0,
+                    'user_info': 0
+                }
+            }
+        ]
         
-        logs = await cursor.to_list(length=limit)
+        logs = await self.db.audit_logs.aggregate(pipeline).to_list(length=limit)
         
         return logs, total
     
