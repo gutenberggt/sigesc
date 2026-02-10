@@ -1070,12 +1070,13 @@ def generate_declaracao_matricula_pdf(
         BytesIO com o PDF gerado
     """
     buffer = BytesIO()
+    # Margem superior reduzida em 60% (3cm -> 1.2cm)
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
         rightMargin=2.5*cm,
         leftMargin=2.5*cm,
-        topMargin=3*cm,
+        topMargin=1.2*cm,
         bottomMargin=2*cm
     )
     
@@ -1084,8 +1085,9 @@ def generate_declaracao_matricula_pdf(
     mantenedora = mantenedora or {}
     
     # Usar logotipo da mantenedora se disponível
+    # Tamanho reduzido em 40% (3.75cm -> 2.25cm, 2.5cm -> 1.5cm)
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    logo = get_logo_image(width=3.75*cm, height=2.5*cm, logo_url=logo_url)
+    logo = get_logo_image(width=2.25*cm, height=1.5*cm, logo_url=logo_url)
     if logo:
         logo_table = Table([[logo]], colWidths=[16*cm])
         logo_table.setStyle(TableStyle([
@@ -1099,12 +1101,42 @@ def generate_declaracao_matricula_pdf(
     mant_estado = mantenedora.get('estado', 'PA')
     mant_nome = mantenedora.get('nome', f'Prefeitura Municipal de {mant_municipio}')
     
+    # Montar endereço completo da escola a partir dos campos de localização
+    endereco_partes = []
+    if school.get('logradouro'):
+        endereco_partes.append(school.get('logradouro'))
+    if school.get('numero'):
+        endereco_partes.append(f"nº {school.get('numero')}")
+    if school.get('complemento'):
+        endereco_partes.append(school.get('complemento'))
+    if school.get('bairro'):
+        endereco_partes.append(school.get('bairro'))
+    if school.get('municipio'):
+        endereco_partes.append(school.get('municipio'))
+    if school.get('estado'):
+        endereco_partes.append(f"- {school.get('estado')}")
+    if school.get('cep'):
+        endereco_partes.append(f"CEP: {school.get('cep')}")
+    
+    endereco = ', '.join(endereco_partes) if endereco_partes else ''
+    
+    # Montar telefone da escola
+    telefone = ''
+    if school.get('ddd_telefone') and school.get('telefone'):
+        telefone = f"({school.get('ddd_telefone')}) {school.get('telefone')}"
+    elif school.get('telefone'):
+        telefone = school.get('telefone')
+    
     # Cabeçalho - usar nome da mantenedora
     elements.append(Paragraph(mant_nome.upper(), styles['CenterText']))
     elements.append(Paragraph("SECRETARIA MUNICIPAL DE EDUCAÇÃO", styles['CenterText']))
     elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
-    elements.append(Paragraph(f"Endereço: {school.get('address', 'N/A')}", styles['CenterText']))
-    elements.append(Paragraph(f"Tel: {school.get('phone', 'N/A')}", styles['CenterText']))
+    
+    # Endereço e telefone da escola (deixar em branco se não tiver)
+    if endereco:
+        elements.append(Paragraph(f"Endereço: {endereco}", styles['CenterText']))
+    if telefone:
+        elements.append(Paragraph(f"Tel: {telefone}", styles['CenterText']))
     elements.append(Spacer(1, 30))
     
     # Título
@@ -1115,7 +1147,18 @@ def generate_declaracao_matricula_pdf(
     student_name = student.get('full_name', 'N/A')
     birth_date = student.get('birth_date', 'N/A')
     class_name = class_info.get('name', 'N/A')
-    shift = class_info.get('shift', 'N/A')
+    
+    # Mapeamento de turnos para português
+    TURNOS_PT = {
+        'morning': 'Matutino',
+        'afternoon': 'Vespertino',
+        'evening': 'Noturno',
+        'full_time': 'Integral',
+        'night': 'Noturno'
+    }
+    shift_raw = class_info.get('shift', 'N/A')
+    shift = TURNOS_PT.get(shift_raw, shift_raw)
+    
     reg_number = enrollment.get('registration_number', 'N/A')
     
     # Formatar data de nascimento
@@ -1149,12 +1192,9 @@ def generate_declaracao_matricula_pdf(
     elements.append(Paragraph(f"{city}, {today}.", styles['CenterText']))
     elements.append(Spacer(1, 60))
     
-    # Assinatura
+    # Assinatura - apenas Secretário(a) Escolar (removido Diretor)
     elements.append(Paragraph("_" * 50, styles['CenterText']))
     elements.append(Paragraph("Secretário(a) Escolar", styles['CenterText']))
-    elements.append(Spacer(1, 40))
-    elements.append(Paragraph("_" * 50, styles['CenterText']))
-    elements.append(Paragraph("Diretor(a)", styles['CenterText']))
     
     # Gerar PDF
     doc.build(elements)
