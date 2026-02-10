@@ -942,6 +942,8 @@ class StudentUpdate(BaseModel):
     birth_city: Optional[str] = None
     birth_state: Optional[str] = None
     color_race: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarada']] = None
+    phone: Optional[str] = None  # Telefone do aluno
+    email: Optional[str] = None  # Email do aluno
     
     # Documentos
     cpf: Optional[str] = None
