@@ -113,7 +113,42 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 
 ## Última Atualização
 **Data:** 10 de Fevereiro de 2026
-**Funcionalidade:** Exibição de Nomes na Página de Auditoria
+**Funcionalidade:** Melhorias na Geração de Documentos
+
+### Melhorias na Geração de Documentos (Fev 10, 2026):
+
+**1. Bloqueio de Documentos para Alunos Inativos:**
+- ✅ Alunos com status diferente de "Ativo" (Transferido, Inativo, Desistente, etc.) não podem ter documentos gerados
+- ✅ Mensagem clara informando o status atual do aluno e que apenas alunos ativos podem ter documentos
+- ✅ Implementado nos endpoints: Boletim, Ficha Individual, Declaração de Matrícula e Declaração de Frequência
+
+**2. Redução do Tamanho do Brasão em 40%:**
+- ✅ Tamanho do brasão reduzido em todos os documentos PDF
+- ✅ Boletim: 2.7cm x 1.8cm → 1.62cm x 1.08cm
+- ✅ Declarações: 3.75cm x 2.5cm → 2.25cm x 1.5cm
+- ✅ Ficha Individual: 2.4cm x 1.6cm → 1.44cm x 0.96cm
+
+**3. Melhorias nas Declarações (Matrícula e Frequência):**
+- ✅ Endereço completo da escola usando campos de Localização (logradouro, número, bairro, município, estado, CEP)
+- ✅ Telefone da escola no formato correto "(DDD) NÚMERO" ou em branco se não cadastrado
+- ✅ Turno traduzido para português: morning→Matutino, afternoon→Vespertino, full_time→Integral
+- ✅ Removida assinatura do Diretor (mantida apenas do Secretário Escolar)
+- ✅ Margem superior reduzida em 60% (3cm → 1.2cm)
+
+**4. Declaração de Frequência - Cálculo Correto:**
+- ✅ Total de dias letivos calculado com base no calendário letivo até a data de emissão
+- ✅ Dias de presença = dias letivos - faltas registradas
+- ✅ Percentual de frequência baseado nos dias letivos transcorridos
+- ✅ Considera feriados, recessos e sábados letivos do calendário
+
+**5. Declaração de Matrícula - Número de Matrícula:**
+- ✅ Usa o `enrollment_number` do aluno quando `registration_number` é N/A
+
+**Arquivos Modificados:**
+- `/app/backend/server.py` - Verificação de status e cálculo de frequência
+- `/app/backend/pdf_generator.py` - Layout das declarações e tamanho do brasão
+
+---
 
 ### Logs de Auditoria - Exibição de Nomes (Fev 10, 2026):
 Alterada a página de Auditoria para exibir o nome completo dos usuários em vez do email, melhorando a legibilidade.
