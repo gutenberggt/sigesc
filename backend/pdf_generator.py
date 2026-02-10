@@ -1444,8 +1444,9 @@ def generate_ficha_individual_pdf(
     
     # ===== CABEÇALHO =====
     # Usar logotipo da mantenedora se disponível
+    # Tamanho reduzido em 40% (2.4cm -> 1.44cm, 1.6cm -> 0.96cm)
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    logo = get_logo_image(width=2.4*cm, height=1.6*cm, logo_url=logo_url)
+    logo = get_logo_image(width=1.44*cm, height=0.96*cm, logo_url=logo_url)
     
     # Usar cidade/estado da mantenedora
     mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
