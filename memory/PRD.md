@@ -113,10 +113,10 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 
 ## Última Atualização
 **Data:** 10 de Fevereiro de 2026
-**Funcionalidade:** Filtro de Ano Letivo no Vínculo de Turma
+**Funcionalidade:** Filtro de Ano Letivo no Vínculo de Turma (Novo e Editar Aluno)
 
 ### Filtro de Ano Letivo no Cadastro de Aluno (Fev 10, 2026):
-Adicionado seletor de ano letivo na seção "Vínculo com Turma" do cadastro de aluno.
+Adicionado seletor de ano letivo na seção "Vínculo com Turma" tanto para Novo Aluno quanto para Editar Aluno.
 
 **Funcionalidade:**
 - ✅ Dropdown de ano letivo (2025-2030) ao lado do título "Vínculo com Turma"
@@ -124,6 +124,8 @@ Adicionado seletor de ano letivo na seção "Vínculo com Turma" do cadastro de 
 - ✅ Label do campo "Turma" mostra o ano selecionado (ex: "Turma (2026)")
 - ✅ Mensagem de aviso quando não há turmas para o ano/escola selecionados
 - ✅ Ao mudar o ano ou escola, a turma selecionada é limpa automaticamente
+- ✅ **NOVO**: Edição de aluno agora permite selecionar escola e turma de outros anos
+- ✅ **NOVO**: Ao abrir para edição, o ano é automaticamente definido com base na turma atual do aluno
 
 **Arquivo Modificado:**
 - `/app/frontend/src/pages/StudentsComplete.js`
