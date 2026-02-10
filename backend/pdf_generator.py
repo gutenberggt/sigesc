@@ -2734,7 +2734,8 @@ def generate_livro_promocao_pdf(
     mant_nome = mantenedora.get('nome', f'Prefeitura Municipal de {mant_municipio}')
     slogan = mantenedora.get('slogan', '')
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    logo = get_logo_image(width=2.4*cm, height=1.6*cm, logo_url=logo_url)
+    # Tamanho reduzido em 40% (2.4cm -> 1.44cm, 1.6cm -> 0.96cm)
+    logo = get_logo_image(width=1.44*cm, height=0.96*cm, logo_url=logo_url)
     
     # ===== DADOS DA TURMA =====
     escola_nome = school.get('name', 'Escola Municipal')
