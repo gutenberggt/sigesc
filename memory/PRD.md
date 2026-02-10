@@ -112,6 +112,24 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - [ ] **Relatórios Gerenciais:** Criar relatórios para atestados médicos
 
 ## Última Atualização
+**Data:** 10 de Fevereiro de 2026
+**Funcionalidade:** Exibição de Nomes na Página de Auditoria
+
+### Logs de Auditoria - Exibição de Nomes (Fev 10, 2026):
+Alterada a página de Auditoria para exibir o nome completo dos usuários em vez do email, melhorando a legibilidade.
+
+**Alterações:**
+- ✅ Método `get_logs()` em `audit_service.py` modificado para usar aggregation pipeline com `$lookup`
+- ✅ Enriquecimento dos logs com nomes de usuários da coleção `users`
+- ✅ Compatibilidade com logs antigos que não tinham `user_name` preenchido
+- ✅ Frontend já estava preparado para exibir `user_name || user_email`
+
+**Arquivo Modificado:**
+- `/app/backend/audit_service.py`
+
+---
+
+### Última Atualização Anterior
 **Data:** 07 de Fevereiro de 2026
 **Funcionalidade:** Simplificação de Imagem - Unificação Brasão/Logotipo
 
