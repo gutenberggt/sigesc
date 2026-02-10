@@ -4531,6 +4531,11 @@ async def generate_declaracao_matricula(
             "academic_year": academic_year
         }
     
+    # Garantir que o número de matrícula seja preenchido corretamente
+    # Prioridade: registration_number do enrollment > enrollment_number do aluno
+    if not enrollment.get("registration_number") or enrollment.get("registration_number") == "N/A":
+        enrollment["registration_number"] = student.get("enrollment_number", "N/A")
+    
     # Buscar turma
     class_id = enrollment.get("class_id") or student.get("class_id")
     class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
