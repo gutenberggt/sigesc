@@ -474,6 +474,8 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             "class": turma,
             "academic_year": academic_year,
             "total_records": len(attendances),
+            "total_school_days_recorded": len(attendances),
+            "total_students": len(students),
             "students": report
         }
 
