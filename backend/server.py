@@ -4659,26 +4659,124 @@ async def generate_declaracao_frequencia(
             "address": "Endereço não informado"
         }
     
-    # Calcular frequência do aluno
-    # Buscar todas as presenças do aluno
+    # Garantir que o número de matrícula seja preenchido corretamente
+    if not enrollment.get("registration_number") or enrollment.get("registration_number") == "N/A":
+        enrollment["registration_number"] = student.get("enrollment_number", "N/A")
+    
+    # Calcular dias letivos até a data de emissão
+    academic_year_int = int(academic_year) if academic_year else datetime.now().year
+    
+    # Buscar calendário letivo
+    calendario = await db.calendario_letivo.find_one(
+        {"ano_letivo": academic_year_int, "school_id": None}, 
+        {"_id": 0}
+    )
+    
+    # Buscar eventos do calendário (feriados, sábados letivos, etc.)
+    events = await db.calendar_events.find({
+        "academic_year": academic_year_int
+    }, {"_id": 0}).to_list(1000)
+    
+    eventos_nao_letivos = ['feriado_nacional', 'feriado_estadual', 'feriado_municipal', 'recesso_escolar']
+    
+    datas_nao_letivas = set()
+    datas_sabados_letivos = set()
+    
+    for event in events:
+        event_type = event.get('event_type', '')
+        start_date_str = event.get('start_date')
+        end_date_str = event.get('end_date') or start_date_str
+        
+        if not start_date_str:
+            continue
+        
+        try:
+            from datetime import timedelta
+            start_date_ev = datetime.strptime(start_date_str[:10], '%Y-%m-%d').date()
+            end_date_ev = datetime.strptime(end_date_str[:10], '%Y-%m-%d').date()
+            
+            current_ev = start_date_ev
+            while current_ev <= end_date_ev:
+                if event_type in eventos_nao_letivos:
+                    datas_nao_letivas.add(current_ev)
+                elif event_type == 'sabado_letivo':
+                    datas_sabados_letivos.add(current_ev)
+                elif event.get('is_school_day', False) and current_ev.weekday() == 5:
+                    datas_sabados_letivos.add(current_ev)
+                current_ev += timedelta(days=1)
+        except (ValueError, TypeError):
+            continue
+    
+    # Calcular dias letivos até hoje
+    def calcular_dias_letivos_ate_data(calendario, data_limite):
+        """Calcula dias letivos desde o início do ano até a data limite"""
+        if not calendario:
+            return 0
+        
+        inicio_str = calendario.get('bimestre_1_inicio')
+        if not inicio_str:
+            return 0
+        
+        try:
+            from datetime import timedelta
+            inicio = datetime.strptime(inicio_str[:10], '%Y-%m-%d').date()
+            fim = data_limite
+        except (ValueError, TypeError):
+            return 0
+        
+        dias_letivos = 0
+        current = inicio
+        
+        while current <= fim:
+            dia_semana = current.weekday()
+            
+            if current in datas_sabados_letivos:
+                dias_letivos += 1
+            elif dia_semana < 5:  # Seg-Sex
+                if current not in datas_nao_letivas:
+                    dias_letivos += 1
+            
+            current += timedelta(days=1)
+        
+        return dias_letivos
+    
+    # Calcular dias letivos até hoje
+    from datetime import date as date_type
+    hoje = date_type.today()
+    total_dias_letivos_ate_hoje = calcular_dias_letivos_ate_data(calendario, hoje)
+    
+    # Buscar todas as faltas do aluno
     attendances = await db.attendance.find({
         "student_id": student_id,
         "academic_year": academic_year
     }, {"_id": 0}).to_list(500)
     
-    # Calcular estatísticas
-    total_days = len(attendances)
-    present_days = sum(1 for a in attendances if a.get('status') in ['present', 'P'])
-    absent_days = sum(1 for a in attendances if a.get('status') in ['absent', 'F', 'A'])
+    # Calcular total de faltas
+    total_faltas = sum(1 for a in attendances if a.get('status') in ['absent', 'F', 'A'])
     
-    # Se não houver dados, usar valores padrão
-    if total_days == 0:
-        # Estimar dias letivos (aproximadamente 200 dias por ano)
-        total_days = 200
-        present_days = 180
-        absent_days = 20
+    # Se não houver calendário configurado, usar fallback baseado na data
+    if total_dias_letivos_ate_hoje == 0:
+        # Calcular aproximadamente considerando 200 dias letivos por ano
+        # e uma distribuição proporcional ao longo do ano
+        inicio_ano = date_type(academic_year_int, 2, 1)  # Início típico em fevereiro
+        fim_ano = date_type(academic_year_int, 12, 20)  # Fim típico em dezembro
+        
+        if hoje < inicio_ano:
+            total_dias_letivos_ate_hoje = 0
+        elif hoje > fim_ano:
+            total_dias_letivos_ate_hoje = 200
+        else:
+            dias_transcorridos = (hoje - inicio_ano).days
+            dias_totais_ano = (fim_ano - inicio_ano).days
+            total_dias_letivos_ate_hoje = int(200 * dias_transcorridos / dias_totais_ano) if dias_totais_ano > 0 else 0
     
-    frequency_percentage = (present_days / total_days * 100) if total_days > 0 else 0
+    # Calcular presenças: dias letivos - faltas
+    total_days = total_dias_letivos_ate_hoje
+    absent_days = total_faltas
+    present_days = max(0, total_days - absent_days)
+    
+    # Calcular percentual de frequência
+    frequency_percentage = (present_days / total_days * 100) if total_days > 0 else 100
     
     attendance_data = {
         "total_days": total_days,
