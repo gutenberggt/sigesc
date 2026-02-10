@@ -4725,6 +4725,23 @@ async def get_ficha_individual(
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
     
+    # Verificar se o aluno está ativo
+    student_status = student.get('status', 'active')
+    if student_status != 'active':
+        status_labels = {
+            'inactive': 'Inativo',
+            'transferred': 'Transferido',
+            'graduated': 'Formado',
+            'deceased': 'Falecido',
+            'cancelled': 'Matrícula Cancelada',
+            'dropout': 'Desistente'
+        }
+        status_label = status_labels.get(student_status, student_status)
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Não é possível gerar documentos para este aluno. Status atual: {status_label}. Apenas alunos com status 'Ativo' podem ter documentos gerados."
+        )
+    
     # Buscar escola
     school = await db.schools.find_one({"id": student.get("school_id")}, {"_id": 0})
     if not school:
