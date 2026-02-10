@@ -2549,6 +2549,7 @@ export function StudentsComplete() {
             </select>
           </div>
         </div>
+        </div>
       )}
 
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-8">Observações</h3>
