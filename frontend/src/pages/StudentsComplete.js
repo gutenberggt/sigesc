@@ -473,6 +473,14 @@ export function StudentsComplete() {
     setFormData({ ...initialFormData, ...student });
     setIsModalOpen(true);
     
+    // Define o ano letivo com base na turma atual do aluno
+    if (student.class_id) {
+      const studentClass = classes.find(c => c.id === student.class_id);
+      if (studentClass?.academic_year) {
+        setVinculoAnoLetivo(studentClass.academic_year);
+      }
+    }
+    
     // Carrega histórico do aluno
     loadStudentHistory(student.id);
   };
@@ -482,6 +490,14 @@ export function StudentsComplete() {
     setViewMode(false);
     setFormData({ ...initialFormData, ...student });
     setIsModalOpen(true);
+    
+    // Define o ano letivo com base na turma atual do aluno
+    if (student.class_id) {
+      const studentClass = classes.find(c => c.id === student.class_id);
+      if (studentClass?.academic_year) {
+        setVinculoAnoLetivo(studentClass.academic_year);
+      }
+    }
     
     // Carrega histórico do aluno
     loadStudentHistory(student.id);
