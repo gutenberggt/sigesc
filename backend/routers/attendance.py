@@ -448,17 +448,26 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             stats = student_stats.get(student['id'], {})
             total = stats.get('total', 0)
             present = stats.get('present', 0)
+            justified = stats.get('justified', 0)
+            absent = stats.get('absent', 0)
+            
+            # Calcula percentual de frequência (presença + justificadas contam)
+            attendance_percentage = round((present + justified) / total * 100, 1) if total > 0 else 0
+            
+            # Define status baseado na frequência mínima (75%)
+            status = 'regular' if attendance_percentage >= 75 else 'infrequente'
             
             report.append({
-                "id": student['id'],
-                "full_name": student['full_name'],
+                "student_id": student['id'],
+                "student_name": student['full_name'],
                 "enrollment_number": enrollment_numbers.get(student['id']),
                 "present": present,
-                "absent": stats.get('absent', 0),
-                "justified": stats.get('justified', 0),
+                "absent": absent,
+                "justified": justified,
                 "late": stats.get('late', 0),
                 "total": total,
-                "attendance_rate": round(present / total * 100, 2) if total > 0 else 0
+                "attendance_percentage": attendance_percentage,
+                "status": status
             })
         
         return {
