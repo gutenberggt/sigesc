@@ -2397,78 +2397,118 @@ export function StudentsComplete() {
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Vínculo com Turma</h3>
       
-      {/* Exibição do vínculo atual (somente leitura) */}
+      {/* Exibição do vínculo atual (aluno existente) */}
       {editingStudent ? (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
-            <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
-              {formData.school_id 
-                ? schools.find(s => s.id === formData.school_id)?.name || 'Escola não encontrada'
-                : <span className="text-gray-400 italic">Sem vínculo</span>
-              }
+        <div className="space-y-4">
+          {/* Linha com seletor de ano para filtro de turmas */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">Selecione o ano e a turma para vincular o aluno</span>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Ano Letivo:</label>
+              <select
+                value={vinculoAnoLetivo}
+                onChange={(e) => {
+                  setVinculoAnoLetivo(parseInt(e.target.value));
+                }}
+                disabled={viewMode}
+                className="px-3 py-1.5 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-blue-50 text-blue-700 font-medium"
+              >
+                {[2025, 2026, 2027, 2028, 2029, 2030].map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
             </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
-            <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
-              {formData.class_id 
-                ? classes.find(c => c.id === formData.class_id)?.name || 'Turma não encontrada'
-                : <span className="text-gray-400 italic">Sem vínculo</span>
-              }
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
-              value={formData.status}
-              onChange={(e) => updateFormData('status', e.target.value)}
-              disabled={viewMode}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-            >
-              <option value="active">Ativo</option>
-              <option value="inactive">Inativo</option>
-              <option value="dropout">Desistente</option>
-              <option value="transferred">Transferido</option>
-              <option value="deceased">Falecido</option>
-            </select>
           </div>
           
-          {/* Campo de Ação */}
-          {!viewMode && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ação</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
               <select
-                value=""
+                value={formData.school_id || ''}
                 onChange={(e) => {
-                  if (e.target.value) {
-                    handleOpenActionModal(e.target.value);
-                    e.target.value = '';
-                  }
+                  updateFormData('school_id', e.target.value);
+                  updateFormData('class_id', '');
                 }}
-                className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-blue-50 text-blue-700 font-medium cursor-pointer"
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
               >
-                <option value="">Selecione uma ação...</option>
-                <option value="matricular" disabled={!canExecuteAction('matricular', editingStudent?.status)}>
-                  📋 Matricular {!canExecuteAction('matricular', editingStudent?.status) ? '(indisponível)' : ''}
-                </option>
-                <option value="transferir" disabled={!canExecuteAction('transferir', editingStudent?.status)}>
-                  🔄 Transferir {!canExecuteAction('transferir', editingStudent?.status) ? '(indisponível)' : ''}
-                </option>
-                <option value="remanejar" disabled={!canExecuteAction('remanejar', editingStudent?.status)}>
-                  ↔️ Remanejar {!canExecuteAction('remanejar', editingStudent?.status) ? '(indisponível)' : ''}
-                </option>
-                <option value="progredir" disabled={!canExecuteAction('progredir', editingStudent?.status)}>
-                  ⬆️ Progredir {!canExecuteAction('progredir', editingStudent?.status) ? '(indisponível)' : ''}
-                </option>
+                <option value="">Selecione uma escola</option>
+                {schools.map(school => (
+                  <option key={school.id} value={school.id}>{school.name}</option>
+                ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">
-                {formData.status === 'active' || formData.status === 'ativo' 
-                  ? 'Disponível: Transferir, Remanejar, Progredir'
-                  : 'Disponível: Matricular'}
-              </p>
             </div>
-          )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Turma ({vinculoAnoLetivo})</label>
+              <select
+                value={formData.class_id || ''}
+                onChange={(e) => updateFormData('class_id', e.target.value)}
+                disabled={viewMode || !formData.school_id}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              >
+                <option value="">{formData.school_id ? 'Selecione uma turma' : 'Selecione a escola primeiro'}</option>
+                {filteredClasses.map(classItem => (
+                  <option key={classItem.id} value={classItem.id}>
+                    {classItem.name}
+                  </option>
+                ))}
+              </select>
+              {filteredClasses.length === 0 && formData.school_id && (
+                <p className="text-sm text-yellow-600 mt-1">Nenhuma turma cadastrada para esta escola em {vinculoAnoLetivo}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => updateFormData('status', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              >
+                <option value="active">Ativo</option>
+                <option value="inactive">Inativo</option>
+                <option value="dropout">Desistente</option>
+                <option value="transferred">Transferido</option>
+                <option value="deceased">Falecido</option>
+              </select>
+            </div>
+          
+            {/* Campo de Ação */}
+            {!viewMode && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ação</label>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleOpenActionModal(e.target.value);
+                      e.target.value = '';
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-blue-50 text-blue-700 font-medium cursor-pointer"
+                >
+                  <option value="">Selecione uma ação...</option>
+                  <option value="matricular" disabled={!canExecuteAction('matricular', editingStudent?.status)}>
+                    📋 Matricular {!canExecuteAction('matricular', editingStudent?.status) ? '(indisponível)' : ''}
+                  </option>
+                  <option value="transferir" disabled={!canExecuteAction('transferir', editingStudent?.status)}>
+                    🔄 Transferir {!canExecuteAction('transferir', editingStudent?.status) ? '(indisponível)' : ''}
+                  </option>
+                  <option value="remanejar" disabled={!canExecuteAction('remanejar', editingStudent?.status)}>
+                    ↔️ Remanejar {!canExecuteAction('remanejar', editingStudent?.status) ? '(indisponível)' : ''}
+                  </option>
+                  <option value="progredir" disabled={!canExecuteAction('progredir', editingStudent?.status)}>
+                    ⬆️ Progredir {!canExecuteAction('progredir', editingStudent?.status) ? '(indisponível)' : ''}
+                  </option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.status === 'active' || formData.status === 'ativo' 
+                    ? 'Disponível: Transferir, Remanejar, Progredir'
+                    : 'Disponível: Matricular'}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         /* Novo aluno - campos editáveis */
