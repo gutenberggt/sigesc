@@ -495,8 +495,9 @@ def generate_boletim_pdf(
     
     # ===== CABEÇALHO =====
     # Usar logotipo da mantenedora se disponível
+    # Tamanho reduzido em 40% (2.7cm -> 1.62cm, 1.8cm -> 1.08cm)
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    logo = get_logo_image(width=2.7*cm, height=1.8*cm, logo_url=logo_url)
+    logo = get_logo_image(width=1.62*cm, height=1.08*cm, logo_url=logo_url)
     
     # Usar dados da mantenedora
     mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
