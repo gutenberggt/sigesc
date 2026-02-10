@@ -1019,7 +1019,11 @@ export function StudentsComplete() {
     return classItem ? classItem.name : '-';
   };
 
-  const filteredClasses = classes.filter(c => c.school_id === formData.school_id);
+  // Turmas filtradas por escola e ano letivo selecionado (para vínculo de novo aluno)
+  const filteredClasses = classes.filter(c => 
+    c.school_id === formData.school_id && 
+    c.academic_year === vinculoAnoLetivo
+  );
   
   // Turmas filtradas para o filtro de busca
   const filterClassOptions = classes.filter(c => c.school_id === filterSchoolId);
