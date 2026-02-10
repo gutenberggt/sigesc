@@ -295,6 +295,9 @@ export function StudentsComplete() {
   });
   const [savingCertificate, setSavingCertificate] = useState(false);
   
+  // Estado para filtro de ano no vínculo de turma (novo aluno)
+  const [vinculoAnoLetivo, setVinculoAnoLetivo] = useState(new Date().getFullYear());
+  
   // Estados para Ações de Vínculo (Matricular, Transferir, Remanejar, Progredir)
   const [showActionModal, setShowActionModal] = useState(false);
   const [selectedAction, setSelectedAction] = useState('');
