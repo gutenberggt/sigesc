@@ -92,13 +92,15 @@ export const AuditLogs = () => {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [limit] = useState(20);
+  const [users, setUsers] = useState([]);
   
   // Filtros
   const [filters, setFilters] = useState({
     action: '',
     collection: '',
     severity: '',
-    search: ''
+    search: '',
+    user_id: ''
   });
 
   const fetchLogs = async () => {
