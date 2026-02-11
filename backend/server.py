@@ -4802,8 +4802,8 @@ async def generate_declaracao_frequencia(
             enrollment=enrollment,
             class_info=class_info,
             attendance_data=attendance_data,
-            academic_year=academic_year,
-            period=f"ano letivo de {academic_year}",
+            academic_year=actual_academic_year,
+            period=f"ano letivo de {actual_academic_year}",
             mantenedora=mantenedora
         )
         
