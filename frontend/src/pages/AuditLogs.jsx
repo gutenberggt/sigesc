@@ -274,6 +274,23 @@ export const AuditLogs = () => {
               />
             </div>
             <Select
+              value={filters.user_id || 'all'}
+              onValueChange={(value) => setFilters({...filters, user_id: value === 'all' ? '' : value})}
+            >
+              <SelectTrigger className="w-[220px]">
+                <User className="w-4 h-4 mr-2 text-gray-500" />
+                <SelectValue placeholder="Usuário" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os usuários</SelectItem>
+                {users.map(u => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.full_name || u.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
               value={filters.action || 'all'}
               onValueChange={(value) => setFilters({...filters, action: value === 'all' ? '' : value})}
             >
