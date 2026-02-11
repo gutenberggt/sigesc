@@ -171,6 +171,7 @@ export const AuditLogs = () => {
     if (token) {
       fetchLogs();
       fetchStats();
+      fetchUsers();
     }
   }, [token, page, filters]);
 
