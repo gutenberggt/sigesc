@@ -4326,9 +4326,9 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
     # Buscar dados da mantenedora
     mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
     
-    # Buscar calendário letivo para obter os dias letivos
+    # Buscar calendário letivo para obter os dias letivos (usar ano da turma)
     calendario_letivo = await db.calendario_letivo.find_one({
-        "ano_letivo": int(academic_year),
+        "ano_letivo": int(actual_academic_year),
         "school_id": None  # Calendário geral
     }, {"_id": 0})
     
@@ -4337,7 +4337,7 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
     if calendario_letivo:
         # Buscar eventos do calendário para o ano
         eventos = await db.calendar_events.find({
-            "year": int(academic_year)
+            "year": int(actual_academic_year)
         }, {"_id": 0}).to_list(500)
         
         from datetime import datetime, timedelta
