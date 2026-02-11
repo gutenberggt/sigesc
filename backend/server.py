@@ -4454,14 +4454,14 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
             class_info=class_info,
             grades=grades,
             courses=courses,
-            academic_year=academic_year,
+            academic_year=actual_academic_year,
             mantenedora=mantenedora,
             dias_letivos_ano=dias_letivos_ano,
             calendario_letivo=calendario_letivo,
             attendance_data=attendance_data
         )
         
-        filename = f"boletim_{student.get('full_name', 'aluno').replace(' ', '_')}_{academic_year}.pdf"
+        filename = f"boletim_{student.get('full_name', 'aluno').replace(' ', '_')}_{actual_academic_year}.pdf"
         
         return StreamingResponse(
             pdf_buffer,
