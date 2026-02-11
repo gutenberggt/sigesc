@@ -112,8 +112,22 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - [ ] **Relatórios Gerenciais:** Criar relatórios para atestados médicos
 
 ## Última Atualização
-**Data:** 10 de Fevereiro de 2026
-**Funcionalidade:** Filtro de Ano Letivo no Vínculo de Turma (Novo e Editar Aluno)
+**Data:** 11 de Fevereiro de 2026
+**Funcionalidade:** Filtro de Usuário nos Logs de Auditoria
+
+### Filtro de Usuário nos Logs de Auditoria (Fev 11, 2026):
+Adicionado dropdown para filtrar logs por usuário específico.
+
+**Funcionalidade:**
+- ✅ Dropdown "Todos os usuários" com lista de usuários do sistema
+- ✅ Lista ordenada alfabeticamente pelo nome
+- ✅ Integração com o backend (parâmetro `user_id`)
+- ✅ Ícone de usuário para identificação visual
+
+**Arquivo Modificado:**
+- `/app/frontend/src/pages/AuditLogs.jsx`
+
+---
 
 ### Filtro de Ano Letivo no Cadastro de Aluno (Fev 10, 2026):
 Adicionado seletor de ano letivo na seção "Vínculo com Turma" tanto para Novo Aluno quanto para Editar Aluno.
