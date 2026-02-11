@@ -5051,7 +5051,7 @@ async def get_ficha_individual(
     
     # Buscar calendário letivo para dias letivos e data fim do 4º bimestre
     calendario_letivo = await db.calendario_letivo.find_one({
-        "ano_letivo": academic_year
+        "ano_letivo": actual_academic_year
     }, {"_id": 0})
     
     # Calcular dias letivos reais com base nos períodos bimestrais e eventos
@@ -5059,7 +5059,7 @@ async def get_ficha_individual(
     if calendario_letivo:
         # Buscar eventos do calendário para o ano
         eventos = await db.calendar_events.find({
-            "year": academic_year
+            "year": actual_academic_year
         }, {"_id": 0}).to_list(500)
         
         # Identificar datas não letivas (feriados, recessos, etc.)
