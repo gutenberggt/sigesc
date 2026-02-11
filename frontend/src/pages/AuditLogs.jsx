@@ -115,6 +115,7 @@ export const AuditLogs = () => {
       if (filters.collection) params.append('collection', filters.collection);
       if (filters.severity) params.append('severity', filters.severity);
       if (filters.search) params.append('search', filters.search);
+      if (filters.user_id) params.append('user_id', filters.user_id);
       
       const response = await fetch(`${API}/api/audit-logs?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -129,6 +130,25 @@ export const AuditLogs = () => {
       console.error('Erro ao buscar logs:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch(`${API}/api/users`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Ordenar por nome
+        const sortedUsers = (data.users || data || []).sort((a, b) => 
+          (a.full_name || a.email || '').localeCompare(b.full_name || b.email || '')
+        );
+        setUsers(sortedUsers);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
     }
   };
 
