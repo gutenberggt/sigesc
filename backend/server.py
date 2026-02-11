@@ -5127,7 +5127,7 @@ async def get_ficha_individual(
             school=school,
             class_info=class_info,
             enrollment=enrollment,
-            academic_year=academic_year,
+            academic_year=actual_academic_year,
             grades=grades,
             courses=courses,
             attendance_data=attendance_data,
