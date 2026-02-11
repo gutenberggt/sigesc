@@ -4990,7 +4990,7 @@ async def get_ficha_individual(
     # Buscar todos os registros de frequência da turma do aluno
     class_id = student.get('class_id')
     attendance_records = await db.attendance.find(
-        {"class_id": class_id, "academic_year": academic_year},
+        {"class_id": class_id, "academic_year": actual_academic_year},
         {"_id": 0}
     ).to_list(500)
     
