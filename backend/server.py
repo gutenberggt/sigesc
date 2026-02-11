@@ -4864,9 +4864,12 @@ async def get_ficha_individual(
     if not class_info:
         class_info = {"name": "N/A", "grade_level": "N/A", "shift": "N/A"}
     
+    # Usar o ano letivo da turma em vez do parâmetro (a turma determina o ano)
+    actual_academic_year = class_info.get("academic_year", academic_year)
+    
     # Buscar matrícula
     enrollment = await db.enrollments.find_one(
-        {"student_id": student_id, "academic_year": academic_year},
+        {"student_id": student_id, "academic_year": actual_academic_year},
         {"_id": 0}
     )
     if not enrollment:
@@ -4874,7 +4877,7 @@ async def get_ficha_individual(
     
     # Buscar notas do aluno
     grades = await db.grades.find(
-        {"student_id": student_id, "academic_year": academic_year},
+        {"student_id": student_id, "academic_year": actual_academic_year},
         {"_id": 0}
     ).to_list(100)
     
