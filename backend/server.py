@@ -4754,7 +4754,7 @@ async def generate_declaracao_frequencia(
     # Buscar todas as faltas do aluno
     attendances = await db.attendance.find({
         "student_id": student_id,
-        "academic_year": academic_year
+        "academic_year": actual_academic_year
     }, {"_id": 0}).to_list(500)
     
     # Calcular total de faltas
