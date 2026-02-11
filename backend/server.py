@@ -4650,6 +4650,9 @@ async def generate_declaracao_frequencia(
     if not class_info:
         class_info = {"name": "Turma não informada", "shift": "N/A", "school_id": student.get("school_id")}
     
+    # Usar o ano letivo da turma em vez do parâmetro (a turma determina o ano)
+    actual_academic_year = str(class_info.get("academic_year", academic_year))
+    
     # Buscar escola
     school_id = class_info.get("school_id") or student.get("school_id")
     school = await db.schools.find_one({"id": school_id}, {"_id": 0})
@@ -4667,7 +4670,7 @@ async def generate_declaracao_frequencia(
         enrollment["registration_number"] = student.get("enrollment_number", "N/A")
     
     # Calcular dias letivos até a data de emissão
-    academic_year_int = int(academic_year) if academic_year else datetime.now().year
+    academic_year_int = int(actual_academic_year) if actual_academic_year else datetime.now().year
     
     # Buscar calendário letivo
     calendario = await db.calendario_letivo.find_one(
