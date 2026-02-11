@@ -4542,6 +4542,9 @@ async def generate_declaracao_matricula(
     if not class_info:
         class_info = {"name": "Turma não informada", "shift": "N/A", "school_id": student.get("school_id")}
     
+    # Usar o ano letivo da turma em vez do parâmetro (a turma determina o ano)
+    actual_academic_year = str(class_info.get("academic_year", academic_year))
+    
     # Buscar escola
     school_id = class_info.get("school_id") or student.get("school_id")
     school = await db.schools.find_one({"id": school_id}, {"_id": 0})
@@ -4564,7 +4567,7 @@ async def generate_declaracao_matricula(
             school=school,
             enrollment=enrollment,
             class_info=class_info,
-            academic_year=academic_year,
+            academic_year=actual_academic_year,
             purpose=purpose,
             mantenedora=mantenedora
         )
