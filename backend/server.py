@@ -4395,7 +4395,7 @@ async def generate_boletim(student_id: str, request: Request, academic_year: str
     # ===== BUSCAR DADOS DE FREQUÊNCIA (MESMA LÓGICA DA FICHA INDIVIDUAL) =====
     class_id = student.get('class_id')
     attendance_records = await db.attendance.find(
-        {"class_id": class_id, "academic_year": int(academic_year)},
+        {"class_id": class_id, "academic_year": int(actual_academic_year)},
         {"_id": 0}
     ).to_list(500)
     
