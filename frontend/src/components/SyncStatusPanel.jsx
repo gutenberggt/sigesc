@@ -266,7 +266,7 @@ export function SyncStatusPanel() {
                 </div>
                 <div>
                   <div className="font-semibold text-gray-900">{serverStatus.collections.students}</div>
-                  <div className="text-gray-500">Alunos</div>
+                  <div className="text-gray-500">Alunos(as)</div>
                 </div>
                 <div>
                   <div className="font-semibold text-gray-900">{serverStatus.collections.classes}</div>

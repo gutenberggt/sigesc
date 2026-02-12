@@ -213,7 +213,7 @@ export function OfflineManagementPanel({ academicYear, classId }) {
           <div className="grid grid-cols-5 gap-2 mb-4">
             <div className="text-center p-2 bg-gray-50 rounded">
               <div className="text-lg font-semibold text-blue-600">{cacheStats.students}</div>
-              <div className="text-xs text-gray-500">Alunos</div>
+              <div className="text-xs text-gray-500">Alunos(as)</div>
             </div>
             <div className="text-center p-2 bg-gray-50 rounded">
               <div className="text-lg font-semibold text-green-600">{cacheStats.grades}</div>
