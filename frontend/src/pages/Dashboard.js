@@ -89,7 +89,7 @@ export const Dashboard = () => {
       }
     };
     loadData();
-  }, [user?.role, isSecretario, userSchoolIds]);
+  }, [user?.role, isSchoolStaff, userSchoolIds]);
 
   // Redireciona professor para o dashboard específico
   if (user?.role === 'professor') {
