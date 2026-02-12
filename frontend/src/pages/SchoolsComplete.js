@@ -1847,6 +1847,24 @@ export function SchoolsComplete() {
       return vinculos[vinculo] || vinculo;
     };
 
+    const formatTurno = (turno) => {
+      const turnos = {
+        'matutino': 'Matutino',
+        'vespertino': 'Vespertino',
+        'noturno': 'Noturno',
+        'integral': 'Integral'
+      };
+      return turnos[turno] || turno || '-';
+    };
+
+    // Formatar CPF: XXX.XXX.XXX-XX
+    const formatCPF = (cpf) => {
+      if (!cpf) return '-';
+      const digits = cpf.replace(/\D/g, '');
+      if (digits.length !== 11) return cpf;
+      return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9)}`;
+    };
+
     // Calcula CH Mensal (CH semanal * 4)
     const calcularCHMensal = (staff) => {
       // Prioriza a CH da lotação, se não tiver usa a CH do servidor
@@ -1895,19 +1913,22 @@ export function SchoolsComplete() {
             <table className="min-w-full divide-y divide-gray-200 border rounded-lg">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Foto</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cargo</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vínculo</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">CH Men</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Celular</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Foto</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">CPF</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cargo</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turma(s)</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turno</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vínculo</th>
+                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">CH</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Celular</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {schoolStaff.map((staff, index) => (
                   <tr key={index} className="hover:bg-gray-50">
                     {/* Foto */}
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       {staff.foto_url ? (
                         <img
                           src={uploadAPI.getUrl(staff.foto_url)}
@@ -1923,16 +1944,43 @@ export function SchoolsComplete() {
                       )}
                     </td>
                     {/* Nome */}
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{staff.nome}</td>
+                    <td className="px-3 py-3 text-sm font-medium text-gray-900">{staff.nome}</td>
+                    {/* CPF */}
+                    <td className="px-3 py-3 text-sm text-gray-700 font-mono">
+                      {formatCPF(staff.cpf)}
+                    </td>
                     {/* Cargo */}
-                    <td className="px-4 py-3 text-sm text-gray-700">
+                    <td className="px-3 py-3 text-sm text-gray-700">
                       {formatCargo(staff.cargo)}
                       {staff.cargo_especifico && (
                         <span className="block text-xs text-gray-500">{staff.cargo_especifico}</span>
                       )}
                     </td>
+                    {/* Turma(s) */}
+                    <td className="px-3 py-3 text-sm text-gray-700">
+                      {staff.turmas && staff.turmas.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {staff.turmas.slice(0, 3).map((turma, idx) => (
+                            <span key={idx} className="inline-flex px-2 py-0.5 text-xs bg-blue-50 text-blue-700 rounded">
+                              {turma}
+                            </span>
+                          ))}
+                          {staff.turmas.length > 3 && (
+                            <span className="inline-flex px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">
+                              +{staff.turmas.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    {/* Turno */}
+                    <td className="px-3 py-3 text-sm text-gray-700">
+                      {formatTurno(staff.lotacao?.turno)}
+                    </td>
                     {/* Vínculo */}
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                         staff.tipo_vinculo === 'efetivo' 
                           ? 'bg-green-100 text-green-800' 
@@ -1946,13 +1994,13 @@ export function SchoolsComplete() {
                       </span>
                     </td>
                     {/* CH Mensal */}
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-3 py-3 text-center">
                       <span className="text-sm font-semibold text-gray-900">
                         {calcularCHMensal(staff)}h
                       </span>
                     </td>
                     {/* Celular */}
-                    <td className="px-4 py-3 text-sm text-gray-700">
+                    <td className="px-3 py-3 text-sm text-gray-700">
                       {staff.celular ? (
                         <a 
                           href={`https://wa.me/55${staff.celular.replace(/\D/g, '')}`}
