@@ -1,17 +1,17 @@
 // Constantes para o módulo de Gestão de Servidores
 
 export const CARGOS = {
-  auxiliar: 'Auxiliar Administrativo',
+  auxiliar: 'Auxiliar Administrativo(a)',
   auxiliar_secretaria: 'Auxiliar de Secretaria',
   auxiliar_servicos_gerais: 'Auxiliar de Serviços Gerais',
-  coordenador: 'Coordenador',
-  diretor: 'Diretor',
-  mediador: 'Mediador',
-  merendeira: 'Merendeira',
-  professor: 'Professor',
-  secretario: 'Secretário',
+  coordenador: 'Coordenador(a)',
+  diretor: 'Diretor(a)',
+  mediador: 'Mediador(a)',
+  merendeira: 'Merendeira(o)',
+  professor: 'Professor(a)',
+  secretario: 'Secretário(a)',
   vigia: 'Vigia',
-  zelador: 'Zelador',
+  zelador: 'Zelador(a)',
   outro: 'Outro'
 };
 
@@ -47,11 +47,11 @@ export const COR_RACA = {
 };
 
 export const FUNCOES = {
-  professor: 'Professor',
-  diretor: 'Diretor',
-  vice_diretor: 'Vice-Diretor',
-  coordenador: 'Coordenador',
-  secretario: 'Secretário',
+  professor: 'Professor(a)',
+  diretor: 'Diretor(a)',
+  vice_diretor: 'Vice-Diretor(a)',
+  coordenador: 'Coordenador(a)',
+  secretario: 'Secretário(a)',
   apoio: 'Apoio'
 };
 
