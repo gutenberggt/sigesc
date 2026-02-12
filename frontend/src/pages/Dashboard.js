@@ -333,7 +333,7 @@ export const Dashboard = () => {
               >
                 <CardContent className="p-4 text-center">
                   <GraduationCap className="mx-auto mb-2 text-orange-600" size={32} />
-                  <p className="font-medium">Alunos</p>
+                  <p className="font-medium">Alunos(as)</p>
                 </CardContent>
               </Card>
 
@@ -343,7 +343,7 @@ export const Dashboard = () => {
               >
                 <CardContent className="p-4 text-center">
                   <Briefcase className="mx-auto mb-2 text-amber-600" size={32} />
-                  <p className="font-medium">Servidores</p>
+                  <p className="font-medium">Servidores(as)</p>
                 </CardContent>
               </Card>
 
