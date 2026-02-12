@@ -21,7 +21,7 @@ const Staff = () => {
   const staff = useStaff();
 
   const TABS = [
-    { id: 'servidores', label: 'Servidores', icon: Users },
+    { id: 'servidores', label: 'Servidores(as)', icon: Users },
     { id: 'lotacoes', label: 'Lotações', icon: Building2 },
     { id: 'alocacoes', label: 'Alocações de Professores', icon: GraduationCap }
   ];
