@@ -106,7 +106,7 @@ export default function TutorialsPage() {
     },
     {
       id: 'professores',
-      title: 'Professores',
+      title: 'Professores(as)',
       icon: BookMarked,
       color: 'orange',
       description: 'Tutoriais para lançamento de notas, frequência e acompanhamento de turmas',
@@ -127,7 +127,7 @@ export default function TutorialsPage() {
     },
     {
       id: 'alunos',
-      title: 'Alunos',
+      title: 'Alunos(as)',
       icon: GraduationCap,
       color: 'cyan',
       description: 'Tutoriais para consulta de notas, frequência e documentos',
