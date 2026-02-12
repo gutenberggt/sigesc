@@ -1913,9 +1913,9 @@ export function SchoolsComplete() {
             <table className="min-w-full divide-y divide-gray-200 border rounded-lg">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Foto</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">CPF</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">E-mail</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cargo</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turma(s)</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turno</th>
@@ -1927,27 +1927,24 @@ export function SchoolsComplete() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {schoolStaff.map((staff, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    {/* Foto */}
-                    <td className="px-3 py-3">
-                      {staff.foto_url ? (
-                        <img
-                          src={uploadAPI.getUrl(staff.foto_url)}
-                          alt={staff.nome}
-                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center border-2 border-gray-200">
-                          <span className="text-blue-600 font-semibold text-sm">
-                            {staff.nome?.charAt(0)?.toUpperCase()}
-                          </span>
-                        </div>
-                      )}
-                    </td>
                     {/* Nome */}
                     <td className="px-3 py-3 text-sm font-medium text-gray-900">{staff.nome}</td>
                     {/* CPF */}
                     <td className="px-3 py-3 text-sm text-gray-700 font-mono">
                       {formatCPF(staff.cpf)}
+                    </td>
+                    {/* E-mail */}
+                    <td className="px-3 py-3 text-sm text-gray-700">
+                      {staff.email ? (
+                        <a 
+                          href={`mailto:${staff.email}`}
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {staff.email}
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                     {/* Cargo */}
                     <td className="px-3 py-3 text-sm text-gray-700">
