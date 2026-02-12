@@ -112,7 +112,7 @@ export const Schools = () => {
       accessor: 'name'
     },
     {
-      header: 'Alunos',
+      header: 'Alunos(as)',
       accessor: 'student_count',
       render: (row) => (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
