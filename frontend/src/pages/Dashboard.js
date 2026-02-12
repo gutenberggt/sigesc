@@ -115,14 +115,14 @@ export const Dashboard = () => {
         return [
           { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
           { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple' },
-          { title: 'Alunos', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'orange' },
-          { title: 'Servidores', icon: Briefcase, value: loading ? '...' : stats.staff.toString(), color: 'amber' },
+          { title: 'Alunos(as)', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'orange' },
+          { title: 'Servidores(as)', icon: Briefcase, value: loading ? '...' : stats.staff.toString(), color: 'amber' },
           { title: 'Usuários', icon: Users, value: loading ? '...' : stats.users.toString(), color: 'green' }
         ];
       case 'secretario':
         return [
           { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
-          { title: 'Alunos', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
+          { title: 'Alunos(as)', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
           { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple' },
           { title: 'Avisos', icon: Bell, value: '0', color: 'orange' }
         ];
@@ -130,7 +130,7 @@ export const Dashboard = () => {
       case 'coordenador':
         return [
           { title: 'Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'blue' },
-          { title: 'Alunos', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
+          { title: 'Alunos(as)', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
           { title: 'Relatórios', icon: BarChart3, value: '0', color: 'purple' },
           { title: 'Avisos', icon: Bell, value: '0', color: 'orange' }
         ];
