@@ -1358,20 +1358,6 @@ def generate_declaracao_frequencia_pdf(
     elements.append(freq_table)
     elements.append(Spacer(1, 30))
     
-    # Situação
-    if frequency >= 75:
-        situacao = "FREQUÊNCIA REGULAR"
-        cor = colors.HexColor('#166534')
-    else:
-        situacao = "FREQUÊNCIA IRREGULAR (abaixo de 75%)"
-        cor = colors.HexColor('#dc2626')
-    
-    elements.append(Paragraph(
-        f"<b>Situação:</b> <font color='{cor.hexval()}'>{situacao}</font>",
-        styles['CenterText']
-    ))
-    elements.append(Spacer(1, 30))
-    
     text2 = """
     Por ser expressão da verdade, firmamos a presente declaração.
     """
