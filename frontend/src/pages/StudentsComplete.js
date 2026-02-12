@@ -3313,10 +3313,10 @@ export function StudentsComplete() {
           onClose={() => setIsModalOpen(false)}
           title={
             viewMode 
-              ? `Visualizar Aluno${editingStudent ? `: ${editingStudent.full_name}` : ''}` 
+              ? `Visualizar Aluno(a)${editingStudent ? `: ${editingStudent.full_name}` : ''}` 
               : (editingStudent 
-                  ? `Editar Aluno: ${editingStudent.full_name}` 
-                  : 'Novo Aluno')
+                  ? `Editar Aluno(a): ${editingStudent.full_name}` 
+                  : 'Novo(a) Aluno(a)')
           }
           size="xl"
         >
