@@ -514,7 +514,7 @@ export const Dashboard = () => {
               >
                 <CardContent className="p-4 text-center">
                   <GraduationCap className="mx-auto mb-2 text-orange-600" size={32} />
-                  <p className="font-medium text-sm">Alunos</p>
+                  <p className="font-medium text-sm">Alunos(as)</p>
                   <span className="text-xs text-gray-500">Visualização</span>
                 </CardContent>
               </Card>
@@ -588,8 +588,8 @@ export const Dashboard = () => {
               >
                 <GraduationCap className="text-orange-600" size={24} />
                 <div className="text-left">
-                  <span className="font-medium text-gray-900 block">Alunos</span>
-                  <span className="text-xs text-gray-500">Visualizar dados dos alunos</span>
+                  <span className="font-medium text-gray-900 block">Alunos(as)</span>
+                  <span className="text-xs text-gray-500">Visualizar dados dos alunos(as)</span>
                 </div>
               </button>
               
