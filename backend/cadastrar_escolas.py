@@ -3,7 +3,7 @@ import httpx
 import json
 
 # URL da API
-API_URL = "https://eduscore-dash-1.preview.emergentagent.com/api"
+API_URL = "https://student-tracker-359.preview.emergentagent.com/api"
 
 # Escolas extraídas da imagem
 ESCOLAS = [
