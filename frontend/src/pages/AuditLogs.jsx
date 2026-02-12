@@ -315,10 +315,10 @@ export const AuditLogs = () => {
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
                 <SelectItem value="users">Usuários</SelectItem>
-                <SelectItem value="students">Alunos</SelectItem>
+                <SelectItem value="students">Alunos(as)</SelectItem>
                 <SelectItem value="grades">Notas</SelectItem>
                 <SelectItem value="attendance">Frequência</SelectItem>
-                <SelectItem value="staff">Servidores</SelectItem>
+                <SelectItem value="staff">Servidores(as)</SelectItem>
               </SelectContent>
             </Select>
             <Select

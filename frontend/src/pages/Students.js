@@ -173,7 +173,7 @@ export const Students = () => {
               <span>Início</span>
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900" data-testid="students-title">Alunos</h1>
+              <h1 className="text-2xl font-bold text-gray-900" data-testid="students-title">Alunos(as)</h1>
               <p className="text-gray-600 text-sm">Gerencie os alunos das escolas</p>
             </div>
           </div>
