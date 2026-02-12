@@ -4,7 +4,7 @@ import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { Tabs } from '@/components/Tabs';
-import { schoolsAPI, classesAPI, schoolAssignmentAPI, staffAPI, uploadAPI, calendarAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, schoolAssignmentAPI, staffAPI, uploadAPI, calendarAPI, teacherAssignmentAPI } from '@/services/api';
 import { formatPhone, formatCEP } from '@/utils/formatters';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
