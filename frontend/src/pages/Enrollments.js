@@ -203,7 +203,7 @@ export const Enrollments = () => {
 
   const columns = [
     { header: 'Nº Matrícula', accessor: 'enrollment_number', render: (row) => row.enrollment_number || '-' },
-    { header: 'Aluno', accessor: 'student_id', render: (row) => getStudentName(row.student_id) },
+    { header: 'Aluno(a)', accessor: 'student_id', render: (row) => getStudentName(row.student_id) },
     { header: 'Escola', accessor: 'school_id', render: (row) => getSchoolName(row.school_id) },
     { header: 'Turma', accessor: 'class_id', render: (row) => getClassName(row.class_id) },
     { header: 'Ano Letivo', accessor: 'academic_year' },
