@@ -48,16 +48,16 @@ export const Dashboard = () => {
           profilesAPI.getMyProfile().catch(() => null)
         ]);
 
-        // Para secretário, filtra apenas dados das escolas vinculadas
+        // Para secretário, diretor e coordenador, filtra apenas dados das escolas vinculadas
         let filteredSchools = schoolsData;
         let filteredClasses = classesData;
         let filteredStudents = studentsData;
         
-        if (isSecretario && userSchoolIds.length > 0) {
+        if (isSchoolStaff && userSchoolIds.length > 0) {
           filteredSchools = schoolsData.filter(s => userSchoolIds.includes(s.id));
           filteredClasses = classesData.filter(c => userSchoolIds.includes(c.school_id));
-          // Para alunos, mostra todos (secretário vê todos os alunos)
-          // mas a contagem de "ativos" considera todos
+          // Filtra alunos apenas das escolas vinculadas
+          filteredStudents = studentsData.filter(s => userSchoolIds.includes(s.school_id));
         }
 
         // Conta apenas escolas ATIVAS
