@@ -1297,11 +1297,11 @@ def generate_declaracao_frequencia_pdf(
         elements.append(Paragraph(f"Endereço: {endereco}", styles['CenterText']))
     if telefone:
         elements.append(Paragraph(f"Tel: {telefone}", styles['CenterText']))
-    elements.append(Spacer(1, 30))
+    elements.append(Spacer(1, 20))
     
     # Título
     elements.append(Paragraph("DECLARAÇÃO DE FREQUÊNCIA", styles['MainTitle']))
-    elements.append(Spacer(1, 30))
+    elements.append(Spacer(1, 20))
     
     # Dados de frequência
     total_days = attendance_data.get('total_days', 0)
