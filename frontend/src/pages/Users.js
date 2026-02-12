@@ -137,11 +137,11 @@ export const Users = () => {
 
   const roleLabels = {
     admin: 'Administrador',
-    secretario: 'Secretário',
-    diretor: 'Diretor',
-    coordenador: 'Coordenador',
-    professor: 'Professor',
-    aluno: 'Aluno',
+    secretario: 'Secretário(a)',
+    diretor: 'Diretor(a)',
+    coordenador: 'Coordenador(a)',
+    professor: 'Professor(a)',
+    aluno: 'Aluno(a)',
     responsavel: 'Responsável',
     semed: 'SEMED'
   };

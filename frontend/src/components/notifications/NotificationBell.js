@@ -127,10 +127,10 @@ export const NotificationBell = () => {
 
   const roleLabels = {
     admin: 'Administrador',
-    secretario: 'Secretário',
-    diretor: 'Diretor',
-    coordenador: 'Coordenador',
-    professor: 'Professor'
+    secretario: 'Secretário(a)',
+    diretor: 'Diretor(a)',
+    coordenador: 'Coordenador(a)',
+    professor: 'Professor(a)'
   };
 
   return (

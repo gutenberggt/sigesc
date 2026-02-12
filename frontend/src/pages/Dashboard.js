@@ -102,7 +102,7 @@ export const Dashboard = () => {
     diretor: 'Diretor(a)',
     coordenador: 'Coordenador(a)',
     professor: 'Professor(a)',
-    aluno: 'Aluno',
+    aluno: 'Aluno(a)',
     responsavel: 'Responsável',
     semed: 'SEMED',
     admin_teste: 'Administrador'

@@ -20,11 +20,11 @@ export const Layout = ({ children }) => {
   const roleLabels = {
     admin: 'Administrador',
     admin_teste: 'Administrador',
-    secretario: 'Secretário',
-    diretor: 'Diretor',
-    coordenador: 'Coordenador',
-    professor: 'Professor',
-    aluno: 'Aluno',
+    secretario: 'Secretário(a)',
+    diretor: 'Diretor(a)',
+    coordenador: 'Coordenador(a)',
+    professor: 'Professor(a)',
+    aluno: 'Aluno(a)',
     responsavel: 'Responsável',
     semed: 'SEMED'
   };
