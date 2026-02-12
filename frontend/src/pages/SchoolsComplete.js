@@ -339,14 +339,34 @@ export function SchoolsComplete() {
       }
       const assignments = await schoolAssignmentAPI.list(params);
       
+      // Busca as alocações de professor para a escola (para mostrar turmas)
+      let teacherAssignments = [];
+      try {
+        teacherAssignments = await teacherAssignmentAPI.list({ school_id: schoolId, academic_year: year || new Date().getFullYear() });
+      } catch (e) {
+        console.log('Alocações de professor não disponíveis');
+      }
+      
       // Busca os dados completos de cada servidor
       const staffDetails = await Promise.all(
         assignments.map(async (assignment) => {
           try {
             const staff = await staffAPI.get(assignment.staff_id);
+            
+            // Buscar turmas deste servidor
+            const staffTeacherAssignments = teacherAssignments.filter(ta => ta.staff_id === assignment.staff_id);
+            const turmasIds = [...new Set(staffTeacherAssignments.map(ta => ta.class_id))];
+            
+            // Buscar nomes das turmas
+            const turmasNomes = turmasIds.map(classId => {
+              const turma = classes.find(c => c.id === classId);
+              return turma?.name || '';
+            }).filter(Boolean);
+            
             return {
               ...staff,
-              lotacao: assignment
+              lotacao: assignment,
+              turmas: turmasNomes
             };
           } catch (error) {
             console.error(`Erro ao buscar servidor ${assignment.staff_id}:`, error);
