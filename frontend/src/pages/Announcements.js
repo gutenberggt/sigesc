@@ -213,7 +213,7 @@ const Announcements = () => {
     coordenador: 'Coordenador(a)',
     professor: 'Professor(a)',
     aluno: 'Aluno(a)',
-    responsavel: 'Responsável',
+    responsavel: 'Responsável(is)',
     semed: 'SEMED'
   };
 
