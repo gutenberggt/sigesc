@@ -27,6 +27,9 @@ export const Dashboard = () => {
   }, [user?.school_ids, user?.school_links]);
   
   const isSecretario = user?.role === 'secretario';
+  const isDiretor = user?.role === 'diretor';
+  const isCoordenador = user?.role === 'coordenador';
+  const isSchoolStaff = isSecretario || isDiretor || isCoordenador;
   const isAdmin = ['admin', 'admin_teste'].includes(user?.role);
 
   useEffect(() => {
