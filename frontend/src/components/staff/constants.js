@@ -1,4 +1,4 @@
-// Constantes para o módulo de Gestão de Servidores
+// Constantes para o módulo de Gestão de Servidores(as)
 
 export const CARGOS = {
   auxiliar: 'Auxiliar Administrativo(a)',

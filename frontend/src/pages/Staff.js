@@ -51,7 +51,7 @@ const Staff = () => {
             <div>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <Users className="text-blue-600" />
-                Gestão de Servidores
+                Gestão de Servidores(as)
               </h1>
               <p className="text-sm text-gray-600">Cadastro, Lotação e Alocação de Servidores</p>
             </div>
@@ -62,7 +62,7 @@ const Staff = () => {
               {staff.activeTab === 'servidores' && (
                 <Button onClick={staff.handleNewStaff}>
                   <UserPlus size={16} className="mr-2" />
-                  Novo Servidor
+                  Novo(a) Servidor(a)
                 </Button>
               )}
               {staff.activeTab === 'lotacoes' && (

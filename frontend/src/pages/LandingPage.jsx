@@ -28,7 +28,7 @@ export default function LandingPage() {
   const features = [
     {
       icon: Users,
-      title: 'Gestão de Alunos',
+      title: 'Gestão de Alunos(as)',
       description: 'Cadastro completo, histórico escolar, documentos e acompanhamento individual de cada estudante.',
       color: 'blue'
     },

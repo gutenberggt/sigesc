@@ -47,7 +47,7 @@ export const StaffModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={editingStaff ? 'Editar Servidor' : 'Novo Servidor'}
+      title={editingStaff ? 'Editar Servidor(a)' : 'Novo(a) Servidor(a)'}
       size="lg"
     >
       <div className="space-y-4 max-h-[70vh] overflow-y-auto">

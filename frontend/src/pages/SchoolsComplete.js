@@ -1897,12 +1897,12 @@ export function SchoolsComplete() {
       const wb = XLSX.utils.book_new();
       
       // Adicionar título com nome da escola
-      XLSX.utils.sheet_add_aoa(ws, [[`Quadro de Servidores - ${schoolName} (${selectedYear})`]], { origin: 'A1' });
+      XLSX.utils.sheet_add_aoa(ws, [[`Quadro de Servidores(as) - ${schoolName} (${selectedYear})`]], { origin: 'A1' });
       XLSX.utils.sheet_add_aoa(ws, [['']], { origin: 'A2' }); // Linha em branco
       
       // Mover os dados para baixo
       const dadosComCabecalho = [
-        [`Quadro de Servidores - ${schoolName} (${selectedYear})`],
+        [`Quadro de Servidores(as) - ${schoolName} (${selectedYear})`],
         [''],
         ['Nome', 'CPF', 'E-mail', 'Cargo', 'Turma(s)', 'Turno', 'Vínculo', 'CH Mensal', 'Celular'],
         ...dados.map(d => Object.values(d))
@@ -1938,7 +1938,7 @@ export function SchoolsComplete() {
           <div className="flex items-center gap-2">
             <Users className="text-blue-600" size={20} />
             <h4 className="text-md font-semibold text-gray-900">
-              Quadro de Servidores
+              Quadro de Servidores(as)
               <span className="ml-2 text-sm font-normal text-gray-500">({selectedYear})</span>
             </h4>
           </div>
@@ -1958,7 +1958,7 @@ export function SchoolsComplete() {
               onClick={() => navigate('/admin/staff')}
               className="text-sm text-blue-600 hover:text-blue-800 underline"
             >
-              Gestão de Servidores
+              Gestão de Servidores(as)
             </button>
           </div>
         </div>

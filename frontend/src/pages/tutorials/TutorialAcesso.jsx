@@ -213,7 +213,7 @@ export default function TutorialAcesso() {
                 {/* Permissions Grid */}
                 <div className="grid grid-cols-1 gap-3">
                   {[
-                    { title: 'Gestão de Alunos', desc: 'Cadastrar, editar, transferir e gerenciar todos os alunos', allowed: true },
+                    { title: 'Gestão de Alunos(as)', desc: 'Cadastrar, editar, transferir e gerenciar todos os alunos(as)', allowed: true },
                     { title: 'Matrículas', desc: 'Realizar matrículas, remanejamentos e transferências', allowed: true },
                     { title: 'Pré-Matrículas', desc: 'Visualizar e processar solicitações de pré-matrícula', allowed: true },
                     { title: 'Turmas', desc: 'Visualizar turmas e alunos matriculados', allowed: true },
