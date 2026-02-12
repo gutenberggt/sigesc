@@ -1873,6 +1873,65 @@ export function SchoolsComplete() {
       return chSemanal * 4; // 4 semanas por mês
     };
 
+    // Função para exportar servidores para Excel
+    const exportarServidoresExcel = () => {
+      if (schoolStaff.length === 0) return;
+      
+      const schoolName = formData.name || editingSchool?.name || 'Escola';
+      
+      // Preparar dados para exportação
+      const dados = schoolStaff.map(staff => ({
+        'Nome': staff.nome || '',
+        'CPF': formatCPF(staff.cpf),
+        'E-mail': staff.email || '',
+        'Cargo': formatCargo(staff.cargo) + (staff.cargo_especifico ? ` - ${staff.cargo_especifico}` : ''),
+        'Turma(s)': staff.turmas?.join(', ') || '',
+        'Turno': formatTurno(staff.lotacao?.turno),
+        'Vínculo': formatVinculo(staff.tipo_vinculo),
+        'CH Mensal': calcularCHMensal(staff) + 'h',
+        'Celular': staff.celular || ''
+      }));
+      
+      // Criar workbook e worksheet
+      const ws = XLSX.utils.json_to_sheet(dados);
+      const wb = XLSX.utils.book_new();
+      
+      // Adicionar título com nome da escola
+      XLSX.utils.sheet_add_aoa(ws, [[`Quadro de Servidores - ${schoolName} (${selectedYear})`]], { origin: 'A1' });
+      XLSX.utils.sheet_add_aoa(ws, [['']], { origin: 'A2' }); // Linha em branco
+      
+      // Mover os dados para baixo
+      const dadosComCabecalho = [
+        [`Quadro de Servidores - ${schoolName} (${selectedYear})`],
+        [''],
+        ['Nome', 'CPF', 'E-mail', 'Cargo', 'Turma(s)', 'Turno', 'Vínculo', 'CH Mensal', 'Celular'],
+        ...dados.map(d => Object.values(d))
+      ];
+      
+      const wsComTitulo = XLSX.utils.aoa_to_sheet(dadosComCabecalho);
+      
+      // Ajustar largura das colunas
+      wsComTitulo['!cols'] = [
+        { wch: 35 },  // Nome
+        { wch: 15 },  // CPF
+        { wch: 30 },  // E-mail
+        { wch: 25 },  // Cargo
+        { wch: 25 },  // Turma(s)
+        { wch: 12 },  // Turno
+        { wch: 12 },  // Vínculo
+        { wch: 10 },  // CH Mensal
+        { wch: 15 }   // Celular
+      ];
+      
+      XLSX.utils.book_append_sheet(wb, wsComTitulo, 'Servidores');
+      
+      // Gerar nome do arquivo
+      const nomeArquivo = `Servidores_${schoolName.replace(/[^a-zA-Z0-9]/g, '_')}_${selectedYear}.xlsx`;
+      
+      // Download
+      XLSX.writeFile(wb, nomeArquivo);
+    };
+
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center mb-4">
@@ -1883,13 +1942,25 @@ export function SchoolsComplete() {
               <span className="ml-2 text-sm font-normal text-gray-500">({selectedYear})</span>
             </h4>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/admin/staff')}
-            className="text-sm text-blue-600 hover:text-blue-800 underline"
-          >
-            Gestão de Servidores
-          </button>
+          <div className="flex items-center gap-3">
+            {schoolStaff.length > 0 && (
+              <button
+                type="button"
+                onClick={exportarServidoresExcel}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Download size={16} />
+                Exportar Excel
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate('/admin/staff')}
+              className="text-sm text-blue-600 hover:text-blue-800 underline"
+            >
+              Gestão de Servidores
+            </button>
+          </div>
         </div>
 
         {loadingStaff ? (
