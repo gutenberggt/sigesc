@@ -96,6 +96,7 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 
 ### P0 - Crítico
 - [ ] **Deploy em Produção:** Resolver Gateway Timeout após redeploy via Coolify
+- [ ] **Testar Exportação Excel:** Validar botão "Exportar para Excel" na aba Servidores
 
 ### P1 - Alta Prioridade
 - [ ] **Refatoração Backend FASE 4:** Extrair rotas restantes e implementar App Factory em `app_factory.py`
