@@ -1890,6 +1890,44 @@ class CalendarioLetivo(CalendarioLetivoBase):
     updated_at: Optional[datetime] = None
 
 
+# ============= CLASS SCHEDULE MODELS (HORÁRIO DE AULAS) =============
+
+class ClassScheduleSlot(BaseModel):
+    """Slot de aula no horário"""
+    day: Literal['segunda', 'terca', 'quarta', 'quinta', 'sexta']  # Dia da semana
+    slot_number: int  # Número da aula (1, 2, 3...)
+    course_id: str  # ID do componente curricular
+    course_name: Optional[str] = None  # Nome do componente (para exibição)
+
+class ClassScheduleBase(BaseModel):
+    """Horário de Aulas de uma Turma"""
+    school_id: str  # ID da escola
+    class_id: str  # ID da turma
+    academic_year: int  # Ano letivo
+    
+    # Configuração do horário
+    slots_per_day: int = 4  # Número de aulas por dia (configurável pelo usuário)
+    
+    # Turno da turma (preenchido automaticamente baseado na turma)
+    shift: Optional[Literal['morning', 'afternoon', 'evening', 'full_time']] = None
+    
+    # Grade de horários (lista de slots)
+    schedule_slots: List[ClassScheduleSlot] = []
+
+class ClassScheduleCreate(ClassScheduleBase):
+    pass
+
+class ClassScheduleUpdate(BaseModel):
+    slots_per_day: Optional[int] = None
+    schedule_slots: Optional[List[ClassScheduleSlot]] = None
+
+class ClassSchedule(ClassScheduleBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+
 # ============= AUDIT LOG MODELS =============
 
 class AuditLog(BaseModel):
