@@ -183,7 +183,7 @@ export const Students = () => {
             data-testid="create-student-button"
           >
             <Plus size={20} />
-            <span>Novo Aluno</span>
+            <span>Novo(a) Aluno(a)</span>
           </button>
         </div>
 
@@ -219,7 +219,7 @@ export const Students = () => {
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          title={viewMode ? 'Visualizar Aluno' : (editingStudent ? 'Editar Aluno' : 'Novo Aluno')}
+          title={viewMode ? 'Visualizar Aluno(a)' : (editingStudent ? 'Editar Aluno(a)' : 'Novo(a) Aluno(a)')}
           size="lg"
         >
           <form onSubmit={handleSubmit} className="space-y-4">
