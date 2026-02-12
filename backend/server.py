@@ -6601,6 +6601,7 @@ calendar_router = setup_calendar_router(db, audit_service, sandbox_db)
 staff_router = setup_staff_router(db, audit_service, None, sandbox_db)  # ftp_upload_func=None for now
 announcements_router = setup_announcements_router(db, audit_service, connection_manager, sandbox_db)
 analytics_router = setup_analytics_router(db, audit_service, sandbox_db)
+class_schedule_router = setup_class_schedule_router(db, audit_service, sandbox_db)
 
 # Routers modulares (prioridade)
 app.include_router(students_router, prefix="/api")
@@ -6618,6 +6619,7 @@ app.include_router(guardians_router, prefix="/api")
 app.include_router(enrollments_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
 app.include_router(medical_certificates_router, prefix="/api")
+app.include_router(class_schedule_router, prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)
