@@ -2724,7 +2724,7 @@ export function StudentsComplete() {
             </button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                Alunos
+                Alunos(as)
                 {!isOnline && (
                   <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
                     <CloudOff size={12} />
@@ -2739,7 +2739,7 @@ export function StudentsComplete() {
                 )}
               </h1>
               <p className="text-gray-600 text-sm">
-                Gerencie o cadastro completo de alunos
+                Gerencie o cadastro completo de alunos(as)
                 {pendingSyncCount > 0 && (
                   <span className="ml-2 text-amber-600">
                     ({pendingSyncCount} alteração(ões) pendente(s) de sincronização)
