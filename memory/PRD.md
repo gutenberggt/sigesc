@@ -113,9 +113,48 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 
 ## Última Atualização
 **Data:** 12 de Fevereiro de 2026
-**Funcionalidade:** Campos CPF, Turma e Turno na Aba Servidores
+**Funcionalidade:** Indicação de Gênero e Filtro de Alunos por Escola
 
-### Campos Adicionais na Aba Servidores da Escola (Fev 12, 2026):
+### Indicação de Gênero nas Funções/Cargos (Fev 12, 2026):
+Todas as funções e cargos agora exibem indicação de gênero masculino/feminino.
+
+**Alterações Realizadas:**
+- ✅ **Dashboard:** Cards e botões de acesso rápido exibem "Alunos(as)" e "Servidores(as)"
+- ✅ **Página de Alunos:** Título "Alunos(as)", botões "Novo(a) Aluno(a)" e "Editar Aluno(a)"
+- ✅ **Página de Servidores:** Título "Gestão de Servidores(as)", aba "Servidores(as)", botão "Novo(a) Servidor(a)"
+- ✅ **Logs de Auditoria:** Filtros de entidade com "Alunos(as)" e "Servidores(as)"
+- ✅ **Labels de Papéis:** Secretário(a), Diretor(a), Coordenador(a), Professor(a), Aluno(a), Responsável(is)
+- ✅ **Cargos de Servidores:** Auxiliar Administrativo(a), Coordenador(a), Diretor(a), Professor(a), Secretário(a), etc.
+
+**Arquivos Modificados:**
+- `/app/frontend/src/pages/Dashboard.js`
+- `/app/frontend/src/pages/StudentsComplete.js`
+- `/app/frontend/src/pages/Students.js`
+- `/app/frontend/src/pages/Staff.js`
+- `/app/frontend/src/pages/AuditLogs.jsx`
+- `/app/frontend/src/pages/Users.js`
+- `/app/frontend/src/pages/Announcements.js`
+- `/app/frontend/src/components/Layout.js`
+- `/app/frontend/src/components/staff/constants.js`
+- `/app/frontend/src/components/staff/StaffModal.js`
+- `/app/frontend/src/pages/SchoolsComplete.js`
+- E outros arquivos relacionados
+
+### Filtro de Alunos por Escola no Dashboard (Fev 12, 2026):
+Secretários, diretores e coordenadores agora veem apenas a quantidade de alunos das escolas às quais têm vínculo.
+
+**Funcionalidade:**
+- ✅ **Dashboard:** Stats filtradas para secretário, diretor e coordenador
+- ✅ **AnalyticsDashboard:** Dados já filtrados no backend por `userSchoolIds`
+- ✅ **Lógica Implementada:** Variável `isSchoolStaff` identifica esses papéis e filtra `filteredStudents` por `school_id`
+
+**Arquivos Modificados:**
+- `/app/frontend/src/pages/Dashboard.js` (linhas 29-91)
+- `/app/backend/routers/analytics.py` (já implementado anteriormente)
+
+---
+
+### Campos CPF, E-mail, Turma e Turno na Aba Servidores (Fev 12, 2026):
 Adicionadas novas colunas na tabela de servidores do cadastro de escola.
 
 **Campos Adicionados:**
