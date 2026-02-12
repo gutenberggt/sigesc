@@ -820,7 +820,7 @@ export const Classes = () => {
                     ))}
                   </div>
                   <div className="mt-3 pt-3 border-t border-indigo-200 flex justify-between items-center">
-                    <span className="text-sm text-indigo-700 font-medium">Total de Alunos:</span>
+                    <span className="text-sm text-indigo-700 font-medium">Total de Alunos(as):</span>
                     <span className="text-lg font-bold text-indigo-900">{classDetails.total_students || 0}</span>
                   </div>
                 </div>

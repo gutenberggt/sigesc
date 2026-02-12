@@ -145,7 +145,7 @@ export const Dashboard = () => {
       case 'semed':
         return [
           { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
-          { title: 'Total Alunos', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
+          { title: 'Total Alunos(as)', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
           { title: 'Total Turmas', icon: BookOpen, value: loading ? '...' : stats.classes.toString(), color: 'purple' },
           { title: 'Relatórios', icon: BarChart3, value: 'Ver', color: 'orange' }
         ];
