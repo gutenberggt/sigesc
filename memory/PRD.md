@@ -112,8 +112,21 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - [ ] **Relatórios Gerenciais:** Criar relatórios para atestados médicos
 
 ## Última Atualização
-**Data:** 11 de Fevereiro de 2026
-**Funcionalidade:** Filtro de Usuário nos Logs de Auditoria
+**Data:** 12 de Fevereiro de 2026
+**Funcionalidade:** Campos CPF, Turma e Turno na Aba Servidores
+
+### Campos Adicionais na Aba Servidores da Escola (Fev 12, 2026):
+Adicionadas novas colunas na tabela de servidores do cadastro de escola.
+
+**Campos Adicionados:**
+- ✅ **CPF** - Formatado como XXX.XXX.XXX-XX
+- ✅ **Turma(s)** - Mostra badges com os nomes das turmas onde o servidor atua
+- ✅ **Turno** - Mostra Matutino/Vespertino/Noturno/Integral da lotação
+
+**Arquivos Modificados:**
+- `/app/frontend/src/pages/SchoolsComplete.js`
+
+---
 
 ### Filtro de Usuário nos Logs de Auditoria (Fev 11, 2026):
 Adicionado dropdown para filtrar logs por usuário específico.
