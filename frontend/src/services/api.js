@@ -1021,3 +1021,73 @@ export const medicalCertificatesAPI = {
   }
 };
 
+// ============= HORÁRIO DE AULAS =============
+export const classScheduleAPI = {
+  // Listar horários com filtros
+  getAll: async (filters = {}) => {
+    const params = new URLSearchParams(filters).toString();
+    const response = await axios.get(`${API}/class-schedules?${params}`);
+    return response.data;
+  },
+  
+  // Buscar horário de uma turma específica
+  getByClass: async (classId, academicYear = null) => {
+    const params = academicYear ? `?academic_year=${academicYear}` : '';
+    const response = await axios.get(`${API}/class-schedules/by-class/${classId}${params}`);
+    return response.data;
+  },
+  
+  // Buscar visualização semanal (inclui sábados letivos)
+  getWeekView: async (classId, weekStart, academicYear) => {
+    const params = new URLSearchParams({
+      class_id: classId,
+      week_start: weekStart,
+      academic_year: academicYear
+    }).toString();
+    const response = await axios.get(`${API}/class-schedules/week-view?${params}`);
+    return response.data;
+  },
+  
+  // Buscar horário do sábado letivo
+  getSaturdaySchedule: async (classId, saturdayDate, academicYear) => {
+    const params = new URLSearchParams({
+      class_id: classId,
+      saturday_date: saturdayDate,
+      academic_year: academicYear
+    }).toString();
+    const response = await axios.get(`${API}/class-schedules/saturday-schedule?${params}`);
+    return response.data;
+  },
+  
+  // Criar horário
+  create: async (data) => {
+    const response = await axios.post(`${API}/class-schedules`, data);
+    return response.data;
+  },
+  
+  // Atualizar horário
+  update: async (id, data) => {
+    const response = await axios.put(`${API}/class-schedules/${id}`, data);
+    return response.data;
+  },
+  
+  // Excluir horário
+  delete: async (id) => {
+    const response = await axios.delete(`${API}/class-schedules/${id}`);
+    return response.data;
+  },
+  
+  // Validar conflitos de professor
+  validateConflicts: async (classId, day, slotNumber, courseId, academicYear) => {
+    const params = new URLSearchParams({
+      class_id: classId,
+      day,
+      slot_number: slotNumber,
+      course_id: courseId,
+      academic_year: academicYear
+    }).toString();
+    const response = await axios.get(`${API}/class-schedules/validate-conflicts?${params}`);
+    return response.data;
+  }
+};
+
