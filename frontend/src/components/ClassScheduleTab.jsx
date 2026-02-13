@@ -715,8 +715,10 @@ export function ClassScheduleTab({ academicYear }) {
                             {formatDate(weekDates.sabado)}
                           </div>
                           {saturdayInfo && (
-                            <div className="text-[9px] font-normal mt-1">
-                              ({saturdayInfo.saturday_number}º - {saturdayInfo.corresponding_day})
+                            <div className="text-[9px] font-normal mt-1 bg-green-200 px-2 py-0.5 rounded">
+                              {saturdayInfo.saturday_number}º Sábado Letivo
+                              <br/>
+                              (Aulas de {DAYS.find(d => d.id === saturdayInfo.corresponding_day)?.label || saturdayInfo.corresponding_day})
                             </div>
                           )}
                         </th>
