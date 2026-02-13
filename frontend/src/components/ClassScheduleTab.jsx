@@ -438,7 +438,7 @@ export function ClassScheduleTab({ academicYear }) {
     days.forEach((day, i) => {
       const date = new Date(weekStart);
       date.setDate(date.getDate() + i);
-      dates[day] = date.toISOString().split('T')[0];
+      dates[day] = formatDateYYYYMMDD(date);
     });
     
     return dates;
