@@ -131,6 +131,14 @@ Nova funcionalidade para gerenciar o horário de aulas das turmas.
 - ✅ Validação de conflitos de professor (mesmo professor em duas turmas no mesmo horário)
 - ✅ Controle de permissões (admin/secretário podem editar; outros só visualizam)
 - ✅ Filtros de visualização por perfil (aluno/responsável/professor/secretário/diretor/coordenador)
+- ✅ **NOVO: Painel de Conflitos da Rede** - Visualização em tempo real de todos os conflitos de horário
+
+**Painel de Conflitos da Rede:**
+- Exibe todos os professores com aulas sobrepostas em toda a rede
+- Gráfico de conflitos por dia da semana
+- Filtro por escola específica
+- Detalhes completos de cada conflito (turma, escola, componente)
+- Acessível apenas para admin, semed e secretário
 
 **Regras de Sábados Letivos:**
 - 1º sábado letivo = aulas de segunda-feira
