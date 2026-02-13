@@ -278,6 +278,7 @@ export function ClassScheduleTab({ academicYear }) {
   const [weekData, setWeekData] = useState(null);
   const [slotsPerDay, setSlotsPerDay] = useState(4);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showConflictsPanel, setShowConflictsPanel] = useState(false);
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState(null);
   const [editingSlots, setEditingSlots] = useState([]);
