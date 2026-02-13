@@ -1088,6 +1088,14 @@ export const classScheduleAPI = {
     }).toString();
     const response = await axios.get(`${API}/class-schedules/validate-conflicts?${params}`);
     return response.data;
+  },
+  
+  // Buscar todos os conflitos da rede
+  getAllConflicts: async (academicYear, schoolId = null) => {
+    const params = new URLSearchParams({ academic_year: academicYear });
+    if (schoolId) params.append('school_id', schoolId);
+    const response = await axios.get(`${API}/class-schedules/all-conflicts?${params}`);
+    return response.data;
   }
 };
 
