@@ -511,4 +511,173 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
         
         return {'has_conflict': False, 'message': 'Sem conflitos'}
     
+    @router.get("/all-conflicts")
+    async def get_all_network_conflicts(
+        request: Request,
+        academic_year: int,
+        school_id: Optional[str] = Query(None, description="Filtrar por escola específica")
+    ):
+        """
+        Retorna todos os conflitos de horário na rede de ensino.
+        Um conflito ocorre quando um professor está alocado para dar aula
+        em duas turmas diferentes no mesmo dia/horário.
+        
+        Apenas admin, semed e secretário podem visualizar.
+        """
+        current_db = get_current_db(request)
+        user = await AuthMiddleware.get_current_user(request)
+        
+        # Verificar permissão
+        if user.get('role') not in ['admin', 'admin_teste', 'semed', 'secretario']:
+            raise HTTPException(status_code=403, detail="Sem permissão para visualizar conflitos da rede")
+        
+        # Buscar todos os horários do ano
+        schedule_query = {'academic_year': academic_year}
+        if school_id:
+            schedule_query['school_id'] = school_id
+        
+        all_schedules = await current_db.class_schedules.find(schedule_query).to_list(None)
+        
+        if not all_schedules:
+            return {
+                'total_conflicts': 0,
+                'conflicts_by_teacher': [],
+                'conflicts_by_day': {},
+                'summary': 'Nenhum horário cadastrado para este ano letivo'
+            }
+        
+        # Buscar todas as alocações de professores
+        allocation_query = {
+            'academic_year': {'$in': [academic_year, str(academic_year)]},
+            'status': 'ativo'
+        }
+        all_allocations = await current_db.teacher_allocations.find(allocation_query).to_list(None)
+        
+        # Criar mapa de alocações por turma/componente
+        allocation_map = {}
+        for alloc in all_allocations:
+            key = f"{alloc.get('class_id')}_{alloc.get('course_id')}"
+            allocation_map[key] = alloc.get('staff_id')
+        
+        # Criar mapa de slots por professor: {staff_id: [{day, slot_number, class_id, school_id, course_id}]}
+        teacher_slots = {}
+        
+        for schedule in all_schedules:
+            class_id = schedule.get('class_id')
+            school_id_sched = schedule.get('school_id')
+            
+            for slot in schedule.get('schedule_slots', []):
+                course_id = slot.get('course_id')
+                if not course_id:
+                    continue
+                
+                # Encontrar o professor alocado
+                alloc_key = f"{class_id}_{course_id}"
+                staff_id = allocation_map.get(alloc_key)
+                
+                if not staff_id:
+                    continue
+                
+                if staff_id not in teacher_slots:
+                    teacher_slots[staff_id] = []
+                
+                teacher_slots[staff_id].append({
+                    'day': slot.get('day'),
+                    'slot_number': slot.get('slot_number'),
+                    'class_id': class_id,
+                    'school_id': school_id_sched,
+                    'course_id': course_id,
+                    'course_name': slot.get('course_name')
+                })
+        
+        # Detectar conflitos por professor
+        conflicts_by_teacher = []
+        conflicts_by_day = {'segunda': 0, 'terca': 0, 'quarta': 0, 'quinta': 0, 'sexta': 0}
+        total_conflicts = 0
+        
+        # Cache para dados enriquecidos
+        staff_cache = {}
+        class_cache = {}
+        school_cache = {}
+        course_cache = {}
+        
+        for staff_id, slots in teacher_slots.items():
+            # Agrupar por dia/horário
+            slot_groups = {}
+            for slot in slots:
+                key = f"{slot['day']}_{slot['slot_number']}"
+                if key not in slot_groups:
+                    slot_groups[key] = []
+                slot_groups[key].append(slot)
+            
+            # Encontrar grupos com conflito (mais de 1 aula no mesmo horário)
+            teacher_conflicts = []
+            for key, group in slot_groups.items():
+                if len(group) > 1:
+                    # Há conflito!
+                    day = group[0]['day']
+                    conflicts_by_day[day] = conflicts_by_day.get(day, 0) + 1
+                    total_conflicts += 1
+                    
+                    # Enriquecer dados
+                    conflict_details = []
+                    for item in group:
+                        # Class info
+                        if item['class_id'] not in class_cache:
+                            cls = await current_db.classes.find_one({'id': item['class_id']})
+                            class_cache[item['class_id']] = cls
+                        cls = class_cache[item['class_id']]
+                        
+                        # School info
+                        if item['school_id'] not in school_cache:
+                            sch = await current_db.schools.find_one({'id': item['school_id']})
+                            school_cache[item['school_id']] = sch
+                        sch = school_cache[item['school_id']]
+                        
+                        # Course info
+                        if item['course_id'] not in course_cache:
+                            crs = await current_db.courses.find_one({'id': item['course_id']})
+                            course_cache[item['course_id']] = crs
+                        crs = course_cache[item['course_id']]
+                        
+                        conflict_details.append({
+                            'class_name': cls.get('name') if cls else 'Turma não encontrada',
+                            'class_shift': cls.get('shift') if cls else None,
+                            'school_name': sch.get('name') if sch else 'Escola não encontrada',
+                            'course_name': crs.get('name') if crs else item.get('course_name', 'Componente')
+                        })
+                    
+                    teacher_conflicts.append({
+                        'day': day,
+                        'slot_number': group[0]['slot_number'],
+                        'conflicting_classes': conflict_details
+                    })
+            
+            if teacher_conflicts:
+                # Staff info
+                if staff_id not in staff_cache:
+                    stf = await current_db.staff.find_one({'id': staff_id})
+                    staff_cache[staff_id] = stf
+                stf = staff_cache[staff_id]
+                
+                conflicts_by_teacher.append({
+                    'staff_id': staff_id,
+                    'staff_name': stf.get('nome') if stf else 'Professor não encontrado',
+                    'staff_cpf': stf.get('cpf') if stf else None,
+                    'conflicts_count': len(teacher_conflicts),
+                    'conflicts': teacher_conflicts
+                })
+        
+        # Ordenar por número de conflitos (maior primeiro)
+        conflicts_by_teacher.sort(key=lambda x: x['conflicts_count'], reverse=True)
+        
+        return {
+            'academic_year': academic_year,
+            'total_conflicts': total_conflicts,
+            'teachers_with_conflicts': len(conflicts_by_teacher),
+            'conflicts_by_teacher': conflicts_by_teacher,
+            'conflicts_by_day': conflicts_by_day,
+            'summary': f'{total_conflicts} conflito(s) encontrado(s) envolvendo {len(conflicts_by_teacher)} professor(es)'
+        }
+    
     return router
