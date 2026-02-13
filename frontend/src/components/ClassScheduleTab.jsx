@@ -9,7 +9,11 @@ import {
   Trash2,
   AlertCircle,
   CheckCircle,
-  Settings
+  Settings,
+  AlertTriangle,
+  Users,
+  Building2,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/Modal';
@@ -46,6 +50,218 @@ const getMonday = (date) => {
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   return new Date(d.setDate(diff));
+};
+
+// Componente do Painel de Conflitos da Rede
+const NetworkConflictsPanel = ({ academicYear, isOpen, onClose }) => {
+  const [loading, setLoading] = useState(true);
+  const [conflictsData, setConflictsData] = useState(null);
+  const [selectedSchool, setSelectedSchool] = useState('');
+  const [schools, setSchools] = useState([]);
+  const [expandedTeacher, setExpandedTeacher] = useState(null);
+  
+  useEffect(() => {
+    const loadSchools = async () => {
+      try {
+        const data = await schoolsAPI.getAll();
+        setSchools(data.filter(s => s.status === 'active' || !s.status));
+      } catch (error) {
+        console.error('Erro ao carregar escolas:', error);
+      }
+    };
+    if (isOpen) loadSchools();
+  }, [isOpen]);
+  
+  useEffect(() => {
+    const loadConflicts = async () => {
+      if (!isOpen) return;
+      setLoading(true);
+      try {
+        const data = await classScheduleAPI.getAllConflicts(academicYear, selectedSchool || null);
+        setConflictsData(data);
+      } catch (error) {
+        console.error('Erro ao carregar conflitos:', error);
+        setConflictsData({ total_conflicts: 0, conflicts_by_teacher: [], summary: 'Erro ao carregar dados' });
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadConflicts();
+  }, [isOpen, academicYear, selectedSchool]);
+  
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="p-5 border-b flex items-center justify-between bg-gradient-to-r from-orange-500 to-red-500 rounded-t-xl">
+          <div className="flex items-center gap-3 text-white">
+            <AlertTriangle size={24} />
+            <div>
+              <h2 className="text-lg font-bold">Conflitos de Horário na Rede</h2>
+              <p className="text-sm opacity-90">Professores(as) com aulas sobrepostas</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-white hover:bg-white/20 rounded-lg p-2">
+            <X size={20} />
+          </button>
+        </div>
+        
+        {/* Filtro e Resumo */}
+        <div className="p-4 border-b bg-gray-50">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Filtrar por Escola</label>
+              <select
+                value={selectedSchool}
+                onChange={(e) => setSelectedSchool(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              >
+                <option value="">Todas as escolas</option>
+                {schools.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            {conflictsData && !loading && (
+              <div className="flex gap-4">
+                <div className="text-center px-4 py-2 bg-white rounded-lg border">
+                  <div className={`text-2xl font-bold ${conflictsData.total_conflicts > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {conflictsData.total_conflicts}
+                  </div>
+                  <div className="text-xs text-gray-500">Conflitos</div>
+                </div>
+                <div className="text-center px-4 py-2 bg-white rounded-lg border">
+                  <div className={`text-2xl font-bold ${conflictsData.teachers_with_conflicts > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                    {conflictsData.teachers_with_conflicts || 0}
+                  </div>
+                  <div className="text-xs text-gray-500">Professores(as)</div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Gráfico por dia */}
+          {conflictsData && conflictsData.conflicts_by_day && !loading && (
+            <div className="mt-4 flex gap-2">
+              {DAYS.map(day => {
+                const count = conflictsData.conflicts_by_day[day.id] || 0;
+                return (
+                  <div key={day.id} className="flex-1 text-center">
+                    <div className={`h-8 rounded flex items-center justify-center text-xs font-medium
+                      ${count > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                      {count}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">{day.label.substring(0, 3)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        
+        {/* Lista de Conflitos */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+              <span className="ml-3 text-gray-500">Analisando horários...</span>
+            </div>
+          ) : conflictsData?.total_conflicts === 0 ? (
+            <div className="text-center py-12">
+              <CheckCircle className="mx-auto text-green-500 mb-3" size={48} />
+              <p className="text-lg font-medium text-green-700">Nenhum conflito encontrado!</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Todos os horários estão consistentes na rede de ensino.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {conflictsData?.conflicts_by_teacher?.map((teacher, idx) => (
+                <div key={teacher.staff_id} className="border rounded-lg overflow-hidden">
+                  {/* Teacher Header */}
+                  <button
+                    onClick={() => setExpandedTeacher(expandedTeacher === idx ? null : idx)}
+                    className="w-full p-4 flex items-center justify-between bg-white hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                        <Users className="text-orange-600" size={20} />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-medium text-gray-900">{teacher.staff_name}</div>
+                        {teacher.staff_cpf && (
+                          <div className="text-xs text-gray-500">CPF: {teacher.staff_cpf}</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="px-3 py-1 bg-red-100 text-red-700 text-sm font-medium rounded-full">
+                        {teacher.conflicts_count} conflito(s)
+                      </span>
+                      <ChevronRight 
+                        className={`text-gray-400 transition-transform ${expandedTeacher === idx ? 'rotate-90' : ''}`} 
+                        size={20} 
+                      />
+                    </div>
+                  </button>
+                  
+                  {/* Conflict Details */}
+                  {expandedTeacher === idx && (
+                    <div className="border-t bg-gray-50 p-4">
+                      <div className="space-y-4">
+                        {teacher.conflicts.map((conflict, cIdx) => (
+                          <div key={cIdx} className="bg-white rounded-lg border p-3">
+                            <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                              <Clock size={14} />
+                              {DAYS.find(d => d.id === conflict.day)?.label} - {conflict.slot_number}ª Aula
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {conflict.conflicting_classes.map((cls, clsIdx) => (
+                                <div 
+                                  key={clsIdx} 
+                                  className="p-2 rounded bg-red-50 border border-red-200 text-sm"
+                                >
+                                  <div className="flex items-center gap-1 text-red-800 font-medium">
+                                    <Building2 size={12} />
+                                    {cls.school_name}
+                                  </div>
+                                  <div className="text-red-700 mt-1">
+                                    {cls.class_name} ({SHIFT_LABELS[cls.class_shift] || cls.class_shift})
+                                  </div>
+                                  <div className="text-red-600 text-xs mt-1">
+                                    {cls.course_name}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {/* Footer */}
+        <div className="p-4 border-t bg-gray-50 rounded-b-xl">
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-gray-500">
+              Ano Letivo: <strong>{academicYear}</strong>
+            </p>
+            <Button variant="outline" onClick={onClose}>
+              Fechar
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // Componente principal
