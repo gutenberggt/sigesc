@@ -610,6 +610,19 @@ export function ClassScheduleTab({ academicYear }) {
               Configurar
             </Button>
           )}
+          
+          {/* Botão Ver Conflitos da Rede */}
+          {['admin', 'admin_teste', 'semed', 'secretario'].includes(user?.role) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowConflictsPanel(true)}
+              className="flex items-center gap-1 text-orange-600 border-orange-300 hover:bg-orange-50"
+            >
+              <AlertTriangle size={16} />
+              Ver Conflitos da Rede
+            </Button>
+          )}
         </div>
         
         {/* Info da turma */}
