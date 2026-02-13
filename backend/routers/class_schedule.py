@@ -178,6 +178,7 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
         # Mapear para o dia da semana (0 = segunda, 1 = terça, etc.)
         day_index = saturday_index % 5  # Cicla de 0-4 (segunda a sexta)
         days = ['segunda', 'terca', 'quarta', 'quinta', 'sexta']
+        day_labels = {'segunda': 'Segunda', 'terca': 'Terça', 'quarta': 'Quarta', 'quinta': 'Quinta', 'sexta': 'Sexta'}
         corresponding_day = days[day_index]
         
         # Buscar o horário da turma
@@ -186,8 +187,15 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
             'academic_year': academic_year
         })
         
+        # Mesmo sem horário, retornar info do sábado
         if not schedule:
-            return None
+            return {
+                'saturday_date': saturday_date,
+                'saturday_number': saturday_index + 1,
+                'corresponding_day': corresponding_day,
+                'corresponding_day_label': day_labels[corresponding_day],
+                'slots': []
+            }
         
         # Filtrar apenas os slots do dia correspondente
         saturday_slots = [
@@ -206,6 +214,7 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
             'saturday_date': saturday_date,
             'saturday_number': saturday_index + 1,
             'corresponding_day': corresponding_day,
+            'corresponding_day_label': day_labels[corresponding_day],
             'slots': saturday_slots
         }
     
