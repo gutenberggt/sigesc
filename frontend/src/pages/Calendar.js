@@ -1179,6 +1179,13 @@ export const Calendar = () => {
             )}
           </>
         )}
+          </>
+        )}
+        
+        {/* Conteúdo da aba Horário de Aulas */}
+        {mainTab === 'horario' && (
+          <ClassScheduleTab academicYear={currentYear} />
+        )}
         
         {/* Modal de detalhes do evento */}
         <Modal
