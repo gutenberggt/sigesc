@@ -227,11 +227,6 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
             'academic_year': academic_year
         })
         
-        if not schedule:
-            return None
-        
-        schedule['id'] = schedule.pop('_id', schedule.get('id'))
-        
         # Calcular datas da semana
         start_date = datetime.strptime(week_start, '%Y-%m-%d').date()
         week_dates = {}
@@ -264,6 +259,20 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
                     'saturday_number': saturday_data.get('saturday_number'),
                     'corresponding_day': saturday_data.get('corresponding_day')
                 }
+        
+        # Se não há horário cadastrado, retornar estrutura mínima com info do sábado
+        if not schedule:
+            return {
+                'schedule': None,
+                'week_dates': week_dates,
+                'has_saturday': has_saturday,
+                'saturday_slots': saturday_slots,
+                'saturday_info': saturday_info,
+                'class_name': None,
+                'shift': None
+            }
+        
+        schedule['id'] = schedule.pop('_id', schedule.get('id'))
         
         # Enriquecer slots com nome dos componentes
         for slot in schedule.get('schedule_slots', []):
