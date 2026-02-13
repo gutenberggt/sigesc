@@ -958,7 +958,7 @@ export const Calendar = () => {
           </div>
           
           <div className="flex gap-2">
-            {(user?.role === 'admin' || user?.role === 'admin_teste') && (
+            {(user?.role === 'admin' || user?.role === 'admin_teste') && mainTab === 'calendario' && (
               <>
                 <Button variant="outline" onClick={() => {
                   setAnoSelecionadoPeriodos(currentYear);
@@ -977,6 +977,35 @@ export const Calendar = () => {
           </div>
         </div>
         
+        {/* Abas Principais: Calendário / Horário de Aulas */}
+        <div className="bg-white rounded-lg shadow-sm border">
+          <div className="flex border-b">
+            <button
+              onClick={() => setMainTab('calendario')}
+              className={`flex-1 px-6 py-3 text-sm font-medium transition-colors
+                ${mainTab === 'calendario' 
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}`}
+            >
+              <CalendarIcon size={18} className="inline-block mr-2 -mt-0.5" />
+              Calendário Letivo
+            </button>
+            <button
+              onClick={() => setMainTab('horario')}
+              className={`flex-1 px-6 py-3 text-sm font-medium transition-colors
+                ${mainTab === 'horario' 
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}`}
+            >
+              <Clock size={18} className="inline-block mr-2 -mt-0.5" />
+              Horário de Aulas
+            </button>
+          </div>
+        </div>
+        
+        {/* Conteúdo da aba Calendário */}
+        {mainTab === 'calendario' && (
+          <>
         {/* Controles */}
         <div className="bg-white rounded-lg shadow-sm border p-4">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
