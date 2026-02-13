@@ -875,6 +875,13 @@ export function ClassScheduleTab({ academicYear }) {
           </div>
         </div>
       </Modal>
+      
+      {/* Painel de Conflitos da Rede */}
+      <NetworkConflictsPanel 
+        academicYear={academicYear}
+        isOpen={showConflictsPanel}
+        onClose={() => setShowConflictsPanel(false)}
+      />
     </div>
   );
 }
