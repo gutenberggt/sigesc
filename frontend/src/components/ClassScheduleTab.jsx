@@ -420,7 +420,7 @@ export function ClassScheduleTab({ academicYear }) {
       if (!selectedClass || !weekStart) return;
       
       try {
-        const weekStartStr = weekStart.toISOString().split('T')[0];
+        const weekStartStr = formatDateYYYYMMDD(weekStart);
         const data = await classScheduleAPI.getWeekView(selectedClass, weekStartStr, academicYear);
         setWeekData(data);
       } catch (error) {
