@@ -113,8 +113,42 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - [ ] **Relatórios Gerenciais:** Criar relatórios para atestados médicos
 
 ## Última Atualização
-**Data:** 12 de Fevereiro de 2026
-**Funcionalidade:** Indicação de Gênero e Filtro de Alunos por Escola
+**Data:** 13 de Fevereiro de 2026
+**Funcionalidade:** Horário de Aulas
+
+### Horário de Aulas (Fev 13, 2026):
+Nova funcionalidade para gerenciar o horário de aulas das turmas.
+
+**Funcionalidades Implementadas:**
+- ✅ Nova aba "Horário de Aulas" no Calendário Letivo
+- ✅ Seleção de Escola → Turma (filtro dinâmico)
+- ✅ Grade de horários com dias da semana (Segunda a Sexta)
+- ✅ Navegação por semanas (anterior/próxima/hoje)
+- ✅ Exibição das datas da semana atual
+- ✅ Número de aulas por dia configurável (3-8 aulas)
+- ✅ Turno da turma detectado automaticamente
+- ✅ Lógica de sábados letivos (preenchimento automático baseado no dia correspondente)
+- ✅ Validação de conflitos de professor (mesmo professor em duas turmas no mesmo horário)
+- ✅ Controle de permissões (admin/secretário podem editar; outros só visualizam)
+- ✅ Filtros de visualização por perfil (aluno/responsável/professor/secretário/diretor/coordenador)
+
+**Regras de Sábados Letivos:**
+- 1º sábado letivo = aulas de segunda-feira
+- 2º sábado letivo = aulas de terça-feira
+- 3º sábado letivo = aulas de quarta-feira
+- ... até o 12º, depois volta ao início
+
+**Arquivos Criados:**
+- `/app/backend/routers/class_schedule.py` - Router completo da API
+- `/app/frontend/src/components/ClassScheduleTab.jsx` - Componente da interface
+
+**Arquivos Modificados:**
+- `/app/backend/models.py` - Adicionados modelos ClassSchedule, ClassScheduleSlot
+- `/app/backend/server.py` - Registrado o router class_schedule
+- `/app/frontend/src/services/api.js` - Adicionado classScheduleAPI
+- `/app/frontend/src/pages/Calendar.js` - Integrada nova aba
+
+---
 
 ### Indicação de Gênero nas Funções/Cargos (Fev 12, 2026):
 Todas as funções e cargos agora exibem indicação de gênero masculino/feminino.
