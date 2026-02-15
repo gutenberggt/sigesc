@@ -242,6 +242,46 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Criar diretório para certificados
+CERTIFICADOS_DIR = UPLOADS_DIR / "certificados"
+CERTIFICADOS_DIR.mkdir(exist_ok=True)
+
+# Endpoint de upload de certificados
+@api_router.post("/upload/certificado")
+async def upload_certificado(request: Request, file: UploadFile = File(...)):
+    """Upload de certificado de formação/especialização"""
+    from auth_middleware import AuthMiddleware
+    
+    # Verificar autenticação
+    try:
+        user = await AuthMiddleware.get_current_user(request)
+    except:
+        raise HTTPException(status_code=401, detail="Não autorizado")
+    
+    # Validar tipo de arquivo
+    allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg']
+    allowed_extensions = ['.pdf', '.jpg', '.jpeg', '.png']
+    
+    file_ext = Path(file.filename).suffix.lower() if file.filename else ''
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Tipo de arquivo não permitido. Use PDF, JPG ou PNG.")
+    
+    # Gerar nome único
+    import uuid
+    unique_name = f"{uuid.uuid4()}{file_ext}"
+    file_path = CERTIFICADOS_DIR / unique_name
+    
+    # Salvar arquivo
+    try:
+        content = await file.read()
+        with open(file_path, 'wb') as f:
+            f.write(content)
+        
+        return {"url": f"/api/uploads/certificados/{unique_name}"}
+    except Exception as e:
+        logger.error(f"Erro ao salvar certificado: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao salvar arquivo")
+
 # Endpoint de diagnóstico FTP (temporário - remover após debug)
 @api_router.get("/debug/ftp-config")
 async def debug_ftp_config(request: Request):
