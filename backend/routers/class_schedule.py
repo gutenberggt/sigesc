@@ -281,7 +281,7 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
                 'shift': None
             }
         
-        schedule['id'] = schedule.pop('_id', schedule.get('id'))
+        schedule.pop('_id', None)  # Remove MongoDB _id
         
         # Enriquecer slots com nome dos componentes
         for slot in schedule.get('schedule_slots', []):
