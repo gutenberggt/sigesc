@@ -349,13 +349,11 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
             await audit_service.log(
                 action='create',
                 collection='class_schedules',
+                user=user,
                 document_id=schedule_dict['id'],
-                user_id=user.get('id'),
-                user_email=user.get('email'),
-                user_role=user.get('role'),
                 school_id=schedule_data.school_id,
                 academic_year=schedule_data.academic_year,
-                new_data=schedule_dict
+                new_value=schedule_dict
             )
         
         return schedule_dict
