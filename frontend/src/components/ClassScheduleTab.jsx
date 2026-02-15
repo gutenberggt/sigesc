@@ -483,6 +483,28 @@ export function ClassScheduleTab({ academicYear }) {
     return editingSlots.find(s => s.day === day && s.slot_number === slotNumber);
   };
   
+  // Obter professor do componente
+  const getTeacherForCourse = (courseId) => {
+    if (!courseId) return null;
+    const allocation = teacherAllocations.find(a => a.course_id === courseId);
+    if (!allocation) return null;
+    // Retorna apenas o primeiro nome
+    const fullName = allocation.staff_name || '';
+    return fullName.split(' ')[0];
+  };
+  
+  // Atualizar horário de um slot
+  const updateSlotTime = (slotNumber, field, value) => {
+    setSlotTimes(prev => ({
+      ...prev,
+      [slotNumber]: {
+        ...(prev[slotNumber] || {}),
+        [field]: value
+      }
+    }));
+    setHasChanges(true);
+  };
+  
   // Atualizar slot
   const updateSlot = async (day, slotNumber, courseId) => {
     // Remover slot existente
