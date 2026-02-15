@@ -408,7 +408,7 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
         
         # Retornar atualizado
         updated = await current_db.class_schedules.find_one({'id': schedule_id})
-        updated['id'] = updated.pop('_id', updated.get('id'))
+        updated.pop('_id', None)  # Remove MongoDB _id
         return updated
     
     @router.delete("/{schedule_id}")
