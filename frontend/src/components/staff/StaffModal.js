@@ -46,6 +46,71 @@ export const StaffModal = ({
     }
   };
   
+  // Upload de certificado
+  const handleCertificadoClick = (idx, tipo) => {
+    setCertificadoIdx({ idx, tipo });
+    certificadoInputRef.current?.click();
+  };
+  
+  const handleCertificadoChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || certificadoIdx === null) return;
+    
+    setUploadingCertificado(true);
+    try {
+      // Criar FormData para upload
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const API_URL = process.env.REACT_APP_BACKEND_URL;
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/api/upload/certificado`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const { idx, tipo } = certificadoIdx;
+        
+        if (tipo === 'formacao') {
+          const novasFormacoes = [...staffForm.formacoes];
+          // Converter string para objeto se necessário
+          if (typeof novasFormacoes[idx] === 'string') {
+            novasFormacoes[idx] = { nome: novasFormacoes[idx], certificado_url: data.url };
+          } else {
+            novasFormacoes[idx] = { ...novasFormacoes[idx], certificado_url: data.url };
+          }
+          setStaffForm({ ...staffForm, formacoes: novasFormacoes });
+        } else if (tipo === 'especializacao') {
+          const novasEspecializacoes = [...staffForm.especializacoes];
+          if (typeof novasEspecializacoes[idx] === 'string') {
+            novasEspecializacoes[idx] = { nome: novasEspecializacoes[idx], certificado_url: data.url };
+          } else {
+            novasEspecializacoes[idx] = { ...novasEspecializacoes[idx], certificado_url: data.url };
+          }
+          setStaffForm({ ...staffForm, especializacoes: novasEspecializacoes });
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error);
+    } finally {
+      setUploadingCertificado(false);
+      setCertificadoIdx(null);
+      if (certificadoInputRef.current) {
+        certificadoInputRef.current.value = '';
+      }
+    }
+  };
+  
+  // Helper para obter nome da formação (string ou objeto)
+  const getFormacaoNome = (f) => typeof f === 'string' ? f : f?.nome || '';
+  const getFormacaoCertificado = (f) => typeof f === 'string' ? null : f?.certificado_url;
+  
   return (
     <Modal
       isOpen={isOpen}
