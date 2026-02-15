@@ -171,7 +171,21 @@ export const StaffModal = ({
             <input
               type="text"
               value={staffForm.celular}
-              onChange={(e) => setStaffForm({ ...staffForm, celular: e.target.value })}
+              onChange={(e) => {
+                // Formatar telefone: (99) 99999-9999
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 11) value = value.slice(0, 11);
+                if (value.length > 10) {
+                  value = value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+                } else if (value.length > 6) {
+                  value = value.replace(/(\d{2})(\d{4,5})(\d{0,4})/, '($1) $2-$3');
+                } else if (value.length > 2) {
+                  value = value.replace(/(\d{2})(\d{0,5})/, '($1) $2');
+                } else if (value.length > 0) {
+                  value = value.replace(/(\d{0,2})/, '($1');
+                }
+                setStaffForm({ ...staffForm, celular: value });
+              }}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="(99) 99999-9999"
             />
