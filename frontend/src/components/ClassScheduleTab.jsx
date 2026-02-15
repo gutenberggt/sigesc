@@ -369,11 +369,19 @@ export function ClassScheduleTab({ academicYear }) {
         
         const allCourses = await coursesAPI.getAll();
         
-        // Filtrar componentes pelo nível de ensino da turma
-        const filtered = allCourses.filter(c => 
-          c.nivel_ensino === classInfo.level ||
-          !c.nivel_ensino // Componentes sem nível específico
-        );
+        // Obter nível da turma (pode ser level ou education_level)
+        const turmaLevel = classInfo.level || classInfo.education_level;
+        
+        // Filtrar componentes pelo nível de ensino da turma (se houver)
+        // Se não houver nível definido na turma ou no componente, mostrar todos
+        const filtered = allCourses.filter(c => {
+          // Se o componente não tem nível específico, mostrar para todas as turmas
+          if (!c.nivel_ensino) return true;
+          // Se a turma não tem nível definido, mostrar todos os componentes
+          if (!turmaLevel) return true;
+          // Se ambos têm nível, verificar compatibilidade
+          return c.nivel_ensino === turmaLevel;
+        });
         
         setCourses(filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
         
