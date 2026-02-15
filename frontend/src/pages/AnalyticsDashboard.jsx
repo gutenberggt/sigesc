@@ -983,7 +983,7 @@ export function AnalyticsDashboard() {
         </div>
         
         {/* Ranking de Escolas - Score V2.1 */}
-        {canViewRanking && !selectedSchool && schoolsRanking.length > 0 && (
+        {canViewRanking && schoolsRanking.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
