@@ -887,6 +887,7 @@ export function ClassScheduleTab({ academicYear }) {
                     variant="outline"
                     onClick={() => {
                       setEditingSlots(schedule?.schedule_slots || []);
+                      setSlotTimes(schedule?.slot_times || {});
                       setHasChanges(false);
                       setConflictWarnings([]);
                     }}
