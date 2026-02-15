@@ -124,16 +124,19 @@ Implementadas 4 funcionalidades relacionadas ao cadastro de servidores e alunos.
 - ✅ **Máscara de Telefone:** Campo "Celular" no formulário de servidor agora aplica formatação automática (99) 99999-9999
 - ✅ **Upload de Certificados:** Botão para anexar certificados a cada formação acadêmica e especialização do servidor
 - ✅ **Campo Comunidade Tradicional:** Novo campo no cadastro de alunos com opções: Não Pertence, Quilombola, Cigano, Ribeirinho, Extrativista
-- ✅ **Histórico de Certificados (NOVO):** Modal de detalhes do servidor agora exibe links para visualizar certificados anexados e uma seção unificada "Documentos Anexados" com contagem
+- ✅ **Histórico de Certificados:** Modal de detalhes do servidor agora exibe links para visualizar certificados anexados e uma seção unificada "Documentos Anexados" com contagem
+- ✅ **Edição de Lotações (NOVO):** No modal "Gerenciar Lotações", agora é possível editar lotações existentes. Botão de lápis azul ao lado de cada lotação abre formulário inline para alterar Função, Turno e Data Início
 
 **Arquivos Modificados:**
 - `/app/frontend/src/components/staff/StaffModal.js` - UI para CPF, telefone e upload de certificados
 - `/app/frontend/src/components/staff/StaffDetailModal.js` - Visualização de certificados no perfil do servidor
-- `/app/frontend/src/hooks/useStaff.js` - Correção do bug do CPF no handleEditStaff
+- `/app/frontend/src/components/staff/LotacaoModal.js` - Edição inline de lotações existentes
+- `/app/frontend/src/hooks/useStaff.js` - Correção do bug do CPF, handlers de edição de lotação
 - `/app/frontend/src/pages/StudentsComplete.js` - Novo campo comunidade_tradicional
+- `/app/frontend/src/pages/Staff.js` - Props de edição para LotacaoModal
 - `/app/backend/server.py` - Novo endpoint POST /api/upload/certificado
 
-**Testado:** ✅ Validado pelo testing_agent em 15/02/2026 (iteration_14.json, iteration_15.json)
+**Testado:** ✅ Validado pelo testing_agent em 15/02/2026 (iteration_14.json, iteration_15.json, iteration_16.json)
 
 ---
 
