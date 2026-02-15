@@ -12,7 +12,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://student-tracker-359.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://sigesc-data-insights.preview.emergentagent.com')
 
 # Test credentials
 TEST_EMAIL = "gutenberg@sigesc.com"
