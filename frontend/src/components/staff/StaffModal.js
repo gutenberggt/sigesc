@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import { Camera, Plus, Minus } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Camera, Plus, Minus, Upload, FileText, X } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { CARGOS, STATUS_SERVIDOR, TIPOS_VINCULO, SEXOS, COR_RACA } from './constants';
@@ -26,6 +26,9 @@ export const StaffModal = ({
   saving
 }) => {
   const fileInputRef = useRef(null);
+  const certificadoInputRef = useRef(null);
+  const [certificadoIdx, setCertificadoIdx] = useState(null);
+  const [uploadingCertificado, setUploadingCertificado] = useState(false);
   
   const handleFotoClick = () => {
     fileInputRef.current?.click();
