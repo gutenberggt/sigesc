@@ -1,4 +1,5 @@
-import { GraduationCap, BookOpen, Plus, Minus, Trash2, AlertTriangle, Calendar } from 'lucide-react';
+import { useState } from 'react';
+import { GraduationCap, BookOpen, Plus, Minus, Trash2, AlertTriangle, Calendar, Pencil, Check, X } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 
@@ -35,10 +36,53 @@ export const AlocacaoModal = ({
   onDeleteExisting,
   onDeleteTurmaAlocacoes,
   onSave,
-  saving
+  saving,
+  // Novos props para edição
+  editingAlocacao,
+  onEditAlocacao,
+  onCancelEditAlocacao,
+  onSaveEditAlocacao
 }) => {
   const currentYear = new Date().getFullYear();
   const selectedYear = alocacaoForm.academic_year || currentYear;
+  
+  // Estado local para edição
+  const [editForm, setEditForm] = useState({});
+  const [savingEdit, setSavingEdit] = useState(false);
+  
+  // Iniciar edição de uma alocação
+  const handleStartEdit = (alocacao) => {
+    setEditForm({
+      course_id: alocacao.course_id || ''
+    });
+    onEditAlocacao(alocacao);
+  };
+  
+  // Salvar edição
+  const handleSaveEdit = async () => {
+    if (!editingAlocacao) return;
+    setSavingEdit(true);
+    try {
+      await onSaveEditAlocacao(editingAlocacao.id, editForm);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+  
+  // Obter componentes disponíveis para uma turma (para edição)
+  const getAvailableCoursesForClass = (classId, currentCourseId) => {
+    // Buscar a turma para obter o nível de ensino
+    const turmaData = groupedAlocacoes.find(t => t.class_id === classId);
+    if (!turmaData) return courses;
+    
+    // Componentes já alocados nesta turma (exceto o atual sendo editado)
+    const alocatedCourseIds = turmaData.componentes
+      .filter(c => c.course_id !== currentCourseId)
+      .map(c => c.course_id);
+    
+    // Retornar componentes não alocados
+    return courses.filter(c => !alocatedCourseIds.includes(c.id));
+  };
   
   // Filtrar alocações pelo ano selecionado
   const alocacoesDoAno = groupedAlocacoes.filter(
