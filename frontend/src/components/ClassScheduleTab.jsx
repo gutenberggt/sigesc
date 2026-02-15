@@ -418,8 +418,10 @@ export function ClassScheduleTab({ academicYear }) {
         if (data) {
           setSlotsPerDay(data.slots_per_day || 4);
           setEditingSlots(data.schedule_slots || []);
+          setSlotTimes(data.slot_times || {});
         } else {
           setEditingSlots([]);
+          setSlotTimes({});
         }
         
         setHasChanges(false);
