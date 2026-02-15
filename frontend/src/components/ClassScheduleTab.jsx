@@ -293,6 +293,8 @@ export function ClassScheduleTab({ academicYear }) {
   const [editingSlots, setEditingSlots] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [conflictWarnings, setConflictWarnings] = useState([]);
+  const [slotTimes, setSlotTimes] = useState({}); // {slotNumber: {start: '07:00', end: '07:45'}}
+  const [teacherAllocations, setTeacherAllocations] = useState([]); // Alocações de professores
   
   // Permissões
   const canEdit = ['admin', 'admin_teste', 'secretario'].includes(user?.role);
