@@ -341,6 +341,9 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
         
         await current_db.class_schedules.insert_one(schedule_dict)
         
+        # Remove MongoDB _id before returning
+        schedule_dict.pop('_id', None)
+        
         # Audit log
         if audit_service:
             await audit_service.log(
