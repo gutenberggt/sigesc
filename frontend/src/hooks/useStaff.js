@@ -77,6 +77,9 @@ export const useStaff = () => {
   // Edição de lotação
   const [editingLotacao, setEditingLotacao] = useState(null);
   
+  // Edição de alocação
+  const [editingAlocacao, setEditingAlocacao] = useState(null);
+  
   // Carga horária do professor
   const [professorCargaHoraria, setProfessorCargaHoraria] = useState(0);
   const [cargaHorariaExistente, setCargaHorariaExistente] = useState(0);
