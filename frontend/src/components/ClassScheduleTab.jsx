@@ -960,12 +960,12 @@ export function ClassScheduleTab({ academicYear }) {
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
-              {[3, 4, 5, 6, 7, 8].map(n => (
+              {[3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                 <option key={n} value={n}>{n} aulas</option>
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              Cada aula corresponde a 1 hora
+              Configure a quantidade de aulas por dia (máximo 10)
             </p>
           </div>
           
