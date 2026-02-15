@@ -747,6 +747,22 @@ export function ClassScheduleTab({ academicYear }) {
             </div>
           ) : (
             <>
+              {/* Aviso se não houver componentes curriculares */}
+              {courses.length === 0 && canEdit && (
+                <div className="p-4 bg-amber-50 border-b border-amber-200">
+                  <div className="flex items-center gap-2 text-amber-800">
+                    <AlertCircle size={20} />
+                    <div>
+                      <p className="font-medium">Nenhum componente curricular encontrado</p>
+                      <p className="text-sm text-amber-600">
+                        Para configurar o horário, é necessário cadastrar os componentes curriculares primeiro.
+                        Acesse o menu "Componentes Curriculares" para cadastrar.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[800px]">
                   <thead>
