@@ -1,4 +1,5 @@
-import { Building2, Plus, Minus, Calendar } from 'lucide-react';
+import { useState } from 'react';
+import { Building2, Plus, Minus, Calendar, Pencil, Check, X } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { CARGOS, FUNCOES, TURNOS } from './constants';
@@ -22,10 +23,40 @@ export const LotacaoModal = ({
   onRemoveEscola,
   onDeleteExisting,
   onSave,
-  saving
+  saving,
+  // Novos props para edição
+  editingLotacao,
+  onEditLotacao,
+  onCancelEditLotacao,
+  onSaveEditLotacao
 }) => {
   const currentYear = new Date().getFullYear();
   const selectedYear = lotacaoForm.academic_year || currentYear;
+  
+  // Estado local para edição
+  const [editForm, setEditForm] = useState({});
+  const [savingEdit, setSavingEdit] = useState(false);
+  
+  // Iniciar edição de uma lotação
+  const handleStartEdit = (lotacao) => {
+    setEditForm({
+      funcao: lotacao.funcao || 'apoio',
+      turno: lotacao.turno || '',
+      data_inicio: lotacao.data_inicio || ''
+    });
+    onEditLotacao(lotacao);
+  };
+  
+  // Salvar edição
+  const handleSaveEdit = async () => {
+    if (!editingLotacao) return;
+    setSavingEdit(true);
+    try {
+      await onSaveEditLotacao(editingLotacao.id, editForm);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
   
   // Filtrar lotações pelo ano selecionado
   const lotacoesDoAno = existingLotacoes.filter(
