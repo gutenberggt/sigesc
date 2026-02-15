@@ -382,6 +382,29 @@ export const useStaff = () => {
     }
   }, [lotacaoForm.staff_id, activeTab, loadExistingLotacoes, loadLotacoes, showAlertMessage]);
   
+  const handleEditLotacao = useCallback((lotacao) => {
+    setEditingLotacao(lotacao);
+  }, []);
+  
+  const handleCancelEditLotacao = useCallback(() => {
+    setEditingLotacao(null);
+  }, []);
+  
+  const handleSaveEditLotacao = useCallback(async (lotacaoId, updatedData) => {
+    try {
+      await schoolAssignmentAPI.update(lotacaoId, updatedData);
+      showAlertMessage('success', 'Lotação atualizada com sucesso!');
+      setEditingLotacao(null);
+      await loadExistingLotacoes(lotacaoForm.staff_id);
+      if (activeTab === 'lotacoes') {
+        loadLotacoes();
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar lotação:', error);
+      showAlertMessage('error', extractErrorMessage(error) || 'Erro ao atualizar lotação');
+    }
+  }, [lotacaoForm.staff_id, activeTab, loadExistingLotacoes, loadLotacoes, showAlertMessage]);
+  
   const handleDeleteExistingAlocacao = useCallback(async (alocacaoId) => {
     try {
       await teacherAssignmentAPI.delete(alocacaoId);
