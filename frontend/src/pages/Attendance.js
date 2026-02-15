@@ -581,6 +581,17 @@ export const Attendance = () => {
     }
   };
   
+  // Gera PDF do relatório de frequência por bimestre
+  const generateBimestrePdf = () => {
+    if (!selectedClass) {
+      showAlertMessage('error', 'Selecione uma turma');
+      return;
+    }
+    
+    const url = `${API_URL}/api/attendance/pdf/bimestre/${selectedClass}?bimestre=${selectedBimestre}&academic_year=${academicYear}`;
+    window.open(url, '_blank');
+  };
+  
   // Carrega alertas
   const loadAlerts = async () => {
     setLoading(true);
