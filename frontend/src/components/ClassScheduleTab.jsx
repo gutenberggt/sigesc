@@ -358,6 +358,7 @@ export function ClassScheduleTab({ academicYear }) {
     const loadCourses = async () => {
       if (!selectedClass) {
         setCourses([]);
+        setTeacherAllocations([]);
         return;
       }
       
@@ -375,12 +376,29 @@ export function ClassScheduleTab({ academicYear }) {
         );
         
         setCourses(filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        
+        // Carregar alocações de professores para esta turma
+        try {
+          const API_URL = process.env.REACT_APP_BACKEND_URL;
+          const token = localStorage.getItem('accessToken');
+          const response = await fetch(
+            `${API_URL}/api/teacher-assignments?class_id=${selectedClass}&academic_year=${academicYear}`,
+            { headers: { 'Authorization': `Bearer ${token}` } }
+          );
+          if (response.ok) {
+            const allocations = await response.json();
+            setTeacherAllocations(allocations);
+          }
+        } catch (err) {
+          console.error('Erro ao carregar alocações:', err);
+          setTeacherAllocations([]);
+        }
       } catch (error) {
         console.error('Erro ao carregar componentes:', error);
       }
     };
     loadCourses();
-  }, [selectedClass, classes]);
+  }, [selectedClass, classes, academicYear]);
   
   // Carregar horário da turma
   useEffect(() => {
