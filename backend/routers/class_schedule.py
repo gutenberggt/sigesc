@@ -95,7 +95,7 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
         
         # Enriquecer com dados da turma e escola
         for schedule in schedules:
-            schedule['id'] = schedule.pop('_id', schedule.get('id'))
+            schedule.pop('_id', None)  # Remove MongoDB _id
             
             # Buscar nome da turma
             class_info = await current_db.classes.find_one({'id': schedule.get('class_id')})
