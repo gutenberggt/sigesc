@@ -1901,6 +1901,11 @@ class ClassScheduleSlot(BaseModel):
     course_id: str  # ID do componente curricular
     course_name: Optional[str] = None  # Nome do componente (para exibição)
 
+class SlotTime(BaseModel):
+    """Horário de início e fim de uma aula"""
+    start: Optional[str] = None  # Hora de início (ex: "07:00")
+    end: Optional[str] = None  # Hora de fim (ex: "07:45")
+
 class ClassScheduleBase(BaseModel):
     """Horário de Aulas de uma Turma"""
     school_id: str  # ID da escola
@@ -1908,13 +1913,16 @@ class ClassScheduleBase(BaseModel):
     academic_year: int  # Ano letivo
     
     # Configuração do horário
-    slots_per_day: int = 4  # Número de aulas por dia (configurável pelo usuário)
+    slots_per_day: int = 4  # Número de aulas por dia (configurável: 3 a 10)
     
     # Turno da turma (preenchido automaticamente baseado na turma)
     shift: Optional[Literal['morning', 'afternoon', 'evening', 'full_time']] = None
     
     # Grade de horários (lista de slots)
     schedule_slots: List[ClassScheduleSlot] = []
+    
+    # Horários de cada aula (mapa: slot_number -> {start, end})
+    slot_times: Optional[Dict[str, SlotTime]] = None
 
 class ClassScheduleCreate(ClassScheduleBase):
     pass
@@ -1922,6 +1930,7 @@ class ClassScheduleCreate(ClassScheduleBase):
 class ClassScheduleUpdate(BaseModel):
     slots_per_day: Optional[int] = None
     schedule_slots: Optional[List[ClassScheduleSlot]] = None
+    slot_times: Optional[Dict[str, SlotTime]] = None
 
 class ClassSchedule(ClassScheduleBase):
     model_config = ConfigDict(extra="ignore")
