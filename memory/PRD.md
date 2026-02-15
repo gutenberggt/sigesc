@@ -114,7 +114,25 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 
 ## Última Atualização
 **Data:** 15 de Fevereiro de 2026
-**Funcionalidade:** Correções e Melhorias em Servidores e Alunos
+**Funcionalidade:** Relatório de Frequência por Bimestre em PDF
+
+### Relatório de Frequência por Bimestre (Fev 15, 2026):
+Implementada a funcionalidade de gerar PDF do relatório de frequência por bimestre.
+
+**Funcionalidades Implementadas:**
+- ✅ **Seletor de Bimestre:** Dropdown com opções 1º, 2º, 3º e 4º Bimestre na aba Relatórios
+- ✅ **Botão "Gerar PDF":** Botão verde ao lado do "Ver na Tela" que abre o PDF em nova aba
+- ✅ **Endpoint Backend:** GET /api/attendance/pdf/bimestre/{class_id}?bimestre={num}&academic_year={year}
+- ✅ **PDF Formato Paisagem:** Gerado em A4 landscape com cabeçalho, informações da turma, tabela de frequência diária e espaço para assinaturas
+
+**Arquivos Modificados:**
+- `/app/frontend/src/pages/Attendance.js` - Seletor de bimestre e botão Gerar PDF
+- `/app/backend/server.py` - Novo endpoint /api/attendance/pdf/bimestre/{class_id}
+- `/app/backend/pdf_generator.py` - Nova função generate_relatorio_frequencia_bimestre_pdf
+
+**Testado:** ✅ Validado pelo testing_agent (iteration_17.json - 100% backend, 100% frontend)
+
+---
 
 ### Melhorias em Servidores e Alunos (Fev 15, 2026):
 Implementadas 4 funcionalidades relacionadas ao cadastro de servidores e alunos, além de melhorias na gestão de lotações e alocações.
