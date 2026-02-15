@@ -740,11 +740,14 @@ export function ClassScheduleTab({ academicYear }) {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[700px]">
+                <table className="w-full min-w-[800px]">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">
+                      <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase w-16">
                         Aula
+                      </th>
+                      <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase w-24">
+                        Horário
                       </th>
                       {DAYS.map(day => (
                         <th key={day.id} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">
@@ -774,46 +777,87 @@ export function ClassScheduleTab({ academicYear }) {
                   <tbody className="divide-y divide-gray-200">
                     {Array.from({ length: slotsPerDay }, (_, i) => i + 1).map(slotNumber => (
                       <tr key={slotNumber} className="hover:bg-gray-50">
-                        <td className="px-3 py-3 text-sm font-medium text-gray-900 bg-gray-50">
+                        <td className="px-2 py-2 text-sm font-medium text-gray-900 bg-gray-50 text-center">
                           {slotNumber}ª
+                        </td>
+                        {/* Coluna Horário */}
+                        <td className="px-1 py-1 bg-gray-50">
+                          {canEdit ? (
+                            <div className="flex flex-col gap-0.5">
+                              <input
+                                type="time"
+                                value={slotTimes[slotNumber]?.start || ''}
+                                onChange={(e) => updateSlotTime(slotNumber, 'start', e.target.value)}
+                                className="w-full px-1 py-0.5 text-[10px] border rounded text-center focus:ring-1 focus:ring-blue-500"
+                                title="Hora início"
+                              />
+                              <input
+                                type="time"
+                                value={slotTimes[slotNumber]?.end || ''}
+                                onChange={(e) => updateSlotTime(slotNumber, 'end', e.target.value)}
+                                className="w-full px-1 py-0.5 text-[10px] border rounded text-center focus:ring-1 focus:ring-blue-500"
+                                title="Hora fim"
+                              />
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-gray-600 text-center leading-tight">
+                              <div>{slotTimes[slotNumber]?.start || '--:--'}</div>
+                              <div>{slotTimes[slotNumber]?.end || '--:--'}</div>
+                            </div>
+                          )}
                         </td>
                         {DAYS.map(day => {
                           const slot = getSlot(day.id, slotNumber);
                           const conflict = conflictWarnings.find(
                             w => w.day === day.id && w.slot_number === slotNumber
                           );
+                          const teacherName = getTeacherForCourse(slot?.course_id);
                           
                           return (
                             <td 
                               key={day.id} 
-                              className={`px-2 py-2 text-center ${conflict ? 'bg-yellow-50' : ''}`}
+                              className={`px-2 py-1 text-center ${conflict ? 'bg-yellow-50' : ''}`}
                             >
                               {canEdit ? (
-                                <select
-                                  value={slot?.course_id || ''}
-                                  onChange={(e) => updateSlot(day.id, slotNumber, e.target.value)}
-                                  className={`w-full px-2 py-1.5 text-xs border rounded text-center
-                                    ${conflict ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}
-                                    focus:ring-2 focus:ring-blue-500`}
-                                  title={conflict ? conflict.message : ''}
-                                >
-                                  <option value="">-</option>
-                                  {courses.map(course => (
-                                    <option key={course.id} value={course.id}>
-                                      {course.name}
-                                    </option>
-                                  ))}
-                                </select>
+                                <div className="flex flex-col items-center">
+                                  <select
+                                    value={slot?.course_id || ''}
+                                    onChange={(e) => updateSlot(day.id, slotNumber, e.target.value)}
+                                    className={`w-full px-1 py-1 text-[10px] border rounded text-center
+                                      ${conflict ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'}
+                                      focus:ring-2 focus:ring-blue-500`}
+                                    title={conflict ? conflict.message : ''}
+                                  >
+                                    <option value="">-</option>
+                                    {courses.map(course => (
+                                      <option key={course.id} value={course.id}>
+                                        {course.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {teacherName && (
+                                    <span className="text-[9px] text-gray-500 mt-0.5 italic">
+                                      {teacherName}
+                                    </span>
+                                  )}
+                                </div>
                               ) : (
-                                <span className={`text-xs px-2 py-1 rounded ${
-                                  slot?.course_name ? 'bg-blue-100 text-blue-800' : 'text-gray-400'
-                                }`}>
-                                  {slot?.course_name || '-'}
-                                </span>
+                                <div className="flex flex-col items-center">
+                                  <span className={`text-[10px] px-2 py-0.5 rounded ${
+                                    slot?.course_name ? 'bg-blue-100 text-blue-800' : 'text-gray-400'
+                                  }`}>
+                                    {slot?.course_name || '-'}
+                                  </span>
+                                  {slot?.course_id && (
+                                    <span className="text-[9px] text-gray-500 mt-0.5 italic">
+                                      {getTeacherForCourse(slot.course_id) || ''}
+                                    </span>
+                                  )}
+                                </div>
                               )}
                               {conflict && (
-                                <div className="text-[10px] text-yellow-600 mt-1" title={conflict.message}>
-                                  ⚠️ Conflito
+                                <div className="text-[9px] text-yellow-600 mt-0.5" title={conflict.message}>
+                                  ⚠️
                                 </div>
                               )}
                             </td>
