@@ -61,6 +61,7 @@ const initialFormData = {
   birth_city: '',
   birth_state: '',
   color_race: '',
+  comunidade_tradicional: '',
   
   // Documentos
   cpf: '',
