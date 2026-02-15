@@ -311,7 +311,7 @@ const AnnualView = ({ year, events, onDayClick, onEventClick, periodosBimestrais
         for (let day = 1; day <= daysInMonth; day++) {
           const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const dayEvents = events.filter(e => dateStr >= e.start_date && dateStr <= e.end_date);
-          const isToday = dateStr === new Date().toISOString().split('T')[0];
+          const isToday = dateStr === getLocalDateString();
           
           // Verifica tipo de dia
           const dateObj = new Date(dateStr + 'T12:00:00');
