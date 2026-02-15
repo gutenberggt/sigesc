@@ -408,6 +408,30 @@ export const useStaff = () => {
     }
   }, [lotacaoForm.staff_id, activeTab, loadExistingLotacoes, loadLotacoes, showAlertMessage]);
   
+  // Handlers de edição de alocação
+  const handleEditAlocacao = useCallback((alocacao) => {
+    setEditingAlocacao(alocacao);
+  }, []);
+  
+  const handleCancelEditAlocacao = useCallback(() => {
+    setEditingAlocacao(null);
+  }, []);
+  
+  const handleSaveEditAlocacao = useCallback(async (alocacaoId, updatedData) => {
+    try {
+      await teacherAssignmentAPI.update(alocacaoId, updatedData);
+      showAlertMessage('success', 'Alocação atualizada com sucesso!');
+      setEditingAlocacao(null);
+      await loadExistingAlocacoes(alocacaoForm.staff_id, alocacaoForm.academic_year);
+      if (activeTab === 'alocacoes') {
+        loadAlocacoes();
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar alocação:', error);
+      showAlertMessage('error', extractErrorMessage(error) || 'Erro ao atualizar alocação');
+    }
+  }, [alocacaoForm.staff_id, alocacaoForm.academic_year, activeTab, loadExistingAlocacoes, loadAlocacoes, showAlertMessage]);
+  
   const handleDeleteExistingAlocacao = useCallback(async (alocacaoId) => {
     try {
       await teacherAssignmentAPI.delete(alocacaoId);
