@@ -17,7 +17,8 @@ import {
   Trash2,
   Lock,
   CloudOff,
-  Stethoscope
+  Stethoscope,
+  FileDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
