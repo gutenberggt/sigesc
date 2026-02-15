@@ -24,6 +24,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ClassScheduleTab } from '@/components/ClassScheduleTab';
 
+// Helper para obter data local no formato YYYY-MM-DD (evita problemas de timezone)
+const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Tipos de eventos com cores e labels
 const EVENT_TYPES = {
   feriado_nacional: { label: 'Feriado Nacional', color: '#EF4444', bg: 'bg-red-100' },
