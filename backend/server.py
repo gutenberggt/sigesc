@@ -60,7 +60,8 @@ from pdf_generator import (
     generate_ficha_individual_pdf,
     generate_certificado_pdf,
     generate_class_details_pdf,
-    generate_livro_promocao_pdf
+    generate_livro_promocao_pdf,
+    generate_relatorio_frequencia_bimestre_pdf
 )
 from ftp_upload import upload_to_ftp, delete_from_ftp
 from grade_calculator import calculate_and_update_grade
