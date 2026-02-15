@@ -1,9 +1,17 @@
-import { User, Phone, GraduationCap, Building2, Briefcase, CreditCard } from 'lucide-react';
+import { User, Phone, GraduationCap, Building2, Briefcase, CreditCard, FileText, ExternalLink, Award } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { CARGOS, STATUS_SERVIDOR, TIPOS_VINCULO, SEXOS, FUNCOES, TURNOS } from './constants';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+// Helper para extrair nome e certificado de formação (suporta string ou objeto)
+const getFormacaoInfo = (f) => {
+  if (typeof f === 'string') {
+    return { nome: f, certificado_url: null };
+  }
+  return { nome: f?.nome || '', certificado_url: f?.certificado_url || null };
+};
 
 const formatWhatsAppLink = (celular) => {
   if (!celular) return null;
