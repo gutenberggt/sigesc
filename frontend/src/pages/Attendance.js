@@ -70,6 +70,9 @@ const formatDate = (dateStr) => {
 // Dias da semana
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
+// URL da API
+const API_URL = process.env.REACT_APP_BACKEND_URL;
+
 export const Attendance = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -91,6 +94,9 @@ export const Attendance = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedPeriod, setSelectedPeriod] = useState('regular');
   const [academicYear, setAcademicYear] = useState(new Date().getFullYear());
+  
+  // Estado para bimestre selecionado no relatório PDF
+  const [selectedBimestre, setSelectedBimestre] = useState(1);
   
   // Anos disponíveis para seleção
   const currentYear = new Date().getFullYear();
