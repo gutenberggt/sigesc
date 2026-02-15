@@ -339,6 +339,15 @@ export const StaffModal = ({
         <div className="p-4 bg-blue-50 rounded-lg space-y-3">
           <h4 className="font-medium text-blue-900">Formação Acadêmica</h4>
           
+          {/* Input hidden para upload de certificado */}
+          <input
+            type="file"
+            ref={certificadoInputRef}
+            onChange={handleCertificadoChange}
+            accept=".pdf,.jpg,.jpeg,.png"
+            className="hidden"
+          />
+          
           <div className="flex gap-2">
             <input
               type="text"
@@ -354,10 +363,31 @@ export const StaffModal = ({
           </div>
           
           {staffForm.formacoes?.length > 0 && (
-            <div className="space-y-1">
+            <div className="space-y-2">
               {staffForm.formacoes.map((f, idx) => (
-                <div key={idx} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded border">
-                  <span className="flex-1 text-sm">{f}</span>
+                <div key={idx} className="flex items-center gap-2 bg-white px-3 py-2 rounded border">
+                  <span className="flex-1 text-sm">{getFormacaoNome(f)}</span>
+                  {getFormacaoCertificado(f) ? (
+                    <a
+                      href={`${process.env.REACT_APP_BACKEND_URL}${getFormacaoCertificado(f)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-600 hover:text-green-800"
+                      title="Ver certificado"
+                    >
+                      <FileText size={16} />
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleCertificadoClick(idx, 'formacao')}
+                      disabled={uploadingCertificado}
+                      className="text-blue-500 hover:text-blue-700 disabled:opacity-50"
+                      title="Anexar certificado"
+                    >
+                      <Upload size={16} />
+                    </button>
+                  )}
                   <button 
                     type="button"
                     onClick={() => removeFormacao(idx)}
