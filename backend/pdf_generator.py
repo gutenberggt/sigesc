@@ -3166,3 +3166,304 @@ def generate_livro_promocao_pdf(
     doc.build(elements)
     buffer.seek(0)
     return buffer
+
+
+def generate_relatorio_frequencia_bimestre_pdf(
+    school: Dict[str, Any],
+    class_info: Dict[str, Any],
+    course_info: Dict[str, Any],
+    students_attendance: List[Dict[str, Any]],
+    bimestre: int,
+    academic_year: int,
+    period_start: str,
+    period_end: str,
+    attendance_days: List[str],
+    aulas_previstas: int = 0,
+    aulas_ministradas: int = 0,
+    teacher_name: str = "",
+    mantenedora: Dict[str, Any] = None
+) -> BytesIO:
+    """
+    Gera o PDF do Relatório de Frequência por Bimestre
+    
+    Args:
+        school: Dados da escola
+        class_info: Dados da turma
+        course_info: Dados do componente curricular (pode ser None para frequência diária)
+        students_attendance: Lista de alunos com dados de frequência por dia
+        bimestre: Número do bimestre (1, 2, 3 ou 4)
+        academic_year: Ano letivo
+        period_start: Data início do período (YYYY-MM-DD)
+        period_end: Data fim do período (YYYY-MM-DD)
+        attendance_days: Lista de datas com aula no período
+        aulas_previstas: Número de aulas previstas
+        aulas_ministradas: Número de aulas ministradas
+        teacher_name: Nome do(a) professor(a)
+        mantenedora: Dados da mantenedora
+    
+    Returns:
+        BytesIO com o PDF gerado
+    """
+    buffer = BytesIO()
+    
+    # Usar orientação paisagem (Landscape) para caber mais dias
+    from reportlab.lib.pagesizes import landscape
+    page_width, page_height = landscape(A4)
+    
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=1*cm,
+        leftMargin=1*cm,
+        topMargin=1*cm,
+        bottomMargin=1*cm
+    )
+    
+    styles = get_styles()
+    elements = []
+    mantenedora = mantenedora or {}
+    
+    # Estilos personalizados
+    small_text = ParagraphStyle(
+        'SmallText',
+        parent=styles['CenterText'],
+        fontSize=8,
+        leading=10
+    )
+    
+    tiny_text = ParagraphStyle(
+        'TinyText',
+        parent=styles['CenterText'],
+        fontSize=6,
+        leading=7
+    )
+    
+    # Brasão/Logo
+    logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
+    logo = get_logo_image(width=1.5*cm, height=1*cm, logo_url=logo_url)
+    
+    # Formatar datas do período
+    def format_date_short(date_str):
+        if not date_str:
+            return ""
+        try:
+            d = datetime.strptime(date_str, '%Y-%m-%d')
+            return d.strftime('%d de %B').lower()
+        except:
+            return date_str
+    
+    def format_day_only(date_str):
+        if not date_str:
+            return ""
+        try:
+            d = datetime.strptime(date_str, '%Y-%m-%d')
+            return d.strftime('%d')
+        except:
+            return date_str
+    
+    # Cabeçalho
+    mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
+    periodo_texto = f"De {format_date_short(period_start)} a {format_date_short(period_end)}"
+    
+    # Turno traduzido
+    turnos = {'morning': 'MATUTINO', 'afternoon': 'VESPERTINO', 'night': 'NOTURNO', 'full_time': 'INTEGRAL'}
+    turno = turnos.get(class_info.get('shift', ''), class_info.get('shift', '').upper())
+    
+    # Nível de ensino traduzido
+    niveis = {
+        'fundamental_anos_iniciais': 'ENSINO FUNDAMENTAL - ANOS INICIAIS',
+        'fundamental_anos_finais': 'ENSINO FUNDAMENTAL - ANOS FINAIS',
+        'eja': 'EJA - ANOS INICIAIS',
+        'eja_final': 'EJA - ANOS FINAIS',
+        'educacao_infantil': 'EDUCAÇÃO INFANTIL',
+        'ensino_medio': 'ENSINO MÉDIO'
+    }
+    nivel = niveis.get(class_info.get('education_level', ''), class_info.get('education_level', '').upper())
+    
+    # Série/Ano da turma
+    serie = class_info.get('grade', class_info.get('name', ''))
+    
+    # Header com logo e informações
+    header_data = []
+    
+    # Linha 1: Logo + Nome da Escola + Título
+    if logo:
+        header_row1 = [
+            logo,
+            Paragraph(f"<b>{school.get('name', 'ESCOLA').upper()}</b>", styles['CenterText']),
+            Paragraph(f"<b>FREQUÊNCIA - {bimestre}º BIMESTRE DE {academic_year}</b>", styles['CenterText'])
+        ]
+    else:
+        header_row1 = [
+            Paragraph(mant_municipio.upper(), small_text),
+            Paragraph(f"<b>{school.get('name', 'ESCOLA').upper()}</b>", styles['CenterText']),
+            Paragraph(f"<b>FREQUÊNCIA - {bimestre}º BIMESTRE DE {academic_year}</b>", styles['CenterText'])
+        ]
+    header_data.append(header_row1)
+    
+    # Linha 2: Período
+    header_row2 = ['', Paragraph(periodo_texto, small_text), '']
+    header_data.append(header_row2)
+    
+    header_table = Table(header_data, colWidths=[3*cm, 14*cm, 10*cm])
+    header_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('SPAN', (0, 0), (0, 1)),  # Logo ocupa 2 linhas
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 5))
+    
+    # Informações da turma
+    componente_nome = course_info.get('name', 'FREQUÊNCIA DIÁRIA') if course_info else 'FREQUÊNCIA DIÁRIA'
+    
+    info_data = [
+        [
+            Paragraph(f"<b>DISCIPLINA:</b> {componente_nome}", small_text),
+            Paragraph(f"<b>SÉRIE/ANO:</b> {serie}", small_text),
+            Paragraph(f"<b>TURMA:</b> {class_info.get('name', '')}", small_text),
+        ],
+        [
+            Paragraph(f"<b>TURNO:</b> {turno}", small_text),
+            Paragraph(f"<b>NÍVEL:</b> {nivel}", small_text),
+            Paragraph(f"<b>AULAS PREVISTAS:</b> {aulas_previstas}", small_text),
+        ],
+        [
+            Paragraph(f"<b>PROFESSOR(A):</b> {teacher_name}", small_text),
+            '',
+            Paragraph(f"<b>AULAS MINISTRADAS:</b> {aulas_ministradas}", small_text),
+        ]
+    ]
+    
+    info_table = Table(info_data, colWidths=[10*cm, 9*cm, 8*cm])
+    info_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 5))
+    
+    # Tabela de frequência
+    # Preparar cabeçalho com dias do mês
+    header_row = ['Nº', 'NOME']
+    
+    # Agrupar dias por mês para melhor visualização
+    days_by_month = {}
+    for day_str in attendance_days:
+        try:
+            d = datetime.strptime(day_str, '%Y-%m-%d')
+            month_key = d.strftime('%m/%Y')
+            if month_key not in days_by_month:
+                days_by_month[month_key] = []
+            days_by_month[month_key].append(day_str)
+        except:
+            pass
+    
+    # Adicionar dias ao cabeçalho (mostrar apenas o dia)
+    for day_str in attendance_days:
+        header_row.append(Paragraph(format_day_only(day_str), tiny_text))
+    
+    header_row.extend(['FALTAS', 'PRESEN.'])
+    
+    # Linhas dos alunos
+    table_data = [header_row]
+    
+    for idx, student in enumerate(students_attendance, 1):
+        row = [
+            str(idx),
+            Paragraph(student.get('name', '')[:35], tiny_text)  # Limitar nome
+        ]
+        
+        # Adicionar status de cada dia
+        attendance_by_date = student.get('attendance_by_date', {})
+        faltas = 0
+        presencas = 0
+        
+        for day_str in attendance_days:
+            status = attendance_by_date.get(day_str, '')
+            if status == 'present':
+                row.append('P')
+                presencas += 1
+            elif status == 'absent':
+                row.append('F')
+                faltas += 1
+            elif status == 'justified':
+                row.append('J')
+                presencas += 1  # Justificada conta como presença
+            else:
+                row.append('')  # Sem registro
+        
+        row.extend([str(faltas), str(presencas)])
+        table_data.append(row)
+    
+    # Calcular larguras das colunas
+    num_days = len(attendance_days)
+    nome_width = 5*cm
+    num_width = 0.6*cm
+    falta_width = 0.9*cm
+    presen_width = 0.9*cm
+    
+    # Largura disponível para os dias
+    available_width = page_width - 2*cm - nome_width - num_width - falta_width - presen_width
+    day_width = min(available_width / max(num_days, 1), 0.6*cm)
+    
+    col_widths = [num_width, nome_width] + [day_width] * num_days + [falta_width, presen_width]
+    
+    freq_table = Table(table_data, colWidths=col_widths, repeatRows=1)
+    freq_table.setStyle(TableStyle([
+        # Cabeçalho
+        ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.9, 0.9, 0.9)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 6),
+        
+        # Corpo
+        ('FONTSIZE', (0, 1), (-1, -1), 6),
+        ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Nº
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),    # Nome
+        ('ALIGN', (2, 1), (-1, -1), 'CENTER'), # Dias e totais
+        
+        # Bordas
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        
+        # Padding
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+        ('LEFTPADDING', (0, 0), (-1, -1), 1),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+        
+        # Cores alternadas nas linhas
+        *[('BACKGROUND', (0, i), (-1, i), colors.Color(0.97, 0.97, 0.97)) 
+          for i in range(2, len(table_data), 2)],
+    ]))
+    
+    elements.append(freq_table)
+    elements.append(Spacer(1, 15))
+    
+    # Rodapé com local, data e assinaturas
+    today = datetime.now()
+    local_data = f"{mant_municipio} - {mantenedora.get('estado', 'PA')}, {format_date_pt(today.date())}"
+    elements.append(Paragraph(local_data, small_text))
+    elements.append(Spacer(1, 20))
+    
+    # Assinaturas
+    assinatura_data = [
+        ['_' * 40, '_' * 40],
+        ['Assinatura do(a) Professor(a)', 'Assinatura do(a) Coordenador(a)']
+    ]
+    assinatura_table = Table(assinatura_data, colWidths=[12*cm, 12*cm])
+    assinatura_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 1), (-1, 1), 5),
+    ]))
+    elements.append(assinatura_table)
+    
+    # Gerar PDF
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
