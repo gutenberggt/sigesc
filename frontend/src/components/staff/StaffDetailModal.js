@@ -126,25 +126,107 @@ export const StaffDetailModal = ({
             {selectedStaff.formacoes?.length > 0 && (
               <div className="mb-2">
                 <span className="text-sm text-gray-600 font-medium">Formações:</span>
-                <ul className="list-disc list-inside text-sm">
-                  {selectedStaff.formacoes.map((f, i) => (
-                    <li key={i}>{f}</li>
-                  ))}
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  {selectedStaff.formacoes.map((f, i) => {
+                    const { nome, certificado_url } = getFormacaoInfo(f);
+                    return (
+                      <li key={i} className="flex items-center gap-2">
+                        <span>{nome}</span>
+                        {certificado_url && (
+                          <a
+                            href={`${API_URL}${certificado_url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
+                            title="Ver certificado"
+                          >
+                            <FileText size={12} />
+                            Certificado
+                          </a>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
             {selectedStaff.especializacoes?.length > 0 && (
               <div>
                 <span className="text-sm text-gray-600 font-medium">Especializações:</span>
-                <ul className="list-disc list-inside text-sm">
-                  {selectedStaff.especializacoes.map((e, i) => (
-                    <li key={i}>{e}</li>
-                  ))}
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  {selectedStaff.especializacoes.map((e, i) => {
+                    const { nome, certificado_url } = getFormacaoInfo(e);
+                    return (
+                      <li key={i} className="flex items-center gap-2">
+                        <span>{nome}</span>
+                        {certificado_url && (
+                          <a
+                            href={`${API_URL}${certificado_url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
+                            title="Ver certificado"
+                          >
+                            <FileText size={12} />
+                            Certificado
+                          </a>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
           </div>
         )}
+        
+        {/* Seção de Certificados/Documentos */}
+        {(() => {
+          // Coletar todos os certificados
+          const certificados = [];
+          selectedStaff.formacoes?.forEach((f, i) => {
+            const { nome, certificado_url } = getFormacaoInfo(f);
+            if (certificado_url) {
+              certificados.push({ tipo: 'Formação', nome, url: certificado_url });
+            }
+          });
+          selectedStaff.especializacoes?.forEach((e, i) => {
+            const { nome, certificado_url } = getFormacaoInfo(e);
+            if (certificado_url) {
+              certificados.push({ tipo: 'Especialização', nome, url: certificado_url });
+            }
+          });
+          
+          if (certificados.length === 0) return null;
+          
+          return (
+            <div className="p-4 bg-amber-50 rounded-lg">
+              <h4 className="font-medium text-amber-900 mb-2 flex items-center gap-2">
+                <Award size={18} />
+                Documentos Anexados ({certificados.length})
+              </h4>
+              <div className="space-y-2">
+                {certificados.map((cert, i) => (
+                  <div key={i} className="flex items-center justify-between p-2 bg-white rounded border border-amber-200">
+                    <div>
+                      <span className="text-xs text-amber-600 font-medium">{cert.tipo}</span>
+                      <p className="text-sm font-medium text-gray-900">{cert.nome}</p>
+                    </div>
+                    <a
+                      href={`${API_URL}${cert.url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors text-sm font-medium"
+                    >
+                      <ExternalLink size={14} />
+                      Visualizar
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
         
         {/* Lotações */}
         {selectedStaff.lotacoes?.length > 0 && (
