@@ -1179,7 +1179,7 @@ export const Calendar = () => {
             )}
             {view === 'daily' && (
               <DailyView 
-                date={currentDate.toISOString().split('T')[0]}
+                date={getLocalDateString(currentDate)}
                 events={events}
                 onEventClick={handleEventClick}
               />
