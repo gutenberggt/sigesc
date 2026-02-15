@@ -1046,6 +1046,12 @@ export const useStaff = () => {
     handleEncerrarLotacao,
     handleDeleteExistingLotacao,
     handleDeleteExistingAlocacao,
-    handleDeleteTurmaAlocacoes
+    handleDeleteTurmaAlocacoes,
+    
+    // Edição de lotação
+    editingLotacao,
+    handleEditLotacao,
+    handleCancelEditLotacao,
+    handleSaveEditLotacao
   };
 };
