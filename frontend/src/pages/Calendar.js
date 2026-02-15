@@ -551,8 +551,7 @@ const MonthlyView = ({ year, month, events, onDayClick, onEventClick, periodosBi
 // Vista Semanal
 const WeeklyView = ({ startDate, events, onDayClick, onEventClick }) => {
   // Formata data de hoje sem problemas de timezone
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const today = getLocalDateString();
   
   // Gera os 7 dias da semana (Domingo a Sábado)
   const weekDays = [];
