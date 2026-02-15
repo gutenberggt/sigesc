@@ -548,7 +548,8 @@ export function AnalyticsDashboard() {
           safeFetch(`${API_URL}/api/analytics/attendance/monthly?${params}`),
           safeFetch(`${API_URL}/api/analytics/grades/by-subject?${params}`),
           safeFetch(`${API_URL}/api/analytics/grades/by-period?${params}`),
-          canViewRanking ? safeFetch(`${API_URL}/api/analytics/schools/ranking?${params}`) : null,
+          // Ranking sempre busca TODAS as escolas ativas (sem filtro de school_id)
+          canViewRanking ? safeFetch(`${API_URL}/api/analytics/schools/ranking?academic_year=${selectedYear}`) : null,
           canViewStudentData ? safeFetch(`${API_URL}/api/analytics/students/performance?${params}`) : null,
           safeFetch(`${API_URL}/api/analytics/distribution/grades?${params}`)
         ]);
