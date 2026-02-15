@@ -113,8 +113,27 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - [ ] **Relatórios Gerenciais:** Criar relatórios para atestados médicos
 
 ## Última Atualização
-**Data:** 13 de Fevereiro de 2026
-**Funcionalidade:** Horário de Aulas
+**Data:** 15 de Fevereiro de 2026
+**Funcionalidade:** Correções e Melhorias em Servidores e Alunos
+
+### Melhorias em Servidores e Alunos (Fev 15, 2026):
+Implementadas 4 funcionalidades relacionadas ao cadastro de servidores e alunos.
+
+**Funcionalidades Implementadas:**
+- ✅ **Bug fix CPF:** Corrigido bug onde o CPF não era exibido ao editar um servidor
+- ✅ **Máscara de Telefone:** Campo "Celular" no formulário de servidor agora aplica formatação automática (99) 99999-9999
+- ✅ **Upload de Certificados:** Botão para anexar certificados a cada formação acadêmica e especialização do servidor
+- ✅ **Campo Comunidade Tradicional:** Novo campo no cadastro de alunos com opções: Não Pertence, Quilombola, Cigano, Ribeirinho, Extrativista
+
+**Arquivos Modificados:**
+- `/app/frontend/src/components/staff/StaffModal.js` - UI para CPF, telefone e upload de certificados
+- `/app/frontend/src/hooks/useStaff.js` - Correção do bug do CPF no handleEditStaff
+- `/app/frontend/src/pages/StudentsComplete.js` - Novo campo comunidade_tradicional
+- `/app/backend/server.py` - Novo endpoint POST /api/upload/certificado
+
+**Testado:** ✅ Validado pelo testing_agent em 15/02/2026 (iteration_14.json)
+
+---
 
 ### Horário de Aulas (Fev 13, 2026):
 Nova funcionalidade para gerenciar o horário de aulas das turmas.
