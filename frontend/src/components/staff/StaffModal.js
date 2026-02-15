@@ -416,10 +416,31 @@ export const StaffModal = ({
           </div>
           
           {staffForm.especializacoes?.length > 0 && (
-            <div className="space-y-1">
+            <div className="space-y-2">
               {staffForm.especializacoes.map((e, idx) => (
-                <div key={idx} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded border">
-                  <span className="flex-1 text-sm">{e}</span>
+                <div key={idx} className="flex items-center gap-2 bg-white px-3 py-2 rounded border">
+                  <span className="flex-1 text-sm">{getFormacaoNome(e)}</span>
+                  {getFormacaoCertificado(e) ? (
+                    <a
+                      href={`${process.env.REACT_APP_BACKEND_URL}${getFormacaoCertificado(e)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-600 hover:text-green-800"
+                      title="Ver certificado"
+                    >
+                      <FileText size={16} />
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleCertificadoClick(idx, 'especializacao')}
+                      disabled={uploadingCertificado}
+                      className="text-blue-500 hover:text-blue-700 disabled:opacity-50"
+                      title="Anexar certificado"
+                    >
+                      <Upload size={16} />
+                    </button>
+                  )}
                   <button 
                     type="button"
                     onClick={() => removeEspecializacao(idx)}
