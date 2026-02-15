@@ -463,6 +463,7 @@ export const useStaff = () => {
     setEditingStaff(staff);
     setStaffForm({
       nome: staff.nome || '',
+      cpf: staff.cpf || '',
       foto_url: staff.foto_url || '',
       data_nascimento: staff.data_nascimento || '',
       sexo: staff.sexo || '',
