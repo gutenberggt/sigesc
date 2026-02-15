@@ -375,15 +375,20 @@ export function ClassScheduleTab({ academicYear }) {
         // Filtrar componentes pelo nível de ensino da turma (se houver)
         // Se não houver nível definido na turma ou no componente, mostrar todos
         const filtered = allCourses.filter(c => {
+          const courseLevel = c.nivel_ensino || c.education_level || c.level;
+          
           // Se o componente não tem nível específico, mostrar para todas as turmas
-          if (!c.nivel_ensino) return true;
+          if (!courseLevel) return true;
           // Se a turma não tem nível definido, mostrar todos os componentes
           if (!turmaLevel) return true;
           // Se ambos têm nível, verificar compatibilidade
-          return c.nivel_ensino === turmaLevel;
+          return courseLevel === turmaLevel;
         });
         
-        setCourses(filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        // Se nenhum componente passou no filtro, mostrar todos (fallback)
+        const finalCourses = filtered.length > 0 ? filtered : allCourses;
+        
+        setCourses(finalCourses.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
         
         // Carregar alocações de professores para esta turma
         try {
