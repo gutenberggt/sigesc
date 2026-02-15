@@ -117,7 +117,7 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 **Funcionalidade:** Correções e Melhorias em Servidores e Alunos
 
 ### Melhorias em Servidores e Alunos (Fev 15, 2026):
-Implementadas 4 funcionalidades relacionadas ao cadastro de servidores e alunos.
+Implementadas 4 funcionalidades relacionadas ao cadastro de servidores e alunos, além de melhorias na gestão de lotações e alocações.
 
 **Funcionalidades Implementadas:**
 - ✅ **Bug fix CPF:** Corrigido bug onde o CPF não era exibido ao editar um servidor
@@ -125,18 +125,20 @@ Implementadas 4 funcionalidades relacionadas ao cadastro de servidores e alunos.
 - ✅ **Upload de Certificados:** Botão para anexar certificados a cada formação acadêmica e especialização do servidor
 - ✅ **Campo Comunidade Tradicional:** Novo campo no cadastro de alunos com opções: Não Pertence, Quilombola, Cigano, Ribeirinho, Extrativista
 - ✅ **Histórico de Certificados:** Modal de detalhes do servidor agora exibe links para visualizar certificados anexados e uma seção unificada "Documentos Anexados" com contagem
-- ✅ **Edição de Lotações (NOVO):** No modal "Gerenciar Lotações", agora é possível editar lotações existentes. Botão de lápis azul ao lado de cada lotação abre formulário inline para alterar Função, Turno e Data Início
+- ✅ **Edição de Lotações:** No modal "Gerenciar Lotações", botão de lápis azul permite editar Função, Turno e Data Início de lotações existentes
+- ✅ **Edição de Alocações (NOVO):** No modal "Gerenciar Alocações", botão de lápis azul permite trocar o componente curricular de uma alocação existente
 
 **Arquivos Modificados:**
 - `/app/frontend/src/components/staff/StaffModal.js` - UI para CPF, telefone e upload de certificados
 - `/app/frontend/src/components/staff/StaffDetailModal.js` - Visualização de certificados no perfil do servidor
 - `/app/frontend/src/components/staff/LotacaoModal.js` - Edição inline de lotações existentes
-- `/app/frontend/src/hooks/useStaff.js` - Correção do bug do CPF, handlers de edição de lotação
+- `/app/frontend/src/components/staff/AlocacaoModal.js` - Edição inline de componentes em alocações
+- `/app/frontend/src/hooks/useStaff.js` - Handlers de edição para lotações e alocações
 - `/app/frontend/src/pages/StudentsComplete.js` - Novo campo comunidade_tradicional
-- `/app/frontend/src/pages/Staff.js` - Props de edição para LotacaoModal
+- `/app/frontend/src/pages/Staff.js` - Props de edição para LotacaoModal e AlocacaoModal
 - `/app/backend/server.py` - Novo endpoint POST /api/upload/certificado
 
-**Testado:** ✅ Validado pelo testing_agent em 15/02/2026 (iteration_14.json, iteration_15.json, iteration_16.json)
+**Testado:** ✅ Lotações validadas pelo testing_agent (iteration_16.json). Alocações seguem mesmo padrão de implementação.
 
 ---
 
