@@ -367,28 +367,19 @@ export function ClassScheduleTab({ academicYear }) {
         const classInfo = classes.find(c => c.id === selectedClass);
         if (!classInfo) return;
         
-        const allCourses = await coursesAPI.getAll();
+        // Obter nível da turma (pode ser level ou education_level ou nivel_ensino)
+        const turmaLevel = classInfo.nivel_ensino || classInfo.education_level || classInfo.level;
         
-        // Obter nível da turma (pode ser level ou education_level)
-        const turmaLevel = classInfo.level || classInfo.education_level;
+        // Buscar componentes passando o nível de ensino da turma
+        const allCourses = await coursesAPI.getAll(turmaLevel);
         
-        // Filtrar componentes pelo nível de ensino da turma (se houver)
-        // Se não houver nível definido na turma ou no componente, mostrar todos
-        const filtered = allCourses.filter(c => {
-          const courseLevel = c.nivel_ensino || c.education_level || c.level;
-          
-          // Se o componente não tem nível específico, mostrar para todas as turmas
-          if (!courseLevel) return true;
-          // Se a turma não tem nível definido, mostrar todos os componentes
-          if (!turmaLevel) return true;
-          // Se ambos têm nível, verificar compatibilidade
-          return courseLevel === turmaLevel;
-        });
-        
-        // Se nenhum componente passou no filtro, mostrar todos (fallback)
-        const finalCourses = filtered.length > 0 ? filtered : allCourses;
-        
-        setCourses(finalCourses.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        // Se não encontrou nenhum com o nível, buscar todos
+        if (allCourses.length === 0) {
+          const fallbackCourses = await coursesAPI.getAll();
+          setCourses(fallbackCourses.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        } else {
+          setCourses(allCourses.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        }
         
         // Carregar alocações de professores para esta turma
         try {
