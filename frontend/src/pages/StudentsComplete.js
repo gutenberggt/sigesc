@@ -1447,6 +1447,24 @@ export function StudentsComplete() {
           </select>
         </div>
         <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Comunidade Tradicional</label>
+          <select
+            value={formData.comunidade_tradicional || ''}
+            onChange={(e) => updateFormData('comunidade_tradicional', e.target.value)}
+            disabled={viewMode}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+          >
+            <option value="">Selecione</option>
+            <option value="nao_pertence">Não Pertence</option>
+            <option value="quilombola">Quilombola</option>
+            <option value="cigano">Cigano</option>
+            <option value="ribeirinho">Ribeirinho</option>
+            <option value="extrativista">Extrativista</option>
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Naturalidade (Cidade)</label>
           <CityAutocomplete
             value={formData.birth_city}
