@@ -123,23 +123,100 @@ export const LotacaoModal = ({
             ) : (
               <div className="space-y-2">
                 {lotacoesDoAno.map(lot => (
-                  <div key={lot.id} className="flex items-center gap-2 bg-white px-3 py-2 rounded border">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{lot.school_name}</p>
-                      <p className="text-xs text-gray-500">
-                        {FUNCOES[lot.funcao]} • {TURNOS[lot.turno] || 'Sem turno'} • Desde {lot.data_inicio}
-                        {lot.academic_year && <span className="ml-1 text-blue-600">• Ano: {lot.academic_year}</span>}
-                      </p>
-                    </div>
-                    {canDelete && (
-                      <button 
-                        type="button"
-                        onClick={() => onDeleteExisting(lot.id)}
-                        className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
-                        title="Excluir lotação"
-                      >
-                        <Minus size={16} />
-                      </button>
+                  <div key={lot.id} className="bg-white px-3 py-2 rounded border">
+                    {/* Modo de edição */}
+                    {editingLotacao?.id === lot.id ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-gray-900">{lot.school_name}</p>
+                          <div className="flex gap-1">
+                            <button 
+                              type="button"
+                              onClick={handleSaveEdit}
+                              disabled={savingEdit}
+                              className="p-1 text-green-600 hover:text-green-700 hover:bg-green-50 rounded"
+                              title="Salvar alterações"
+                            >
+                              <Check size={16} />
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={onCancelEditLotacao}
+                              className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                              title="Cancelar edição"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Função</label>
+                            <select
+                              value={editForm.funcao}
+                              onChange={(e) => setEditForm({ ...editForm, funcao: e.target.value })}
+                              className="w-full px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500"
+                            >
+                              {Object.entries(FUNCOES).map(([value, label]) => (
+                                <option key={value} value={value}>{label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Turno</label>
+                            <select
+                              value={editForm.turno}
+                              onChange={(e) => setEditForm({ ...editForm, turno: e.target.value })}
+                              className="w-full px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="">Sem turno</option>
+                              {Object.entries(TURNOS).map(([value, label]) => (
+                                <option key={value} value={value}>{label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Data Início</label>
+                            <input
+                              type="date"
+                              value={editForm.data_inicio}
+                              onChange={(e) => setEditForm({ ...editForm, data_inicio: e.target.value })}
+                              className="w-full px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Modo de visualização */
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{lot.school_name}</p>
+                          <p className="text-xs text-gray-500">
+                            {FUNCOES[lot.funcao]} • {TURNOS[lot.turno] || 'Sem turno'} • Desde {lot.data_inicio}
+                            {lot.academic_year && <span className="ml-1 text-blue-600">• Ano: {lot.academic_year}</span>}
+                          </p>
+                        </div>
+                        {canDelete && (
+                          <>
+                            <button 
+                              type="button"
+                              onClick={() => handleStartEdit(lot)}
+                              className="p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded"
+                              title="Editar lotação"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => onDeleteExisting(lot.id)}
+                              className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                              title="Excluir lotação"
+                            >
+                              <Minus size={16} />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}
