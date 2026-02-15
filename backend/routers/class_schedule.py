@@ -435,13 +435,11 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
             await audit_service.log(
                 action='delete',
                 collection='class_schedules',
+                user=user,
                 document_id=schedule_id,
-                user_id=user.get('id'),
-                user_email=user.get('email'),
-                user_role=user.get('role'),
                 school_id=existing.get('school_id'),
                 academic_year=existing.get('academic_year'),
-                old_data=existing
+                old_value=existing
             )
         
         return {"message": "Horário excluído com sucesso"}
