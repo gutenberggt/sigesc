@@ -114,7 +114,24 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 
 ## Última Atualização
 **Data:** 15 de Fevereiro de 2026
-**Funcionalidade:** Relatório de Frequência por Bimestre em PDF
+**Funcionalidade:** Melhorias no Horário de Aulas
+
+### Melhorias no Horário de Aulas (Fev 15, 2026):
+Implementadas três melhorias no módulo de Horário de Aulas.
+
+**Funcionalidades Implementadas:**
+- ✅ **Limite de aulas aumentado:** Opções de 3 a 10 aulas por dia (antes era 3-8)
+- ✅ **Coluna Horário:** Nova coluna entre "Aula" e os dias da semana com campos para hora de início e fim (ex: 07:00 / 07:45)
+- ✅ **Exibição do professor:** Ao selecionar um componente, exibe o primeiro nome do professor alocado abaixo do dropdown
+
+**Arquivos Modificados:**
+- `/app/frontend/src/components/ClassScheduleTab.jsx` - Estados slotTimes, teacherAllocations, funções updateSlotTime e getTeacherForCourse
+- `/app/backend/models.py` - Novo modelo SlotTime e campo slot_times em ClassSchedule
+- `/app/backend/routers/class_schedule.py` - Suporte a slot_times nos endpoints
+
+**Testado:** ✅ Validado pelo testing_agent (iteration_18.json - 100% backend, 100% frontend)
+
+---
 
 ### Relatório de Frequência por Bimestre (Fev 15, 2026):
 Implementada a funcionalidade de gerar PDF do relatório de frequência por bimestre.
