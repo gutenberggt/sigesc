@@ -2434,6 +2434,133 @@ async def get_class_attendance_report(
         "alert_count": len(low_attendance_alerts)
     }
 
+@api_router.get("/attendance/pdf/bimestre/{class_id}")
+async def get_attendance_bimestre_pdf(
+    class_id: str,
+    request: Request,
+    bimestre: int = Query(..., ge=1, le=4, description="Número do bimestre (1-4)"),
+    academic_year: Optional[int] = None
+):
+    """Gera PDF do relatório de frequência por bimestre"""
+    await AuthMiddleware.get_current_user(request)
+    
+    if not academic_year:
+        academic_year = datetime.now().year
+    
+    # Busca dados da turma
+    turma = await db.classes.find_one({"id": class_id}, {"_id": 0})
+    if not turma:
+        raise HTTPException(status_code=404, detail="Turma não encontrada")
+    
+    # Busca escola
+    school = await db.schools.find_one({"id": turma.get('school_id')}, {"_id": 0})
+    if not school:
+        raise HTTPException(status_code=404, detail="Escola não encontrada")
+    
+    # Buscar mantenedora
+    mantenedora = await db.config.find_one({"tipo": "mantenedora"}, {"_id": 0})
+    
+    # Definir período do bimestre
+    bimestre_periodos = {
+        1: (f"{academic_year}-02-01", f"{academic_year}-04-30"),
+        2: (f"{academic_year}-05-01", f"{academic_year}-07-15"),
+        3: (f"{academic_year}-07-16", f"{academic_year}-09-30"),
+        4: (f"{academic_year}-10-01", f"{academic_year}-12-20"),
+    }
+    
+    period_start, period_end = bimestre_periodos.get(bimestre, (None, None))
+    
+    # Busca alunos matriculados na turma
+    enrollments = await db.enrollments.find(
+        {"class_id": class_id, "status": "active", "academic_year": academic_year},
+        {"_id": 0, "student_id": 1, "enrollment_number": 1}
+    ).to_list(1000)
+    
+    student_ids = [e['student_id'] for e in enrollments]
+    enrollment_numbers = {e['student_id']: e.get('enrollment_number') for e in enrollments}
+    
+    # Busca dados dos alunos
+    students = []
+    if student_ids:
+        students = await db.students.find(
+            {"id": {"$in": student_ids}},
+            {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1}
+        ).sort("full_name", 1).to_list(1000)
+    
+    # Busca frequências do período do bimestre
+    attendances = await db.attendance.find(
+        {
+            "class_id": class_id,
+            "academic_year": academic_year,
+            "date": {"$gte": period_start, "$lte": period_end}
+        },
+        {"_id": 0}
+    ).sort("date", 1).to_list(1000)
+    
+    # Coletar dias únicos com frequência registrada
+    attendance_days = sorted(list(set([att['date'] for att in attendances])))
+    
+    # Montar dados de frequência por aluno
+    students_attendance = []
+    for student in students:
+        attendance_by_date = {}
+        
+        for att in attendances:
+            for record in att.get('records', []):
+                if record['student_id'] == student['id']:
+                    status_map = {'P': 'present', 'F': 'absent', 'J': 'justified'}
+                    attendance_by_date[att['date']] = status_map.get(record['status'], '')
+        
+        students_attendance.append({
+            'name': student['full_name'],
+            'enrollment_number': enrollment_numbers.get(student['id']) or student.get('enrollment_number'),
+            'attendance_by_date': attendance_by_date
+        })
+    
+    # Buscar professor responsável (opcional)
+    teacher_name = ""
+    teacher_assignment = await db.teacher_assignments.find_one(
+        {"class_id": class_id, "academic_year": academic_year},
+        {"_id": 0, "staff_id": 1}
+    )
+    if teacher_assignment:
+        teacher = await db.staff.find_one(
+            {"id": teacher_assignment['staff_id']},
+            {"_id": 0, "nome": 1}
+        )
+        if teacher:
+            teacher_name = teacher.get('nome', '')
+    
+    # Gerar PDF
+    try:
+        pdf_buffer = generate_relatorio_frequencia_bimestre_pdf(
+            school=school,
+            class_info=turma,
+            course_info=None,  # Frequência diária
+            students_attendance=students_attendance,
+            bimestre=bimestre,
+            academic_year=academic_year,
+            period_start=period_start,
+            period_end=period_end,
+            attendance_days=attendance_days,
+            aulas_previstas=len(attendance_days),
+            aulas_ministradas=len(attendance_days),
+            teacher_name=teacher_name,
+            mantenedora=mantenedora
+        )
+        
+        filename = f"frequencia_{turma.get('name', 'turma')}_{bimestre}bim_{academic_year}.pdf"
+        filename = filename.replace(' ', '_').replace('/', '-')
+        
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"inline; filename={filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Erro ao gerar PDF de frequência: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+
 @api_router.get("/attendance/alerts")
 async def get_attendance_alerts(
     request: Request,
