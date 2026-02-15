@@ -408,7 +408,7 @@ const AnnualView = ({ year, events, onDayClick, onEventClick, periodosBimestrais
 const MonthlyView = ({ year, month, events, onDayClick, onEventClick, periodosBimestrais }) => {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
   
   // Função para determinar se uma data está dentro do período letivo
   const isDateInSchoolPeriod = (dateStr) => {
