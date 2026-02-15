@@ -582,14 +582,42 @@ export const Attendance = () => {
   };
   
   // Gera PDF do relatório de frequência por bimestre
-  const generateBimestrePdf = () => {
+  const generateBimestrePdf = async () => {
     if (!selectedClass) {
       showAlertMessage('error', 'Selecione uma turma');
       return;
     }
     
-    const url = `${API_URL}/api/attendance/pdf/bimestre/${selectedClass}?bimestre=${selectedBimestre}&academic_year=${academicYear}`;
-    window.open(url, '_blank');
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${API_URL}/api/attendance/pdf/bimestre/${selectedClass}?bimestre=${selectedBimestre}&academic_year=${academicYear}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Erro ao gerar PDF');
+      }
+      
+      // Criar blob e abrir em nova aba
+      const blob = await response.blob();
+      const pdfUrl = window.URL.createObjectURL(blob);
+      window.open(pdfUrl, '_blank');
+      
+      // Limpar URL após um tempo
+      setTimeout(() => window.URL.revokeObjectURL(pdfUrl), 30000);
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      showAlertMessage('error', 'Erro ao gerar PDF de frequência');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // Carrega alertas
