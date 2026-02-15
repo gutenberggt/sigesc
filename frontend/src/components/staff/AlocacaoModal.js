@@ -194,25 +194,76 @@ export const AlocacaoModal = ({
                           const courseData = courses.find(c => c.id === comp.course_id);
                           const workloadTotal = courseData?.workload || 0;
                           const cargaSemanalCalculada = workloadTotal > 0 ? workloadTotal / 40 : null;
+                          const isEditing = editingAlocacao?.id === comp.id;
+                          const availableCourses = isEditing ? getAvailableCoursesForClass(turma.class_id, comp.course_id) : [];
                           
                           return (
-                            <div key={comp.id} className="flex items-center gap-2 bg-purple-50 px-3 py-1.5 rounded">
-                              <BookOpen size={14} className="text-purple-600" />
-                              <span className="flex-1 text-sm">
-                                {comp.course_name}
-                                {cargaSemanalCalculada && (
-                                  <span className="text-gray-500 ml-1">({cargaSemanalCalculada}h/sem)</span>
-                                )}
-                              </span>
-                              {canDelete && (
-                                <button 
-                                  type="button"
-                                  onClick={() => onDeleteExisting(comp.id)}
-                                  className="p-0.5 text-red-500 hover:text-red-700"
-                                  title="Excluir alocação"
-                                >
-                                  <Minus size={14} />
-                                </button>
+                            <div key={comp.id} className="bg-purple-50 px-3 py-1.5 rounded">
+                              {/* Modo de edição */}
+                              {isEditing ? (
+                                <div className="flex items-center gap-2">
+                                  <BookOpen size={14} className="text-purple-600 flex-shrink-0" />
+                                  <select
+                                    value={editForm.course_id}
+                                    onChange={(e) => setEditForm({ ...editForm, course_id: e.target.value })}
+                                    className="flex-1 px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-purple-500"
+                                  >
+                                    <option value={comp.course_id}>{comp.course_name}</option>
+                                    {availableCourses.filter(c => c.id !== comp.course_id).map(c => (
+                                      <option key={c.id} value={c.id}>
+                                        {c.name} {c.workload ? `(${c.workload}h)` : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button 
+                                    type="button"
+                                    onClick={handleSaveEdit}
+                                    disabled={savingEdit || editForm.course_id === comp.course_id}
+                                    className="p-1 text-green-600 hover:text-green-700 hover:bg-green-50 rounded disabled:opacity-50"
+                                    title="Salvar alterações"
+                                  >
+                                    <Check size={14} />
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    onClick={onCancelEditAlocacao}
+                                    className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                                    title="Cancelar edição"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              ) : (
+                                /* Modo de visualização */
+                                <div className="flex items-center gap-2">
+                                  <BookOpen size={14} className="text-purple-600" />
+                                  <span className="flex-1 text-sm">
+                                    {comp.course_name}
+                                    {cargaSemanalCalculada && (
+                                      <span className="text-gray-500 ml-1">({cargaSemanalCalculada}h/sem)</span>
+                                    )}
+                                  </span>
+                                  {canDelete && (
+                                    <>
+                                      <button 
+                                        type="button"
+                                        onClick={() => handleStartEdit(comp)}
+                                        className="p-0.5 text-blue-500 hover:text-blue-700"
+                                        title="Editar componente"
+                                      >
+                                        <Pencil size={14} />
+                                      </button>
+                                      <button 
+                                        type="button"
+                                        onClick={() => onDeleteExisting(comp.id)}
+                                        className="p-0.5 text-red-500 hover:text-red-700"
+                                        title="Excluir alocação"
+                                      >
+                                        <Minus size={14} />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
                               )}
                             </div>
                           );
