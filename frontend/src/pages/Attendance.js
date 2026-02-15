@@ -1037,7 +1037,7 @@ export const Attendance = () => {
             {/* Tab: Relatórios */}
             {activeTab === 'relatorios' && (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
                     <select
@@ -1067,10 +1067,33 @@ export const Attendance = () => {
                     </select>
                   </div>
                   
-                  <div className="flex items-end">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bimestre</label>
+                    <select
+                      value={selectedBimestre}
+                      onChange={(e) => setSelectedBimestre(Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value={1}>1º Bimestre</option>
+                      <option value={2}>2º Bimestre</option>
+                      <option value={3}>3º Bimestre</option>
+                      <option value={4}>4º Bimestre</option>
+                    </select>
+                  </div>
+                  
+                  <div className="flex items-end gap-2">
                     <Button onClick={loadClassReport} disabled={!selectedClass}>
                       <FileText size={18} className="mr-2" />
-                      Gerar Relatório
+                      Ver na Tela
+                    </Button>
+                    <Button 
+                      onClick={generateBimestrePdf} 
+                      disabled={!selectedClass}
+                      variant="outline"
+                      className="border-green-500 text-green-600 hover:bg-green-50"
+                    >
+                      <FileDown size={18} className="mr-2" />
+                      Gerar PDF
                     </Button>
                   </div>
                 </div>
