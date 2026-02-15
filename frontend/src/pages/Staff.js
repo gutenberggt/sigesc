@@ -312,6 +312,10 @@ const Staff = () => {
           onDeleteTurmaAlocacoes={staff.handleDeleteTurmaAlocacoes}
           onSave={staff.handleSaveAlocacao}
           saving={staff.saving}
+          editingAlocacao={staff.editingAlocacao}
+          onEditAlocacao={staff.handleEditAlocacao}
+          onCancelEditAlocacao={staff.handleCancelEditAlocacao}
+          onSaveEditAlocacao={staff.handleSaveEditAlocacao}
         />
         
         <StaffDetailModal
