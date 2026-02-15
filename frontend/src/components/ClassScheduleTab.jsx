@@ -558,14 +558,16 @@ export function ClassScheduleTab({ academicYear }) {
         class_id: selectedClass,
         academic_year: academicYear,
         slots_per_day: slotsPerDay,
-        schedule_slots: editingSlots
+        schedule_slots: editingSlots,
+        slot_times: slotTimes
       };
       
       if (schedule?.id) {
         // Atualizar existente
         await classScheduleAPI.update(schedule.id, {
           slots_per_day: slotsPerDay,
-          schedule_slots: editingSlots
+          schedule_slots: editingSlots,
+          slot_times: slotTimes
         });
       } else {
         // Criar novo
