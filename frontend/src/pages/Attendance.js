@@ -590,7 +590,7 @@ export const Attendance = () => {
     
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       const response = await fetch(
         `${API_URL}/api/attendance/pdf/bimestre/${selectedClass}?bimestre=${selectedBimestre}&academic_year=${academicYear}`,
         {
