@@ -127,7 +127,7 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
         schedule = await current_db.class_schedules.find_one(query)
         
         if schedule:
-            schedule['id'] = schedule.pop('_id', schedule.get('id'))
+            schedule.pop('_id', None)  # Remove MongoDB _id
             
             # Enriquecer com dados da turma
             class_info = await current_db.classes.find_one({'id': class_id})
