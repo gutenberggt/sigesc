@@ -272,6 +272,10 @@ const Staff = () => {
           onDeleteExisting={staff.handleDeleteExistingLotacao}
           onSave={staff.handleSaveLotacao}
           saving={staff.saving}
+          editingLotacao={staff.editingLotacao}
+          onEditLotacao={staff.handleEditLotacao}
+          onCancelEditLotacao={staff.handleCancelEditLotacao}
+          onSaveEditLotacao={staff.handleSaveEditLotacao}
         />
         
         <AlocacaoModal
