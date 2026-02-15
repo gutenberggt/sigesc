@@ -593,7 +593,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
     async def get_schools_ranking(
         request: Request,
         academic_year: int = Query(..., description="Ano letivo"),
-        limit: int = Query(10, description="Limite de resultados"),
+        limit: int = Query(100, description="Limite de resultados (default: todas)"),
         bimestre: Optional[int] = Query(None, description="Bimestre para cálculo de evolução (1-4)")
     ):
         """
