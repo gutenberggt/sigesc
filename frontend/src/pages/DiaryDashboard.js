@@ -73,7 +73,7 @@ export const DiaryDashboard = () => {
     loadSchools();
   }, []);
 
-  // Carregar turmas quando escola é selecionada
+  // Carregar turmas quando escola é selecionada ou ano muda
   useEffect(() => {
     const loadClasses = async () => {
       if (!selectedSchool) {
@@ -82,14 +82,22 @@ export const DiaryDashboard = () => {
       }
       try {
         const data = await classesAPI.getAll(selectedSchool);
-        // Filtrar turmas ativas (aceita status 'active' ou undefined/null)
-        setClasses(data.filter(c => !c.status || c.status === 'active'));
+        // Filtrar turmas ativas e pelo ano letivo selecionado
+        const filtered = data.filter(c => {
+          const isActive = !c.status || c.status === 'active';
+          const matchesYear = !c.academic_year || String(c.academic_year) === String(academicYear);
+          return isActive && matchesYear;
+        });
+        setClasses(filtered);
+        // Limpar seleção de turma e componente quando mudar escola ou ano
+        setSelectedClass('');
+        setSelectedCourse('');
       } catch (error) {
         console.error('Erro ao carregar turmas:', error);
       }
     };
     loadClasses();
-  }, [selectedSchool]);
+  }, [selectedSchool, academicYear]);
 
   // Carregar componentes quando turma é selecionada
   useEffect(() => {
