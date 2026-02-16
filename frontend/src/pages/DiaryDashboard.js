@@ -81,7 +81,8 @@ export const DiaryDashboard = () => {
       }
       try {
         const data = await classesAPI.getAll(selectedSchool);
-        setClasses(data.filter(c => c.status === 'active'));
+        // Filtrar turmas ativas (aceita status 'active' ou undefined/null)
+        setClasses(data.filter(c => !c.status || c.status === 'active'));
       } catch (error) {
         console.error('Erro ao carregar turmas:', error);
       }
