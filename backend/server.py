@@ -4695,6 +4695,11 @@ async def generate_declaracao_matricula(
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
     
+    # Validar permissão para gerar documento
+    is_valid, error_message = await validate_student_for_document(student, current_user)
+    if not is_valid:
+        raise HTTPException(status_code=403, detail=error_message)
+    
     # Verificar se o aluno está ativo
     student_status = student.get('status', 'active')
     if student_status != 'active':
