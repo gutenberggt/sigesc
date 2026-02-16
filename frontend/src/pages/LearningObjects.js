@@ -540,103 +540,93 @@ export const LearningObjects = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Calendário */}
-            <div className="lg:col-span-2">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            {/* Calendário - Reduzido para 1/4 */}
+            <div className="lg:col-span-1">
               <Card>
-                <CardHeader className="pb-2">
+                <CardHeader className="pb-1 p-2">
                   <div className="flex items-center justify-between">
-                    <Button variant="ghost" size="sm" onClick={previousMonth}>
-                      <ChevronLeft size={20} />
+                    <Button variant="ghost" size="sm" onClick={previousMonth} className="h-6 w-6 p-0">
+                      <ChevronLeft size={14} />
                     </Button>
-                    <CardTitle className="text-lg">
+                    <CardTitle className="text-xs font-medium">
                       {MONTHS[currentMonth]} {academicYear}
                     </CardTitle>
-                    <Button variant="ghost" size="sm" onClick={nextMonth}>
-                      <ChevronRight size={20} />
+                    <Button variant="ghost" size="sm" onClick={nextMonth} className="h-6 w-6 p-0">
+                      <ChevronRight size={14} />
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-2 pt-0">
                   {/* Cabeçalho dos dias da semana */}
-                  <div className="grid grid-cols-7 gap-1 mb-2">
+                  <div className="grid grid-cols-7 gap-0.5 mb-1">
                     {WEEKDAYS.map(day => (
-                      <div key={day} className="text-center text-xs font-medium text-gray-500 py-2">
-                        {day}
+                      <div key={day} className="text-center text-[8px] font-medium text-gray-500 py-0.5">
+                        {day.charAt(0)}
                       </div>
                     ))}
                   </div>
                   
                   {/* Dias do mês */}
-                  <div className="grid grid-cols-7 gap-1">
+                  <div className="grid grid-cols-7 gap-0.5">
                     {calendarDays.map((dayInfo, index) => (
                       <div
                         key={index}
                         onClick={() => canEdit && dayInfo.date && handleDayClick(dayInfo)}
                         className={`
-                          aspect-square p-1 rounded-lg text-center relative
+                          aspect-square p-0.5 rounded text-center relative flex items-center justify-center
                           ${!dayInfo.date ? 'bg-transparent' : ''}
                           ${dayInfo.isWeekend && dayInfo.date ? 'bg-gray-50' : ''}
-                          ${dayInfo.isToday ? 'ring-2 ring-purple-500' : ''}
+                          ${dayInfo.isToday ? 'ring-1 ring-purple-500' : ''}
                           ${dayInfo.date && canEdit ? 'cursor-pointer hover:bg-purple-50' : ''}
                           ${dayInfo.hasRecord ? 'bg-green-100 hover:bg-green-200' : ''}
-                          ${selectedDate === dayInfo.date ? 'ring-2 ring-purple-600 bg-purple-100' : ''}
+                          ${selectedDate === dayInfo.date ? 'ring-1 ring-purple-600 bg-purple-100' : ''}
                         `}
                       >
                         {dayInfo.date && (
                           <>
-                            <span className={`text-sm ${dayInfo.isWeekend ? 'text-gray-400' : 'text-gray-700'}`}>
+                            <span className={`text-[9px] ${dayInfo.isWeekend ? 'text-gray-400' : 'text-gray-700'} ${dayInfo.hasRecord ? 'font-medium' : ''}`}>
                               {dayInfo.day}
                             </span>
-                            {dayInfo.hasRecord && (
-                              <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2">
-                                <FileText size={12} className="text-green-600" />
-                              </div>
-                            )}
                           </>
                         )}
                       </div>
                     ))}
                   </div>
 
-                  {/* Legenda */}
-                  <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <div className="w-4 h-4 bg-green-100 rounded"></div>
-                      <span>Com registro</span>
+                  {/* Legenda compacta */}
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[8px] text-gray-500">
+                    <div className="flex items-center gap-0.5">
+                      <div className="w-2 h-2 bg-green-100 rounded"></div>
+                      <span>Registro</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-4 h-4 bg-gray-50 rounded"></div>
-                      <span>Fim de semana</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-4 h-4 ring-2 ring-purple-500 rounded"></div>
+                    <div className="flex items-center gap-0.5">
+                      <div className="w-2 h-2 ring-1 ring-purple-500 rounded"></div>
                       <span>Hoje</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Estatísticas compactas */}
+              <Card className="mt-2">
+                <CardContent className="p-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-purple-50 p-2 rounded text-center">
+                      <p className="text-lg font-bold text-purple-700">{monthStats.totalRecords}</p>
+                      <p className="text-[8px] text-purple-600">Registros</p>
+                    </div>
+                    <div className="bg-blue-50 p-2 rounded text-center">
+                      <p className="text-lg font-bold text-blue-700">{monthStats.totalClasses}</p>
+                      <p className="text-[8px] text-blue-600">Aulas</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Painel lateral - Estatísticas e Formulário */}
-            <div className="space-y-4">
-              {/* Estatísticas */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Estatísticas do Mês</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-purple-50 p-3 rounded-lg text-center">
-                      <p className="text-2xl font-bold text-purple-700">{monthStats.totalRecords}</p>
-                      <p className="text-xs text-purple-600">Dias com registro</p>
-                    </div>
-                    <div className="bg-blue-50 p-3 rounded-lg text-center">
-                      <p className="text-2xl font-bold text-blue-700">{monthStats.totalClasses}</p>
-                      <p className="text-xs text-blue-600">Total de aulas</p>
-                    </div>
-                  </div>
-                </CardContent>
+            {/* Painel de Formulário/Detalhes - Expandido */}
+            <div className="lg:col-span-3 space-y-4">
               </Card>
 
               {/* Formulário */}
