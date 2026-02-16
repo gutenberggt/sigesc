@@ -199,6 +199,45 @@ export const LearningObjects = () => {
     return classes.filter(c => c.school_id === selectedSchool);
   }, [classes, selectedSchool, isProfessor]);
 
+  // Carregar componentes curriculares da turma selecionada (para não-professores)
+  useEffect(() => {
+    const loadClassCourses = async () => {
+      if (isProfessor || !selectedClass) {
+        // Para professor, os componentes já são filtrados pelo professorTurmas
+        if (!isProfessor) {
+          setCourses([]);
+          setSelectedCourse('');
+        }
+        return;
+      }
+      
+      try {
+        // Buscar a turma para saber o nível de ensino
+        const classInfo = classes.find(c => c.id === selectedClass);
+        if (!classInfo) return;
+        
+        const turmaLevel = classInfo.nivel_ensino || classInfo.education_level || classInfo.level;
+        
+        // Buscar componentes do nível de ensino da turma
+        const allCourses = await coursesAPI.getAll(turmaLevel);
+        
+        // Se não encontrou nenhum, buscar todos
+        if (allCourses.length === 0) {
+          const fallbackCourses = await coursesAPI.getAll();
+          setCourses(fallbackCourses.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        } else {
+          setCourses(allCourses.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        }
+        
+        setSelectedCourse('');
+      } catch (error) {
+        console.error('Erro ao carregar componentes da turma:', error);
+      }
+    };
+    
+    loadClassCourses();
+  }, [selectedClass, classes, isProfessor]);
+
   // Gera os dias do mês
   const calendarDays = useMemo(() => {
     const year = academicYear;
