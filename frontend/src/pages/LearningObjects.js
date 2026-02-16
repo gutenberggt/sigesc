@@ -89,8 +89,8 @@ export const LearningObjects = () => {
     setTimeout(() => setAlert(null), 4000);
   };
 
-  // Verifica se usuário pode editar
-  const canEdit = ['admin', 'secretario', 'diretor', 'coordenador', 'professor'].includes(user?.role);
+  // Verifica se usuário pode editar (coordenador agora só visualiza)
+  const canEdit = ['admin', 'secretario', 'diretor', 'professor'].includes(user?.role);
 
   // Carrega dados iniciais
   useEffect(() => {
