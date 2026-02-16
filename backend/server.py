@@ -6790,6 +6790,10 @@ app.include_router(sync_router, prefix="/api")
 app.include_router(medical_certificates_router, prefix="/api")
 app.include_router(class_schedule_router, prefix="/api")
 
+# Dashboard de Acompanhamento de Diários
+diary_dashboard_router = create_diary_dashboard_router()
+app.include_router(diary_dashboard_router, prefix="/api")
+
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)
 
