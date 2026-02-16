@@ -408,14 +408,22 @@ export const DiaryDashboard = () => {
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={gradesData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="preenchido" name="Preenchido (%)" fill="#6366F1" />
-                  <Bar dataKey="pendente" name="Pendente (%)" fill="#F59E0B" />
-                </BarChart>
-              </ResponsiveContainer>
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="preenchido" name="Preenchido (%)" fill="#6366F1" />
+                    <Bar dataKey="pendente" name="Pendente (%)" fill="#F59E0B" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[250px] flex items-center justify-center text-gray-400">
+                  <div className="text-center">
+                    <FileText size={32} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Sem registros de notas para o período</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -428,15 +436,24 @@ export const DiaryDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={mockContentData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="registros" name="Registros" fill="#F59E0B" />
-                </BarChart>
-              </ResponsiveContainer>
+              {contentData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={contentData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="registros" name="Registros" fill="#F59E0B" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[250px] flex items-center justify-center text-gray-400">
+                  <div className="text-center">
+                    <BookOpen size={32} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Sem registros de conteúdo para o período</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -452,7 +469,7 @@ export const DiaryDashboard = () => {
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie
-                    data={mockPieData}
+                    data={pieData}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
@@ -461,7 +478,7 @@ export const DiaryDashboard = () => {
                     dataKey="value"
                     label={({ name, value }) => `${name}: ${value}%`}
                   >
-                    {mockPieData.map((entry, index) => (
+                    {pieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
