@@ -4309,6 +4309,30 @@ async def cleanup_expired_logs(request: Request):
 
 # ============= PDF DOCUMENT GENERATION ENDPOINTS =============
 
+async def validate_student_for_document(student: dict, current_user: dict) -> tuple:
+    """
+    Valida se o aluno pode ter documentos gerados e se o usuário tem permissão.
+    
+    Retorna: (is_valid, error_message)
+    """
+    # Verificar se o aluno tem escola e turma definidos
+    if not student.get('school_id') and not student.get('class_id'):
+        return False, "Aluno(a) sem matrícula"
+    
+    # Admins podem ver qualquer aluno
+    if current_user.get('role') in ['admin', 'admin_teste']:
+        return True, None
+    
+    # Para outros papéis, verificar se o usuário tem vínculo com a escola do aluno
+    user_school_id = current_user.get('school_id')
+    student_school_id = student.get('school_id')
+    
+    # Se o usuário tem escola vinculada e o aluno está em outra escola
+    if user_school_id and student_school_id and user_school_id != student_school_id:
+        return False, "Aluno não matriculado nesta escola"
+    
+    return True, None
+
 @api_router.get("/documents/boletim/{student_id}")
 async def generate_boletim(student_id: str, request: Request, academic_year: str = "2025"):
     """
