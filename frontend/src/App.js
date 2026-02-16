@@ -72,8 +72,18 @@ function App() {
           <Route
             path="/admin/analytics"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'semed', 'diretor', 'coordenador', 'secretario']}>
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria']}>
                 <AnalyticsDashboard />
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* Dashboard de Acompanhamento de Diários */}
+          <Route
+            path="/admin/diary-dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'semed_nivel_2', 'semed_nivel_3']}>
+                <DiaryDashboard />
               </ProtectedRoute>
             }
           />
@@ -82,7 +92,7 @@ function App() {
           <Route
             path="/admin/schools"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
                 <Schools />
               </ProtectedRoute>
             }
@@ -91,7 +101,7 @@ function App() {
           <Route
             path="/admin/users"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3']}>
                 <Users />
               </ProtectedRoute>
             }
@@ -100,7 +110,7 @@ function App() {
           <Route
             path="/admin/classes"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
                 <Classes />
               </ProtectedRoute>
             }
