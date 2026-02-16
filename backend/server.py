@@ -4315,8 +4315,8 @@ async def validate_student_for_document(student: dict, current_user: dict) -> tu
     
     Retorna: (is_valid, error_message)
     """
-    # Verificar se o aluno tem escola e turma definidos
-    if not student.get('school_id') and not student.get('class_id'):
+    # Verificar se o aluno tem turma definida (matrícula)
+    if not student.get('class_id'):
         return False, "Aluno(a) sem matrícula"
     
     # Admins podem ver qualquer aluno
