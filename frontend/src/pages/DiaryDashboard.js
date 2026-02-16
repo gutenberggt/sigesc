@@ -64,7 +64,8 @@ export const DiaryDashboard = () => {
     const loadSchools = async () => {
       try {
         const data = await schoolsAPI.getAll();
-        setSchools(data.filter(s => s.status === 'active'));
+        // Filtrar escolas ativas (aceita status 'active' ou undefined/null)
+        setSchools(data.filter(s => !s.status || s.status === 'active'));
       } catch (error) {
         console.error('Erro ao carregar escolas:', error);
       }
