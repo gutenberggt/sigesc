@@ -150,9 +150,9 @@ function getDefaultPermissions(role) {
     },
     coordenador: {
       role: 'coordenador',
-      can_edit_grades: true,
-      can_edit_attendance: true,
-      can_edit_learning_objects: true,
+      can_edit_grades: false,
+      can_edit_attendance: false,
+      can_edit_learning_objects: false,
       can_edit_students: false,
       can_edit_classes: false,
       can_edit_staff: false,
