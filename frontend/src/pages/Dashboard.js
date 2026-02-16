@@ -595,12 +595,12 @@ export const Dashboard = () => {
               
               <button
                 onClick={() => navigate('/admin/grades')}
-                className="flex items-center space-x-3 p-4 border border-green-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all bg-green-50"
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all"
               >
                 <ClipboardList className="text-teal-600" size={24} />
                 <div className="text-left">
                   <span className="font-medium text-gray-900 block">Notas</span>
-                  <span className="text-xs text-green-600">✏️ Lançar e editar notas</span>
+                  <span className="text-xs text-gray-500">Visualizar notas</span>
                 </div>
               </button>
               
@@ -617,23 +617,23 @@ export const Dashboard = () => {
               
               <button
                 onClick={() => navigate('/admin/attendance')}
-                className="flex items-center space-x-3 p-4 border border-green-200 rounded-lg hover:bg-cyan-50 hover:border-cyan-300 transition-all bg-green-50"
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-cyan-50 hover:border-cyan-300 transition-all"
               >
                 <ClipboardCheck className="text-cyan-600" size={24} />
                 <div className="text-left">
                   <span className="font-medium text-gray-900 block">Frequência</span>
-                  <span className="text-xs text-green-600">✏️ Lançar e editar frequência</span>
+                  <span className="text-xs text-gray-500">Visualizar frequência</span>
                 </div>
               </button>
               
               <button
                 onClick={() => navigate('/admin/learning-objects')}
-                className="flex items-center space-x-3 p-4 border border-green-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all bg-green-50"
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
               >
                 <BookOpen className="text-blue-600" size={24} />
                 <div className="text-left">
                   <span className="font-medium text-gray-900 block">Objetos de Conhecimento</span>
-                  <span className="text-xs text-green-600">✏️ Registrar conteúdos</span>
+                  <span className="text-xs text-gray-500">Visualizar conteúdos</span>
                 </div>
               </button>
               
@@ -663,10 +663,6 @@ export const Dashboard = () => {
             {/* Legenda */}
             <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-sm text-gray-500 flex items-center gap-4">
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded bg-green-100 border border-green-300"></span>
-                  Permite edição
-                </span>
                 <span className="flex items-center gap-1">
                   <span className="w-3 h-3 rounded bg-gray-100 border border-gray-300"></span>
                   Somente visualização
