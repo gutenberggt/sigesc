@@ -99,10 +99,21 @@ export const DiaryDashboard = () => {
         return;
       }
       try {
-        const classInfo = classes.find(c => c.id === selectedClass);
-        const turmaLevel = classInfo?.nivel_ensino || classInfo?.education_level;
-        const data = await coursesAPI.getAll(turmaLevel);
-        setCourses(data);
+        const token = localStorage.getItem('accessToken');
+        // Usar o novo endpoint que busca componentes específicos da turma
+        const response = await fetch(`${API_URL}/api/diary-dashboard/courses-by-class/${selectedClass}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setCourses(data);
+        } else {
+          // Fallback para buscar pelo nível de ensino
+          const classInfo = classes.find(c => c.id === selectedClass);
+          const turmaLevel = classInfo?.nivel_ensino || classInfo?.education_level;
+          const data = await coursesAPI.getAll(turmaLevel);
+          setCourses(data);
+        }
       } catch (error) {
         console.error('Erro ao carregar componentes:', error);
       }
