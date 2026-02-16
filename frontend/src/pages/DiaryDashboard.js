@@ -165,48 +165,29 @@ export const DiaryDashboard = () => {
     loadStats();
   }, [selectedSchool, selectedClass, selectedCourse, academicYear]);
 
-  // Dados mockados para visualização inicial
-  const mockAttendanceData = useMemo(() => {
-    if (attendanceStats?.by_month) return attendanceStats.by_month;
-    return [
-      { month: 'Fev', preenchido: 85, pendente: 15 },
-      { month: 'Mar', preenchido: 78, pendente: 22 },
-      { month: 'Abr', preenchido: 92, pendente: 8 },
-      { month: 'Mai', preenchido: 88, pendente: 12 },
-      { month: 'Jun', preenchido: 75, pendente: 25 },
-      { month: 'Jul', preenchido: 60, pendente: 40 },
-    ];
+  // Dados reais do backend
+  const attendanceData = useMemo(() => {
+    return attendanceStats?.by_month || [];
   }, [attendanceStats]);
 
-  const mockGradesData = useMemo(() => {
-    if (gradesStats?.by_bimestre) return gradesStats.by_bimestre;
-    return [
-      { name: '1º Bim', preenchido: 95, pendente: 5 },
-      { name: '2º Bim', preenchido: 82, pendente: 18 },
-      { name: '3º Bim', preenchido: 45, pendente: 55 },
-      { name: '4º Bim', preenchido: 10, pendente: 90 },
-    ];
+  const gradesData = useMemo(() => {
+    return gradesStats?.by_bimestre || [];
   }, [gradesStats]);
 
-  const mockContentData = useMemo(() => {
-    if (contentStats?.by_month) return contentStats.by_month;
-    return [
-      { month: 'Fev', registros: 120 },
-      { month: 'Mar', registros: 145 },
-      { month: 'Abr', registros: 132 },
-      { month: 'Mai', registros: 98 },
-      { month: 'Jun', registros: 110 },
-      { month: 'Jul', registros: 85 },
-    ];
+  const contentData = useMemo(() => {
+    return contentStats?.by_month || [];
   }, [contentStats]);
 
-  const mockPieData = useMemo(() => {
+  const pieData = useMemo(() => {
     return [
-      { name: 'Frequência', value: attendanceStats?.completion_rate || 82, color: '#10B981' },
-      { name: 'Notas', value: gradesStats?.completion_rate || 58, color: '#6366F1' },
-      { name: 'Conteúdos', value: contentStats?.completion_rate || 71, color: '#F59E0B' },
+      { name: 'Frequência', value: attendanceStats?.completion_rate ?? 0, color: '#10B981' },
+      { name: 'Notas', value: gradesStats?.completion_rate ?? 0, color: '#6366F1' },
+      { name: 'Conteúdos', value: contentStats?.completion_rate ?? 0, color: '#F59E0B' },
     ];
   }, [attendanceStats, gradesStats, contentStats]);
+  
+  // Verifica se há dados para exibir
+  const hasData = attendanceData.length > 0 || gradesData.length > 0 || contentData.length > 0;
 
   if (!hasAccess) {
     return (
