@@ -257,4 +257,53 @@ def create_diary_dashboard_router():
             logger.error(f"Erro ao buscar estatísticas de conteúdos: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
+    @router.get("/courses-by-class/{class_id}")
+    async def get_courses_by_class(
+        request: Request,
+        class_id: str
+    ):
+        """
+        Retorna os componentes curriculares alocados a uma turma específica.
+        Busca nas alocações de professores (teacher_assignments).
+        """
+        user = await check_access(request)
+        
+        try:
+            # Buscar alocações de professores para esta turma
+            allocations = await db.teacher_assignments.find(
+                {"class_id": class_id},
+                {"course_id": 1, "course_name": 1, "_id": 0}
+            ).to_list(100)
+            
+            if not allocations:
+                # Se não houver alocações, buscar componentes pelo nível de ensino da turma
+                class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
+                if class_info:
+                    nivel_ensino = class_info.get('nivel_ensino') or class_info.get('education_level')
+                    if nivel_ensino:
+                        courses = await db.courses.find(
+                            {"nivel_ensino": nivel_ensino},
+                            {"_id": 0}
+                        ).to_list(100)
+                        return courses
+                return []
+            
+            # Obter IDs únicos dos componentes
+            course_ids = list(set([a['course_id'] for a in allocations if a.get('course_id')]))
+            
+            if not course_ids:
+                return []
+            
+            # Buscar detalhes completos dos componentes
+            courses = await db.courses.find(
+                {"id": {"$in": course_ids}},
+                {"_id": 0}
+            ).to_list(100)
+            
+            return courses
+            
+        except Exception as e:
+            logger.error(f"Erro ao buscar componentes da turma: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     return router
