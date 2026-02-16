@@ -627,8 +627,6 @@ export const LearningObjects = () => {
 
             {/* Painel de Formulário/Detalhes - Expandido */}
             <div className="lg:col-span-3 space-y-4">
-              </Card>
-
               {/* Formulário */}
               {showForm && (
                 <Card>
