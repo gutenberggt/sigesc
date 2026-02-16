@@ -29,7 +29,13 @@ import Mantenedora from '@/pages/Mantenedora';
 import AuditLogs from '@/pages/AuditLogs';
 import Promotion from '@/pages/Promotion';
 import { AnalyticsDashboard } from '@/pages/AnalyticsDashboard';
+import DiaryDashboard from '@/pages/DiaryDashboard';
 import '@/App.css';
+
+// Roles SEMED (todos os níveis)
+const SEMED_ROLES = ['semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3'];
+// Roles que podem ver o dashboard de diários
+const DIARY_DASHBOARD_ROLES = ['admin', 'admin_teste', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'semed_nivel_2', 'semed_nivel_3'];
 
 function App() {
   return (
