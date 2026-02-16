@@ -266,8 +266,8 @@ export function Grades() {
   const [studentGrades, setStudentGrades] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
   
-  // SEMED pode visualizar, mas não editar
-  const canEdit = user?.role !== 'semed';
+  // SEMED e Coordenador podem visualizar, mas não editar
+  const canEdit = !['semed', 'coordenador'].includes(user?.role);
   
   // Função para verificar se um aluno está bloqueado para edição pelo professor
   // Condições de bloqueio:
