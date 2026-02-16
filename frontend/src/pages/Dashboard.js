@@ -526,7 +526,7 @@ export const Dashboard = () => {
                 <CardContent className="p-4 text-center">
                   <ClipboardList className="mx-auto mb-2 text-teal-600" size={32} />
                   <p className="font-medium text-sm">Notas</p>
-                  <span className="text-xs text-green-600 font-medium">Edição</span>
+                  <span className="text-xs text-gray-500">Visualização</span>
                 </CardContent>
               </Card>
 
@@ -548,7 +548,7 @@ export const Dashboard = () => {
                 <CardContent className="p-4 text-center">
                   <ClipboardCheck className="mx-auto mb-2 text-cyan-600" size={32} />
                   <p className="font-medium text-sm">Frequência</p>
-                  <span className="text-xs text-green-600 font-medium">Edição</span>
+                  <span className="text-xs text-gray-500">Visualização</span>
                 </CardContent>
               </Card>
 
@@ -559,7 +559,7 @@ export const Dashboard = () => {
                 <CardContent className="p-4 text-center">
                   <BookOpen className="mx-auto mb-2 text-blue-600" size={32} />
                   <p className="font-medium text-sm">Conteúdos</p>
-                  <span className="text-xs text-green-600 font-medium">Edição</span>
+                  <span className="text-xs text-gray-500">Visualização</span>
                 </CardContent>
               </Card>
             </div>
