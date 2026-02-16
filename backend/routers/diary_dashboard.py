@@ -46,9 +46,9 @@ def create_diary_dashboard_router():
             filter_query = {"academic_year": academic_year}
             
             if school_id:
-                # Buscar turmas da escola
+                # Buscar turmas da escola (inclui turmas sem status definido)
                 school_classes = await db.classes.find(
-                    {"school_id": school_id, "status": "active"},
+                    {"school_id": school_id, "$or": [{"status": "active"}, {"status": {"$exists": False}}, {"status": None}]},
                     {"id": 1}
                 ).to_list(1000)
                 class_ids = [c['id'] for c in school_classes]
@@ -123,9 +123,9 @@ def create_diary_dashboard_router():
             filter_query = {"academic_year": academic_year}
             
             if school_id:
-                # Buscar turmas da escola
+                # Buscar turmas da escola (inclui turmas sem status definido)
                 school_classes = await db.classes.find(
-                    {"school_id": school_id, "status": "active"},
+                    {"school_id": school_id, "$or": [{"status": "active"}, {"status": {"$exists": False}}, {"status": None}]},
                     {"id": 1}
                 ).to_list(1000)
                 class_ids = [c['id'] for c in school_classes]
