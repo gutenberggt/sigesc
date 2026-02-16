@@ -113,8 +113,43 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - [ ] **Relatórios Gerenciais:** Criar relatórios para atestados médicos
 
 ## Última Atualização
-**Data:** 15 de Fevereiro de 2026
-**Funcionalidade:** Melhorias no Horário de Aulas
+**Data:** 16 de Fevereiro de 2026
+**Funcionalidade:** Dashboard de Acompanhamento de Diários e Novos Papéis de Usuário
+
+### Dashboard de Acompanhamento de Diários (Fev 16, 2026):
+Implementada nova funcionalidade para monitoramento do preenchimento dos diários escolares (frequência, notas e conteúdos).
+
+**Funcionalidades Implementadas:**
+- ✅ **Nova página DiaryDashboard:** `/admin/diary-dashboard` com gráficos de acompanhamento
+- ✅ **Cards de resumo:** Exibição de percentuais de preenchimento de Frequência, Notas e Conteúdos
+- ✅ **Gráficos interativos:** 4 gráficos usando recharts (Frequência por Mês, Notas por Bimestre, Conteúdos por Mês, Visão Geral)
+- ✅ **Filtros:** Escola, Turma, Componente Curricular e Ano Letivo
+- ✅ **Link no Dashboard:** Acesso rápido via "Menu de Administração" → "Acompanhamento de Diários"
+- ✅ **Backend endpoints:** `/api/diary-dashboard/attendance`, `/grades`, `/content`
+
+**Novos Papéis de Usuário:**
+- ✅ **Auxiliar de Secretaria:** Papel com permissões de apenas visualização (mesmo que coordenador)
+- ✅ **SEMED Nível 1:** Visualização de todas as escolas (papel base SEMED mantido para retrocompatibilidade)
+- ✅ **SEMED Nível 2:** Visualização de todas as escolas + acesso ao dashboard de acompanhamento
+- ✅ **SEMED Nível 3:** Visualização de todas as escolas + acesso ao dashboard de acompanhamento
+
+**Melhoria na Página de Registro de Conteúdos:**
+- ✅ **Calendário reduzido:** O calendário mensal agora ocupa 1/4 da largura (lg:col-span-1), com o formulário ocupando 3/4 (lg:col-span-3)
+- ✅ **Filtro de componentes:** Componentes curriculares são filtrados pelo nível de ensino da turma selecionada
+
+**Arquivos Criados/Modificados:**
+- `/app/frontend/src/pages/DiaryDashboard.js` - Nova página de dashboard
+- `/app/frontend/src/pages/LearningObjects.js` - Calendário reduzido e filtro de componentes
+- `/app/frontend/src/pages/Dashboard.js` - Link para nova página
+- `/app/frontend/src/hooks/usePermissions.js` - Definição de novos papéis
+- `/app/frontend/src/App.js` - Rotas e permissões atualizadas
+- `/app/backend/routers/diary_dashboard.py` - Novo router de endpoints
+- `/app/backend/auth_middleware.py` - Permissões para novos papéis
+- `/app/backend/server.py` - Registro do novo router
+
+**Testado:** ✅ Validado pelo testing_agent (iteration_19.json - 100% backend, 100% frontend)
+
+---
 
 ### Melhorias no Horário de Aulas (Fev 15, 2026):
 Implementadas três melhorias no módulo de Horário de Aulas.
