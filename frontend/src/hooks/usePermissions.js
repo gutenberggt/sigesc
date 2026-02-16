@@ -7,8 +7,8 @@ import { authAPI } from '@/services/api';
  * 
  * Permissões do Coordenador:
  * - Pode VISUALIZAR tudo da escola onde é lotado
- * - Pode EDITAR apenas: notas, frequência e conteúdos (diário)
- * - NÃO pode editar: alunos, turmas, matrículas, servidores
+ * - NÃO pode editar: alunos, turmas, matrículas, servidores, notas, frequência, conteúdos
+ * - Acesso apenas de VISUALIZAÇÃO
  */
 export const usePermissions = () => {
   const { user } = useAuth();
