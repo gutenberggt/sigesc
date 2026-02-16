@@ -321,7 +321,7 @@ export const DiaryDashboard = () => {
                 <div>
                   <p className="text-sm text-green-600 font-medium">Frequência</p>
                   <p className="text-3xl font-bold text-green-700">
-                    {attendanceStats?.completion_rate || 82}%
+                    {attendanceStats?.completion_rate ?? 0}%
                   </p>
                   <p className="text-xs text-green-600">de preenchimento</p>
                 </div>
@@ -336,7 +336,7 @@ export const DiaryDashboard = () => {
                 <div>
                   <p className="text-sm text-indigo-600 font-medium">Notas</p>
                   <p className="text-3xl font-bold text-indigo-700">
-                    {gradesStats?.completion_rate || 58}%
+                    {gradesStats?.completion_rate ?? 0}%
                   </p>
                   <p className="text-xs text-indigo-600">de preenchimento</p>
                 </div>
@@ -351,7 +351,7 @@ export const DiaryDashboard = () => {
                 <div>
                   <p className="text-sm text-amber-600 font-medium">Conteúdos</p>
                   <p className="text-3xl font-bold text-amber-700">
-                    {contentStats?.completion_rate || 71}%
+                    {contentStats?.completion_rate ?? 0}%
                   </p>
                   <p className="text-xs text-amber-600">de preenchimento</p>
                 </div>
@@ -372,17 +372,26 @@ export const DiaryDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={mockAttendanceData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="preenchido" name="Preenchido (%)" fill="#10B981" />
-                  <Bar dataKey="pendente" name="Pendente (%)" fill="#EF4444" />
-                </BarChart>
-              </ResponsiveContainer>
+              {attendanceData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={attendanceData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="preenchido" name="Preenchido (%)" fill="#10B981" />
+                    <Bar dataKey="pendente" name="Pendente (%)" fill="#EF4444" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[250px] flex items-center justify-center text-gray-400">
+                  <div className="text-center">
+                    <ClipboardCheck size={32} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Sem registros de frequência para o período</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -395,9 +404,10 @@ export const DiaryDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={mockGradesData}>
-                  <CartesianGrid strokeDasharray="3 3" />
+              {gradesData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={gradesData}>
+                    <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
