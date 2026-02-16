@@ -5,11 +5,17 @@ Fornece estatísticas de preenchimento de frequência, notas e conteúdos
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from typing import Optional
 from datetime import datetime, timedelta
-from database import db
-from routers.auth import AuthMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+from auth_middleware import AuthMiddleware
+import os
 import logging
 
 logger = logging.getLogger(__name__)
+
+# MongoDB connection
+mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
+client = AsyncIOMotorClient(mongo_url)
+db = client[os.environ.get('DB_NAME', 'sigesc_db')]
 
 def create_diary_dashboard_router():
     router = APIRouter(prefix="/diary-dashboard", tags=["Diary Dashboard"])
