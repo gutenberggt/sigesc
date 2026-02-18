@@ -283,6 +283,14 @@ export function StudentsComplete() {
   const nameInputRef = useRef(null);
   const cpfInputRef = useRef(null);
   
+  // Estados para validação de CPF
+  const [cpfValidation, setCpfValidation] = useState({
+    cpf: { isValid: true, isDuplicate: false, message: '' },
+    father_cpf: { isValid: true, isDuplicate: false, message: '' },
+    mother_cpf: { isValid: true, isDuplicate: false, message: '' },
+    guardian_cpf: { isValid: true, isDuplicate: false, message: '' }
+  });
+  
   // Estados para Atestados Médicos
   const [medicalCertificates, setMedicalCertificates] = useState([]);
   const [loadingCertificates, setLoadingCertificates] = useState(false);
