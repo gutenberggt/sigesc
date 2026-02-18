@@ -100,6 +100,44 @@ export const formatCEP = (value) => {
 };
 
 /**
+ * Valida se um CPF é válido usando o algoritmo oficial
+ * @param {string} cpf - CPF a ser validado (com ou sem formatação)
+ * @returns {boolean} true se válido, false se inválido
+ */
+export const isValidCPF = (cpf) => {
+  if (!cpf) return false;
+  
+  // Remove caracteres não numéricos
+  const numbers = cpf.replace(/\D/g, '');
+  
+  // CPF deve ter 11 dígitos
+  if (numbers.length !== 11) return false;
+  
+  // Verifica se todos os dígitos são iguais (CPF inválido)
+  if (/^(\d)\1+$/.test(numbers)) return false;
+  
+  // Calcula primeiro dígito verificador
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(numbers[i]) * (10 - i);
+  }
+  let remainder = (sum * 10) % 11;
+  if (remainder === 10) remainder = 0;
+  if (remainder !== parseInt(numbers[9])) return false;
+  
+  // Calcula segundo dígito verificador
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(numbers[i]) * (11 - i);
+  }
+  remainder = (sum * 10) % 11;
+  if (remainder === 10) remainder = 0;
+  if (remainder !== parseInt(numbers[10])) return false;
+  
+  return true;
+};
+
+/**
  * Formata CPF no padrão 000.000.000-00
  * @param {string} value - Valor a ser formatado
  * @returns {string} Valor formatado
