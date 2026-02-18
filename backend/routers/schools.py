@@ -8,6 +8,7 @@ from typing import List
 
 from models import School, SchoolCreate, SchoolUpdate
 from auth_middleware import AuthMiddleware
+from text_utils import format_data_uppercase
 
 router = APIRouter(prefix="/schools", tags=["Escolas"])
 
@@ -27,7 +28,9 @@ def setup_router(db, audit_service, sandbox_db=None):
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
         current_db = get_db_for_user(current_user)
         
-        school_obj = School(**school.model_dump())
+        # Converte dados para maiúsculas (exceto email)
+        school_dict = format_data_uppercase(school.model_dump())
+        school_obj = School(**school_dict)
         doc = school_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
         
