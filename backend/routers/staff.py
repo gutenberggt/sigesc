@@ -194,6 +194,10 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
             raise HTTPException(status_code=404, detail="Servidor não encontrado")
         
         update_data = {k: v for k, v in staff_data.model_dump().items() if v is not None}
+        
+        # Converte dados para maiúsculas (exceto email)
+        update_data = format_data_uppercase(update_data)
+        
         update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
         
         await current_db.staff.update_one({"id": staff_id}, {"$set": update_data})
