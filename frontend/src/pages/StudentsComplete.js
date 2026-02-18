@@ -1577,9 +1577,22 @@ export function StudentsComplete() {
             onChange={(e) => updateFormData('cpf', e.target.value.replace(/\D/g, '').slice(0, 11))}
             disabled={viewMode}
             maxLength={14}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 ${
+              !cpfValidation.cpf.isValid ? 'border-red-500 bg-red-50' : 
+              cpfValidation.cpf.isDuplicate ? 'border-yellow-500 bg-yellow-50' : 'border-gray-300'
+            }`}
             placeholder="000.000.000-00"
           />
+          {!cpfValidation.cpf.isValid && (
+            <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+              <AlertCircle size={12} /> CPF inválido
+            </p>
+          )}
+          {cpfValidation.cpf.isDuplicate && (
+            <p className="text-xs text-yellow-600 mt-1 flex items-center gap-1">
+              <AlertCircle size={12} /> {cpfValidation.cpf.message}
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">NIS (PIS/PASEP)</label>
