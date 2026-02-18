@@ -965,10 +965,19 @@ export function ClassScheduleTab({ academicYear }) {
       <Modal
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
-        title="Configurar Horário"
+        title={`Configurar Horário - ${selectedClassInfo?.name || 'Turma'}`}
         size="sm"
       >
         <div className="space-y-4">
+          <div className="p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-700">
+              <strong>Turma:</strong> {selectedClassInfo?.name || '-'}
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              A configuração será salva especificamente para esta turma.
+            </p>
+          </div>
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Número de Aulas por Dia
@@ -986,13 +995,24 @@ export function ClassScheduleTab({ academicYear }) {
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              Configure a quantidade de aulas por dia (máximo 10)
+              Configure a quantidade de aulas por dia para esta turma (máximo 10)
             </p>
           </div>
           
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => setShowSettingsModal(false)}>
-              Fechar
+              Cancelar
+            </Button>
+            <Button 
+              onClick={() => {
+                saveSchedule();
+                setShowSettingsModal(false);
+              }}
+              disabled={saving}
+              className="flex items-center gap-2"
+            >
+              <Save size={16} />
+              {saving ? 'Salvando...' : 'Salvar Configuração'}
             </Button>
           </div>
         </div>
