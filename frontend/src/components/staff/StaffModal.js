@@ -224,9 +224,22 @@ export const StaffModal = ({
                 }
                 setStaffForm({ ...staffForm, cpf: value });
               }}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                !cpfValidation.isValid ? 'border-red-500 bg-red-50' : 
+                cpfValidation.isDuplicate ? 'border-yellow-500 bg-yellow-50' : ''
+              }`}
               placeholder="000.000.000-00"
             />
+            {!cpfValidation.isValid && (
+              <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                <AlertCircle size={12} /> CPF inválido
+              </p>
+            )}
+            {cpfValidation.isDuplicate && (
+              <p className="text-xs text-yellow-600 mt-1 flex items-center gap-1">
+                <AlertCircle size={12} /> {cpfValidation.message}
+              </p>
+            )}
           </div>
           {editingStaff && (
             <div>
