@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react';
-import { Camera, Plus, Minus, Upload, FileText, X } from 'lucide-react';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { Camera, Plus, Minus, Upload, FileText, X, AlertCircle } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { CARGOS, STATUS_SERVIDOR, TIPOS_VINCULO, SEXOS, COR_RACA } from './constants';
+import { isValidCPF } from '@/utils/formatters';
+import { cpfAPI } from '@/services/api';
 
 export const StaffModal = ({
   isOpen,
