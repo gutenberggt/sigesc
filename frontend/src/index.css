@@ -113,3 +113,43 @@ code {
         border-bottom-color: inherit;
     }
 }
+
+/* Inputs em CAIXA ALTA para todos os cadastros */
+@layer components {
+    /* Aplica uppercase em inputs de texto, exceto email e password */
+    input[type="text"]:not([data-no-uppercase]),
+    input:not([type]):not([data-no-uppercase]),
+    textarea:not([data-no-uppercase]) {
+        text-transform: uppercase;
+    }
+    
+    /* Preserva minúsculas para campos de email e senha */
+    input[type="email"],
+    input[type="password"],
+    input[data-no-uppercase],
+    textarea[data-no-uppercase] {
+        text-transform: none !important;
+    }
+    
+    /* Classe utilitária para forçar uppercase */
+    .input-uppercase {
+        text-transform: uppercase;
+    }
+    
+    /* Classe utilitária para manter normal (emails, etc) */
+    .input-normal {
+        text-transform: none !important;
+    }
+    
+    /* Placeholder também em maiúsculas para consistência visual */
+    input[type="text"]::placeholder,
+    input:not([type])::placeholder,
+    textarea::placeholder {
+        text-transform: uppercase;
+    }
+    
+    /* Exceção: placeholder de email mantém minúsculas */
+    input[type="email"]::placeholder {
+        text-transform: none;
+    }
+}
