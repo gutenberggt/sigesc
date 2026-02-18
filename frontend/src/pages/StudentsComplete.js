@@ -997,6 +997,64 @@ export function StudentsComplete() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Função para validar CPF e verificar duplicidade
+  const validateCpfField = useCallback(async (field, cpfValue) => {
+    if (!cpfValue || cpfValue.length < 11) {
+      setCpfValidation(prev => ({
+        ...prev,
+        [field]: { isValid: true, isDuplicate: false, message: '' }
+      }));
+      return;
+    }
+
+    const cpfNumbers = cpfValue.replace(/\D/g, '');
+    
+    // Validar formato do CPF
+    const isValid = isValidCPF(cpfNumbers);
+    
+    if (!isValid) {
+      setCpfValidation(prev => ({
+        ...prev,
+        [field]: { isValid: false, isDuplicate: false, message: 'CPF inválido' }
+      }));
+      return;
+    }
+
+    // Verificar duplicidade apenas para o CPF do aluno
+    if (field === 'cpf') {
+      try {
+        const result = await cpfAPI.checkDuplicate(cpfNumbers, 'student', editingStudent?.id);
+        setCpfValidation(prev => ({
+          ...prev,
+          [field]: { 
+            isValid: true, 
+            isDuplicate: result.is_duplicate, 
+            message: result.is_duplicate ? result.message : ''
+          }
+        }));
+      } catch (error) {
+        console.error('Erro ao verificar CPF:', error);
+      }
+    } else {
+      setCpfValidation(prev => ({
+        ...prev,
+        [field]: { isValid: true, isDuplicate: false, message: '' }
+      }));
+    }
+  }, [editingStudent?.id]);
+
+  // Efeito para validar CPF quando o valor muda
+  useEffect(() => {
+    const cpfFields = ['cpf', 'father_cpf', 'mother_cpf', 'guardian_cpf'];
+    cpfFields.forEach(field => {
+      const value = formData[field];
+      if (value && value.replace(/\D/g, '').length === 11) {
+        const timer = setTimeout(() => validateCpfField(field, value), 500);
+        return () => clearTimeout(timer);
+      }
+    });
+  }, [formData.cpf, formData.father_cpf, formData.mother_cpf, formData.guardian_cpf, validateCpfField]);
+
   const handleCheckboxChange = (field, value, checked) => {
     setFormData(prev => {
       const currentValues = prev[field] || [];
