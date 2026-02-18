@@ -76,6 +76,9 @@ def setup_router(db, audit_service):
         
         update_data = course_update.model_dump(exclude_unset=True)
         
+        # Converte dados para maiúsculas
+        update_data = format_data_uppercase(update_data)
+        
         if update_data:
             await db.courses.update_one(
                 {"id": course_id},
