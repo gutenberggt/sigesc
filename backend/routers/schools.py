@@ -126,6 +126,9 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         update_data = school_update.model_dump(exclude_unset=True)
         
+        # Converte dados para maiúsculas (exceto email)
+        update_data = format_data_uppercase(update_data)
+        
         if update_data:
             result = await current_db.schools.update_one(
                 {"id": school_id},
