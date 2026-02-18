@@ -1171,6 +1171,152 @@ async def get_class_details_pdf(class_id: str, request: Request):
 
 # ============= COURSE (COMPONENTE CURRICULAR) ROUTES - MOVIDO PARA routers/courses.py =============
 
+# ============= CPF VALIDATION ENDPOINTS =============
+
+def validate_cpf_algorithm(cpf: str) -> bool:
+    """
+    Valida CPF usando o algoritmo oficial brasileiro.
+    Retorna True se válido, False se inválido.
+    """
+    if not cpf:
+        return False
+    
+    # Remove caracteres não numéricos
+    numbers = ''.join(filter(str.isdigit, cpf))
+    
+    # CPF deve ter 11 dígitos
+    if len(numbers) != 11:
+        return False
+    
+    # Verifica se todos os dígitos são iguais (CPF inválido)
+    if len(set(numbers)) == 1:
+        return False
+    
+    # Calcula primeiro dígito verificador
+    total = sum(int(numbers[i]) * (10 - i) for i in range(9))
+    remainder = (total * 10) % 11
+    if remainder == 10:
+        remainder = 0
+    if remainder != int(numbers[9]):
+        return False
+    
+    # Calcula segundo dígito verificador
+    total = sum(int(numbers[i]) * (11 - i) for i in range(10))
+    remainder = (total * 10) % 11
+    if remainder == 10:
+        remainder = 0
+    if remainder != int(numbers[10]):
+        return False
+    
+    return True
+
+@api_router.get("/validate-cpf/{cpf}")
+async def validate_cpf(cpf: str, request: Request):
+    """
+    Valida se um CPF é válido usando o algoritmo oficial.
+    """
+    await AuthMiddleware.get_current_user(request)
+    
+    # Remove formatação
+    cpf_numbers = ''.join(filter(str.isdigit, cpf))
+    
+    is_valid = validate_cpf_algorithm(cpf_numbers)
+    
+    return {
+        "cpf": cpf_numbers,
+        "is_valid": is_valid,
+        "message": "CPF válido" if is_valid else "CPF inválido"
+    }
+
+@api_router.get("/check-cpf-duplicate/{cpf}")
+async def check_cpf_duplicate(
+    cpf: str, 
+    request: Request,
+    context: str = Query("student", description="Contexto: 'student' ou 'staff'"),
+    exclude_id: Optional[str] = Query(None, description="ID para excluir da verificação (edição)")
+):
+    """
+    Verifica se um CPF já está cadastrado no sistema.
+    
+    Regras de duplicidade:
+    - Servidor pode ter mesmo CPF que pai/mãe de aluno (é o próprio servidor)
+    - Servidor pode ter mesmo CPF que aluno (servidor pode ser estudante)
+    - Aluno NÃO pode ter mesmo CPF que outro aluno
+    - Servidor NÃO pode ter mesmo CPF que outro servidor
+    """
+    await AuthMiddleware.get_current_user(request)
+    
+    # Remove formatação do CPF
+    cpf_numbers = ''.join(filter(str.isdigit, cpf))
+    
+    if len(cpf_numbers) != 11:
+        return {"is_duplicate": False, "message": "CPF incompleto"}
+    
+    duplicates = []
+    
+    # Buscar em alunos
+    student_query = {"cpf": {"$regex": cpf_numbers}}
+    if context == "student" and exclude_id:
+        student_query["id"] = {"$ne": exclude_id}
+    
+    student_with_cpf = await db.students.find_one(student_query, {"_id": 0, "id": 1, "full_name": 1, "cpf": 1})
+    if student_with_cpf:
+        # Se estamos cadastrando servidor, não é problema (servidor pode ser aluno)
+        if context != "staff":
+            duplicates.append({
+                "type": "student",
+                "name": student_with_cpf.get("full_name"),
+                "message": f"CPF já cadastrado para o aluno: {student_with_cpf.get('full_name')}"
+            })
+    
+    # Buscar em servidores
+    staff_query = {"cpf": {"$regex": cpf_numbers}}
+    if context == "staff" and exclude_id:
+        staff_query["id"] = {"$ne": exclude_id}
+    
+    staff_with_cpf = await db.staff.find_one(staff_query, {"_id": 0, "id": 1, "nome": 1, "cpf": 1})
+    if staff_with_cpf:
+        # Se estamos cadastrando aluno, não é problema (servidor pode ser aluno)
+        if context != "student":
+            duplicates.append({
+                "type": "staff",
+                "name": staff_with_cpf.get("nome"),
+                "message": f"CPF já cadastrado para o servidor: {staff_with_cpf.get('nome')}"
+            })
+    
+    # Buscar em pais/mães de alunos (father_cpf, mother_cpf)
+    parent_query = {"$or": [
+        {"father_cpf": {"$regex": cpf_numbers}},
+        {"mother_cpf": {"$regex": cpf_numbers}}
+    ]}
+    
+    parent_student = await db.students.find_one(parent_query, {"_id": 0, "id": 1, "full_name": 1, "father_name": 1, "mother_name": 1, "father_cpf": 1, "mother_cpf": 1})
+    if parent_student:
+        # Se estamos cadastrando servidor, não é problema (servidor pode ser pai/mãe)
+        if context != "staff":
+            parent_name = None
+            if parent_student.get("father_cpf") and cpf_numbers in parent_student.get("father_cpf", ""):
+                parent_name = parent_student.get("father_name", "Pai")
+            elif parent_student.get("mother_cpf") and cpf_numbers in parent_student.get("mother_cpf", ""):
+                parent_name = parent_student.get("mother_name", "Mãe")
+            
+            if parent_name:
+                duplicates.append({
+                    "type": "parent",
+                    "name": parent_name,
+                    "student_name": parent_student.get("full_name"),
+                    "message": f"CPF já cadastrado como responsável ({parent_name}) do aluno: {parent_student.get('full_name')}"
+                })
+    
+    is_duplicate = len(duplicates) > 0
+    
+    return {
+        "cpf": cpf_numbers,
+        "is_duplicate": is_duplicate,
+        "duplicates": duplicates,
+        "message": duplicates[0]["message"] if duplicates else "CPF disponível"
+    }
+
 # ============= STUDENT (ALUNO) ROUTES =============
 
 @api_router.post("/students", response_model=Student, status_code=status.HTTP_201_CREATED)
