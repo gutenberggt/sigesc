@@ -32,6 +32,53 @@ export const StaffModal = ({
   const [certificadoIdx, setCertificadoIdx] = useState(null);
   const [uploadingCertificado, setUploadingCertificado] = useState(false);
   
+  // Estado para validação de CPF
+  const [cpfValidation, setCpfValidation] = useState({
+    isValid: true,
+    isDuplicate: false,
+    message: ''
+  });
+  
+  // Função para validar CPF
+  const validateCpf = useCallback(async (cpfValue) => {
+    if (!cpfValue || cpfValue.replace(/\D/g, '').length < 11) {
+      setCpfValidation({ isValid: true, isDuplicate: false, message: '' });
+      return;
+    }
+
+    const cpfNumbers = cpfValue.replace(/\D/g, '');
+    
+    // Validar formato do CPF
+    const isValid = isValidCPF(cpfNumbers);
+    
+    if (!isValid) {
+      setCpfValidation({ isValid: false, isDuplicate: false, message: 'CPF inválido' });
+      return;
+    }
+
+    // Verificar duplicidade
+    try {
+      const result = await cpfAPI.checkDuplicate(cpfNumbers, 'staff', editingStaff?.id);
+      setCpfValidation({ 
+        isValid: true, 
+        isDuplicate: result.is_duplicate, 
+        message: result.is_duplicate ? result.message : ''
+      });
+    } catch (error) {
+      console.error('Erro ao verificar CPF:', error);
+      setCpfValidation({ isValid: true, isDuplicate: false, message: '' });
+    }
+  }, [editingStaff?.id]);
+  
+  // Efeito para validar CPF quando o valor muda
+  useEffect(() => {
+    const cpf = staffForm.cpf;
+    if (cpf && cpf.replace(/\D/g, '').length === 11) {
+      const timer = setTimeout(() => validateCpf(cpf), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [staffForm.cpf, validateCpf]);
+  
   const handleFotoClick = () => {
     fileInputRef.current?.click();
   };
