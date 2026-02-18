@@ -16,6 +16,7 @@ import uuid
 
 from models import Staff, StaffCreate, StaffUpdate
 from auth_middleware import AuthMiddleware
+from text_utils import format_data_uppercase
 
 router = APIRouter(prefix="/staff", tags=["Servidores"])
 
