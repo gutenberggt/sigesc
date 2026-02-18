@@ -978,17 +978,20 @@ class StudentUpdate(BaseModel):
     father_cpf: Optional[str] = None
     father_rg: Optional[str] = None
     father_phone: Optional[str] = None
+    father_email: Optional[str] = None
     
     mother_name: Optional[str] = None
     mother_cpf: Optional[str] = None
     mother_rg: Optional[str] = None
     mother_phone: Optional[str] = None
+    mother_email: Optional[str] = None
     
     legal_guardian_type: Optional[Literal['mother', 'father', 'both', 'other']] = None
     guardian_name: Optional[str] = None
     guardian_cpf: Optional[str] = None
     guardian_rg: Optional[str] = None
     guardian_phone: Optional[str] = None
+    guardian_email: Optional[str] = None
     guardian_relationship: Optional[str] = None
     guardian_user_id: Optional[str] = None
     
