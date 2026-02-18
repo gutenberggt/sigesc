@@ -1339,6 +1339,9 @@ async def update_student(student_id: str, student_update: StudentUpdate, request
     
     update_data = student_update.model_dump(exclude_unset=True)
     
+    # Converte dados para maiúsculas (exceto email)
+    update_data = format_data_uppercase(update_data)
+    
     if not update_data:
         return Student(**student_doc)
     
