@@ -153,6 +153,10 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
             user_id = new_user["id"]
         
         staff_dict = staff_data.model_dump()
+        
+        # Converte dados para maiúsculas (exceto email)
+        staff_dict = format_data_uppercase(staff_dict)
+        
         staff_dict['user_id'] = user_id
         
         new_staff = Staff(
