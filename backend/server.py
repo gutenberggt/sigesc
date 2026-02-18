@@ -1244,7 +1244,9 @@ async def create_student(student_data: StudentCreate, request: Request):
     # Verifica acesso à escola
     await AuthMiddleware.verify_school_access(request, student_data.school_id)
     
-    student_obj = Student(**student_data.model_dump())
+    # Converte dados para maiúsculas (exceto email)
+    student_dict = format_data_uppercase(student_data.model_dump())
+    student_obj = Student(**student_dict)
     doc = student_obj.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
     
