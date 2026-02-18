@@ -174,6 +174,21 @@ export const coursesAPI = {
   }
 };
 
+// ============= CPF VALIDATION =============
+export const cpfAPI = {
+  validate: async (cpf) => {
+    const response = await axios.get(`${API}/validate-cpf/${cpf}`);
+    return response.data;
+  },
+  
+  checkDuplicate: async (cpf, context = 'student', excludeId = null) => {
+    const params = { context };
+    if (excludeId) params.exclude_id = excludeId;
+    const response = await axios.get(`${API}/check-cpf-duplicate/${cpf}`, { params });
+    return response.data;
+  }
+};
+
 // ============= STUDENTS (ALUNOS) =============
 export const studentsAPI = {
   getAll: async (schoolId = null, classId = null) => {
