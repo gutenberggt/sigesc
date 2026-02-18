@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from models import Course, CourseCreate, CourseUpdate
 from auth_middleware import AuthMiddleware
+from text_utils import format_data_uppercase
 
 router = APIRouter(prefix="/courses", tags=["Componentes Curriculares"])
 
@@ -20,7 +21,9 @@ def setup_router(db, audit_service):
         """Cria novo componente curricular (global para todas as escolas)"""
         current_user = await AuthMiddleware.require_roles(['admin'])(request)
         
-        course_obj = Course(**course_data.model_dump())
+        # Converte dados para maiúsculas
+        course_dict = format_data_uppercase(course_data.model_dump())
+        course_obj = Course(**course_dict)
         doc = course_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
         
