@@ -1876,8 +1876,15 @@ export function StudentsComplete() {
             disabled={viewMode}
             maxLength={14}
             placeholder="000.000.000-00"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 ${
+              !cpfValidation.mother_cpf.isValid ? 'border-red-500 bg-red-50' : 'border-gray-300'
+            }`}
           />
+          {!cpfValidation.mother_cpf.isValid && (
+            <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+              <AlertCircle size={12} /> CPF inválido
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
