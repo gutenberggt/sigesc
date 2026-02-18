@@ -3,6 +3,78 @@
  */
 
 /**
+ * Lista de campos que NÃO devem ser convertidos para maiúsculas
+ */
+const LOWERCASE_FIELDS = [
+  'email', 'e-mail', 'e_mail',
+  'password', 'senha',
+  'confirm_password', 'confirmar_senha',
+  'url', 'website', 'site',
+  'avatar', 'photo', 'image', 'foto', 'imagem'
+];
+
+/**
+ * Converte string para maiúsculas, ignorando campos de email/senha
+ * @param {string} value - Valor a ser convertido
+ * @param {string} fieldName - Nome do campo (para verificar se é email)
+ * @returns {string} Valor em maiúsculas ou original
+ */
+export const toUpperCaseField = (value, fieldName = '') => {
+  if (!value || typeof value !== 'string') return value;
+  
+  // Verifica se é um campo que não deve ser convertido
+  const fieldLower = fieldName.toLowerCase();
+  if (LOWERCASE_FIELDS.some(f => fieldLower.includes(f))) {
+    return value;
+  }
+  
+  // Verifica se parece ser um email (contém @)
+  if (value.includes('@')) {
+    return value;
+  }
+  
+  return value.toUpperCase();
+};
+
+/**
+ * Converte todos os campos de texto de um objeto para maiúsculas
+ * Exceto campos de email, senha, URLs e similares
+ * @param {object} data - Objeto com os dados do formulário
+ * @returns {object} Objeto com strings em maiúsculas
+ */
+export const formatFormDataUppercase = (data) => {
+  if (!data || typeof data !== 'object') return data;
+  
+  const result = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value === 'string') {
+      result[key] = toUpperCaseField(value, key);
+    } else if (Array.isArray(value)) {
+      result[key] = value.map(item => 
+        typeof item === 'string' ? toUpperCaseField(item, key) : item
+      );
+    } else if (value && typeof value === 'object') {
+      result[key] = formatFormDataUppercase(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+};
+
+/**
+ * Handler para input que converte para maiúsculas em tempo real
+ * @param {Event} e - Evento de input
+ * @param {Function} setter - Função setState para atualizar o valor
+ * @param {string} fieldName - Nome do campo (opcional)
+ */
+export const handleUppercaseInput = (e, setter, fieldName = '') => {
+  const value = e.target.value;
+  const fieldNameToCheck = fieldName || e.target.name || '';
+  setter(toUpperCaseField(value, fieldNameToCheck));
+};
+
+/**
  * Formata telefone no padrão (00)00000-0000
  * @param {string} value - Valor a ser formatado
  * @returns {string} Valor formatado
