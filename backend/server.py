@@ -1327,6 +1327,20 @@ async def create_student(student_data: StudentCreate, request: Request):
     # Verifica acesso à escola
     await AuthMiddleware.verify_school_access(request, student_data.school_id)
     
+    # Validar CPF duplicado em alunos
+    if student_data.cpf:
+        cpf_numbers = ''.join(filter(str.isdigit, student_data.cpf))
+        if len(cpf_numbers) == 11:
+            existing_student = await db.students.find_one(
+                {"cpf": {"$regex": cpf_numbers}},
+                {"_id": 0, "id": 1, "full_name": 1}
+            )
+            if existing_student:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"CPF já cadastrado para o aluno: {existing_student.get('full_name')}"
+                )
+    
     # Converte dados para maiúsculas (exceto email)
     student_dict = format_data_uppercase(student_data.model_dump())
     student_obj = Student(**student_dict)
