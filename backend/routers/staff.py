@@ -207,6 +207,20 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
         if not existing:
             raise HTTPException(status_code=404, detail="Servidor não encontrado")
         
+        # Validar CPF duplicado (excluindo o próprio servidor)
+        if staff_data.cpf:
+            cpf_numbers = ''.join(filter(str.isdigit, staff_data.cpf))
+            if len(cpf_numbers) == 11:
+                existing_staff = await current_db.staff.find_one(
+                    {"cpf": {"$regex": cpf_numbers}, "id": {"$ne": staff_id}},
+                    {"_id": 0, "id": 1, "nome": 1}
+                )
+                if existing_staff:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"CPF já cadastrado para o servidor: {existing_staff.get('nome')}"
+                    )
+        
         update_data = {k: v for k, v in staff_data.model_dump().items() if v is not None}
         
         # Converte dados para maiúsculas (exceto email)
