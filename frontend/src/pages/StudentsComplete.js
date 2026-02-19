@@ -454,9 +454,23 @@ export function StudentsComplete() {
     }
   };
 
-  const showAlert = (type, message) => {
-    setAlert({ type, message });
-    setTimeout(() => setAlert(null), 5000);
+  // Sistema de alertas com confirmação obrigatória
+  const showAlert = (type, message, requireConfirmation = false) => {
+    setAlert({ type, message, requireConfirmation });
+    // Se não requer confirmação, fecha automaticamente após 5 segundos
+    if (!requireConfirmation) {
+      setTimeout(() => setAlert(null), 5000);
+    }
+  };
+
+  // Função para fechar o alerta manualmente
+  const dismissAlert = () => {
+    setAlert(null);
+  };
+
+  // Função específica para erros que requerem confirmação
+  const showErrorAlert = (message) => {
+    showAlert('error', message, true);
   };
 
   const generateEnrollmentNumber = () => {
