@@ -218,8 +218,17 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
         if staff_data.cpf:
             cpf_numbers = ''.join(filter(str.isdigit, staff_data.cpf))
             if len(cpf_numbers) == 11:
+                # Busca por CPF com ou sem formatação
+                cpf_pattern = f".*{cpf_numbers[0:3]}.*{cpf_numbers[3:6]}.*{cpf_numbers[6:9]}.*{cpf_numbers[9:11]}.*"
                 existing_staff = await current_db.staff.find_one(
-                    {"cpf": {"$regex": cpf_numbers}, "id": {"$ne": staff_id}},
+                    {"$and": [
+                        {"id": {"$ne": staff_id}},
+                        {"$or": [
+                            {"cpf": {"$regex": cpf_numbers}},
+                            {"cpf": {"$regex": cpf_pattern}},
+                            {"cpf": f"{cpf_numbers[0:3]}.{cpf_numbers[3:6]}.{cpf_numbers[6:9]}-{cpf_numbers[9:11]}"}
+                        ]}
+                    ]},
                     {"_id": 0, "id": 1, "nome": 1}
                 )
                 if existing_staff:
