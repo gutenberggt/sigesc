@@ -113,6 +113,20 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario'])(request)
         current_db = get_db_for_user(current_user)
         
+        # Validar CPF duplicado em servidores
+        if staff_data.cpf:
+            cpf_numbers = ''.join(filter(str.isdigit, staff_data.cpf))
+            if len(cpf_numbers) == 11:
+                existing_staff = await current_db.staff.find_one(
+                    {"cpf": {"$regex": cpf_numbers}},
+                    {"_id": 0, "id": 1, "nome": 1}
+                )
+                if existing_staff:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"CPF já cadastrado para o servidor: {existing_staff.get('nome')}"
+                    )
+        
         matricula = await generate_matricula(current_db)
         
         user_id = None
