@@ -2916,18 +2916,35 @@ export function StudentsComplete() {
           </div>
         </div>
 
+        {/* Banner de Alerta Fixo no Topo */}
         {alert && (
-          <div className={`p-4 rounded-lg flex items-start ${
-            alert.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+          <div className={`fixed top-0 left-0 right-0 z-50 shadow-lg ${
+            alert.type === 'success' ? 'bg-green-500' : 'bg-red-500'
           }`}>
-            {alert.type === 'success' ? (
-              <CheckCircle className="text-green-600 mr-2 flex-shrink-0" size={20} />
-            ) : (
-              <AlertCircle className="text-red-600 mr-2 flex-shrink-0" size={20} />
-            )}
-            <p className={`text-sm ${alert.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-              {alert.message}
-            </p>
+            <div className="max-w-7xl mx-auto px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  {alert.type === 'success' ? (
+                    <CheckCircle className="text-white mr-3 flex-shrink-0" size={24} />
+                  ) : (
+                    <AlertCircle className="text-white mr-3 flex-shrink-0" size={24} />
+                  )}
+                  <p className="text-white font-medium text-base">
+                    {alert.message}
+                  </p>
+                </div>
+                <button
+                  onClick={dismissAlert}
+                  className={`ml-4 px-6 py-2 rounded-lg font-semibold transition-colors ${
+                    alert.type === 'success' 
+                      ? 'bg-green-600 hover:bg-green-700 text-white border-2 border-white' 
+                      : 'bg-red-600 hover:bg-red-700 text-white border-2 border-white'
+                  }`}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
