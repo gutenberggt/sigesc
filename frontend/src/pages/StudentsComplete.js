@@ -936,9 +936,21 @@ export function StudentsComplete() {
     // Validação: pelo menos um documento
     if (!formData.cpf && !formData.nis && !formData.civil_certificate_number) {
       if (!formData.no_documents_justification) {
-        showAlert('error', 'Informe pelo menos um documento (CPF, NIS ou Certidão) ou justifique a ausência.');
+        showErrorAlert('Informe pelo menos um documento (CPF, NIS ou Certidão) ou justifique a ausência.');
         return;
       }
+    }
+    
+    // Validação de CPF inválido
+    if (formData.cpf && !cpfValidation.cpf.isValid) {
+      showErrorAlert('O CPF informado é inválido. Por favor, verifique.');
+      return;
+    }
+    
+    // Aviso de CPF duplicado (não bloqueia, mas avisa)
+    if (formData.cpf && cpfValidation.cpf.isDuplicate) {
+      showErrorAlert(`Atenção: ${cpfValidation.cpf.message}`);
+      // Não retorna, permite continuar mas com aviso
     }
     
     setSubmitting(true);
