@@ -1331,8 +1331,14 @@ async def create_student(student_data: StudentCreate, request: Request):
     if student_data.cpf:
         cpf_numbers = ''.join(filter(str.isdigit, student_data.cpf))
         if len(cpf_numbers) == 11:
+            # Busca por CPF com ou sem formatação
+            cpf_pattern = f".*{cpf_numbers[0:3]}.*{cpf_numbers[3:6]}.*{cpf_numbers[6:9]}.*{cpf_numbers[9:11]}.*"
             existing_student = await db.students.find_one(
-                {"cpf": {"$regex": cpf_numbers}},
+                {"$or": [
+                    {"cpf": {"$regex": cpf_numbers}},
+                    {"cpf": {"$regex": cpf_pattern}},
+                    {"cpf": f"{cpf_numbers[0:3]}.{cpf_numbers[3:6]}.{cpf_numbers[6:9]}-{cpf_numbers[9:11]}"}
+                ]},
                 {"_id": 0, "id": 1, "full_name": 1}
             )
             if existing_student:
