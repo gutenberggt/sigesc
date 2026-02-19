@@ -1012,7 +1012,7 @@ export function StudentsComplete() {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      showAlert('error', errorMessage);
+      showErrorAlert(errorMessage);
       console.error(error);
     } finally {
       setSubmitting(false);
