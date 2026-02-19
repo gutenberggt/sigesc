@@ -9,9 +9,21 @@ LOWERCASE_FIELDS = {
     'password', 'senha', 'hashed_password',
     'confirm_password', 'confirmar_senha',
     'url', 'website', 'site', 'link',
-    'avatar', 'photo', 'image', 'foto', 'imagem', 'photo_url', 'avatar_url',
+    'avatar', 'photo', 'image', 'foto', 'imagem', 'photo_url', 'avatar_url', 'foto_url',
     'token', 'access_token', 'refresh_token',
-    'id', '_id', 'uuid'
+    'id', '_id', 'uuid',
+    # Campos de seleção (enum) que devem manter minúsculas
+    'sexo', 'sex', 'gender',
+    'cor_raca', 'race', 'ethnicity',
+    'cargo', 'role', 'position',
+    'tipo_vinculo', 'bond_type', 'contract_type',
+    'status',
+    'turno', 'shift',
+    'funcao', 'function',
+    'nivel_ensino', 'education_level',
+    'modalidade', 'modality',
+    'periodo', 'period',
+    'legal_guardian_type'
 }
 
 
