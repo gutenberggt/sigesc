@@ -1436,6 +1436,20 @@ async def update_student(student_id: str, student_update: StudentUpdate, request
     
     update_data = student_update.model_dump(exclude_unset=True)
     
+    # Validar CPF duplicado (excluindo o próprio aluno)
+    if 'cpf' in update_data and update_data['cpf']:
+        cpf_numbers = ''.join(filter(str.isdigit, update_data['cpf']))
+        if len(cpf_numbers) == 11:
+            existing_student = await db.students.find_one(
+                {"cpf": {"$regex": cpf_numbers}, "id": {"$ne": student_id}},
+                {"_id": 0, "id": 1, "full_name": 1}
+            )
+            if existing_student:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"CPF já cadastrado para o aluno: {existing_student.get('full_name')}"
+                )
+    
     # Converte dados para maiúsculas (exceto email)
     update_data = format_data_uppercase(update_data)
     
