@@ -1500,6 +1500,17 @@ async def update_student(student_id: str, student_update: StudentUpdate, request
     new_school_id = update_data.get('school_id', old_school_id)
     new_status = update_data.get('status', old_status)
     
+    # VALIDAÇÃO: Não permite status "Ativo" sem escola e turma definidas
+    if new_status == 'active':
+        final_school_id = new_school_id or old_school_id
+        final_class_id = new_class_id or old_class_id
+        
+        if not final_school_id or not final_class_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Não é possível definir o status como 'Ativo' sem escola e turma definidas. O aluno precisa estar matriculado em uma turma."
+            )
+    
     action_type = 'edicao'
     history_obs = None
     
