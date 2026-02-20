@@ -329,7 +329,7 @@ export const Users = () => {
                 <span className="text-xs text-gray-500 font-normal ml-2">(máx. 3 no total)</span>
               </label>
               <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto bg-gray-50">
-                {Object.entries(roleLabels).map(([value, label]) => (
+                {availableRoles.map(([value, label]) => (
                   <label 
                     key={value} 
                     className="flex items-center gap-2 py-1.5 px-2 hover:bg-white rounded cursor-pointer"
