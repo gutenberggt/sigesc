@@ -1107,9 +1107,13 @@ const DiarioAEE = () => {
             onChange={(e) => setSelectedSchool(e.target.value)}
             className="border rounded-lg px-3 py-2 min-w-[250px]"
           >
-            {schools.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
+            {schools.length === 0 ? (
+              <option value="">Carregando escolas...</option>
+            ) : (
+              schools.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))
+            )}
           </select>
         </div>
         <div>
