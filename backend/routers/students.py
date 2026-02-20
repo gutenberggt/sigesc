@@ -38,6 +38,14 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         # Verifica acesso à escola
         await AuthMiddleware.verify_school_access(request, student_data.school_id)
         
+        # VALIDAÇÃO: Não permite status "Ativo" sem escola e turma definidas
+        if student_data.status == 'active':
+            if not student_data.school_id or not student_data.class_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Não é possível criar aluno com status 'Ativo' sem escola e turma definidas. O aluno precisa estar matriculado em uma turma."
+                )
+        
         student_obj = Student(**student_data.model_dump())
         doc = student_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
