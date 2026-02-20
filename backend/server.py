@@ -1141,19 +1141,33 @@ async def get_class_details_pdf(class_id: str, request: Request):
         teacher_data["componente"] = ", ".join(componentes) if componentes else None
         teachers.append(teacher_data)
     
-    # Busca alunos matriculados
+    # Busca alunos matriculados - usando múltiplas fontes para maior robustez
     academic_year = class_doc.get('academic_year', datetime.now().year)
+    
+    # Estratégia 1: Busca na coleção enrollments (matrícula formal)
     enrollments = await db.enrollments.find(
-        {"class_id": class_id, "status": "active", "academic_year": academic_year},
-        {"_id": 0, "student_id": 1}
+        {"class_id": class_id, "status": "active"},
+        {"_id": 0, "student_id": 1, "academic_year": 1}
     ).to_list(1000)
     
-    student_ids = [e['student_id'] for e in enrollments]
+    enrollment_student_ids = set()
+    for e in enrollments:
+        enrollment_student_ids.add(e.get('student_id'))
+    
+    # Estratégia 2: Busca alunos diretamente com class_id (fallback para dados antigos/inconsistentes)
+    direct_students = await db.students.find(
+        {"class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
+        {"_id": 0, "id": 1}
+    ).to_list(1000)
+    direct_student_ids = {s.get('id') for s in direct_students}
+    
+    # Combina ambas as fontes (união de IDs)
+    all_student_ids = list(enrollment_student_ids.union(direct_student_ids))
     
     students_list = []
-    if student_ids:
+    if all_student_ids:
         students = await db.students.find(
-            {"id": {"$in": student_ids}},
+            {"id": {"$in": all_student_ids}},
             {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "guardian_name": 1, "guardian_phone": 1, "mother_name": 1, "mother_phone": 1, "father_name": 1, "father_phone": 1}
         ).sort("full_name", 1).to_list(1000)
         
