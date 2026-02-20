@@ -1153,6 +1153,17 @@ const DiarioAEE = () => {
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
               <p className="text-gray-500 mt-4">Carregando...</p>
             </div>
+          ) : schools.length === 0 ? (
+            <div className="text-center py-12 bg-yellow-50 rounded-lg">
+              <AlertCircle size={48} className="mx-auto text-yellow-500 mb-4" />
+              <p className="text-yellow-700 font-medium">Nenhuma escola com AEE habilitado</p>
+              <p className="text-sm text-yellow-600 mt-2">
+                Para utilizar o Diário AEE, é necessário habilitar o AEE em pelo menos uma escola.
+              </p>
+              <p className="text-sm text-yellow-600 mt-1">
+                Acesse o cadastro de escolas e marque a opção "AEE" nas escolas que oferecem este serviço.
+              </p>
+            </div>
           ) : (
             <>
               {activeTab === 'estudantes' && <TabEstudantes />}
