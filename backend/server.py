@@ -1001,24 +1001,42 @@ async def get_class_details(class_id: str, request: Request):
         teacher_data["componente"] = ", ".join(componentes) if componentes else None
         teachers.append(teacher_data)
     
-    # Busca alunos matriculados
+    # Busca alunos matriculados - usando múltiplas fontes para maior robustez
     academic_year = class_doc.get('academic_year', datetime.now().year)
+    
+    # Estratégia 1: Busca na coleção enrollments (matrícula formal)
     enrollments = await db.enrollments.find(
-        {"class_id": class_id, "status": "active", "academic_year": academic_year},
-        {"_id": 0, "student_id": 1, "enrollment_number": 1, "student_series": 1}
+        {"class_id": class_id, "status": "active"},
+        {"_id": 0, "student_id": 1, "enrollment_number": 1, "student_series": 1, "academic_year": 1}
     ).to_list(1000)
     
-    student_ids = [e['student_id'] for e in enrollments]
-    enrollment_map = {e['student_id']: {
-        'enrollment_number': e.get('enrollment_number'),
-        'student_series': e.get('student_series')
-    } for e in enrollments}
+    enrollment_map = {}
+    enrollment_student_ids = set()
+    for e in enrollments:
+        student_id = e.get('student_id')
+        enrollment_student_ids.add(student_id)
+        # Prioriza matrículas do ano letivo da turma, mas aceita qualquer matrícula ativa
+        if student_id not in enrollment_map or e.get('academic_year') == academic_year:
+            enrollment_map[student_id] = {
+                'enrollment_number': e.get('enrollment_number'),
+                'student_series': e.get('student_series')
+            }
+    
+    # Estratégia 2: Busca alunos diretamente com class_id (fallback para dados antigos/inconsistentes)
+    direct_students = await db.students.find(
+        {"class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
+        {"_id": 0, "id": 1}
+    ).to_list(1000)
+    direct_student_ids = {s.get('id') for s in direct_students}
+    
+    # Combina ambas as fontes (união de IDs)
+    all_student_ids = list(enrollment_student_ids.union(direct_student_ids))
     
     students_list = []
-    if student_ids:
+    if all_student_ids:
         students = await db.students.find(
-            {"id": {"$in": student_ids}},
-            {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "guardian_name": 1, "guardian_phone": 1, "guardian_relationship": 1, "mother_name": 1, "mother_phone": 1, "father_name": 1, "father_phone": 1}
+            {"id": {"$in": all_student_ids}},
+            {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "guardian_name": 1, "guardian_phone": 1, "guardian_relationship": 1, "mother_name": 1, "mother_phone": 1, "father_name": 1, "father_phone": 1, "enrollment_number": 1}
         ).sort("full_name", 1).to_list(1000)
         
         for student in students:
@@ -1026,11 +1044,14 @@ async def get_class_details(class_id: str, request: Request):
             guardian_name = student.get('guardian_name') or student.get('mother_name') or student.get('father_name') or '-'
             guardian_phone = student.get('guardian_phone') or student.get('mother_phone') or student.get('father_phone') or ''
             
+            # Busca info de matrícula (da coleção enrollments ou do próprio aluno)
             enrollment_info = enrollment_map.get(student.get('id'), {})
+            enrollment_number = enrollment_info.get('enrollment_number') or student.get('enrollment_number')
+            
             students_list.append({
                 "id": student.get('id'),
                 "full_name": student.get('full_name'),
-                "enrollment_number": enrollment_info.get('enrollment_number'),
+                "enrollment_number": enrollment_number,
                 "student_series": enrollment_info.get('student_series'),
                 "birth_date": student.get('birth_date'),
                 "guardian_name": guardian_name,
