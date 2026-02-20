@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users, FileText, Calendar, Clock, Plus, Edit2, Trash2, Eye, Download,
   ChevronDown, ChevronRight, CheckCircle2, AlertCircle, Search, Filter,
-  BookOpen, Target, Activity, UserCheck, ClipboardList, MessageSquare
+  BookOpen, Target, Activity, UserCheck, ClipboardList, MessageSquare, Home
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
