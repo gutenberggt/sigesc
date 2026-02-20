@@ -146,6 +146,16 @@ export const Users = () => {
     semed: 'SEMED'
   };
 
+  // Verifica se o usuário atual é administrador
+  const isCurrentUserAdmin = user?.role === 'admin' || user?.role === 'admin_teste';
+  
+  // Filtra os papéis disponíveis - admin só aparece se o usuário atual for admin
+  const availableRoles = Object.entries(roleLabels).filter(([value]) => {
+    // Se não for admin, não pode ver/selecionar a opção "admin"
+    if (value === 'admin' && !isCurrentUserAdmin) return false;
+    return true;
+  });
+
   const columns = [
     { header: 'Nome', accessor: 'full_name' },
     { header: 'E-mail', accessor: 'email' },
