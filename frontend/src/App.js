@@ -89,6 +89,16 @@ function App() {
             }
           />
           
+          {/* Diário AEE (Atendimento Educacional Especializado) */}
+          <Route
+            path="/admin/diario-aee"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'coordenador', 'professor']}>
+                <DiarioAEE />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* Rotas de administração */}
           <Route
             path="/admin/schools"
