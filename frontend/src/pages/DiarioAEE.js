@@ -1094,10 +1094,19 @@ const DiarioAEE = () => {
       
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <BookOpen className="text-blue-600" />
-          Diário AEE
-        </h1>
+        <div className="flex items-center gap-4 mb-2">
+          <button 
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors"
+          >
+            <Home size={20} />
+            <span>Início</span>
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <BookOpen className="text-blue-600" />
+            Diário AEE
+          </h1>
+        </div>
         <p className="text-gray-500">Atendimento Educacional Especializado</p>
       </div>
       
