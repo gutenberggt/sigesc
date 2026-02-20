@@ -1348,6 +1348,14 @@ async def create_student(student_data: StudentCreate, request: Request):
     # Verifica acesso à escola
     await AuthMiddleware.verify_school_access(request, student_data.school_id)
     
+    # VALIDAÇÃO: Não permite status "Ativo" sem escola e turma definidas
+    if student_data.status == 'active':
+        if not student_data.school_id or not student_data.class_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Não é possível criar aluno com status 'Ativo' sem escola e turma definidas. O aluno precisa estar matriculado em uma turma."
+            )
+    
     # Validar CPF duplicado em alunos
     if student_data.cpf:
         cpf_numbers = ''.join(filter(str.isdigit, student_data.cpf))
