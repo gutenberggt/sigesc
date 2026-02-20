@@ -1097,6 +1097,232 @@ class GuardianCreate(GuardianBase):
 
 class GuardianUpdate(BaseModel):
     full_name: Optional[str] = None
+
+
+# ============= AEE (ATENDIMENTO EDUCACIONAL ESPECIALIZADO) MODELS =============
+
+class BarreiraAEE(BaseModel):
+    """Barreira identificada no Plano AEE"""
+    tipo: Literal['comunicacao', 'mobilidade', 'acesso_curriculo', 'autorregulacao', 'social', 'sensorial', 'outra']
+    descricao: str
+    estrategias: Optional[List[str]] = []  # Estratégias para superar a barreira
+
+class ObjetivoAEE(BaseModel):
+    """Objetivo do Plano AEE"""
+    descricao: str
+    prazo: Literal['curto', 'medio', 'longo']  # curto: bimestre, medio: semestre, longo: ano
+    indicadores: Optional[List[str]] = []  # Como medir o progresso
+    status: Literal['em_andamento', 'atingido', 'parcialmente_atingido', 'nao_iniciado'] = 'nao_iniciado'
+    observacoes: Optional[str] = None
+
+class RecursoAcessibilidade(BaseModel):
+    """Recurso de acessibilidade/tecnologia assistiva"""
+    tipo: Literal['comunicacao_alternativa', 'material_ampliado', 'rotina_visual', 'software_acessivel', 'mobiliario_adaptado', 'recurso_optico', 'recurso_auditivo', 'outro']
+    descricao: str
+    disponivel: bool = True
+
+class PlanoAEEBase(BaseModel):
+    """Plano de Atendimento Educacional Especializado"""
+    # Identificação
+    student_id: str  # Aluno atendido
+    school_id: str  # Escola/polo de AEE
+    academic_year: int  # Ano letivo
+    
+    # Professor de AEE responsável
+    professor_aee_id: str
+    professor_aee_nome: Optional[str] = None
+    
+    # Elegibilidade (sem detalhar diagnóstico clínico)
+    publico_alvo: Literal['deficiencia_fisica', 'deficiencia_intelectual', 'deficiencia_visual', 'deficiencia_auditiva', 'surdocegueira', 'transtorno_espectro_autista', 'altas_habilidades', 'deficiencia_multipla']
+    criterio_elegibilidade: Optional[str] = None  # Breve descrição sem CID
+    
+    # Informações da sala comum (articulação)
+    turma_origem_id: Optional[str] = None
+    turma_origem_nome: Optional[str] = None
+    professor_regente_id: Optional[str] = None
+    professor_regente_nome: Optional[str] = None
+    
+    # Cronograma de atendimento
+    dias_atendimento: List[Literal['segunda', 'terca', 'quarta', 'quinta', 'sexta']] = []
+    horario_inicio: Optional[str] = None  # Ex: "14:00"
+    horario_fim: Optional[str] = None  # Ex: "15:30"
+    modalidade: Literal['individual', 'pequeno_grupo', 'coensino', 'mista'] = 'individual'
+    carga_horaria_semanal: Optional[int] = None  # Em minutos
+    local_atendimento: Optional[str] = None  # Ex: "Sala de Recursos Multifuncionais"
+    
+    # Barreiras identificadas
+    barreiras: List[BarreiraAEE] = []
+    
+    # Objetivos
+    objetivos: List[ObjetivoAEE] = []
+    
+    # Recursos de acessibilidade
+    recursos_acessibilidade: List[RecursoAcessibilidade] = []
+    
+    # Articulação com sala comum
+    orientacoes_sala_comum: Optional[str] = None
+    adequacoes_curriculares: Optional[str] = None
+    
+    # Período de vigência
+    data_inicio: Optional[str] = None  # dd/mm/aaaa
+    data_revisao: Optional[str] = None  # Próxima revisão prevista
+    
+    # Status
+    status: Literal['rascunho', 'ativo', 'revisao', 'encerrado'] = 'rascunho'
+
+class PlanoAEECreate(PlanoAEEBase):
+    pass
+
+class PlanoAEEUpdate(BaseModel):
+    professor_aee_id: Optional[str] = None
+    professor_aee_nome: Optional[str] = None
+    publico_alvo: Optional[Literal['deficiencia_fisica', 'deficiencia_intelectual', 'deficiencia_visual', 'deficiencia_auditiva', 'surdocegueira', 'transtorno_espectro_autista', 'altas_habilidades', 'deficiencia_multipla']] = None
+    criterio_elegibilidade: Optional[str] = None
+    turma_origem_id: Optional[str] = None
+    turma_origem_nome: Optional[str] = None
+    professor_regente_id: Optional[str] = None
+    professor_regente_nome: Optional[str] = None
+    dias_atendimento: Optional[List[Literal['segunda', 'terca', 'quarta', 'quinta', 'sexta']]] = None
+    horario_inicio: Optional[str] = None
+    horario_fim: Optional[str] = None
+    modalidade: Optional[Literal['individual', 'pequeno_grupo', 'coensino', 'mista']] = None
+    carga_horaria_semanal: Optional[int] = None
+    local_atendimento: Optional[str] = None
+    barreiras: Optional[List[BarreiraAEE]] = None
+    objetivos: Optional[List[ObjetivoAEE]] = None
+    recursos_acessibilidade: Optional[List[RecursoAcessibilidade]] = None
+    orientacoes_sala_comum: Optional[str] = None
+    adequacoes_curriculares: Optional[str] = None
+    data_inicio: Optional[str] = None
+    data_revisao: Optional[str] = None
+    status: Optional[Literal['rascunho', 'ativo', 'revisao', 'encerrado']] = None
+
+class PlanoAEE(PlanoAEEBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+
+class AtendimentoAEEBase(BaseModel):
+    """Registro de um atendimento individual de AEE"""
+    # Identificação
+    plano_aee_id: str  # Vinculado ao plano
+    student_id: str
+    school_id: str
+    academic_year: int
+    
+    # Dados do atendimento
+    data: str  # dd/mm/aaaa
+    horario_inicio: str  # Ex: "14:00"
+    horario_fim: str  # Ex: "15:30"
+    duracao_minutos: Optional[int] = None  # Calculado automaticamente
+    
+    # Frequência
+    presente: bool = True
+    motivo_ausencia: Optional[str] = None
+    
+    # Registro pedagógico
+    objetivo_trabalhado: str  # Objetivo do Plano AEE trabalhado neste atendimento
+    atividade_realizada: str  # Descrição da atividade/estratégia
+    recursos_utilizados: Optional[List[str]] = []  # Recursos de TA utilizados
+    
+    # Resposta do estudante (evidências observáveis)
+    nivel_apoio: Optional[Literal['independente', 'apoio_minimo', 'apoio_moderado', 'apoio_total']] = None
+    resposta_estudante: Optional[str] = None  # Descrição da resposta/comportamento
+    evidencias: Optional[str] = None  # Evidências de aprendizagem
+    
+    # Encaminhamentos
+    encaminhamento_proximo: Optional[str] = None  # O que será feito no próximo encontro
+    orientacao_sala_comum: Optional[str] = None  # O que orientar ao professor regente
+    
+    # Professor que registrou
+    professor_aee_id: str
+    professor_aee_nome: Optional[str] = None
+    
+    # Observações adicionais
+    observacoes: Optional[str] = None
+
+class AtendimentoAEECreate(AtendimentoAEEBase):
+    pass
+
+class AtendimentoAEEUpdate(BaseModel):
+    data: Optional[str] = None
+    horario_inicio: Optional[str] = None
+    horario_fim: Optional[str] = None
+    duracao_minutos: Optional[int] = None
+    presente: Optional[bool] = None
+    motivo_ausencia: Optional[str] = None
+    objetivo_trabalhado: Optional[str] = None
+    atividade_realizada: Optional[str] = None
+    recursos_utilizados: Optional[List[str]] = None
+    nivel_apoio: Optional[Literal['independente', 'apoio_minimo', 'apoio_moderado', 'apoio_total']] = None
+    resposta_estudante: Optional[str] = None
+    evidencias: Optional[str] = None
+    encaminhamento_proximo: Optional[str] = None
+    orientacao_sala_comum: Optional[str] = None
+    observacoes: Optional[str] = None
+
+class AtendimentoAEE(AtendimentoAEEBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+
+class EvolucaoAEE(BaseModel):
+    """Síntese de evolução bimestral/semestral"""
+    plano_aee_id: str
+    student_id: str
+    periodo: str  # Ex: "1º Bimestre", "1º Semestre"
+    academic_year: int
+    
+    # Síntese do período
+    sintese_evolucao: str  # Parecer descritivo
+    objetivos_atingidos: List[str] = []
+    objetivos_em_andamento: List[str] = []
+    
+    # Articulação com sala comum
+    devolutivas_sala_comum: Optional[str] = None
+    adequacoes_recomendadas: Optional[str] = None
+    
+    # Encaminhamentos
+    encaminhamentos: Optional[str] = None
+    metas_proximo_periodo: Optional[str] = None
+    
+    # Validação
+    professor_aee_id: str
+    professor_aee_nome: Optional[str] = None
+    data_registro: str  # dd/mm/aaaa
+    validado_coordenacao: bool = False
+    data_validacao: Optional[str] = None
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ArticulacaoSalaComum(BaseModel):
+    """Registro de articulação com a sala comum"""
+    plano_aee_id: str
+    student_id: str
+    
+    # Dados da articulação
+    data: str  # dd/mm/aaaa
+    tipo: Literal['reuniao', 'orientacao', 'observacao', 'devolutiva', 'planejamento_conjunto']
+    participantes: List[str] = []  # Nomes dos participantes
+    
+    # Conteúdo
+    pauta: Optional[str] = None
+    discussao: Optional[str] = None
+    encaminhamentos: Optional[str] = None
+    
+    # Registro
+    professor_aee_id: str
+    professor_aee_nome: Optional[str] = None
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
     cpf: Optional[str] = None
     rg: Optional[str] = None
     birth_date: Optional[str] = None
