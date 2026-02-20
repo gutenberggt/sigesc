@@ -86,6 +86,7 @@ from routers.sync import setup_sync_router
 from routers.medical_certificates import setup_medical_certificates_router
 from routers.class_schedule import setup_class_schedule_router
 from routers.diary_dashboard import create_diary_dashboard_router
+from routers.aee import setup_aee_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
