@@ -7081,6 +7081,10 @@ app.include_router(class_schedule_router, prefix="/api")
 diary_dashboard_router = create_diary_dashboard_router()
 app.include_router(diary_dashboard_router, prefix="/api")
 
+# Router de AEE (Atendimento Educacional Especializado)
+aee_router = setup_aee_router(db, audit_service)
+app.include_router(aee_router, prefix="/api")
+
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)
 
