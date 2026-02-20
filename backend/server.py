@@ -7102,6 +7102,86 @@ app.include_router(aee_router, prefix="/api")
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)
 
+# ============= ENDPOINT DE MIGRAÇÃO (ADMIN) =============
+
+@app.post("/api/admin/migrate-uppercase")
+async def migrate_to_uppercase(request: Request):
+    """
+    Converte todos os campos de texto para CAIXA ALTA no banco de dados.
+    Apenas administradores podem executar esta operação.
+    """
+    current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+    
+    # Campos a serem convertidos por coleção
+    COLLECTIONS_CONFIG = {
+        'students': [
+            'full_name', 'father_name', 'mother_name', 'guardian_name',
+            'address', 'neighborhood', 'city', 'state', 'birthplace_city', 'birthplace_state',
+            'father_workplace', 'mother_workplace', 'guardian_workplace',
+            'health_observations', 'special_needs_description', 'allergy_description',
+            'previous_school', 'transfer_reason'
+        ],
+        'staff': [
+            'full_name', 'address', 'neighborhood', 'city', 'state',
+            'birthplace_city', 'birthplace_state', 'marital_status_spouse_name',
+            'education_institution', 'education_course', 'specialization_area',
+            'bank_name', 'bank_branch'
+        ],
+        'schools': [
+            'name', 'address', 'neighborhood', 'city', 'state',
+            'principal_name', 'secretary_name', 'coordinator_name',
+            'school_characteristic', 'authorization_recognition'
+        ],
+        'classes': [
+            'name', 'room'
+        ],
+        'courses': [
+            'name', 'description'
+        ],
+        'users': [
+            'full_name'
+        ],
+        'enrollments': [
+            'student_name', 'class_name', 'school_name'
+        ]
+    }
+    
+    results = {}
+    total_updated = 0
+    
+    for collection_name, fields in COLLECTIONS_CONFIG.items():
+        collection = db[collection_name]
+        total = await collection.count_documents({})
+        updated_count = 0
+        
+        if total > 0:
+            cursor = collection.find({}, {"_id": 1} | {f: 1 for f in fields})
+            
+            async for doc in cursor:
+                update_data = {}
+                
+                for field in fields:
+                    if field in doc and doc[field] and isinstance(doc[field], str):
+                        upper_value = doc[field].upper()
+                        if doc[field] != upper_value:
+                            update_data[field] = upper_value
+                
+                if update_data:
+                    await collection.update_one(
+                        {"_id": doc["_id"]},
+                        {"$set": update_data}
+                    )
+                    updated_count += 1
+        
+        results[collection_name] = {"total": total, "updated": updated_count}
+        total_updated += updated_count
+    
+    return {
+        "success": True,
+        "message": f"Migração concluída! {total_updated} documentos atualizados.",
+        "details": results
+    }
+
 # ============= WEBSOCKET ENDPOINT =============
 
 @app.websocket("/api/ws/{token}")
