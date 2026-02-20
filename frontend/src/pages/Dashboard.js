@@ -418,6 +418,18 @@ export const Dashboard = () => {
                 </button>
               )}
               
+              {/* Diário AEE - visível para admin, coordenador, professor */}
+              {(['admin', 'admin_teste', 'coordenador', 'professor'].includes(user?.role)) && (
+                <button
+                  onClick={() => navigate('/admin/diario-aee')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
+                  data-testid="nav-diario-aee-button"
+                >
+                  <BookOpen className="text-blue-600" size={24} />
+                  <span className="font-medium text-gray-900">Diário AEE</span>
+                </button>
+              )}
+              
               {isAdmin && (
                 <button
                   onClick={() => navigate('/admin/courses')}
