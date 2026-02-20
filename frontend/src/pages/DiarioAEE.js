@@ -129,11 +129,14 @@ const DiarioAEE = () => {
         // Filtra escolas com AEE
         const schoolsWithAEE = (data.items || data).filter(s => s.aee);
         setSchools(schoolsWithAEE);
-        if (schoolsWithAEE.length > 0 && !selectedSchool) {
+        if (schoolsWithAEE.length > 0) {
           setSelectedSchool(schoolsWithAEE[0].id);
+        } else {
+          setLoading(false);  // Não há escolas AEE, para o loading
         }
       } catch (error) {
         console.error('Erro ao buscar escolas:', error);
+        setLoading(false);
       }
     };
     if (token) fetchSchools();
