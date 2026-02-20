@@ -43,7 +43,8 @@ const DIAS_SEMANA = {
 };
 
 const DiarioAEE = () => {
-  const { user, token } = useAuth();
+  const { user, accessToken } = useAuth();
+  const token = accessToken;  // Alias para compatibilidade
   
   // Estados principais
   const [loading, setLoading] = useState(true);
