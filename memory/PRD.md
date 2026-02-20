@@ -590,6 +590,27 @@ http:
 - Highlight do aluno recém-criado na lista
 - Padronizar valores de status dos alunos no banco de dados ("transferred" vs "Transferido")
 
+### Implementações Recentes (Fev 2026)
+
+#### Diário AEE - Atendimento Educacional Especializado (Fev 20, 2026) - NOVO
+- ✅ **Backend - Modelos:** PlanoAEE, AtendimentoAEE, EvolucaoAEE, ArticulacaoSalaComum
+- ✅ **Backend - API:** `/api/aee/*` - CRUD completo para planos, atendimentos, evoluções
+- ✅ **Backend - PDF:** Geração de diário em PDF por aluno ou completo
+- ✅ **Frontend - Página:** `/admin/diario-aee` com 4 abas (Estudantes, Planos AEE, Atendimentos, Diário Consolidado)
+- ✅ **Frontend - Modais:** Cadastro de Plano AEE e Registro de Atendimento
+- ✅ **Frontend - Grade:** Visualização da grade de atendimentos por dia da semana
+- ✅ **Frontend - Estatísticas:** Resumo de frequência, carga horária, total de atendimentos
+- ✅ **Campos do Plano:** Público-alvo, barreiras, objetivos, cronograma, recursos de TA, articulação com sala comum
+- ✅ **Campos do Atendimento:** Data, horário, presença, objetivo trabalhado, atividade, nível de apoio, resposta do estudante
+
+#### Validações de Dados (Fev 20, 2026) - NOVO
+- ✅ **Status Ativo:** Aluno não pode ter status "Ativo" sem escola e turma definidas
+- ✅ **CPF Duplicado:** Backend bloqueia salvamento de CPF duplicado em alunos e servidores
+- ✅ **CAIXA ALTA:** Campos de texto convertidos para maiúsculas (exceto e-mail)
+
+#### Correção de Bug - Alunos Matriculados (Fev 20, 2026) - NOVO
+- ✅ **Detalhes da Turma:** Endpoint `/classes/{id}/details` agora busca alunos de duas fontes (enrollments + students) para garantir que todos os alunos vinculados apareçam
+
 ### P2 - Futuras (FASE 4 Concluída)
 - ✅ **Routers Extraídos:** students, grades, attendance, calendar, staff, announcements
 - ✅ **Rotas Legadas Removidas:** 28 rotas duplicadas removidas do server.py
