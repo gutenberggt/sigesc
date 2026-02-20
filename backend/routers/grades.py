@@ -141,20 +141,43 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         if not academic_year:
             academic_year = datetime.now().year
         
-        # Busca alunos matriculados
+        # Busca alunos matriculados - usando múltiplas fontes para maior robustez
+        # Estratégia 1: Busca na coleção enrollments (matrícula formal)
         enrollments = await current_db.enrollments.find(
-            {"class_id": class_id, "status": "active", "academic_year": academic_year},
-            {"_id": 0, "student_id": 1, "enrollment_number": 1}
+            {"class_id": class_id, "status": "active"},
+            {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1}
         ).to_list(1000)
         
-        student_ids = [e['student_id'] for e in enrollments]
-        enrollment_numbers = {e['student_id']: e.get('enrollment_number') for e in enrollments}
+        enrollment_student_ids = set()
+        enrollment_numbers = {}
+        for e in enrollments:
+            student_id = e.get('student_id')
+            enrollment_student_ids.add(student_id)
+            # Prioriza matrículas do ano letivo atual
+            if student_id not in enrollment_numbers or e.get('academic_year') == academic_year:
+                enrollment_numbers[student_id] = e.get('enrollment_number')
+        
+        # Estratégia 2: Busca alunos diretamente com class_id (fallback para dados antigos/inconsistentes)
+        direct_students = await current_db.students.find(
+            {"class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
+            {"_id": 0, "id": 1, "enrollment_number": 1}
+        ).to_list(1000)
+        
+        for s in direct_students:
+            student_id = s.get('id')
+            if student_id not in enrollment_numbers:
+                enrollment_numbers[student_id] = s.get('enrollment_number')
+        
+        direct_student_ids = {s.get('id') for s in direct_students}
+        
+        # Combina ambas as fontes (união de IDs)
+        all_student_ids = list(enrollment_student_ids.union(direct_student_ids))
         
         # Busca dados dos alunos (inclui status para verificação de bloqueio)
         students = []
-        if student_ids:
+        if all_student_ids:
             students = await current_db.students.find(
-                {"id": {"$in": student_ids}},
+                {"id": {"$in": all_student_ids}},
                 {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "status": 1, "class_id": 1}
             ).sort("full_name", 1).to_list(1000)
         
