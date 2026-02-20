@@ -27,6 +27,7 @@ import MessageLogs from '@/pages/MessageLogs';
 import Announcements from '@/pages/Announcements';
 import Mantenedora from '@/pages/Mantenedora';
 import AuditLogs from '@/pages/AuditLogs';
+import AdminTools from '@/pages/AdminTools';
 import Promotion from '@/pages/Promotion';
 import { AnalyticsDashboard } from '@/pages/AnalyticsDashboard';
 import DiaryDashboard from '@/pages/DiaryDashboard';
