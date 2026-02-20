@@ -342,6 +342,16 @@ function App() {
             }
           />
           
+          {/* Ferramentas de Admin */}
+          <Route
+            path="/admin/tools"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste']}>
+                <AdminTools />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* Livro de Promoção - admin, secretario, diretor, coordenador, semed */}
           <Route
             path="/admin/promotion"
