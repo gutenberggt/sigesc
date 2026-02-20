@@ -126,13 +126,16 @@ const DiarioAEE = () => {
       try {
         const response = await fetch(`${API_URL}/api/schools`, { headers: { 'Authorization': `Bearer ${token}` } });
         const data = await response.json();
-        // Filtra escolas com AEE
-        const schoolsWithAEE = (data.items || data).filter(s => s.aee);
-        setSchools(schoolsWithAEE);
-        if (schoolsWithAEE.length > 0) {
-          setSelectedSchool(schoolsWithAEE[0].id);
+        // Filtra escolas com AEE (se nenhuma tiver AEE, mostra todas para seleção)
+        const allSchools = data.items || data || [];
+        const schoolsWithAEE = allSchools.filter(s => s.aee);
+        const schoolsToUse = schoolsWithAEE.length > 0 ? schoolsWithAEE : allSchools;
+        
+        setSchools(schoolsToUse);
+        if (schoolsToUse.length > 0) {
+          setSelectedSchool(schoolsToUse[0].id);
         } else {
-          setLoading(false);  // Não há escolas AEE, para o loading
+          setLoading(false);
         }
       } catch (error) {
         console.error('Erro ao buscar escolas:', error);
