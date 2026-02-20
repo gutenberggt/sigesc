@@ -30,6 +30,7 @@ import AuditLogs from '@/pages/AuditLogs';
 import Promotion from '@/pages/Promotion';
 import { AnalyticsDashboard } from '@/pages/AnalyticsDashboard';
 import DiaryDashboard from '@/pages/DiaryDashboard';
+import DiarioAEE from '@/pages/DiarioAEE';
 import '@/App.css';
 
 // Roles SEMED (todos os níveis)
