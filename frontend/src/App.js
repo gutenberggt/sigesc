@@ -101,6 +101,16 @@ function App() {
             }
           />
           
+          {/* Dashboard Assistente Social */}
+          <Route
+            path="/ass-social"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'ass_social']}>
+                <AssocialDashboard />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* Rotas de administração */}
           <Route
             path="/admin/schools"
