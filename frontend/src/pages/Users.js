@@ -137,6 +137,7 @@ export const Users = () => {
 
   const roleLabels = {
     admin: 'Administrador',
+    ass_social: 'Ass. Social',
     secretario: 'Secretário(a)',
     diretor: 'Diretor(a)',
     coordenador: 'Coordenador(a)',
@@ -149,10 +150,10 @@ export const Users = () => {
   // Verifica se o usuário atual é administrador
   const isCurrentUserAdmin = user?.role === 'admin' || user?.role === 'admin_teste';
   
-  // Filtra os papéis disponíveis - admin só aparece se o usuário atual for admin
+  // Filtra os papéis disponíveis - admin e ass_social só aparecem se o usuário atual for admin
   const availableRoles = Object.entries(roleLabels).filter(([value]) => {
-    // Se não for admin, não pode ver/selecionar a opção "admin"
-    if (value === 'admin' && !isCurrentUserAdmin) return false;
+    // Se não for admin, não pode ver/selecionar a opção "admin" ou "ass_social"
+    if ((value === 'admin' || value === 'ass_social') && !isCurrentUserAdmin) return false;
     return true;
   });
 
