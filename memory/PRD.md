@@ -65,6 +65,22 @@ Sistema de gestão escolar completo com funcionalidades para gerenciamento de es
 - ✅ **Modal de Progredir:** Permite avançar para próxima série ou emitir histórico escolar
 - ✅ **Registro no Histórico:** Todas as ações são registradas com tipo (matricula, transferencia_saida, remanejamento, progressao)
 
+### Dashboard Assistente Social (Fev 23, 2026) - NOVO
+- ✅ **Nova Página:** `/ass-social` - Dashboard exclusivo para usuários com papel "Ass. Social"
+- ✅ **Header Azul:** Barra superior com logo SIGESC e identificação "Assistência Social"
+- ✅ **Busca por Nome:** Filtro de alunos por nome com mínimo de 3 caracteres
+- ✅ **Busca por CPF:** Alternativa de busca por CPF do aluno
+- ✅ **Card de Detalhes:** Exibe informações do aluno selecionado:
+  - Nome completo e CPF
+  - Data de nascimento
+  - Nome da mãe
+  - Escola matriculada
+  - Série/Turma
+  - Porcentagem de frequência no ano letivo
+- ✅ **Indicador de Frequência:** Mostra status "Regular" (≥75%) ou "Alerta" (<75%)
+- ✅ **Redirecionamento Automático:** Usuários com papel `ass_social` são redirecionados automaticamente para `/ass-social`
+- ✅ **Papel "Ass. Social":** Novo papel de usuário adicionado, visível apenas para administradores
+
 ### Patches de Segurança - FASE 3 (Fev 02, 2026)
 - ✅ **PATCH 3.1 - Idle Timeout:** Access token expira em 15 minutos, mas é renovado automaticamente enquanto o usuário está ATIVO. O frontend detecta atividade (mouse, teclado, scroll) e renova proativamente a cada 10 minutos. Usuários inativos por 15 minutos precisam fazer login novamente
 - ✅ **PATCH 3.2 - Rotação de Tokens:** Cada uso do refresh token gera um novo par de tokens e revoga o antigo. Impede reutilização de tokens vazados
