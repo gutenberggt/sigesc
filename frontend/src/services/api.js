@@ -477,6 +477,13 @@ export const attendanceAPI = {
     return response.data;
   },
   
+  // Frequência calculada para Assistência Social
+  // Fórmula: ((Dias Letivos até hoje - Faltas) / Dias Letivos até hoje) × 100
+  getStudentFrequency: async (studentId, academicYear) => {
+    const response = await axios.get(`${API}/attendance/frequency/student/${studentId}?academic_year=${academicYear}`);
+    return response.data;
+  },
+  
   getClassReport: async (classId, academicYear) => {
     const response = await axios.get(`${API}/attendance/report/class/${classId}?academic_year=${academicYear}`);
     return response.data;
