@@ -2591,6 +2591,153 @@ async def get_student_attendance_report(
         "daily_records": daily_records
     }
 
+@api_router.get("/attendance/frequency/student/{student_id}")
+async def get_student_frequency_for_social(
+    student_id: str,
+    request: Request,
+    academic_year: Optional[int] = None
+):
+    """
+    Calcula a frequência do aluno usando a fórmula:
+    ((Dias Letivos até hoje - Faltas) / Dias Letivos até hoje) × 100
+    
+    Este endpoint é usado pela Assistência Social.
+    """
+    await AuthMiddleware.get_current_user(request)
+    
+    if not academic_year:
+        academic_year = datetime.now().year
+    
+    # Busca dados do aluno
+    student = await db.students.find_one({"id": student_id}, {"_id": 0})
+    if not student:
+        raise HTTPException(status_code=404, detail="Aluno não encontrado")
+    
+    # Busca a turma do aluno (pode vir da matrícula ativa ou do campo class_id)
+    class_id = student.get('class_id')
+    
+    # Tenta buscar pela matrícula ativa se não tiver class_id
+    if not class_id:
+        enrollment = await db.enrollments.find_one(
+            {"student_id": student_id, "status": "active", "academic_year": academic_year},
+            {"_id": 0, "class_id": 1}
+        )
+        if enrollment:
+            class_id = enrollment.get('class_id')
+    
+    # Data de início do ano letivo (padrão: 1 de fevereiro)
+    year_start = f"{academic_year}-02-01"
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    # Busca eventos do calendário que NÃO são dias letivos (feriados, recessos, etc.)
+    non_school_events = await db.calendar_events.find({
+        "academic_year": academic_year,
+        "is_school_day": False,
+        "start_date": {"$lte": today}
+    }, {"_id": 0, "start_date": 1, "end_date": 1}).to_list(1000)
+    
+    # Busca sábados letivos
+    saturday_school_events = await db.calendar_events.find({
+        "academic_year": academic_year,
+        "event_type": "sabado_letivo",
+        "start_date": {"$lte": today}
+    }, {"_id": 0, "start_date": 1, "end_date": 1}).to_list(1000)
+    
+    # Calcula dias letivos até hoje
+    from datetime import timedelta
+    
+    start_date = datetime.strptime(max(year_start, f"{academic_year}-02-01"), "%Y-%m-%d")
+    end_date = datetime.strptime(today, "%Y-%m-%d")
+    
+    # Conta dias úteis (seg-sex) de start_date até end_date
+    school_days = 0
+    current_date = start_date
+    
+    # Cria conjunto de datas não letivas
+    non_school_dates = set()
+    for event in non_school_events:
+        event_start = datetime.strptime(event['start_date'], "%Y-%m-%d")
+        event_end = datetime.strptime(event['end_date'], "%Y-%m-%d")
+        delta = event_end - event_start
+        for i in range(delta.days + 1):
+            non_school_dates.add((event_start + timedelta(days=i)).strftime("%Y-%m-%d"))
+    
+    # Cria conjunto de sábados letivos
+    saturday_school_dates = set()
+    for event in saturday_school_events:
+        event_start = datetime.strptime(event['start_date'], "%Y-%m-%d")
+        event_end = datetime.strptime(event['end_date'], "%Y-%m-%d")
+        delta = event_end - event_start
+        for i in range(delta.days + 1):
+            saturday_school_dates.add((event_start + timedelta(days=i)).strftime("%Y-%m-%d"))
+    
+    while current_date <= end_date:
+        date_str = current_date.strftime("%Y-%m-%d")
+        weekday = current_date.weekday()  # 0=segunda, 6=domingo
+        
+        # Verifica se é dia letivo
+        if weekday < 5:  # Segunda a sexta
+            if date_str not in non_school_dates:
+                school_days += 1
+        elif weekday == 5:  # Sábado
+            if date_str in saturday_school_dates:
+                school_days += 1
+        # Domingo nunca é letivo
+        
+        current_date += timedelta(days=1)
+    
+    # Busca todas as faltas do aluno no ano até hoje
+    attendances = await db.attendance.find(
+        {
+            "academic_year": academic_year,
+            "records.student_id": student_id,
+            "date": {"$lte": today}
+        },
+        {"_id": 0, "date": 1, "records": 1}
+    ).to_list(1000)
+    
+    # Conta faltas (status 'F')
+    absences = 0
+    presences = 0
+    justified = 0
+    
+    for att in attendances:
+        for record in att.get('records', []):
+            if record['student_id'] == student_id:
+                if record['status'] == 'F':
+                    absences += 1
+                elif record['status'] == 'P':
+                    presences += 1
+                elif record['status'] == 'J':
+                    justified += 1
+    
+    # Calcula porcentagem usando a fórmula:
+    # ((Dias Letivos até hoje - Faltas) / Dias Letivos até hoje) × 100
+    if school_days > 0:
+        attendance_percentage = ((school_days - absences) / school_days) * 100
+    else:
+        attendance_percentage = 100.0  # Se não há dias letivos, considera 100%
+    
+    # Garante que não seja negativo
+    attendance_percentage = max(0, attendance_percentage)
+    
+    return {
+        "student_id": student_id,
+        "student_name": student.get('full_name'),
+        "academic_year": academic_year,
+        "class_id": class_id,
+        "calculation_date": today,
+        "summary": {
+            "school_days_until_today": school_days,
+            "absences": absences,
+            "presences": presences,
+            "justified": justified,
+            "attendance_percentage": round(attendance_percentage, 1),
+            "status": "regular" if attendance_percentage >= 75 else "alerta"
+        },
+        "formula": f"(({school_days} - {absences}) / {school_days}) × 100 = {round(attendance_percentage, 1)}%"
+    }
+
 @api_router.get("/attendance/report/class/{class_id}")
 async def get_class_attendance_report(
     class_id: str,
