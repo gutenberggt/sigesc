@@ -1,189 +1,146 @@
 <analysis>**original_problem_statement:**
-O usuário solicitou uma série de melhorias e novas funcionalidades, incluindo:
-1.  **Registro de Conteúdos:**
-    *   Após selecionar a Escola e a Turma, o campo Componente Curricular deve exibir para seleção apenas os componentes que se referem exatamente à turma selecionada.
-    *   O calendário mensal exibido na página deve ser reduzido para 1/4 do seu tamanho atual.
-2.  **Gerenciamento de Papéis de Usuário (Roles):**
-    *   Excluir o papel de usuário .
-    *   Criar os papéis ,  e  com as mesmas permissões do  original.
-    *   Adicionar o papel  com as mesmas permissões do  (que agora são apenas de visualização).
-3.  **Nova Funcionalidade:**
-    *   Criar uma nova página de Acompanhamento do Preenchimento dos Diários.
-    *   Esta página deve exibir gráficos individualizados para Frequência, Notas e Registro de Conteúdos.
-    *   Os gráficos devem ser atualizados e permitir filtragem por escola, turma e componentes curriculares.
-    *   A página será visível para os usuários: Administrador, Diretor, Coordenador, Secretário, Auxiliar de Secretaria e SEMED níveis 2 e 3.
+O usuário solicitou uma série de funcionalidades, correções e uma nova página para o papel de Assistente Social.
+
+Requisitos implementados nesta sessão:
+1.  **Implementar Papel Ass. Social:** Criar um novo papel de usuário Ass. Social, que só pode ser atribuído por um administrador.
+2.  **Dashboard para Assistente Social:** Desenvolver uma página exclusiva para este papel que permita a busca de alunos por nome ou CPF e exiba detalhes específicos, incluindo um cálculo de frequência personalizado.
+3.  **Cálculo de Frequência:** Implementar a fórmula  para exibir a porcentagem de frequência no novo dashboard.
+4.  **Atalho no Menu:** Adicionar um link para o novo dashboard no menu de administração.
+5.  **Verificação de Bugs:** Executar uma varredura geral no sistema para identificar inconsistências.
+6.  **Correção de Bug de Papel:** Corrigir um erro no backend onde o novo papel ass_social não era reconhecido, impedindo a criação de usuários.
+7.  **Conclusão do Módulo AEE:** Verificar o estado do módulo Diário AEE e finalizá-lo.
+8.  **Consulta de Infraestrutura:** Responder a perguntas sobre as configurações ideais de servidor (DigitalOcean, Coolify) para a aplicação em produção.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-A aplicação full-stack (React + FastAPI + MongoDB) está funcional. Durante esta sessão, o agente realizou várias tarefas:
-- Validou um lote de 4 funcionalidades da sessão anterior (correção de CPF, máscara de telefone, upload de certificado, campo de comunidade tradicional) usando o .
-- Implementou a visualização de históricos de certificados no perfil do servidor.
-- Adicionou a funcionalidade de edição inline para Lotações e Alocações de servidores.
-- Implementou a geração de um relatório de frequência em PDF, corrigindo um bug de autenticação que impedia o download.
-- Fez melhorias na tela Horário de Aulas, incluindo um campo de horário, exibição do nome do professor e aumento do limite de aulas diárias.
-- Removeu as permissões de edição para o papel de .
-- Iniciou a implementação de um novo lote grande de 5 solicitações, incluindo a criação de novos papéis de usuário, a criação de uma nova página de dashboard e ajustes na página Registro de Conteúdos.
+A aplicação full-stack (React + FastAPI + MongoDB) está funcional. Nesta sessão, foram implementados com sucesso o novo papel de usuário Ass. Social e seu respectivo dashboard.
+
+- **Dashboard Ass. Social:** Uma nova página () foi criada. Ela contém uma busca por aluno (nome/CPF) que, ao selecionar um resultado, exibe um card com informações detalhadas: dados do aluno, escola e um cálculo de frequência preciso.
+- **Cálculo de Frequência:** Um novo endpoint () foi criado no backend para calcular a frequência com base nos dias letivos do calendário e nas faltas registradas, conforme a fórmula solicitada pelo usuário. O frontend foi atualizado para usar este endpoint e exibir os resultados.
+- **Controle de Acesso:** A criação do papel Ass. Social foi restringida para ser visível e atribuível apenas por administradores, e um atalho para o novo dashboard foi adicionado ao menu de administração.
+- **Correções de Bugs:** Foi resolvido um erro de validação no backend que impedia a criação de usuários com o novo papel. Adicionalmente, durante a verificação do sistema, foi identificado e corrigido um bug que causava erro na busca de turmas devido a valores em caixa alta () no campo  no banco de dados.
+- **Verificação do Diário AEE:** O agente analisou o código e testou a funcionalidade do Diário AEE, concluindo que o módulo já está completo e funcional, com todas as abas, modais e funcionalidades de geração de PDF implementadas.
 
 **Last working item**:
--   **Last item agent was working:** O agente estava no meio da implementação de um lote de 5 novas funcionalidades solicitadas pelo usuário. O trabalho foi distribuído entre frontend e backend, envolvendo:
-    1.  Criação da nova página .
-    2.  Criação do novo router  no backend.
-    3.  Atualização do  com os novos papéis (, ).
-    4.  Atualização do  com a nova rota e as permissões de acesso atualizadas.
-    5.  Ajustes na página  para filtrar componentes e reduzir o tamanho do calendário.
--   **Status:** IN PROGRESS
--   **Agent Testing Done:** N
--   **Which testing method agent to use?** testing_agent_v3_fork. Após a conclusão de todas as 5 tarefas, será necessário um teste abrangente que verifique as novas permissões de acesso para os novos papéis, a funcionalidade da nova página do dashboard (frontend e backend) e as alterações na UI da página de Registro de Conteúdos.
+-   **Last item agent was working:** O usuário solicitou a conclusão do módulo Diário AEE. O agente investigou o estado atual do módulo, analisando os arquivos  e , e concluiu que a funcionalidade já estava completa. O agente apresentou capturas de tela mostrando o módulo em funcionamento para o usuário.
+-   **Status:** USER VERIFICATION PENDING
+-   **Agent Testing Done:** Y (Manual verification with screenshots)
+-   **Which testing method agent to use?** manual testing by user. O usuário precisa confirmar se o estado atual do módulo Diário AEE atende às suas expectativas.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Finalizar o lote de 5 novas funcionalidades**
--   **Issue 2: (P0) Bug no Resultado do Boletim Escolar em Produção**
--   **Issue 3: (P0) Processo de Deploy em Produção Quebrado**
--   **Issue 4: (P1) Validação da correção dos Componentes Curriculares no Horário de Aulas**
+-   **Issue 1: (P0) Processo de Deploy em Produção Quebrado (Gateway Timeout).**
+-   **Issue 2: (P1) Migração para CAIXA ALTA pode estar incompleta.**
+-   **Issue 3: (P2) Falta de feedback em tempo real para CPF duplicado no frontend.**
 
 **Issues Detail:**
--   **Issue 1: Finalizar o lote de 5 novas funcionalidades**
-    -   **Attempted fixes:** O agente iniciou a implementação, criando arquivos e modificando rotas e hooks de permissão. Corrigiu um erro de lint em  e estava prestes a registrar o novo router  no .
+-   **Issue 1: Processo de Deploy em Produção Quebrado (Gateway Timeout).**
+    -   **Attempted fixes:** Nenhuma nesta sessão. O agente forneceu consultoria sobre infraestrutura, mas não atuou no problema de deploy.
     -   **Next debug checklist:**
-        1.  Finalizar o registro do router  em .
-        2.  Implementar os endpoints no  para buscar os dados de preenchimento de frequência, notas e conteúdos.
-        3.  Implementar a UI com os gráficos na página .
-        4.  Garantir que todas as referências ao papel  no código sejam substituídas pela nova lógica ().
-        5.  Testar exaustivamente as novas permissões.
-    -   **Why fix this issue and what will be achieved with the fix?** Atenderá a uma grande solicitação do usuário, fornecendo novas ferramentas de gestão e ajustando o sistema a novas regras de negócio.
-    -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** both
-    -   **Blocked on other issue:** None
-
--   **Issue 2: Bug no Resultado do Boletim Escolar em Produção**
-    -   **Description:** Problema crítico herdado onde o boletim em produção exibe o status CONCLUIU para alunos que ainda estão CURSANDO. A causa é um código desatualizado em produção.
+        1.  Solicitar ao usuário acesso aos logs do Coolify durante uma tentativa de deploy.
+        2.  Verificar os recursos (CPU/Memória) do Droplet no momento do build.
+        3.  Analisar o  e os scripts de build em busca de processos demorados ou com alto consumo de memória.
+        4.  Sugerir aumentar o timeout de build no Coolify, se possível.
+    -   **Why fix this issue and what will be achieved with the fix?** Este é o bloqueador mais crítico. Corrigi-lo permitirá que o usuário veja todas as novas funcionalidades e correções em produção, eliminando a principal fonte de frustração e relatórios de bugs repetidos.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
-    -   **Blocked on other issue:** Processo de Deploy em Produção Quebrado
+    -   **Should Test frontend/backend/both after fix?** backend
+    -   **Blocked on other issue:** Não. Este é o bloqueador principal.
 
--   **Issue 3: Processo de Deploy em Produção Quebrado**
-    -   **Description:** Problema crítico herdado. Cada  no Coolify resulta em Gateway Timeout, impedindo que correções e novas funcionalidades cheguem ao ambiente de produção.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** Y
-
--   **Issue 4: Validação da correção dos Componentes Curriculares no Horário de Aulas**
-    -   **Description:** O usuário reportou que os componentes curriculares não apareciam para a turma Berçário II A. O agente implementou uma correção na lógica de filtragem, mas não obteve confirmação do usuário se o problema foi resolvido.
+-   **Issue 2: Migração para CAIXA ALTA pode estar incompleta.**
+    -   **Attempted fixes:** Na sessão anterior, um script foi executado. O usuário relatou que alguns dados permaneceram em minúsculas.
+    -   **Next debug checklist:**
+        1.  Instruir o usuário a fazer uma limpeza de cache forçada no navegador (Ctrl+F5).
+        2.  Re-executar o script de migração ou um script aprimorado, se a limpeza de cache não resolver.
+        3.  Verificar se os dados em minúsculas vêm de uma coleção ou campo não coberto pelo script original.
+    -   **Why fix this issue and what will be achieved with the fix?** Garantirá a consistência visual dos dados em toda a aplicação.
     -   **Status:** USER VERIFICATION PENDING
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** frontend
+
+-   **Issue 3: Falta de feedback em tempo real para CPF duplicado no frontend.**
+    -   **Attempted fixes:** N/A.
+    -   **Next debug checklist:**
+        1.  No formulário de criação/edição de aluno, implementar um  ou  no campo de CPF.
+        2.  Criar uma função que chama um endpoint no backend para verificar se o CPF já existe.
+        3.  Exibir uma mensagem de erro abaixo do campo de CPF se o backend retornar que ele já está em uso.
+    -   **Why fix this issue and what will be achieved with the fix?** Melhorará a experiência do usuário, evitando que ele preencha um formulário inteiro para só então descobrir que o CPF é duplicado.
+    -   **Status:** NOT STARTED
     -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** frontend
 
 **In progress Task List**:
--   **Task 1: (P0) Concluir a implementação das 5 novas funcionalidades**
-    -   **Where to resume:** O agente acabou de criar o arquivo  e estava para registrá-lo no . A próxima etapa é adicionar a linha  e, em seguida, começar a construir a lógica dos endpoints e da página do frontend.
-    -   **What will be achieved with this?** A conclusão de todas as 5 solicitações do usuário da mensagem #490.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** both
+Nenhuma.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   (P1) **Refatoração do Backend (FASE 4):** Continuar extraindo rotas do .
-    -   (P1) **Melhoria Pré-Matrícula:** Enviar um email de confirmação para o responsável.
+    -   (P1) Implementar aviso em tempo real para CPF duplicado (ver Issue 3).
 -   **Future Tasks:**
-    -   (P2) Refatoração do Frontend: Decompor o componente monolítico .
-    -   (P2) Expansão Offline: Estender a funcionalidade offline para o módulo de matrículas.
+    -   (P2) Refatorar o componente  para melhor manutenibilidade.
+    -   (P2) Implementar envio de e-mail de confirmação na pré-matrícula.
+    -   (P2) Continuar a refatoração do backend, extraindo mais rotas do  para arquivos dedicados.
 
 **Completed work in this session**
--   **Validação do Lote Anterior:** Corrigido e validado com sucesso o bug do CPF, máscara de telefone, upload de certificado e campo Comunidade Tradicional.
--   **Histórico de Certificados:** Implementada a visualização do histórico de certificados no modal de detalhes do servidor.
--   **Edição Inline:** Adicionada a funcionalidade de edição inline para Lotações e Alocações de servidores.
--   **Relatório de Frequência PDF:** Criado um novo relatório em PDF e corrigido o bug de autenticação que impedia o download.
--   **Melhorias no Horário de Aulas:** Aumentado o limite de aulas para 10, adicionada uma coluna Horário e a exibição do nome do professor.
--   **Permissões de Coordenador:** As permissões do papel  foram alteradas para apenas visualização.
--   **Correção Tentativa (Horário de Aulas):** Ajustada a lógica de filtragem de componentes curriculares para tentar resolver o problema reportado pelo usuário (pendente de validação).
-
-**Earlier issues found/mentioned but not fixed**
--   **Issue 1: Processo de Deploy em Produção Quebrado (Gateway Timeout) (P0):** O problema mais crítico, herdado de forks anteriores, que impede a atualização do ambiente de produção.
--   **Issue 2: Disparidade de Código entre DEV e PROD (P0):** Consequência do problema acima, o código em produção está desatualizado e diferente do ambiente de desenvolvimento, causando bugs como o do Boletim Escolar.
-
-**Known issue recurrence from previous fork**
--   **Falha de deploy em produção:** O problema de Gateway Timeout continua ocorrendo a cada , bloqueando a resolução de bugs em produção.
--   **Recurrence count:** >5
--   **Status:** NOT STARTED
+-   **Implementação do Papel Ass. Social:** Adicionado novo papel e restrição de acesso.
+-   **Dashboard para Assistente Social:** Criada a página  com busca de alunos e exibição de detalhes.
+-   **Correção do Cálculo de Frequência:** Criado endpoint e lógica no frontend para calcular a frequência com base nos dias letivos.
+-   **Atalho no Menu de Admin:** Adicionado botão para o novo dashboard.
+-   **Correção do Bug de Validação de Papel:** Atualizados os modelos Pydantic no backend para aceitar o .
+-   **Investigação do Bug de Edição de Escolas:** Confirmado que a funcionalidade está operante e o problema anterior era um erro no teste.
+-   **Verificação e Confirmação do Módulo Diário AEE:** Analisado e validado que o módulo já está completo e funcional.
+-   **Consultoria de Infraestrutura:** Fornecidas recomendações detalhadas sobre DigitalOcean, Coolify e DNS.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Role-Based Access Control (RBAC):** Modificação extensiva do sistema de permissões com a criação de novos papéis e a alteração de permissões existentes.
--   **FastAPI Routers:** Criação de um novo router () para a nova funcionalidade.
--   **React (Component Composition & State):** Criação de uma nova página de dashboard e modificação de componentes existentes para adicionar filtros e alterar layout.
+-   **Criação de Endpoint Específico:** Desenvolvimento de uma nova rota em FastAPI () para realizar um cálculo complexo que envolve múltiplas fontes de dados (faltas do aluno e calendário de dias letivos).
+-   **Atualização de Enum Pydantic:** Correção de um erro de validação () ao adicionar o novo valor  ao   no arquivo , sincronizando o frontend com o backend.
+-   **Lógica de Redirecionamento no Frontend:** Uso do  e  no componente  para redirecionar automaticamente usuários com o papel  para sua página específica após o login.
+-   **Depuração de Inconsistência de Dados:** Identificação de um erro 500 causado pela migração para caixa alta, que converteu o valor  para  no campo  da coleção , violando a validação do modelo Pydantic. A correção foi feita diretamente no banco de dados.
 
 **key DB schema**
--   Nenhuma alteração de esquema nesta última tarefa.
-
-**changes in tech stack**
--   Nenhuma.
+-   Nenhuma alteração de schema, apenas uma modificação no Enum de papéis de usuário.
+-   **User:** 
 
 **All files of reference**
--   
--   
--   
--   
--   
--   
-
-**Areas that need refactoring**:
--   **Processo de Deploy:** A resolução do problema de Gateway Timeout é a prioridade máxima para permitir que as correções cheguem à produção.
--   **Propagação de Papéis (Roles):** O agente começou a substituir o papel , mas a mudança precisa ser propagada para todos os arquivos que o referenciam para evitar inconsistências. A criação de uma função helper  seria ideal.
-
-**key api endpoints**
--   **/api/diary-dashboard/**: Novo prefixo de rota criado. Endpoints específicos ainda não foram implementados.
--   **/api/courses**: A chamada a este endpoint foi modificada no frontend para passar  como parâmetro.
+-   : (NOVO) Página principal da nova funcionalidade.
+-   : (MODIFICADO) Contém o novo endpoint de cálculo de frequência.
+-   : (MODIFICADO) Onde o novo papel  foi adicionado ao .
+-   : (MODIFICADO) Onde a nova rota e a lógica de redirecionamento foram configuradas.
+-   : (MODIFICADO) Contém o novo atalho no menu.
+-   : Arquivo analisado para verificar a conclusão da tarefa.
 
 **Critical Info for New Agent**
--   **Tarefa Atual Incompleta:** Você está no meio de uma implementação grande de 5 partes. A primeira ação deve ser continuar de onde o agente anterior parou: registrar o  em  e, em seguida, construir a lógica de backend e frontend para a nova página de dashboard.
--   **Refatoração de Papéis (Roles):** A substituição do papel  por  foi iniciada, mas não concluída. É crucial garantir que essa alteração seja aplicada em toda a aplicação para evitar falhas de permissão.
--   **Verificação Pendente:** O usuário está aguardando uma confirmação sobre a correção do bug dos componentes curriculares no Horário de Aulas (mensagem #411). Após finalizar a tarefa atual, você deve perguntar ao usuário se o problema foi resolvido.
--   **Problemas Críticos de Produção:** Os problemas de deploy e dessincronização com o ambiente de produção continuam sendo bloqueadores críticos.
-
-**documents and test reports created in this job**
--   
--   
--   
--   
--   
+-   **A prioridade máxima é o problema de deploy (Gateway Timeout).** Nenhuma das melhorias desta sessão será visível para o usuário até que isso seja resolvido. Prepare-se para depurar o processo de build no Coolify.
+-   O usuário pediu para concluir o Diário AEE. Antes de iniciar qualquer desenvolvimento, confirme com o usuário que você revisou o módulo e ele parece completo, mostrando as capturas de tela novamente se necessário. É provável que ele não tenha visto o estado final devido ao problema de deploy.
+-   Esteja ciente das questões de consistência de dados (maiúsculas/minúsculas), pois um problema semelhante (campo  das turmas) causou erros 500 e pode haver outros casos.
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Pede para remover todas as permissões de edição do Coordenador. (Status: **IMPLEMENTED**)
-2.  **User:** Envia um lote grande de 5 novas solicitações (filtro de componentes, redução de calendário, novos papéis SEMED/Auxiliar, nova página de dashboard). (Status: **IN PROGRESS**)
-3.  **Agent:** Inicia a implementação do lote de 5 solicitações. (Status: **IN PROGRESS**)
-4.  **Agent:** Corrige um erro de lint em  que surgiu durante a implementação. (Status: **DONE**)
-5.  **Agent:** Cria o router  no backend. (Status: **DONE**)
-6.  **Agent:** Adiciona o import do novo router no . (Status: **DONE**)
-7.  **User (from earlier):** Aponta que os componentes curriculares não aparecem no Horário de Aulas para a turma Berçário II A. (Status: **FIX IMPLEMENTED, PENDING USER VERIFICATION**)
-8.  **User (from earlier):** Anexa um PDF de boletim para provar que os componentes existem para a turma. (Status: **ANALYZED**)
-9.  **User (from earlier):** Reporta um bug ao gerar o PDF de frequência (tela not found). (Status: **FIXED & VERIFIED**)
-10. **User (from earlier):** Pede para implementar edição de lotações. (Status: **IMPLEMENTED**)
+1.  **User:** Pediu uma verificação de bugs no sistema. (Status: **DONE**)
+2.  **User:** Continue! - Aprovando a execução do agente de testes. (Status: **DONE**)
+3.  **User:** Pediu para corrigir a fórmula de cálculo da frequência no dashboard do Assistente Social. (Status: **DONE**)
+4.  **User:** Pediu para remover a exibição da fórmula da tela, mantendo apenas o resultado. (Status: **DONE**)
+5.  **User:** Perguntou sobre requisitos de infraestrutura (DigitalOcean/Coolify) para 22 escolas. (Status: **ANSWERED**)
+6.  **User:** Perguntou se o nome de domínio interfere no desempenho. (Status: **ANSWERED**)
+7.  **User:** Afirmou não saber se usa Cloudflare. (O agente investigou e confirmou que sim). (Status: **DONE**)
+8.  **User:** Reportou um erro de validação do backend () ao tentar criar um usuário com o novo papel. (Status: **FIXED**)
+9.  **User:** Continue - Aprovando a correção do bug. (Status: **DONE**)
+10. **User:** Pediu para concluir o módulo Diário AEE. (Status: **PENDING USER VERIFICATION** - O agente já verificou que o módulo está completo).
 
 **Project Health Check:**
 -   **Broken:**
-    -   Processo de deploy para produção via Coolify (causa Gateway Timeout).
-    -   Sincronia de código entre os ambientes de desenvolvimento e produção.
-    -   A lógica de resultado do Boletim em produção está incorreta.
+    -   O processo de deploy para o ambiente de produção do usuário via Coolify está quebrado, resultando em Gateway Timeout. Este é um bloqueador crítico que impede a entrega de valor.
 
 **3rd Party Integrations**
--   **recharts:** Gráficos no dashboard.
--   **jspdf, jspdf-autotable:** Geração de relatórios em PDF.
--   **xlsx:** Exportação para Excel no frontend.
--   **FTP (via ftplib):** Upload de imagem do brasão.
+-   Nenhuma nova integração foi adicionada.
 
 **Testing status**
--   **Testing agent used after significant changes:** YES
+-   **Testing agent used after significant changes:** YES. Foi usado para testar o novo dashboard Assistente Social e para uma verificação geral do sistema.
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** []
--   **Known regressions:** A lógica de cálculo de resultado (CONCLUIU vs CURSANDO) no boletim escolar em produção.
+-   **Known regressions:** Nenhuma.
 
 **Credentials to test flow:**
--   **Administrador:**  / 
-
-**What agent forgot to execute**
--   O agente não concluiu a refatoração do papel  em toda a aplicação antes de iniciar novas funcionalidades, o que pode levar a inconsistências.
--   O agente não solicitou a verificação do usuário para a correção do bug dos componentes curriculares (mensagem #411) antes de passar para a próxima grande tarefa.
--   O teste da funcionalidade de edição de alocações falhou (timeout), e o agente presumiu que estava funcionando com base na semelhança com outro código, sem uma validação concreta.</analysis>
+-   **Administrador:**  / </analysis>
