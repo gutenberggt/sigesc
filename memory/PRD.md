@@ -48,7 +48,7 @@ Sistema completo de gestão escolar para secretarias de educação municipal, in
 ## Issues Conhecidos
 
 ### P0 - Crítico
-- [ ] Gateway Timeout no deploy via Coolify (produção)
+- [x] Containers sem conexão automática à rede Coolify (corrigido 23/02/2026 - nomes fixos no docker-compose)
 
 ### P1 - Alto
 - [ ] Migração para CAIXA ALTA pode estar incompleta
