@@ -114,8 +114,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         # Constrói filtro
         filter_query = {}
         
-        # Admin, admin_teste, SEMED e Secretário podem ver TODOS os alunos
-        if current_user['role'] in ['admin', 'admin_teste', 'semed', 'secretario']:
+        # Admin, admin_teste, SEMED, Secretário e Assistente Social podem ver TODOS os alunos
+        if current_user['role'] in ['admin', 'admin_teste', 'semed', 'secretario', 'ass_social']:
             if school_id:
                 filter_query['school_id'] = school_id
             if class_id:
