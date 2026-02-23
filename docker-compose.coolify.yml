@@ -1,5 +1,5 @@
 # Docker Compose otimizado para deploy no Coolify com Traefik
-# Este arquivo deve ser usado no modo "Raw Compose Deployment" do Coolify
+# Este arquivo usa nomes de container FIXOS para evitar reconfiguração manual após cada deploy
 version: '3.8'
 
 services:
@@ -7,6 +7,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: sigesc-backend
+    hostname: sigesc-backend
     environment:
       - MONGO_URL=${MONGO_URL}
       - DB_NAME=${DB_NAME:-sigesc}
@@ -16,8 +18,9 @@ services:
       - FTP_PASSWORD=${FTP_PASSWORD:-}
     restart: unless-stopped
     networks:
-      - default
-      - coolify
+      coolify:
+        aliases:
+          - sigesc-backend
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.sigesc-backend.rule=Host(`api.sigesc.aprenderdigital.top`)"
@@ -38,10 +41,13 @@ services:
       dockerfile: Dockerfile
       args:
         - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}
+    container_name: sigesc-frontend
+    hostname: sigesc-frontend
     restart: unless-stopped
     networks:
-      - default
-      - coolify
+      coolify:
+        aliases:
+          - sigesc-frontend
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.sigesc-frontend.rule=Host(`sigesc.aprenderdigital.top`)"
