@@ -436,6 +436,18 @@ export const Dashboard = () => {
                 </button>
               )}
               
+              {/* Assistência Social - visível apenas para admin */}
+              {(['admin', 'admin_teste'].includes(user?.role)) && (
+                <button
+                  onClick={() => navigate('/ass-social')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-pink-50 hover:border-pink-300 transition-all"
+                  data-testid="nav-ass-social-button"
+                >
+                  <HeartHandshake className="text-pink-600" size={24} />
+                  <span className="font-medium text-gray-900">Assistência Social</span>
+                </button>
+              )}
+              
               {isAdmin && (
                 <button
                   onClick={() => navigate('/admin/courses')}
