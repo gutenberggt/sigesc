@@ -1290,13 +1290,25 @@ async def check_cpf_duplicate(
     
     duplicates = []
     
+    # Função auxiliar para normalizar CPF do banco (remover formatação)
+    def normalize_cpf(cpf_value):
+        if not cpf_value:
+            return ""
+        return ''.join(filter(str.isdigit, str(cpf_value)))
+    
+    # Cria regex que encontra os dígitos mesmo com formatação
+    # Ex: 12345678900 -> 1.*2.*3.*4.*5.*6.*7.*8.*9.*0.*0
+    cpf_regex = '.*'.join(cpf_numbers)
+    
     # Buscar em alunos
-    student_query = {"cpf": {"$regex": cpf_numbers}}
+    student_query = {"cpf": {"$regex": cpf_regex}}
     if context == "student" and exclude_id:
         student_query["id"] = {"$ne": exclude_id}
     
     student_with_cpf = await db.students.find_one(student_query, {"_id": 0, "id": 1, "full_name": 1, "cpf": 1})
-    if student_with_cpf:
+    
+    # Validação adicional: verificar se o CPF encontrado é realmente igual (normalizando)
+    if student_with_cpf and normalize_cpf(student_with_cpf.get("cpf")) == cpf_numbers:
         # Se estamos cadastrando servidor, não é problema (servidor pode ser aluno)
         if context != "staff":
             duplicates.append({
@@ -1306,12 +1318,14 @@ async def check_cpf_duplicate(
             })
     
     # Buscar em servidores
-    staff_query = {"cpf": {"$regex": cpf_numbers}}
+    staff_query = {"cpf": {"$regex": cpf_regex}}
     if context == "staff" and exclude_id:
         staff_query["id"] = {"$ne": exclude_id}
     
     staff_with_cpf = await db.staff.find_one(staff_query, {"_id": 0, "id": 1, "nome": 1, "cpf": 1})
-    if staff_with_cpf:
+    
+    # Validação adicional para servidores
+    if staff_with_cpf and normalize_cpf(staff_with_cpf.get("cpf")) == cpf_numbers:
         # Se estamos cadastrando aluno, não é problema (servidor pode ser aluno)
         if context != "student":
             duplicates.append({
@@ -1322,8 +1336,8 @@ async def check_cpf_duplicate(
     
     # Buscar em pais/mães de alunos (father_cpf, mother_cpf)
     parent_query = {"$or": [
-        {"father_cpf": {"$regex": cpf_numbers}},
-        {"mother_cpf": {"$regex": cpf_numbers}}
+        {"father_cpf": {"$regex": cpf_regex}},
+        {"mother_cpf": {"$regex": cpf_regex}}
     ]}
     
     parent_student = await db.students.find_one(parent_query, {"_id": 0, "id": 1, "full_name": 1, "father_name": 1, "mother_name": 1, "father_cpf": 1, "mother_cpf": 1})
@@ -1331,9 +1345,9 @@ async def check_cpf_duplicate(
         # Se estamos cadastrando servidor, não é problema (servidor pode ser pai/mãe)
         if context != "staff":
             parent_name = None
-            if parent_student.get("father_cpf") and cpf_numbers in parent_student.get("father_cpf", ""):
+            if normalize_cpf(parent_student.get("father_cpf")) == cpf_numbers:
                 parent_name = parent_student.get("father_name", "Pai")
-            elif parent_student.get("mother_cpf") and cpf_numbers in parent_student.get("mother_cpf", ""):
+            elif normalize_cpf(parent_student.get("mother_cpf")) == cpf_numbers:
                 parent_name = parent_student.get("mother_name", "Mãe")
             
             if parent_name:
