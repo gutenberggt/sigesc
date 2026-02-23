@@ -103,6 +103,7 @@ export const Dashboard = () => {
 
   const roleLabels = {
     admin: 'Administrador',
+    ass_social: 'Ass. Social',
     secretario: 'Secretário(a)',
     diretor: 'Diretor(a)',
     coordenador: 'Coordenador(a)',
