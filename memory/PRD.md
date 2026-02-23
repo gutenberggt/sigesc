@@ -54,7 +54,7 @@ Sistema completo de gestão escolar para secretarias de educação municipal, in
 - [ ] Migração para CAIXA ALTA pode estar incompleta
 
 ### P2 - Médio
-- [ ] Feedback em tempo real para CPF duplicado
+- [x] Feedback em tempo real para CPF duplicado (corrigido 23/02/2026)
 - [ ] Refatoração do StudentsComplete.js
 
 ## Backlog
