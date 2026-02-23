@@ -94,9 +94,10 @@ export default function AssocialDashboard() {
     setLoadingDetails(true);
     
     try {
-      // Busca relatório de frequência
+      // Busca frequência calculada com a fórmula correta:
+      // ((Dias Letivos até hoje - Faltas) / Dias Letivos até hoje) × 100
       const currentYear = new Date().getFullYear();
-      const attendanceReport = await attendanceAPI.getStudentReport(student.id, currentYear);
+      const frequencyData = await attendanceAPI.getStudentFrequency(student.id, currentYear);
       
       // Busca escola e turma
       const school = schools[student.school_id];
@@ -106,7 +107,8 @@ export default function AssocialDashboard() {
         ...student,
         school_name: school?.name || 'Não matriculado',
         class_name: classInfo?.name || 'Não informada',
-        attendance: attendanceReport?.summary || null
+        attendance: frequencyData?.summary || null,
+        formula: frequencyData?.formula || null
       });
     } catch (error) {
       console.error('Erro ao carregar detalhes:', error);
