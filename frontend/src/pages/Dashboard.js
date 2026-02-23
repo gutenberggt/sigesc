@@ -96,6 +96,11 @@ export const Dashboard = () => {
     return <Navigate to="/professor" replace />;
   }
 
+  // Redireciona assistente social para o dashboard específico
+  if (user?.role === 'ass_social') {
+    return <Navigate to="/ass-social" replace />;
+  }
+
   const roleLabels = {
     admin: 'Administrador',
     secretario: 'Secretário(a)',
