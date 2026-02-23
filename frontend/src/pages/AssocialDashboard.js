@@ -388,29 +388,22 @@ export default function AssocialDashboard() {
                       <div>
                         <p className="text-sm text-gray-500">Frequência no Ano Letivo</p>
                         {studentDetails.attendance ? (
-                          <div className="flex flex-col space-y-1">
-                            <div className="flex items-center space-x-4">
-                              <p 
-                                className={`text-2xl font-bold ${
-                                  studentDetails.attendance.attendance_percentage >= 75 
-                                    ? 'text-green-600' 
-                                    : 'text-red-600'
-                                }`}
-                                data-testid="student-attendance"
-                              >
-                                {studentDetails.attendance.attendance_percentage.toFixed(1)}%
-                              </p>
-                              <div className="text-sm text-gray-500">
-                                <span className="text-blue-600">{studentDetails.attendance.school_days_until_today || 0} dias letivos</span>
-                                {' • '}
-                                <span className="text-red-600">{studentDetails.attendance.absences || 0} faltas</span>
-                              </div>
+                          <div className="flex items-center space-x-4">
+                            <p 
+                              className={`text-2xl font-bold ${
+                                studentDetails.attendance.attendance_percentage >= 75 
+                                  ? 'text-green-600' 
+                                  : 'text-red-600'
+                              }`}
+                              data-testid="student-attendance"
+                            >
+                              {studentDetails.attendance.attendance_percentage.toFixed(1)}%
+                            </p>
+                            <div className="text-sm text-gray-500">
+                              <span className="text-blue-600">{studentDetails.attendance.school_days_until_today || 0} dias letivos</span>
+                              {' • '}
+                              <span className="text-red-600">{studentDetails.attendance.absences || 0} faltas</span>
                             </div>
-                            {studentDetails.formula && (
-                              <p className="text-xs text-gray-400 font-mono">
-                                {studentDetails.formula}
-                              </p>
-                            )}
                           </div>
                         ) : (
                           <p className="text-gray-500">Sem registro de frequência</p>
