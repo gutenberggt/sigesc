@@ -445,6 +445,7 @@ export function SchoolsComplete() {
     setViewMode(true);
     setFormData({
       ...school,
+      status: school.status || 'active',
       anos_letivos: school.anos_letivos || {}
     });
     setIsModalOpen(true);
@@ -456,6 +457,7 @@ export function SchoolsComplete() {
     setViewMode(false);
     setFormData({
       ...school,
+      status: school.status || 'active',
       anos_letivos: school.anos_letivos || {}
     });
     setIsModalOpen(true);
