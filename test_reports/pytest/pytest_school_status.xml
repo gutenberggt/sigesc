@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="6" time="4.444" timestamp="2026-02-24T19:17:31.847625+00:00" hostname="agent-env-4f363c3f-3293-46bb-a8dc-e3ce54068668"><testcase classname="backend.tests.test_school_status_bug.TestSchoolStatusUpdate" name="test_update_school_status_to_inactive" time="0.849" /><testcase classname="backend.tests.test_school_status_bug.TestSchoolStatusUpdate" name="test_update_school_status_to_active" time="1.153" /><testcase classname="backend.tests.test_school_status_bug.TestSchoolStatusUpdate" name="test_update_school_with_multiple_fields" time="0.493" /><testcase classname="backend.tests.test_school_status_bug.TestSchoolStatusUpdate" name="test_get_schools_list_shows_correct_status" time="0.658" /><testcase classname="backend.tests.test_school_status_bug.TestClassCreation" name="test_create_class" time="0.588"><failure message="AssertionError: Expected 200/201, got 422: {&quot;detail&quot;:[{&quot;type&quot;:&quot;literal_error&quot;,&quot;loc&quot;:[&quot;body&quot;,&quot;shift&quot;],&quot;msg&quot;:&quot;Input should be 'morning', 'afternoon', 'evening' or 'full_time'&quot;,&quot;input&quot;:&quot;matutino&quot;,&quot;ctx&quot;:{&quot;expected&quot;:&quot;'morning', 'afternoon', 'evening' or 'full_time'&quot;},&quot;url&quot;:&quot;https://errors.pydantic.dev/2.12/v/literal_error&quot;}]}&#10;assert 422 in [200, 201]&#10; +  where 422 = &lt;Response [422]&gt;.status_code">self = &lt;test_school_status_bug.TestClassCreation object at 0xf8107677c810&gt;
+
+    def test_create_class(self):
+        """Test: POST /api/classes creates a new class"""
+        print(f"\n--- Test: Create new class ---")
+    
+        import uuid
+        unique_name = f"TEST_TURMA_{uuid.uuid4().hex[:6].upper()}"
+    
+        class_data = {
+            "name": unique_name,
+            "school_id": self.school['id'],
+            "academic_year": 2026,
+            "shift": "matutino",
+            "education_level": "fundamental_anos_iniciais",
+            "grade_level": "1º Ano",
+            "capacity": 25
+        }
+    
+        print(f"Creating class with data: {class_data}")
+        response = self.session.post(f"{BASE_URL}/api/classes", json=class_data)
+    
+        print(f"POST response status: {response.status_code}")
+        print(f"POST response: {response.text[:500] if response.text else 'No body'}")
+    
+&gt;       assert response.status_code in [200, 201], f"Expected 200/201, got {response.status_code}: {response.text}"
+E       AssertionError: Expected 200/201, got 422: {"detail":[{"type":"literal_error","loc":["body","shift"],"msg":"Input should be 'morning', 'afternoon', 'evening' or 'full_time'","input":"matutino","ctx":{"expected":"'morning', 'afternoon', 'evening' or 'full_time'"},"url":"https://errors.pydantic.dev/2.12/v/literal_error"}]}
+E       assert 422 in [200, 201]
+E        +  where 422 = &lt;Response [422]&gt;.status_code
+
+backend/tests/test_school_status_bug.py:193: AssertionError</failure></testcase><testcase classname="backend.tests.test_school_status_bug.TestClassCreation" name="test_list_classes" time="0.577" /></testsuite></testsuites>
