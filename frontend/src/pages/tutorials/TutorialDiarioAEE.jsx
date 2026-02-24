@@ -18,7 +18,7 @@ import {
   Award
 } from 'lucide-react';
 
-export default function TutorialDiarioAEE() {
+export default function TutorialDiárioAEE() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
@@ -32,7 +32,7 @@ export default function TutorialDiarioAEE() {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-white">SIGESC</h1>
-                  <p className="text-xs text-slate-400">Sistema de Gestao Escolar</p>
+                  <p className="text-xs text-slate-400">Sistema de Gestão Escolar</p>
                 </div>
               </Link>
             </div>
@@ -61,7 +61,7 @@ export default function TutorialDiarioAEE() {
             </div>
             
             <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-              Guia Pratico do Diario AEE
+              Guia Prático do Diário AEE
             </h1>
             
             <p className="text-lg text-slate-400">
@@ -69,11 +69,11 @@ export default function TutorialDiarioAEE() {
             </p>
           </div>
 
-          {/* Indice */}
+          {/* Índice */}
           <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 mb-10">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <BookOpen size={20} className="text-teal-400" />
-              Indice
+              Índice
             </h2>
             <nav className="space-y-2">
               {[
@@ -81,7 +81,7 @@ export default function TutorialDiarioAEE() {
                 { href: '#abas', label: 'Entendendo as Abas' },
                 { href: '#plano', label: 'Passo 1: Criar um Plano de AEE' },
                 { href: '#atendimentos', label: 'Passo 2: Registrar Atendimentos' },
-                { href: '#diario', label: 'Passo 3: Acompanhar o Diario' },
+                { href: '#diario', label: 'Passo 3: Acompanhar o Diário' },
                 { href: '#fluxo', label: 'Resumo: Fluxo de Trabalho' },
                 { href: '#faq', label: 'Perguntas Frequentes' },
               ].map((item) => (
@@ -97,7 +97,7 @@ export default function TutorialDiarioAEE() {
             </nav>
           </div>
 
-          {/* Secao: Como Acessar */}
+          {/* Seção: Como Acessar */}
           <section id="acesso" className="mb-12">
             <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
@@ -114,7 +114,7 @@ export default function TutorialDiarioAEE() {
                 </li>
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-8 h-8 bg-teal-500/20 text-teal-400 rounded-full flex items-center justify-center font-bold">2</span>
-                  <span>No <strong className="text-white">Menu de Administracao</strong>, clique em <strong className="text-white">"Diario AEE"</strong></span>
+                  <span>No <strong className="text-white">Menu de Administracao</strong>, clique em <strong className="text-white">"Diário AEE"</strong></span>
                 </li>
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-8 h-8 bg-teal-500/20 text-teal-400 rounded-full flex items-center justify-center font-bold">3</span>
@@ -128,7 +128,7 @@ export default function TutorialDiarioAEE() {
             </div>
           </section>
 
-          {/* Secao: Entendendo as Abas */}
+          {/* Seção: Entendendo as Abas */}
           <section id="abas" className="mb-12">
             <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
@@ -138,14 +138,14 @@ export default function TutorialDiarioAEE() {
                 Entendendo as Abas
               </h2>
               
-              <p className="text-slate-400 mb-6">O Diario AEE possui <strong className="text-white">4 abas</strong> na parte inferior da tela:</p>
+              <p className="text-slate-400 mb-6">O Diário AEE possui <strong className="text-white">4 abas</strong> na parte inferior da tela:</p>
               
               <div className="grid gap-4">
                 {[
                   { icon: Users, color: 'blue', title: 'Estudantes AEE', desc: 'Ver todos os alunos que voce atende' },
                   { icon: FileText, color: 'green', title: 'Planos de AEE', desc: 'Criar e gerenciar os planos de cada aluno' },
-                  { icon: CheckSquare, color: 'orange', title: 'Atendimentos', desc: 'Registrar cada sessao realizada' },
-                  { icon: Calendar, color: 'pink', title: 'Diario', desc: 'Visualizar o consolidado e gerar PDF' },
+                  { icon: CheckSquare, color: 'orange', title: 'Atendimentos', desc: 'Registrar cada sessão realizada' },
+                  { icon: Calendar, color: 'pink', title: 'Diário', desc: 'Visualizar o consolidado e gerar PDF' },
                 ].map((item, index) => {
                   const Icon = item.icon;
                   return (
@@ -164,7 +164,7 @@ export default function TutorialDiarioAEE() {
             </div>
           </section>
 
-          {/* Secao: Criar Plano */}
+          {/* Seção: Criar Plano */}
           <section id="plano" className="mb-12">
             <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
@@ -184,18 +184,18 @@ export default function TutorialDiarioAEE() {
                 <ol className="space-y-2 text-slate-300 text-sm">
                   <li>1. Clique na aba <strong className="text-green-400">"Planos de AEE"</strong></li>
                   <li>2. Clique no botao <strong className="text-green-400">"Novo Plano de AEE"</strong></li>
-                  <li>3. Preencha as informacoes em cada secao</li>
+                  <li>3. Preencha as informações em cada secao</li>
                 </ol>
               </div>
 
               {/* Subsecoes do Plano */}
               <div className="space-y-6">
                 
-                {/* Secao 1 */}
+                {/* Seção 1 */}
                 <div className="border-l-4 border-blue-500 pl-4">
                   <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
                     <Users size={18} className="text-blue-400" />
-                    Secao 1: Identificacao do Estudante
+                    Seção 1: Identificação do Estudante
                   </h3>
                   <div className="space-y-2 text-sm text-slate-300">
                     <p><strong className="text-slate-200">Aluno:</strong> Selecione o nome do estudante na lista</p>
@@ -212,16 +212,16 @@ export default function TutorialDiarioAEE() {
                   </div>
                 </div>
 
-                {/* Secao 2 */}
+                {/* Seção 2 */}
                 <div className="border-l-4 border-purple-500 pl-4">
                   <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
                     <Calendar size={18} className="text-purple-400" />
-                    Secao 2: Vigencia do Plano
+                    Seção 2: Vigência do Plano
                   </h3>
                   <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-slate-200">Data de Elaboracao:</strong> Data em que voce esta criando o plano</p>
-                    <p><strong className="text-slate-200">Periodo de Vigencia:</strong> Por quanto tempo este plano vale (bimestre, semestre ou ano)</p>
-                    <p><strong className="text-slate-200">Proxima Revisao:</strong> Quando voce vai revisar e atualizar este plano</p>
+                    <p><strong className="text-slate-200">Data de Elaboração:</strong> Data em que voce esta criando o plano</p>
+                    <p><strong className="text-slate-200">Periodo de Vigência:</strong> Por quanto tempo este plano vale (bimestre, semestre ou ano)</p>
+                    <p><strong className="text-slate-200">Proxima Revisão:</strong> Quando voce vai revisar e atualizar este plano</p>
                   </div>
                   <div className="mt-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
                     <p className="text-sm text-yellow-300 flex items-start gap-2">
@@ -231,20 +231,20 @@ export default function TutorialDiarioAEE() {
                   </div>
                 </div>
 
-                {/* Secao 3 */}
+                {/* Seção 3 */}
                 <div className="border-l-4 border-cyan-500 pl-4">
                   <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
                     <Activity size={18} className="text-cyan-400" />
-                    Secao 3: Linha de Base (Situacao Inicial)
+                    Seção 3: Linha de Base (Situação Inicial)
                   </h3>
                   <p className="text-sm text-slate-400 mb-3">
                     Aqui voce registra <strong className="text-white">como o aluno esta HOJE</strong>, antes de iniciar as intervencoes. Isso permite medir o progresso depois.
                   </p>
                   <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-slate-200">Situacao Atual:</strong> Como o estudante esta hoje em relacao a aprendizagem?</p>
+                    <p><strong className="text-slate-200">Situação Atual:</strong> Como o estudante esta hoje em relacao a aprendizagem?</p>
                     <p><strong className="text-slate-200">Potencialidades:</strong> Quais sao os pontos fortes do aluno? Do que ele gosta?</p>
                     <p><strong className="text-slate-200">Dificuldades Observadas:</strong> Quais sao as principais barreiras que ele enfrenta?</p>
-                    <p><strong className="text-slate-200">Formas de Comunicacao:</strong> Como o aluno se comunica e participa das atividades?</p>
+                    <p><strong className="text-slate-200">Formas de Comunicação:</strong> Como o aluno se comunica e participa das atividades?</p>
                   </div>
                   <div className="mt-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
                     <p className="text-sm text-yellow-300 flex items-start gap-2">
@@ -254,11 +254,11 @@ export default function TutorialDiarioAEE() {
                   </div>
                 </div>
 
-                {/* Secao 4 */}
+                {/* Seção 4 */}
                 <div className="border-l-4 border-orange-500 pl-4">
                   <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
                     <Clock size={18} className="text-orange-400" />
-                    Secao 4: Cronograma de Atendimento
+                    Seção 4: Cronograma de Atendimento
                   </h3>
                   <div className="space-y-2 text-sm text-slate-300">
                     <p><strong className="text-slate-200">Dias de Atendimento:</strong> Marque os dias da semana que o aluno e atendido</p>
@@ -269,11 +269,11 @@ export default function TutorialDiarioAEE() {
                   </div>
                 </div>
 
-                {/* Secao 5 */}
+                {/* Seção 5 */}
                 <div className="border-l-4 border-green-500 pl-4">
                   <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
                     <Target size={18} className="text-green-400" />
-                    Secao 5: Objetivos e Barreiras
+                    Seção 5: Objetivos e Barreiras
                   </h3>
                   <div className="space-y-2 text-sm text-slate-300">
                     <p><strong className="text-slate-200">Barreiras Identificadas:</strong> Liste as barreiras que impedem a participacao e aprendizagem (uma por linha)</p>
@@ -287,44 +287,44 @@ export default function TutorialDiarioAEE() {
                   </div>
                 </div>
 
-                {/* Secao 6 */}
+                {/* Seção 6 */}
                 <div className="border-l-4 border-pink-500 pl-4">
                   <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
                     <Activity size={18} className="text-pink-400" />
-                    Secao 6: Estrategias de Acompanhamento
+                    Seção 6: Estratégias de Acompanhamento
                   </h3>
                   <div className="space-y-2 text-sm text-slate-300">
                     <p><strong className="text-slate-200">Indicadores de Progresso:</strong> Como voce vai saber se o aluno esta avancando?</p>
-                    <p><strong className="text-slate-200">Frequencia de Revisao:</strong> De quanto em quanto tempo vai revisar o plano</p>
+                    <p><strong className="text-slate-200">Frequência de Revisão:</strong> De quanto em quanto tempo vai revisar o plano</p>
                     <p><strong className="text-slate-200">Criterios para Ajustar:</strong> Em que situacoes vai mudar as estrategias?</p>
                   </div>
                 </div>
 
-                {/* Secao 7 */}
+                {/* Seção 7 */}
                 <div className="border-l-4 border-teal-500 pl-4">
                   <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
                     <MessageSquare size={18} className="text-teal-400" />
-                    Secao 7: Articulacao com Sala Comum
+                    Seção 7: Articulação com Sala Comum
                   </h3>
                   <p className="text-sm text-slate-400 mb-3">Esta secao conecta o AEE com a sala de aula regular.</p>
                   <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-slate-200">Orientacoes para Sala Comum:</strong> Orientacoes gerais para o professor regente</p>
+                    <p><strong className="text-slate-200">Orientações para Sala Comum:</strong> Orientações gerais para o professor regente</p>
                     <p><strong className="text-slate-200">Combinados com Professor Regente:</strong> Acordos especificos entre voce e o professor da sala regular</p>
-                    <p><strong className="text-slate-200">Adaptacoes por Componente:</strong> Adaptacoes especificas por disciplina</p>
-                    <p><strong className="text-slate-200">Adequacoes Curriculares:</strong> Ajustes no curriculo para garantir o acesso a aprendizagem</p>
+                    <p><strong className="text-slate-200">Adaptações por Componente:</strong> Adaptações especificas por disciplina</p>
+                    <p><strong className="text-slate-200">Adequações Curriculares:</strong> Ajustes no curriculo para garantir o acesso a aprendizagem</p>
                   </div>
                 </div>
 
-                {/* Secao 8 */}
+                {/* Seção 8 */}
                 <div className="border-l-4 border-slate-500 pl-4">
                   <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
                     <CheckSquare size={18} className="text-slate-400" />
-                    Secao 8: Status do Plano
+                    Seção 8: Status do Plano
                   </h3>
                   <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-yellow-400">Rascunho:</strong> Ainda esta em elaboracao</p>
+                    <p><strong className="text-yellow-400">Rascunho:</strong> Ainda esta em elaboração</p>
                     <p><strong className="text-green-400">Ativo:</strong> Plano em vigor, sendo executado</p>
-                    <p><strong className="text-orange-400">Em Revisao:</strong> Esta sendo atualizado</p>
+                    <p><strong className="text-orange-400">Em Revisão:</strong> Esta sendo atualizado</p>
                     <p><strong className="text-red-400">Encerrado:</strong> Plano finalizado</p>
                   </div>
                 </div>
@@ -335,7 +335,7 @@ export default function TutorialDiarioAEE() {
               <div className="mt-6 bg-green-500/10 border border-green-500/20 rounded-xl p-4">
                 <h3 className="font-semibold text-white mb-3">Finalizando o Plano:</h3>
                 <ol className="space-y-2 text-sm text-slate-300">
-                  <li>1. Revise todas as informacoes</li>
+                  <li>1. Revise todas as informações</li>
                   <li>2. Clique em <strong className="text-green-400">"Salvar"</strong></li>
                   <li>3. O plano aparecera na lista da aba "Planos de AEE"</li>
                 </ol>
@@ -343,7 +343,7 @@ export default function TutorialDiarioAEE() {
             </div>
           </section>
 
-          {/* Secao: Registrar Atendimentos */}
+          {/* Seção: Registrar Atendimentos */}
           <section id="atendimentos" className="mb-12">
             <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
@@ -354,7 +354,7 @@ export default function TutorialDiarioAEE() {
               </h2>
               
               <p className="text-slate-400 mb-6">
-                Apos criar o plano, voce deve registrar <strong className="text-white">cada sessao de atendimento</strong> realizada.
+                Apos criar o plano, voce deve registrar <strong className="text-white">cada sessão de atendimento</strong> realizada.
               </p>
 
               <div className="bg-slate-900/50 rounded-xl p-4 mb-6">
@@ -372,15 +372,15 @@ export default function TutorialDiarioAEE() {
                 {[
                   { label: 'Plano/Estudante', desc: 'Selecione o aluno que foi atendido' },
                   { label: 'Data', desc: 'Data do atendimento' },
-                  { label: 'Horario', desc: 'Inicio e fim da sessao' },
+                  { label: 'Horario', desc: 'Inicio e fim da sessão' },
                   { label: 'Presenca', desc: 'O aluno compareceu? Se nao, informe o motivo' },
                   { label: 'Objetivo Trabalhado', desc: 'Qual objetivo do plano foi trabalhado hoje?' },
-                  { label: 'Atividade Realizada', desc: 'Descreva o que foi feito na sessao' },
+                  { label: 'Atividade Realizada', desc: 'Descreva o que foi feito na sessão' },
                   { label: 'Recursos Utilizados', desc: 'Quais materiais/recursos foram usados?' },
                   { label: 'Nivel de Apoio', desc: 'Quanto apoio o aluno precisou? (Independente, Minimo, Moderado ou Total)' },
                   { label: 'Resposta do Estudante', desc: 'Como o aluno reagiu? Participou bem?' },
                   { label: 'Evidencias', desc: 'Registre observacoes sobre o progresso' },
-                  { label: 'Proximo Atendimento', desc: 'O que sera trabalhado na proxima sessao?' },
+                  { label: 'Proximo Atendimento', desc: 'O que sera trabalhado na proxima sessão?' },
                 ].map((item, index) => (
                   <div key={index} className="flex gap-2 text-slate-300">
                     <span className="text-slate-200 font-medium min-w-[160px]">{item.label}:</span>
@@ -392,24 +392,24 @@ export default function TutorialDiarioAEE() {
               <div className="mt-6 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
                 <p className="text-sm text-yellow-300 flex items-start gap-2">
                   <Lightbulb size={16} className="flex-shrink-0 mt-0.5" />
-                  <span><strong>Dica:</strong> Registre o atendimento logo apos a sessao, enquanto as informacoes estao frescas na memoria!</span>
+                  <span><strong>Dica:</strong> Registre o atendimento logo apos a sessão, enquanto as informações estao frescas na memoria!</span>
                 </p>
               </div>
             </div>
           </section>
 
-          {/* Secao: Acompanhar Diario */}
+          {/* Seção: Acompanhar Diário */}
           <section id="diario" className="mb-12">
             <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
                 <div className="p-2 bg-pink-500/20 rounded-lg">
                   <Calendar size={24} className="text-pink-400" />
                 </div>
-                Passo 3: Acompanhar o Diario
+                Passo 3: Acompanhar o Diário
               </h2>
               
               <p className="text-slate-400 mb-6">
-                A aba <strong className="text-white">"Diario"</strong> mostra o consolidado de todos os atendimentos.
+                A aba <strong className="text-white">"Diário"</strong> mostra o consolidado de todos os atendimentos.
               </p>
 
               <div className="grid md:grid-cols-2 gap-4 mb-6">
@@ -417,7 +417,7 @@ export default function TutorialDiarioAEE() {
                   <h3 className="font-semibold text-white mb-3">O que voce encontra:</h3>
                   <ul className="space-y-2 text-sm text-slate-300">
                     <li>• Resumo dos atendimentos por periodo</li>
-                    <li>• Estatisticas de frequencia</li>
+                    <li>• Estatisticas de frequência</li>
                     <li>• Visao geral do progresso dos alunos</li>
                   </ul>
                 </div>
@@ -427,7 +427,7 @@ export default function TutorialDiarioAEE() {
                     Gerar PDF:
                   </h3>
                   <ol className="space-y-2 text-sm text-slate-300">
-                    <li>1. Clique na aba "Diario"</li>
+                    <li>1. Clique na aba "Diário"</li>
                     <li>2. Clique em <strong className="text-pink-400">"Gerar PDF"</strong></li>
                     <li>3. O sistema criara um documento com todos os registros</li>
                   </ol>
@@ -443,7 +443,7 @@ export default function TutorialDiarioAEE() {
             </div>
           </section>
 
-          {/* Secao: Fluxo de Trabalho */}
+          {/* Seção: Fluxo de Trabalho */}
           <section id="fluxo" className="mb-12">
             <div className="bg-gradient-to-br from-teal-500/10 to-blue-500/10 border border-teal-500/30 rounded-2xl p-6">
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
@@ -456,10 +456,10 @@ export default function TutorialDiarioAEE() {
               <div className="space-y-4">
                 {[
                   { num: '1', title: 'CRIAR PLANO DE AEE', desc: '(uma vez por aluno/periodo)', color: 'green' },
-                  { num: '2', title: 'REGISTRAR ATENDIMENTOS', desc: '(apos cada sessao)', color: 'orange' },
+                  { num: '2', title: 'REGISTRAR ATENDIMENTOS', desc: '(apos cada sessão)', color: 'orange' },
                   { num: '3', title: 'ACOMPANHAR DIARIO', desc: '(semanalmente)', color: 'pink' },
                   { num: '4', title: 'GERAR PDF', desc: '(mensalmente ou quando necessario)', color: 'purple' },
-                  { num: '5', title: 'REVISAR PLANO', desc: '(conforme frequencia definida)', color: 'blue' },
+                  { num: '5', title: 'REVISAR PLANO', desc: '(conforme frequência definida)', color: 'blue' },
                 ].map((item, index) => (
                   <div key={index} className="flex items-center gap-4">
                     <div className={`w-10 h-10 bg-${item.color}-500/20 text-${item.color}-400 rounded-full flex items-center justify-center font-bold text-lg`}>
@@ -478,7 +478,7 @@ export default function TutorialDiarioAEE() {
             </div>
           </section>
 
-          {/* Secao: FAQ */}
+          {/* Seção: FAQ */}
           <section id="faq" className="mb-12">
             <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
@@ -492,7 +492,7 @@ export default function TutorialDiarioAEE() {
                 {[
                   { 
                     q: 'Preciso criar um plano novo a cada bimestre?',
-                    a: 'Nao necessariamente. Voce pode editar o plano existente e atualizar as informacoes. Crie um novo apenas se houver mudancas significativas ou no inicio de um novo ano letivo.'
+                    a: 'Nao necessariamente. Voce pode editar o plano existente e atualizar as informações. Crie um novo apenas se houver mudancas significativas ou no inicio de um novo ano letivo.'
                   },
                   { 
                     q: 'E se o aluno faltar?',
@@ -504,7 +504,7 @@ export default function TutorialDiarioAEE() {
                   },
                   { 
                     q: 'O que faco se o aluno mudar de turma?',
-                    a: 'Edite o plano e atualize as informacoes de turma e professor regente.'
+                    a: 'Edite o plano e atualize as informações de turma e professor regente.'
                   },
                 ].map((item, index) => (
                   <div key={index} className="bg-slate-900/50 rounded-xl p-4">
@@ -547,7 +547,7 @@ export default function TutorialDiarioAEE() {
       <footer className="py-8 px-4 sm:px-6 lg:px-8 border-t border-slate-700/50">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-slate-400 text-sm">
-            <span>© {new Date().getFullYear()} SIGESC - Sistema de Gestao Escolar</span>
+            <span>© {new Date().getFullYear()} SIGESC - Sistema de Gestão Escolar</span>
           </div>
           <div className="flex items-center gap-2 text-slate-500 text-sm">
             <span>Desenvolvido por</span>
