@@ -66,7 +66,7 @@ export function SchoolsComplete() {
     caracteristica_escolar: '',
     zona_localizacao: 'urbana',
     cnpj: '',
-    situacao_funcionamento: 'Ativa',
+    situacao_funcionamento: 'Em atividade',
     
     // Dados Gerais - Localização
     cep: '',
@@ -312,7 +312,7 @@ export function SchoolsComplete() {
       tipo_unidade: 'sede',
       anexa_a: '',
       zona_localizacao: 'urbana',
-      situacao_funcionamento: 'Ativa',
+      situacao_funcionamento: 'Em atividade',
       dependencia_administrativa: 'Municipal',
       anos_letivos_ativos: [new Date().getFullYear()],
       niveis_ensino_oferecidos: [],
