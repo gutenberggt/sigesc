@@ -658,10 +658,11 @@ export function StudentsComplete() {
     
     switch (action) {
       case 'matricular':
-        // Matricular: só se transferido, desistente, inativo ou sem status
+        // Matricular: só se transferido, desistente, inativo, cancelado ou sem status
         return status === 'transferred' || status === 'transferido' || 
                status === 'dropout' || status === 'desistente' ||
                status === 'inactive' || status === 'inativo' ||
+               status === 'cancelled' || status === 'cancelado' ||
                !status || status === '' || status === 'null' || status === 'undefined';
       case 'transferir':
         // Transferir: só se ativo
@@ -671,6 +672,9 @@ export function StudentsComplete() {
         return status === 'active' || status === 'ativo';
       case 'progredir':
         // Progredir: só se ativo
+        return status === 'active' || status === 'ativo';
+      case 'cancelar':
+        // Cancelar: só se ativo
         return status === 'active' || status === 'ativo';
       default:
         return false;
