@@ -66,7 +66,7 @@ export const Schools = () => {
       inep_code: school.inep_code || '',
       address: school.address || '',
       contacts: school.contacts || '',
-      status: school.status
+      status: school.status || 'active'
     });
     setIsModalOpen(true);
   };
