@@ -65,7 +65,7 @@ export default function TutorialDiárioAEE() {
             </h1>
             
             <p className="text-lg text-slate-400">
-              Passó a passó completo para o Professor de Atendimento Educacional Especializado
+              Passo a passó completo para o Professor de Atendimento Educacional Especializado
             </p>
           </div>
 
@@ -79,9 +79,9 @@ export default function TutorialDiárioAEE() {
               {[
                 { href: '#acesso', label: 'Como Acessar' },
                 { href: '#abas', label: 'Entendendo as Abas' },
-                { href: '#plano', label: 'Passó 1: Criar um Plano de AEE' },
-                { href: '#atendimentos', label: 'Passó 2: Registrar Atendimentos' },
-                { href: '#diario', label: 'Passó 3: Acompanhar o Diário' },
+                { href: '#plano', label: 'Passo 1: Criar um Plano de AEE' },
+                { href: '#atendimentos', label: 'Passo 2: Registrar Atendimentos' },
+                { href: '#diario', label: 'Passo 3: Acompanhar o Diário' },
                 { href: '#fluxo', label: 'Resumo: Fluxo de Trabalho' },
                 { href: '#faq', label: 'Perguntas Frequentes' },
               ].map((item) => (
@@ -110,11 +110,11 @@ export default function TutorialDiárioAEE() {
               <ol className="space-y-4 text-slate-300">
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-8 h-8 bg-teal-500/20 text-teal-400 rounded-full flex items-center justify-center font-bold">1</span>
-                  <span>Faca login no SIGESC com seu usuário e senha</span>
+                  <span>Faça login no SIGESC com seu usuário e senha</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-8 h-8 bg-teal-500/20 text-teal-400 rounded-full flex items-center justify-center font-bold">2</span>
-                  <span>No <strong className="text-white">Menu de Administracao</strong>, clique em <strong className="text-white">"Diário AEE"</strong></span>
+                  <span>No <strong className="text-white">Menu de Administração</strong>, clique em <strong className="text-white">"Diário AEE"</strong></span>
                 </li>
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-8 h-8 bg-teal-500/20 text-teal-400 rounded-full flex items-center justify-center font-bold">3</span>
@@ -122,7 +122,7 @@ export default function TutorialDiárioAEE() {
                 </li>
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-8 h-8 bg-teal-500/20 text-teal-400 rounded-full flex items-center justify-center font-bold">4</span>
-                  <span>Confirme sé o <strong className="text-white">ano letivo</strong> está correto</span>
+                  <span>Confirme se o <strong className="text-white">ano letivo</strong> está correto</span>
                 </li>
               </ol>
             </div>
@@ -171,12 +171,12 @@ export default function TutorialDiárioAEE() {
                 <div className="p-2 bg-green-500/20 rounded-lg">
                   <FileText size={24} className="text-green-400" />
                 </div>
-                Passó 1: Criar um Plano de AEE
+                Passo 1: Criar um Plano de AEE
               </h2>
               
               <p className="text-slate-400 mb-6">
                 O Plano de AEE é o documento que organiza todo o atendimento do estudante. 
-                Voce deve criar <strong className="text-white">um plano para cada aluno</strong> que atende.
+                Você deve criar <strong className="text-white">um plano para cada aluno</strong> que atende.
               </p>
 
               <div className="bg-slate-900/50 rounded-xl p-4 mb-6">
@@ -198,7 +198,7 @@ export default function TutorialDiárioAEE() {
                     Seção 1: Identificação do Estudante
                   </h3>
                   <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-slate-200">Aluno:</strong> Selecioné o nome do estudante na lista</p>
+                    <p><strong className="text-slate-200">Aluno:</strong> Selecione o nome do estudante na lista</p>
                     <p><strong className="text-slate-200">Público-Alvo (PAEE):</strong> Escolha a categoria (Ex: TEA, Deficiência Intelectual, etc.)</p>
                     <p><strong className="text-slate-200">Turma de Origem:</strong> Informe a turma regular do aluno (Ex: 3o Ano A)</p>
                     <p><strong className="text-slate-200">Professor Regente:</strong> Nome do professor da sala regular</p>
@@ -207,7 +207,7 @@ export default function TutorialDiárioAEE() {
                   <div className="mt-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
                     <p className="text-sm text-yellow-300 flex items-start gap-2">
                       <Lightbulb size={16} className="flex-shrink-0 mt-0.5" />
-                      <span><strong>Dica:</strong> Não mencione CID ou laudo médico na justificativa - foque no qué o aluno precisa para aprender.</span>
+                      <span><strong>Dica:</strong> Não mencione CID ou laudo médico na justificativa - foque no que o aluno precisa para aprender.</span>
                     </p>
                   </div>
                 </div>
@@ -226,7 +226,7 @@ export default function TutorialDiárioAEE() {
                   <div className="mt-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
                     <p className="text-sm text-yellow-300 flex items-start gap-2">
                       <Lightbulb size={16} className="flex-shrink-0 mt-0.5" />
-                      <span><strong>Dica:</strong> E recomendado revisar o plano pelo menos a cada bimestre para ajustar as estrategias.</span>
+                      <span><strong>Dica:</strong> E recomendado revisar o plano pelo menos a cada bimestre para ajustar as estratégias.</span>
                     </p>
                   </div>
                 </div>
@@ -238,7 +238,7 @@ export default function TutorialDiárioAEE() {
                     Seção 3: Linha de Base (Situação Inicial)
                   </h3>
                   <p className="text-sm text-slate-400 mb-3">
-                    Aqui você registra <strong className="text-white">como o aluno está HOJE</strong>, antes de iniciar as intervenções. Issó permite medir o progressó depois.
+                    Aqui você registra <strong className="text-white">como o aluno está HOJE</strong>, antes de iniciar as intervenções. Isso permite medir o progresso depois.
                   </p>
                   <div className="space-y-2 text-sm text-slate-300">
                     <p><strong className="text-slate-200">Situação Atual:</strong> Como o estudante está hoje em relação a aprendizagem?</p>
@@ -249,7 +249,7 @@ export default function TutorialDiárioAEE() {
                   <div className="mt-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
                     <p className="text-sm text-yellow-300 flex items-start gap-2">
                       <Lightbulb size={16} className="flex-shrink-0 mt-0.5" />
-                      <span><strong>Dica:</strong> Sejá específico! Em vez de "tem dificuldade em português", escreva "ainda não reconhece todas as letras do alfabeto".</span>
+                      <span><strong>Dica:</strong> Seja específico! Em vez de "tem dificuldade em português", escreva "ainda não reconhece todas as letras do alfabeto".</span>
                     </p>
                   </div>
                 </div>
@@ -261,7 +261,7 @@ export default function TutorialDiárioAEE() {
                     Seção 4: Cronograma de Atendimento
                   </h3>
                   <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-slate-200">Dias de Atendimento:</strong> Marque os dias da semana qué o aluno e atendido</p>
+                    <p><strong className="text-slate-200">Dias de Atendimento:</strong> Marque os dias da semana que o aluno e atendido</p>
                     <p><strong className="text-slate-200">Modalidade:</strong> Individual, Pequeno Grupo, Coensino ou Mista</p>
                     <p><strong className="text-slate-200">Horário Início/Fim:</strong> Horário do atendimento</p>
                     <p><strong className="text-slate-200">Carga Horaria Semanal:</strong> Total de horas por semana (Ex: 4 horas)</p>
@@ -277,7 +277,7 @@ export default function TutorialDiárioAEE() {
                   </h3>
                   <div className="space-y-2 text-sm text-slate-300">
                     <p><strong className="text-slate-200">Barreiras Identificadas:</strong> Liste as barreiras que impedem a participação e aprendizagem (uma por linha)</p>
-                    <p><strong className="text-slate-200">Objetivos do Atendimento:</strong> O que você quer qué o aluno alcance? Sejá específico!</p>
+                    <p><strong className="text-slate-200">Objetivos do Atendimento:</strong> O que você quer que o aluno alcance? Seja específico!</p>
                     <p><strong className="text-slate-200">Recursos de Acessibilidade:</strong> Quais recursos serão usados?</p>
                   </div>
                   <div className="mt-3 bg-green-500/10 border border-green-500/20 rounded-lg p-3">
@@ -294,9 +294,9 @@ export default function TutorialDiárioAEE() {
                     Seção 6: Estratégias de Acompanhamento
                   </h3>
                   <div className="space-y-2 text-sm text-slate-300">
-                    <p><strong className="text-slate-200">Indicadores de Progresso:</strong> Como você vai saber sé o aluno está avançando?</p>
+                    <p><strong className="text-slate-200">Indicadores de Progresso:</strong> Como você vai saber se o aluno está avançando?</p>
                     <p><strong className="text-slate-200">Frequência de Revisão:</strong> De quanto em quanto tempo vai revisar o plano</p>
-                    <p><strong className="text-slate-200">Critérios para Ajustar:</strong> Em que situações vai mudar as estrategias?</p>
+                    <p><strong className="text-slate-200">Critérios para Ajustar:</strong> Em que situações vai mudar as estratégias?</p>
                   </div>
                 </div>
 
@@ -306,10 +306,10 @@ export default function TutorialDiárioAEE() {
                     <MessageSquare size={18} className="text-teal-400" />
                     Seção 7: Articulação com Sala Comum
                   </h3>
-                  <p className="text-sm text-slate-400 mb-3">Está seção conecta o AEE com a sala de aula regular.</p>
+                  <p className="text-sm text-slate-400 mb-3">Esta seção conecta o AEE com a sala de aula regular.</p>
                   <div className="space-y-2 text-sm text-slate-300">
                     <p><strong className="text-slate-200">Orientações para Sala Comum:</strong> Orientações gerais para o professor regente</p>
-                    <p><strong className="text-slate-200">Combinados com Professor Regente:</strong> Acordos específicos entre você é o professor da sala regular</p>
+                    <p><strong className="text-slate-200">Combinados com Professor Regente:</strong> Acordos específicos entre você com o professor da sala regular</p>
                     <p><strong className="text-slate-200">Adaptações por Componente:</strong> Adaptações específicas por disciplina</p>
                     <p><strong className="text-slate-200">Adequações Curriculares:</strong> Ajustes no currículo para garantir o acessó a aprendizagem</p>
                   </div>
@@ -350,7 +350,7 @@ export default function TutorialDiárioAEE() {
                 <div className="p-2 bg-orange-500/20 rounded-lg">
                   <CheckSquare size={24} className="text-orange-400" />
                 </div>
-                Passó 2: Registrar Atendimentos
+                Passo 2: Registrar Atendimentos
               </h2>
               
               <p className="text-slate-400 mb-6">
@@ -370,7 +370,7 @@ export default function TutorialDiárioAEE() {
               <div className="space-y-3 text-sm">
                 <h3 className="font-semibold text-white mb-3">Campos do atendimento:</h3>
                 {[
-                  { label: 'Plano/Estudante', desc: 'Selecioné o aluno que foi atendido' },
+                  { label: 'Plano/Estudante', desc: 'Selecione o aluno que foi atendido' },
                   { label: 'Data', desc: 'Data do atendimento' },
                   { label: 'Horário', desc: 'Início e fim da sessão' },
                   { label: 'Presenca', desc: 'O aluno compareceu? Se nao, informé o motivo' },
@@ -405,7 +405,7 @@ export default function TutorialDiárioAEE() {
                 <div className="p-2 bg-pink-500/20 rounded-lg">
                   <Calendar size={24} className="text-pink-400" />
                 </div>
-                Passó 3: Acompanhar o Diário
+                Passo 3: Acompanhar o Diário
               </h2>
               
               <p className="text-slate-400 mb-6">
@@ -418,7 +418,7 @@ export default function TutorialDiárioAEE() {
                   <ul className="space-y-2 text-sm text-slate-300">
                     <li>• Resumo dos atendimentos por período</li>
                     <li>• Estatisticas de frequência</li>
-                    <li>• Visão geral do progressó dos alunos</li>
+                    <li>• Visão geral do progresso dos alunos</li>
                   </ul>
                 </div>
                 <div className="bg-slate-900/50 rounded-xl p-4">
@@ -492,10 +492,10 @@ export default function TutorialDiárioAEE() {
                 {[
                   { 
                     q: 'Precisó criar um plano novo a cada bimestre?',
-                    a: 'Não necessariamente. Voce pode editar o plano existente e atualizar as informações. Crie um novo apenas se houver mudanças significativas ou no início de um novo ano letivo.'
+                    a: 'Não necessariamente. Você pode editar o plano existente e atualizar as informações. Crie um novo apenas se houver mudanças significativas ou no início de um novo ano letivo.'
                   },
                   { 
-                    q: 'E sé o aluno faltar?',
+                    q: 'E se o aluno faltar?',
                     a: 'Registré o atendimento normalmente, marque "Ausente" no campo de presenca e informé o motivo da falta.'
                   },
                   { 
@@ -503,7 +503,7 @@ export default function TutorialDiárioAEE() {
                     a: 'Sim! Na lista de atendimentos, clique no ícone de editar (lápis) ao lado do registro.'
                   },
                   { 
-                    q: 'O que faco sé o aluno mudar de turma?',
+                    q: 'O que faco se o aluno mudar de turma?',
                     a: 'Edité o plano e atualize as informações de turma e professor regente.'
                   },
                 ].map((item, index) => (
