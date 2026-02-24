@@ -693,15 +693,17 @@ export function StudentsComplete() {
         'active': 'Ativo', 'ativo': 'Ativo',
         'transferred': 'Transferido', 'transferido': 'Transferido',
         'dropout': 'Desistente', 'desistente': 'Desistente',
-        'inactive': 'Inativo'
+        'inactive': 'Inativo',
+        'cancelled': 'Cancelado', 'cancelado': 'Cancelado'
       };
       const currentStatus = statusLabels[editingStudent.status?.toLowerCase()] || editingStudent.status;
       
       const actionMessages = {
-        'matricular': 'A ação "Matricular" só é permitida para alunos com status "Transferido", "Desistente", "Inativo" ou sem status definido.',
+        'matricular': 'A ação "Matricular" só é permitida para alunos com status "Transferido", "Desistente", "Inativo", "Cancelado" ou sem status definido.',
         'transferir': 'A ação "Transferir" só é permitida para alunos com status "Ativo".',
         'remanejar': 'A ação "Remanejar" só é permitida para alunos com status "Ativo".',
-        'progredir': 'A ação "Progredir" só é permitida para alunos com status "Ativo".'
+        'progredir': 'A ação "Progredir" só é permitida para alunos com status "Ativo".',
+        'cancelar': 'A ação "Cancelar" só é permitida para alunos com status "Ativo".'
       };
       
       showAlert('error', `${actionMessages[action]} Status atual: ${currentStatus}`);
