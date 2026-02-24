@@ -410,15 +410,15 @@ const DiarioAEE = () => {
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
           <Plus size={18} />
-          Novo Plano AEE
+          Novo Plano PEI
         </button>
       </div>
       
       {estudantes.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <Users size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">Nenhum estudante com Plano AEE ativo</p>
-          <p className="text-sm text-gray-400 mt-2">Clique em "Novo Plano AEE" para cadastrar</p>
+          <p className="text-gray-500">Nenhum estudante com Plano PEI ativo</p>
+          <p className="text-sm text-gray-400 mt-2">Clique em "Novo Plano PEI" para cadastrar</p>
         </div>
       ) : (
         <div className="grid gap-4">
@@ -714,7 +714,7 @@ const DiarioAEE = () => {
       <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">
-            {editingPlano ? 'Editar Plano AEE' : 'Novo Plano AEE'}
+            {editingPlano ? 'Editar Plano PEI' : 'Novo Plano PEI'}
           </h2>
           <button onClick={() => { setShowPlanoModal(false); setEditingPlano(null); }} className="text-gray-400 hover:text-gray-600">
             ✕
@@ -1013,7 +1013,7 @@ const DiarioAEE = () => {
                 value={atendimentoForm.objetivo_trabalhado}
                 onChange={(e) => setAtendimentoForm({ ...atendimentoForm, objetivo_trabalhado: e.target.value })}
                 className="w-full border rounded-lg px-3 py-2"
-                placeholder="Objetivo do Plano AEE trabalhado neste atendimento"
+                placeholder="Objetivo do Plano PEI trabalhado neste atendimento"
               />
             </div>
             <div>
@@ -1147,7 +1147,7 @@ const DiarioAEE = () => {
         <div className="border-b flex">
           {[
             { id: 'estudantes', label: 'Estudantes', icon: Users },
-            { id: 'planos', label: 'Planos AEE', icon: FileText },
+            { id: 'planos', label: 'Planos PEI', icon: FileText },
             { id: 'atendimentos', label: 'Atendimentos', icon: ClipboardList },
             { id: 'diario', label: 'Diário Consolidado', icon: BookOpen }
           ].map(tab => (
