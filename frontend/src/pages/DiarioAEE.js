@@ -787,14 +787,15 @@ const DiarioAEE = () => {
                 />
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Criterio de Elegibilidade</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Justificativa Pedagogica para o AEE</label>
                 <input
                   type="text"
                   value={planoForm.criterio_elegibilidade}
                   onChange={(e) => setPlanoForm({ ...planoForm, criterio_elegibilidade: e.target.value })}
                   className="w-full border rounded-lg px-3 py-2"
-                  placeholder="Breve descricao sem CID"
+                  placeholder="Descreva as barreiras e necessidades de apoio (sem mencionar CID ou laudo)"
                 />
+                <p className="text-xs text-gray-500 mt-1">Foco nas barreiras identificadas e nos apoios necessarios, nao no diagnostico</p>
               </div>
             </div>
           </div>
