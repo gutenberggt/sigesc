@@ -84,6 +84,16 @@ export const Layout = ({ children }) => {
               <MessagesBadge />
               <NotificationBell />
               
+              {/* Ícone de Ajuda */}
+              <Link
+                to="/tutoriais"
+                className="p-2 rounded-md text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                title="Central de Ajuda - Tutoriais do SIGESC"
+                data-testid="help-button"
+              >
+                <HelpCircle size={20} />
+              </Link>
+              
               {/* Separador */}
               <div className="hidden sm:block h-8 w-px bg-gray-200 mx-2" />
               
