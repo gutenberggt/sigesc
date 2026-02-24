@@ -1,146 +1,194 @@
 <analysis>**original_problem_statement:**
-O usuário solicitou uma série de funcionalidades, correções e uma nova página para o papel de Assistente Social.
+O usuário solicitou uma série de funcionalidades, correções de bugs e melhorias na experiência do usuário para a aplicação SIGESC. Os principais requisitos da sessão foram:
 
-Requisitos implementados nesta sessão:
-1.  **Implementar Papel Ass. Social:** Criar um novo papel de usuário Ass. Social, que só pode ser atribuído por um administrador.
-2.  **Dashboard para Assistente Social:** Desenvolver uma página exclusiva para este papel que permita a busca de alunos por nome ou CPF e exiba detalhes específicos, incluindo um cálculo de frequência personalizado.
-3.  **Cálculo de Frequência:** Implementar a fórmula  para exibir a porcentagem de frequência no novo dashboard.
-4.  **Atalho no Menu:** Adicionar um link para o novo dashboard no menu de administração.
-5.  **Verificação de Bugs:** Executar uma varredura geral no sistema para identificar inconsistências.
-6.  **Correção de Bug de Papel:** Corrigir um erro no backend onde o novo papel ass_social não era reconhecido, impedindo a criação de usuários.
-7.  **Conclusão do Módulo AEE:** Verificar o estado do módulo Diário AEE e finalizá-lo.
-8.  **Consulta de Infraestrutura:** Responder a perguntas sobre as configurações ideais de servidor (DigitalOcean, Coolify) para a aplicação em produção.
+**Bugs e Correções:**
+1.  **Busca de Alunos (Ass. Social):** Corrigir um bug onde usuários com o papel Ass. Social não conseguiam buscar alunos, pois não tinham permissão para visualizar todos os estudantes.
+2.  **Validação de CPF Duplicado:** Investigar e corrigir a funcionalidade de validação de CPF em tempo real, que não estava funcionando como esperado.
+3.  **Deploy em Produção (Coolify):** Resolver um problema crônico de Gateway Timeout ou Bad Gateway que ocorre após cada deploy, forçando o usuário a executar scripts manuais para reconectar os containers à rede do Traefik.
+4.  **Edição de Escolas:** Corrigir um bug onde ao editar uma escola, ela sempre era salva como Inativa, e a ação de salvar resultava em Erro ao salvar escola.
+5.  **Criação de Turmas:** Investigar por que uma turma recém-criada, apesar de exibir uma mensagem de sucesso, não aparecia na listagem de turmas da escola correspondente.
+6.  **Discrepância em Analytics:** Corrigir a diferença entre os números de Alunos Ativos e Matrículas no Dashboard Analítico.
+
+**Novas Funcionalidades e Melhorias:**
+1.  **Dashboard Ass. Social:** Em alunos Não matriculados, ocultar os campos de dados pessoais e frequência.
+2.  **Plano de AEE:**
+    *   Renomear Plano PEI para Plano de AEE.
+    *   Adicionar múltiplos campos novos e detalhados ao formulário (Vigência, Linha de Base, Estratégias de Acompanhamento, etc.).
+    *   Ajustar a terminologia para ser mais precisa pedagogicamente (ex: Público-alvo da Educação Especial).
+3.  **Cancelar Matrícula:** Adicionar uma ação de Cancelar na edição de alunos, com um modal de confirmação claro, e garantir que alunos cancelados não apareçam em relatórios de frequência, notas ou documentos oficiais.
+4.  **Página de Tutoriais:**
+    *   Criar um tutorial detalhado e didático para o Diário AEE.
+    *   Criar uma nova página para hospedar este tutorial ().
+    *   Adicionar um ícone de ajuda com link para a central de tutoriais no cabeçalho de todos os dashboards.
+5.  **Branding e UI:**
+    *   Substituir o ícone padrão pelo logo do SIGESC.
+    *   Substituir Desenvolvido por Aprender Digital por Desenvolvido por Gutenberg Barroso com um link para o Facebook.
+    *   Garantir que links externos abram em uma nova aba.
+    *   Corrigir a acentuação em todo o novo tutorial.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-A aplicação full-stack (React + FastAPI + MongoDB) está funcional. Nesta sessão, foram implementados com sucesso o novo papel de usuário Ass. Social e seu respectivo dashboard.
-
-- **Dashboard Ass. Social:** Uma nova página () foi criada. Ela contém uma busca por aluno (nome/CPF) que, ao selecionar um resultado, exibe um card com informações detalhadas: dados do aluno, escola e um cálculo de frequência preciso.
-- **Cálculo de Frequência:** Um novo endpoint () foi criado no backend para calcular a frequência com base nos dias letivos do calendário e nas faltas registradas, conforme a fórmula solicitada pelo usuário. O frontend foi atualizado para usar este endpoint e exibir os resultados.
-- **Controle de Acesso:** A criação do papel Ass. Social foi restringida para ser visível e atribuível apenas por administradores, e um atalho para o novo dashboard foi adicionado ao menu de administração.
-- **Correções de Bugs:** Foi resolvido um erro de validação no backend que impedia a criação de usuários com o novo papel. Adicionalmente, durante a verificação do sistema, foi identificado e corrigido um bug que causava erro na busca de turmas devido a valores em caixa alta () no campo  no banco de dados.
-- **Verificação do Diário AEE:** O agente analisou o código e testou a funcionalidade do Diário AEE, concluindo que o módulo já está completo e funcional, com todas as abas, modais e funcionalidades de geração de PDF implementadas.
+A aplicação full-stack (React + FastAPI + MongoDB) está funcional no ambiente de preview. Durante esta sessão, diversas correções críticas e novas funcionalidades foram implementadas. O módulo Plano de AEE foi completamente reformulado e agora está robusto e alinhado com a legislação brasileira. Uma nova seção de tutoriais foi criada, contendo um guia detalhado para o Diário AEE. Foi implementada a funcionalidade de cancelamento de matrícula e corrigidos bugs na busca de alunos, validação de CPF e lógica do dashboard analítico. No entanto, o processo de deploy para o ambiente de produção do usuário continua problemático, sendo o principal ponto de falha.
 
 **Last working item**:
--   **Last item agent was working:** O usuário solicitou a conclusão do módulo Diário AEE. O agente investigou o estado atual do módulo, analisando os arquivos  e , e concluiu que a funcionalidade já estava completa. O agente apresentou capturas de tela mostrando o módulo em funcionamento para o usuário.
--   **Status:** USER VERIFICATION PENDING
--   **Agent Testing Done:** Y (Manual verification with screenshots)
--   **Which testing method agent to use?** manual testing by user. O usuário precisa confirmar se o estado atual do módulo Diário AEE atende às suas expectativas.
+-   **Last item agent was working:** O agente estava investigando e se preparando para corrigir um bug na edição de escolas (). O usuário relatou que ao tentar definir uma escola como Ativa, ela permanecia Inativa. O plano era simplificar a interface, removendo o campo duplicado Situação de Funcionamento e usando apenas o campo Status da Escola.
+-   **Status:** IN PROGRESS
+-   **Agent Testing Done:** N
+-   **Which testing method agent to use?** frontend testing agent (Para verificar a edição de escolas e a correta atualização do status após o fix).
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Processo de Deploy em Produção Quebrado (Gateway Timeout).**
--   **Issue 2: (P1) Migração para CAIXA ALTA pode estar incompleta.**
--   **Issue 3: (P2) Falta de feedback em tempo real para CPF duplicado no frontend.**
+-   **Issue 1: (P0) Processo de Deploy em Produção Quebrado (Gateway Timeout / Bad Gateway).**
+-   **Issue 2: (P1) Edição de Escolas não funciona corretamente.**
+-   **Issue 3: (P2) Criação de Turmas não atualiza a lista de forma consistente.**
+-   **Issue 4: (P3) Inconsistência nos dados do Dashboard Analítico.**
+-   **Issue 5: (P4) Migração para CAIXA ALTA pode estar incompleta.**
 
 **Issues Detail:**
--   **Issue 1: Processo de Deploy em Produção Quebrado (Gateway Timeout).**
-    -   **Attempted fixes:** Nenhuma nesta sessão. O agente forneceu consultoria sobre infraestrutura, mas não atuou no problema de deploy.
+-   **Issue 1: Processo de Deploy em Produção Quebrado (Gateway Timeout / Bad Gateway).**
+    -   **Attempted fixes:**
+        1.  Modificado  para incluir  fixo (, ).
+        2.  Criado um script  para reconectar os containers à rede  e reconfigurar o Traefik.
+        3.  Fornecidos múltiplos comandos de depuração e correção manual para o usuário executar no servidor de produção.
+        -   **Why it didn't work:** A causa raiz parece ser que o Coolify não está aplicando os  do , gerando containers com nomes dinâmicos a cada deploy. Além disso, o backend foi reportado como , o que pode ser um problema separado que contribui para o Bad Gateway.
     -   **Next debug checklist:**
-        1.  Solicitar ao usuário acesso aos logs do Coolify durante uma tentativa de deploy.
-        2.  Verificar os recursos (CPU/Memória) do Droplet no momento do build.
-        3.  Analisar o  e os scripts de build em busca de processos demorados ou com alto consumo de memória.
-        4.  Sugerir aumentar o timeout de build no Coolify, se possível.
-    -   **Why fix this issue and what will be achieved with the fix?** Este é o bloqueador mais crítico. Corrigi-lo permitirá que o usuário veja todas as novas funcionalidades e correções em produção, eliminando a principal fonte de frustração e relatórios de bugs repetidos.
-    -   **Status:** NOT STARTED
+        1.  Verificar os logs do backend no servidor de produção para entender por que ele está .
+        2.  Investigar a configuração do Coolify para entender por que ele ignora o .
+        3.  Sugerir ao usuário adicionar o comando de reconexão como um Post-Deployment Command nas configurações do serviço no Coolify, se a funcionalidade existir.
+        4.  Verificar os logs do Traefik () imediatamente após um deploy para ver o erro exato que ele reporta ao tentar rotear para os serviços.
+    -   **Why fix this issue and what will be achieved with the fix?** Este é o bloqueador mais crítico. Impede o usuário de usar qualquer nova funcionalidade em produção e é uma fonte constante de frustração. A resolução automatizará o processo de deploy e estabilizará o ambiente.
+    -   **Status:** IN PROGRESS
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** backend
-    -   **Blocked on other issue:** Não. Este é o bloqueador principal.
+    -   **Blocked on other issue:** Não. É o bloqueador principal.
 
--   **Issue 2: Migração para CAIXA ALTA pode estar incompleta.**
-    -   **Attempted fixes:** Na sessão anterior, um script foi executado. O usuário relatou que alguns dados permaneceram em minúsculas.
+-   **Issue 2: Edição de Escolas não funciona corretamente.**
+    -   **Attempted fixes:** O agente adicionou  ao modelo Pydantic  no backend para evitar erros de validação e corrigiu um  no payload do frontend. No entanto, o problema persiste.
     -   **Next debug checklist:**
-        1.  Instruir o usuário a fazer uma limpeza de cache forçada no navegador (Ctrl+F5).
-        2.  Re-executar o script de migração ou um script aprimorado, se a limpeza de cache não resolver.
-        3.  Verificar se os dados em minúsculas vêm de uma coleção ou campo não coberto pelo script original.
-    -   **Why fix this issue and what will be achieved with the fix?** Garantirá a consistência visual dos dados em toda a aplicação.
+        1.  Acessar .
+        2.  Remover o campo  do formulário.
+        3.  Garantir que o  e o payload da requisição de update usem apenas o campo  para definir se a escola está ativa ou inativa.
+        4.  Revisar a função  para garantir que o payload enviado para  está correto.
+    -   **Why fix this issue and what will be achieved with the fix?** A gestão de escolas é uma funcionalidade administrativa fundamental. A correção permitirá que os administradores atualizem o status das escolas corretamente.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on other issue:** Não.
+
+-   **Issue 3: Criação de Turmas não atualiza a lista de forma consistente.**
+    -   **Attempted fixes:** O agente analisou um vídeo enviado pelo usuário onde a funcionalidade *funcionou* corretamente. O código frontend () e backend () foi revisado. O limite de  itens no endpoint de listagem foi identificado como um risco potencial, mas não a causa confirmada.
+    -   **Next debug checklist:**
+        1.  Adicionar logs no backend no endpoint  para registrar os dados da turma criada (especialmente  e ).
+        2.  Adicionar logs no endpoint  para registrar os parâmetros de filtro recebidos e o número de turmas encontradas antes de retornar.
+        3.  Pedir ao usuário para tentar reproduzir o erro e, em seguida, fornecer os logs do backend para análise.
+    -   **Why fix this issue and what will be achieved with the fix?** Garante que os usuários tenham feedback visual imediato e correto após a criação de uma turma, evitando confusão e trabalho duplicado.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on other issue:** Não.
+
+-   **Issue 4: Inconsistência nos dados do Dashboard Analítico.**
+    -   **Attempted fixes:** O agente corrigiu a lógica no endpoint  () para que a contagem de Alunos Ativos também seja filtrada pelo ano letivo selecionado, assim como a contagem de Matrículas.
+    -   **Why fix this issue and what will be achieved with the fix?** Fornece dados analíticos consistentes e confiáveis para os administradores.
+    -   **Status:** USER VERIFICATION PENDING (Aguardando deploy bem-sucedido para o usuário testar).
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on other issue:** Issue 1 (Deploy Quebrado).
+
+-   **Issue 5: Migração para CAIXA ALTA pode estar incompleta.**
+    -   **Attempted fixes:** Nenhuma nesta sessão. É um problema recorrente de sessões anteriores.
+    -   **Next debug checklist:**
+        1.  Instruir o usuário a fazer uma limpeza de cache forçada no navegador (Ctrl+F5) e verificar novamente.
+        2.  Se o problema persistir, criar um script para ser executado no MongoDB para verificar todas as coleções relevantes e campos de texto, convertendo para maiúsculas onde necessário.
+    -   **Why fix this issue and what will be achieved with the fix?** Garante a consistência visual dos dados em toda a aplicação.
     -   **Status:** USER VERIFICATION PENDING
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** frontend
-
--   **Issue 3: Falta de feedback em tempo real para CPF duplicado no frontend.**
-    -   **Attempted fixes:** N/A.
-    -   **Next debug checklist:**
-        1.  No formulário de criação/edição de aluno, implementar um  ou  no campo de CPF.
-        2.  Criar uma função que chama um endpoint no backend para verificar se o CPF já existe.
-        3.  Exibir uma mensagem de erro abaixo do campo de CPF se o backend retornar que ele já está em uso.
-    -   **Why fix this issue and what will be achieved with the fix?** Melhorará a experiência do usuário, evitando que ele preencha um formulário inteiro para só então descobrir que o CPF é duplicado.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on other issue:** Não.
 
 **In progress Task List**:
-Nenhuma.
+-   **Task 1: Refatorar formulário de edição de escolas.**
+    -   **Where to resume:** No arquivo , remover o campo de formulário para  e unificar a lógica de status no campo .
+    -   **What will be achieved with this?** Simplificará a interface para o usuário e ajudará a resolver o Issue 2.
+    -   **Status:** IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?** frontend
+    -   **Blocked on something:** Não.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   (P1) Implementar aviso em tempo real para CPF duplicado (ver Issue 3).
+    -   (P2) Implementar paginação ou carregar mais na listagem de turmas para evitar problemas com o limite da API.
 -   **Future Tasks:**
     -   (P2) Refatorar o componente  para melhor manutenibilidade.
     -   (P2) Implementar envio de e-mail de confirmação na pré-matrícula.
     -   (P2) Continuar a refatoração do backend, extraindo mais rotas do  para arquivos dedicados.
 
 **Completed work in this session**
--   **Implementação do Papel Ass. Social:** Adicionado novo papel e restrição de acesso.
--   **Dashboard para Assistente Social:** Criada a página  com busca de alunos e exibição de detalhes.
--   **Correção do Cálculo de Frequência:** Criado endpoint e lógica no frontend para calcular a frequência com base nos dias letivos.
--   **Atalho no Menu de Admin:** Adicionado botão para o novo dashboard.
--   **Correção do Bug de Validação de Papel:** Atualizados os modelos Pydantic no backend para aceitar o .
--   **Investigação do Bug de Edição de Escolas:** Confirmado que a funcionalidade está operante e o problema anterior era um erro no teste.
--   **Verificação e Confirmação do Módulo Diário AEE:** Analisado e validado que o módulo já está completo e funcional.
--   **Consultoria de Infraestrutura:** Fornecidas recomendações detalhadas sobre DigitalOcean, Coolify e DNS.
+-   **Acesso :** Corrigido bug que impedia a busca de alunos, escolas e turmas (em , , ).
+-   **Validação de CPF:** Corrigido endpoint  para funcionar com CPFs formatados (em ).
+-   **Dashboard :** Ocultados dados de alunos Não matriculados (em ).
+-   **Funcionalidade Cancelar Matrícula:** Implementada no frontend () e backend (), incluindo tradução do status para Cancelado.
+-   **Plano de AEE:** Módulo totalmente reformulado com novos campos, seções e terminologia correta em .
+-   **Central de Tutoriais:** Criada nova página de tutorial para o Diário AEE () e adicionado link de ajuda no cabeçalho principal ().
+-   **Correção de Acentuação:** Realizada uma extensa revisão gramatical no novo tutorial.
+-   **Branding:** Atualizado o desenvolvedor para Gutenberg Barroso e substituído o ícone pelo logo do SIGESC.
+-   **Dashboard Analítico:** Corrigida a lógica de contagem de Alunos Ativos para considerar o ano letivo ().
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Criação de Endpoint Específico:** Desenvolvimento de uma nova rota em FastAPI () para realizar um cálculo complexo que envolve múltiplas fontes de dados (faltas do aluno e calendário de dias letivos).
--   **Atualização de Enum Pydantic:** Correção de um erro de validação () ao adicionar o novo valor  ao   no arquivo , sincronizando o frontend com o backend.
--   **Lógica de Redirecionamento no Frontend:** Uso do  e  no componente  para redirecionar automaticamente usuários com o papel  para sua página específica após o login.
--   **Depuração de Inconsistência de Dados:** Identificação de um erro 500 causado pela migração para caixa alta, que converteu o valor  para  no campo  da coleção , violando a validação do modelo Pydantic. A correção foi feita diretamente no banco de dados.
+-   **Depuração de Deploy (Docker/Coolify):** Tentativa de estabilizar o ambiente de produção usando nomes de container fixos e scripts de automação pós-deploy.
+-   **Controle de Acesso (FastAPI):** Expansão das listas de permissão nos endpoints para incluir o novo papel .
+-   **Validação de Dados (Pydantic):** Adição de novos valores a s () e uso de  para aumentar a robustez dos endpoints de atualização.
+-   **Manipulação de Estado (React):** Gerenciamento de formulários complexos e com estado dinâmico, como no  e no modal de cancelamento de matrícula.
+-   **Criação de Componentes e Rotas (React):** Desenvolvimento de uma nova seção de tutoriais com páginas e rotas dedicadas, demonstrando a capacidade de estender a aplicação.
 
 **key DB schema**
--   Nenhuma alteração de schema, apenas uma modificação no Enum de papéis de usuário.
--   **User:** 
+-   **Enrollment:** O campo  agora pode aceitar o valor .
+-   **School:** O modelo Pydantic para atualização foi modificado para ignorar campos extras e ser mais resiliente.
 
 **All files of reference**
--   : (NOVO) Página principal da nova funcionalidade.
--   : (MODIFICADO) Contém o novo endpoint de cálculo de frequência.
--   : (MODIFICADO) Onde o novo papel  foi adicionado ao .
--   : (MODIFICADO) Onde a nova rota e a lógica de redirecionamento foram configuradas.
--   : (MODIFICADO) Contém o novo atalho no menu.
--   : Arquivo analisado para verificar a conclusão da tarefa.
+-    (Arquivo a ser modificado para o próximo passo)
+-    (Arquivo central para o problema de deploy)
+-   
+-    (Funcionalidade principal desenvolvida nesta sessão)
+-    (Nova página de tutorial)
+-    (Onde a funcionalidade de Cancelar foi implementada)
 
 **Critical Info for New Agent**
--   **A prioridade máxima é o problema de deploy (Gateway Timeout).** Nenhuma das melhorias desta sessão será visível para o usuário até que isso seja resolvido. Prepare-se para depurar o processo de build no Coolify.
--   O usuário pediu para concluir o Diário AEE. Antes de iniciar qualquer desenvolvimento, confirme com o usuário que você revisou o módulo e ele parece completo, mostrando as capturas de tela novamente se necessário. É provável que ele não tenha visto o estado final devido ao problema de deploy.
--   Esteja ciente das questões de consistência de dados (maiúsculas/minúsculas), pois um problema semelhante (campo  das turmas) causou erros 500 e pode haver outros casos.
+-   **A prioridade MÁXIMA é resolver o problema de deploy (Issue 1).** O usuário não pode validar nenhuma das novas funcionalidades em produção e está visivelmente frustrado por ter que executar comandos manuais a cada deploy. Investigue por que o container do backend está  e por que o Coolify não usa os nomes de container fixos.
+-   Após resolver o deploy, a próxima prioridade é o **bug de edição de escolas (Issue 2)**, que é um problema de usabilidade fundamental para administradores.
+-   O usuário é tecnicamente proficiente e fornece feedback detalhado e preciso, incluindo vídeos e sugestões de terminologia. Leve as sugestões dele a sério.
+-   Valide com o usuário se a correção no Dashboard Analítico (Issue 4) funcionou após o próximo deploy bem-sucedido.
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Pediu uma verificação de bugs no sistema. (Status: **DONE**)
-2.  **User:** Continue! - Aprovando a execução do agente de testes. (Status: **DONE**)
-3.  **User:** Pediu para corrigir a fórmula de cálculo da frequência no dashboard do Assistente Social. (Status: **DONE**)
-4.  **User:** Pediu para remover a exibição da fórmula da tela, mantendo apenas o resultado. (Status: **DONE**)
-5.  **User:** Perguntou sobre requisitos de infraestrutura (DigitalOcean/Coolify) para 22 escolas. (Status: **ANSWERED**)
-6.  **User:** Perguntou se o nome de domínio interfere no desempenho. (Status: **ANSWERED**)
-7.  **User:** Afirmou não saber se usa Cloudflare. (O agente investigou e confirmou que sim). (Status: **DONE**)
-8.  **User:** Reportou um erro de validação do backend () ao tentar criar um usuário com o novo papel. (Status: **FIXED**)
-9.  **User:** Continue - Aprovando a correção do bug. (Status: **DONE**)
-10. **User:** Pediu para concluir o módulo Diário AEE. (Status: **PENDING USER VERIFICATION** - O agente já verificou que o módulo está completo).
+1.  **User:** Reportou que a edição de escolas não funciona e sempre muda o status para inativo. (Status: **IN PROGRESS**)
+2.  **User:** Solicitou a remoção do campo Situação de Funcionamento, deixando apenas Status da Escola. (Status: **IN PROGRESS**)
+3.  **User:** Reportou Bad Gateway após deploy. (Status: **PENDING**)
+4.  **User:** Reportou que a criação de turmas não exibe a nova turma na listagem. (Status: **PENDING INVESTIGATION**)
+5.  **User:** Reportou Bad Gateway e no available server após deploy. (Status: **PENDING**)
+6.  **User:** Pediu que o status cancelled fosse exibido como Cancelado em português. (Status: **DONE**)
+7.  **User:** Reportou que o backend não aceitava o status 'cancelled'. (Status: **FIXED**)
+8.  **User:** Apontou que os botões no modal de cancelamento de matrícula eram confusos. (Status: **FIXED**)
+9.  **User:** Pediu para adicionar a ação Cancelar na aba Turma/Observações da edição de alunos. (Status: **DONE**)
+10. **User:** Questionou a diferença de valores no Dashboard Analítico. (Status: **FIXED**, PENDING VERIFICATION)
 
 **Project Health Check:**
 -   **Broken:**
-    -   O processo de deploy para o ambiente de produção do usuário via Coolify está quebrado, resultando em Gateway Timeout. Este é um bloqueador crítico que impede a entrega de valor.
+    -   O processo de deploy para o ambiente de produção do usuário via Coolify está quebrado. Ele resulta em Bad Gateway e requer intervenção manual a cada execução, tornando a entrega de novas funcionalidades insustentável. O serviço de backend foi visto como .
 
 **3rd Party Integrations**
 -   Nenhuma nova integração foi adicionada.
 
 **Testing status**
--   **Testing agent used after significant changes:** YES. Foi usado para testar o novo dashboard Assistente Social e para uma verificação geral do sistema.
+-   **Testing agent used after significant changes:** NO
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** []
--   **Known regressions:** Nenhuma.
+-   **Known regressions:** A edição de escolas parece ter regredido ou nunca funcionou corretamente.
 
 **Credentials to test flow:**
--   **Administrador:**  / </analysis>
+-   **Administrador:**  / 
+
+**What agent forgot to execute**
+O agente identificou a necessidade de refatorar o formulário em  para corrigir o bug de edição de status, mas não chegou a implementar a alteração. A investigação parou após a visualização dos arquivos relevantes.</analysis>
