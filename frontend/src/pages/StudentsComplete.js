@@ -2675,10 +2675,13 @@ export function StudentsComplete() {
                   <option value="progredir" disabled={!canExecuteAction('progredir', editingStudent?.status)}>
                     ⬆️ Progredir {!canExecuteAction('progredir', editingStudent?.status) ? '(indisponível)' : ''}
                   </option>
+                  <option value="cancelar" disabled={!canExecuteAction('cancelar', editingStudent?.status)}>
+                    ❌ Cancelar {!canExecuteAction('cancelar', editingStudent?.status) ? '(indisponível)' : ''}
+                  </option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
                   {formData.status === 'active' || formData.status === 'ativo' 
-                    ? 'Disponível: Transferir, Remanejar, Progredir'
+                    ? 'Disponível: Transferir, Remanejar, Progredir, Cancelar'
                     : 'Disponível: Matricular'}
                 </p>
               </div>
