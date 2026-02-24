@@ -3205,7 +3205,7 @@ export function StudentsComplete() {
               {filterStatus && (
                 <>
                   <span className="text-gray-400">→</span>
-                  <strong>{filterStatus === 'active' ? 'Ativo' : filterStatus === 'inactive' ? 'Inativo' : filterStatus === 'dropout' ? 'Desistente' : filterStatus === 'transferred' ? 'Transferido' : filterStatus === 'deceased' ? 'Falecido' : filterStatus}</strong>
+                  <strong>{filterStatus === 'active' ? 'Ativo' : filterStatus === 'inactive' ? 'Inativo' : filterStatus === 'dropout' ? 'Desistente' : filterStatus === 'transferred' ? 'Transferido' : filterStatus === 'cancelled' ? 'Cancelado' : filterStatus === 'deceased' ? 'Falecido' : filterStatus}</strong>
                 </>
               )}
               <span className="text-gray-400">|</span>
