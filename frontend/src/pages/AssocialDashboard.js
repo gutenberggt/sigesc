@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { studentsAPI, attendanceAPI, schoolsAPI, classesAPI } from '@/services/api';
 import { formatCPF } from '@/utils/formatters';
-import { Search, User, Calendar, School, BookOpen, Percent, LogOut, X, Loader2, HelpCircle } from 'lucide-react';
+import { Search, User, Calendar, School, BookOpen, Percent, LogOut, X, Loader2 } from 'lucide-react';
 
 export default function AssocialDashboard() {
   const navigate = useNavigate();
