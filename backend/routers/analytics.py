@@ -69,8 +69,26 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         total_classes = await current_db.classes.count_documents(class_filter_with_year)
         
         # ============ CONTAGEM DE ALUNOS ATIVOS ============
-        # Conta alunos com status "Ativo", "active" ou sem status definido
-        # Nota: status "transferred" não é contabilizado como ativo
+        # Para ser consistente com "Matrículas", contamos apenas alunos que têm matrícula ativa no ano letivo
+        # Isso evita a discrepância entre "Alunos Ativos" e "Matrículas"
+        
+        # Primeiro: buscar IDs de alunos com matrícula ativa no ano letivo
+        student_ids_with_enrollment = set()
+        if academic_year:
+            enrollment_student_filter = {
+                'academic_year': {'$in': [str(academic_year), academic_year]},
+                'status': {'$in': ['active', 'Ativo', 'ativo', None]}
+            }
+            if school_id:
+                enrollment_student_filter['school_id'] = school_id
+            elif not is_global and user_school_ids:
+                enrollment_student_filter['school_id'] = {'$in': user_school_ids}
+            
+            async for doc in current_db.enrollments.find(enrollment_student_filter, {'student_id': 1}):
+                if doc.get('student_id'):
+                    student_ids_with_enrollment.add(doc['student_id'])
+        
+        # Conta alunos com status "Ativo" que também têm matrícula no ano
         student_filter = {
             '$or': [
                 {'status': {'$in': ['Ativo', 'ativo', 'active', 'Active', None]}},
@@ -82,7 +100,13 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         elif not is_global and user_school_ids:
             student_filter['school_id'] = {'$in': user_school_ids}
         
-        total_students = await current_db.students.count_documents(student_filter)
+        # Se temos ano letivo e encontramos matrículas, filtramos pelos IDs
+        if academic_year and student_ids_with_enrollment:
+            student_filter['id'] = {'$in': list(student_ids_with_enrollment)}
+            total_students = await current_db.students.count_documents(student_filter)
+        else:
+            # Sem filtro de ano ou sem matrículas encontradas - conta todos os ativos
+            total_students = await current_db.students.count_documents(student_filter)
         
         # Também conta o total geral de alunos (para informação)
         total_students_all = await current_db.students.count_documents(
