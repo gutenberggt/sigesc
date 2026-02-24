@@ -927,7 +927,7 @@ class StudentBase(BaseModel):
     observations: Optional[str] = None
     
     # Status
-    status: Literal['active', 'inactive', 'dropout', 'transferred', 'deceased'] = 'active'
+    status: Literal['active', 'inactive', 'dropout', 'transferred', 'deceased', 'cancelled'] = 'active'
 
 class StudentCreate(StudentBase):
     pass
@@ -1021,7 +1021,7 @@ class StudentUpdate(BaseModel):
     
     # Observações
     observations: Optional[str] = None
-    status: Optional[Literal['active', 'inactive', 'dropout', 'transferred', 'deceased']] = None
+    status: Optional[Literal['active', 'inactive', 'dropout', 'transferred', 'deceased', 'cancelled']] = None
 
 class Student(StudentBase):
     model_config = ConfigDict(extra="ignore")
