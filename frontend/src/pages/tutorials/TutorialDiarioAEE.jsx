@@ -184,7 +184,7 @@ export default function TutorialDiárioAEE() {
                 <ol className="space-y-2 text-slate-300 text-sm">
                   <li>1. Clique na aba <strong className="text-green-400">"Planos de AEE"</strong></li>
                   <li>2. Clique no botão <strong className="text-green-400">"Novo Plano de AEE"</strong></li>
-                  <li>3. Preencha as informações em cada secao</li>
+                  <li>3. Preencha as informações em cada seção</li>
                 </ol>
               </div>
 
@@ -242,8 +242,8 @@ export default function TutorialDiárioAEE() {
                   </p>
                   <div className="space-y-2 text-sm text-slate-300">
                     <p><strong className="text-slate-200">Situação Atual:</strong> Como o estudante está hoje em relação a aprendizagem?</p>
-                    <p><strong className="text-slate-200">Potencialidades:</strong> Quais sao os pontos fortes do aluno? Do que ele gosta?</p>
-                    <p><strong className="text-slate-200">Dificuldades Observadas:</strong> Quais sao as principais barreiras que ele enfrenta?</p>
+                    <p><strong className="text-slate-200">Potencialidades:</strong> Quais são os pontos fortes do aluno? Do que ele gosta?</p>
+                    <p><strong className="text-slate-200">Dificuldades Observadas:</strong> Quais são as principais barreiras que ele enfrenta?</p>
                     <p><strong className="text-slate-200">Formas de Comunicação:</strong> Como o aluno se comunica e participa das atividades?</p>
                   </div>
                   <div className="mt-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
@@ -306,7 +306,7 @@ export default function TutorialDiárioAEE() {
                     <MessageSquare size={18} className="text-teal-400" />
                     Seção 7: Articulação com Sala Comum
                   </h3>
-                  <p className="text-sm text-slate-400 mb-3">Está secao conecta o AEE com a sala de aula regular.</p>
+                  <p className="text-sm text-slate-400 mb-3">Está seção conecta o AEE com a sala de aula regular.</p>
                   <div className="space-y-2 text-sm text-slate-300">
                     <p><strong className="text-slate-200">Orientações para Sala Comum:</strong> Orientações gerais para o professor regente</p>
                     <p><strong className="text-slate-200">Combinados com Professor Regente:</strong> Acordos específicos entre você é o professor da sala regular</p>
@@ -379,7 +379,7 @@ export default function TutorialDiárioAEE() {
                   { label: 'Recursos Utilizados', desc: 'Quais materiais/recursos foram usados?' },
                   { label: 'Nivel de Apoio', desc: 'Quanto apoio o aluno precisou? (Independente, Mínimo, Moderado ou Total)' },
                   { label: 'Resposta do Estudante', desc: 'Como o aluno reagiu? Participou bem?' },
-                  { label: 'Evidencias', desc: 'Registre observacoes sobré o progresso' },
+                  { label: 'Evidencias', desc: 'Registre observações sobré o progresso' },
                   { label: 'Próximo Atendimento', desc: 'O que será trabalhado na próxima sessão?' },
                 ].map((item, index) => (
                   <div key={index} className="flex gap-2 text-slate-300">
@@ -392,7 +392,7 @@ export default function TutorialDiárioAEE() {
               <div className="mt-6 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
                 <p className="text-sm text-yellow-300 flex items-start gap-2">
                   <Lightbulb size={16} className="flex-shrink-0 mt-0.5" />
-                  <span><strong>Dica:</strong> Registré o atendimento logo após a sessão, enquanto as informações estao frescas na memória!</span>
+                  <span><strong>Dica:</strong> Registré o atendimento logo após a sessão, enquanto as informações estão frescas na memória!</span>
                 </p>
               </div>
             </div>
@@ -418,7 +418,7 @@ export default function TutorialDiárioAEE() {
                   <ul className="space-y-2 text-sm text-slate-300">
                     <li>• Resumo dos atendimentos por período</li>
                     <li>• Estatisticas de frequência</li>
-                    <li>• Visao geral do progressó dos alunos</li>
+                    <li>• Visão geral do progressó dos alunos</li>
                   </ul>
                 </div>
                 <div className="bg-slate-900/50 rounded-xl p-4">
