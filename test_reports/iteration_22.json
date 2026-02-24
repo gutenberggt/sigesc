@@ -1,0 +1,68 @@
+{
+  "summary": "Verified bug fix for school status editing. The fix successfully replaced duplicate 'Situação de Funcionamento' dropdown with unified 'Status da Escola' dropdown using 'active'/'inactive' values. All tested features working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_school_status_bug.py",
+    "/app/test_reports/pytest/pytest_school_status.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "School status bug fix verified - status now correctly persists as 'active'/'inactive'",
+    "Old 'Situação de Funcionamento' dropdown confirmed removed from form",
+    "data-testid='school-status-select' present for automated testing"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_school_status_bug.py"
+  ],
+  "success_rate": {
+    "backend": "100% (5/5 passed, 1 skipped)",
+    "frontend": "100% (all flows working)"
+  },
+  "test_credentials": {
+    "email": "gutenberg@sigesc.com",
+    "password": "@Celta2007",
+    "role": "admin"
+  },
+  "seed_data_creation": "Created test class TURMA_UI_TEST_2026 during UI testing (deleted after test)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bug fix verified. School status editing now works correctly. School 'ESCOLA TESTE MULTISSERIADA' status is 'active'. 2 existing classes: TURMA MULTI 1-2-3 and TESTE 2.",
+  "tests_executed": {
+    "backend_api": {
+      "PUT /api/schools/{id} status=inactive": "PASS - Returns updated school with status='inactive'",
+      "PUT /api/schools/{id} status=active": "PASS - Returns updated school with status='active'",
+      "PUT /api/schools/{id} with multiple fields": "PASS - Status preserved correctly",
+      "GET /api/schools": "PASS - Returns correct status for all schools",
+      "POST /api/classes": "PASS - Class creation works",
+      "GET /api/classes": "PASS - Class listing works"
+    },
+    "frontend_ui": {
+      "School edit modal - Status dropdown": "PASS - 'Status da Escola' dropdown present with data-testid",
+      "School edit - Change to Inativa": "PASS - Status changes to 'Inativa' (red badge)",
+      "School edit - Change to Ativa": "PASS - Status changes back to 'Ativa' (green badge)",
+      "School create form - Status dropdown": "PASS - 'Status da Escola' dropdown present in new school form",
+      "Old 'Situação de Funcionamento' removed": "PASS - Old dropdown no longer exists",
+      "Class creation form": "PASS - Form opens and works correctly",
+      "Class creation submit": "PASS - Class created successfully"
+    }
+  },
+  "bug_verification": {
+    "bug_description": "Editing a school always saved as 'Inativa' (inactive)",
+    "root_cause": "Duplicate 'Situação de Funcionamento' dropdown was overwriting status",
+    "fix_applied": "Removed duplicate dropdown, unified to single 'Status da Escola' using 'active'/'inactive' values",
+    "verification_status": "VERIFIED FIXED",
+    "evidence": [
+      "Changed school from Ativa to Inativa - persisted correctly",
+      "Changed school from Inativa to Ativa - persisted correctly",
+      "Success messages displayed: 'Escola atualizada com sucesso'"
+    ]
+  }
+}
