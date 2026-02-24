@@ -4095,7 +4095,7 @@ export function StudentsComplete() {
                 disabled={executingAction}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                Cancelar
+                Voltar
               </button>
               <button
                 type="button"
@@ -4119,6 +4119,7 @@ export function StudentsComplete() {
                   selectedAction === 'transferir' ? 'bg-orange-600 hover:bg-orange-700' :
                   selectedAction === 'remanejar' ? 'bg-blue-600 hover:bg-blue-700' :
                   selectedAction === 'progredir' ? 'bg-purple-600 hover:bg-purple-700' :
+                  selectedAction === 'cancelar' ? 'bg-red-600 hover:bg-red-700' :
                   'bg-gray-600 hover:bg-gray-700'
                 }`}
               >
@@ -4133,6 +4134,7 @@ export function StudentsComplete() {
                     {selectedAction === 'transferir' && '🔄 Confirmar Transferência'}
                     {selectedAction === 'remanejar' && '↔️ Confirmar Remanejamento'}
                     {selectedAction === 'progredir' && '⬆️ Confirmar Progressão'}
+                    {selectedAction === 'cancelar' && '❌ Confirmar Cancelamento'}
                   </>
                 )}
               </button>
