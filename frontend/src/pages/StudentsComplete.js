@@ -2846,12 +2846,14 @@ export function StudentsComplete() {
                       item.new_status === 'active' ? 'bg-green-100 text-green-700' :
                       item.new_status === 'transferred' ? 'bg-orange-100 text-orange-700' :
                       item.new_status === 'inactive' ? 'bg-gray-100 text-gray-700' :
+                      item.new_status === 'cancelled' ? 'bg-red-100 text-red-700' :
                       'bg-red-100 text-red-700'
                     }`}>
                       {item.new_status === 'active' ? 'Ativo' :
                        item.new_status === 'transferred' ? 'Transferido' :
                        item.new_status === 'inactive' ? 'Inativo' :
                        item.new_status === 'dropout' ? 'Desistente' :
+                       item.new_status === 'cancelled' ? 'Cancelado' :
                        item.new_status}
                     </span>
                   </td>
