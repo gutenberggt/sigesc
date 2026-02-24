@@ -311,7 +311,7 @@ export default function TutorialDiárioAEE() {
                     <p><strong className="text-slate-200">Orientações para Sala Comum:</strong> Orientações gerais para o professor regente</p>
                     <p><strong className="text-slate-200">Combinados com Professor Regente:</strong> Acordos específicos entre você com o professor da sala regular</p>
                     <p><strong className="text-slate-200">Adaptações por Componente:</strong> Adaptações específicas por disciplina</p>
-                    <p><strong className="text-slate-200">Adequações Curriculares:</strong> Ajustes no currículo para garantir o acessó a aprendizagem</p>
+                    <p><strong className="text-slate-200">Adequações Curriculares:</strong> Ajustes no currículo para garantir o acesso a aprendizagem</p>
                   </div>
                 </div>
 
@@ -337,7 +337,7 @@ export default function TutorialDiárioAEE() {
                 <ol className="space-y-2 text-sm text-slate-300">
                   <li>1. Revise todas as informações</li>
                   <li>2. Clique em <strong className="text-green-400">"Salvar"</strong></li>
-                  <li>3. O plano aparecera na lista da aba "Planos de AEE"</li>
+                  <li>3. O plano aparecerá na lista da aba "Planos de AEE"</li>
                 </ol>
               </div>
             </div>
@@ -373,13 +373,13 @@ export default function TutorialDiárioAEE() {
                   { label: 'Plano/Estudante', desc: 'Selecione o aluno que foi atendido' },
                   { label: 'Data', desc: 'Data do atendimento' },
                   { label: 'Horário', desc: 'Início e fim da sessão' },
-                  { label: 'Presenca', desc: 'O aluno compareceu? Se nao, informé o motivo' },
+                  { label: 'Presença', desc: 'O aluno compareceu? Se nao, informe o motivo' },
                   { label: 'Objetivo Trabalhado', desc: 'Qual objetivo do plano foi trabalhado hoje?' },
                   { label: 'Atividade Realizada', desc: 'Descreva o que foi feito na sessão' },
                   { label: 'Recursos Utilizados', desc: 'Quais materiais/recursos foram usados?' },
                   { label: 'Nivel de Apoio', desc: 'Quanto apoio o aluno precisou? (Independente, Mínimo, Moderado ou Total)' },
                   { label: 'Resposta do Estudante', desc: 'Como o aluno reagiu? Participou bem?' },
-                  { label: 'Evidencias', desc: 'Registre observações sobré o progresso' },
+                  { label: 'Evidências', desc: 'Registre observações sobre o progresso' },
                   { label: 'Próximo Atendimento', desc: 'O que será trabalhado na próxima sessão?' },
                 ].map((item, index) => (
                   <div key={index} className="flex gap-2 text-slate-300">
@@ -392,7 +392,7 @@ export default function TutorialDiárioAEE() {
               <div className="mt-6 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
                 <p className="text-sm text-yellow-300 flex items-start gap-2">
                   <Lightbulb size={16} className="flex-shrink-0 mt-0.5" />
-                  <span><strong>Dica:</strong> Registré o atendimento logo após a sessão, enquanto as informações estão frescas na memória!</span>
+                  <span><strong>Dica:</strong> Registre o atendimento logo após a sessão, enquanto as informações estão frescas na memória!</span>
                 </p>
               </div>
             </div>
@@ -417,7 +417,7 @@ export default function TutorialDiárioAEE() {
                   <h3 className="font-semibold text-white mb-3">O que você encontra:</h3>
                   <ul className="space-y-2 text-sm text-slate-300">
                     <li>• Resumo dos atendimentos por período</li>
-                    <li>• Estatisticas de frequência</li>
+                    <li>• Estatísticas de frequência</li>
                     <li>• Visão geral do progresso dos alunos</li>
                   </ul>
                 </div>
@@ -437,7 +437,7 @@ export default function TutorialDiárioAEE() {
               <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
                 <p className="text-sm text-yellow-300 flex items-start gap-2">
                   <Lightbulb size={16} className="flex-shrink-0 mt-0.5" />
-                  <span><strong>Dica:</strong> Geré o PDF mensalmente para ter um arquivo de acompanhamento e para reuniões pedagógicas.</span>
+                  <span><strong>Dica:</strong> Gere o PDF mensalmente para ter um arquivo de acompanhamento e para reuniões pedagógicas.</span>
                 </p>
               </div>
             </div>
@@ -491,20 +491,20 @@ export default function TutorialDiárioAEE() {
               <div className="space-y-4">
                 {[
                   { 
-                    q: 'Precisó criar um plano novo a cada bimestre?',
+                    q: 'Preciso criar um plano novo a cada bimestre?',
                     a: 'Não necessariamente. Você pode editar o plano existente e atualizar as informações. Crie um novo apenas se houver mudanças significativas ou no início de um novo ano letivo.'
                   },
                   { 
                     q: 'E se o aluno faltar?',
-                    a: 'Registré o atendimento normalmente, marque "Ausente" no campo de presenca e informé o motivo da falta.'
+                    a: 'Registre o atendimento normalmente, marque "Ausente" no campo de presenca e informe o motivo da falta.'
                   },
                   { 
-                    q: 'Possó editar um atendimento já registrado?',
+                    q: 'Posso editar um atendimento já registrado?',
                     a: 'Sim! Na lista de atendimentos, clique no ícone de editar (lápis) ao lado do registro.'
                   },
                   { 
                     q: 'O que faco se o aluno mudar de turma?',
-                    a: 'Edité o plano e atualize as informações de turma e professor regente.'
+                    a: 'Edite o plano e atualize as informações de turma e professor regente.'
                   },
                 ].map((item, index) => (
                   <div key={index} className="bg-slate-900/50 rounded-xl p-4">
