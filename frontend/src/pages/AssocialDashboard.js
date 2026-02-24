@@ -157,14 +157,16 @@ export default function AssocialDashboard() {
             </div>
             
             <div className="flex items-center space-x-4">
-              <Link
-                to="/tutoriais"
+              <a
+                href="/tutoriais"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="p-2 hover:bg-blue-700 rounded-lg transition-colors"
                 title="Central de Ajuda - Tutoriais do SIGESC"
                 data-testid="help-button"
               >
                 <HelpCircle size={20} />
-              </Link>
+              </a>
               <div className="text-right">
                 <p className="font-medium">{user?.full_name || 'Usuario'}</p>
                 <p className="text-blue-100 text-sm">Ass. Social</p>
