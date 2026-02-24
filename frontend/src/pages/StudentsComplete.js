@@ -694,7 +694,8 @@ export function StudentsComplete() {
         'transferred': 'Transferido', 'transferido': 'Transferido',
         'dropout': 'Desistente', 'desistente': 'Desistente',
         'inactive': 'Inativo',
-        'cancelled': 'Cancelado', 'cancelado': 'Cancelado'
+        'cancelled': 'Cancelado', 'cancelado': 'Cancelado',
+        'deceased': 'Falecido'
       };
       const currentStatus = statusLabels[editingStudent.status?.toLowerCase()] || editingStudent.status;
       
