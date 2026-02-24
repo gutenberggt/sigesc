@@ -1,68 +1,39 @@
 # SIGESC - Sistema Integrado de Gestão Escolar
 
 ## Problema Original
-Sistema completo de gestão escolar para secretarias de educação municipal, incluindo:
-- Gestão de escolas, turmas e alunos
-- Controle de frequência e notas
-- Diário de classe digital
-- Pré-matrícula online
-- Relatórios e dashboards
-- Módulo AEE (Atendimento Educacional Especializado)
-
-## User Personas
-- **Admin/SEMED:** Acesso total ao sistema
-- **Secretário:** Gestão de escola específica
-- **Diretor:** Visão administrativa da escola
-- **Coordenador:** Acompanhamento pedagógico
-- **Professor:** Diário de classe e notas
-- **Ass. Social:** Consulta de dados de alunos para acompanhamento social
+Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal. Inclui gerenciamento de escolas, turmas, alunos, matrículas, frequência, notas, AEE, calendário letivo, servidores, e dashboards analíticos.
 
 ## Arquitetura
-- **Frontend:** React + Tailwind CSS + Shadcn/UI
-- **Backend:** FastAPI + Python
-- **Database:** MongoDB
-- **Autenticação:** JWT
+- **Frontend:** React com Shadcn/UI, react-router-dom
+- **Backend:** FastAPI com Motor (MongoDB async)
+- **DB:** MongoDB
 
-## Funcionalidades Implementadas
+## O que foi implementado
+### Sessão Anterior
+- Acesso `ass_social`: Corrigido bug de busca de alunos, escolas e turmas
+- Validação de CPF: Corrigido endpoint `check-cpf-duplicate`
+- Dashboard `ass_social`: Dados de alunos "Não matriculados" ocultados
+- Cancelar Matrícula: Implementado no frontend e backend
+- Plano de AEE: Módulo totalmente reformulado
+- Central de Tutoriais: Página de tutorial para Diário AEE
+- Correção de acentuação no tutorial
+- Branding: "Gutenberg Barroso" como desenvolvedor, logo SIGESC
+- Dashboard Analítico: Lógica de contagem corrigida
 
-### Core
-- [x] CRUD completo de escolas, turmas, alunos
-- [x] Sistema de autenticação com múltiplos papéis
-- [x] Controle de frequência
-- [x] Sistema de notas por bimestre
-- [x] Pré-matrícula online
-- [x] Relatórios e PDF generation
+### Sessão Atual (24/02/2026)
+- **Bug Edição de Escolas:** CORRIGIDO - Removido campo duplicado "Situação de Funcionamento", unificado em "Status da Escola" com valores `active`/`inactive`. Testado e verificado via testing agent (100% pass rate).
+- **Criação de Turmas:** Verificado funcionando corretamente via testes automatizados.
 
-### Módulos Especiais
-- [x] Diário AEE completo
-- [x] Dashboard Assistente Social (Fev/2026)
-- [x] Cálculo de frequência com dias letivos
-- [x] Sistema de auditoria
+## Issues Pendentes
+- **P0:** Deploy em produção (Coolify) - Bad Gateway após deploy (infraestrutura do servidor)
+- **P3:** Inconsistência no Dashboard Analítico - Fix aplicado, pendente verificação do usuário
+- **P4:** Migração CAIXA ALTA possivelmente incompleta - pendente verificação
 
-### Recente (Fev/2026)
-- [x] Papel "Ass. Social" implementado
-- [x] Dashboard com busca de alunos por nome/CPF
-- [x] Cálculo de frequência: ((Dias Letivos - Faltas) / Dias Letivos) × 100
-- [x] Bug fix: Permissão de acesso para ass_social em students, schools, classes
+## Tarefas Futuras
+- Paginação na listagem de turmas
+- Refatoração do `StudentsComplete.js`
+- Envio de e-mail na pré-matrícula
+- Refatoração do backend (extrair rotas do `server.py`)
 
-## Issues Conhecidos
-
-### P0 - Crítico
-- [x] Containers sem conexão automática à rede Coolify (corrigido 23/02/2026 - nomes fixos no docker-compose)
-
-### P1 - Alto
-- [ ] Migração para CAIXA ALTA pode estar incompleta
-
-### P2 - Médio
-- [x] Feedback em tempo real para CPF duplicado (corrigido 23/02/2026)
-- [ ] Refatoração do StudentsComplete.js
-
-## Backlog
-- [ ] E-mail de confirmação na pré-matrícula
-- [ ] Continuar refatoração do backend (extrair rotas do server.py)
-
-## Credenciais de Teste
-- **Admin:** gutenberg@sigesc.com / @Celta2007
-
----
-*Última atualização: 23/02/2026*
+## Credenciais
+- Admin: `gutenberg@sigesc.com` / `@Celta2007`
