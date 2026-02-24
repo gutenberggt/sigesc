@@ -378,12 +378,12 @@ export default function TutorialAcesso() {
           <div className="flex items-center gap-2 text-slate-500 text-sm">
             <span>Desenvolvido por</span>
             <a 
-              href="https://aprenderdigital.top" 
+              href="https://www.facebook.com/prof.gutenbergbarroso" 
               target="_blank" 
               rel="noopener noreferrer"
               className="text-blue-400 hover:text-blue-300 transition-colors font-medium"
             >
-              Aprender Digital
+              Gutenberg Barroso
             </a>
           </div>
         </div>
