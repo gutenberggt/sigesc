@@ -653,15 +653,16 @@ export function SchoolsComplete() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Situação de Funcionamento</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Status da Escola</label>
             <select
-              value={formData.situacao_funcionamento || 'Ativa'}
-              onChange={(e) => updateFormData('situacao_funcionamento', e.target.value)}
+              value={formData.status || 'active'}
+              onChange={(e) => updateFormData('status', e.target.value)}
               disabled={viewMode}
+              data-testid="school-status-select"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
-              <option value="Ativa">Ativa</option>
-              <option value="Inativa">Inativa</option>
+              <option value="active">Ativa</option>
+              <option value="inactive">Inativa</option>
             </select>
           </div>
           
@@ -832,25 +833,12 @@ export function SchoolsComplete() {
         </div>
       </div>
 
-      {/* Status - Somente no modo edição */}
+      {/* Autorização/Reconhecimento - Somente no modo edição */}
       {editingSchool && (
         <div>
-          <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Status da Escola</h4>
+          <h4 className="text-md font-semibold text-gray-900 mb-4 pb-2 border-b">Regulamentação</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-              <select
-                value={formData.status || 'active'}
-                onChange={(e) => updateFormData('status', e.target.value)}
-                disabled={viewMode}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              >
-                <option value="active">Ativa</option>
-                <option value="inactive">Inativa</option>
-              </select>
-            </div>
-            
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Autorização ou Reconhecimento</label>
               <input
                 type="text"
@@ -858,6 +846,7 @@ export function SchoolsComplete() {
                 onChange={(e) => updateFormData('regulamentacao', e.target.value)}
                 disabled={viewMode}
                 placeholder="Ex: Resolução n° 272 de 21 de maio de 2020 - CEE/PA"
+                data-testid="school-regulamentacao-input"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
               <p className="text-xs text-gray-500 mt-1">
