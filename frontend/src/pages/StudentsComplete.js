@@ -2648,6 +2648,7 @@ export function StudentsComplete() {
                 <option value="inactive">Inativo</option>
                 <option value="dropout">Desistente</option>
                 <option value="transferred">Transferido</option>
+                <option value="cancelled">Cancelado</option>
                 <option value="deceased">Falecido</option>
               </select>
             </div>
@@ -3163,6 +3164,7 @@ export function StudentsComplete() {
                 <option value="inactive">Inativo</option>
                 <option value="dropout">Desistente</option>
                 <option value="transferred">Transferido</option>
+                <option value="cancelled">Cancelado</option>
                 <option value="deceased">Falecido</option>
               </select>
             </div>
