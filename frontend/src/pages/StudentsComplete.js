@@ -3763,7 +3763,7 @@ export function StudentsComplete() {
           </div>
         </Modal>
 
-        {/* Modal de Ação de Vínculo (Matricular, Transferir, Remanejar, Progredir) */}
+        {/* Modal de Ação de Vínculo (Matricular, Transferir, Remanejar, Progredir, Cancelar) */}
         <Modal 
           isOpen={showActionModal} 
           onClose={() => setShowActionModal(false)} 
@@ -3772,6 +3772,7 @@ export function StudentsComplete() {
             selectedAction === 'transferir' ? '🔄 Transferir Aluno' :
             selectedAction === 'remanejar' ? '↔️ Remanejar Aluno' :
             selectedAction === 'progredir' ? '⬆️ Progredir Aluno' :
+            selectedAction === 'cancelar' ? '❌ Cancelar Matrícula' :
             'Ação do Aluno'
           }
           size="md"
@@ -3789,10 +3790,13 @@ export function StudentsComplete() {
                     ? 'bg-green-100 text-green-700' 
                     : editingStudent?.status === 'transferred' || editingStudent?.status === 'transferido'
                     ? 'bg-orange-100 text-orange-700'
+                    : editingStudent?.status === 'cancelled' || editingStudent?.status === 'cancelado'
+                    ? 'bg-red-100 text-red-700'
                     : 'bg-gray-100 text-gray-700'
                 }`}>
                   {editingStudent?.status === 'active' ? 'Ativo' : 
                    editingStudent?.status === 'transferred' ? 'Transferido' :
+                   editingStudent?.status === 'cancelled' ? 'Cancelado' :
                    editingStudent?.status === 'dropout' ? 'Desistente' :
                    editingStudent?.status || 'N/A'}
                 </span>
@@ -3800,6 +3804,39 @@ export function StudentsComplete() {
             </div>
 
             {/* Campos específicos por ação */}
+            
+            {/* CANCELAR - Motivo do cancelamento */}
+            {selectedAction === 'cancelar' && (
+              <div className="space-y-4">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-800">
+                    <strong>⚠️ Cancelar Matrícula:</strong> O aluno terá sua matrícula cancelada nesta escola. 
+                    Ele continuará na listagem de alunos com status "Cancelado", mas <strong>não aparecerá</strong> em:
+                  </p>
+                  <ul className="text-sm text-red-700 mt-2 list-disc list-inside">
+                    <li>Listagem de frequência</li>
+                    <li>Lançamento de notas ou conceitos</li>
+                    <li>Relatórios e documentos oficiais</li>
+                  </ul>
+                  <p className="text-sm text-red-800 mt-2">
+                    O aluno poderá ser matriculado em outra escola da rede posteriormente.
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Motivo do Cancelamento
+                  </label>
+                  <textarea
+                    value={actionData.reason || ''}
+                    onChange={(e) => setActionData(prev => ({ ...prev, reason: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                    placeholder="Descreva o motivo do cancelamento da matrícula..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
             
             {/* MATRICULAR - Seleciona escola e turma */}
             {selectedAction === 'matricular' && (
