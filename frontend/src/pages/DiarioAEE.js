@@ -91,7 +91,19 @@ const DiarioAEE = () => {
     adequacoes_curriculares: '',
     data_inicio: '',
     data_revisao: '',
-    status: 'rascunho'
+    status: 'rascunho',
+    // Novos campos
+    data_elaboracao: '',
+    periodo_vigencia: '',
+    linha_base_situacao_atual: '',
+    linha_base_potencialidades: '',
+    linha_base_dificuldades: '',
+    linha_base_comunicacao: '',
+    indicadores_progresso: '',
+    frequencia_revisao: 'bimestral',
+    criterios_ajuste: '',
+    combinados_professor_regente: '',
+    adaptacoes_por_componente: ''
   });
   
   const [atendimentoForm, setAtendimentoForm] = useState({
