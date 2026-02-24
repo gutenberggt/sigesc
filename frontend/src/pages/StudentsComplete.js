@@ -1368,8 +1368,10 @@ export function StudentsComplete() {
           'Desistente': { label: 'Desistente', class: 'bg-orange-100 text-orange-800' },
           'transferred': { label: 'Transferido', class: 'bg-yellow-100 text-yellow-800' },
           'Transferido': { label: 'Transferido', class: 'bg-yellow-100 text-yellow-800' },
-          'deceased': { label: 'Falecido', class: 'bg-red-100 text-red-800' },
-          'Falecido': { label: 'Falecido', class: 'bg-red-100 text-red-800' }
+          'cancelled': { label: 'Cancelado', class: 'bg-red-100 text-red-800' },
+          'Cancelado': { label: 'Cancelado', class: 'bg-red-100 text-red-800' },
+          'deceased': { label: 'Falecido', class: 'bg-gray-100 text-gray-800' },
+          'Falecido': { label: 'Falecido', class: 'bg-gray-100 text-gray-800' }
         };
         const config = statusConfig[row.status] || statusConfig['active'];
         return (
