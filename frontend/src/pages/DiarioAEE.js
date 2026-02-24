@@ -1037,8 +1037,53 @@ const DiarioAEE = () => {
               </div>
             </div>
           </div>
+
+          {/* Estrategias de Acompanhamento */}
+          <div className="border rounded-lg p-4">
+            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <Activity size={18} />
+              Estrategias de Acompanhamento
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Indicadores de Progresso</label>
+                <textarea
+                  value={planoForm.indicadores_progresso}
+                  onChange={(e) => setPlanoForm({ ...planoForm, indicadores_progresso: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2"
+                  rows={2}
+                  placeholder="Como sera avaliado o progresso do estudante (indicadores simples e observaveis)..."
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Frequencia de Revisao</label>
+                  <select
+                    value={planoForm.frequencia_revisao}
+                    onChange={(e) => setPlanoForm({ ...planoForm, frequencia_revisao: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2"
+                  >
+                    <option value="mensal">Mensal</option>
+                    <option value="bimestral">Bimestral</option>
+                    <option value="trimestral">Trimestral</option>
+                    <option value="semestral">Semestral</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Criterios para Ajustar Estrategias</label>
+                  <input
+                    type="text"
+                    value={planoForm.criterios_ajuste}
+                    onChange={(e) => setPlanoForm({ ...planoForm, criterios_ajuste: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2"
+                    placeholder="Quando e como as estrategias serao revisadas..."
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
           
-          {/* Orientacoes */}
+          {/* Articulacao com Sala Comum */}
           <div className="border rounded-lg p-4">
             <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <MessageSquare size={18} />
@@ -1051,8 +1096,28 @@ const DiarioAEE = () => {
                   value={planoForm.orientacoes_sala_comum}
                   onChange={(e) => setPlanoForm({ ...planoForm, orientacoes_sala_comum: e.target.value })}
                   className="w-full border rounded-lg px-3 py-2"
-                  rows={3}
-                  placeholder="Orientacoes para o professor regente..."
+                  rows={2}
+                  placeholder="Orientacoes gerais para o professor regente..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Combinados com Professor Regente</label>
+                <textarea
+                  value={planoForm.combinados_professor_regente}
+                  onChange={(e) => setPlanoForm({ ...planoForm, combinados_professor_regente: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2"
+                  rows={2}
+                  placeholder="Acordos especificos entre AEE e professor da sala regular..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Adaptacoes por Componente Curricular</label>
+                <textarea
+                  value={planoForm.adaptacoes_por_componente}
+                  onChange={(e) => setPlanoForm({ ...planoForm, adaptacoes_por_componente: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2"
+                  rows={2}
+                  placeholder="Ex: Portugues - ampliacao de fonte; Matematica - uso de material concreto..."
                 />
               </div>
               <div>
@@ -1061,7 +1126,7 @@ const DiarioAEE = () => {
                   value={planoForm.adequacoes_curriculares}
                   onChange={(e) => setPlanoForm({ ...planoForm, adequacoes_curriculares: e.target.value })}
                   className="w-full border rounded-lg px-3 py-2"
-                  rows={3}
+                  rows={2}
                   placeholder="Adequacoes de acesso ao curriculo..."
                 />
               </div>
