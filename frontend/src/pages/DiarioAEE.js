@@ -822,6 +822,101 @@ const DiarioAEE = () => {
               </div>
             </div>
           </div>
+
+          {/* Vigencia do Plano */}
+          <div className="border rounded-lg p-4">
+            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <Calendar size={18} />
+              Vigencia do Plano
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data de Elaboracao</label>
+                <input
+                  type="date"
+                  value={planoForm.data_elaboracao}
+                  onChange={(e) => setPlanoForm({ ...planoForm, data_elaboracao: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Periodo de Vigencia</label>
+                <select
+                  value={planoForm.periodo_vigencia}
+                  onChange={(e) => setPlanoForm({ ...planoForm, periodo_vigencia: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2"
+                >
+                  <option value="">Selecione</option>
+                  <option value="1_bimestre">1o Bimestre</option>
+                  <option value="2_bimestre">2o Bimestre</option>
+                  <option value="3_bimestre">3o Bimestre</option>
+                  <option value="4_bimestre">4o Bimestre</option>
+                  <option value="1_semestre">1o Semestre</option>
+                  <option value="2_semestre">2o Semestre</option>
+                  <option value="ano_letivo">Ano Letivo Completo</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Proxima Revisao</label>
+                <input
+                  type="date"
+                  value={planoForm.data_revisao}
+                  onChange={(e) => setPlanoForm({ ...planoForm, data_revisao: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Linha de Base - Situacao Inicial */}
+          <div className="border rounded-lg p-4">
+            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <ClipboardList size={18} />
+              Linha de Base (Situacao Inicial do Estudante)
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Situacao Atual</label>
+                <textarea
+                  value={planoForm.linha_base_situacao_atual}
+                  onChange={(e) => setPlanoForm({ ...planoForm, linha_base_situacao_atual: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2"
+                  rows={2}
+                  placeholder="Como o estudante esta hoje em relacao a aprendizagem e participacao..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Potencialidades</label>
+                <textarea
+                  value={planoForm.linha_base_potencialidades}
+                  onChange={(e) => setPlanoForm({ ...planoForm, linha_base_potencialidades: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2"
+                  rows={2}
+                  placeholder="Pontos fortes, habilidades e interesses do estudante..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Dificuldades Observadas</label>
+                <textarea
+                  value={planoForm.linha_base_dificuldades}
+                  onChange={(e) => setPlanoForm({ ...planoForm, linha_base_dificuldades: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2"
+                  rows={2}
+                  placeholder="Principais dificuldades e barreiras enfrentadas..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Formas de Comunicacao e Participacao</label>
+                <textarea
+                  value={planoForm.linha_base_comunicacao}
+                  onChange={(e) => setPlanoForm({ ...planoForm, linha_base_comunicacao: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2"
+                  rows={2}
+                  placeholder="Como o estudante se comunica e participa das atividades..."
+                />
+              </div>
+            </div>
+          </div>
           
           {/* Cronograma */}
           <div className="border rounded-lg p-4">
