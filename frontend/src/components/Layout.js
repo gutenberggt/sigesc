@@ -125,7 +125,15 @@ export const Layout = ({ children }) => {
       
       {/* Footer com Copyright */}
       <footer className="mt-auto py-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white">
-        © 2026 Aprender Digital — Gutenberg Barroso
+        © 2026 Desenvolvido por{' '}
+        <a 
+          href="https://www.facebook.com/prof.gutenbergbarroso" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-blue-500 hover:text-blue-700 hover:underline"
+        >
+          Gutenberg Barroso
+        </a>
       </footer>
       
       {/* Indicador flutuante de status */}
