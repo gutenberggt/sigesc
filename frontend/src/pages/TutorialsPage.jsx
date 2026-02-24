@@ -203,6 +203,13 @@ export default function TutorialsPage() {
       icon: 'from-orange-500 to-orange-700',
       hover: 'hover:bg-orange-500/20'
     },
+    teal: {
+      bg: 'bg-teal-500/10',
+      border: 'border-teal-500/30',
+      text: 'text-teal-400',
+      icon: 'from-teal-500 to-teal-700',
+      hover: 'hover:bg-teal-500/20'
+    },
     cyan: {
       bg: 'bg-cyan-500/10',
       border: 'border-cyan-500/30',
