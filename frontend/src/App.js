@@ -7,6 +7,7 @@ import { Login } from '@/pages/Login';
 import LandingPage from '@/pages/LandingPage';
 import TutorialsPage from '@/pages/TutorialsPage';
 import TutorialAcesso from '@/pages/tutorials/TutorialAcesso';
+import TutorialDiarioAEE from '@/pages/tutorials/TutorialDiarioAEE';
 import PreMatricula from '@/pages/PreMatricula';
 import PreMatriculaManagement from '@/pages/PreMatriculaManagement';
 import { Dashboard } from '@/pages/Dashboard';
