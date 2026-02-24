@@ -753,7 +753,7 @@ const DiarioAEE = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Publico-Alvo *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Publico-Alvo da Educacao Especial (PAEE) *</label>
                 <select
                   value={planoForm.publico_alvo}
                   onChange={(e) => setPlanoForm({ ...planoForm, publico_alvo: e.target.value })}
@@ -764,6 +764,7 @@ const DiarioAEE = () => {
                     <option key={k} value={k}>{v}</option>
                   ))}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">Caracterizacao das necessidades educacionais especificas</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Turma de Origem</label>
