@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { studentsAPI, attendanceAPI, schoolsAPI, classesAPI } from '@/services/api';
 import { formatCPF } from '@/utils/formatters';
