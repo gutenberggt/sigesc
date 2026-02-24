@@ -145,9 +145,11 @@ export default function AssocialDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-                <span className="text-blue-600 font-bold text-lg">S</span>
-              </div>
+              <img 
+                src="https://aprenderdigital.top/imagens/logotipo/logosigesc.png" 
+                alt="SIGESC" 
+                className="w-10 h-10 object-contain"
+              />
               <div>
                 <h1 className="text-xl font-bold">SIGESC</h1>
                 <p className="text-blue-100 text-sm">Assistencia Social</p>
