@@ -178,7 +178,7 @@ class TestClassCreation:
             "name": unique_name,
             "school_id": self.school['id'],
             "academic_year": 2026,
-            "shift": "matutino",
+            "shift": "morning",  # Valid values: 'morning', 'afternoon', 'evening', 'full_time'
             "education_level": "fundamental_anos_iniciais",
             "grade_level": "1º Ano",
             "capacity": 25
