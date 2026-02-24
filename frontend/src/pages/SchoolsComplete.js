@@ -527,9 +527,9 @@ export function SchoolsComplete() {
     },
     {
       header: 'Status',
-      accessor: 'situacao_funcionamento',
+      accessor: 'status',
       render: (row) => {
-        const isAtiva = row.situacao_funcionamento === 'Ativa' || row.situacao_funcionamento === 'Em atividade' || (!row.situacao_funcionamento && row.status === 'active');
+        const isAtiva = row.status === 'active';
         return (
           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
               isAtiva
