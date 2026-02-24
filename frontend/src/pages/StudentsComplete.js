@@ -2831,6 +2831,7 @@ export function StudentsComplete() {
                        item.action_type === 'transferencia_saida' ? 'Transf. Saída' :
                        item.action_type === 'transferencia_entrada' ? 'Transf. Entrada' :
                        item.action_type === 'progressao' ? 'Progressão' :
+                       item.action_type === 'cancelamento' ? 'Cancelamento' :
                        item.action_type === 'mudanca_status' ? 'Mudança Status' :
                        'Edição'}
                     </span>
