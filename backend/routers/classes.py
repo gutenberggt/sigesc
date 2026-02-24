@@ -42,7 +42,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         return class_obj
 
     @router.get("", response_model=List[Class])
-    async def list_classes(request: Request, school_id: Optional[str] = None, skip: int = 0, limit: int = 100):
+    async def list_classes(request: Request, school_id: Optional[str] = None, skip: int = 0, limit: int = 1000):
         """Lista turmas"""
         current_user = await AuthMiddleware.get_current_user(request)
         current_db = get_db_for_user(current_user)
