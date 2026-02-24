@@ -3391,6 +3391,7 @@ export function StudentsComplete() {
                             row.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
                             row.status === 'dropout' ? 'bg-red-100 text-red-800' :
                             (row.status === 'transferred' || row.status === 'Transferido') ? 'bg-orange-100 text-orange-800' :
+                            (row.status === 'cancelled' || row.status === 'Cancelado') ? 'bg-red-100 text-red-800' :
                             row.status === 'deceased' ? 'bg-purple-100 text-purple-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
@@ -3398,6 +3399,7 @@ export function StudentsComplete() {
                              row.status === 'inactive' ? 'Inativo' :
                              row.status === 'dropout' ? 'Desistente' :
                              (row.status === 'transferred' || row.status === 'Transferido') ? 'Transferido' :
+                             (row.status === 'cancelled' || row.status === 'Cancelado') ? 'Cancelado' :
                              row.status === 'deceased' ? 'Falecido' :
                              row.status || '-'}
                           </span>
