@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { LogOut, Menu, X } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { LogOut, Menu, X, HelpCircle } from 'lucide-react';
 import { useState } from 'react';
 import { NotificationBell, MessagesBadge } from '@/components/notifications';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
