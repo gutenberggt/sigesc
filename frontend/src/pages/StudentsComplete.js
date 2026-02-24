@@ -930,7 +930,8 @@ export function StudentsComplete() {
         'matricular': 'Matrícula',
         'transferir': 'Transferência',
         'remanejar': 'Remanejamento',
-        'progredir': 'Progressão'
+        'progredir': 'Progressão',
+        'cancelar': 'Cancelamento'
       };
       
       showAlert('success', `${actionLabels[selectedAction]} realizada com sucesso!`);
