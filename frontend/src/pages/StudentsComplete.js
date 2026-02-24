@@ -865,6 +865,21 @@ export function StudentsComplete() {
           }
           break;
           
+        case 'cancelar':
+          updateData = {
+            status: 'cancelled'
+          };
+          
+          historyEntry = {
+            ...historyEntry,
+            action_type: 'cancelamento',
+            new_status: 'cancelled',
+            school_id: formData.school_id,
+            class_id: formData.class_id,
+            observations: actionData.reason || 'Matrícula cancelada'
+          };
+          break;
+          
         default:
           showAlert('error', 'Ação inválida');
           setExecutingAction(false);
