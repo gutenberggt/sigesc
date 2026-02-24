@@ -725,6 +725,12 @@ class SchoolUpdate(BaseModel):
     anos_letivos: Optional[dict] = None
     
     status: Optional[Literal['active', 'inactive']] = None
+    
+    # Campos legados para compatibilidade (serão ignorados)
+    address: Optional[str] = None
+    contacts: Optional[str] = None
+    
+    model_config = ConfigDict(extra="ignore")
 
 class School(SchoolBase):
     model_config = ConfigDict(extra="ignore")
