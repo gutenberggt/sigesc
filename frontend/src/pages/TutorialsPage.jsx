@@ -126,6 +126,20 @@ export default function TutorialsPage() {
       ]
     },
     {
+      id: 'professor-aee',
+      title: 'Professor(a) AEE',
+      icon: Award,
+      color: 'teal',
+      description: 'Tutoriais para o Atendimento Educacional Especializado',
+      tutorials: [
+        { title: 'Guia Completo do Diário AEE', icon: BookOpen, link: '/tutoriais/professor-aee/diario-aee' },
+        { title: 'Criando um Plano de AEE', icon: FileText },
+        { title: 'Registrando Atendimentos', icon: CheckSquare },
+        { title: 'Acompanhamento do Diário', icon: ClipboardList },
+        { title: 'Gerando PDF do Diário', icon: Printer },
+      ]
+    },
+    {
       id: 'alunos',
       title: 'Alunos(as)',
       icon: GraduationCap,
