@@ -141,7 +141,7 @@ const DiarioAEE = () => {
   useEffect(() => {
     const fetchSchools = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/schools`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const response = await fetch(`${API_URL}/api/schools`, { headers: { 'Authorization': `Bearer ${tokenRef.current}` } });
         const data = await response.json();
         // Filtra escolas com AEE (se nenhuma tiver AEE, mostra todas para seleção)
         const allSchools = data.items || data || [];
