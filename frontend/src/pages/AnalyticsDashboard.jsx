@@ -514,7 +514,8 @@ export function AnalyticsDashboard() {
       }
     };
     loadInitialData();
-  }, [isGlobal, userSchoolIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const loadAnalytics = async () => {
