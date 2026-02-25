@@ -16,6 +16,7 @@ import uuid
 
 from models import Student, StudentCreate, StudentUpdate
 from auth_middleware import AuthMiddleware
+from text_utils import format_data_uppercase
 
 router = APIRouter(prefix="/students", tags=["Alunos"])
 
