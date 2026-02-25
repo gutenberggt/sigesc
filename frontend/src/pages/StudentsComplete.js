@@ -2798,6 +2798,67 @@ export function StudentsComplete() {
         </div>
       )}
 
+      {/* Matrícula em Atendimento/Programa (apenas para alunos com deficiência) */}
+      {formData.has_disability && formData.disabilities && formData.disabilities.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 flex items-center gap-2">
+            Matrícula em Atendimento/Programa
+          </h3>
+          <p className="text-sm text-gray-500 mt-2 mb-4">
+            Aluno(a) com deficiência/transtorno identificado. Selecione um programa de atendimento complementar.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-purple-50 p-4 rounded-lg border border-purple-200">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Atendimento</label>
+              <select
+                value={formData.atendimento_programa_tipo || ''}
+                onChange={(e) => {
+                  updateFormData('atendimento_programa_tipo', e.target.value);
+                  updateFormData('atendimento_programa_class_id', '');
+                }}
+                disabled={viewMode}
+                data-testid="atendimento-programa-tipo"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+              >
+                <option value="">Selecione um programa</option>
+                <option value="aee">Atendimento Educacional Especializado - AEE</option>
+                <option value="reforco_escolar">Reforço Escolar</option>
+                <option value="recomposicao_aprendizagem">Recomposição da Aprendizagem</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Turma do Programa</label>
+              <select
+                value={formData.atendimento_programa_class_id || ''}
+                onChange={(e) => updateFormData('atendimento_programa_class_id', e.target.value)}
+                disabled={viewMode || !formData.atendimento_programa_tipo}
+                data-testid="atendimento-programa-class"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+              >
+                <option value="">{formData.atendimento_programa_tipo ? 'Selecione a turma' : 'Selecione o tipo primeiro'}</option>
+                {filteredProgramClasses.map(classItem => (
+                  <option key={classItem.id} value={classItem.id}>
+                    {classItem.name}
+                  </option>
+                ))}
+              </select>
+              {filteredProgramClasses.length === 0 && formData.atendimento_programa_tipo && formData.school_id && (
+                <p className="text-sm text-yellow-600 mt-1">
+                  Nenhuma turma de {formData.atendimento_programa_tipo === 'aee' ? 'AEE' : formData.atendimento_programa_tipo === 'reforco_escolar' ? 'Reforço Escolar' : 'Recomposição da Aprendizagem'} cadastrada para esta escola em {vinculoAnoLetivo}
+                </p>
+              )}
+            </div>
+            {formData.atendimento_programa_tipo === 'aee' && formData.atendimento_programa_class_id && (
+              <div className="flex items-end">
+                <p className="text-sm text-purple-700 bg-purple-100 px-3 py-2 rounded-lg">
+                  Este aluno aparecerá no <strong>Diário AEE</strong> da escola.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-8">Observações</h3>
       <textarea
         value={formData.observations}
