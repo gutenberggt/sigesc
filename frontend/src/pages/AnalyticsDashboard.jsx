@@ -467,7 +467,6 @@ export function AnalyticsDashboard() {
     };
     
     checkSemedTerms();
-    // eslint-disable
   }, [isSemed]);
 
   // Função para aceitar o termo SEMED
@@ -514,7 +513,6 @@ export function AnalyticsDashboard() {
       }
     };
     loadInitialData();
-    // eslint-disable
   }, []);
 
   useEffect(() => {
