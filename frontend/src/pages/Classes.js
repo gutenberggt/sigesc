@@ -58,10 +58,11 @@ const EDUCATION_LEVELS = [
 export const Classes = () => {
   const { user } = useAuth();
   
-  // IDs das escolas que o usuário (secretário) tem vínculo
+  // IDs das escolas que o usuário (secretário) tem vínculo - estabilizado com JSON
+  const userSchoolIdsJson = JSON.stringify(user?.school_ids || user?.school_links?.map(link => link.school_id) || []);
   const userSchoolIds = useMemo(() => {
-    return user?.school_ids || user?.school_links?.map(link => link.school_id) || [];
-  }, [user?.school_ids, user?.school_links]);
+    return JSON.parse(userSchoolIdsJson);
+  }, [userSchoolIdsJson]);
   
   const isAdmin = user?.role === 'admin' || user?.role === 'admin_teste';
   const isSecretario = user?.role === 'secretario';
