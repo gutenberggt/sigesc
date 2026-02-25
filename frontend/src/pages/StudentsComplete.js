@@ -1177,6 +1177,9 @@ export function StudentsComplete() {
   const displayedStudents = (() => {
     if (selectedStudent) return [selectedStudent];
     
+    // Se não há busca nem filtro de escola, não exibe alunos
+    if (!filterSchoolId && !searchName && !searchCpf) return [];
+    
     let result = students;
     
     // Filtrar por escola
@@ -1192,6 +1195,16 @@ export function StudentsComplete() {
     // Filtrar por status
     if (filterStatus) {
       result = result.filter(s => s.status === filterStatus);
+    }
+    
+    // Se há busca por nome, filtrar
+    if (searchName && searchName.length >= 3) {
+      result = result.filter(s => s.full_name?.toLowerCase().includes(searchName.toLowerCase()));
+    }
+    
+    // Se há busca por CPF, filtrar
+    if (searchCpf && searchCpf.length >= 3) {
+      result = result.filter(s => s.cpf?.replace(/\D/g, '').includes(searchCpf.replace(/\D/g, '')));
     }
     
     return result;
