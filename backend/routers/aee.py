@@ -16,6 +16,7 @@ from models import (
     EvolucaoAEE, ArticulacaoSalaComum
 )
 from auth_middleware import AuthMiddleware
+from text_utils import format_data_uppercase
 
 router = APIRouter(prefix="/aee", tags=["AEE"])
 
