@@ -108,10 +108,15 @@ export const Classes = () => {
   const [classDetails, setClassDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
+  const isModalOpenRef = useRef(false);
+  isModalOpenRef.current = isModalOpen;
+  const initialLoadDone = useRef(false);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setLoading(true);
+        // Não mostra loading se é apenas um re-fetch (modal aberto)
+        if (!initialLoadDone.current) setLoading(true);
         const [classesData, schoolsData] = await Promise.all([
           classesAPI.getAll(),
           schoolsAPI.getAll()
@@ -129,10 +134,11 @@ export const Classes = () => {
         setClasses(filteredClasses);
         setSchools(filteredSchools);
         
-        // Se não for admin/semed e tiver schools, seleciona a primeira
-        if (!['admin', 'semed'].includes(user?.role) && filteredSchools.length > 0) {
+        // Só define escola padrão no carregamento inicial, NÃO quando modal está aberto
+        if (!initialLoadDone.current && !['admin', 'semed'].includes(user?.role) && filteredSchools.length > 0) {
           setFormData(prev => ({ ...prev, school_id: filteredSchools[0].id }));
         }
+        initialLoadDone.current = true;
       } catch (error) {
         setAlert({ type: 'error', message: 'Erro ao carregar dados' });
         setTimeout(() => setAlert(null), 5000);
@@ -142,7 +148,8 @@ export const Classes = () => {
       }
     };
     fetchData();
-  }, [reloadTrigger, user?.role, isSecretario, userSchoolIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadTrigger]);
   
   const reloadData = () => setReloadTrigger(prev => prev + 1);
 
