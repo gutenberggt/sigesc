@@ -152,6 +152,7 @@ def setup_aee_router(db, audit_service):
             raise HTTPException(status_code=404, detail="Plano AEE não encontrado")
         
         update_data = plano_update.model_dump(exclude_unset=True)
+        update_data = format_data_uppercase(update_data)
         update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
         
         await db.planos_aee.update_one({"id": plano_id}, {"$set": update_data})
