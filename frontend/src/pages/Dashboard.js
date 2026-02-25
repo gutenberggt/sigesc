@@ -535,6 +535,18 @@ export const Dashboard = () => {
               {/* Ferramentas de Admin - apenas admin */}
               {['admin', 'admin_teste'].includes(user?.role) && (
                 <button
+                  onClick={() => navigate('/admin/online-users')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-all"
+                  data-testid="nav-online-users-button"
+                >
+                  <Wifi className="text-green-600" size={24} />
+                  <span className="font-medium text-gray-900">Usuários Online</span>
+                </button>
+              )}
+              
+              {/* Ferramentas de Admin - apenas admin */}
+              {['admin', 'admin_teste'].includes(user?.role) && (
+                <button
                   onClick={() => navigate('/admin/tools')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 transition-all"
                   data-testid="nav-admin-tools-button"
