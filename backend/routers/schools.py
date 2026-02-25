@@ -23,10 +23,15 @@ def setup_router(db, audit_service, sandbox_db=None):
         return db
 
     @router.post("", response_model=School, status_code=status.HTTP_201_CREATED)
-    async def create_school(school: SchoolCreate, request: Request):
+    async def create_school(request: Request):
         """Cria nova escola (apenas admin)"""
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
         current_db = get_db_for_user(current_user)
+        
+        # Recebe body como dict e limpa strings vazias antes da validação Pydantic
+        raw_data = await request.json()
+        cleaned_data = {k: (None if v == '' else v) for k, v in raw_data.items()}
+        school = SchoolCreate(**cleaned_data)
         
         # Converte dados para maiúsculas (exceto email)
         school_dict = format_data_uppercase(school.model_dump())
