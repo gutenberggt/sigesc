@@ -148,7 +148,6 @@ export const Classes = () => {
       }
     };
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadTrigger]);
   
   const reloadData = () => setReloadTrigger(prev => prev + 1);

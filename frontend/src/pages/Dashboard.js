@@ -90,7 +90,6 @@ export const Dashboard = () => {
       }
     };
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Redireciona professor para o dashboard específico
