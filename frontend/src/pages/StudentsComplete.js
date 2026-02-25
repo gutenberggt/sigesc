@@ -2812,9 +2812,28 @@ export function StudentsComplete() {
             Matrícula em Atendimento/Programa
           </h3>
           <p className="text-sm text-gray-500 mt-2 mb-4">
-            Aluno(a) com deficiência/transtorno identificado. Selecione um programa de atendimento complementar.
+            Aluno(a) com deficiência/transtorno identificado. Selecione a escola que oferece o programa, o tipo de atendimento e a turma.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-purple-50 p-4 rounded-lg border border-purple-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-purple-50 p-4 rounded-lg border border-purple-200">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Escola do Programa</label>
+              <select
+                value={formData.atendimento_programa_school_id || ''}
+                onChange={(e) => {
+                  updateFormData('atendimento_programa_school_id', e.target.value);
+                  updateFormData('atendimento_programa_tipo', '');
+                  updateFormData('atendimento_programa_class_id', '');
+                }}
+                disabled={viewMode}
+                data-testid="atendimento-programa-school"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+              >
+                <option value="">Selecione a escola</option>
+                {schools.map(school => (
+                  <option key={school.id} value={school.id}>{school.name}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Atendimento</label>
               <select
@@ -2823,15 +2842,18 @@ export function StudentsComplete() {
                   updateFormData('atendimento_programa_tipo', e.target.value);
                   updateFormData('atendimento_programa_class_id', '');
                 }}
-                disabled={viewMode}
+                disabled={viewMode || !formData.atendimento_programa_school_id}
                 data-testid="atendimento-programa-tipo"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
               >
-                <option value="">Selecione um programa</option>
-                <option value="aee">Atendimento Educacional Especializado - AEE</option>
-                <option value="reforco_escolar">Reforço Escolar</option>
-                <option value="recomposicao_aprendizagem">Recomposição da Aprendizagem</option>
+                <option value="">{formData.atendimento_programa_school_id ? (availableProgramTypes.length > 0 ? 'Selecione o tipo' : 'Nenhum programa disponível') : 'Selecione a escola primeiro'}</option>
+                {availableProgramTypes.map(tipo => (
+                  <option key={tipo.value} value={tipo.value}>{tipo.label}</option>
+                ))}
               </select>
+              {formData.atendimento_programa_school_id && availableProgramTypes.length === 0 && (
+                <p className="text-sm text-yellow-600 mt-1">Esta escola não possui programas de atendimento cadastrados.</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Turma do Programa</label>
@@ -2849,9 +2871,9 @@ export function StudentsComplete() {
                   </option>
                 ))}
               </select>
-              {filteredProgramClasses.length === 0 && formData.atendimento_programa_tipo && formData.school_id && (
+              {filteredProgramClasses.length === 0 && formData.atendimento_programa_tipo && (
                 <p className="text-sm text-yellow-600 mt-1">
-                  Nenhuma turma de {formData.atendimento_programa_tipo === 'aee' ? 'AEE' : formData.atendimento_programa_tipo === 'reforco_escolar' ? 'Reforço Escolar' : 'Recomposição da Aprendizagem'} cadastrada para esta escola em {vinculoAnoLetivo}
+                  Nenhuma turma de {formData.atendimento_programa_tipo === 'aee' ? 'AEE' : formData.atendimento_programa_tipo === 'reforco_escolar' ? 'Reforço Escolar' : 'Recomposição da Aprendizagem'} cadastrada nesta escola em {vinculoAnoLetivo}
                 </p>
               )}
             </div>
