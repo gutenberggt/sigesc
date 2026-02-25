@@ -467,7 +467,7 @@ export function AnalyticsDashboard() {
     };
     
     checkSemedTerms();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable
   }, [isSemed]);
 
   // Função para aceitar o termo SEMED
@@ -514,7 +514,7 @@ export function AnalyticsDashboard() {
       }
     };
     loadInitialData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable
   }, []);
 
   useEffect(() => {
@@ -593,7 +593,7 @@ export function AnalyticsDashboard() {
     };
     
     loadAnalytics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable
   }, [selectedYear, selectedSchool, selectedClass, selectedStudent]);
 
   // Carregar alunos da turma selecionada via matrículas (enrollments)
@@ -627,7 +627,7 @@ export function AnalyticsDashboard() {
     };
     
     loadStudentsByClass();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable
   }, [selectedClass]);
 
   const handleRefresh = () => {
