@@ -127,6 +127,7 @@ const initialFormData = {
   guardian_ids: [],
   
   // Vínculo com Atendimento/Programa
+  atendimento_programa_school_id: '',
   atendimento_programa_tipo: '',
   atendimento_programa_class_id: '',
   
