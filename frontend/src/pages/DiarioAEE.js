@@ -164,14 +164,16 @@ const DiarioAEE = () => {
 
   // Busca dados quando escola é selecionada
   const fetchData = useCallback(async () => {
-    if (!selectedSchool || !token) return;
+    if (!selectedSchool || !tokenRef.current) return;
+    
+    const authHeader = { 'Authorization': `Bearer ${tokenRef.current}` };
     
     setLoading(true);
     try {
       // Busca estudantes AEE
       const estudantesRes = await fetch(
         `${API_URL}/api/aee/estudantes?school_id=${selectedSchool}&academic_year=${academicYear}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        { headers: authHeader }
       );
       const estudantesData = await estudantesRes.json();
       setEstudantes(estudantesData || []);
@@ -179,7 +181,7 @@ const DiarioAEE = () => {
       // Busca planos
       const planosRes = await fetch(
         `${API_URL}/api/aee/planos?school_id=${selectedSchool}&academic_year=${academicYear}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        { headers: authHeader }
       );
       const planosData = await planosRes.json();
       setPlanos(planosData.items || []);
@@ -187,7 +189,7 @@ const DiarioAEE = () => {
       // Busca atendimentos
       const atendRes = await fetch(
         `${API_URL}/api/aee/atendimentos?school_id=${selectedSchool}&academic_year=${academicYear}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        { headers: authHeader }
       );
       const atendData = await atendRes.json();
       setAtendimentos(atendData.items || []);
@@ -195,7 +197,7 @@ const DiarioAEE = () => {
       // Busca diário consolidado
       const diarioRes = await fetch(
         `${API_URL}/api/aee/diario?school_id=${selectedSchool}&academic_year=${academicYear}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        { headers: authHeader }
       );
       const diarioDataRes = await diarioRes.json();
       setDiarioData(diarioDataRes);
@@ -203,7 +205,7 @@ const DiarioAEE = () => {
       // Busca alunos da escola para o modal
       const studentsRes = await fetch(
         `${API_URL}/api/students?school_id=${selectedSchool}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        { headers: authHeader }
       );
       const studentsData = await studentsRes.json();
       setStudents(studentsData.items || studentsData || []);
@@ -211,7 +213,7 @@ const DiarioAEE = () => {
       // Busca turmas da escola
       const turmasRes = await fetch(
         `${API_URL}/api/classes?school_id=${selectedSchool}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
+        { headers: authHeader }
       );
       const turmasData = await turmasRes.json();
       setTurmas(turmasData.items || turmasData || []);
@@ -222,7 +224,7 @@ const DiarioAEE = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedSchool, academicYear, token]);
+  }, [selectedSchool, academicYear]);
 
   useEffect(() => {
     fetchData();
