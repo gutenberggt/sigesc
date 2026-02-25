@@ -62,7 +62,8 @@ def setup_aee_router(db, audit_service):
             )
         
         # Cria o plano
-        plano_obj = PlanoAEE(**plano_data.model_dump())
+        plano_dict = format_data_uppercase(plano_data.model_dump())
+        plano_obj = PlanoAEE(**plano_dict)
         doc = plano_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
         
