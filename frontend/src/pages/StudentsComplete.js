@@ -3227,6 +3227,14 @@ export function StudentsComplete() {
         </div>
 
         {/* Linha de Total e Toggle de Ações em Lote */}
+        {(!filterSchoolId && !searchName && !searchCpf && !selectedStudent) ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center" data-testid="select-school-message">
+            <Building2 size={40} className="mx-auto text-blue-400 mb-3" />
+            <p className="text-blue-800 font-medium text-lg">Selecione uma escola ou busque por nome/CPF</p>
+            <p className="text-blue-600 text-sm mt-1">Use os filtros acima para visualizar os alunos</p>
+          </div>
+        ) : (
+        <>
         <div className="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg mb-4">
           <div className="text-sm text-gray-600">
             <span className="font-medium">Total: {displayedStudents.length} registros</span>
