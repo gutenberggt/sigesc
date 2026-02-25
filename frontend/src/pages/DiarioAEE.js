@@ -160,7 +160,8 @@ const DiarioAEE = () => {
       }
     };
     if (token) fetchSchools();
-  }, [token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Busca dados quando escola é selecionada
   const fetchData = useCallback(async () => {
