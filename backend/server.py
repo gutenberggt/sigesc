@@ -423,6 +423,45 @@ class ConnectionManager:
 # Instância global do gerenciador de conexões
 connection_manager = ConnectionManager()
 
+# ============= ACTIVE SESSIONS TRACKER =============
+from datetime import datetime, timezone, timedelta
+import threading
+
+class ActiveSessionsTracker:
+    """Rastreia usuários ativos baseado em atividade HTTP"""
+    def __init__(self):
+        self._sessions = {}  # user_id -> {last_activity, user_data}
+        self._lock = threading.Lock()
+    
+    def update(self, user_id: str, user_data: dict):
+        with self._lock:
+            self._sessions[user_id] = {
+                "last_activity": datetime.now(timezone.utc),
+                "user_data": {
+                    "id": user_data.get("id"),
+                    "full_name": user_data.get("full_name"),
+                    "email": user_data.get("email"),
+                    "role": user_data.get("role"),
+                    "avatar_url": user_data.get("avatar_url"),
+                    "school_ids": user_data.get("school_ids", []),
+                    "school_links": user_data.get("school_links", []),
+                }
+            }
+    
+    def get_online(self, threshold_minutes=5):
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=threshold_minutes)
+        with self._lock:
+            return {
+                uid: data for uid, data in self._sessions.items()
+                if data["last_activity"] >= cutoff
+            }
+    
+    def remove(self, user_id: str):
+        with self._lock:
+            self._sessions.pop(user_id, None)
+
+active_sessions = ActiveSessionsTracker()
+
 # ============= ACADEMIC YEAR STATUS VERIFICATION =============
 
 async def check_academic_year_open(school_id: str, academic_year: int) -> bool:
