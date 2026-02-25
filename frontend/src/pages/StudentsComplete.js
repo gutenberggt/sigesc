@@ -1161,6 +1161,13 @@ export function StudentsComplete() {
     c.academic_year === vinculoAnoLetivo
   );
   
+  // Turmas de Atendimento/Programa filtradas por tipo selecionado
+  const filteredProgramClasses = classes.filter(c =>
+    c.school_id === formData.school_id &&
+    c.academic_year === vinculoAnoLetivo &&
+    c.atendimento_programa === formData.atendimento_programa_tipo
+  );
+  
   // Turmas filtradas para o filtro de busca
   const filterClassOptions = classes.filter(c => c.school_id === filterSchoolId);
 
