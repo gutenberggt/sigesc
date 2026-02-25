@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, FileText, Calendar, Clock, Plus, Edit2, Trash2, Eye, Download,
@@ -46,6 +46,8 @@ const DIAS_SEMANA = {
 const DiarioAEE = () => {
   const { user, accessToken } = useAuth();
   const token = accessToken;  // Alias para compatibilidade
+  const tokenRef = useRef(token);
+  tokenRef.current = token;
   const navigate = useNavigate();
   
   // Estados principais
