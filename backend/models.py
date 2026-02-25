@@ -525,7 +525,8 @@ class SchoolBase(BaseModel):
     aee: Optional[bool] = False  # Atendimento educacional especializado
     atendimento_integral: Optional[bool] = False
     reforco_escolar: Optional[bool] = False
-    aulas_complementares: Optional[bool] = False
+    aulas_complementares: Optional[bool] = False  # Legado
+    recomposicao_aprendizagem: Optional[bool] = False
     
     # Dados do Ensino - Regime
     turnos_funcionamento: List[str] = []
@@ -696,7 +697,8 @@ class SchoolUpdate(BaseModel):
     aee: Optional[bool] = None
     atendimento_integral: Optional[bool] = None
     reforco_escolar: Optional[bool] = None
-    aulas_complementares: Optional[bool] = None
+    aulas_complementares: Optional[bool] = None  # Legado
+    recomposicao_aprendizagem: Optional[bool] = None
     
     # Regime
     turnos_funcionamento: Optional[List[str]] = None
