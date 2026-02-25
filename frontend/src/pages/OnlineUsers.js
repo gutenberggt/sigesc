@@ -151,6 +151,7 @@ export default function OnlineUsers() {
                 <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Escola(s)</th>
                 <th className="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Conexões</th>
                 <th className="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Última Atividade</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -199,6 +200,9 @@ export default function OnlineUsers() {
                       <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
                       <span className="text-sm text-green-700 font-medium">Online</span>
                     </span>
+                  </td>
+                  <td className="px-6 py-4 text-right text-sm text-gray-500">
+                    {user.last_activity ? new Date(user.last_activity).toLocaleTimeString('pt-BR') : '-'}
                   </td>
                 </tr>
               ))}
