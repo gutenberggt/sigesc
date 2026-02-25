@@ -591,7 +591,6 @@ export function AnalyticsDashboard() {
     };
     
     loadAnalytics();
-    // eslint-disable
   }, [selectedYear, selectedSchool, selectedClass, selectedStudent]);
 
   // Carregar alunos da turma selecionada via matrículas (enrollments)
@@ -625,7 +624,6 @@ export function AnalyticsDashboard() {
     };
     
     loadStudentsByClass();
-    // eslint-disable
   }, [selectedClass]);
 
   const handleRefresh = () => {
