@@ -931,6 +931,10 @@ class StudentBase(BaseModel):
     user_id: Optional[str] = None  # Se aluno tem acesso ao portal
     guardian_ids: List[str] = []  # IDs dos responsáveis no sistema
     
+    # === VÍNCULO COM ATENDIMENTO/PROGRAMA ===
+    atendimento_programa_tipo: Optional[str] = None  # 'aee', 'reforco_escolar', 'recomposicao_aprendizagem'
+    atendimento_programa_class_id: Optional[str] = None  # ID da turma do programa
+    
     # === OBSERVAÇÕES ===
     observations: Optional[str] = None
     
