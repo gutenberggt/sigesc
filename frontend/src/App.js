@@ -241,6 +241,16 @@ function App() {
             }
           />
           
+          {/* Usuários Online - apenas admin */}
+          <Route
+            path="/admin/online-users"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste']}>
+                <OnlineUsers />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* Avisos - todos os usuários autenticados */}
           <Route
             path="/avisos"
