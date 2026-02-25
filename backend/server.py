@@ -7391,19 +7391,15 @@ async def get_online_users(request: Request):
     current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
     current_db = get_db_for_user(current_user)
     
-    online_user_ids = list(connection_manager.active_connections.keys())
+    online = active_sessions.get_online(threshold_minutes=5)
     
-    if not online_user_ids:
+    if not online:
         return []
-    
-    users = await current_db.users.find(
-        {"id": {"$in": online_user_ids}},
-        {"_id": 0, "id": 1, "full_name": 1, "email": 1, "role": 1, "avatar_url": 1, "school_ids": 1, "school_links": 1}
-    ).to_list(100)
     
     # Buscar nomes das escolas vinculadas
     all_school_ids = set()
-    for u in users:
+    for uid, data in online.items():
+        u = data["user_data"]
         for sid in (u.get('school_ids') or []):
             all_school_ids.add(sid)
         for link in (u.get('school_links') or []):
@@ -7418,7 +7414,8 @@ async def get_online_users(request: Request):
         schools_map = {s['id']: s['name'] for s in schools}
     
     result = []
-    for u in users:
+    for uid, data in online.items():
+        u = data["user_data"]
         school_names = []
         for sid in (u.get('school_ids') or []):
             if sid in schools_map:
@@ -7428,17 +7425,21 @@ async def get_online_users(request: Request):
             if sid in schools_map and schools_map[sid] not in school_names:
                 school_names.append(schools_map[sid])
         
-        connections_count = len(connection_manager.active_connections.get(u['id'], []))
+        ws_connections = len(connection_manager.active_connections.get(uid, []))
         
         result.append({
-            "id": u['id'],
+            "id": u.get('id', uid),
             "full_name": u.get('full_name', 'N/A'),
             "email": u.get('email', ''),
             "role": u.get('role', ''),
             "avatar_url": u.get('avatar_url'),
             "schools": school_names,
-            "connections": connections_count
+            "connections": max(ws_connections, 1),
+            "last_activity": data["last_activity"].isoformat()
         })
+    
+    # Ordenar por nome
+    result.sort(key=lambda x: x['full_name'])
     
     return result
 
