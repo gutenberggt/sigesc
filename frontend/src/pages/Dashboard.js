@@ -22,9 +22,10 @@ export const Dashboard = () => {
   const [switchingRole, setSwitchingRole] = useState(false);
 
   // IDs das escolas que o usuário (secretário) tem vínculo
+  const userSchoolIdsJson = JSON.stringify(user?.school_ids || user?.school_links?.map(link => link.school_id) || []);
   const userSchoolIds = useMemo(() => {
-    return user?.school_ids || user?.school_links?.map(link => link.school_id) || [];
-  }, [user?.school_ids, user?.school_links]);
+    return JSON.parse(userSchoolIdsJson);
+  }, [userSchoolIdsJson]);
   
   const isSecretario = user?.role === 'secretario';
   const isDiretor = user?.role === 'diretor';

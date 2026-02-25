@@ -43,9 +43,10 @@ export function SchoolsComplete() {
   const canCreate = isAdmin; // Só admin pode criar escolas
   
   // IDs das escolas que o usuário tem vínculo (para secretário) - usando useMemo para evitar recriação
+  const userSchoolIdsJson = JSON.stringify(user?.school_ids || user?.school_links?.map(link => link.school_id) || []);
   const userSchoolIds = useMemo(() => {
-    return user?.school_ids || user?.school_links?.map(link => link.school_id) || [];
-  }, [user?.school_ids, user?.school_links]);
+    return JSON.parse(userSchoolIdsJson);
+  }, [userSchoolIdsJson]);
   
   // Dados padrão da mantenedora
   const defaultLocation = getDefaultLocation();

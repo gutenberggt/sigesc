@@ -338,9 +338,10 @@ export function StudentsComplete() {
   const isCoordenador = user?.role === 'coordenador';
   
   // IDs das escolas que o usuário (secretário) tem vínculo
+  const userSchoolIdsJson = JSON.stringify(user?.school_ids || user?.school_links?.map(link => link.school_id) || []);
   const userSchoolIds = useMemo(() => {
-    return user?.school_ids || user?.school_links?.map(link => link.school_id) || [];
-  }, [user?.school_ids, user?.school_links]);
+    return JSON.parse(userSchoolIdsJson);
+  }, [userSchoolIdsJson]);
   
   // Função para verificar se o secretário pode editar um aluno específico
   const canEditStudent = useCallback((student) => {

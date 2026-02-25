@@ -400,13 +400,15 @@ export function AnalyticsDashboard() {
   // Determina se pode ver dados de alunos
   const canViewStudentData = isGlobal || isSchoolStaff || isProfessor;
   
+  const userSchoolIdsJson = JSON.stringify(user?.school_ids || user?.school_links?.map(link => link.school_id) || []);
   const userSchoolIds = useMemo(() => {
-    return user?.school_ids || user?.school_links?.map(link => link.school_id) || [];
-  }, [user]);
+    return JSON.parse(userSchoolIdsJson);
+  }, [userSchoolIdsJson]);
   
+  const userClassIdsJson = JSON.stringify(user?.class_ids || user?.class_links?.map(link => link.class_id) || []);
   const userClassIds = useMemo(() => {
-    return user?.class_ids || user?.class_links?.map(link => link.class_id) || [];
-  }, [user]);
+    return JSON.parse(userClassIdsJson);
+  }, [userClassIdsJson]);
   
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
