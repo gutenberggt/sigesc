@@ -685,9 +685,10 @@ def setup_aee_router(db, audit_service):
         school_id: str = Query(...),
         academic_year: int = Query(...)
     ):
-        """Lista estudantes com planos AEE ativos na escola"""
+        """Lista estudantes com planos AEE ativos na escola e alunos matriculados em turma AEE"""
         current_user = await check_aee_access(request)
         
+        # 1. Busca alunos com planos AEE existentes
         filter_query = {
             "school_id": school_id,
             "academic_year": academic_year,
@@ -700,13 +701,14 @@ def setup_aee_router(db, audit_service):
         planos = await db.planos_aee.find(filter_query, {"_id": 0, "student_id": 1, "publico_alvo": 1, "modalidade": 1, "dias_atendimento": 1}).to_list(100)
         
         estudantes = []
+        student_ids_added = set()
+        
         for plano in planos:
             student = await db.students.find_one(
                 {"id": plano.get('student_id')},
                 {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "class_id": 1}
             )
             if student:
-                # Busca turma
                 turma = await db.classes.find_one({"id": student.get('class_id')}, {"_id": 0, "name": 1})
                 estudantes.append({
                     "student_id": student.get('id'),
@@ -717,6 +719,32 @@ def setup_aee_router(db, audit_service):
                     "modalidade": plano.get('modalidade'),
                     "dias_atendimento": plano.get('dias_atendimento', [])
                 })
+                student_ids_added.add(student.get('id'))
+        
+        # 2. Busca alunos matriculados em turma AEE (que ainda não têm plano)
+        aee_students = await db.students.find(
+            {
+                "school_id": school_id,
+                "atendimento_programa_tipo": "aee",
+                "atendimento_programa_class_id": {"$ne": None, "$ne": ""},
+                "status": "active",
+                "id": {"$nin": list(student_ids_added)}
+            },
+            {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "class_id": 1, "disabilities": 1}
+        ).to_list(100)
+        
+        for student in aee_students:
+            turma = await db.classes.find_one({"id": student.get('class_id')}, {"_id": 0, "name": 1})
+            estudantes.append({
+                "student_id": student.get('id'),
+                "full_name": student.get('full_name'),
+                "enrollment_number": student.get('enrollment_number'),
+                "turma_origem": turma.get('name') if turma else 'N/A',
+                "publico_alvo": None,
+                "modalidade": None,
+                "dias_atendimento": [],
+                "sem_plano": True
+            })
         
         return estudantes
 
