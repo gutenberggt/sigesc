@@ -516,13 +516,7 @@ export function AnalyticsDashboard() {
 
   useEffect(() => {
     const loadAnalytics = async () => {
-      console.log('[Analytics] loadAnalytics chamado, token:', token ? 'presente' : 'ausente');
-      
-      if (!token) {
-        console.log('[Analytics] Token ausente, aguardando...');
-        // Não seta loading false imediatamente - espera o token
-        return;
-      }
+      if (!tokenRef.current) return;
       
       setLoading(true);
       try {
@@ -532,7 +526,7 @@ export function AnalyticsDashboard() {
         if (selectedClass) params.append('class_id', selectedClass);
         if (selectedStudent) params.append('student_id', selectedStudent);
         
-        const headers = { 'Authorization': `Bearer ${token}` };
+        const headers = { 'Authorization': `Bearer ${tokenRef.current}` };
         
         const safeFetch = async (url) => {
           try {
@@ -551,16 +545,13 @@ export function AnalyticsDashboard() {
           safeFetch(`${API_URL}/api/analytics/attendance/monthly?${params}`),
           safeFetch(`${API_URL}/api/analytics/grades/by-subject?${params}`),
           safeFetch(`${API_URL}/api/analytics/grades/by-period?${params}`),
-          // Ranking sempre busca TODAS as escolas ativas (sem filtro de school_id)
           canViewRanking ? safeFetch(`${API_URL}/api/analytics/schools/ranking?academic_year=${selectedYear}`) : null,
           canViewStudentData ? safeFetch(`${API_URL}/api/analytics/students/performance?${params}`) : null,
           safeFetch(`${API_URL}/api/analytics/distribution/grades?${params}`)
         ]);
         
-        console.log('[Analytics] Overview response:', ovRes);
         if (ovRes) setOverview(ovRes);
         if (trendRes) {
-          // Zera o ano de 2025 no gráfico de evolução de matrículas
           const adjustedTrend = trendRes.map(item => {
             if (item.year === 2025 || item.year === '2025') {
               return { ...item, total: 0, active: 0 };
@@ -573,14 +564,12 @@ export function AnalyticsDashboard() {
         if (subjectRes) setGradesBySubject(subjectRes);
         if (periodRes) setGradesByPeriod(periodRes);
         
-        // Ranking - trata resposta com restrição
         if (rankingRes && !rankingRes.restricted) {
           setSchoolsRanking(Array.isArray(rankingRes) ? rankingRes : (rankingRes.data || []));
         } else {
           setSchoolsRanking([]);
         }
         
-        // Performance de alunos - trata resposta com restrição
         if (perfRes) {
           if (perfRes.restricted) {
             setPerformanceRestricted(true);
@@ -601,7 +590,8 @@ export function AnalyticsDashboard() {
     };
     
     loadAnalytics();
-  }, [selectedYear, selectedSchool, selectedClass, selectedStudent, token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedYear, selectedSchool, selectedClass, selectedStudent]);
 
   // Carregar alunos da turma selecionada via matrículas (enrollments)
   useEffect(() => {
