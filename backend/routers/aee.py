@@ -306,6 +306,7 @@ def setup_aee_router(db, audit_service):
             raise HTTPException(status_code=404, detail="Atendimento não encontrado")
         
         update_data = atendimento_update.model_dump(exclude_unset=True)
+        update_data = format_data_uppercase(update_data)
         update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
         
         # Recalcula duração se horários foram alterados
