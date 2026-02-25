@@ -214,7 +214,8 @@ def setup_aee_router(db, audit_service):
             except:
                 pass
         
-        atendimento_obj = AtendimentoAEE(**atendimento_data.model_dump())
+        atend_dict = format_data_uppercase(atendimento_data.model_dump())
+        atendimento_obj = AtendimentoAEE(**atend_dict)
         doc = atendimento_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
         
