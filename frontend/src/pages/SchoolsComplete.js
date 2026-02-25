@@ -291,7 +291,7 @@ export function SchoolsComplete() {
     return () => {
       isMounted = false;
     };
-  }, [reloadTrigger, isSecretario, userSchoolIds]);
+  }, [reloadTrigger]);
 
   // Função para recarregar os dados
   const reloadData = () => {
