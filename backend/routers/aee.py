@@ -726,7 +726,7 @@ def setup_aee_router(db, audit_service):
             {
                 "school_id": school_id,
                 "atendimento_programa_tipo": "aee",
-                "atendimento_programa_class_id": {"$ne": None, "$ne": ""},
+                "atendimento_programa_class_id": {"$exists": True, "$nin": [None, ""]},
                 "status": "active",
                 "id": {"$nin": list(student_ids_added)}
             },
