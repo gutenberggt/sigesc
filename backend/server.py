@@ -7502,13 +7502,12 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
 @app.middleware("http")
 async def track_active_sessions(request: Request, call_next):
     response = await call_next(request)
-    # Rastreia apenas requisições autenticadas com sucesso
     if response.status_code < 400:
         auth_header = request.headers.get("authorization", "")
         if auth_header.startswith("Bearer "):
             try:
                 token = auth_header.split(" ")[1]
-                payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                payload = decode_token(token)
                 user_id = payload.get("sub")
                 if user_id:
                     user = await db.users.find_one({"id": user_id}, {"_id": 0})
