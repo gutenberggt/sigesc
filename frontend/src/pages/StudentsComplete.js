@@ -3517,6 +3517,8 @@ export function StudentsComplete() {
             </div>
           )}
         </div>
+        </>
+        )}
 
         <Modal
           isOpen={isModalOpen}
