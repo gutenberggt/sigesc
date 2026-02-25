@@ -9,6 +9,7 @@ from passlib.context import CryptContext
 
 from models import UserResponse, UserUpdate
 from auth_middleware import AuthMiddleware
+from text_utils import format_data_uppercase
 
 router = APIRouter(prefix="/users", tags=["Usuários"])
 
@@ -76,9 +77,12 @@ def setup_router(db, audit_service, sandbox_db=None):
         # Se a senha foi fornecida, faz o hash
         if 'password' in update_data and update_data['password']:
             update_data['password_hash'] = pwd_context.hash(update_data['password'])
-            del update_data['password']  # Remove o campo password, só salva password_hash
+            del update_data['password']
         elif 'password' in update_data:
-            del update_data['password']  # Remove se estiver vazio
+            del update_data['password']
+        
+        # Converte dados para maiúsculas
+        update_data = format_data_uppercase(update_data)
         
         if update_data:
             await current_db.users.update_one(
