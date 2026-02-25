@@ -932,6 +932,7 @@ class StudentBase(BaseModel):
     guardian_ids: List[str] = []  # IDs dos responsáveis no sistema
     
     # === VÍNCULO COM ATENDIMENTO/PROGRAMA ===
+    atendimento_programa_school_id: Optional[str] = None  # ID da escola do programa
     atendimento_programa_tipo: Optional[str] = None  # 'aee', 'reforco_escolar', 'recomposicao_aprendizagem'
     atendimento_programa_class_id: Optional[str] = None  # ID da turma do programa
     
@@ -1032,6 +1033,7 @@ class StudentUpdate(BaseModel):
     guardian_ids: Optional[List[str]] = None
     
     # Vínculo com Atendimento/Programa
+    atendimento_programa_school_id: Optional[str] = None
     atendimento_programa_tipo: Optional[str] = None
     atendimento_programa_class_id: Optional[str] = None
     
