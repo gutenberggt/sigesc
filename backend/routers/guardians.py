@@ -8,6 +8,7 @@ from typing import List
 
 from models import Guardian, GuardianCreate, GuardianUpdate
 from auth_middleware import AuthMiddleware
+from text_utils import format_data_uppercase
 
 router = APIRouter(prefix="/guardians", tags=["Responsáveis"])
 
@@ -20,7 +21,8 @@ def setup_router(db, audit_service):
         """Cria novo responsável"""
         current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
         
-        guardian_obj = Guardian(**guardian_data.model_dump())
+        guardian_dict = format_data_uppercase(guardian_data.model_dump())
+        guardian_obj = Guardian(**guardian_dict)
         doc = guardian_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
         
@@ -58,6 +60,7 @@ def setup_router(db, audit_service):
         current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
         
         update_data = guardian_update.model_dump(exclude_unset=True)
+        update_data = format_data_uppercase(update_data)
         
         if update_data:
             result = await db.guardians.update_one(
