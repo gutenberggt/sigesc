@@ -175,6 +175,7 @@ export function SchoolsComplete() {
     atendimento_integral: false,
     reforco_escolar: false,
     aulas_complementares: false,
+    recomposicao_aprendizagem: false,
     turnos_funcionamento: [],
     organizacao_turmas: '',
     tipo_avaliacao: '',
