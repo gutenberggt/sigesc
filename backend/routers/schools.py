@@ -103,7 +103,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         return School(**school)
 
     @router.put("/{school_id}", response_model=School)
-    async def update_school(school_id: str, school_update: SchoolUpdate, request: Request):
+    async def update_school(school_id: str, request: Request):
         """Atualiza escola (admin ou secretário vinculado)"""
         current_user = await AuthMiddleware.get_current_user(request)
         current_db = get_db_for_user(current_user)
@@ -123,6 +123,11 @@ def setup_router(db, audit_service, sandbox_db=None):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Apenas administradores e secretários podem editar escolas"
             )
+        
+        # Recebe body como dict e limpa strings vazias antes da validação Pydantic
+        raw_data = await request.json()
+        cleaned_data = {k: (None if v == '' else v) for k, v in raw_data.items()}
+        school_update = SchoolUpdate(**cleaned_data)
         
         update_data = school_update.model_dump(exclude_unset=True)
         
