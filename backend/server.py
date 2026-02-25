@@ -7343,6 +7343,67 @@ async def migrate_to_uppercase(request: Request):
         "details": results
     }
 
+
+# ============= ONLINE USERS ENDPOINT =============
+
+@app.get("/api/admin/online-users")
+async def get_online_users(request: Request):
+    """Retorna lista de usuários online (apenas admin)"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+    current_db = get_db_for_user(current_user)
+    
+    online_user_ids = list(connection_manager.active_connections.keys())
+    
+    if not online_user_ids:
+        return []
+    
+    users = await current_db.users.find(
+        {"id": {"$in": online_user_ids}},
+        {"_id": 0, "id": 1, "full_name": 1, "email": 1, "role": 1, "avatar_url": 1, "school_ids": 1, "school_links": 1}
+    ).to_list(100)
+    
+    # Buscar nomes das escolas vinculadas
+    all_school_ids = set()
+    for u in users:
+        for sid in (u.get('school_ids') or []):
+            all_school_ids.add(sid)
+        for link in (u.get('school_links') or []):
+            all_school_ids.add(link.get('school_id', ''))
+    
+    schools_map = {}
+    if all_school_ids:
+        schools = await current_db.schools.find(
+            {"id": {"$in": list(all_school_ids)}},
+            {"_id": 0, "id": 1, "name": 1}
+        ).to_list(100)
+        schools_map = {s['id']: s['name'] for s in schools}
+    
+    result = []
+    for u in users:
+        school_names = []
+        for sid in (u.get('school_ids') or []):
+            if sid in schools_map:
+                school_names.append(schools_map[sid])
+        for link in (u.get('school_links') or []):
+            sid = link.get('school_id', '')
+            if sid in schools_map and schools_map[sid] not in school_names:
+                school_names.append(schools_map[sid])
+        
+        connections_count = len(connection_manager.active_connections.get(u['id'], []))
+        
+        result.append({
+            "id": u['id'],
+            "full_name": u.get('full_name', 'N/A'),
+            "email": u.get('email', ''),
+            "role": u.get('role', ''),
+            "avatar_url": u.get('avatar_url'),
+            "schools": school_names,
+            "connections": connections_count
+        })
+    
+    return result
+
+
 # ============= WEBSOCKET ENDPOINT =============
 
 @app.websocket("/api/ws/{token}")
