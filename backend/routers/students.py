@@ -226,6 +226,9 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if not update_data:
             return Student(**student_doc)
         
+        # Converte dados para maiúsculas
+        update_data = format_data_uppercase(update_data)
+        
         # Detecta tipo de operação
         old_class_id = student_doc.get('class_id')
         old_school_id = student_doc.get('school_id')
