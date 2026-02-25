@@ -445,11 +445,11 @@ export function AnalyticsDashboard() {
   // Verificar termo de responsabilidade para SEMED
   useEffect(() => {
     const checkSemedTerms = async () => {
-      if (!isSemed || !token) return;
+      if (!isSemed || !tokenRef.current) return;
       
       try {
         const response = await fetch(`${API_URL}/api/analytics/semed/check-terms`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${tokenRef.current}` }
         });
         const data = await response.json();
         
@@ -465,7 +465,8 @@ export function AnalyticsDashboard() {
     };
     
     checkSemedTerms();
-  }, [isSemed, token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSemed]);
 
   // Função para aceitar o termo SEMED
   const handleAcceptSemedTerms = async () => {
