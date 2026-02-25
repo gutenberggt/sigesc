@@ -1293,7 +1293,7 @@ export function SchoolsComplete() {
       if (formData.aee) atendimentosAtivos.push('Atendimento Educacional Especializado - AEE');
       if (formData.atendimento_integral) atendimentosAtivos.push('Escola Integral');
       if (formData.reforco_escolar) atendimentosAtivos.push('Reforço Escolar');
-      if (formData.aulas_complementares) atendimentosAtivos.push('Aulas Complementares');
+      if (formData.recomposicao_aprendizagem) atendimentosAtivos.push('Recomposição da Aprendizagem');
       
       const corClasses = {
         blue: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -1693,12 +1693,12 @@ export function SchoolsComplete() {
           <label className="flex items-center space-x-2">
             <input
               type="checkbox"
-              checked={formData.aulas_complementares || false}
-              onChange={(e) => updateFormData('aulas_complementares', e.target.checked)}
+              checked={formData.recomposicao_aprendizagem || false}
+              onChange={(e) => updateFormData('recomposicao_aprendizagem', e.target.checked)}
               disabled={viewMode}
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <span className="text-sm text-gray-700">Aulas Complementares</span>
+            <span className="text-sm text-gray-700">Recomposição da Aprendizagem</span>
           </label>
         </div>
       </div>
@@ -1717,7 +1717,7 @@ export function SchoolsComplete() {
       const programaLabels = {
         'atendimento_integral': { label: 'Integral', color: 'bg-purple-100 text-purple-800' },
         'reforco_escolar': { label: 'Reforço', color: 'bg-orange-100 text-orange-800' },
-        'aulas_complementares': { label: 'Complementar', color: 'bg-teal-100 text-teal-800' },
+        'recomposicao_aprendizagem': { label: 'Recomposição', color: 'bg-teal-100 text-teal-800' },
         'aee': { label: 'AEE', color: 'bg-blue-100 text-blue-800' }
       };
       
