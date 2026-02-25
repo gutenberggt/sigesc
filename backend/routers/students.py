@@ -47,7 +47,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                     detail="Não é possível criar aluno com status 'Ativo' sem escola e turma definidas. O aluno precisa estar matriculado em uma turma."
                 )
         
-        student_obj = Student(**student_data.model_dump())
+        student_dict = format_data_uppercase(student_data.model_dump())
+        student_obj = Student(**student_dict)
         doc = student_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
         
