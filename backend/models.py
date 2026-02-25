@@ -1031,6 +1031,10 @@ class StudentUpdate(BaseModel):
     user_id: Optional[str] = None
     guardian_ids: Optional[List[str]] = None
     
+    # Vínculo com Atendimento/Programa
+    atendimento_programa_tipo: Optional[str] = None
+    atendimento_programa_class_id: Optional[str] = None
+    
     # Observações
     observations: Optional[str] = None
     status: Optional[Literal['active', 'inactive', 'dropout', 'transferred', 'deceased', 'cancelled']] = None
