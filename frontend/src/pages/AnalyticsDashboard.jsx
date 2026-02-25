@@ -596,24 +596,21 @@ export function AnalyticsDashboard() {
   // Carregar alunos da turma selecionada via matrículas (enrollments)
   useEffect(() => {
     const loadStudentsByClass = async () => {
-      if (!selectedClass || !token) {
+      if (!selectedClass || !tokenRef.current) {
         setStudents([]);
         setSelectedStudent('');
         return;
       }
       
       try {
-        // Buscar detalhes da turma que inclui a lista de alunos matriculados
         const response = await fetch(`${API_URL}/api/classes/${selectedClass}/details`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${tokenRef.current}` }
         });
         
         if (response.ok) {
           const data = await response.json();
-          // Os alunos já vêm filtrados pela turma através das matrículas ativas
           setStudents(data.students || []);
         } else {
-          // Fallback: buscar todos e filtrar localmente
           const allStudents = await studentsAPI.getAll();
           const filtered = allStudents.filter(s => 
             s.class_id === selectedClass || s.turma_id === selectedClass
@@ -627,7 +624,8 @@ export function AnalyticsDashboard() {
     };
     
     loadStudentsByClass();
-  }, [selectedClass, token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClass]);
 
   const handleRefresh = () => {
     setRefreshing(true);
