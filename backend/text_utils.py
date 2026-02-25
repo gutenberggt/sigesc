@@ -23,7 +23,16 @@ LOWERCASE_FIELDS = {
     'nivel_ensino', 'education_level',
     'modalidade', 'modality',
     'periodo', 'period',
-    'legal_guardian_type'
+    'legal_guardian_type',
+    # Campos Literal de modelos Pydantic
+    'zona_localizacao', 'tipo_unidade', 'atendimento_programa',
+    'tipo_atividade', 'tipo_atendimento', 'tipo_deficiencia',
+    'form_pagamento', 'comunidade_tradicional',
+    # IDs referenciados
+    'escola_id', 'student_id', 'class_id', 'teacher_id',
+    'school_id', 'user_id', 'enrollment_id',
+    'atendimento_programa_tipo', 'atendimento_programa_class_id',
+    'atendimento_programa_school_id'
 }
 
 
