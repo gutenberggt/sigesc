@@ -663,7 +663,7 @@ async def register(user_data: UserCreate):
         )
     
     # Cria usuário
-    user_dict = user_data.model_dump(exclude={'password'})
+    user_dict = format_data_uppercase(user_data.model_dump(exclude={'password'}))
     user_obj = UserInDB(
         **user_dict,
         password_hash=hash_password(user_data.password)
