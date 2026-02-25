@@ -1162,9 +1162,15 @@ export function StudentsComplete() {
     c.academic_year === vinculoAnoLetivo
   );
   
-  // Turmas de Atendimento/Programa filtradas por tipo selecionado
+  // Turmas de Atendimento/Programa filtradas por escola e tipo selecionado
+  const programSchool = schools.find(s => s.id === formData.atendimento_programa_school_id);
+  const availableProgramTypes = programSchool ? [
+    ...(programSchool.aee ? [{ value: 'aee', label: 'Atendimento Educacional Especializado - AEE' }] : []),
+    ...(programSchool.reforco_escolar ? [{ value: 'reforco_escolar', label: 'Reforço Escolar' }] : []),
+    ...(programSchool.recomposicao_aprendizagem ? [{ value: 'recomposicao_aprendizagem', label: 'Recomposição da Aprendizagem' }] : []),
+  ] : [];
   const filteredProgramClasses = classes.filter(c =>
-    c.school_id === formData.school_id &&
+    c.school_id === formData.atendimento_programa_school_id &&
     c.academic_year === vinculoAnoLetivo &&
     c.atendimento_programa === formData.atendimento_programa_tipo
   );
