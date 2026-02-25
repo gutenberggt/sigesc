@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -351,6 +351,8 @@ export function AnalyticsDashboard() {
   const navigate = useNavigate();
   const { user, accessToken } = useAuth();
   const token = accessToken;
+  const tokenRef = useRef(token);
+  tokenRef.current = token;
   
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedSchool, setSelectedSchool] = useState('');
