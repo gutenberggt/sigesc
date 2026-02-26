@@ -1296,7 +1296,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         user = await AuthMiddleware.get_current_user(request)
         user_role = user.get('role', '').lower()
         
-        if user_role != 'semed':
+        if user_role not in ['semed', 'semed3']:
             raise HTTPException(status_code=403, detail="Apenas usuários SEMED podem aceitar este termo")
         
         user_id = user.get('id') or user.get('user_id')
@@ -1334,7 +1334,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         user = await AuthMiddleware.get_current_user(request)
         user_role = user.get('role', '').lower()
         
-        if user_role != 'semed':
+        if user_role not in ['semed', 'semed3']:
             return {"needs_acceptance": False, "is_semed": False}
         
         user_id = user.get('id') or user.get('user_id')
