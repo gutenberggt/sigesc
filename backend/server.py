@@ -1984,9 +1984,9 @@ async def upload_file(
     file: UploadFile = File(...), 
     file_type: Optional[str] = "default"
 ):
-    """Upload de arquivo (foto, documento, laudo, etc.) para servidor externo via FTP - RESTRITO"""
-    # Apenas roles autorizados podem fazer upload
-    current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador'])(request)
+    """Upload de arquivo (foto, documento, laudo, etc.) para servidor externo via FTP"""
+    # Qualquer usuário autenticado pode fazer upload de foto de perfil
+    current_user = await AuthMiddleware.get_current_user(request)
     
     # Verifica extensão
     file_ext = Path(file.filename).suffix.lower()
