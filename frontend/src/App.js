@@ -38,7 +38,7 @@ import OnlineUsers from '@/pages/OnlineUsers';
 import '@/App.css';
 
 // Roles SEMED (todos os níveis)
-const SEMED_ROLES = ['semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3'];
+const SEMED_ROLES = ['semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3'];
 // Roles que podem ver o dashboard de diários
 const DIARY_DASHBOARD_ROLES = ['admin', 'admin_teste', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'semed_nivel_2', 'semed_nivel_3'];
 
@@ -78,7 +78,7 @@ function App() {
           <Route
             path="/admin/analytics"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria']}>
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria']}>
                 <AnalyticsDashboard />
               </ProtectedRoute>
             }
@@ -98,7 +98,7 @@ function App() {
           <Route
             path="/admin/diario-aee"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'coordenador', 'professor']}>
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'coordenador', 'professor', 'semed3']}>
                 <DiarioAEE />
               </ProtectedRoute>
             }
@@ -118,7 +118,7 @@ function App() {
           <Route
             path="/admin/schools"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
                 <Schools />
               </ProtectedRoute>
             }
@@ -127,7 +127,7 @@ function App() {
           <Route
             path="/admin/users"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3']}>
                 <Users />
               </ProtectedRoute>
             }
@@ -136,7 +136,7 @@ function App() {
           <Route
             path="/admin/classes"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
                 <Classes />
               </ProtectedRoute>
             }
@@ -145,7 +145,7 @@ function App() {
           <Route
             path="/admin/courses"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'admin_teste']}>
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'semed3']}>
                 <Courses />
               </ProtectedRoute>
             }
@@ -154,7 +154,7 @@ function App() {
           <Route
             path="/admin/students"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
                 <Students />
               </ProtectedRoute>
             }
@@ -172,7 +172,7 @@ function App() {
           <Route
             path="/admin/grades"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'professor', 'coordenador', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'professor', 'coordenador', 'semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
                 <Grades />
               </ProtectedRoute>
             }
@@ -181,7 +181,7 @@ function App() {
           <Route
             path="/admin/calendar"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'professor', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'professor', 'semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
                 <Calendar />
               </ProtectedRoute>
             }
@@ -190,7 +190,7 @@ function App() {
           <Route
             path="/admin/events"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3']}>
                 <Events />
               </ProtectedRoute>
             }
@@ -199,7 +199,7 @@ function App() {
           <Route
             path="/admin/attendance"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'professor', 'diretor', 'coordenador', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'professor', 'diretor', 'coordenador', 'semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
                 <Attendance />
               </ProtectedRoute>
             }
@@ -208,7 +208,7 @@ function App() {
           <Route
             path="/admin/learning-objects"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'professor', 'diretor', 'coordenador', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'professor', 'diretor', 'coordenador', 'semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'auxiliar_secretaria']}>
                 <LearningObjects />
               </ProtectedRoute>
             }
@@ -217,7 +217,7 @@ function App() {
           <Route
             path="/admin/staff"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'diretor']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3', 'diretor']}>
                 <Staff />
               </ProtectedRoute>
             }
@@ -245,7 +245,7 @@ function App() {
           <Route
             path="/admin/online-users"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'admin_teste']}>
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'semed3']}>
                 <OnlineUsers />
               </ProtectedRoute>
             }
@@ -255,7 +255,7 @@ function App() {
           <Route
             path="/avisos"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel', 'semed']}>
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel', 'semed', 'semed3']}>
                 <Announcements />
               </ProtectedRoute>
             }
