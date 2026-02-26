@@ -536,6 +536,8 @@ export const Dashboard = () => {
               
               {/* Usuários Online - admin e semed3 */}
               {['admin', 'admin_teste', 'semed3'].includes(user?.role) && (
+                <button
+                  onClick={() => navigate('/admin/online-users')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-all"
                   data-testid="nav-online-users-button"
                 >
