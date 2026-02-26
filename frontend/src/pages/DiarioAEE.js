@@ -552,6 +552,8 @@ const DiarioAEE = () => {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex justify-center gap-2">
+                      {canEdit && (
+                      <>
                       <button
                         onClick={() => handleEditPlano(plano)}
                         className="p-1 text-blue-600 hover:bg-blue-50 rounded"
@@ -566,6 +568,8 @@ const DiarioAEE = () => {
                       >
                         <Plus size={16} />
                       </button>
+                      </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -581,6 +585,7 @@ const DiarioAEE = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold text-gray-800">Registro de Atendimentos</h3>
+        {canEdit && (
         <button
           onClick={() => handleNovoAtendimento()}
           className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -589,6 +594,7 @@ const DiarioAEE = () => {
           <Plus size={18} />
           Novo Atendimento
         </button>
+        )}
       </div>
       
       {atendimentos.length === 0 ? (
