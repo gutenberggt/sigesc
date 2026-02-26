@@ -19,6 +19,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 8. Correções: auto-refresh, erro ao salvar escola, CAIXA ALTA universal, ESLint, turma AEE
 9. **Papel SEMED 3 (semed3):** Implementado com acesso somente visualização a: Dashboard, Escolas, Turmas, Alunos, Servidores, Componentes Curriculares, Usuários, Diário AEE, Frequência, Notas, Calendário, Avisos, Analytics, Usuários Online. Sem acesso a: Log de Conversas, Ferramentas, Mantenedora. Todos botões CRUD ocultos.
 10. **SEMED 3 Analytics:** Ranking de Escolas (Score V2.1) e Análise Comparativa por Bloco (Top 5 Escolas) exibidos para SEMED 3 no Dashboard Analítico.
+11. **SEMED 3 Permissões extras:** Acesso a Usuários Online e permissão para criar/enviar Avisos (Novo Aviso).
 
 ## Modelos Atualizados
 - **UserRole:** Inclui 'semed3' no Literal de roles permitidos
