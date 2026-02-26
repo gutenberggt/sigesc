@@ -144,7 +144,8 @@ export const Users = () => {
     professor: 'Professor(a)',
     aluno: 'Aluno(a)',
     responsavel: 'Responsável(is)',
-    semed: 'SEMED'
+    semed: 'SEMED',
+    semed3: 'SEMED 3'
   };
 
   // Verifica se o usuário atual é administrador
