@@ -2,11 +2,23 @@
 # Docker Compose para Coolify v4 (Service Stack)
 # ============================================================
 # O Coolify cria uma rede com o nome do RESOURCE_UUID e conecta
-# o proxy (Traefik) a ela. Precisamos colocar nossos containers
-# nessa MESMA rede para o Traefik conseguir rotear o tráfego.
+# o proxy (Traefik) a ela. Ao usar essa rede como 'default',
+# todos os containers ficam acessíveis ao proxy E entre si.
 # ============================================================
 
 services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - sigesc-mongo-data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
   backend:
     build:
       context: ./backend
@@ -19,6 +31,9 @@ services:
       - FTP_USER=${FTP_USER:-}
       - FTP_PASSWORD=${FTP_PASSWORD:-}
     restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.sigesc-backend.rule=Host(`api.sigesc.aprenderdigital.top`)"
@@ -56,12 +71,15 @@ services:
       retries: 5
       start_period: 30s
 
+volumes:
+  sigesc-mongo-data:
+
 # ============================================================
 # REDE: Usa a rede que o Coolify criou para este projeto.
 # O Coolify passa COOLIFY_RESOURCE_UUID como variável de ambiente
 # e conecta o proxy (Traefik) a essa rede automaticamente.
-# Ao usar 'external: true' com esse nome, nossos containers
-# ficam na MESMA rede que o proxy — resolvendo o Bad Gateway.
+# Ao definir como 'default', todos os serviços (mongo, backend,
+# frontend) ficam na MESMA rede que o proxy.
 # ============================================================
 networks:
   default:
