@@ -448,7 +448,8 @@ export function SchoolsComplete() {
     setFormData({
       ...school,
       status: school.status || 'active',
-      anos_letivos: school.anos_letivos || {}
+      anos_letivos: school.anos_letivos || {},
+      anexa_a: school.anexa_a ? school.anexa_a.toLowerCase() : ''
     });
     setIsModalOpen(true);
     loadSchoolStaff(school.id, selectedYear);
