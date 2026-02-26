@@ -50,6 +50,9 @@ const DiarioAEE = () => {
   tokenRef.current = token;
   const navigate = useNavigate();
   
+  // Permissão de edição - semed3 é somente leitura
+  const canEdit = user?.role !== 'semed3';
+  
   // Estados principais
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('estudantes'); // estudantes, planos, atendimentos, diario
