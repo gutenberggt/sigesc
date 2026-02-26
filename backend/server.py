@@ -7387,8 +7387,8 @@ async def migrate_to_uppercase(request: Request):
 
 @app.get("/api/admin/online-users")
 async def get_online_users(request: Request):
-    """Retorna lista de usuários online (apenas admin)"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+    """Retorna lista de usuários online (apenas admin e semed3)"""
+    current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'semed3'])(request)
     current_db = get_db_for_user(current_user)
     
     online = active_sessions.get_online(threshold_minutes=5)
