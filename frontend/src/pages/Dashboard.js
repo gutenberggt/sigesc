@@ -427,8 +427,8 @@ export const Dashboard = () => {
                 </button>
               )}
               
-              {/* Diário AEE - visível para admin, coordenador, professor */}
-              {(['admin', 'admin_teste', 'coordenador', 'professor'].includes(user?.role)) && (
+              {/* Diário AEE - visível para admin, coordenador, professor, semed3 */}
+              {(['admin', 'admin_teste', 'coordenador', 'professor', 'semed3'].includes(user?.role)) && (
                 <button
                   onClick={() => navigate('/admin/diario-aee')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
@@ -451,9 +451,7 @@ export const Dashboard = () => {
                 </button>
               )}
               
-              {isAdmin && (
-                <button
-                  onClick={() => navigate('/admin/courses')}
+              {(isAdmin || user?.role === 'semed3') && (
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all"
                   data-testid="nav-courses-button"
                 >
