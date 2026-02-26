@@ -389,7 +389,7 @@ export function AnalyticsDashboard() {
   
   const userRole = (user?.role || '').toLowerCase();
   const isAdmin = ['admin', 'admin_teste'].includes(userRole);
-  const isSemed = userRole === 'semed';
+  const isSemed = userRole === 'semed' || userRole === 'semed3';
   const isGlobal = isAdmin || isSemed;
   const isSchoolStaff = ['diretor', 'coordenador', 'secretario', 'secretário'].includes(userRole);
   const isProfessor = userRole === 'professor';
