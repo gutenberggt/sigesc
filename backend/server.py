@@ -3153,7 +3153,7 @@ async def list_school_assignments(
     academic_year: Optional[int] = None
 ):
     """Lista lotações"""
-    await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'diretor'])(request)
+    await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed3', 'diretor'])(request)
     
     query = {}
     if school_id:
@@ -3325,7 +3325,7 @@ async def list_teacher_assignments(
     status: Optional[str] = None
 ):
     """Lista alocações de professores"""
-    await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'diretor', 'coordenador'])(request)
+    await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed3', 'diretor', 'coordenador'])(request)
     
     query = {}
     if school_id:
