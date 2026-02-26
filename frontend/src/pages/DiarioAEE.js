@@ -435,6 +435,7 @@ const DiarioAEE = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold text-gray-800">Estudantes Atendidos no AEE</h3>
+        {canEdit && (
         <button
           onClick={() => { resetPlanoForm(); setShowPlanoModal(true); }}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -442,6 +443,7 @@ const DiarioAEE = () => {
           <Plus size={18} />
           Novo Plano de AEE
         </button>
+        )}
       </div>
       
       {estudantes.length === 0 ? (
