@@ -88,7 +88,7 @@ function App() {
           <Route
             path="/admin/diary-dashboard"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'semed_nivel_2', 'semed_nivel_3']}>
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'semed3', 'semed_nivel_2', 'semed_nivel_3']}>
                 <DiaryDashboard />
               </ProtectedRoute>
             }
