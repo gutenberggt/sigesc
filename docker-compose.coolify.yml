@@ -1,11 +1,9 @@
 # ============================================================
 # Docker Compose para Coolify v4 (Service Stack)
 # ============================================================
-# REGRAS para evitar Bad Gateway:
-#   1. NÃO use 'container_name' nem 'hostname' (Coolify gerencia)
-#   2. NÃO use 'networks:' com 'external: true' (Coolify gerencia)
-#   3. NÃO use 'ports:' (Traefik faz o roteamento via labels)
-#   4. USE labels do Traefik para definir domínios e portas
+# O Coolify cria uma rede com o nome do RESOURCE_UUID e conecta
+# o proxy (Traefik) a ela. Precisamos colocar nossos containers
+# nessa MESMA rede para o Traefik conseguir rotear o tráfego.
 # ============================================================
 
 services:
@@ -57,3 +55,15 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+
+# ============================================================
+# REDE: Usa a rede que o Coolify criou para este projeto.
+# O Coolify passa COOLIFY_RESOURCE_UUID como variável de ambiente
+# e conecta o proxy (Traefik) a essa rede automaticamente.
+# Ao usar 'external: true' com esse nome, nossos containers
+# ficam na MESMA rede que o proxy — resolvendo o Bad Gateway.
+# ============================================================
+networks:
+  default:
+    external: true
+    name: ${COOLIFY_RESOURCE_UUID}
