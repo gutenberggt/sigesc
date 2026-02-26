@@ -218,8 +218,8 @@ const Announcements = () => {
   };
 
   const availableRoles = () => {
-    // Admin e SEMED podem enviar para todos
-    if (user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'semed') {
+    // Admin, SEMED e SEMED3 podem enviar para todos
+    if (user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'semed' || user?.role === 'semed3') {
       return ['secretario', 'diretor', 'coordenador', 'professor', 'aluno', 'responsavel'];
     }
     // Secretário, Diretor, Coordenador podem enviar para professores e alunos
