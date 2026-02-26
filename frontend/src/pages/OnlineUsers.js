@@ -31,6 +31,7 @@ const ROLE_COLORS = {
 
 export default function OnlineUsers() {
   const { accessToken } = useAuth();
+  const navigate = useNavigate();
   const tokenRef = useRef(accessToken);
   tokenRef.current = accessToken;
   const [users, setUsers] = useState([]);
