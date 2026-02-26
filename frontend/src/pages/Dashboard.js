@@ -452,6 +452,8 @@ export const Dashboard = () => {
               )}
               
               {(isAdmin || user?.role === 'semed3') && (
+                <button
+                  onClick={() => navigate('/admin/courses')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all"
                   data-testid="nav-courses-button"
                 >
