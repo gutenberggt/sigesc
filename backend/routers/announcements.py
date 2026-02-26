@@ -391,7 +391,7 @@ def setup_announcements_router(db, audit_service, connection_manager=None, sandb
         if not announcement:
             raise HTTPException(status_code=404, detail="Aviso não encontrado")
         
-        if announcement['sender_id'] != current_user['id'] and current_user['role'] not in ['admin', 'admin_teste', 'semed']:
+        if announcement['sender_id'] != current_user['id'] and current_user['role'] not in ['admin', 'admin_teste', 'semed', 'semed3']:
             raise HTTPException(status_code=403, detail="Apenas o remetente pode ver quem leu")
         
         reads = await current_db.announcement_reads.find(
