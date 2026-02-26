@@ -36,7 +36,7 @@ export function SchoolsComplete() {
   // SEMED: pode visualizar tudo, mas não pode editar/excluir
   const isAdmin = user?.role === 'admin' || user?.role === 'admin_teste';
   const isSecretario = user?.role === 'secretario';
-  const isSemed = user?.role === 'semed';
+  const isSemed = user?.role === 'semed' || user?.role === 'semed3';
   
   const canEdit = isAdmin || isSecretario; // Admin e secretário podem editar
   const canDelete = isAdmin; // Só admin pode excluir escolas
