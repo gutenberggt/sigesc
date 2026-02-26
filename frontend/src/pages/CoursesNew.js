@@ -68,8 +68,8 @@ export const Courses = () => {
   const [submitting, setSubmitting] = useState(false);
   
   // SEMED pode visualizar tudo, mas não pode editar/excluir
-  const canEdit = user?.role !== 'semed';
-  const canDelete = user?.role !== 'semed';
+  const canEdit = !['semed', 'semed3'].includes(user?.role);
+  const canDelete = !['semed', 'semed3'].includes(user?.role);
 
   const niveisEnsino = {
     'educacao_infantil': 'Educação Infantil',

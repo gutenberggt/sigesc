@@ -90,7 +90,7 @@ export const Classes = () => {
   // - SEMED: apenas visualização (não pode editar/excluir)
   // - Coordenador: apenas visualização de turmas (não pode editar/excluir)
   // - Outros roles com acesso: podem editar/excluir
-  const canEditClasses = user?.role !== 'semed' && user?.role !== 'coordenador';
+  const canEditClasses = user?.role !== 'semed' && user?.role !== 'semed3' && user?.role !== 'coordenador';
   const canDeleteClasses = user?.role !== 'semed' && user?.role !== 'coordenador';
   
   // Mantém variáveis originais para compatibilidade
