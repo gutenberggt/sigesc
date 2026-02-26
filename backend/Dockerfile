@@ -5,6 +5,7 @@ WORKDIR /app
 # Instala dependências do sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia requirements primeiro (melhor cache)
