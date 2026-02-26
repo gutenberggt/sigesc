@@ -26,7 +26,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - **SchoolBase/Update:** recomposicao_aprendizagem (boolean)
 
 ## Issues Pendentes
-- P0: Deploy Coolify (Bad Gateway crônico - requer investigação docker-compose)
+- P0: Deploy Coolify — RESOLVIDO: docker-compose.coolify.yml reescrito (removidos networks, container_name, ports). Instruções de configuração fornecidas.
 - P1: Criação de Turmas não atualiza lista consistentemente
 - P2: Dashboard Analítico (pendente verificação do usuário)
 - P2: Migração CAIXA ALTA (pendente verificação do usuário)
