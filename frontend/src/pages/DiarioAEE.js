@@ -471,6 +471,7 @@ const DiarioAEE = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  {canEdit && (
                   <button
                     onClick={() => handleNovoAtendimento(planos.find(p => p.student_id === est.student_id))}
                     className="p-2 text-green-600 hover:bg-green-50 rounded"
@@ -478,6 +479,7 @@ const DiarioAEE = () => {
                   >
                     <Plus size={18} />
                   </button>
+                  )}
                   <button
                     onClick={() => handleDownloadPDF(est.student_id)}
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded"
@@ -501,6 +503,7 @@ const DiarioAEE = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold text-gray-800">Planos de AEE</h3>
+        {canEdit && (
         <button
           onClick={() => { resetPlanoForm(); setShowPlanoModal(true); }}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -508,6 +511,7 @@ const DiarioAEE = () => {
           <Plus size={18} />
           Novo Plano
         </button>
+        )}
       </div>
       
       {planos.length === 0 ? (
