@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, Wifi, Monitor, Clock, RefreshCw } from 'lucide-react';
+import { Users, Wifi, Monitor, Clock, RefreshCw, Home } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
