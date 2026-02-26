@@ -500,10 +500,15 @@ export function SchoolsComplete() {
       if (typeof detail === 'string') {
         errorMessage = detail;
       } else if (Array.isArray(detail) && detail.length > 0) {
-        errorMessage = detail[0]?.msg || 'Erro de validação';
+        // Mostra todos os erros de validação com campo e mensagem
+        const errors = detail.map(e => {
+          const field = e.loc ? e.loc.join(' → ') : 'campo desconhecido';
+          return `${field}: ${e.msg}`;
+        });
+        errorMessage = errors.join('; ');
       }
       showAlert('error', errorMessage);
-      console.error(error);
+      console.error('Erro ao salvar escola:', error.response?.data || error.message);
     } finally {
       setSubmitting(false);
     }
