@@ -78,14 +78,24 @@ export default function OnlineUsers() {
     <div className="space-y-6" data-testid="online-users-page">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Wifi size={24} className="text-green-600" />
-            </div>
-            Usuários Online
-          </h1>
-          <p className="text-gray-500 mt-1">Monitoramento em tempo real de usuários conectados</p>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+            data-testid="back-to-dashboard-button"
+          >
+            <Home size={18} />
+            <span>Início</span>
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Wifi size={24} className="text-green-600" />
+              </div>
+              Usuários Online
+            </h1>
+            <p className="text-gray-500 mt-1">Monitoramento em tempo real de usuários conectados</p>
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-sm text-gray-500">
