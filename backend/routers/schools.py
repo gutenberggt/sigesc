@@ -49,8 +49,8 @@ def setup_router(db, audit_service, sandbox_db=None):
         current_user = await AuthMiddleware.get_current_user(request)
         current_db = get_db_for_user(current_user)
         
-        # Admin, admin_teste, SEMED e Assistente Social veem todas as escolas
-        if current_user['role'] in ['admin', 'admin_teste', 'semed', 'ass_social']:
+        # Admin, admin_teste, SEMED, SEMED3 e Assistente Social veem todas as escolas
+        if current_user['role'] in ['admin', 'admin_teste', 'semed', 'semed3', 'ass_social']:
             schools = await current_db.schools.find({}, {"_id": 0}).sort("name", 1).skip(skip).limit(limit).to_list(limit)
         else:
             # Outros papéis veem apenas escolas vinculadas

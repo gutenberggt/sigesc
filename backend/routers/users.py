@@ -29,7 +29,7 @@ def setup_router(db, audit_service, sandbox_db=None):
     @router.get("", response_model=List[UserResponse])
     async def list_users(request: Request, skip: int = 0, limit: int = 1000):
         """Lista usuários (admin, secretario e semed)"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'semed'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'semed', 'semed3'])(request)
         current_db = get_db_for_user(current_user)
         
         users = await current_db.users.find({}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
