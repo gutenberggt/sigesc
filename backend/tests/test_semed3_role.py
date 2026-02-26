@@ -131,12 +131,16 @@ class TestSemed3WriteAccessDenied:
         if schools_resp.status_code == 200 and len(schools_resp.json()) > 0:
             school_id = schools_resp.json()[0]['id']
             payload = {
-                "name": "Test Class",
+                "name": "Test Class SEMED3",
                 "school_id": school_id,
                 "academic_year": 2025,
-                "shift": "morning"
+                "shift": "morning",
+                "education_level": "fundamental_anos_iniciais",
+                "grade_level": "1º Ano"
             }
             response = requests.post(f"{BASE_URL}/api/classes", json=payload, headers=semed3_headers)
+            # Can get 403 (forbidden) or 422 (validation error where auth middleware runs after pydantic)
+            # Key is that semed3 is NOT in allowed roles, so 403 should occur with valid payload
             assert response.status_code == 403, f"Expected 403, got {response.status_code}: {response.text}"
             print(f"✅ POST /api/classes DENIED - Status: {response.status_code}")
         else:
