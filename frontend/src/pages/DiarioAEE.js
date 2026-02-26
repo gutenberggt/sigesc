@@ -622,6 +622,7 @@ const DiarioAEE = () => {
                     </span>
                   )}
                 </div>
+                {canEdit && (
                 <button
                   onClick={() => {
                     setEditingAtendimento(atend);
@@ -632,6 +633,7 @@ const DiarioAEE = () => {
                 >
                   <Edit2 size={16} />
                 </button>
+                )}
               </div>
             </div>
           ))}
