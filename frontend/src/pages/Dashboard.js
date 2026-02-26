@@ -112,6 +112,7 @@ export const Dashboard = () => {
     aluno: 'Aluno(a)',
     responsavel: 'Responsável(is)',
     semed: 'SEMED',
+    semed3: 'SEMED 3',
     admin_teste: 'Administrador'
   };
 
@@ -150,6 +151,7 @@ export const Dashboard = () => {
           { title: 'Documentos', icon: FileText, value: '0', color: 'orange' }
         ];
       case 'semed':
+      case 'semed3':
         return [
           { title: 'Escolas', icon: School, value: loading ? '...' : stats.schools.toString(), color: 'blue' },
           { title: 'Total Alunos(as)', icon: GraduationCap, value: loading ? '...' : stats.students.toString(), color: 'green' },
@@ -310,7 +312,7 @@ export const Dashboard = () => {
         </div>
 
         {/* Acesso Rápido - Segunda linha de blocos */}
-        {['admin', 'admin_teste', 'secretario', 'semed'].includes(user?.role) && (
+        {['admin', 'admin_teste', 'secretario', 'semed', 'semed3'].includes(user?.role) && (
           <div>
             <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -368,10 +370,10 @@ export const Dashboard = () => {
         )}
 
         {/* Menu de navegação completo - Admin/Secretário/SEMED */}
-        {['admin', 'admin_teste', 'secretario', 'semed'].includes(user?.role) && (
+        {['admin', 'admin_teste', 'secretario', 'semed', 'semed3'].includes(user?.role) && (
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              {user?.role === 'semed' ? 'Consultar Módulos' : 'Menu de Administração'}
+              {['semed', 'semed3'].includes(user?.role) ? 'Consultar Módulos' : 'Menu de Administração'}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Mantenedora - apenas para admin */}
