@@ -498,8 +498,8 @@ export const Dashboard = () => {
                 <span className="font-medium text-gray-900">Pré-Matrículas</span>
               </button>
               
-              {/* Livro de Promoção - admin, secretario, diretor, coordenador, semed */}
-              {['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'semed'].includes(user?.role) && (
+              {/* Livro de Promoção - admin, secretario, diretor, coordenador, semed, semed3 */}
+              {['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'semed', 'semed3'].includes(user?.role) && (
                 <button
                   onClick={() => navigate('/admin/promotion')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 transition-all"
@@ -534,10 +534,8 @@ export const Dashboard = () => {
                 </button>
               )}
               
-              {/* Ferramentas de Admin - apenas admin */}
-              {['admin', 'admin_teste'].includes(user?.role) && (
-                <button
-                  onClick={() => navigate('/admin/online-users')}
+              {/* Usuários Online - admin e semed3 */}
+              {['admin', 'admin_teste', 'semed3'].includes(user?.role) && (
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-all"
                   data-testid="nav-online-users-button"
                 >
