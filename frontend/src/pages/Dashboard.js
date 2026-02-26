@@ -489,6 +489,7 @@ export const Dashboard = () => {
                 <span className="font-medium text-gray-900">Registro de Conteúdos</span>
               </button>
               
+              {user?.role !== 'semed3' && (
               <button
                 onClick={() => navigate('/admin/pre-matriculas')}
                 className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-pink-50 hover:border-pink-300 transition-all"
@@ -497,6 +498,7 @@ export const Dashboard = () => {
                 <UserPlus className="text-pink-600" size={24} />
                 <span className="font-medium text-gray-900">Pré-Matrículas</span>
               </button>
+              )}
               
               {/* Livro de Promoção - admin, secretario, diretor, coordenador, semed, semed3 */}
               {['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'semed', 'semed3'].includes(user?.role) && (
