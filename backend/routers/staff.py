@@ -51,7 +51,7 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
     @router.get("")
     async def list_staff(request: Request, school_id: Optional[str] = None, cargo: Optional[str] = None, status: Optional[str] = None):
         """Lista todos os servidores"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'semed'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'semed', 'semed3'])(request)
         current_db = get_db_for_user(current_user)
         
         query = {}
@@ -80,7 +80,7 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
     @router.get("/{staff_id}")
     async def get_staff(staff_id: str, request: Request):
         """Busca servidor por ID"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'semed', 'diretor'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'semed', 'semed3', 'diretor'])(request)
         current_db = get_db_for_user(current_user)
         
         staff = await current_db.staff.find_one({"id": staff_id}, {"_id": 0})

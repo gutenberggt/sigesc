@@ -43,7 +43,7 @@ def setup_router(db, audit_service, sandbox_db=None):
     @router.get("/{user_id}", response_model=UserResponse)
     async def get_user(user_id: str, request: Request):
         """Busca usuário por ID"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'diretor', 'semed'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'diretor', 'semed', 'semed3'])(request)
         current_db = get_db_for_user(current_user)
         
         user_doc = await current_db.users.find_one({"id": user_id}, {"_id": 0})

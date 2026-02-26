@@ -33,7 +33,7 @@ def setup_router(db, audit_service):
     @router.get("", response_model=List[Guardian])
     async def list_guardians(request: Request, skip: int = 0, limit: int = 100):
         """Lista responsáveis"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'semed'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'semed', 'semed3'])(request)
         
         guardians = await db.guardians.find({}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         
