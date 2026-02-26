@@ -1,11 +1,11 @@
 # ============================================================
 # Docker Compose para Coolify v4 (Service Stack)
 # ============================================================
-# IMPORTANTE: NÃO defina 'networks', 'container_name' nem 'ports'.
-# O Coolify v4 gerencia automaticamente:
-#   - A rede Docker (conecta o proxy Traefik aos containers)
-#   - Os nomes dos containers (prefixo do projeto)
-#   - O roteamento externo via labels do Traefik (configurado na UI)
+# REGRAS para evitar Bad Gateway:
+#   1. NÃO use 'container_name' nem 'hostname' (Coolify gerencia)
+#   2. NÃO use 'networks:' com 'external: true' (Coolify gerencia)
+#   3. NÃO use 'ports:' (Traefik faz o roteamento via labels)
+#   4. USE labels do Traefik para definir domínios e portas
 # ============================================================
 
 services:
@@ -21,6 +21,13 @@ services:
       - FTP_USER=${FTP_USER:-}
       - FTP_PASSWORD=${FTP_PASSWORD:-}
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sigesc-backend.rule=Host(`api.sigesc.aprenderdigital.top`)"
+      - "traefik.http.routers.sigesc-backend.entrypoints=https"
+      - "traefik.http.routers.sigesc-backend.tls=true"
+      - "traefik.http.routers.sigesc-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.sigesc-backend.loadbalancer.server.port=8001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
       interval: 30s
@@ -38,6 +45,13 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sigesc-frontend.rule=Host(`sigesc.aprenderdigital.top`)"
+      - "traefik.http.routers.sigesc-frontend.entrypoints=https"
+      - "traefik.http.routers.sigesc-frontend.tls=true"
+      - "traefik.http.routers.sigesc-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.sigesc-frontend.loadbalancer.server.port=80"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:80"]
       interval: 30s
