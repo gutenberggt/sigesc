@@ -661,7 +661,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         # RESTRIÇÃO DE ACESSO AO RANKING
         # ============================================
         is_admin = user_role in ['admin', 'admin_teste']
-        is_semed = user_role == 'semed'
+        is_semed = user_role in ['semed', 'semed3']
         is_global = is_admin or is_semed
         
         # Apenas Admin e SEMED podem ver o ranking completo
