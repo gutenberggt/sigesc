@@ -26,7 +26,8 @@ export const Layout = ({ children }) => {
     professor: 'Professor(a)',
     aluno: 'Aluno(a)',
     responsavel: 'Responsável(is)',
-    semed: 'SEMED'
+    semed: 'SEMED',
+    semed3: 'SEMED 3'
   };
 
   return (
