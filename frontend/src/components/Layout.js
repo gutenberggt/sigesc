@@ -126,8 +126,8 @@ export const Layout = ({ children }) => {
         {children}
       </main>
       
-      {/* Footer com Copyright */}
-      <footer className="mt-auto py-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white">
+      {/* Footer com Copyright - Fixo na parte inferior */}
+      <footer className="fixed bottom-0 left-0 right-0 py-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white z-40">
         © 2026 Desenvolvido por{' '}
         <a 
           href="https://www.facebook.com/prof.gutenbergbarroso" 
