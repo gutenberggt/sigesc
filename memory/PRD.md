@@ -20,6 +20,17 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 9. **Papel SEMED 3 (semed3):** Implementado com acesso somente visualização a: Dashboard, Escolas, Turmas, Alunos, Servidores, Componentes Curriculares, Usuários, Diário AEE, Frequência, Notas, Calendário, Avisos, Analytics, Usuários Online. Sem acesso a: Log de Conversas, Ferramentas, Mantenedora. Todos botões CRUD ocultos.
 10. **SEMED 3 Analytics:** Ranking de Escolas (Score V2.1) e Análise Comparativa por Bloco (Top 5 Escolas) exibidos para SEMED 3 no Dashboard Analítico.
 11. **SEMED 3 Permissões extras:** Acesso a Usuários Online e permissão para criar/enviar Avisos (Novo Aviso).
+12. **Deploy Coolify:** Serviço mongo adicionado ao docker-compose.coolify.yml para resolver Bad Gateway.
+13. **Bug "Anexa a:":** Corrigido no backend (text_utils.py) e frontend (SchoolsComplete.js).
+14. **Upload de Imagem de Perfil:** Permissão ajustada para qualquer usuário autenticado.
+15. **UI:** Breadcrumb "Início" em Usuários Online, rodapé fixo no Layout.
+
+## Implementado (02/03/2026)
+16. **Bug P0 Componentes Curriculares (RESOLVIDO):** Corrigido filtro de componentes curriculares na alocação de professores em `useStaff.js`:
+    - Comparação de `nivel_ensino` e `grade_levels` agora é case-insensitive
+    - Não filtra por `nivel_ensino` quando turma não tem `education_level` definido
+    - Não filtra por `grade_levels` quando turma não tem `grade_level` definido
+    - Limite de listagem de cursos aumentado de 100 para 500
 
 ## Modelos Atualizados
 - **UserRole:** Inclui 'semed3' no Literal de roles permitidos
@@ -27,10 +38,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - **SchoolBase/Update:** recomposicao_aprendizagem (boolean)
 
 ## Issues Pendentes
-- P0: Deploy Coolify — RESOLVIDO: docker-compose.coolify.yml reescrito (removidos networks, container_name, ports). Instruções de configuração fornecidas.
-- P1: Criação de Turmas não atualiza lista consistentemente
 - P2: Dashboard Analítico (pendente verificação do usuário)
-- P2: Migração CAIXA ALTA (pendente verificação do usuário)
 
 ## Tarefas Futuras
 - P1: Paginação na listagem de turmas
@@ -40,4 +48,4 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 
 ## Credenciais
 - Admin: `gutenberg@sigesc.com` / `@Celta2007`
-- SEMED 3 (teste): `semed3test@sigesc.com` / `Semed3Test123`
+- SEMED 3 (teste): `semed3@sigesc.com` / `semed123`
