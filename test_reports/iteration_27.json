@@ -1,0 +1,84 @@
+{
+  "summary": "Bug fix verified: Course filtering by turma atendimento_programa (AEE vs regular) is working correctly. Regular turma shows 9 courses (8 regular + 1 integral), AEE turma shows only 2 AEE courses. Case-insensitive matching and multisseriada series field handling confirmed working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/frontend/src/hooks/useStaff.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "The filteredCourses memo in useStaff.js (lines 318-383) correctly implements the filtering logic",
+    "Case-insensitive comparisons using .toLowerCase() on both turma.atendimento_programa and curso.atendimento_programa",
+    "Multisseriada turmas correctly use the 'series' array field for grade level matching",
+    "Integral courses only shown when school has atendimento_integral=true AND turma is regular"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (11 courses, 3 classes, 1 school returned correctly)",
+    "frontend": "100% (all filtering scenarios passed)"
+  },
+  "test_credentials": {
+    "admin": {
+      "email": "gutenberg@sigesc.com",
+      "password": "@Celta2007"
+    }
+  },
+  "seed_data_creation": "Used existing seed data: 11 courses (8 regular, 1 integral, 2 AEE), 3 classes (TURMA MULTI 1-2-3, TESTE 2, AEE), 1 school (ESCOLA TESTE MULTISSERIADA with atendimento_integral=true)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bug fix for course filtering by turma type is VERIFIED. The fix is in /app/frontend/src/hooks/useStaff.js lines 318-383 (filteredCourses memo). Key test scenarios: (1) Regular turma shows 9 courses (8 regular + 1 integral), (2) AEE turma shows only 2 AEE courses. Professor RICLEIDE has lotação for year 2026 in ESCOLA TESTE MULTISSERIADA.",
+  "bug_verification": {
+    "original_issue": "When allocating professor to turma, components dropdown should filter by turma's atendimento_programa",
+    "fix_applied": "Updated filteredCourses memo to: (1) filter by atendimento_programa, (2) use series field for multisseriadas, (3) case-insensitive comparisons",
+    "file_fixed": "/app/frontend/src/hooks/useStaff.js lines 318-383",
+    "verification_result": "SUCCESS - All filtering scenarios working correctly"
+  },
+  "tests_executed": {
+    "backend_api": {
+      "GET /api/courses": "PASS - Returns 11 courses (8 regular, 1 integral, 2 AEE)",
+      "GET /api/classes": "PASS - Returns 3 classes with atendimento_programa field",
+      "GET /api/schools": "PASS - Returns ESCOLA TESTE MULTISSERIADA with atendimento_integral=true",
+      "GET /api/school-assignments": "PASS - Returns lotação for RICLEIDE in year 2026"
+    },
+    "frontend_ui_flow": {
+      "step_1_login": "PASS - Logged in as admin",
+      "step_2_navigate_staff": "PASS - /admin/staff page loaded",
+      "step_3_click_alocacoes_tab": "PASS - Switched to 'Alocações de Professores' tab",
+      "step_4_click_nova_alocacao": "PASS - Modal opened",
+      "step_5_select_professor": "PASS - Selected RICLEIDE DA SILVA GONÇALVES",
+      "step_6_select_school": "PASS - Selected ESCOLA TESTE MULTISSERIADA",
+      "step_7_test_regular_turma": "PASS - TURMA MULTI 1-2-3 shows 9 courses",
+      "step_8_test_aee_turma": "PASS - AEE turma shows only 2 AEE courses"
+    }
+  },
+  "filtering_test_results": {
+    "regular_turma_TURMA_MULTI_1-2-3": {
+      "regular_courses_found": 8,
+      "integral_courses_found": 1,
+      "aee_courses_found": 0,
+      "todos_count": 9,
+      "expected_todos_count": 9,
+      "result": "PASS"
+    },
+    "aee_turma_AEE": {
+      "regular_courses_found": 0,
+      "integral_courses_found": 0,
+      "aee_courses_found": 2,
+      "todos_count": 2,
+      "expected_todos_count": 2,
+      "result": "PASS"
+    }
+  },
+  "courses_verified": {
+    "regular_courses": ["LÍNGUA PORTUGUESA", "MATEMÁTICA", "CIÊNCIAS", "HISTÓRIA", "GEOGRAFIA", "ARTE", "EDUCAÇÃO FÍSICA", "ENSINO RELIGIOSO"],
+    "integral_courses": ["OFICINA DE LEITURA"],
+    "aee_courses": ["SALA DE RECURSOS AEE", "ATENDIMENTO INDIVIDUALIZADO AEE"]
+  }
+}

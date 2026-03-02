@@ -316,36 +316,61 @@ export const useStaff = () => {
   
   // Filtrar componentes curriculares com base nas turmas selecionadas e escola
   const filteredCourses = useMemo(() => {
-    // Se não há turmas selecionadas, não mostrar componentes
     if (alocacaoTurmas.length === 0) return [];
     
-    // Obter a escola selecionada para verificar se tem "Escola Integral"
     const selectedSchool = schools.find(s => s.id === alocacaoForm.school_id);
     const escolaTemIntegral = selectedSchool?.atendimento_integral === true;
     
-    // Obter níveis de ensino e séries das turmas selecionadas (case-insensitive)
+    // Coletar dados das turmas selecionadas (case-insensitive)
     const niveisEnsino = new Set();
     const seriesTurmas = new Set();
+    const programasTurmas = new Set();
+    let temTurmaRegular = false;
     
     alocacaoTurmas.forEach(turma => {
       if (turma.education_level) niveisEnsino.add(turma.education_level.toLowerCase());
       if (turma.grade_level) seriesTurmas.add(turma.grade_level.toLowerCase());
+      
+      // Para turmas multisseriadas, incluir todas as séries
+      if (turma.series && turma.series.length > 0) {
+        turma.series.forEach(serie => {
+          if (serie) seriesTurmas.add(serie.toLowerCase());
+        });
+      }
+      
+      // Classificar turma por programa/atendimento
+      const prog = (turma.atendimento_programa || '').toLowerCase().trim();
+      if (prog) {
+        programasTurmas.add(prog);
+      } else {
+        temTurmaRegular = true;
+      }
     });
     
     return courses.filter(curso => {
-      // Se for componente de "Escola Integral", só mostrar se a escola tiver essa opção
-      if (curso.atendimento_programa === 'atendimento_integral') {
-        if (!escolaTemIntegral) return false;
+      const cursoPrograma = (curso.atendimento_programa || '').toLowerCase().trim();
+      
+      // === FILTRO POR PROGRAMA/ATENDIMENTO (fiel à turma) ===
+      if (cursoPrograma) {
+        if (cursoPrograma === 'atendimento_integral') {
+          // Componente integral: precisa escola integral + turma regular
+          if (!escolaTemIntegral || !temTurmaRegular) return false;
+        } else {
+          // Componente de programa específico (AEE, reforço, etc.)
+          // Só exibir se há turma com o mesmo programa
+          if (!programasTurmas.has(cursoPrograma)) return false;
+        }
+      } else {
+        // Componente regular: só exibir para turmas regulares
+        if (!temTurmaRegular) return false;
       }
       
-      // Verificar nível de ensino (case-insensitive)
-      // Só filtrar se AMBOS existirem: o curso tem nivel_ensino E alguma turma tem education_level
+      // === FILTRO POR NÍVEL DE ENSINO (case-insensitive) ===
       if (curso.nivel_ensino && niveisEnsino.size > 0 && !niveisEnsino.has(curso.nivel_ensino.toLowerCase())) {
         return false;
       }
       
-      // Verificar séries (case-insensitive)
-      // Só filtrar se o componente tem séries específicas E alguma turma tem grade_level
+      // === FILTRO POR SÉRIES (case-insensitive, inclui series de turmas multisseriadas) ===
       if (curso.grade_levels && curso.grade_levels.length > 0 && seriesTurmas.size > 0) {
         const temSerieCorrespondente = curso.grade_levels.some(serie => 
           seriesTurmas.has((serie || '').toLowerCase())
