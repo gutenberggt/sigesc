@@ -17,25 +17,20 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 6. Cascata de programa: Tipo de atendimento filtrado por programas disponíveis na escola
 7. Página de Usuários Online (/admin/online-users)
 8. Correções: auto-refresh, erro ao salvar escola, CAIXA ALTA universal, ESLint, turma AEE
-9. **Papel SEMED 3 (semed3):** Implementado com acesso somente visualização a: Dashboard, Escolas, Turmas, Alunos, Servidores, Componentes Curriculares, Usuários, Diário AEE, Frequência, Notas, Calendário, Avisos, Analytics, Usuários Online. Sem acesso a: Log de Conversas, Ferramentas, Mantenedora. Todos botões CRUD ocultos.
-10. **SEMED 3 Analytics:** Ranking de Escolas (Score V2.1) e Análise Comparativa por Bloco (Top 5 Escolas) exibidos para SEMED 3 no Dashboard Analítico.
-11. **SEMED 3 Permissões extras:** Acesso a Usuários Online e permissão para criar/enviar Avisos (Novo Aviso).
-12. **Deploy Coolify:** Serviço mongo adicionado ao docker-compose.coolify.yml para resolver Bad Gateway.
-13. **Bug "Anexa a:":** Corrigido no backend (text_utils.py) e frontend (SchoolsComplete.js).
-14. **Upload de Imagem de Perfil:** Permissão ajustada para qualquer usuário autenticado.
-15. **UI:** Breadcrumb "Início" em Usuários Online, rodapé fixo no Layout.
+9. **Papel SEMED 3 (semed3):** Acesso somente visualização. Sem acesso a Log de Conversas, Ferramentas, Mantenedora.
+10. **SEMED 3 Analytics:** Ranking e Análise Comparativa.
+11. **SEMED 3 Permissões extras:** Usuários Online e Avisos.
+12. **Deploy Coolify:** Serviço mongo adicionado ao docker-compose.coolify.yml.
+13. **Bug "Anexa a:":** Corrigido no backend e frontend.
+14. **Upload de Imagem de Perfil:** Permissão ajustada.
+15. **UI:** Breadcrumb "Início" em Usuários Online, rodapé fixo.
 
 ## Implementado (02/03/2026)
-16. **Bug P0 Componentes Curriculares (RESOLVIDO):** Corrigido filtro de componentes curriculares na alocação de professores em `useStaff.js`:
-    - Comparação de `nivel_ensino` e `grade_levels` agora é case-insensitive
-    - Não filtra por `nivel_ensino` quando turma não tem `education_level` definido
-    - Não filtra por `grade_levels` quando turma não tem `grade_level` definido
+16. **Bug P0 Componentes Curriculares (RESOLVIDO):** Filtro de componentes na alocação de professores corrigido em `useStaff.js`:
+    - **Filtro por atendimento_programa**: Turma AEE → só cursos AEE; Turma regular → só cursos regulares + integral (se escola suporta)
+    - **Suporte a turmas multisseriadas**: Usa campo `series` (ex: ['1º ANO', '2º ANO', ...]) para matching de grade_levels
+    - **Comparações case-insensitive**: nivel_ensino, grade_levels, atendimento_programa
     - Limite de listagem de cursos aumentado de 100 para 500
-
-## Modelos Atualizados
-- **UserRole:** Inclui 'semed3' no Literal de roles permitidos
-- **StudentBase/Update:** atendimento_programa_school_id, atendimento_programa_tipo, atendimento_programa_class_id
-- **SchoolBase/Update:** recomposicao_aprendizagem (boolean)
 
 ## Issues Pendentes
 - P2: Dashboard Analítico (pendente verificação do usuário)
@@ -48,4 +43,4 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 
 ## Credenciais
 - Admin: `gutenberg@sigesc.com` / `@Celta2007`
-- SEMED 3 (teste): `semed3@sigesc.com` / `semed123`
+- SEMED 3: `semed3@sigesc.com` / `semed123`
