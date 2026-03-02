@@ -3,7 +3,7 @@ import httpx
 import json
 
 # URL da API
-API_URL = "https://viewer-panel.preview.emergentagent.com/api"
+API_URL = "https://class-creation-sync.preview.emergentagent.com/api"
 
 # Escolas extraídas da imagem
 ESCOLAS = [

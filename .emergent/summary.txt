@@ -1,59 +1,55 @@
 <analysis>**original_problem_statement:**
-O usuário solicitou uma nova funcionalidade e relatou diversos problemas, incluindo um erro crítico de deploy e bugs de usabilidade.
+O usuário solicitou uma série de novas funcionalidades, correções de bugs e melhorias de usabilidade.
 
-**Novas Funcionalidades:**
+**Novas Funcionalidades e Melhorias:**
 1.  **Criar Papel de Usuário SEMED 3:**
-    *   Criar um novo papel de usuário chamado SEMED 3.
-    *   Este papel deve ter acesso de **somente visualização** a várias partes do sistema: Dashboard, Escolas, Turmas, Alunos, Servidores, Componentes Curriculares, Usuários, Diário AEE, Frequência, Notas, Calendário, Avisos, Analytics e Usuários Online.
-    *   Este papel **NÃO** deve ter acesso ou visibilidade das seções Log de Conversas, Ferramentas e Mantenedora, que são exclusivas do Administrador.
-    *   Nenhuma funcionalidade de criação, edição ou exclusão deve estar disponível para este papel.
+    *   Acesso de **somente visualização** para a maioria das seções.
+    *   **Sem acesso** a Log de Conversas, Ferramentas, Mantenedora.
+    *   Posteriormente, o usuário solicitou que este papel pudesse ver Usuários Online e criar/enviar Avisos.
+    *   Posteriormente, o usuário solicitou acesso ao Acompanhamento de Diários e a remoção do acesso a Componentes Curriculares.
+    *   Exibir seções específicas (Ranking de Escolas, Análise Comparativa) no Dashboard Analítico.
+2.  **Melhorias de UI:**
+    *   Adicionar um breadcrumb (Início) na página Usuários Online, similar a outras páginas.
+    *   Fixar o rodapé da página na parte inferior da tela.
 
-**Bugs Relatados na Sessão (Agora Resolvidos):**
-1.  **Erro ao Salvar Escola:** A edição ou criação de escolas falhava com Erro ao salvar escola.
-2.  **Atualização Automática de Página:** Várias páginas (, , , etc.) atualizavam-se sozinhas a cada ~60 segundos, interrompendo o trabalho do usuário.
-3.  **Bug na Matrícula AEE:** O sistema não reconhecia turmas de AEE existentes ao tentar matricular um aluno.
-4.  **Erro de Network Error:** O frontend exibia Network Error momentaneamente após a reinicialização dos containers no ambiente de produção.
-5.  **Erro de Compilação (ESLint):** O ambiente de desenvolvimento local exibia erros de ESLint que quebravam a aplicação.
-6.  **Inconsistência na Aplicação de Caixa Alta:** Os dados não estavam sendo salvos consistentemente em maiúsculas, exigindo o uso de uma ferramenta de migração manual.
-7.  **Bug na Página de Usuários Online:** A lista inicial de usuários online não exibia o administrador conectado.
-
-**Bugs de Sessões Anteriores (Ainda Pendentes):**
-1.  **Deploy em Produção (Coolify):** Problema crônico de Bad Gateway após cada deploy, exigindo intervenção manual no servidor para reconectar os containers à rede.
+**Bugs Relatados:**
+1.  **Deploy em Produção (P0 Crítico):** Bad Gateway (502) após cada deploy no Coolify, exigindo reconexão manual da rede Docker. A investigação revelou que o container do MongoDB não estava definido no compose de produção.
+2.  **Upload de Imagem de Perfil:** Usuários não conseguiam fazer upload de fotos de perfil, recebendo Erro ao fazer upload da imagem.
+3.  **Erro ao Salvar Escola:** O erro Erro ao salvar escola persistia no ambiente de produção.
+4.  **Campo Anexa a: não salva:** Ao editar uma escola e selecionar uma escola sede no campo Anexa a:, o valor era salvo no banco, mas não era exibido corretamente ao reabrir a edição.
+5.  **Componentes Curriculares não aparecem:** Ao alocar um professor a uma turma, a lista de componentes curriculares não é exibida.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-A aplicação full-stack (React + FastAPI + MongoDB) está funcional. Nesta sessão, o agente focou em estabilizar a aplicação, corrigindo uma série de bugs críticos que afetavam a experiência do usuário, como o recarregamento automático de páginas e erros ao salvar dados. Foi implementada uma nova funcionalidade robusta para rastrear usuários online e a aplicação de caixa alta foi reforçada em todos os endpoints. O agente está atualmente no meio da implementação de um novo papel de usuário com permissões de somente leitura. O problema mais crítico, o processo de deploy em produção, permanece sem uma solução definitiva, embora um comando de correção manual tenha sido fornecido e refinado.
+A aplicação full-stack (React + FastAPI + MongoDB) está funcional. O agente concluiu com sucesso a implementação do novo papel de usuário SEMED 3, incluindo múltiplas iterações de permissões com base no feedback do usuário. O problema mais crítico e antigo, o Bad Gateway após cada deploy em produção, foi diagnosticado e resolvido permanentemente ao adicionar o serviço do MongoDB ao arquivo . Diversos outros bugs e melhorias de UI/UX foram implementados e corrigidos, como o upload de imagens de perfil, o comportamento do campo Anexa a:, a adição de breadcrumbs e a fixação do rodapé. A aplicação está agora significativamente mais estável.
 
 **Last working item**:
--   **Last item agent was working:** O agente estava implementando o novo papel de usuário SEMED 3. Ele já havia adicionado o papel ao modelo Pydantic no backend () e estava no processo de adicionar  às listas de permissão de todos os endpoints de leitura (GET) para garantir o acesso de visualização. O agente usou  para identificar todos os arquivos de rota que precisam de modificação.
--   **Status:** IN PROGRESS
+-   **Last item agent was working:** O agente estava iniciando a investigação de um novo bug reportado pelo usuário: ao tentar alocar um professor a uma turma, a lista de componentes curriculares aparece vazia, impedindo a conclusão da tarefa.
+-   **Status:** NOT STARTED
 -   **Agent Testing Done:** N
 -   **Which testing method agent to use?** both
-    -   **Backend Testing:** Usar o agente de testes para criar um usuário  e verificar que ele pode fazer requisições  para todos os endpoints permitidos, mas recebe erro  ao tentar , ,  ou .
-    -   **Frontend Testing:** Usar o agente de testes para fazer login como  e verificar se:
-        1.  Os menus Log de Conversas, Ferramentas e Mantenedora não são visíveis.
-        2.  Em todas as páginas acessíveis, os botões Novo, Editar, Salvar, Excluir estão desabilitados ou ocultos.
+    -   **Backend:** Utilizar  para verificar o endpoint que busca os componentes curriculares de uma determinada turma/escola, garantindo que ele retorna os dados esperados.
+    -   **Frontend:** Analisar o componente de alocação de professores (provavelmente em  ou similar) para depurar o porquê da lista não ser preenchida, verificando o estado, a chamada da API e a renderização do dropdown.
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Processo de Deploy em Produção Quebrado (Gateway Timeout / Bad Gateway).**
+-   **Issue 1: (P0) Componentes curriculares não são exibidos ao alocar um professor a uma turma.**
 -   **Issue 2: (P1) Criação de Turmas não atualiza a lista de forma consistente.**
 -   **Issue 3: (P2) Inconsistência nos dados do Dashboard Analítico.**
--   **Issue 4: (P3) Migração para CAIXA ALTA pode estar incompleta.**
 
 **Issues Detail:**
--   **Issue 1: Processo de Deploy em Produção Quebrado (Gateway Timeout / Bad Gateway).**
-    -   **Attempted fixes:** O agente forneceu um comando  manual e o refinou com base no feedback do usuário sobre os nomes dos containers. Isso funciona como uma solução temporária após cada deploy.
+-   **Issue 1: Componentes curriculares não são exibidos ao alocar um professor a uma turma.**
+    -   **Attempted fixes:** Nenhuma. O agente apenas iniciou a investigação.
     -   **Next debug checklist:**
-        1.  Revisar a configuração do  para entender por que o  não está sendo respeitado pelo Coolify.
-        2.  Investigar os logs do Coolify e do Traefik no momento do deploy para identificar a causa raiz da desconexão da rede.
-        3.  Sugerir ao usuário a possibilidade de usar Post-Deployment Commands na UI do Coolify para automatizar o comando de reconexão de rede como uma solução intermediária.
-    -   **Why fix this issue and what will be achieved with the fix?** Este é o bloqueador mais crítico. Impede que o usuário utilize novas funcionalidades em produção de forma autônoma e gera frustração. A resolução trará estabilidade e confiança ao processo de deploy.
-    -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** backend
-    -   **Blocked on other issue:** Não. É o bloqueador principal.
+        1.  **Frontend ():** Inspecionar o  ou função que busca os componentes curriculares. Verificar os parâmetros enviados na requisição (ID da escola/turma).
+        2.  **Backend:** Localizar o endpoint () que serve os componentes para essa funcionalidade. Testá-lo isoladamente com  para garantir que retorna dados.
+        3.  **Backend (/rotas):** Verificar se os modelos de dados da turma () e dos componentes curriculares () estão corretamente relacionados e se a query de busca está correta.
+    -   **Why fix this issue and what will be achieved with the fix?** É uma funcionalidade central bloqueada. A correção permitirá que os administradores aloquem professores às turmas corretamente.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** both
+    -   **Blocked on other issue:** Não.
 
 -   **Issue 2: Criação de Turmas não atualiza a lista de forma consistente.**
     -   **Attempted fixes:** Nenhuma nesta sessão. É um problema reportado anteriormente.
@@ -68,31 +64,15 @@ A aplicação full-stack (React + FastAPI + MongoDB) está funcional. Nesta sess
     -   **Blocked on other issue:** Não.
 
 -   **Issue 3: Inconsistência nos dados do Dashboard Analítico.**
-    -   **Attempted fixes:** Correção na lógica do endpoint  em uma sessão anterior.
+    -   **Attempted fixes:** Correção na lógica do endpoint  em uma sessão anterior. Acesso foi concedido para SEMED 3 em alguns painéis nesta sessão.
     -   **Why fix this issue and what will be achieved with the fix?** Fornece dados confiáveis para a gestão.
     -   **Status:** USER VERIFICATION PENDING
     -   **Is recurring issue?** N
     -   **Should Test frontend/backend/both after fix?** frontend
-    -   **Blocked on other issue:** Issue 1 (Deploy Quebrado).
-
--   **Issue 4: Migração para CAIXA ALTA pode estar incompleta.**
-    -   **Attempted fixes:** Nesta sessão, o agente aplicou a função  em todos os endpoints de criação e atualização de Alunos, Responsáveis, Usuários e AEE para garantir que os dados sejam salvos em maiúsculas.
-    -   **Why fix this issue and what will be achieved with the fix?** Garante a consistência visual e dos dados em toda a aplicação, eliminando a necessidade de ferramentas de migração manual.
-    -   **Status:** USER VERIFICATION PENDING
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** backend
     -   **Blocked on other issue:** Não.
 
 **In progress Task List**:
--   **Task 1: (P0) Concluir implementação do papel de usuário SEMED 3.**
-    -   **Where to resume:**
-        1.  **Backend:** Continuar a percorrer a lista de arquivos de rotas (gerada via ) e adicionar  a todos os endpoints  relevantes.
-        2.  **Frontend:** Após o backend, modificar o  e  para ocultar os menus e links restritos com base no .
-        3.  **Frontend:** Percorrer todas as páginas de CRUD (Alunos, Escolas, Turmas, etc.) e desabilitar/ocultar botões de ação (Salvar, Novo, Editar, Excluir) para o papel .
-    -   **What will be achieved with this?** A aplicação terá um novo papel de usuário com permissões de somente leitura, conforme solicitado.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** both
-    -   **Blocked on something:** Não.
+Nenhuma.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
@@ -103,65 +83,70 @@ A aplicação full-stack (React + FastAPI + MongoDB) está funcional. Nesta sess
     -   (P2) Continuar a refatoração do backend, movendo rotas do  para arquivos dedicados.
 
 **Completed work in this session**
--   **Nova Funcionalidade: Página de Usuários Online:** Criada uma página () que mostra em tempo real os usuários com sessões ativas, usando um middleware no backend para rastreamento confiável.
--   **Correção de Bug Crítico: Atualizações Automáticas de Página:** Resolvido o problema de recarregamento automático em várias páginas (, , , etc.) ao estabilizar as dependências nos hooks do React (, ) com  e .
--   **Correção de Bug Crítico: Erro ao Salvar Escola:** Resolvido o erro que impedia a criação e edição de escolas, tratando strings vazias no backend antes da validação Pydantic.
--   **Aplicação Universal de CAIXA ALTA:** A função de conversão para maiúsculas () foi aplicada em todos os endpoints de criação e atualização de dados (Alunos, Usuários, Responsáveis, AEE), garantindo que os dados sejam salvos corretamente.
--   **Resolução de Conflito de Dependências (ESLint):** Corrigido um erro de compilação do frontend causado por um conflito de versões do ESLint, fazendo o downgrade do pacote no .
--   **Melhoria de UX (Cadastro de Alunos):** O formulário de matrícula em programas foi aprimorado com um fluxo em cascata (Escola -> Tipo de Atendimento -> Turma) e a listagem de alunos agora exige a seleção de uma escola.
--   **Correção de Bug (Turma AEE):** Ajustado o filtro no frontend para ser case-insensitive, resolvendo um bug onde turmas de AEE não eram encontradas.
+-   **Resolução do Deploy em Produção (RESOLVED):** Diagnóstico e correção permanente do erro Bad Gateway no Coolify, adicionando o serviço do MongoDB e volumes persistentes ao .
+-   **Implementação do Papel SEMED 3 (DONE):** Criação do papel com permissões de somente leitura e ajustes iterativos baseados no feedback do usuário (acesso a avisos, usuários online, dashboard analítico e remoção de outros menus).
+-   **Correção do Bug Anexa a: (DONE):** Corrigido o bug que não exibia a escola sede salva. A solução envolveu:
+    -   **Backend:** Adicionar  à lista de exclusão do  em .
+    -   **Frontend:** Adicionar  ao popular o formulário em  para compatibilidade com dados antigos.
+-   **Correção de Upload de Imagem de Perfil (DONE):** Modificado o endpoint  em  para permitir que qualquer usuário autenticado possa fazer upload de sua própria foto de perfil, removendo a restrição de papéis.
+-   **Melhorias de UI (DONE):**
+    -   Adicionado breadcrumb Início na página Usuários Online ().
+    -   Implementado um rodapé fixo/sticky em toda a aplicação, modificando .
+-   **Confirmação de Correção em Produção (DONE):** Validado com o usuário que a correção para Erro ao salvar escola foi aplicada com sucesso em produção.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **React Hook Stabilization:** Uso de  e  para evitar re-renders e chamadas de API desnecessárias causadas por dependências instáveis em  e  (como objetos  ou o  de autenticação).
--   **FastAPI Middleware:** Implementação de um middleware para interceptar requisições autenticadas e rastrear a última atividade do usuário, criando um sistema de sessão ativa mais robusto que WebSockets.
--   **Backend Data Sanitization:** Resolução de um bug de validação Pydantic ao criar uma função no endpoint que recebe o payload como um , limpa strings vazias ( -> ), e só então instancia o modelo Pydantic para validação e uso.
--   **Dependency Conflict Resolution:** Diagnóstico e resolução de um erro de compilação no frontend investigando o  e o  para identificar um conflito de versão entre  e , resolvido com o downgrade de um pacote.
+-   **Docker Compose para Produção (Coolify):** O principal desafio foi diagnosticar um problema de deploy. A solução foi entender que, em uma Service Stack do Coolify, todos os serviços dependentes (incluindo o banco de dados) devem ser explicitamente definidos no arquivo . A ausência do serviço  fazia com que o backend não conseguisse resolver o hostname , resultando em falha de conexão com o banco e, consequentemente, Bad Gateway.
+-   **Correção de Bug Retroativa (Frontend + Backend):** O bug Anexa a: foi resolvido em duas frentes: uma correção no backend para evitar que novos dados sejam corrompidos (adicionando o campo à lista de exclusão do ) e uma correção defensiva no frontend () para garantir que dados antigos já corrompidos sejam exibidos corretamente.
+-   **Gerenciamento de Permissões (RBAC):** A implementação do papel SEMED 3 foi um exercício de Role-Based Access Control, modificando dezenas de arquivos no backend (verificações de papel em endpoints) e no frontend (renderização condicional de UI).
 
 **All files of reference**
--    (Onde o papel  foi adicionado)
--    (Todos os arquivos de rotas serão modificados para adicionar o papel  aos endpoints GET)
--    (Será modificado para ocultar menus para o papel )
--    (Várias páginas serão modificadas para desabilitar controles de edição)
+-    (Arquivo chave para a correção do deploy)
+-    (Onde a exclusão de  foi adicionada)
+-    (Onde a correção do  foi aplicada)
+-    (Onde a permissão de upload de imagem foi corrigida)
+-    (Onde o rodapé fixo foi implementado)
+-    (Provável local de investigação para o próximo bug)
 
 **Critical Info for New Agent**
--   **Prioridade 1 é o Deploy:** O problema do deploy em produção via Coolify é o maior ponto de dor do usuário. Embora haja um comando manual, uma solução permanente é crucial. Investigue a configuração do  e os logs do Coolify.
--   **Prioridade 2 é o Papel :** Esta é a tarefa em andamento. Termine de adicionar as permissões no backend e depois implemente as restrições de UI no frontend. O trabalho é repetitivo mas precisa ser completo.
--   **Padrões de Correção Importantes:**
-    -   **Auto-Refresh:** Se um bug de recarregamento de página aparecer, verifique as dependências de / (especialmente , , ). A solução é estabilizá-las com  ou .
-    -   **Erros ao Salvar:** Se ocorrer um erro de validação (422), a causa provável são strings vazias enviadas pelo formulário. A solução é limpar o payload no backend *antes* da validação Pydantic.
+-   **O maior problema está resolvido:** O deploy em produção via Coolify foi corrigido permanentemente. Isso desbloqueia o fluxo de trabalho do usuário e representa uma grande vitória.
+-   **Foco no novo bug:** A prioridade máxima é resolver o problema dos componentes curriculares que não aparecem na alocação de professores. Comece investigando o fluxo de dados do frontend para o backend.
+-   **Padrão de bug de dados:** Fique atento a problemas relacionados à formatação de dados (como o  em UUIDs). O padrão de correção defensiva no frontend pode ser útil para outros bugs de exibição.
+
+**documents and test reports created in this job**
+-   /app/test_reports/iteration_1.json
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **Usuário (Feature Request):** Solicitou a criação do papel SEMED 3 com acesso de somente visualização a páginas específicas. (Status: **IN PROGRESS**)
-2.  **Usuário (Clarification):** Confirmou a lista de páginas e o comportamento de somente visualização para o novo papel. (Status: **IN PROGRESS**)
-3.  **Usuário (Bug Report):** Reportou Bad Gateway no ambiente de produção. (Status: **WORKAROUND PROVIDED**)
-4.  **Usuário (Request):** Pediu um comando rápido para corrigir o Bad Gateway. (Status: **PROVIDED**)
-5.  **Usuário (Feedback):** Informou que o comando falhou porque os nomes dos containers estavam incorretos. (Status: **ADDRESSED**)
-6.  **Usuário (Information):** Forneceu a lista de nomes de containers corretos. (Status: **ADDRESSED**)
-7.  **Agente (Action):** Forneceu o comando corrigido para reiniciar e reconectar os containers. (Status: **DONE**)
-8.  **Usuário (Bug Report):** Mostrou um screenshot de Network Error após executar o comando. (Status: **ADDRESSED**)
-9.  **Usuário (Information):** Forneceu os logs do backend que mostravam que o serviço estava online e respondendo. (Status: **ADDRESSED**)
-10. **Agente (Instruction):** Confirmou que o backend estava OK e instruiu o usuário a recarregar a página (F5), explicando que o erro era temporário. (Status: **DONE**)
+1.  **Usuário (Bug Report):** Relatou erro ao salvar escola em produção. (Status: **RESOLVED**)
+2.  **Usuário (Question):** Perguntou como verificar se a correção foi aplicada em produção. (Status: **ADDRESSED**)
+3.  **Usuário (Confirmation):** Forneceu output confirmando que o deploy foi bem-sucedido. (Status: **ADDRESSED**)
+4.  **Usuário (Bug Report):** Relatou que, ao editar uma escola, o campo Anexa a: não fixa a seleção. (Status: **RESOLVED**)
+5.  **Usuário (Video):** Enviou um vídeo demonstrando o bug Anexa a:. (Status: **ADDRESSED**)
+6.  **Usuário (Clarification):** Confirmou que o valor é salvo, mas não exibido na edição. (Status: **RESOLVED**)
+7.  **Usuário (UI Request):** Pediu para adicionar o breadcrumb Início na página Usuários Online. (Status: **DONE**)
+8.  **Usuário (UI Request):** Pediu para fixar o rodapé na parte inferior da tela. (Status: **DONE**)
+9.  **Usuário (Bug Report):** A escola tem a turma criada, mas quando vai alocar o professor nesta turma não exibe os componentes curriculares para alocar o professor. (Status: **IN PROGRESS**)
+10. **Usuário:** (Silêncio, aguardando a investigação do bug dos componentes curriculares).
 
 **Project Health Check:**
 -   **Broken:**
-    -   O processo de deploy para produção via Coolify está fundamentalmente quebrado, exigindo intervenção manual a cada deploy. Isso impede a entrega contínua e autônoma de valor.
+    -   Funcionalidade de alocação de professor está quebrada devido ao bug dos componentes curriculares.
+-   **Mocked:** N/A
 
 **3rd Party Integrations**
--   Nenhuma nova integração foi adicionada.
+-   Nenhuma nova.
 
 **Testing status**
--   **Testing agent used after significant changes:** NO (Não para a tarefa atual, mas foi usado em tarefas anteriores na sessão).
+-   **Testing agent used after significant changes:** YES (Para a implementação do papel SEMED 3).
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** []
--   **Known regressions:** Nenhuma nova regressão conhecida. O deploy quebrado é um problema crônico.
+-   **Known regressions:** Nenhuma.
 
 **Credentials to test flow:**
 -   **Administrador:**  / 
--   **Para testar o novo papel, será necessário criar um usuário  após a implementação ser concluída.**
+-   **SEMED 3:** O agente criou um usuário  /  durante os testes. Ele pode ser usado para verificar as permissões.
 
 **What agent forgot to execute**
--   O agente ainda não começou a parte de frontend da implementação do papel SEMED 3. O foco até agora foi no backend.
--   O agente não abordou as outras issues pendentes do handoff anterior ( e ), focando corretamente na resolução de bugs mais críticos e na nova feature solicitada pelo usuário.</analysis>
+-   O problema pendente de sessões anteriores sobre a Criação de Turmas não atualizar a lista de forma consistente ainda não foi abordado.</analysis>

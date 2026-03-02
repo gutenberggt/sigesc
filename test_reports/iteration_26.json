@@ -1,0 +1,76 @@
+{
+  "summary": "Bug Fix Verified: Teacher allocation 'Componentes Curriculares' dropdown now shows courses correctly. The fix made nivel_ensino and grade_levels comparison case-insensitive and avoids filtering when education_level is null.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_teacher_allocation_courses.py",
+    "/app/test_reports/pytest/pytest_teacher_allocation_courses.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_teacher_allocation_courses.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed)",
+    "frontend": "100% (full allocation flow verified)"
+  },
+  "test_credentials": {
+    "admin": {
+      "email": "gutenberg@sigesc.com",
+      "password": "@Celta2007"
+    }
+  },
+  "seed_data_creation": "None - existing data used",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Teacher allocation bug is fixed. The fix is in /app/frontend/src/hooks/useStaff.js lines 318-357 (filteredCourses memo). Case-insensitive comparison now works correctly and courses appear in dropdown after adding turma.",
+  "bug_verification": {
+    "original_issue": "When allocating a professor to a class, the 'Componentes Curriculares' dropdown appeared empty",
+    "fix_applied": "Made nivel_ensino and grade_levels comparison case-insensitive, and don't filter when education_level is null",
+    "file_fixed": "/app/frontend/src/hooks/useStaff.js lines 318-357",
+    "verification_result": "SUCCESS - dropdown now shows all 9 courses"
+  },
+  "tests_executed": {
+    "backend_api": {
+      "GET /api/courses": "PASS - Returns 9 courses with correct fields",
+      "GET /api/classes": "PASS - Returns 3 classes with education_level",
+      "GET /api/staff?cargo=professor": "PASS - Returns 1 professor (RICLEIDE)",
+      "GET /api/school-assignments/staff/{id}/schools": "PASS - Professor has school assignment",
+      "GET /api/schools": "PASS - ESCOLA TESTE MULTISSERIADA with atendimento_integral=True"
+    },
+    "frontend_ui_flow": {
+      "step_1_login": "PASS - Logged in as admin",
+      "step_2_navigate_staff": "PASS - /admin/staff page loaded",
+      "step_3_click_alocacoes_tab": "PASS - Switched to 'Alocações de Professores' tab",
+      "step_4_click_nova_alocacao": "PASS - Modal opened",
+      "step_5_select_professor": "PASS - Selected RICLEIDE DA SILVA GONÇALVES",
+      "step_6_select_school": "PASS - Selected ESCOLA TESTE MULTISSERIADA",
+      "step_7_select_turma": "PASS - Selected TURMA MULTI 1-2-3",
+      "step_8_click_plus_add_turma": "PASS - Clicked + button to add turma",
+      "step_9_check_components": "PASS - Dropdown shows 9 courses + TODOS option"
+    }
+  },
+  "components_found_in_dropdown": [
+    "TODOS (9 componentes)",
+    "LÍNGUA PORTUGUESA (200h)",
+    "MATEMÁTICA (200h)",
+    "CIÊNCIAS (80h)",
+    "HISTÓRIA (80h)",
+    "GEOGRAFIA (80h)",
+    "ARTE (40h)",
+    "EDUCAÇÃO FÍSICA (80h)",
+    "ENSINO RELIGIOSO (40h)",
+    "OFICINA DE LEITURA (40h)"
+  ],
+  "code_review_notes": {
+    "useStaff.js_filteredCourses": "The case-insensitive fix correctly uses .toLowerCase() on both nivel_ensino and grade_levels comparisons. The fix also handles null/undefined education_level correctly by using niveisEnsino.size > 0 check."
+  }
+}

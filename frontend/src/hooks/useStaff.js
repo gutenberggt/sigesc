@@ -323,13 +323,13 @@ export const useStaff = () => {
     const selectedSchool = schools.find(s => s.id === alocacaoForm.school_id);
     const escolaTemIntegral = selectedSchool?.atendimento_integral === true;
     
-    // Obter níveis de ensino e séries das turmas selecionadas
+    // Obter níveis de ensino e séries das turmas selecionadas (case-insensitive)
     const niveisEnsino = new Set();
     const seriesTurmas = new Set();
     
     alocacaoTurmas.forEach(turma => {
-      if (turma.education_level) niveisEnsino.add(turma.education_level);
-      if (turma.grade_level) seriesTurmas.add(turma.grade_level);
+      if (turma.education_level) niveisEnsino.add(turma.education_level.toLowerCase());
+      if (turma.grade_level) seriesTurmas.add(turma.grade_level.toLowerCase());
     });
     
     return courses.filter(curso => {
@@ -338,14 +338,18 @@ export const useStaff = () => {
         if (!escolaTemIntegral) return false;
       }
       
-      // Verificar se o nível de ensino do componente corresponde às turmas
-      if (curso.nivel_ensino && !niveisEnsino.has(curso.nivel_ensino)) {
+      // Verificar nível de ensino (case-insensitive)
+      // Só filtrar se AMBOS existirem: o curso tem nivel_ensino E alguma turma tem education_level
+      if (curso.nivel_ensino && niveisEnsino.size > 0 && !niveisEnsino.has(curso.nivel_ensino.toLowerCase())) {
         return false;
       }
       
-      // Se o componente tiver séries específicas, verificar se corresponde às turmas
-      if (curso.grade_levels && curso.grade_levels.length > 0) {
-        const temSerieCorrespondente = curso.grade_levels.some(serie => seriesTurmas.has(serie));
+      // Verificar séries (case-insensitive)
+      // Só filtrar se o componente tem séries específicas E alguma turma tem grade_level
+      if (curso.grade_levels && curso.grade_levels.length > 0 && seriesTurmas.size > 0) {
+        const temSerieCorrespondente = curso.grade_levels.some(serie => 
+          seriesTurmas.has((serie || '').toLowerCase())
+        );
         if (!temSerieCorrespondente) return false;
       }
       

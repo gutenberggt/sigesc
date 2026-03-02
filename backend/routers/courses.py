@@ -32,7 +32,7 @@ def setup_router(db, audit_service):
         return course_obj
 
     @router.get("", response_model=List[Course])
-    async def list_courses(request: Request, nivel_ensino: Optional[str] = None, skip: int = 0, limit: int = 100):
+    async def list_courses(request: Request, nivel_ensino: Optional[str] = None, skip: int = 0, limit: int = 500):
         """Lista componentes curriculares (global)"""
         current_user = await AuthMiddleware.get_current_user(request)
         
