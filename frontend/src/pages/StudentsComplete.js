@@ -3569,7 +3569,7 @@ export function StudentsComplete() {
                             )}
                             {canDelete && (
                               <button
-                                onClick={() => handleDelete(row.id)}
+                                onClick={() => handleDelete(row)}
                                 className="text-red-600 hover:text-red-800"
                                 title="Excluir"
                               >
