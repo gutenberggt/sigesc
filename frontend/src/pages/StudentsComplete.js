@@ -1776,7 +1776,7 @@ export function StudentsComplete() {
       </div>
 
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-6">Certidão Civil</h3>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
           <select
@@ -1790,7 +1790,7 @@ export function StudentsComplete() {
             <option value="casamento">Casamento</option>
           </select>
         </div>
-        <div>
+        <div className="md:col-span-3">
           <label className="block text-sm font-medium text-gray-700 mb-1">Número/Matrícula</label>
           <input
             type="text"
@@ -1820,7 +1820,7 @@ export function StudentsComplete() {
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
           />
         </div>
-        <div className="md:col-span-2">
+        <div className="md:col-span-3">
           <label className="block text-sm font-medium text-gray-700 mb-1">Cartório</label>
           <input
             type="text"
@@ -1830,7 +1830,7 @@ export function StudentsComplete() {
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
           />
         </div>
-        <div>
+        <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
           <CityAutocomplete
             value={formData.civil_certificate_city}

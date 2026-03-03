@@ -39,7 +39,7 @@
   "seed_data_creation": "Test students created with prefix TEST_DUPLICIDADE_ and TEST_AEE_UPDATE_ (cleaned up after tests)",
   "retest_needed": false,
   "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "Enrollment duplication prevention is fully implemented and tested. Key test data: TURMA MULTI 1-2-3 (id=c09b8666-c8bb-40d1-b835-c2b0fa4b8ecd, regular class), TESTE 2 (id=e37025d4-52a9-40f7-89b6-2a9789c9f266, regular class), AEE (id=73844918-60b1-4c62-b6cb-a21a35cc49c1, turma especial). School: 220d4022-ec5e-4fb6-86fc-9233112b87b2.",
+  "context_for_next_testing_agent": "Enrollment duplication prevention is fully implemented and tested. Key test data: TURMA MULTI 1-2-3 (id=docs-layout-v2, regular class), TESTE 2 (id=docs-layout-v2, regular class), AEE (id=docs-layout-v2, turma especial). School: 220d4022-ec5e-4fb6-86fc-9233112b87b2.",
   "tests_executed": {
     "backend_api": {
       "POST /api/enrollments (duplicate same class)": "PASS - Returns 409 with message 'já está matriculado nesta turma'",

@@ -97,13 +97,13 @@ export const usersAPI = {
 // ============= CLASSES (TURMAS) =============
 export const classesAPI = {
   list: async (schoolId = null) => {
-    const params = schoolId ? { school_id: schoolId } : {};
+    const params = schoolId ? { school_id: schoolId, _t: Date.now() } : { _t: Date.now() };
     const response = await axios.get(`${API}/classes`, { params });
     return response.data;
   },
   
   getAll: async (schoolId = null) => {
-    const params = schoolId ? { school_id: schoolId } : {};
+    const params = schoolId ? { school_id: schoolId, _t: Date.now() } : { _t: Date.now() };
     const response = await axios.get(`${API}/classes`, { params });
     return response.data;
   },

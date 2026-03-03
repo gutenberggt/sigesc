@@ -377,13 +377,22 @@ export const Classes = () => {
       };
       
       if (editingClass) {
-        await classesAPI.update(editingClass.id, dataToSend);
+        const updatedClass = await classesAPI.update(editingClass.id, dataToSend);
         showAlert('success', 'Turma atualizada com sucesso');
+        // Atualização otimista: atualiza a turma na lista local imediatamente
+        if (updatedClass) {
+          setClasses(prev => prev.map(c => c.id === editingClass.id ? { ...c, ...updatedClass } : c));
+        }
       } else {
-        await classesAPI.create(dataToSend);
+        const newClass = await classesAPI.create(dataToSend);
         showAlert('success', 'Turma criada com sucesso');
+        // Atualização otimista: adiciona a nova turma à lista local imediatamente
+        if (newClass) {
+          setClasses(prev => [...prev, newClass]);
+        }
       }
       setIsModalOpen(false);
+      // Recarrega dados do servidor para garantir consistência total
       reloadData();
     } catch (error) {
       // Trata erros de validação do Pydantic (array de objetos)

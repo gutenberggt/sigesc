@@ -1,71 +1,59 @@
 <analysis>**original_problem_statement:**
-O usuário solicitou uma série de novas funcionalidades, correções de bugs e melhorias de usabilidade.
+O usuário solicitou a correção de uma série de bugs e a implementação de melhorias de usabilidade e robustez de dados.
 
-**Novas Funcionalidades e Melhorias:**
-1.  **Criar Papel de Usuário SEMED 3:**
-    *   Acesso de **somente visualização** para a maioria das seções.
-    *   **Sem acesso** a Log de Conversas, Ferramentas, Mantenedora.
-    *   Posteriormente, o usuário solicitou que este papel pudesse ver Usuários Online e criar/enviar Avisos.
-    *   Posteriormente, o usuário solicitou acesso ao Acompanhamento de Diários e a remoção do acesso a Componentes Curriculares.
-    *   Exibir seções específicas (Ranking de Escolas, Análise Comparativa) no Dashboard Analítico.
-2.  **Melhorias de UI:**
-    *   Adicionar um breadcrumb (Início) na página Usuários Online, similar a outras páginas.
-    *   Fixar o rodapé da página na parte inferior da tela.
-
-**Bugs Relatados:**
-1.  **Deploy em Produção (P0 Crítico):** Bad Gateway (502) após cada deploy no Coolify, exigindo reconexão manual da rede Docker. A investigação revelou que o container do MongoDB não estava definido no compose de produção.
-2.  **Upload de Imagem de Perfil:** Usuários não conseguiam fazer upload de fotos de perfil, recebendo Erro ao fazer upload da imagem.
-3.  **Erro ao Salvar Escola:** O erro Erro ao salvar escola persistia no ambiente de produção.
-4.  **Campo Anexa a: não salva:** Ao editar uma escola e selecionar uma escola sede no campo Anexa a:, o valor era salvo no banco, mas não era exibido corretamente ao reabrir a edição.
-5.  **Componentes Curriculares não aparecem:** Ao alocar um professor a uma turma, a lista de componentes curriculares não é exibida.
+**Bugs e Melhorias Solicitadas nesta Sessão:**
+1.  **(BUG P0 - RESOLVIDO)** Ao alocar um professor a uma turma, a lista de componentes curriculares não era exibida. O usuário pediu uma investigação e correção.
+2.  **(BUG P1 - RESOLVIDO)** Havia casos de atraso na atualização do status do aluno após a matrícula, levando usuários a tentar matricular novamente e criar duplicatas. O usuário pediu uma solução para o atraso e a duplicidade.
+3.  **(TAREFA - CONCLUÍDA)** O usuário solicitou um script para ser executado no servidor de produção para encontrar e remover matrículas duplicadas existentes.
+4.  **(BUG P2 - RESOLVIDO)** Ocorria um erro ao tentar excluir um aluno.
+5.  **(BUG P3 - RESOLVIDO)** Na aba Documentos do cadastro de aluno, selecionar um tipo de Certidão Civil (Nascimento/Casamento) resultava em um Network Error.
+6.  **(BUG P4 - RESOLVIDO)** Após a correção do Network Error, o campo de tipo de Certidão Civil não exibia o valor salvo ao reabrir o formulário.
+7.  **(MELHORIA UI - PENDENTE)** No formulário de documentos do aluno, o campo Número/Matrícula da certidão civil deve aumentar de tamanho, enquanto os campos Livro e Folha devem ser reduzidos pela metade.
 
 **User's preferred language**: Portuguese (Português)
 
 **what currently exists?**
-A aplicação full-stack (React + FastAPI + MongoDB) está funcional. O agente concluiu com sucesso a implementação do novo papel de usuário SEMED 3, incluindo múltiplas iterações de permissões com base no feedback do usuário. O problema mais crítico e antigo, o Bad Gateway após cada deploy em produção, foi diagnosticado e resolvido permanentemente ao adicionar o serviço do MongoDB ao arquivo . Diversos outros bugs e melhorias de UI/UX foram implementados e corrigidos, como o upload de imagens de perfil, o comportamento do campo Anexa a:, a adição de breadcrumbs e a fixação do rodapé. A aplicação está agora significativamente mais estável.
+A aplicação está significativamente mais estável e robusta. O agente corrigiu múltiplos bugs críticos que bloqueavam fluxos de trabalho essenciais (alocação de professores, exclusão de alunos) e problemas de integridade de dados (matrículas duplicadas, erros de salvamento de dados). Foi implementada uma forte proteção contra a criação de matrículas duplicadas, combinando validações no backend, um índice único no banco de dados e melhor feedback no frontend. Adicionalmente, foi fornecido um script para o usuário limpar os dados duplicados já existentes em produção. A maioria dos bugs reportados pelo usuário nesta sessão foi resolvida e testada.
 
 **Last working item**:
--   **Last item agent was working:** O agente estava iniciando a investigação de um novo bug reportado pelo usuário: ao tentar alocar um professor a uma turma, a lista de componentes curriculares aparece vazia, impedindo a conclusão da tarefa.
+-   **Last item agent was working:** O agente estava prestes a iniciar a implementação de uma melhoria de UI solicitada pelo usuário para a seção Certidão Civil no formulário de cadastro de alunos. A solicitação é para ajustar a largura dos campos Número/Matrícula, Livro e Folha.
 -   **Status:** NOT STARTED
 -   **Agent Testing Done:** N
--   **Which testing method agent to use?** both
-    -   **Backend:** Utilizar  para verificar o endpoint que busca os componentes curriculares de uma determinada turma/escola, garantindo que ele retorna os dados esperados.
-    -   **Frontend:** Analisar o componente de alocação de professores (provavelmente em  ou similar) para depurar o porquê da lista não ser preenchida, verificando o estado, a chamada da API e a renderização do dropdown.
+-   **Which testing method agent to use?** screenshot tool
 -   **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: (P0) Componentes curriculares não são exibidos ao alocar um professor a uma turma.**
+-   **Issue 1: (P0) Ajustar layout dos campos da Certidão Civil.**
 -   **Issue 2: (P1) Criação de Turmas não atualiza a lista de forma consistente.**
 -   **Issue 3: (P2) Inconsistência nos dados do Dashboard Analítico.**
 
 **Issues Detail:**
--   **Issue 1: Componentes curriculares não são exibidos ao alocar um professor a uma turma.**
-    -   **Attempted fixes:** Nenhuma. O agente apenas iniciou a investigação.
+-   **Issue 1: Ajustar layout dos campos da Certidão Civil.**
+    -   **Attempted fixes:** Nenhuma.
     -   **Next debug checklist:**
-        1.  **Frontend ():** Inspecionar o  ou função que busca os componentes curriculares. Verificar os parâmetros enviados na requisição (ID da escola/turma).
-        2.  **Backend:** Localizar o endpoint () que serve os componentes para essa funcionalidade. Testá-lo isoladamente com  para garantir que retorna dados.
-        3.  **Backend (/rotas):** Verificar se os modelos de dados da turma () e dos componentes curriculares () estão corretamente relacionados e se a query de busca está correta.
-    -   **Why fix this issue and what will be achieved with the fix?** É uma funcionalidade central bloqueada. A correção permitirá que os administradores aloquem professores às turmas corretamente.
+        1.  Editar o arquivo .
+        2.  Localizar o  que contém os campos Número/Matrícula (), Livro () e Folha ().
+        3.  Ajustar as classes do TailwindCSS (ex:  para Número/Matrícula e  para os outros) para redistribuir o espaço conforme solicitado.
+    -   **Why fix this issue and what will be achieved with the fix?** Atender a uma solicitação de melhoria de usabilidade do usuário.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** both
+    -   **Should Test frontend/backend/both after fix?** frontend
     -   **Blocked on other issue:** Não.
 
 -   **Issue 2: Criação de Turmas não atualiza a lista de forma consistente.**
     -   **Attempted fixes:** Nenhuma nesta sessão. É um problema reportado anteriormente.
     -   **Next debug checklist:**
-        1.  Adicionar logs detalhados nos endpoints  (criação) e  (listagem) no backend.
-        2.  No frontend (), adicionar logs no  para garantir que ele está sendo chamado com os filtros corretos após a criação.
-        3.  Pedir ao usuário para reproduzir o erro e fornecer os logs do backend e do console do navegador.
-    -   **Why fix this issue and what will be achieved with the fix?** Garante feedback visual imediato e correto para o usuário, melhorando a usabilidade.
+        1.  Adicionar logs no endpoint  (backend) e na função  em .
+        2.  Analisar o fluxo de atualização de estado no frontend após a criação de uma nova turma para garantir que a lista seja recarregada corretamente.
+    -   **Why fix this issue and what will be achieved with the fix?** Melhorar a experiência do usuário, fornecendo feedback visual imediato e correto.
     -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** frontend
     -   **Blocked on other issue:** Não.
 
 -   **Issue 3: Inconsistência nos dados do Dashboard Analítico.**
-    -   **Attempted fixes:** Correção na lógica do endpoint  em uma sessão anterior. Acesso foi concedido para SEMED 3 em alguns painéis nesta sessão.
-    -   **Why fix this issue and what will be achieved with the fix?** Fornece dados confiáveis para a gestão.
+    -   **Attempted fixes:** Nenhuma nesta sessão. O acesso foi ajustado para o papel SEMED 3 em uma sessão anterior.
+    -   **Why fix this issue and what will be achieved with the fix?** Fornecer dados confiáveis para a tomada de decisão da gestão escolar.
     -   **Status:** USER VERIFICATION PENDING
     -   **Is recurring issue?** N
     -   **Should Test frontend/backend/both after fix?** frontend
@@ -76,77 +64,97 @@ Nenhuma.
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks:**
-    -   (P1) Implementar paginação ou carregar mais na listagem de turmas para evitar problemas de performance com grande volume de dados.
+    -   (P1) Implementar paginação ou carregar mais na listagem de turmas para melhorar a performance.
 -   **Future Tasks:**
-    -   (P2) Refatorar o componente  para melhor manutenibilidade.
+    -   (P2) Refatorar o componente .
     -   (P2) Implementar envio de e-mail de confirmação na pré-matrícula.
     -   (P2) Continuar a refatoração do backend, movendo rotas do  para arquivos dedicados.
 
 **Completed work in this session**
--   **Resolução do Deploy em Produção (RESOLVED):** Diagnóstico e correção permanente do erro Bad Gateway no Coolify, adicionando o serviço do MongoDB e volumes persistentes ao .
--   **Implementação do Papel SEMED 3 (DONE):** Criação do papel com permissões de somente leitura e ajustes iterativos baseados no feedback do usuário (acesso a avisos, usuários online, dashboard analítico e remoção de outros menus).
--   **Correção do Bug Anexa a: (DONE):** Corrigido o bug que não exibia a escola sede salva. A solução envolveu:
-    -   **Backend:** Adicionar  à lista de exclusão do  em .
-    -   **Frontend:** Adicionar  ao popular o formulário em  para compatibilidade com dados antigos.
--   **Correção de Upload de Imagem de Perfil (DONE):** Modificado o endpoint  em  para permitir que qualquer usuário autenticado possa fazer upload de sua própria foto de perfil, removendo a restrição de papéis.
--   **Melhorias de UI (DONE):**
-    -   Adicionado breadcrumb Início na página Usuários Online ().
-    -   Implementado um rodapé fixo/sticky em toda a aplicação, modificando .
--   **Confirmação de Correção em Produção (DONE):** Validado com o usuário que a correção para Erro ao salvar escola foi aplicada com sucesso em produção.
+-   **Bug de Componentes Curriculares (RESOLVED):** Corrigido o bug que impedia a exibição de componentes curriculares na alocação de professores. A correção envolveu ajustar a lógica de filtragem no frontend () para considerar corretamente turmas multisseriadas e programas especiais (AEE), além de tratar inconsistências de maiúsculas/minúsculas.
+-   **Prevenção de Matrículas Duplicadas (RESOLVED):** Implementada uma solução robusta para o problema:
+    -   **Backend:** Adicionada lógica de validação nos endpoints de matrícula (, ) para bloquear matrículas duplicadas em turmas regulares.
+    -   **Database:** Criado um índice parcial único na coleção  para garantir a integridade dos dados no nível do banco.
+    -   **Frontend:** Melhorado o feedback ao usuário, exibindo a mensagem de erro específica do backend e forçando a atualização da lista de alunos após a matrícula ().
+-   **Script de Limpeza de Duplicatas (DONE):** Criado um script Python () para o usuário executar em produção, que identifica e remove matrículas duplicadas pré-existentes, mantendo a mais antiga.
+-   **Bug de Exclusão de Aluno (RESOLVED):** Corrigido um erro no frontend () que passava o parâmetro incorreto para a função de exclusão, causando falha.
+-   **Bugs da Certidão Civil (RESOLVED):**
+    -   Corrigido o Network Error ao adicionar  e outros campos  à lista de exceções do utilitário  no backend ().
+    -   Corrigido o problema de exibição do valor salvo, forçando a busca de dados atualizados do aluno no  em .
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Docker Compose para Produção (Coolify):** O principal desafio foi diagnosticar um problema de deploy. A solução foi entender que, em uma Service Stack do Coolify, todos os serviços dependentes (incluindo o banco de dados) devem ser explicitamente definidos no arquivo . A ausência do serviço  fazia com que o backend não conseguisse resolver o hostname , resultando em falha de conexão com o banco e, consequentemente, Bad Gateway.
--   **Correção de Bug Retroativa (Frontend + Backend):** O bug Anexa a: foi resolvido em duas frentes: uma correção no backend para evitar que novos dados sejam corrompidos (adicionando o campo à lista de exclusão do ) e uma correção defensiva no frontend () para garantir que dados antigos já corrompidos sejam exibidos corretamente.
--   **Gerenciamento de Permissões (RBAC):** A implementação do papel SEMED 3 foi um exercício de Role-Based Access Control, modificando dezenas de arquivos no backend (verificações de papel em endpoints) e no frontend (renderização condicional de UI).
+-   **Integridade de Dados (Backend + DB):** Utilização combinada de validação na camada de aplicação (FastAPI) e restrições de banco de dados (Índice Único Parcial do MongoDB) para prevenir de forma robusta a duplicação de dados e lidar com race conditions.
+-   **Depuração de Erros de Validação (Pydantic):** Diagnóstico de um  causado por uma transformação de dados () que invalidava um tipo  do Pydantic, resolvido com uma lista de exceções.
+-   **Gerenciamento de Estado e Cache (Frontend):** Identificação e correção de bugs de UI causados por dados stale (antigos/em cache) de um serviço local. A solução envolveu forçar uma busca de dados atualizados da API antes de exibir um formulário de edição.
+-   **Script de Manutenção de Produção:** Criação de um script Python seguro (com modo dry-run) e independente para realizar a limpeza de dados diretamente no ambiente de produção do usuário.
+
+**key DB schema**
+-   : . Foi adicionado um índice parcial único em  para registros onde  e a turma não é de programa especial (ex: AEE).
+-   : . Vários campos  foram identificados e protegidos contra conversão para maiúsculas.
+-   : . Campos usados para filtrar os componentes curriculares corretamente.
+
+**changes in tech stack**
+-   Nenhuma.
 
 **All files of reference**
--    (Arquivo chave para a correção do deploy)
--    (Onde a exclusão de  foi adicionada)
--    (Onde a correção do  foi aplicada)
--    (Onde a permissão de upload de imagem foi corrigida)
--    (Onde o rodapé fixo foi implementado)
--    (Provável local de investigação para o próximo bug)
+-    (Lógica de prevenção de duplicidade)
+-    (Correção do bug de  + )
+-    (Correção do bug dos componentes curriculares)
+-    (Correções de múltiplos bugs e melhorias de UX)
+-    (Script de limpeza de dados de produção)
+-    (Arquivo para a próxima tarefa de UI)
+
+**Areas that need refactoring**:
+-   O componente  continua sendo um candidato à refatoração devido à sua complexidade.
+-   O serviço  foi a causa de um bug de dados desatualizados. Sua estratégia de cache deve ser revisada para evitar problemas futuros.
+
+**key api endpoints**
+-   : Principal endpoint de matrícula, agora com validação de duplicidade.
+-   : Endpoint secundário de matrícula, também com validação.
+-   : Endpoint de exclusão de aluno.
+-   : Endpoint de atualização de aluno, onde o bug da Certidão Civil foi corrigido.
+-   : Endpoint usado para buscar dados atualizados do aluno e corrigir o bug de exibição.
 
 **Critical Info for New Agent**
--   **O maior problema está resolvido:** O deploy em produção via Coolify foi corrigido permanentemente. Isso desbloqueia o fluxo de trabalho do usuário e representa uma grande vitória.
--   **Foco no novo bug:** A prioridade máxima é resolver o problema dos componentes curriculares que não aparecem na alocação de professores. Comece investigando o fluxo de dados do frontend para o backend.
--   **Padrão de bug de dados:** Fique atento a problemas relacionados à formatação de dados (como o  em UUIDs). O padrão de correção defensiva no frontend pode ser útil para outros bugs de exibição.
+-   **Foco na UI:** A próxima tarefa é uma simples alteração de layout no frontend, no arquivo .
+-   **Padrão de Bug de Dados (Backend):** Fique atento ao utilitário  em . Ele pode causar erros de validação silenciosos com campos do tipo  do Pydantic se não forem adicionados à lista de exceções .
+-   **Padrão de Bug de Dados (Frontend):** O serviço  pode fornecer dados em cache que não refletem o estado mais recente do banco de dados. Para operações de edição, é mais seguro buscar os dados mais recentes do item específico através da API (ex: ).
+-   **Script de Produção:** O usuário recebeu instruções para rodar o script  em produção, mas a execução não foi confirmada. Este script resolve um problema de dados fundamental para o cliente.
 
 **documents and test reports created in this job**
--   /app/test_reports/iteration_1.json
+-   
+-   
+-   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **Usuário (Bug Report):** Relatou erro ao salvar escola em produção. (Status: **RESOLVED**)
-2.  **Usuário (Question):** Perguntou como verificar se a correção foi aplicada em produção. (Status: **ADDRESSED**)
-3.  **Usuário (Confirmation):** Forneceu output confirmando que o deploy foi bem-sucedido. (Status: **ADDRESSED**)
-4.  **Usuário (Bug Report):** Relatou que, ao editar uma escola, o campo Anexa a: não fixa a seleção. (Status: **RESOLVED**)
-5.  **Usuário (Video):** Enviou um vídeo demonstrando o bug Anexa a:. (Status: **ADDRESSED**)
-6.  **Usuário (Clarification):** Confirmou que o valor é salvo, mas não exibido na edição. (Status: **RESOLVED**)
-7.  **Usuário (UI Request):** Pediu para adicionar o breadcrumb Início na página Usuários Online. (Status: **DONE**)
-8.  **Usuário (UI Request):** Pediu para fixar o rodapé na parte inferior da tela. (Status: **DONE**)
-9.  **Usuário (Bug Report):** A escola tem a turma criada, mas quando vai alocar o professor nesta turma não exibe os componentes curriculares para alocar o professor. (Status: **IN PROGRESS**)
-10. **Usuário:** (Silêncio, aguardando a investigação do bug dos componentes curriculares).
+1.  **Usuário (Bug):** Relatou um erro ao tentar excluir um aluno. (Status: **RESOLVED**)
+2.  **Usuário (Solicitação):** Pediu um script para encontrar e remover matrículas de alunos duplicadas na mesma turma no ambiente de produção. (Status: **DONE**)
+3.  **Usuário (Feedback):** Colou a saída do terminal mostrando dificuldade em executar o comando para criar o script no servidor. (Status: **ADDRESSED**)
+4.  **Agente:** Forneceu o bloco de comando completo e corrigido para o usuário copiar e colar.
+5.  **Usuário (Bug):** Relatou um novo Network Error com imagem ao selecionar o tipo de Certidão Civil na aba de documentos do aluno. (Status: **RESOLVED**)
+6.  **Usuário:** Continuar.
+7.  **Usuário (Bug):** Informou que, após a correção do Network Error, o campo de certidão não mostrava a opção selecionada após salvar. (Status: **RESOLVED**)
+8.  **Usuário (Melhoria UI):** Solicitou que, na mesma seção de certidão, o campo Número/Matrícula aumentasse de tamanho e os campos Livro e Folha diminuíssem. (Status: **PENDING - NEXT TASK**)
 
 **Project Health Check:**
--   **Broken:**
-    -   Funcionalidade de alocação de professor está quebrada devido ao bug dos componentes curriculares.
+-   **Broken:** Nenhuma funcionalidade principal está quebrada.
 -   **Mocked:** N/A
 
 **3rd Party Integrations**
 -   Nenhuma nova.
 
 **Testing status**
--   **Testing agent used after significant changes:** YES (Para a implementação do papel SEMED 3).
+-   **Testing agent used after significant changes:** YES (Duas vezes, para o bug dos componentes curriculares e para a prevenção de matrículas duplicadas).
 -   **Troubleshoot agent used after agent stuck in loop:** NO
 -   **Test files created:** []
--   **Known regressions:** Nenhuma.
+-   **Known regressions:** Nenhuma identificada nesta sessão.
 
 **Credentials to test flow:**
 -   **Administrador:**  / 
--   **SEMED 3:** O agente criou um usuário  /  durante os testes. Ele pode ser usado para verificar as permissões.
+-   **SEMED 3:**  / 
 
 **What agent forgot to execute**
--   O problema pendente de sessões anteriores sobre a Criação de Turmas não atualizar a lista de forma consistente ainda não foi abordado.</analysis>
+-   Nenhum item solicitado pelo usuário nesta sessão foi esquecido. As questões pendentes de sessões anteriores foram corretamente despriorizadas em favor dos novos bugs críticos reportados.</analysis>
