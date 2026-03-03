@@ -12,25 +12,33 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 1. Escolas: "Aulas Complementares" → "Recomposição da Aprendizagem"
 2. Alunos: Listagem exige seleção de escola ou busca
 3. Alunos: comunidade_tradicional padrão "Não Pertence"
-4. Alunos com deficiência: Seção "Matrícula em Atendimento/Programa" com cascata Escola → Tipo → Turma
+4. Alunos com deficiência: Seção "Matrícula em Atendimento/Programa"
 5. AEE: Alunos matriculados em turma AEE aparecem no Diário AEE
-6. Cascata de programa: Tipo de atendimento filtrado por programas disponíveis na escola
+6. Cascata de programa: Tipo de atendimento filtrado por programas
 7. Página de Usuários Online (/admin/online-users)
-8. Correções: auto-refresh, erro ao salvar escola, CAIXA ALTA universal, ESLint, turma AEE
-9. **Papel SEMED 3 (semed3):** Acesso somente visualização. Sem acesso a Log de Conversas, Ferramentas, Mantenedora.
-10. **SEMED 3 Analytics:** Ranking e Análise Comparativa.
-11. **SEMED 3 Permissões extras:** Usuários Online e Avisos.
-12. **Deploy Coolify:** Serviço mongo adicionado ao docker-compose.coolify.yml.
-13. **Bug "Anexa a:":** Corrigido no backend e frontend.
-14. **Upload de Imagem de Perfil:** Permissão ajustada.
-15. **UI:** Breadcrumb "Início" em Usuários Online, rodapé fixo.
+8. Correções: auto-refresh, erro ao salvar escola, CAIXA ALTA, ESLint, turma AEE
+9. Papel SEMED 3 com permissões de somente visualização
+10. SEMED 3 Analytics: Ranking e Análise Comparativa
+11. Deploy Coolify: Serviço mongo no docker-compose.coolify.yml
+12. Bug "Anexa a:" corrigido (backend + frontend)
+13. Upload de Imagem de Perfil: Permissão ajustada
+14. UI: Breadcrumb "Início", rodapé fixo
 
 ## Implementado (02/03/2026)
-16. **Bug P0 Componentes Curriculares (RESOLVIDO):** Filtro de componentes na alocação de professores corrigido em `useStaff.js`:
-    - **Filtro por atendimento_programa**: Turma AEE → só cursos AEE; Turma regular → só cursos regulares + integral (se escola suporta)
-    - **Suporte a turmas multisseriadas**: Usa campo `series` (ex: ['1º ANO', '2º ANO', ...]) para matching de grade_levels
-    - **Comparações case-insensitive**: nivel_ensino, grade_levels, atendimento_programa
-    - Limite de listagem de cursos aumentado de 100 para 500
+15. **Bug P0 Componentes Curriculares (RESOLVIDO):** Filtro fiel à turma - atendimento_programa, series multisseriadas, case-insensitive
+16. **Prevenção de Duplicidade de Matrícula (RESOLVIDO):**
+    - Backend impede matrícula duplicada na mesma turma (HTTP 409)
+    - Backend impede matrícula em turma regular quando aluno já tem matrícula ativa em outra regular (HTTP 409)
+    - Backend PERMITE matrícula em turmas AEE, Recomposição da Aprendizagem, Reforço Escolar
+    - Índice parcial único no MongoDB para prevenir race conditions
+    - DuplicateKeyError handling para proteção de última camada
+    - Frontend: Atualização imediata da lista local após matrícula
+    - Frontend: Mensagens de erro claras do backend exibidas ao usuário
+
+## Regras de Negócio - Matrícula
+- Aluno pode ter APENAS 1 matrícula ativa em turma regular por ano letivo
+- Turmas especiais (AEE, Recomposição, Reforço) são exceção - aluno pode ter matrículas simultâneas
+- Turmas especiais identificadas por `atendimento_programa`: 'aee', 'recomposicao_aprendizagem', 'reforco_escolar'
 
 ## Issues Pendentes
 - P2: Dashboard Analítico (pendente verificação do usuário)
