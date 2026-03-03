@@ -1,0 +1,82 @@
+{
+  "summary": "Enrollment duplication prevention feature verified: Backend returns 409 for duplicate enrollments in regular classes, allows AEE enrollments with active regular enrollment. Frontend shows backend error messages and updates student list immediately after successful enrollment.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_enrollment_duplication.py",
+    "/app/test_reports/pytest/pytest_enrollment_duplication.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "enrollments.py: Lines 33-67 - Proper duplicate check: first checks same class (409), then checks for active regular class enrollment (409 only if target is also regular)",
+    "enrollments.py: Lines 29-31 - turmas_especiais correctly defined as {'aee', 'recomposicao_aprendizagem', 'reforco_escolar'}",
+    "students.py: Lines 288-340 - PUT endpoint has same duplicate logic for 'matricular' action via student update",
+    "StudentsComplete.js: Lines 926-935 - Immediate local state update (setStudents, setFormData, setEditingStudent) after successful action",
+    "StudentsComplete.js: Lines 958-959 - Shows backend error message directly: error?.response?.data?.detail",
+    "Enrollments.js: Line 161 - Same error handling pattern for direct enrollment creation",
+    "server.py: Lines 144-149 - MongoDB partial unique index on enrollments (student_id, class_id, academic_year) where status=active"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_enrollment_duplication.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 tests passed)",
+    "frontend": "100% (all flows verified)"
+  },
+  "test_credentials": {
+    "admin": {
+      "email": "gutenberg@sigesc.com",
+      "password": "@Celta2007"
+    }
+  },
+  "seed_data_creation": "Test students created with prefix TEST_DUPLICIDADE_ and TEST_AEE_UPDATE_ (cleaned up after tests)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Enrollment duplication prevention is fully implemented and tested. Key test data: TURMA MULTI 1-2-3 (id=c09b8666-c8bb-40d1-b835-c2b0fa4b8ecd, regular class), TESTE 2 (id=e37025d4-52a9-40f7-89b6-2a9789c9f266, regular class), AEE (id=73844918-60b1-4c62-b6cb-a21a35cc49c1, turma especial). School: 220d4022-ec5e-4fb6-86fc-9233112b87b2.",
+  "tests_executed": {
+    "backend_api": {
+      "POST /api/enrollments (duplicate same class)": "PASS - Returns 409 with message 'já está matriculado nesta turma'",
+      "POST /api/enrollments (duplicate another regular)": "PASS - Returns 409 with message 'já possui matrícula ativa na turma regular'",
+      "POST /api/enrollments (AEE with active regular)": "PASS - Returns 201 (allowed)",
+      "PUT /api/students/{id} (matricular regular)": "PASS - Creates enrollment in different class",
+      "PUT /api/students/{id} (matricular AEE)": "PASS - Creates AEE enrollment with active regular",
+      "Error message quality": "PASS - Messages include turma name and are user-friendly"
+    },
+    "frontend_ui_flow": {
+      "login": "PASS",
+      "navigate_students_page": "PASS",
+      "school_filter": "PASS",
+      "student_modal_tabs": "PASS - All 6 tabs present (Identificação, Documentos, Responsáveis, Info. Complementares, Anexos, Turma/Observações)",
+      "turma_observacoes_tab": "PASS - Shows Vínculo com Turma, Matrícula em Atendimento/Programa, Histórico do Aluno",
+      "immediate_list_update": "PASS - setStudents updates local state immediately (line 932-934)"
+    }
+  },
+  "features_verified": {
+    "duplicate_enrollment_prevention": {
+      "same_class_same_year": "BLOCKED with 409",
+      "different_regular_class_same_year": "BLOCKED with 409",
+      "aee_class_with_active_regular": "ALLOWED with 201"
+    },
+    "frontend_error_handling": {
+      "displays_backend_error": true,
+      "error_source": "error?.response?.data?.detail"
+    },
+    "immediate_list_update": {
+      "implemented": true,
+      "actions_covered": ["matricular", "cancelar", "transferir"]
+    }
+  },
+  "unique_index_verification": {
+    "index_name": "unique_active_enrollment_per_class",
+    "fields": ["student_id", "class_id", "academic_year"],
+    "partial_filter": {"status": "active"},
+    "location": "server.py lines 144-149"
+  }
+}

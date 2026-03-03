@@ -923,9 +923,16 @@ export function StudentsComplete() {
         }
       }
       
-      // Atualiza o formData local
+      // Atualiza o formData local IMEDIATAMENTE para feedback visual
       setFormData(prev => ({ ...prev, ...updateData }));
       setEditingStudent(prev => ({ ...prev, ...updateData }));
+      
+      // Atualiza a lista de alunos localmente para reflexo imediato
+      if (selectedAction === 'matricular' || selectedAction === 'cancelar' || selectedAction === 'transferir') {
+        setStudents(prev => prev.map(s => 
+          s.id === editingStudent.id ? { ...s, ...updateData } : s
+        ));
+      }
       
       // Recarrega o histórico
       if (editingStudent.id) {
@@ -947,7 +954,9 @@ export function StudentsComplete() {
       
     } catch (error) {
       console.error('Erro ao executar ação:', error);
-      showAlert('error', extractErrorMessage(error, 'Erro ao executar ação'));
+      // Mensagem mais clara para erro de duplicidade
+      const errorMsg = error?.response?.data?.detail || extractErrorMessage(error, 'Erro ao executar ação');
+      showAlert('error', errorMsg);
     } finally {
       setExecutingAction(false);
     }

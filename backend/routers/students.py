@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, status, Request
 from typing import Optional
 from datetime import datetime, timezone
 import uuid
+from pymongo.errors import DuplicateKeyError
 
 from models import Student, StudentCreate, StudentUpdate
 from auth_middleware import AuthMiddleware
@@ -264,6 +265,14 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             new_class = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
             history_obs = f"Remanejado para turma: {new_class.get('name') if new_class else new_class_id}"
         
+        # Proteção contra re-matrícula quando aluno já está ativo (UI stale / clique duplo)
+        if new_status == 'active' and old_status == 'active' and new_class_id and new_class_id == old_class_id:
+            # Aluno já está ativo nesta turma - ignora silenciosamente (idempotente)
+            pass
+        elif new_status == 'active' and old_status == 'active' and new_class_id and new_class_id != old_class_id:
+            # Aluno já ativo tentando mudar de turma - tratar como remanejamento, não matrícula
+            pass
+        
         # Verifica se é mudança de status para transferência
         if new_status != old_status:
             if new_status == 'transferred':
@@ -280,13 +289,54 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 action_type = 'matricula'
                 academic_year = update_data.get('academic_year', datetime.now().year)
                 
-                # Verifica se já existe matrícula ativa para esse ano
+                # Verifica o tipo da turma de destino
+                target_class = await current_db.classes.find_one(
+                    {"id": new_class_id}, {"_id": 0, "atendimento_programa": 1, "name": 1}
+                )
+                target_programa = (target_class.get('atendimento_programa', '') or '').strip().lower() if target_class else ''
+                
+                # Turmas especiais que permitem matrícula mesmo com aluno já ativo
+                turmas_especiais = {'aee', 'recomposicao_aprendizagem', 'reforco_escolar'}
+                is_turma_especial = target_programa in turmas_especiais
+                
+                # Se NÃO é turma especial, verifica se aluno já está ativo em turma regular
+                if not is_turma_especial:
+                    # Busca TODAS as matrículas ativas do aluno no mesmo ano
+                    active_cursor = current_db.enrollments.find({
+                        "student_id": student_id,
+                        "academic_year": academic_year,
+                        "status": "active"
+                    })
+                    active_enrollments = await active_cursor.to_list(50)
+                    
+                    for enr in active_enrollments:
+                        enr_class = await current_db.classes.find_one(
+                            {"id": enr.get('class_id')},
+                            {"_id": 0, "atendimento_programa": 1, "name": 1}
+                        )
+                        enr_programa = (enr_class.get('atendimento_programa', '') or '').strip().lower() if enr_class else ''
+                        
+                        if enr_programa not in turmas_especiais:
+                            turma_nome = enr_class.get('name', '') if enr_class else ''
+                            raise HTTPException(
+                                status_code=status.HTTP_409_CONFLICT,
+                                detail=f"Este aluno já possui matrícula ativa na turma '{turma_nome}' no ano letivo {academic_year}. Para rematrícula, primeiro cancele ou transfira a matrícula atual."
+                            )
+                
+                # Verifica se já existe matrícula ativa na MESMA turma
                 existing_enrollment = await current_db.enrollments.find_one({
                     "student_id": student_id,
                     "class_id": new_class_id,
                     "academic_year": academic_year,
                     "status": "active"
                 })
+                
+                if existing_enrollment:
+                    turma_nome = target_class.get('name', '') if target_class else ''
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Este aluno já está matriculado nesta turma '{turma_nome}' no ano letivo {academic_year}."
+                    )
                 
                 if not existing_enrollment and new_school_id and new_class_id:
                     # Gera número de matrícula
@@ -315,7 +365,13 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                         "enrollment_date": datetime.now(timezone.utc).isoformat(),
                         "created_at": datetime.now(timezone.utc).isoformat()
                     }
-                    await current_db.enrollments.insert_one(new_enrollment)
+                    try:
+                        await current_db.enrollments.insert_one(new_enrollment)
+                    except DuplicateKeyError:
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail="Este aluno já possui matrícula ativa nesta turma. Não é possível duplicar."
+                        )
                     
                     new_class = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
                     history_obs = f"Matriculado na turma {new_class.get('name') if new_class else new_class_id} - Ano letivo {academic_year} - Matrícula: {new_enrollment_number}"

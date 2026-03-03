@@ -5,6 +5,7 @@ Endpoints para gestão de matrículas de alunos.
 
 from fastapi import APIRouter, HTTPException, status, Request
 from typing import List, Optional
+from pymongo.errors import DuplicateKeyError
 
 from models import Enrollment, EnrollmentCreate, EnrollmentUpdate
 from auth_middleware import AuthMiddleware
@@ -17,14 +18,65 @@ def setup_router(db, audit_service):
 
     @router.post("", response_model=Enrollment, status_code=status.HTTP_201_CREATED)
     async def create_enrollment(enrollment_data: EnrollmentCreate, request: Request):
-        """Cria nova matrícula"""
+        """Cria nova matrícula com validação de duplicidade"""
         current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+        
+        # Verifica o tipo da turma de destino
+        target_class = await db.classes.find_one(
+            {"id": enrollment_data.class_id}, {"_id": 0, "atendimento_programa": 1, "name": 1}
+        )
+        target_programa = (target_class.get('atendimento_programa', '') or '').strip().lower() if target_class else ''
+        turmas_especiais = {'aee', 'recomposicao_aprendizagem', 'reforco_escolar'}
+        is_turma_especial = target_programa in turmas_especiais
+        
+        # Verifica duplicidade na MESMA turma
+        existing_same_class = await db.enrollments.find_one({
+            "student_id": enrollment_data.student_id,
+            "class_id": enrollment_data.class_id,
+            "academic_year": enrollment_data.academic_year,
+            "status": "active"
+        })
+        if existing_same_class:
+            turma_nome = target_class.get('name', '') if target_class else ''
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Este aluno já está matriculado nesta turma '{turma_nome}' no ano letivo {enrollment_data.academic_year}."
+            )
+        
+        # Se NÃO é turma especial, verifica se aluno já está ativo em turma regular
+        if not is_turma_especial:
+            # Busca TODAS as matrículas ativas do aluno no mesmo ano
+            active_cursor = db.enrollments.find({
+                "student_id": enrollment_data.student_id,
+                "academic_year": enrollment_data.academic_year,
+                "status": "active"
+            })
+            active_enrollments = await active_cursor.to_list(50)
+            
+            for enr in active_enrollments:
+                enr_class = await db.classes.find_one(
+                    {"id": enr.get('class_id')},
+                    {"_id": 0, "atendimento_programa": 1, "name": 1}
+                )
+                enr_programa = (enr_class.get('atendimento_programa', '') or '').strip().lower() if enr_class else ''
+                if enr_programa not in turmas_especiais:
+                    turma_nome = enr_class.get('name', '') if enr_class else ''
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Este aluno já possui matrícula ativa na turma regular '{turma_nome}' no ano letivo {enrollment_data.academic_year}. Não é permitido duplicar matrícula em turma regular."
+                    )
         
         enrollment_obj = Enrollment(**enrollment_data.model_dump())
         doc = enrollment_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
         
-        await db.enrollments.insert_one(doc)
+        try:
+            await db.enrollments.insert_one(doc)
+        except DuplicateKeyError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Este aluno já possui matrícula ativa nesta turma. Não é possível duplicar."
+            )
         
         # Sincroniza dados do aluno com a matrícula (school_id, class_id, status)
         await db.students.update_one(

@@ -140,6 +140,13 @@ async def create_indexes():
         await db.enrollments.create_index("id", unique=True)
         await db.enrollments.create_index([("student_id", 1), ("academic_year", 1)])
         await db.enrollments.create_index("school_id")
+        # Índice parcial único para prevenir duplicatas de matrícula ativa na mesma turma
+        await db.enrollments.create_index(
+            [("student_id", 1), ("class_id", 1), ("academic_year", 1)],
+            unique=True,
+            partialFilterExpression={"status": "active"},
+            name="unique_active_enrollment_per_class"
+        )
         
         # Índices para classes (turmas)
         await db.classes.create_index("id", unique=True)
