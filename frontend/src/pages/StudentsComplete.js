@@ -515,9 +515,24 @@ export function StudentsComplete() {
   };
 
   const handleEdit = async (student) => {
-    setEditingStudent(student);
+    // Busca dados frescos do servidor para garantir campos atualizados
+    let freshStudent = student;
+    try {
+      const fetched = await studentsAPI.getById(student.id);
+      if (fetched) freshStudent = fetched;
+    } catch (e) {
+      console.warn('Usando dados em cache:', e.message);
+    }
+    setEditingStudent(freshStudent);
     setViewMode(false);
-    setFormData({ ...initialFormData, ...student });
+    // Garantir que campos null não sobrescrevam defaults do initialFormData
+    const mergedData = { ...initialFormData };
+    Object.entries(freshStudent).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        mergedData[key] = value;
+      }
+    });
+    setFormData(mergedData);
     setIsModalOpen(true);
     
     // Define o ano letivo com base na turma atual do aluno
