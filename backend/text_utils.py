@@ -24,6 +24,10 @@ LOWERCASE_FIELDS = {
     'modalidade', 'modality',
     'periodo', 'period',
     'legal_guardian_type',
+    'civil_certificate_type',
+    'color_race', 'cor_raca_aluno',
+    'publico_alvo', 'nivel_apoio',
+    'relationship',
     # Campos Literal de modelos Pydantic
     'zona_localizacao', 'tipo_unidade', 'atendimento_programa',
     'tipo_atividade', 'tipo_atendimento', 'tipo_deficiencia',
