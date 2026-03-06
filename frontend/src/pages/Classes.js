@@ -196,7 +196,7 @@ export const Classes = () => {
       programas.push({ value: 'reforco_escolar', label: 'Reforço Escolar' });
     }
     if (selectedSchool.aulas_complementares) {
-      programas.push({ value: 'aulas_complementares', label: 'Aulas Complementares' });
+      programas.push({ value: 'aulas_complementares', label: 'Recomposição da Aprendizagem' });
     }
     if (selectedSchool.aee) {
       programas.push({ value: 'aee', label: 'AEE - Atendimento Educacional Especializado' });
@@ -488,6 +488,22 @@ export const Classes = () => {
     });
   };
 
+  // Retorna TODAS as séries/etapas disponíveis na escola (todos os níveis de ensino)
+  const getAllAvailableGradeLevels = () => {
+    if (!selectedSchool) return [];
+    const allGrades = [];
+    for (const [level, grades] of Object.entries(GRADE_LEVELS_BY_EDUCATION)) {
+      if (selectedSchool[level] === true) {
+        grades.forEach(grade => {
+          if (!grade.field || selectedSchool[grade.field] === true) {
+            allGrades.push(grade);
+          }
+        });
+      }
+    }
+    return allGrades;
+  };
+
   // Função para lidar com mudança de atendimento/programa
   const handleAtendimentoChange = (newValue) => {
     const oldValue = formData.atendimento_programa;
@@ -498,7 +514,7 @@ export const Classes = () => {
       const labels = {
         'atendimento_integral': 'Escola Integral',
         'reforco_escolar': 'Reforço Escolar',
-        'aulas_complementares': 'Aulas Complementares',
+        'aulas_complementares': 'Recomposição da Aprendizagem',
         'aee': 'AEE - Atendimento Educacional Especializado'
       };
       return labels[value] || value;
@@ -519,7 +535,13 @@ export const Classes = () => {
       setTimeout(() => setAtendimentoChangeWarning(null), 8000);
     }
     
-    setFormData({ ...formData, atendimento_programa: newValue });
+    // Quando selecionar AEE ou Recomposição, limpar nível de ensino e séries
+    const isEspecial = ['aee', 'aulas_complementares'].includes(newValue);
+    if (isEspecial) {
+      setFormData({ ...formData, atendimento_programa: newValue, education_level: '', grade_level: '', is_multi_grade: false, series: [] });
+    } else {
+      setFormData({ ...formData, atendimento_programa: newValue, grade_level: '', is_multi_grade: false, series: [] });
+    }
   };
 
   const shiftLabels = {
@@ -575,7 +597,7 @@ export const Classes = () => {
         const programaLabels = {
           'atendimento_integral': { label: 'Integral', color: 'bg-purple-100 text-purple-800' },
           'reforco_escolar': { label: 'Reforço', color: 'bg-orange-100 text-orange-800' },
-          'aulas_complementares': { label: 'Complementar', color: 'bg-teal-100 text-teal-800' },
+          'aulas_complementares': { label: 'Recomposição', color: 'bg-teal-100 text-teal-800' },
           'aee': { label: 'AEE', color: 'bg-blue-100 text-blue-800' }
         };
         
@@ -593,6 +615,11 @@ export const Classes = () => {
 
   const availableEducationLevels = getAvailableEducationLevels();
   const availableGradeLevels = getAvailableGradeLevels();
+
+  // Determina se o programa selecionado é AEE ou Recomposição (não requer nível de ensino)
+  const isProgramaEspecialSemNivel = ['aee', 'aulas_complementares'].includes(formData.atendimento_programa);
+  // Séries disponíveis: todas da escola (para AEE/Recomposição) ou filtradas por nível (para regulares)
+  const gradeLevelsForForm = isProgramaEspecialSemNivel ? getAllAvailableGradeLevels() : availableGradeLevels;
 
   // Filtra as turmas por escola selecionada
   const filteredClasses = filterSchoolId 
@@ -772,7 +799,7 @@ export const Classes = () => {
                         }`}>
                           {classDetails.class.atendimento_programa === 'atendimento_integral' ? 'Escola Integral' :
                            classDetails.class.atendimento_programa === 'reforco_escolar' ? 'Reforço Escolar' :
-                           classDetails.class.atendimento_programa === 'aulas_complementares' ? 'Aulas Complementares' :
+                           classDetails.class.atendimento_programa === 'aulas_complementares' ? 'Recomposição da Aprendizagem' :
                            classDetails.class.atendimento_programa === 'aee' ? 'AEE' :
                            classDetails.class.atendimento_programa}
                         </span>
@@ -977,6 +1004,42 @@ export const Classes = () => {
               </select>
             </div>
 
+            {/* Campo de Atendimento/Programa - logo após Escola */}
+            {getAvailableProgramas().length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de Atendimento/Programa
+                </label>
+                <select
+                  value={formData.atendimento_programa}
+                  onChange={(e) => handleAtendimentoChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  data-testid="class-programa-select"
+                >
+                  <option value="">Turma Regular (sem programa específico)</option>
+                  {getAvailableProgramas().map((programa) => (
+                    <option key={programa.value} value={programa.value}>
+                      {programa.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Selecione se esta turma faz parte de algum programa especial
+                </p>
+                
+                {/* Aviso de mudança de tipo de atendimento */}
+                {atendimentoChangeWarning && (
+                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-800">Atenção: Mudança de Tipo de Atendimento</p>
+                      <p className="text-xs text-amber-700 mt-1">{atendimentoChangeWarning.message}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Nome da Turma *</label>
               <input
@@ -990,6 +1053,8 @@ export const Classes = () => {
               />
             </div>
 
+            {/* Nível de Ensino - oculto para AEE e Recomposição */}
+            {!isProgramaEspecialSemNivel && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Nível de Ensino *</label>
               <select
@@ -1009,13 +1074,15 @@ export const Classes = () => {
               </select>
               {formData.school_id && availableEducationLevels.length === 0 && (
                 <p className="text-sm text-orange-600 mt-1">
-                  ⚠️ Esta escola não possui níveis de ensino cadastrados
+                  Esta escola não possui níveis de ensino cadastrados
                 </p>
               )}
             </div>
+            )}
 
             {/* Checkbox para Turma Multisseriada */}
-            {formData.education_level && availableGradeLevels.length > 1 && (
+            {/* Para AEE/Recomposição: sempre exibir. Para regulares: exibir quando há >1 séries */}
+            {(isProgramaEspecialSemNivel || (formData.education_level && availableGradeLevels.length > 1)) && (
               <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
                 <input
                   type="checkbox"
@@ -1034,8 +1101,8 @@ export const Classes = () => {
               </div>
             )}
 
-            {/* Seleção de Série - modo único */}
-            {!formData.is_multi_grade && (
+            {/* Seleção de Série - modo único (apenas para turmas regulares, não AEE/Recomposição) */}
+            {!formData.is_multi_grade && !isProgramaEspecialSemNivel && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Série/Etapa *</label>
                 <select
@@ -1071,7 +1138,7 @@ export const Classes = () => {
                   </span>
                 </label>
                 <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto bg-white">
-                  {availableGradeLevels.map((grade) => (
+                  {gradeLevelsForForm.map((grade) => (
                     <label 
                       key={grade.value} 
                       className="flex items-center gap-2 py-1.5 px-2 hover:bg-gray-50 rounded cursor-pointer"
@@ -1128,42 +1195,6 @@ export const Classes = () => {
                 <option value="full_time">Integral</option>
               </select>
             </div>
-
-            {/* Campo de Atendimento/Programa - mostrado apenas se escola tem opções habilitadas */}
-            {getAvailableProgramas().length > 0 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de Atendimento/Programa
-                </label>
-                <select
-                  value={formData.atendimento_programa}
-                  onChange={(e) => handleAtendimentoChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  data-testid="class-programa-select"
-                >
-                  <option value="">Turma Regular (sem programa específico)</option>
-                  {getAvailableProgramas().map((programa) => (
-                    <option key={programa.value} value={programa.value}>
-                      {programa.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  Selecione se esta turma faz parte de algum programa especial
-                </p>
-                
-                {/* Aviso de mudança de tipo de atendimento */}
-                {atendimentoChangeWarning && (
-                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-amber-800">Atenção: Mudança de Tipo de Atendimento</p>
-                      <p className="text-xs text-amber-700 mt-1">{atendimentoChangeWarning.message}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
 
             <div className="flex justify-end space-x-2 mt-6 pt-4 border-t">
               <button

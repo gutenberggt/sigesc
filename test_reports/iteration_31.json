@@ -1,0 +1,90 @@
+{
+  "summary": "Verified form restructuring for 'Nova Turma' and 'Editar Turma' in SIGESC Classes page. All features tested successfully: field order, AEE/Recomposição conditional behavior, multisseriada with all school series, and backend API acceptance of empty education_level for special programs.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_classes_aee_restructure.py",
+    "/app/test_reports/pytest/pytest_classes_aee_restructure.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Code correctly implements isProgramaEspecialSemNivel for ['aee', 'aulas_complementares'] to hide Nível de Ensino",
+    "getAllAvailableGradeLevels() returns series from all education levels for AEE/Recomposição multisseriada",
+    "handleAtendimentoChange() correctly clears education_level when switching to AEE/Recomposição",
+    "Backend models.py line 749 has education_level: Optional[str] = None allowing empty values"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_classes_aee_restructure.py"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 tests passed)",
+    "frontend": "100% - All UI scenarios verified"
+  },
+  "test_credentials": "Admin: gutenberg@sigesc.com / @Celta2007",
+  "seed_data_creation": "Created and cleaned up TEST_AEE_MULTI_UI class during UI testing",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Form restructuring verified. Test school 'ESCOLA TESTE MULTISSERIADA' (220d4022-ec5e-4fb6-86fc-9233112b87b2) has aee=true, atendimento_integral=true, fundamental_anos_iniciais=true. Note: aulas_complementares is NOT enabled for any school currently, so 'Recomposição da Aprendizagem' option doesn't appear in dropdown - but the label change is correctly implemented in code (line 199). AEE class 'AEE' exists with is_multi_grade=true and 5 series.",
+  "test_results": {
+    "verified_features": [
+      {
+        "feature": "Field order: Ano Letivo -> Escola -> Tipo de Atendimento/Programa -> Nome da Turma -> Nível de Ensino",
+        "status": "PASSED",
+        "evidence": "Labels in order verified via Playwright: 1.Ano Letivo, 2.Escola, 3.Tipo de Atendimento/Programa, 4.Nome da Turma, 5.Nível de Ensino, 6.Série/Etapa, 7.Turno"
+      },
+      {
+        "feature": "AEE selected: Nível de Ensino hidden",
+        "status": "PASSED",
+        "evidence": "class-education-level-select not visible when atendimento_programa='aee'"
+      },
+      {
+        "feature": "AEE selected: Turma Multisseriada checkbox shown unconditionally",
+        "status": "PASSED",
+        "evidence": "class-multi-grade-checkbox visible immediately after selecting AEE"
+      },
+      {
+        "feature": "AEE + Multisseriada: Shows series from ALL education levels",
+        "status": "PASSED",
+        "evidence": "11 series shown including 1º-9º Ano and EJA etapas from getAllAvailableGradeLevels()"
+      },
+      {
+        "feature": "Turma Regular selected: Nível de Ensino visible",
+        "status": "PASSED",
+        "evidence": "class-education-level-select visible when atendimento_programa=''"
+      },
+      {
+        "feature": "Escola Integral selected: Nível de Ensino visible",
+        "status": "PASSED",
+        "evidence": "class-education-level-select visible when atendimento_programa='atendimento_integral'"
+      },
+      {
+        "feature": "Create AEE multisseriada with 2+ series: saves correctly",
+        "status": "PASSED",
+        "evidence": "Created TEST_AEE_MULTI_UI with 2 series via UI, success message shown"
+      },
+      {
+        "feature": "Edit existing AEE class: loads correctly",
+        "status": "PASSED",
+        "evidence": "Edit modal for AEE class showed Turma Multisseriada checked with 5 series selected"
+      },
+      {
+        "feature": "Backend accepts turma with empty education_level for AEE",
+        "status": "PASSED",
+        "evidence": "8/8 pytest tests passed including test_create_aee_class_without_education_level"
+      },
+      {
+        "feature": "Label 'Recomposição da Aprendizagem' in code",
+        "status": "PASSED",
+        "evidence": "Classes.js line 199: label: 'Recomposição da Aprendizagem' for aulas_complementares"
+      }
+    ],
+    "note_on_recomposicao": "The label 'Recomposição da Aprendizagem' is correctly implemented but no school currently has aulas_complementares enabled, so it doesn't appear in the dropdown. This is expected behavior - options only show based on school configuration."
+  }
+}
