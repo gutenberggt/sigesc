@@ -340,9 +340,12 @@ export const useStaff = () => {
       
       // Classificar turma por programa/atendimento
       const prog = (turma.atendimento_programa || '').toLowerCase().trim();
-      if (prog) {
+      if (prog && prog !== 'atendimento_integral') {
+        // Programas especiais (AEE, reforço, etc.) - só mostrar componentes do programa
         programasTurmas.add(prog);
       } else {
+        // Turmas regulares E turmas integrais são tratadas como "regulares"
+        // pois turmas integrais ensinam componentes regulares + componentes integrais
         temTurmaRegular = true;
       }
     });

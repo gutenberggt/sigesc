@@ -1,0 +1,63 @@
+{
+  "summary": "Bug fix verified for integral classes teacher allocation. When selecting a class with atendimento_programa='atendimento_integral', both regular AND integral curriculum components are now correctly displayed. The 'Nenhum componente curricular disponível' message no longer appears.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_teacher_allocation_integral.py",
+    "/app/test_reports/pytest/pytest_teacher_allocation_courses.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix in useStaff.js lines 342-349 is correct: Classes with atendimento_programa='atendimento_integral' now set temTurmaRegular=true, allowing both regular and integral components to be shown",
+    "The logic properly separates integral classes (which teach regular + integral subjects) from special programs like AEE (which only show AEE components)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_teacher_allocation_integral.py"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7 tests passed, 3 skipped logic tests)",
+    "frontend": "100% - Bug fix verified via Playwright"
+  },
+  "test_credentials": "Admin: gutenberg@sigesc.com / @Celta2007",
+  "seed_data_creation": "Created TURMA INTEGRAL TESTE (id: 30e28757-02fa-4b18-96f7-e7052ce913f6) with atendimento_programa='atendimento_integral' for testing",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bug fix for integral classes teacher allocation verified. Test data: School 'ESCOLA TESTE MULTISSERIADA' (220d4022-ec5e-4fb6-86fc-9233112b87b2) has atendimento_integral=true. Class 'TURMA INTEGRAL TESTE' has atendimento_programa='atendimento_integral'. Professor RICLEIDE (4c34fe19-5c6b-4de7-ae9a-030fed52a84c) has lotação in this school. When selecting the integral class in allocation modal, component dropdown shows 9 options including regular (LÍNGUA PORTUGUESA, MATEMÁTICA, etc.) and integral (OFICINA) components.",
+  "test_results": {
+    "bug_description": "Ao alocar um professor a uma turma de escola integral (com atendimento_programa='atendimento_integral'), nenhum componente curricular era exibido",
+    "fix_location": "useStaff.js lines 342-349",
+    "fix_description": "Changed logic so that classes with atendimento_programa='atendimento_integral' set temTurmaRegular=true instead of being added to programasTurmas. This allows both regular and integral components to be shown.",
+    "verified_scenarios": [
+      {
+        "scenario": "Integral class in integral school",
+        "expected": "Shows regular + integral components",
+        "actual": "Shows 9 components: LÍNGUA PORTUGUESA, MATEMÁTICA, CIÊNCIAS, HISTÓRIA, GEOGRAFIA, ARTE, EDUCAÇÃO FÍSICA, ENSINO RELIGIOSO, OFICINA DE LEITURA",
+        "status": "PASSED"
+      },
+      {
+        "scenario": "AEE class (atendimento_programa='AEE')",
+        "expected": "Shows only AEE components",
+        "actual": "Backend test verified - AEE courses filtered correctly",
+        "status": "PASSED (backend)"
+      },
+      {
+        "scenario": "Regular class in integral school",
+        "expected": "Shows regular + integral components",
+        "actual": "Backend test verified - logic correct",
+        "status": "PASSED (backend)"
+      }
+    ],
+    "backend_tests_passed": 7,
+    "frontend_tests_passed": 1,
+    "screenshots": [
+      ".screenshots/final_test.jpg - Shows modal with TURMA INTEGRAL TESTE selected and component dropdown populated"
+    ]
+  }
+}
