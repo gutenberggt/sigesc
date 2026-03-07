@@ -29,21 +29,30 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestao escolar municipal.
 16. Prevencao de Duplicidade de Matricula (RESOLVIDO)
 
 ## Implementado (03/03/2026)
-17. Layout Certidao Civil (P0 RESOLVIDO): Campo Numero/Matricula aumentado (3 colunas), Livro e Folha reduzidos (1 coluna cada). Grid alterado de 4 para 6 colunas.
-18. Lista de Turmas nao atualizava (P1 RESOLVIDO): Cache busting + atualizacao otimista.
-19. **Bug Componentes Curriculares em Turmas Integrais (P0 RESOLVIDO):** Turmas com atendimento_programa='atendimento_integral' nao exibiam nenhum componente curricular na alocacao de professor. A correcao trata turmas integrais como regulares (temTurmaRegular=true) no filtro de componentes, permitindo que componentes regulares E integrais aparecam. Turmas AEE continuam mostrando apenas componentes AEE.
+17. Layout Certidao Civil (P0 RESOLVIDO)
+18. Lista de Turmas nao atualizava (P1 RESOLVIDO)
+19. Bug Componentes Curriculares em Turmas Integrais (P0 RESOLVIDO)
+20. **Reestruturacao formulario Nova/Editar Turma (CONCLUIDO):**
+    - Campo "Tipo de Atendimento/Programa" movido para entre Escola e Nome da Turma
+    - AEE ou Recomposicao selecionado: oculta Nivel de Ensino, mostra Multisseriada incondicionalmente
+    - Multisseriada marcada (AEE/Recomposicao): exibe series de TODOS os niveis de ensino da escola
+    - Label "Aulas Complementares" renomeado para "Recomposicao da Aprendizagem"
+    - Funcao getAllAvailableGradeLevels() para retornar todas as series da escola
+    - handleAtendimentoChange() limpa education_level ao selecionar AEE/Recomposicao
 
 ## Regras de Negocio - Matricula
 - Aluno pode ter APENAS 1 matricula ativa em turma regular por ano letivo
 - Turmas especiais (AEE, Recomposicao, Reforco) sao excecao
-- Turmas especiais identificadas por atendimento_programa: 'aee', 'recomposicao_aprendizagem', 'reforco_escolar'
+
+## Regras de Negocio - Formulario de Turma
+- Ordem: Ano Letivo > Escola > Tipo de Atendimento > Nome > Nivel de Ensino > Serie > Turno
+- AEE/Recomposicao: sem nivel de ensino, multisseriada sempre disponivel, series de toda a escola
+- Regular/Integral/Reforco: fluxo normal com nivel de ensino obrigatorio
 
 ## Regras de Negocio - Componentes Curriculares
-- Turmas regulares (sem programa): mostram componentes regulares
-- Turmas regulares em escola integral: mostram regulares + integrais
-- Turmas com atendimento_programa='atendimento_integral': mostram regulares + integrais
-- Turmas AEE: mostram apenas componentes AEE
-- Filtro por nivel_ensino e grade_levels tambem aplicado
+- Turmas regulares: mostram componentes regulares
+- Turmas em escola integral (incluindo atendimento_integral): regulares + integrais
+- Turmas AEE: apenas componentes AEE
 
 ## Issues Pendentes
 - P2: Dashboard Analitico (pendente verificacao do usuario)
