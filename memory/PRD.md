@@ -32,13 +32,11 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestao escolar municipal.
 17. Layout Certidao Civil (P0 RESOLVIDO)
 18. Lista de Turmas nao atualizava (P1 RESOLVIDO)
 19. Bug Componentes Curriculares em Turmas Integrais (P0 RESOLVIDO)
-20. **Reestruturacao formulario Nova/Editar Turma (CONCLUIDO):**
-    - Campo "Tipo de Atendimento/Programa" movido para entre Escola e Nome da Turma
-    - AEE ou Recomposicao selecionado: oculta Nivel de Ensino, mostra Multisseriada incondicionalmente
-    - Multisseriada marcada (AEE/Recomposicao): exibe series de TODOS os niveis de ensino da escola
-    - Label "Aulas Complementares" renomeado para "Recomposicao da Aprendizagem"
-    - Funcao getAllAvailableGradeLevels() para retornar todas as series da escola
-    - handleAtendimentoChange() limpa education_level ao selecionar AEE/Recomposicao
+20. Reestruturacao formulario Nova/Editar Turma (CONCLUIDO)
+21. **Bug "Erro ao salvar escola" (P0 RESOLVIDO):**
+    - Campos Literal (zona_localizacao, tipo_unidade, status) armazenados em MAIUSCULAS no DB causavam falha na validacao Pydantic
+    - Adicionado model_validator(mode='before') em SchoolBase e SchoolUpdate para normalizar campos Literal para minusculas automaticamente
+    - Corrige tanto dados corrompidos vindos do DB (GET/resposta) quanto dados em maiusculas enviados pelo frontend (PUT/entrada)
 
 ## Regras de Negocio - Matricula
 - Aluno pode ter APENAS 1 matricula ativa em turma regular por ano letivo
@@ -51,8 +49,14 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestao escolar municipal.
 
 ## Regras de Negocio - Componentes Curriculares
 - Turmas regulares: mostram componentes regulares
-- Turmas em escola integral (incluindo atendimento_integral): regulares + integrais
+- Turmas em escola integral: regulares + integrais
 - Turmas AEE: apenas componentes AEE
+
+## Padrao de Bug Recorrente - Literal + Uppercase
+- O utilitario format_data_uppercase pode corromper campos Literal do Pydantic
+- Campos Literal devem estar na lista LOWERCASE_FIELDS em text_utils.py
+- Modelos com campos Literal devem ter model_validator para normalizar valores
+- Dados ja corrompidos no DB de producao precisam de normalizacao na leitura
 
 ## Issues Pendentes
 - P2: Dashboard Analitico (pendente verificacao do usuario)

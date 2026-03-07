@@ -1,7 +1,10 @@
-from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from pydantic import BaseModel, Field, ConfigDict, EmailStr, model_validator
 from typing import List, Optional, Literal, Dict
 from datetime import datetime, timezone
 import uuid
+
+# Campos Literal que devem ser normalizados para minúsculas
+SCHOOL_LITERAL_FIELDS = ['zona_localizacao', 'tipo_unidade', 'status']
 
 # ============= AUTH MODELS =============
 
@@ -348,6 +351,15 @@ class NotificationCount(BaseModel):
 # ============= SCHOOL MODELS =============
 
 class SchoolBase(BaseModel):
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_literal_fields(cls, data):
+        if isinstance(data, dict):
+            for field in SCHOOL_LITERAL_FIELDS:
+                if field in data and isinstance(data[field], str):
+                    data[field] = data[field].lower()
+        return data
+
     # Dados Gerais - Identificação
     name: str
     inep_code: Optional[str] = None
@@ -562,6 +574,15 @@ class SchoolCreate(SchoolBase):
     pass
 
 class SchoolUpdate(BaseModel):
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_literal_fields(cls, data):
+        if isinstance(data, dict):
+            for field in SCHOOL_LITERAL_FIELDS:
+                if field in data and isinstance(data[field], str):
+                    data[field] = data[field].lower()
+        return data
+
     # Todos os campos opcionais para atualização parcial
     name: Optional[str] = None
     inep_code: Optional[str] = None
