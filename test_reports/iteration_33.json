@@ -1,0 +1,82 @@
+{
+  "summary": "Tested student_series feature for multi-grade classes. Backend APIs (5/5 tests passed): GET/POST/PUT correctly handle student_series in enrollments. CRITICAL Frontend bug found: 'Ano/Série' field missing from new student form.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "StudentsComplete.js - New Student Form (Turma/Observações tab)",
+        "issue": "CRITICAL: The 'Ano/Série' field is MISSING from the new student form. It only exists in the edit form. Lines 2829-2882 show grid-cols-4 with only Escola, Turma, and Status fields. The Ano/Série dropdown (data-testid='student-series-select') is not rendered for new students.",
+        "selector": "[data-testid='student-series-select']",
+        "priority": "HIGH",
+        "fix_location": "StudentsComplete.js lines 2829-2882 - Add Ano/Série field between Turma and Status"
+      },
+      {
+        "component": "StudentsComplete.js - New Student Form - Turma onChange",
+        "issue": "The Turma select onChange handler (line 2852) does NOT set student_series. It should: 1) For non-multi-grade: auto-set student_series to grade_level, 2) For multi-grade: clear student_series for user selection. Compare with editing form lines 2689-2698.",
+        "selector": "select (Turma field in new student form)",
+        "priority": "HIGH",
+        "fix_location": "StudentsComplete.js line 2852"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_student_series.py",
+    "/app/test_reports/pytest/pytest_student_series.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Add 'Ano/Série' field to the new student form (lines 2829-2882). Copy the conditional logic from editing form (lines 2714-2745): show dropdown for multi-grade classes, readonly input for normal classes.",
+    "CRITICAL: Update grid from 'grid-cols-4' to 'grid-cols-5' at line 2829 to accommodate the new field.",
+    "CRITICAL: Update Turma onChange handler at line 2852 to set student_series: for non-multi-grade auto-set to grade_level, for multi-grade clear it for user selection."
+  ],
+  "critical_code_review_comments": [
+    "Backend student_series implementation is CORRECT: GET returns from active enrollment, POST/PUT save to enrollment",
+    "Frontend editing form (lines 2667-2802) has correct implementation of Ano/Série field",
+    "Frontend new student form (lines 2804-2884) is MISSING the Ano/Série field entirely",
+    "The fix requires copying lines 2714-2745 (Ano/Série conditional render) into the new student form section",
+    "Also need to update onChange handler for Turma select to match the editing form behavior"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_student_series.py"
+  ],
+  "success_rate": {
+    "backend": "100% (5/5 tests passed)",
+    "frontend": "50% - Edit form works, New form missing Ano/Série field"
+  },
+  "test_credentials": {
+    "admin_email": "gutenberg@sigesc.com",
+    "admin_password": "@Celta2007"
+  },
+  "seed_data_creation": "Test students created and cleaned up during backend tests (TEST_MULTI_SERIES_*, TEST_GET_SERIES_*, etc.)",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Frontend new student form is missing Ano/Série field. The editing form at lines 2667-2802 has the correct implementation. Main agent needs to add the same field to the new student form section at lines 2804-2884. Test data: School ID=220d4022-ec5e-4fb6-86fc-9233112b87b2, Multi-grade class ID=c09b8666-c8bb-40d1-b835-c2b0fa4b8ecd, Normal class ID=e37025d4-52a9-40f7-89b6-2a9789c9f266.",
+  "verified_features": {
+    "backend": {
+      "GET /api/students/{id} returns student_series": "PASS",
+      "POST /api/students with student_series saves to enrollment": "PASS",
+      "PUT /api/students/{id} updates student_series in enrollment": "PASS",
+      "student_series preserved after other field updates": "PASS",
+      "normal class uses grade_level fallback": "PASS"
+    },
+    "frontend_editing_form": {
+      "Ano/Série dropdown for multi-grade class": "PASS (exists at lines 2718-2732)",
+      "Ano/Série readonly for normal class": "PASS (exists at lines 2736-2744)",
+      "class_id onChange auto-sets student_series": "PASS (lines 2689-2698)"
+    },
+    "frontend_new_student_form": {
+      "Ano/Série dropdown for multi-grade class": "FAIL - FIELD MISSING",
+      "Ano/Série readonly for normal class": "FAIL - FIELD MISSING",
+      "class_id onChange auto-sets student_series": "FAIL - No student_series handling (line 2852)"
+    }
+  },
+  "fix_code_suggestion": {
+    "step1": "Change line 2829 from 'grid-cols-4' to 'grid-cols-5'",
+    "step2": "After line 2865 (Turma field closing div), add the Ano/Série field copied from lines 2714-2745",
+    "step3": "Update line 2852 onChange handler to match lines 2689-2698"
+  }
+}

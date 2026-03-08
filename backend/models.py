@@ -949,6 +949,7 @@ class StudentBase(BaseModel):
     
     # === VÍNCULO ESCOLAR ===
     class_id: Optional[str] = None
+    student_series: Optional[str] = None
     user_id: Optional[str] = None  # Se aluno tem acesso ao portal
     guardian_ids: List[str] = []  # IDs dos responsáveis no sistema
     
@@ -1050,6 +1051,7 @@ class StudentUpdate(BaseModel):
     
     # Vínculo escolar
     class_id: Optional[str] = None
+    student_series: Optional[str] = None
     user_id: Optional[str] = None
     guardian_ids: Optional[List[str]] = None
     

@@ -1475,9 +1475,9 @@ async def create_student(student_data: StudentCreate, request: Request):
     
     return student_obj
 
-@api_router.get("/students/{student_id}", response_model=Student)
+@api_router.get("/students/{student_id}")
 async def get_student(student_id: str, request: Request):
-    """Busca aluno por ID"""
+    """Busca aluno por ID, incluindo student_series da matrícula ativa"""
     current_user = await AuthMiddleware.get_current_user(request)
     student_doc = await db.students.find_one({"id": student_id}, {"_id": 0})
     
@@ -1490,7 +1490,15 @@ async def get_student(student_id: str, request: Request):
     # Verifica acesso à escola do aluno
     await AuthMiddleware.verify_school_access(request, student_doc['school_id'])
     
-    return Student(**student_doc)
+    # Busca student_series da matrícula ativa
+    active_enrollment = await db.enrollments.find_one(
+        {"student_id": student_id, "status": "active"},
+        {"_id": 0, "student_series": 1}
+    )
+    if active_enrollment and active_enrollment.get('student_series'):
+        student_doc['student_series'] = active_enrollment['student_series']
+    
+    return student_doc
 
 @api_router.put("/students/{student_id}", response_model=Student)
 async def update_student(student_id: str, student_update: StudentUpdate, request: Request):
@@ -1545,6 +1553,9 @@ async def update_student(student_id: str, student_update: StudentUpdate, request
             )
     
     update_data = student_update.model_dump(exclude_unset=True)
+    
+    # Extrai student_series para atualizar na matrícula (não no documento do aluno)
+    new_student_series = update_data.pop('student_series', None)
     
     # Validar CPF duplicado (excluindo o próprio aluno)
     if 'cpf' in update_data and update_data['cpf']:
@@ -1601,16 +1612,32 @@ async def update_student(student_id: str, student_update: StudentUpdate, request
     if new_class_id and new_class_id != old_class_id and new_school_id == old_school_id:
         action_type = 'remanejamento'
         
+        # Busca grade_level da nova turma para student_series
+        new_class_info = await db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1, "grade_level": 1, "is_multi_grade": 1})
+        
+        # Define student_series: usa o valor enviado ou fallback para grade_level da turma
+        enrollment_series = new_student_series
+        if not enrollment_series and new_class_info and not new_class_info.get('is_multi_grade'):
+            enrollment_series = new_class_info.get('grade_level')
+        
         # Atualiza matrícula ativa
         academic_year = datetime.now().year
+        enrollment_update = {"class_id": new_class_id}
+        if enrollment_series:
+            enrollment_update["student_series"] = enrollment_series
         await db.enrollments.update_one(
             {"student_id": student_id, "school_id": old_school_id, "status": "active", "academic_year": academic_year},
-            {"$set": {"class_id": new_class_id}}
+            {"$set": enrollment_update}
         )
         
         # Busca nome da nova turma
-        new_class = await db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
-        history_obs = f"Remanejado para turma: {new_class.get('name') if new_class else new_class_id}"
+        history_obs = f"Remanejado para turma: {new_class_info.get('name') if new_class_info else new_class_id}"
+    elif new_student_series:
+        # Edição regular mas com mudança de student_series (ex: troca de série em turma multisseriada)
+        await db.enrollments.update_one(
+            {"student_id": student_id, "status": "active"},
+            {"$set": {"student_series": new_student_series}}
+        )
     
     # Verifica se é mudança de status para transferência
     if new_status != old_status:

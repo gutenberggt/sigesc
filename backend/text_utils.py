@@ -37,7 +37,8 @@ LOWERCASE_FIELDS = {
     'school_id', 'user_id', 'enrollment_id',
     'atendimento_programa_tipo', 'atendimento_programa_class_id',
     'atendimento_programa_school_id',
-    'anexa_a'
+    'anexa_a',
+    'student_series'
 }
 
 

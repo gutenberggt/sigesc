@@ -85,7 +85,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 "class_id": student_obj.class_id,
                 "academic_year": academic_year,
                 "status": "active",
-                "student_series": class_info.get('grade_level') if class_info else None,
+                "student_series": student_data.student_series or (class_info.get('grade_level') if class_info else None),
                 "enrollment_number": new_enrollment_number,
                 "enrollment_date": datetime.now().isoformat(),
                 "created_at": datetime.now().isoformat()

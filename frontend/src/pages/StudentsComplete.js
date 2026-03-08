@@ -123,6 +123,7 @@ const initialFormData = {
   
   // Vínculo escolar
   class_id: '',
+  student_series: '',
   user_id: null,
   guardian_ids: [],
   
@@ -2685,7 +2686,17 @@ export function StudentsComplete() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Turma ({vinculoAnoLetivo})</label>
               <select
                 value={formData.class_id || ''}
-                onChange={(e) => updateFormData('class_id', e.target.value)}
+                onChange={(e) => {
+                  const newClassId = e.target.value;
+                  const selectedClass = classes.find(c => c.id === newClassId);
+                  if (selectedClass && !selectedClass.is_multi_grade) {
+                    // Turma não-multisseriada: auto-set student_series
+                    setFormData(prev => ({ ...prev, class_id: newClassId, student_series: selectedClass.grade_level || '' }));
+                  } else {
+                    // Turma multisseriada: limpar para o usuário escolher
+                    setFormData(prev => ({ ...prev, class_id: newClassId, student_series: '' }));
+                  }
+                }}
                 disabled={viewMode || !formData.school_id}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
               >
@@ -2702,13 +2713,36 @@ export function StudentsComplete() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ano/Série</label>
-              <input
-                type="text"
-                value={formData.class_id ? getClassGradeLevel(formData.class_id) : '-'}
-                disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
-                data-testid="student-grade-level-readonly"
-              />
+              {(() => {
+                const selectedClass = classes.find(c => c.id === formData.class_id);
+                if (selectedClass?.is_multi_grade && selectedClass?.series?.length > 0) {
+                  // Turma multisseriada: dropdown para escolher
+                  return (
+                    <select
+                      value={formData.student_series || ''}
+                      onChange={(e) => updateFormData('student_series', e.target.value)}
+                      disabled={viewMode}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                      data-testid="student-series-select"
+                    >
+                      <option value="">Selecione o ano/série</option>
+                      {selectedClass.series.map(serie => (
+                        <option key={serie} value={serie}>{serie}</option>
+                      ))}
+                    </select>
+                  );
+                }
+                // Turma não-multisseriada: readonly
+                return (
+                  <input
+                    type="text"
+                    value={formData.student_series || (formData.class_id ? getClassGradeLevel(formData.class_id) : '-')}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
+                    data-testid="student-grade-level-readonly"
+                  />
+                );
+              })()}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
