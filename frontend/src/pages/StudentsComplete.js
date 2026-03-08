@@ -1407,10 +1407,19 @@ export function StudentsComplete() {
     setFilterClassId('');
   };
 
+  const getClassGradeLevel = (classId) => {
+    const classItem = classes.find(c => c.id === classId);
+    if (!classItem) return '-';
+    if (classItem.is_multi_grade && classItem.series?.length > 0) {
+      return classItem.series.join(', ');
+    }
+    return classItem.grade_level || '-';
+  };
+
   const columns = [
     { header: 'Nome', accessor: 'full_name', render: (row) => row.full_name || '-' },
-    { header: 'Escola', accessor: 'school_id', render: (row) => getSchoolName(row.school_id) },
     { header: 'Turma', accessor: 'class_id', render: (row) => getClassName(row.class_id) },
+    { header: 'Ano', accessor: 'grade_info', render: (row) => getClassGradeLevel(row.class_id) },
     { 
       header: 'Status', 
       accessor: 'status',
@@ -2654,7 +2663,7 @@ export function StudentsComplete() {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
               <select
@@ -2690,6 +2699,16 @@ export function StudentsComplete() {
               {filteredClasses.length === 0 && formData.school_id && (
                 <p className="text-sm text-yellow-600 mt-1">Nenhuma turma cadastrada para esta escola em {vinculoAnoLetivo}</p>
               )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ano/Série</label>
+              <input
+                type="text"
+                value={formData.class_id ? getClassGradeLevel(formData.class_id) : '-'}
+                disabled
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
+                data-testid="student-grade-level-readonly"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>

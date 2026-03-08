@@ -1,0 +1,75 @@
+{
+  "summary": "Testing iteration 32: Column and filter changes in SIGESC. Found one critical bug in students table - hardcoded HTML columns not updated.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "StudentsComplete.js - Main Students Table",
+        "issue": "Table columns hardcoded at lines 3506-3511 were NOT updated. Still shows 'Escola' column and missing 'Ano' column. The `columns` array (lines 1419-1422) was updated correctly but is NOT being used - actual table renders with hardcoded <th> elements",
+        "selector": "thead.bg-gray-50 th",
+        "priority": "HIGH",
+        "fix_location": "StudentsComplete.js lines 3506-3511 (headers) and line 3551 (data cells)"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_sigesc_v32_columns.py",
+    "/app/test_reports/pytest/pytest_v32_columns.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Fix StudentsComplete.js lines 3506-3511 - Update hardcoded table headers: Remove 'Escola' column <th>, Add 'Ano' column <th> between Turma and Status",
+    "CRITICAL: Fix StudentsComplete.js line 3551 - Update hardcoded table data cells: Remove getSchoolName(row.school_id) cell, Add getClassGradeLevel(row.class_id) cell between Turma and Status",
+    "Also update lines 3421, 3439, 3455, 3491 (batch mode headers) and corresponding data cells at lines 3549-3560"
+  ],
+  "critical_code_review_comments": [
+    "The `columns` array at line 1419 is CORRECTLY defined with: Nome, Turma, Ano, Status, Documentos",
+    "HOWEVER: The actual table HTML at lines 3506-3511 uses HARDCODED <th> elements that were NOT updated",
+    "The columns array appears to be unused - the actual rendering uses direct JSX at line 3404",
+    "Backend GET /api/classes/{class_id}/details correctly returns student_series with fallback to class grade_level",
+    "Classes page correctly has filterYear dropdown with default 2026 and no 'Ano Letivo' column",
+    "Turma/Observações tab correctly has readonly 'Ano/Série' field between Turma and Status"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_sigesc_v32_columns.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 tests passed, 2 skipped due to rate limiting)",
+    "frontend": "60% (4/6 features verified, 2 critical bugs in students table)"
+  },
+  "test_credentials": {
+    "admin_email": "gutenberg@sigesc.com",
+    "admin_password": "@Celta2007"
+  },
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "The main bug is in StudentsComplete.js - the columns array is correct but the actual table rendering uses hardcoded <th> elements. Main agent needs to update lines 3506-3511 (headers) and 3551 (data cell) to match the columns definition. Also batch mode headers at 3421/3439/3455/3491.",
+  "verified_features": {
+    "classes_page": {
+      "year_filter_dropdown": "PASS - exists with data-testid='filter-year-select'",
+      "year_filter_default": "PASS - defaults to 2026",
+      "no_ano_letivo_column": "PASS - column 'Ano Letivo' not in table headers",
+      "table_columns": "['Turma', 'Escola', 'Série/Etapa', 'Tipo', 'Ações'] - CORRECT"
+    },
+    "students_page": {
+      "no_escola_column": "FAIL - 'Escola' column still present (lines 3507, 3551)",
+      "ano_column_added": "FAIL - 'Ano' column missing (should be between Turma and Status)"
+    },
+    "student_form_turma_tab": {
+      "ano_serie_field": "PASS - readonly input with label 'Ano/Série'",
+      "field_position": "PASS - between Turma and Status",
+      "field_disabled": "PASS - is disabled=true",
+      "data_testid": "PASS - has data-testid='student-grade-level-readonly'"
+    },
+    "class_details_modal": {
+      "distribuicao_por_serie": "PASS - shows actual counts (4 in 1º ANO, not all 0)",
+      "serie_column": "PASS - shows '1º ANO' badge, not 'N/D'",
+      "student_series_fallback": "PASS - backend returns grade_level when student_series is null"
+    }
+  }
+}

@@ -1099,7 +1099,7 @@ async def get_class_details(class_id: str, request: Request):
                 "id": student.get('id'),
                 "full_name": student.get('full_name'),
                 "enrollment_number": enrollment_number,
-                "student_series": enrollment_info.get('student_series'),
+                "student_series": enrollment_info.get('student_series') or class_doc.get('grade_level'),
                 "birth_date": student.get('birth_date'),
                 "guardian_name": guardian_name,
                 "guardian_phone": guardian_phone
@@ -1713,7 +1713,7 @@ async def transfer_student(student_id: str, request: Request):
     
     # Busca informações da nova escola e turma
     new_school = await db.schools.find_one({"id": new_school_id}, {"_id": 0, "name": 1})
-    new_class = await db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
+    new_class = await db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1, "grade_level": 1})
     
     if not new_school or not new_class:
         raise HTTPException(
@@ -1744,6 +1744,7 @@ async def transfer_student(student_id: str, request: Request):
         "class_id": new_class_id,
         "academic_year": academic_year,
         "enrollment_number": new_enrollment_number,
+        "student_series": new_class.get('grade_level') if new_class else None,
         "status": "active",
         "created_at": datetime.now(timezone.utc).isoformat()
     }

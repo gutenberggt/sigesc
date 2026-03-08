@@ -59,6 +59,11 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if student_obj.class_id and student_obj.status == 'active':
             academic_year = datetime.now().year
             
+            # Busca grade_level da turma para student_series
+            class_info = await current_db.classes.find_one(
+                {"id": student_obj.class_id}, {"_id": 0, "grade_level": 1}
+            )
+            
             # Gera número de matrícula
             last_enrollment = await current_db.enrollments.find_one(
                 {"academic_year": academic_year},
@@ -80,6 +85,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 "class_id": student_obj.class_id,
                 "academic_year": academic_year,
                 "status": "active",
+                "student_series": class_info.get('grade_level') if class_info else None,
                 "enrollment_number": new_enrollment_number,
                 "enrollment_date": datetime.now().isoformat(),
                 "created_at": datetime.now().isoformat()
@@ -361,6 +367,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                         "class_id": new_class_id,
                         "academic_year": academic_year,
                         "enrollment_number": new_enrollment_number,
+                        "student_series": target_class.get('grade_level') if target_class else None,
                         "status": "active",
                         "enrollment_date": datetime.now(timezone.utc).isoformat(),
                         "created_at": datetime.now(timezone.utc).isoformat()
@@ -486,7 +493,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             )
         
         new_school = await current_db.schools.find_one({"id": new_school_id}, {"_id": 0, "name": 1})
-        new_class = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
+        new_class = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1, "grade_level": 1})
         
         if not new_school or not new_class:
             raise HTTPException(
@@ -517,6 +524,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "class_id": new_class_id,
             "academic_year": academic_year,
             "enrollment_number": new_enrollment_number,
+            "student_series": new_class.get('grade_level') if new_class else None,
             "status": "active",
             "created_at": datetime.now(timezone.utc).isoformat()
         }

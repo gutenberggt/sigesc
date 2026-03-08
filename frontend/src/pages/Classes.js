@@ -100,6 +100,7 @@ export const Classes = () => {
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [filterSchoolId, setFilterSchoolId] = useState('');
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
   const [atendimentoChangeWarning, setAtendimentoChangeWarning] = useState(null);
   
   // Estados para modal de visualização
@@ -568,7 +569,6 @@ export const Classes = () => {
       accessor: 'school_id',
       render: (row) => getSchoolName(row.school_id)
     },
-    { header: 'Ano Letivo', accessor: 'academic_year' },
     {
       header: 'Série/Etapa',
       accessor: 'grade_level',
@@ -621,10 +621,12 @@ export const Classes = () => {
   // Séries disponíveis: todas da escola (para AEE/Recomposição) ou filtradas por nível (para regulares)
   const gradeLevelsForForm = isProgramaEspecialSemNivel ? getAllAvailableGradeLevels() : availableGradeLevels;
 
-  // Filtra as turmas por escola selecionada
-  const filteredClasses = filterSchoolId 
-    ? classes.filter(c => c.school_id === filterSchoolId)
-    : classes;
+  // Filtra as turmas por escola e ano letivo selecionados
+  const filteredClasses = classes.filter(c => {
+    if (filterSchoolId && c.school_id !== filterSchoolId) return false;
+    if (filterYear && c.academic_year !== filterYear) return false;
+    return true;
+  });
 
   return (
     <Layout>
@@ -679,7 +681,7 @@ export const Classes = () => {
 
         {/* Filtro por Escola */}
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <label className="text-sm font-medium text-gray-700">Filtrar por Escola:</label>
             <select
               value={filterSchoolId}
@@ -690,6 +692,17 @@ export const Classes = () => {
               <option value="">Todas as escolas</option>
               {schools.map(school => (
                 <option key={school.id} value={school.id}>{school.name}</option>
+              ))}
+            </select>
+            <label className="text-sm font-medium text-gray-700">Ano Letivo:</label>
+            <select
+              value={filterYear}
+              onChange={(e) => setFilterYear(parseInt(e.target.value))}
+              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              data-testid="filter-year-select"
+            >
+              {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map(year => (
+                <option key={year} value={year}>{year}</option>
               ))}
             </select>
             <span className="text-sm text-gray-500">
