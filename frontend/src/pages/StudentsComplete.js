@@ -3504,8 +3504,8 @@ export function StudentsComplete() {
                     </th>
                   )}
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Escola</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turma</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ano</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documentos</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
@@ -3548,8 +3548,8 @@ export function StudentsComplete() {
                           </td>
                         )}
                         <td className="px-4 py-3 text-sm text-gray-900">{row.full_name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-500">{getSchoolName(row.school_id)}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">{getClassName(row.class_id)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">{getClassGradeLevel(row.class_id)}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                             row.status === 'active' ? 'bg-green-100 text-green-800' :
