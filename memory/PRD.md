@@ -14,29 +14,29 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestao escolar municipal.
 19. Bug Componentes Curriculares em Turmas Integrais (P0 RESOLVIDO)
 20. Reestruturacao formulario Nova/Editar Turma (CONCLUIDO)
 21. Bug "Erro ao salvar escola" (P0 RESOLVIDO)
-22. **Tabela de Alunos**: Coluna "Escola" removida, coluna "Ano" adicionada entre Turma e Status
-23. **Detalhes de Turma Multisseriada**: Fix student_series fallback para grade_level da turma. Distribuicao por Serie e coluna Serie agora mostram valores corretos.
-24. **Tabela de Turmas**: Coluna "Ano Letivo" removida, filtro "Ano Letivo" adicionado com ano atual como padrao
-25. **Aba Turma/Observacoes**: Campo "Ano/Serie" readonly adicionado entre Turma e Status. Mostra automaticamente o ano/serie da turma do aluno.
-26. **Backend Enrollment**: Todas as criacoes de matricula agora incluem student_series automaticamente a partir do grade_level da turma.
+22. Tabela de Alunos: coluna Escola removida, coluna Ano adicionada
+23. Detalhes Turma Multisseriada: fix student_series
+24. Tabela de Turmas: coluna Ano Letivo removida, filtro adicionado
+25. Aba Turma/Observacoes: campo Ano/Serie readonly adicionado
+26. Backend Enrollment: student_series automatico na criacao
+
+## Implementado (08/03/2026)
+27. **Selecao de serie em turma multisseriada (Novo Aluno):** Dropdown para escolher ano/serie ao matricular em turma multisseriada. Auto-set para turmas nao-multi. Campo presente em AMBOS os formularios (novo e editar).
+28. **Exibicao de serie na edicao (Editar Aluno):** Campo Ano/Serie mostra o student_series especifico da matricula do aluno (nao todos os anos da turma). Para turma multisseriada, dropdown editavel. Para turma normal, campo readonly.
+29. **Backend student_series completo:** GET /students/{id} retorna student_series da enrollment ativa. POST cria enrollment com student_series. PUT atualiza student_series na enrollment. student_series adicionado ao LOWERCASE_FIELDS.
 
 ## Regras de Negocio - Matricula
 - Aluno pode ter APENAS 1 matricula ativa em turma regular por ano letivo
-- Turmas especiais (AEE, Recomposicao, Reforco) sao excecao
-- student_series definido automaticamente na criacao da matricula
+- student_series definido na criacao: valor enviado pelo frontend OU fallback para grade_level
+- Para turma multisseriada: usuario escolhe o ano/serie no dropdown
+- Para turma nao-multisseriada: auto-set para o grade_level da turma
 
 ## Regras de Negocio - Formulario de Turma
 - Ordem: Ano Letivo > Escola > Tipo de Atendimento > Nome > Nivel de Ensino > Serie > Turno
-- AEE/Recomposicao: sem nivel de ensino, multisseriada sempre disponivel, series de toda a escola
-
-## Regras de Negocio - Componentes Curriculares
-- Turmas regulares: componentes regulares
-- Turmas em escola integral: regulares + integrais
-- Turmas AEE: apenas componentes AEE
+- AEE/Recomposicao: sem nivel de ensino, multisseriada sempre disponivel
 
 ## Padrao de Bug Recorrente - Literal + Uppercase
 - format_data_uppercase pode corromper campos Literal do Pydantic
-- Campos Literal devem estar na lista LOWERCASE_FIELDS em text_utils.py
 - Modelos com campos Literal devem ter model_validator para normalizar valores
 
 ## Issues Pendentes

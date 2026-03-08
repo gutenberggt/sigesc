@@ -2826,7 +2826,7 @@ export function StudentsComplete() {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
               <select
@@ -2834,7 +2834,7 @@ export function StudentsComplete() {
                 onChange={(e) => {
                   updateFormData('school_id', e.target.value);
                   // Limpar turma ao trocar de escola
-                  updateFormData('class_id', '');
+                  setFormData(prev => ({ ...prev, school_id: e.target.value, class_id: '', student_series: '' }));
                 }}
                 disabled={viewMode}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
@@ -2849,7 +2849,15 @@ export function StudentsComplete() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Turma ({vinculoAnoLetivo})</label>
               <select
                 value={formData.class_id}
-                onChange={(e) => updateFormData('class_id', e.target.value)}
+                onChange={(e) => {
+                  const newClassId = e.target.value;
+                  const selectedClass = classes.find(c => c.id === newClassId);
+                  if (selectedClass && !selectedClass.is_multi_grade) {
+                    setFormData(prev => ({ ...prev, class_id: newClassId, student_series: selectedClass.grade_level || '' }));
+                  } else {
+                    setFormData(prev => ({ ...prev, class_id: newClassId, student_series: '' }));
+                  }
+                }}
                 disabled={viewMode || !formData.school_id}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
               >
@@ -2863,6 +2871,36 @@ export function StudentsComplete() {
               {filteredClasses.length === 0 && formData.school_id && (
                 <p className="text-sm text-yellow-600 mt-1">Nenhuma turma cadastrada para esta escola em {vinculoAnoLetivo}</p>
               )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ano/Série</label>
+              {(() => {
+                const selectedClass = classes.find(c => c.id === formData.class_id);
+                if (selectedClass?.is_multi_grade && selectedClass?.series?.length > 0) {
+                  return (
+                    <select
+                      value={formData.student_series || ''}
+                      onChange={(e) => updateFormData('student_series', e.target.value)}
+                      disabled={viewMode}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                      data-testid="new-student-series-select"
+                    >
+                      <option value="">Selecione o ano/série</option>
+                      {selectedClass.series.map(serie => (
+                        <option key={serie} value={serie}>{serie}</option>
+                      ))}
+                    </select>
+                  );
+                }
+                return (
+                  <input
+                    type="text"
+                    value={formData.student_series || (formData.class_id ? getClassGradeLevel(formData.class_id) : '-')}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
+                  />
+                );
+              })()}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
