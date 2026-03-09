@@ -9,6 +9,7 @@ from typing import List
 from models import School, SchoolCreate, SchoolUpdate
 from auth_middleware import AuthMiddleware
 from text_utils import format_data_uppercase
+from utils.cache import cache, CACHE_TTL_SCHOOLS
 
 router = APIRouter(prefix="/schools", tags=["Escolas"])
 
@@ -41,6 +42,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         await current_db.schools.insert_one(doc)
         
+        cache.invalidate('schools')
         return school_obj
 
     @router.get("")
@@ -48,6 +50,16 @@ def setup_router(db, audit_service, sandbox_db=None):
         """Lista escolas com contagem opcional de alunos ativos"""
         current_user = await AuthMiddleware.get_current_user(request)
         current_db = get_db_for_user(current_user)
+        
+        # Cache key baseada no papel e escolas do usuário
+        cache_params = {
+            'role': current_user['role'],
+            'school_ids': sorted(current_user.get('school_ids', [])),
+            'skip': skip, 'limit': limit, 'include_student_count': include_student_count
+        }
+        cached = cache.get('schools', cache_params)
+        if cached is not None:
+            return cached
         
         # Admin, admin_teste, SEMED, SEMED3 e Assistente Social veem todas as escolas
         if current_user['role'] in ['admin', 'admin_teste', 'semed', 'semed3', 'ass_social']:
@@ -76,6 +88,7 @@ def setup_router(db, audit_service, sandbox_db=None):
             for school in schools:
                 school['student_count'] = count_map.get(school['id'], 0)
         
+        cache.set('schools', cache_params, schools, CACHE_TTL_SCHOOLS)
         return schools
 
     @router.get("/pre-matricula", response_model=List[School])
@@ -152,6 +165,7 @@ def setup_router(db, audit_service, sandbox_db=None):
                 )
         
         updated_school = await current_db.schools.find_one({"id": school_id}, {"_id": 0})
+        cache.invalidate('schools')
         return School(**updated_school)
 
     @router.delete("/{school_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -168,6 +182,7 @@ def setup_router(db, audit_service, sandbox_db=None):
                 detail="Escola não encontrada"
             )
         
+        cache.invalidate('schools')
         return None
 
     @router.post("/migrate-bercario", status_code=status.HTTP_200_OK)

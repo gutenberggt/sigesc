@@ -9,6 +9,7 @@ from typing import List, Optional
 from models import Class, ClassCreate, ClassUpdate
 from auth_middleware import AuthMiddleware
 from text_utils import format_data_uppercase
+from utils.cache import cache, CACHE_TTL_CLASSES
 
 router = APIRouter(prefix="/classes", tags=["Turmas"])
 
@@ -39,6 +40,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         await current_db.classes.insert_one(doc)
         
+        cache.invalidate('classes')
         return class_obj
 
     @router.get("", response_model=List[Class])
@@ -46,6 +48,15 @@ def setup_router(db, audit_service, sandbox_db=None):
         """Lista turmas"""
         current_user = await AuthMiddleware.get_current_user(request)
         current_db = get_db_for_user(current_user)
+        
+        cache_params = {
+            'role': current_user['role'],
+            'school_ids': sorted(current_user.get('school_ids', [])),
+            'school_id': school_id, 'skip': skip, 'limit': limit
+        }
+        cached = cache.get('classes', cache_params)
+        if cached is not None:
+            return cached
         
         # Constrói filtro
         filter_query = {}
@@ -63,6 +74,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         classes = await current_db.classes.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         
+        cache.set('classes', cache_params, classes, CACHE_TTL_CLASSES)
         return classes
 
     @router.get("/{class_id}", response_model=Class)
@@ -113,6 +125,7 @@ def setup_router(db, audit_service, sandbox_db=None):
             )
         
         updated_class = await current_db.classes.find_one({"id": class_id}, {"_id": 0})
+        cache.invalidate('classes')
         return Class(**updated_class)
 
     @router.delete("/{class_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -140,6 +153,7 @@ def setup_router(db, audit_service, sandbox_db=None):
                 detail="Turma não encontrada"
             )
         
+        cache.invalidate('classes')
         return None
 
     return router

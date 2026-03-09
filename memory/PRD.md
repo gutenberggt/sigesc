@@ -4,21 +4,32 @@
 Sistema full-stack (React + FastAPI + MongoDB) para gestao escolar municipal.
 
 ## Arquitetura
-- **Frontend:** React com Shadcn/UI, react-router-dom
-- **Backend:** FastAPI com Motor (MongoDB async)
+- **Frontend:** React com Shadcn/UI, react-router-dom, React.lazy (code splitting)
+- **Backend:** FastAPI com Motor (MongoDB async), cache in-memory TTL
 - **DB:** MongoDB
 
 ## Implementado
 
-### Sessao 09/03/2026 - Otimizacao de Performance P0
-31. **Paginacao Server-Side na Lista de Alunos (DONE):**
-    - Backend GET /api/students ja suportava paginacao (page, page_size, school_id, class_id, status, search)
-    - Frontend StudentsComplete.js refatorado: removido offlineStudentsService, carregamento client-side e dropdowns de sugestao
-    - Agora usa busca server-side paginada com debounce de 500ms na busca por nome/CPF
-    - Controles de paginacao (Primeira/Anterior/Proxima/Ultima) com total do servidor
-    - Removidos indicadores de modo offline (CloudOff, Cloud, sincronizacao)
-    - Corrigido Dashboard.js, AnalyticsDashboard.jsx, Grades.js, Enrollments.js, Promotion.jsx, AssocialDashboard.js, Students.js, Guardians.js, useOfflineSync.js para lidar com novo formato de resposta paginada {items, total, page, page_size, total_pages}
-    - Testes: 100% backend (9/9), 100% frontend
+### Sessao 09/03/2026 - Otimizacao de Performance
+
+**P0 - Paginacao Server-Side (DONE):**
+- Backend GET /api/students com paginacao (page, page_size, school_id, class_id, status, search)
+- Frontend StudentsComplete.js refatorado: removido offlineStudentsService e filtragem client-side
+- Busca server-side com debounce 500ms, controles de paginacao, skeleton loading
+- Corrigidos 8 arquivos para lidar com formato paginado {items, total, page, page_size, total_pages}
+
+**P1 - Cache Server-Side (DONE):**
+- Utilitario TTLCache in-memory em /app/backend/utils/cache.py
+- Escolas (3min TTL), Turmas (2min TTL), Componentes Curriculares (5min TTL)
+- Invalidacao automatica no create/update/delete
+
+**P1 - Lazy Loading React (DONE):**
+- React.lazy + Suspense em App.js para todas as 25+ paginas
+- Apenas Login carrega no bundle inicial
+- PageLoader com skeleton como fallback durante carregamento
+
+**UI - Skeleton Loading (DONE):**
+- Tabela de alunos com 8 skeleton rows durante carregamento
 
 ### Sessao 08-09/03/2026 - Turmas Multisseriadas
 27-30. Selecao e exibicao de serie individual (student_series) em turmas multisseriadas
@@ -27,25 +38,19 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestao escolar municipal.
 - Cada aluno tem seu student_series individual armazenado na enrollment
 - Para turma nao-multisseriada: auto-set para grade_level da turma
 - Para turma multisseriada: usuario escolhe via dropdown
-- Listagem de alunos: backend busca student_series das enrollments ativas via batch query
-- Detalhes da turma: contagem por serie usa comparacao case-insensitive
-- Fallback: se student_series nao definido e turma nao-multi, usa grade_level; se multi, mostra '-'
 
 ## Issues Pendentes
 - P1: Alterar carga horaria de componentes curriculares em producao (BLOCKED - dados apenas em producao)
 - P2: Dashboard Analitico (pendente verificacao do usuario)
 
 ## Tarefas Futuras
-- P1: Cache server-side (Redis/memcached) para dados frequentemente acessados
-- P1: Lazy loading para componentes pesados (React.lazy)
-- P2: Refatorar StudentsComplete.js (componente monolitico)
+- P2: Remover offlineStudentsService.js (agora obsoleto)
 - P2: Envio de e-mail na pre-matricula
 - P2: Refatoracao backend (mover rotas do server.py)
-- P2: Remover offlineStudentsService.js (agora obsoleto)
 
 ## Bug Recorrente Conhecido
-- format_data_uppercase (backend/utils/text_utils.py) causa falhas com campos Literal do Pydantic
-- Solucao: adicionar @validator no modelo Pydantic para normalizar para minusculas
+- format_data_uppercase causa falhas com campos Literal do Pydantic
+- Solucao: adicionar @validator no modelo Pydantic
 
 ## Credenciais
 - Admin: gutenberg@sigesc.com / @Celta2007

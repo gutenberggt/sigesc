@@ -9,6 +9,7 @@ from typing import List, Optional
 from models import Course, CourseCreate, CourseUpdate
 from auth_middleware import AuthMiddleware
 from text_utils import format_data_uppercase
+from utils.cache import cache, CACHE_TTL_COURSES
 
 router = APIRouter(prefix="/courses", tags=["Componentes Curriculares"])
 
@@ -29,12 +30,18 @@ def setup_router(db, audit_service):
         
         await db.courses.insert_one(doc)
         
+        cache.invalidate('courses')
         return course_obj
 
     @router.get("", response_model=List[Course])
     async def list_courses(request: Request, nivel_ensino: Optional[str] = None, skip: int = 0, limit: int = 500):
         """Lista componentes curriculares (global)"""
         current_user = await AuthMiddleware.get_current_user(request)
+        
+        cache_params = {'nivel_ensino': nivel_ensino, 'skip': skip, 'limit': limit}
+        cached = cache.get('courses', cache_params)
+        if cached is not None:
+            return cached
         
         # Constrói filtro
         filter_query = {}
@@ -44,6 +51,7 @@ def setup_router(db, audit_service):
         
         courses = await db.courses.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         
+        cache.set('courses', cache_params, courses, CACHE_TTL_COURSES)
         return courses
 
     @router.get("/{course_id}", response_model=Course)
@@ -86,6 +94,7 @@ def setup_router(db, audit_service):
             )
         
         updated_course = await db.courses.find_one({"id": course_id}, {"_id": 0})
+        cache.invalidate('courses')
         return Course(**updated_course)
 
     @router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -101,6 +110,7 @@ def setup_router(db, audit_service):
                 detail="Componente curricular não encontrado"
             )
         
+        cache.invalidate('courses')
         return None
 
     return router

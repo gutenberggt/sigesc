@@ -1,41 +1,62 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { MantenedoraProvider } from '@/contexts/MantenedoraContext';
 import { OfflineProvider } from '@/contexts/OfflineContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Login } from '@/pages/Login';
-import LandingPage from '@/pages/LandingPage';
-import TutorialsPage from '@/pages/TutorialsPage';
-import TutorialAcesso from '@/pages/tutorials/TutorialAcesso';
-import TutorialDiarioAEE from '@/pages/tutorials/TutorialDiarioAEE';
-import PreMatricula from '@/pages/PreMatricula';
-import PreMatriculaManagement from '@/pages/PreMatriculaManagement';
-import { Dashboard } from '@/pages/Dashboard';
-import { SchoolsComplete as Schools } from '@/pages/SchoolsComplete';
-import { Users } from '@/pages/Users';
-import { Classes } from '@/pages/Classes';
-import { Courses } from '@/pages/CoursesNew';
-import { StudentsComplete as Students } from '@/pages/StudentsComplete';
-import { Grades } from '@/pages/Grades';
-import { Calendar } from '@/pages/Calendar';
-import { Events } from '@/pages/Events';
-import { Attendance } from '@/pages/Attendance';
-import Staff from '@/pages/Staff';
-import { LearningObjects } from '@/pages/LearningObjects';
-import { UserProfile } from '@/pages/UserProfile';
-import ProfessorDashboard from '@/pages/ProfessorDashboard';
-import MessageLogs from '@/pages/MessageLogs';
-import Announcements from '@/pages/Announcements';
-import Mantenedora from '@/pages/Mantenedora';
-import AuditLogs from '@/pages/AuditLogs';
-import AdminTools from '@/pages/AdminTools';
-import Promotion from '@/pages/Promotion';
-import { AnalyticsDashboard } from '@/pages/AnalyticsDashboard';
-import DiaryDashboard from '@/pages/DiaryDashboard';
-import DiarioAEE from '@/pages/DiarioAEE';
-import AssocialDashboard from '@/pages/AssocialDashboard';
-import OnlineUsers from '@/pages/OnlineUsers';
+import { Skeleton } from '@/components/ui/skeleton';
 import '@/App.css';
+
+// Lazy-loaded pages
+const LandingPage = lazy(() => import('@/pages/LandingPage'));
+const TutorialsPage = lazy(() => import('@/pages/TutorialsPage'));
+const TutorialAcesso = lazy(() => import('@/pages/tutorials/TutorialAcesso'));
+const TutorialDiarioAEE = lazy(() => import('@/pages/tutorials/TutorialDiarioAEE'));
+const PreMatricula = lazy(() => import('@/pages/PreMatricula'));
+const PreMatriculaManagement = lazy(() => import('@/pages/PreMatriculaManagement'));
+const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const Schools = lazy(() => import('@/pages/SchoolsComplete').then(m => ({ default: m.SchoolsComplete })));
+const Users = lazy(() => import('@/pages/Users').then(m => ({ default: m.Users })));
+const Classes = lazy(() => import('@/pages/Classes').then(m => ({ default: m.Classes })));
+const Courses = lazy(() => import('@/pages/CoursesNew').then(m => ({ default: m.Courses })));
+const Students = lazy(() => import('@/pages/StudentsComplete').then(m => ({ default: m.StudentsComplete })));
+const Grades = lazy(() => import('@/pages/Grades').then(m => ({ default: m.Grades })));
+const Calendar = lazy(() => import('@/pages/Calendar').then(m => ({ default: m.Calendar })));
+const Events = lazy(() => import('@/pages/Events').then(m => ({ default: m.Events })));
+const Attendance = lazy(() => import('@/pages/Attendance').then(m => ({ default: m.Attendance })));
+const Staff = lazy(() => import('@/pages/Staff'));
+const LearningObjects = lazy(() => import('@/pages/LearningObjects').then(m => ({ default: m.LearningObjects })));
+const UserProfile = lazy(() => import('@/pages/UserProfile').then(m => ({ default: m.UserProfile })));
+const ProfessorDashboard = lazy(() => import('@/pages/ProfessorDashboard'));
+const MessageLogs = lazy(() => import('@/pages/MessageLogs'));
+const Announcements = lazy(() => import('@/pages/Announcements'));
+const Mantenedora = lazy(() => import('@/pages/Mantenedora'));
+const AuditLogs = lazy(() => import('@/pages/AuditLogs'));
+const AdminTools = lazy(() => import('@/pages/AdminTools'));
+const Promotion = lazy(() => import('@/pages/Promotion'));
+const AnalyticsDashboard = lazy(() => import('@/pages/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
+const DiaryDashboard = lazy(() => import('@/pages/DiaryDashboard'));
+const DiarioAEE = lazy(() => import('@/pages/DiarioAEE'));
+const AssocialDashboard = lazy(() => import('@/pages/AssocialDashboard'));
+const OnlineUsers = lazy(() => import('@/pages/OnlineUsers'));
+
+// Loading fallback
+function PageLoader() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="w-full max-w-md space-y-4 p-8">
+        <Skeleton className="h-8 w-48 mx-auto" />
+        <Skeleton className="h-4 w-64 mx-auto" />
+        <div className="space-y-3 mt-8">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-3/4" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Roles SEMED (todos os níveis)
 const SEMED_ROLES = ['semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3'];
@@ -48,6 +69,7 @@ function App() {
       <OfflineProvider>
       <MantenedoraProvider>
       <BrowserRouter>
+        <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Página inicial = Login */}
           <Route path="/" element={<Login />} />
@@ -405,6 +427,7 @@ function App() {
             }
           />
         </Routes>
+        </Suspense>
       </BrowserRouter>
       </MantenedoraProvider>
       </OfflineProvider>
