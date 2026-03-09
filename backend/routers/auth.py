@@ -4,7 +4,7 @@ Endpoints relacionados a login, logout, tokens e perfil de usuário.
 """
 
 from fastapi import APIRouter, HTTPException, status, Request
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import uuid
 
 from models import (
@@ -13,9 +13,10 @@ from models import (
 )
 from auth_utils import (
     hash_password, verify_password, create_access_token,
-    create_refresh_token, decode_token
+    create_refresh_token, decode_token, token_blacklist
 )
 from auth_middleware import AuthMiddleware
+from text_utils import format_data_uppercase
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
@@ -212,5 +213,93 @@ def setup_router(db, audit_service):
             )
         
         return UserResponse(**user_doc)
+
+    @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+    async def register(user_data: UserCreate):
+        """Registra novo usuário"""
+        existing_user = await db.users.find_one({"email": user_data.email})
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email já cadastrado"
+            )
+        
+        user_dict = format_data_uppercase(user_data.model_dump(exclude={'password'}))
+        user_obj = UserInDB(
+            **user_dict,
+            password_hash=hash_password(user_data.password)
+        )
+        
+        doc = user_obj.model_dump()
+        doc['created_at'] = doc['created_at'].isoformat()
+        
+        await db.users.insert_one(doc)
+        return UserResponse(**user_obj.model_dump(exclude={'password_hash'}))
+
+    @router.post("/logout")
+    async def logout(request: Request):
+        """Revoga o refresh token atual do usuário."""
+        current_user = await AuthMiddleware.get_current_user(request)
+        
+        try:
+            body = await request.json()
+            refresh_token = body.get('refresh_token')
+            
+            if refresh_token:
+                payload = decode_token(refresh_token)
+                if payload and payload.get('jti'):
+                    token_exp = payload.get('exp')
+                    exp_datetime = datetime.fromtimestamp(token_exp, tz=timezone.utc) if token_exp else datetime.now(timezone.utc) + timedelta(days=7)
+                    
+                    await token_blacklist.revoke_token(
+                        jti=payload.get('jti'),
+                        user_id=current_user['id'],
+                        expires_at=exp_datetime,
+                        reason='user_logout'
+                    )
+        except:
+            pass
+        
+        await audit_service.log(
+            action='logout',
+            collection='users',
+            user=current_user,
+            request=request,
+            document_id=current_user['id'],
+            description=f"Logout realizado"
+        )
+        
+        return {"message": "Logout realizado com sucesso"}
+
+    @router.post("/logout-all")
+    async def logout_all_sessions(request: Request):
+        """Revoga TODOS os refresh tokens do usuário."""
+        current_user = await AuthMiddleware.get_current_user(request)
+        
+        await token_blacklist.revoke_all_user_tokens(
+            user_id=current_user['id'],
+            reason='user_logout_all'
+        )
+        
+        await audit_service.log(
+            action='logout_all',
+            collection='users',
+            user=current_user,
+            request=request,
+            document_id=current_user['id'],
+            description=f"Logout de todas as sessões realizado"
+        )
+        
+        return {"message": "Todas as sessões foram encerradas. Faça login novamente."}
+
+    @router.get("/permissions")
+    async def get_user_permissions(request: Request):
+        """Retorna as permissões do usuário autenticado baseado no seu role"""
+        current_user = await AuthMiddleware.get_current_user(request)
+        
+        permissions = AuthMiddleware.get_user_permissions(current_user)
+        permissions['school_ids'] = current_user.get('school_ids', [])
+        
+        return permissions
 
     return router
