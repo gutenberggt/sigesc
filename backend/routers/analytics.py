@@ -1195,10 +1195,10 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         students = {}
         async for student in current_db.students.find(
             {'id': {'$in': student_ids}},
-            {'id': 1, 'name': 1}
+            {'id': 1, 'full_name': 1}
         ):
             students[student['id']] = {
-                'name': student['name'],
+                'name': student.get('full_name') or student.get('name', 'N/A'),
                 'class_id': enrollment_map.get(student['id'], {}).get('class_id'),
                 'avg_grade': 0,
                 'attendance_rate': 0,
