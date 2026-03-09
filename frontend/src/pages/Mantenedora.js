@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Save, MapPin, Phone, User, Loader2, Upload, Image, X, Home, CheckSquare, Settings, Wrench } from 'lucide-react';
+import { Building2, Save, MapPin, Phone, User, Loader2, Upload, Image, X, Home, CheckSquare, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,6 @@ export default function Mantenedora() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingBrasao, setUploadingBrasao] = useState(false);
-  const [migratingBercario, setMigratingBercario] = useState(false);
   const [alert, setAlert] = useState(null);
   const brasaoInputRef = useRef(null);
   const [formData, setFormData] = useState({
@@ -214,24 +213,6 @@ export default function Mantenedora() {
     }
     
     setFormData(prev => ({ ...prev, [field]: formattedValue }));
-  };
-
-  // Migração do Berçário antigo para Berçário I e II
-  const handleMigrateBercario = async () => {
-    if (!window.confirm('Esta ação irá remover o campo "Berçário" (antigo) de todas as escolas. Deseja continuar?')) {
-      return;
-    }
-    
-    try {
-      setMigratingBercario(true);
-      const response = await schoolsAPI.migrateBercario();
-      showAlert('success', `Migração concluída! ${response.escolas_atualizadas} escola(s) atualizada(s).`);
-    } catch (error) {
-      console.error('Erro na migração:', error);
-      showAlert('error', extractErrorMessage(error, 'Erro ao executar migração'));
-    } finally {
-      setMigratingBercario(false);
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -900,43 +881,7 @@ export default function Mantenedora() {
             </CardContent>
           </Card>
 
-          {/* Ferramentas de Migração */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Wrench className="w-5 h-5 text-gray-600" />
-                Ferramentas de Migração
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <h4 className="font-medium text-yellow-800 mb-2">Migrar Berçário Antigo</h4>
-                <p className="text-sm text-yellow-700 mb-3">
-                  Remove o campo "Berçário" (antigo) de todas as escolas que ainda possuem essa configuração. 
-                  Use após atualizar as escolas para usar "Berçário I" e "Berçário II".
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleMigrateBercario}
-                  disabled={migratingBercario}
-                  className="bg-yellow-100 hover:bg-yellow-200 border-yellow-300"
-                >
-                  {migratingBercario ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Migrando...
-                    </>
-                  ) : (
-                    <>
-                      <Wrench className="w-4 h-4 mr-2" />
-                      Executar Migração
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Ferramentas de Migração removidas */}
         </div>
 
         {/* Botão Salvar */}
