@@ -191,10 +191,7 @@ export const cpfAPI = {
 
 // ============= STUDENTS (ALUNOS) =============
 export const studentsAPI = {
-  getAll: async (schoolId = null, classId = null) => {
-    const params = {};
-    if (schoolId) params.school_id = schoolId;
-    if (classId) params.class_id = classId;
+  getAll: async (params = {}) => {
     const response = await axios.get(`${API}/students`, { params });
     return response.data;
   },

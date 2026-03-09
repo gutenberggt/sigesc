@@ -9,9 +9,7 @@ import { formatPhone, formatCEP, formatCPF, formatNIS, formatSUS, isValidEmail, 
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
-import { useOffline } from '@/contexts/OfflineContext';
-import { offlineStudentsService } from '@/services/offlineStudentsService';
-import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, CloudOff, Cloud, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
 import { CityAutocomplete } from '@/components/CityAutocomplete';
 
@@ -239,11 +237,10 @@ const calculateIdealGrade = (birthDate) => {
 export function StudentsComplete() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isOnline, pendingSyncCount, triggerSync, updatePendingCount } = useOffline();
   const [students, setStudents] = useState([]);
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [viewMode, setViewMode] = useState(false);
@@ -251,7 +248,11 @@ export function StudentsComplete() {
   const [submitting, setSubmitting] = useState(false);
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [formData, setFormData] = useState(initialFormData);
-  const [dataSource, setDataSource] = useState('server'); // 'server' ou 'local'
+  
+  // Server-side pagination
+  const [serverTotal, setServerTotal] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(0);
+  const PAGE_SIZE = 20;
   
   // Estado para modal de documentos
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
@@ -260,9 +261,7 @@ export function StudentsComplete() {
   // Estados para busca avançada
   const [searchName, setSearchName] = useState('');
   const [searchCpf, setSearchCpf] = useState('');
-  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
-  const [showCpfSuggestions, setShowCpfSuggestions] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   
   // Filtros por Escola, Turma e Status
   const [filterSchoolId, setFilterSchoolId] = useState('');
@@ -272,7 +271,6 @@ export function StudentsComplete() {
   
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
   
   // Ações em Lote
   const [batchMode, setBatchMode] = useState(false);
@@ -286,8 +284,7 @@ export function StudentsComplete() {
   const [studentHistory, setStudentHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [batchPrinting, setBatchPrinting] = useState(false);
-  const nameInputRef = useRef(null);
-  const cpfInputRef = useRef(null);
+  const searchTimerRef = useRef(null);
   
   // Estados para validação de CPF
   const [cpfValidation, setCpfValidation] = useState({
@@ -377,89 +374,74 @@ export function StudentsComplete() {
   const canEdit = canEditStudents;
   const canDelete = canDeleteStudents;
 
-  // Carrega dados com suporte offline
+  // Carrega escolas e turmas na montagem
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchBaseData = async () => {
+      try {
+        const [schoolsData, classesData] = await Promise.all([
+          schoolsAPI.getAll(),
+          classesAPI.getAll()
+        ]);
+        setSchools(schoolsData || []);
+        setClasses(classesData?.items || classesData || []);
+      } catch (error) {
+        console.error('Erro ao carregar escolas/turmas:', error);
+      }
+    };
+    fetchBaseData();
+  }, []);
+
+  // Debounce para busca por nome/CPF
+  useEffect(() => {
+    const searchTerm = searchName || searchCpf;
+    if (!searchTerm || searchTerm.length < 3) {
+      if (debouncedSearch) {
+        setDebouncedSearch('');
+        setCurrentPage(1);
+      }
+      return;
+    }
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 500);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [searchName, searchCpf]);
+
+  // Busca alunos paginados do servidor
+  useEffect(() => {
+    const fetchStudents = async () => {
+      if (!filterSchoolId && !debouncedSearch) {
+        setStudents([]);
+        setServerTotal(0);
+        setServerTotalPages(0);
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
+        const params = { page: currentPage, page_size: PAGE_SIZE };
+        if (filterSchoolId) params.school_id = filterSchoolId;
+        if (filterClassId) params.class_id = filterClassId;
+        if (filterStatus) params.status = filterStatus;
+        if (debouncedSearch) params.search = debouncedSearch;
         
-        // Busca alunos usando serviço offline
-        const studentsResult = await offlineStudentsService.getStudents();
-        setStudents(studentsResult.data || []);
-        setDataSource(studentsResult.source || 'server');
-        
-        // Busca escolas e turmas (ainda precisam de conexão)
-        if (isOnline) {
-          const [schoolsData, classesData] = await Promise.all([
-            schoolsAPI.getAll(),
-            classesAPI.getAll()
-          ]);
-          setSchools(schoolsData || []);
-          setClasses(classesData?.items || classesData || []);
-        }
+        const result = await studentsAPI.getAll(params);
+        setStudents(result.items || []);
+        setServerTotal(result.total || 0);
+        setServerTotalPages(result.total_pages || 0);
       } catch (error) {
-        console.error('Erro ao carregar dados:', error);
+        console.error('Erro ao carregar alunos:', error);
         showAlert('error', 'Erro ao carregar dados');
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
-  }, [reloadTrigger, isOnline]);
-
-  // Fechar dropdowns ao clicar fora
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (nameInputRef.current && !nameInputRef.current.contains(event.target)) {
-        setShowNameSuggestions(false);
-      }
-      if (cpfInputRef.current && !cpfInputRef.current.contains(event.target)) {
-        setShowCpfSuggestions(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    fetchStudents();
+  }, [filterSchoolId, filterClassId, filterStatus, currentPage, debouncedSearch, reloadTrigger]);
 
   const reloadData = () => setReloadTrigger(prev => prev + 1);
-  
-  // Força recarregar dados do servidor, limpando cache
-  const forceRefreshFromServer = async () => {
-    try {
-      setLoading(true);
-      // Limpa cache local
-      await offlineStudentsService.clearCache();
-      // Recarrega dados
-      setReloadTrigger(prev => prev + 1);
-      showAlert('success', 'Dados atualizados do servidor');
-    } catch (error) {
-      console.error('Erro ao forçar atualização:', error);
-      showAlert('error', 'Erro ao atualizar dados');
-    }
-  };
-  
-  // Descarta alterações pendentes com problema
-  const discardPendingChanges = async () => {
-    if (!window.confirm('Tem certeza que deseja descartar todas as alterações pendentes? Esta ação não pode ser desfeita.')) {
-      return;
-    }
-    try {
-      setLoading(true);
-      await offlineStudentsService.discardPendingChanges();
-      // Atualiza contador do contexto offline
-      if (typeof updatePendingCount === 'function') {
-        await updatePendingCount();
-      }
-      // Recarrega dados do servidor
-      setReloadTrigger(prev => prev + 1);
-      showAlert('success', 'Alterações pendentes descartadas. Dados recarregados do servidor.');
-    } catch (error) {
-      console.error('Erro ao descartar alterações:', error);
-      showAlert('error', 'Erro ao descartar alterações');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Sistema de alertas com confirmação obrigatória
   const showAlert = (type, message, requireConfirmation = false) => {
@@ -631,7 +613,7 @@ export function StudentsComplete() {
 
   // Função para impressão em lote de documentos da turma
   const handleBatchPrint = async (documentType) => {
-    if (!filterClassId || displayedStudents.length === 0) return;
+    if (!filterClassId || students.length === 0) return;
     
     setBatchPrinting(true);
     
@@ -649,7 +631,7 @@ export function StudentsComplete() {
       // Limpar URL do blob após um tempo
       setTimeout(() => window.URL.revokeObjectURL(url), 10000);
       
-      showAlert('success', `PDF com ${displayedStudents.length} documento(s) gerado com sucesso!`);
+      showAlert('success', `PDF com ${serverTotal} documento(s) gerado com sucesso!`);
     } catch (error) {
       console.error('Erro ao gerar documentos em lote:', error);
       showAlert('error', extractErrorMessage(error, 'Erro ao gerar PDF em lote'));
@@ -1019,31 +1001,12 @@ export function StudentsComplete() {
     });
 
     try {
-      let result;
       if (editingStudent) {
-        // Atualização - usa serviço offline
-        result = await offlineStudentsService.updateStudent(editingStudent.id, cleanData);
-        if (result.success) {
-          if (result.pendingSync) {
-            showAlert('success', 'Aluno atualizado localmente. Será sincronizado quando a conexão for restaurada.');
-          } else {
-            showAlert('success', 'Aluno atualizado com sucesso');
-          }
-        } else {
-          throw new Error(result.error || 'Erro ao atualizar aluno');
-        }
+        await studentsAPI.update(editingStudent.id, cleanData);
+        showAlert('success', 'Aluno atualizado com sucesso');
       } else {
-        // Criação - usa serviço offline
-        result = await offlineStudentsService.createStudent(cleanData);
-        if (result.success) {
-          if (result.pendingSync) {
-            showAlert('success', 'Aluno cadastrado localmente. Será sincronizado quando a conexão for restaurada.');
-          } else {
-            showAlert('success', 'Aluno cadastrado com sucesso');
-          }
-        } else {
-          throw new Error(result.error || 'Erro ao cadastrar aluno');
-        }
+        await studentsAPI.create(cleanData);
+        showAlert('success', 'Aluno cadastrado com sucesso');
       }
       setIsModalOpen(false);
       reloadData();
@@ -1204,67 +1167,10 @@ export function StudentsComplete() {
   // Turmas filtradas para o filtro de busca
   const filterClassOptions = classes.filter(c => c.school_id === filterSchoolId);
 
-  // Lógica de sugestões de busca
-  const nameSuggestions = searchName.length >= 3 
-    ? students.filter(s => 
-        s.full_name?.toLowerCase().startsWith(searchName.toLowerCase())
-      ).slice(0, 10)
-    : [];
-
-  const cpfSuggestions = searchCpf.length >= 3
-    ? students.filter(s => 
-        s.cpf?.replace(/\D/g, '').startsWith(searchCpf.replace(/\D/g, ''))
-      ).slice(0, 10)
-    : [];
-
-  // Dados exibidos na tabela (filtrado por seleção, escola, turma ou todos)
-  const displayedStudents = (() => {
-    if (selectedStudent) return [selectedStudent];
-    
-    // Se não há busca nem filtro de escola, não exibe alunos
-    if (!filterSchoolId && !searchName && !searchCpf) return [];
-    
-    let result = students;
-    
-    // Filtrar por escola
-    if (filterSchoolId) {
-      result = result.filter(s => s.school_id === filterSchoolId);
-    }
-    
-    // Filtrar por turma
-    if (filterClassId) {
-      result = result.filter(s => s.class_id === filterClassId);
-    }
-    
-    // Filtrar por status
-    if (filterStatus) {
-      result = result.filter(s => s.status === filterStatus);
-    }
-    
-    // Se há busca por nome, filtrar
-    if (searchName && searchName.length >= 3) {
-      result = result.filter(s => s.full_name?.toLowerCase().includes(searchName.toLowerCase()));
-    }
-    
-    // Se há busca por CPF, filtrar
-    if (searchCpf && searchCpf.length >= 3) {
-      result = result.filter(s => s.cpf?.replace(/\D/g, '').includes(searchCpf.replace(/\D/g, '')));
-    }
-    
-    return result;
-  })();
-
-  // Paginação
-  const totalPages = Math.ceil(displayedStudents.length / itemsPerPage);
-  const paginatedStudents = displayedStudents.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  // Reset página quando filtros mudam
+  // Reset de página quando filtros mudam (busca é resetada no debounce)
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterSchoolId, filterClassId, filterStatus, selectedStudent]);
+  }, [filterSchoolId, filterClassId, filterStatus]);
 
   // Turmas filtradas para ação em lote (baseado na escola selecionada para lote)
   const batchClassOptions = classes.filter(c => c.school_id === batchSchoolId);
@@ -1283,8 +1189,7 @@ export function StudentsComplete() {
 
   const handleSelectAllStudents = (checked) => {
     if (checked) {
-      // Seleciona apenas os alunos da página atual
-      setSelectedStudentIds(paginatedStudents.map(s => s.id));
+      setSelectedStudentIds(students.map(s => s.id));
     } else {
       setSelectedStudentIds([]);
     }
@@ -1390,22 +1295,14 @@ export function StudentsComplete() {
     return is9ano || isEja4etapa;
   })();
 
-  const handleSelectStudent = (student) => {
-    setSelectedStudent(student);
-    setSearchName(student.full_name || '');
-    setSearchCpf(student.cpf || '');
-    setShowNameSuggestions(false);
-    setShowCpfSuggestions(false);
-  };
-
   const handleClearSearch = () => {
     setSearchName('');
     setSearchCpf('');
-    setSelectedStudent(null);
-    setShowNameSuggestions(false);
-    setShowCpfSuggestions(false);
+    setDebouncedSearch('');
     setFilterSchoolId('');
     setFilterClassId('');
+    setFilterStatus('');
+    setCurrentPage(1);
   };
 
   // Retorna o ano/série individual do aluno (student_series) ou fallback para o da turma
@@ -3131,61 +3028,20 @@ export function StudentsComplete() {
               <span>Início</span>
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                Alunos(as)
-                {!isOnline && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
-                    <CloudOff size={12} />
-                    Modo Offline
-                  </span>
-                )}
-                {dataSource === 'local' && isOnline && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                    <Cloud size={12} />
-                    Cache Local
-                  </span>
-                )}
-              </h1>
-              <p className="text-gray-600 text-sm">
-                Gerencie o cadastro completo de alunos(as)
-                {pendingSyncCount > 0 && (
-                  <span className="ml-2 text-amber-600">
-                    ({pendingSyncCount} alteração(ões) pendente(s) de sincronização)
-                  </span>
-                )}
-              </p>
+              <h1 className="text-2xl font-bold text-gray-900">Alunos(as)</h1>
+              <p className="text-gray-600 text-sm">Gerencie o cadastro completo de alunos(as)</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Botão para forçar atualização do servidor */}
             <button
-              onClick={forceRefreshFromServer}
+              onClick={reloadData}
               className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-2"
-              title="Forçar atualização do servidor"
+              title="Atualizar dados"
+              data-testid="refresh-students-btn"
             >
               <RefreshCw size={18} />
               <span className="hidden sm:inline">Atualizar</span>
             </button>
-            {pendingSyncCount > 0 && isOnline && (
-              <>
-                <button
-                  onClick={triggerSync}
-                  className="bg-amber-500 text-white px-3 py-2 rounded-lg hover:bg-amber-600 transition-colors flex items-center space-x-2"
-                  title="Sincronizar alterações pendentes"
-                >
-                  <RefreshCw size={18} />
-                  <span>Sincronizar</span>
-                </button>
-                <button
-                  onClick={discardPendingChanges}
-                  className="bg-red-100 text-red-700 px-3 py-2 rounded-lg hover:bg-red-200 transition-colors flex items-center space-x-2"
-                  title="Descartar alterações pendentes com problema"
-                >
-                  <Trash2 size={18} />
-                  <span className="hidden sm:inline">Descartar</span>
-                </button>
-              </>
-            )}
             {canEdit && (
               <button
                 onClick={handleCreate}
@@ -3234,97 +3090,45 @@ export function StudentsComplete() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex flex-wrap items-end gap-4">
             {/* Busca por Nome */}
-            <div className="relative flex-1 min-w-[250px]" ref={nameInputRef}>
+            <div className="flex-1 min-w-[250px]">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 <Search size={14} className="inline mr-1" />
                 Buscar por Nome
               </label>
               <input
                 type="text"
+                data-testid="search-name-input"
                 value={searchName}
                 onChange={(e) => {
                   setSearchName(e.target.value);
-                  setShowNameSuggestions(e.target.value.length >= 3);
-                  if (e.target.value.length < 3) {
-                    setSelectedStudent(null);
-                  }
+                  if (e.target.value) setSearchCpf('');
                 }}
-                onFocus={() => setShowNameSuggestions(searchName.length >= 3)}
                 placeholder="Digite pelo menos 3 letras..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              {/* Dropdown de sugestões por nome */}
-              {showNameSuggestions && nameSuggestions.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {nameSuggestions.map((student) => (
-                    <button
-                      key={student.id}
-                      type="button"
-                      onClick={() => handleSelectStudent(student)}
-                      className="w-full px-4 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                    >
-                      <div className="font-medium text-gray-900">{student.full_name}</div>
-                      <div className="text-xs text-gray-500">
-                        Matrícula: {student.enrollment_number} | CPF: {student.cpf || '-'}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {showNameSuggestions && searchName.length >= 3 && nameSuggestions.length === 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-gray-500 text-sm">
-                  Nenhum aluno encontrado
-                </div>
-              )}
             </div>
 
             {/* Busca por CPF */}
-            <div className="relative flex-1 min-w-[250px]" ref={cpfInputRef}>
+            <div className="flex-1 min-w-[250px]">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 <Search size={14} className="inline mr-1" />
                 Buscar por CPF
               </label>
               <input
                 type="text"
+                data-testid="search-cpf-input"
                 value={searchCpf}
                 onChange={(e) => {
                   setSearchCpf(e.target.value);
-                  setShowCpfSuggestions(e.target.value.length >= 3);
-                  if (e.target.value.length < 3) {
-                    setSelectedStudent(null);
-                  }
+                  if (e.target.value) setSearchName('');
                 }}
-                onFocus={() => setShowCpfSuggestions(searchCpf.length >= 3)}
                 placeholder="Digite pelo menos 3 dígitos..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              {/* Dropdown de sugestões por CPF */}
-              {showCpfSuggestions && cpfSuggestions.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {cpfSuggestions.map((student) => (
-                    <button
-                      key={student.id}
-                      type="button"
-                      onClick={() => handleSelectStudent(student)}
-                      className="w-full px-4 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                    >
-                      <div className="font-medium text-gray-900">{student.cpf}</div>
-                      <div className="text-xs text-gray-500">
-                        {student.full_name} | Matrícula: {student.enrollment_number}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {showCpfSuggestions && searchCpf.length >= 3 && cpfSuggestions.length === 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3 text-gray-500 text-sm">
-                  Nenhum aluno encontrado
-                </div>
-              )}
             </div>
 
             {/* Botão Limpar Consulta */}
-            {(searchName || searchCpf || selectedStudent || filterSchoolId || filterClassId) && (
+            {(searchName || searchCpf || filterSchoolId || filterClassId) && (
               <button
                 onClick={handleClearSearch}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300"
@@ -3347,8 +3151,8 @@ export function StudentsComplete() {
                 value={filterSchoolId}
                 onChange={(e) => {
                   setFilterSchoolId(e.target.value);
-                  setFilterClassId(''); // Limpa turma ao mudar escola
-                  setSelectedStudent(null);
+                  setFilterClassId('');
+                  setCurrentPage(1);
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
@@ -3369,7 +3173,7 @@ export function StudentsComplete() {
                 value={filterClassId}
                 onChange={(e) => {
                   setFilterClassId(e.target.value);
-                  setSelectedStudent(null);
+                  setCurrentPage(1);
                 }}
                 disabled={!filterSchoolId}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -3393,7 +3197,7 @@ export function StudentsComplete() {
                 value={filterStatus}
                 onChange={(e) => {
                   setFilterStatus(e.target.value);
-                  setSelectedStudent(null);
+                  setCurrentPage(1);
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
@@ -3408,29 +3212,19 @@ export function StudentsComplete() {
             </div>
 
             {/* Botão Impressão em Lote (aparece quando uma turma é selecionada) */}
-            {filterClassId && displayedStudents.length > 0 && (
+            {filterClassId && students.length > 0 && (
               <button
                 onClick={() => setShowBatchPrintModal(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 <Printer size={18} />
-                <span>Imprimir Turma ({displayedStudents.length} alunos)</span>
+                <span>Imprimir Turma ({serverTotal} alunos)</span>
               </button>
             )}
           </div>
 
-          {/* Indicador de filtro ativo */}
-          {selectedStudent && (
-            <div className="mt-3 flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
-              <span>Exibindo resultado para:</span>
-              <strong>{selectedStudent.full_name}</strong>
-              <span className="text-gray-400">|</span>
-              <span>CPF: {selectedStudent.cpf || '-'}</span>
-            </div>
-          )}
-          
           {/* Indicador de filtro por escola/turma/status */}
-          {!selectedStudent && (filterSchoolId || filterClassId || filterStatus) && (
+          {(filterSchoolId || filterClassId || filterStatus || debouncedSearch) && (
             <div className="mt-3 flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
               <span>Filtro ativo:</span>
               {filterSchoolId && <strong>{getSchoolName(filterSchoolId)}</strong>}
@@ -3446,14 +3240,20 @@ export function StudentsComplete() {
                   <strong>{filterStatus === 'active' ? 'Ativo' : filterStatus === 'inactive' ? 'Inativo' : filterStatus === 'dropout' ? 'Desistente' : filterStatus === 'transferred' ? 'Transferido' : filterStatus === 'cancelled' ? 'Cancelado' : filterStatus === 'deceased' ? 'Falecido' : filterStatus}</strong>
                 </>
               )}
+              {debouncedSearch && (
+                <>
+                  <span className="text-gray-400">→</span>
+                  <strong>Busca: "{debouncedSearch}"</strong>
+                </>
+              )}
               <span className="text-gray-400">|</span>
-              <span>{displayedStudents.length} aluno(s)</span>
+              <span>{serverTotal} aluno(s)</span>
             </div>
           )}
         </div>
 
         {/* Linha de Total e Toggle de Ações em Lote */}
-        {(!filterSchoolId && !searchName && !searchCpf && !selectedStudent) ? (
+        {(!filterSchoolId && !debouncedSearch) ? (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center" data-testid="select-school-message">
             <Building2 size={40} className="mx-auto text-blue-400 mb-3" />
             <p className="text-blue-800 font-medium text-lg">Selecione uma escola ou busque por nome/CPF</p>
@@ -3463,7 +3263,7 @@ export function StudentsComplete() {
         <>
         <div className="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg mb-4">
           <div className="text-sm text-gray-600">
-            <span className="font-medium">Total: {displayedStudents.length} registros</span>
+            <span className="font-medium">Total: {serverTotal} registros</span>
             {batchMode && selectedStudentIds.length > 0 && (
               <span className="ml-2 text-blue-600">({selectedStudentIds.length} selecionado(s))</span>
             )}
@@ -3490,7 +3290,7 @@ export function StudentsComplete() {
                     <th className="px-4 py-3 text-left">
                       <input
                         type="checkbox"
-                        checked={paginatedStudents.length > 0 && paginatedStudents.every(s => selectedStudentIds.includes(s.id))}
+                        checked={students.length > 0 && students.every(s => selectedStudentIds.includes(s.id))}
                         onChange={(e) => handleSelectAllStudents(e.target.checked)}
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         title="Selecionar todos desta página"
@@ -3603,14 +3403,14 @@ export function StudentsComplete() {
                       </div>
                     </td>
                   </tr>
-                ) : displayedStudents.length === 0 ? (
+                ) : students.length === 0 ? (
                   <tr>
                     <td colSpan={batchMode ? 7 : 6} className="px-4 py-8 text-center text-gray-500">
                       Nenhum aluno encontrado
                     </td>
                   </tr>
                 ) : (
-                  paginatedStudents.map((row) => {
+                  students.map((row) => {
                     const canEditThisStudent = canEditStudent(row);
                     const canGenerateDocuments = isAdmin || isSemed || 
                       (isSecretario && userSchoolIds.includes(row.school_id)) ||
@@ -3702,16 +3502,17 @@ export function StudentsComplete() {
           </div>
           
           {/* Paginação */}
-          {totalPages > 1 && (
+          {serverTotalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t">
               <div className="text-sm text-gray-600">
-                Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, displayedStudents.length)} de {displayedStudents.length} registros
+                Mostrando {((currentPage - 1) * PAGE_SIZE) + 1} a {Math.min(currentPage * PAGE_SIZE, serverTotal)} de {serverTotal} registros
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
                   className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="pagination-first"
                 >
                   Primeira
                 </button>
@@ -3719,23 +3520,26 @@ export function StudentsComplete() {
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
                   className="p-1 border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="pagination-prev"
                 >
                   <ChevronLeft size={18} />
                 </button>
-                <span className="px-3 py-1 text-sm">
-                  Página <strong>{currentPage}</strong> de <strong>{totalPages}</strong>
+                <span className="px-3 py-1 text-sm" data-testid="pagination-info">
+                  Página <strong>{currentPage}</strong> de <strong>{serverTotalPages}</strong>
                 </span>
                 <button
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(serverTotalPages, prev + 1))}
+                  disabled={currentPage === serverTotalPages}
                   className="p-1 border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="pagination-next"
                 >
                   <ChevronRight size={18} />
                 </button>
                 <button
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(serverTotalPages)}
+                  disabled={currentPage === serverTotalPages}
                   className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="pagination-last"
                 >
                   Última
                 </button>
@@ -3803,7 +3607,7 @@ export function StudentsComplete() {
         >
           <div className="space-y-4">
             <p className="text-gray-600">
-              Selecione o tipo de documento para gerar para todos os <strong>{displayedStudents.length} alunos</strong> da turma:
+              Selecione o tipo de documento para gerar para todos os <strong>{serverTotal} alunos</strong> da turma:
             </p>
             
             <div className="space-y-3">

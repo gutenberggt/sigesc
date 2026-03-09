@@ -54,7 +54,7 @@
   "seed_data_creation": "Test students created and cleaned up during backend tests (TEST_MULTI_SERIES_*, TEST_GET_SERIES_*, etc.)",
   "retest_needed": true,
   "main_agent_can_self_test": true,
-  "context_for_next_testing_agent": "Frontend new student form is missing Ano/Série field. The editing form at lines 2667-2802 has the correct implementation. Main agent needs to add the same field to the new student form section at lines 2804-2884. Test data: School ID=220d4022-ec5e-4fb6-86fc-9233112b87b2, Multi-grade class ID=c09b8666-c8bb-40d1-b835-c2b0fa4b8ecd, Normal class ID=e37025d4-52a9-40f7-89b6-2a9789c9f266.",
+  "context_for_next_testing_agent": "Frontend new student form is missing Ano/Série field. The editing form at lines 2667-2802 has the correct implementation. Main agent needs to add the same field to the new student form section at lines 2804-2884. Test data: School ID=sigesc-optimize, Multi-grade class ID=sigesc-optimize, Normal class ID=sigesc-optimize.",
   "verified_features": {
     "backend": {
       "GET /api/students/{id} returns student_series": "PASS",

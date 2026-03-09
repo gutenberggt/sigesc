@@ -51,14 +51,18 @@ export const Dashboard = () => {
 
         // Para secretário, diretor e coordenador, filtra apenas dados das escolas vinculadas
         let filteredSchools = schoolsData;
-        let filteredClasses = classesData;
-        let filteredStudents = studentsData;
+        // Handle paginated response from classesAPI - extract items array if needed
+        const classesArray = Array.isArray(classesData) ? classesData : (classesData?.items || []);
+        let filteredClasses = classesArray;
+        // Handle paginated response from studentsAPI - extract items array
+        const studentsArray = Array.isArray(studentsData) ? studentsData : (studentsData?.items || []);
+        let filteredStudents = studentsArray;
         
         if (isSchoolStaff && userSchoolIds.length > 0) {
           filteredSchools = schoolsData.filter(s => userSchoolIds.includes(s.id));
-          filteredClasses = classesData.filter(c => userSchoolIds.includes(c.school_id));
+          filteredClasses = classesArray.filter(c => userSchoolIds.includes(c.school_id));
           // Filtra alunos apenas das escolas vinculadas
-          filteredStudents = studentsData.filter(s => userSchoolIds.includes(s.school_id));
+          filteredStudents = studentsArray.filter(s => userSchoolIds.includes(s.school_id));
         }
 
         // Conta apenas escolas ATIVAS

@@ -113,10 +113,14 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         request: Request, 
         school_id: Optional[str] = None, 
         class_id: Optional[str] = None, 
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
         skip: int = 0, 
         limit: int = 5000
     ):
-        """Lista alunos com filtros opcionais"""
+        """Lista alunos com filtros, busca e paginação server-side"""
         current_user = await AuthMiddleware.get_current_user(request)
         current_db = get_db_for_user(current_user)
         
@@ -139,9 +143,38 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             if class_id:
                 filter_query['class_id'] = class_id
         
-        students = await current_db.students.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+        # Filtro por status
+        if status:
+            filter_query['status'] = status
         
-        # Busca student_series das matrículas ativas para cada aluno
+        # Busca por nome ou CPF
+        if search and len(search) >= 3:
+            search_upper = search.upper()
+            search_clean = search.replace('.', '').replace('-', '').replace('/', '')
+            filter_query['$or'] = [
+                {'full_name': {'$regex': search_upper, '$options': 'i'}},
+                {'cpf': {'$regex': search_clean}}
+            ]
+        
+        # Conta total para paginação
+        total = await current_db.students.count_documents(filter_query)
+        
+        # Calcula skip com base na página
+        effective_skip = (page - 1) * page_size if page > 0 else skip
+        effective_limit = page_size if page > 0 else limit
+        
+        # Projeta apenas campos necessários para listagem (mais leve)
+        list_projection = {
+            "_id": 0, "id": 1, "full_name": 1, "school_id": 1, "class_id": 1,
+            "status": 1, "cpf": 1, "birth_date": 1, "sex": 1, "inep_code": 1,
+            "student_series": 1
+        }
+        
+        students = await current_db.students.find(
+            filter_query, list_projection
+        ).sort("full_name", 1).skip(effective_skip).limit(effective_limit).to_list(effective_limit)
+        
+        # Busca student_series das matrículas ativas (batch)
         student_ids = [s.get('id') for s in students if s.get('id')]
         if student_ids:
             enrollments = await current_db.enrollments.find(
@@ -152,26 +185,19 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         else:
             enrollment_series_map = {}
         
-        # Garante compatibilidade com registros antigos
+        # Garante compatibilidade e inclui student_series
         for student in students:
             student.setdefault('full_name', '')
-            student.setdefault('inep_code', None)
-            student.setdefault('sex', None)
-            student.setdefault('nationality', 'Brasileira')
-            student.setdefault('birth_city', None)
-            student.setdefault('birth_state', None)
-            student.setdefault('color_race', None)
-            student.setdefault('cpf', None)
-            student.setdefault('rg', None)
-            student.setdefault('nis', None)
             student.setdefault('status', 'active')
-            student.setdefault('authorized_persons', [])
-            student.setdefault('benefits', [])
-            student.setdefault('disabilities', [])
-            student.setdefault('documents_urls', [])
-            # Inclui student_series da matrícula ativa
             student['student_series'] = enrollment_series_map.get(student.get('id'))
-        return students
+        
+        return {
+            "items": students,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size
+        }
 
     @router.get("/{student_id}", response_model=Student)
     async def get_student(student_id: str, request: Request):
