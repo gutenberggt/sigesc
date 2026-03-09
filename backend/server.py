@@ -1,5 +1,5 @@
-from fastapi import FastAPI, APIRouter, HTTPException, status, Depends, Request, UploadFile, File, WebSocket, WebSocketDisconnect, Response, Query
-from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+from fastapi import FastAPI, APIRouter, HTTPException, status, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -9,62 +9,14 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import os
 import logging
-import uuid
-import shutil
 import json
 from pathlib import Path
-from typing import List, Optional, Dict
-from datetime import datetime, timezone, timedelta
-from io import BytesIO
+from datetime import datetime, timezone
 
-# Import models and utilities
-from models import (
-    User, UserCreate, UserUpdate, UserResponse, UserInDB,
-    LoginRequest, TokenResponse, RefreshTokenRequest,
-    UserProfile, UserProfileCreate, UserProfileUpdate,
-    ProfileExperience, ProfileEducation, ProfileSkill, ProfileCertification,
-    Connection, ConnectionCreate, ConnectionResponse,
-    Message, MessageCreate, MessageResponse, MessageAttachment, ConversationResponse,
-    School, SchoolCreate, SchoolUpdate,
-    Class, ClassCreate, ClassUpdate,
-    Course, CourseCreate, CourseUpdate,
-    Student, StudentCreate, StudentUpdate,
-    Guardian, GuardianCreate, GuardianUpdate,
-    Enrollment, EnrollmentCreate, EnrollmentUpdate,
-    Grade, GradeCreate, GradeUpdate,
-    Attendance, AttendanceCreate, AttendanceUpdate, AttendanceRecord, AttendanceSettings,
-    Notice, NoticeCreate, NoticeUpdate,
-    Document, DocumentCreate,
-    CalendarEvent, CalendarEventCreate, CalendarEventUpdate,
-    Staff, StaffCreate, StaffUpdate,
-    SchoolAssignment, SchoolAssignmentCreate, SchoolAssignmentUpdate,
-    TeacherAssignment, TeacherAssignmentCreate, TeacherAssignmentUpdate,
-    Announcement, AnnouncementCreate, AnnouncementUpdate, AnnouncementResponse,
-    AnnouncementRecipient, AnnouncementReadStatus, NotificationCount,
-    Mantenedora, MantenedoraUpdate,
-    AuditLog, AuditLogFilter,
-    PreMatricula, PreMatriculaCreate
-)
-from auth_utils import (
-    hash_password, verify_password, create_access_token, 
-    create_refresh_token, decode_token, get_school_ids_from_links,
-    token_blacklist  # PATCH 3.3: Serviço de blacklist de tokens
-)
+from auth_utils import decode_token, token_blacklist
 from auth_middleware import AuthMiddleware
 from audit_service import audit_service
 from sandbox_service import sandbox_service
-from pdf_generator import (
-    generate_boletim_pdf,
-    generate_declaracao_matricula_pdf,
-    generate_declaracao_frequencia_pdf,
-    generate_ficha_individual_pdf,
-    generate_certificado_pdf,
-    generate_class_details_pdf,
-    generate_livro_promocao_pdf,
-    generate_relatorio_frequencia_bimestre_pdf
-)
-from ftp_upload import upload_to_ftp, delete_from_ftp
-from grade_calculator import calculate_and_update_grade
 
 # Import routers
 from routers import (
@@ -108,6 +60,8 @@ from routers import (
     profiles as profiles_mod,
     social as social_mod,
     uploads as uploads_mod,
+    admin as admin_mod,
+    sandbox as sandbox_mod,
 )
 
 # Utilitários compartilhados
@@ -116,9 +70,6 @@ from utils.academic_year import create_academic_year_validators
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
-
-# Importa utilitários de texto (uppercase)
-from text_utils import format_data_uppercase, to_uppercase_field
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -343,28 +294,6 @@ async def health_check():
             }
         )
 
-# ============= SANDBOX (MODO TESTE) =============
-
-@api_router.get("/sandbox/status")
-async def get_sandbox_status(request: Request):
-    """Retorna o status do banco sandbox (apenas admin)"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
-    return sandbox_service.get_status()
-
-@api_router.post("/sandbox/reset")
-async def reset_sandbox_manual(request: Request):
-    """Reseta o banco sandbox manualmente (apenas admin)"""
-    current_user = await AuthMiddleware.require_roles(['admin'])(request)
-    result = await sandbox_service.reset_sandbox()
-    if not result.get('success'):
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=result.get('error', 'Erro ao resetar sandbox')
-        )
-    return result
-
-# ============= CALENDAR EVENTS =============
-
 # ============= SETUP E REGISTRO DE ROTEADORES =============
 
 # Helper para banco correto (produção ou sandbox)
@@ -416,6 +345,8 @@ professor_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 profiles_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 social_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 uploads_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
+admin_mod.setup_router(db, active_sessions=active_sessions, connection_manager=connection_manager, get_db_for_user=get_db_for_user)
+sandbox_mod.setup_router(sandbox_service=sandbox_service)
 
 # --- Incluir TODOS os roteadores na app ---
 # Fase 1
@@ -457,150 +388,11 @@ app.include_router(professor_mod.router, prefix="/api")
 app.include_router(profiles_mod.router, prefix="/api")
 app.include_router(social_mod.router, prefix="/api")
 app.include_router(uploads_mod.router, prefix="/api")
+app.include_router(admin_mod.router, prefix="/api")
+app.include_router(sandbox_mod.router, prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)
-
-# ============= ENDPOINT DE MIGRAÇÃO (ADMIN) =============
-
-@app.post("/api/admin/migrate-uppercase")
-async def migrate_to_uppercase(request: Request):
-    """
-    Converte todos os campos de texto para CAIXA ALTA no banco de dados.
-    Apenas administradores podem executar esta operação.
-    """
-    current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
-    
-    # Campos a serem convertidos por coleção
-    COLLECTIONS_CONFIG = {
-        'students': [
-            'full_name', 'father_name', 'mother_name', 'guardian_name',
-            'address', 'neighborhood', 'city', 'state', 'birthplace_city', 'birthplace_state',
-            'father_workplace', 'mother_workplace', 'guardian_workplace',
-            'health_observations', 'special_needs_description', 'allergy_description',
-            'previous_school', 'transfer_reason'
-        ],
-        'staff': [
-            'full_name', 'address', 'neighborhood', 'city', 'state',
-            'birthplace_city', 'birthplace_state', 'marital_status_spouse_name',
-            'education_institution', 'education_course', 'specialization_area',
-            'bank_name', 'bank_branch'
-        ],
-        'schools': [
-            'name', 'address', 'neighborhood', 'city', 'state',
-            'principal_name', 'secretary_name', 'coordinator_name',
-            'school_characteristic', 'authorization_recognition'
-        ],
-        'classes': [
-            'name', 'room'
-        ],
-        'courses': [
-            'name', 'description'
-        ],
-        'users': [
-            'full_name'
-        ],
-        'enrollments': [
-            'student_name', 'class_name', 'school_name'
-        ]
-    }
-    
-    results = {}
-    total_updated = 0
-    
-    for collection_name, fields in COLLECTIONS_CONFIG.items():
-        collection = db[collection_name]
-        total = await collection.count_documents({})
-        updated_count = 0
-        
-        if total > 0:
-            cursor = collection.find({}, {"_id": 1} | {f: 1 for f in fields})
-            
-            async for doc in cursor:
-                update_data = {}
-                
-                for field in fields:
-                    if field in doc and doc[field] and isinstance(doc[field], str):
-                        upper_value = doc[field].upper()
-                        if doc[field] != upper_value:
-                            update_data[field] = upper_value
-                
-                if update_data:
-                    await collection.update_one(
-                        {"_id": doc["_id"]},
-                        {"$set": update_data}
-                    )
-                    updated_count += 1
-        
-        results[collection_name] = {"total": total, "updated": updated_count}
-        total_updated += updated_count
-    
-    return {
-        "success": True,
-        "message": f"Migração concluída! {total_updated} documentos atualizados.",
-        "details": results
-    }
-
-
-# ============= ONLINE USERS ENDPOINT =============
-
-@app.get("/api/admin/online-users")
-async def get_online_users(request: Request):
-    """Retorna lista de usuários online (apenas admin e semed3)"""
-    current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'semed3'])(request)
-    current_db = get_db_for_user(current_user)
-    
-    online = active_sessions.get_online(threshold_minutes=5)
-    
-    if not online:
-        return []
-    
-    # Buscar nomes das escolas vinculadas
-    all_school_ids = set()
-    for uid, data in online.items():
-        u = data["user_data"]
-        for sid in (u.get('school_ids') or []):
-            all_school_ids.add(sid)
-        for link in (u.get('school_links') or []):
-            all_school_ids.add(link.get('school_id', ''))
-    
-    schools_map = {}
-    if all_school_ids:
-        schools = await current_db.schools.find(
-            {"id": {"$in": list(all_school_ids)}},
-            {"_id": 0, "id": 1, "name": 1}
-        ).to_list(100)
-        schools_map = {s['id']: s['name'] for s in schools}
-    
-    result = []
-    for uid, data in online.items():
-        u = data["user_data"]
-        school_names = []
-        for sid in (u.get('school_ids') or []):
-            if sid in schools_map:
-                school_names.append(schools_map[sid])
-        for link in (u.get('school_links') or []):
-            sid = link.get('school_id', '')
-            if sid in schools_map and schools_map[sid] not in school_names:
-                school_names.append(schools_map[sid])
-        
-        ws_connections = len(connection_manager.active_connections.get(uid, []))
-        
-        result.append({
-            "id": u.get('id', uid),
-            "full_name": u.get('full_name', 'N/A'),
-            "email": u.get('email', ''),
-            "role": u.get('role', ''),
-            "avatar_url": u.get('avatar_url'),
-            "schools": school_names,
-            "connections": max(ws_connections, 1),
-            "last_activity": data["last_activity"].isoformat()
-        })
-    
-    # Ordenar por nome
-    result.sort(key=lambda x: x['full_name'])
-    
-    return result
 
 
 # ============= WEBSOCKET ENDPOINT =============

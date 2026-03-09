@@ -3,20 +3,12 @@ Router para Documentos.
 Extraído automaticamente de server.py.
 """
 
-from fastapi import APIRouter, HTTPException, status, Request, Query, UploadFile, File
-from fastapi.responses import StreamingResponse, FileResponse, HTMLResponse, JSONResponse
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone, timedelta
-import uuid
-import json
-import re
-import io
-import os
-import ftplib
+from fastapi import APIRouter, HTTPException, status, Request, Response
+from fastapi.responses import StreamingResponse
+from datetime import datetime, timedelta
 
 from models import *
 from auth_middleware import AuthMiddleware
-from text_utils import format_data_uppercase
 
 
 router = APIRouter(tags=["Documentos"])
@@ -31,11 +23,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             return sandbox_db if sandbox_db else db
         return db
 
-    # Helpers passados via kwargs
-    check_bimestre_edit_deadline = kwargs.get('check_bimestre_edit_deadline')
-    verify_bimestre_edit_deadline_or_raise = kwargs.get('verify_bimestre_edit_deadline_or_raise')
-    verify_academic_year_open_or_raise = kwargs.get('verify_academic_year_open_or_raise')
-    check_academic_year_open = kwargs.get('check_academic_year_open')
+
 
     @router.get("/documents/boletim/{student_id}")
     async def generate_boletim(student_id: str, request: Request, academic_year: str = "2025"):

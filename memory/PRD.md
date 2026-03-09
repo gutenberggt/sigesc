@@ -10,68 +10,60 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestao escolar municipal.
 
 ## Implementado
 
-### Sessao 09/03/2026 (Fork 2) - Finalizacao da Refatoracao Backend
+### Sessao 09/03/2026 (Fork 2) - Finalizacao da Refatoracao e Limpeza
 
 **P0 - Refatoracao Backend Fase 2 (DONE):**
 - Registrados todos os 17+ roteadores extraidos no server.py
 - Criados modulos utilitarios compartilhados:
   - `utils/connection_manager.py` - ConnectionManager e ActiveSessionsTracker
   - `utils/academic_year.py` - Validadores de ano letivo e bimestre (factory pattern)
-- Corrigido `debug.py` - removido codigo duplicado, @app.get → @router.get
-- Corrigido `audit_logs.py` - removido codigo de setup de outros roteadores
-- Corrigido `social.py` - adicionado connection_manager via kwargs
-- Corrigido `analytics.py` - campo 'name' → 'full_name' para students
-- Teste de regressao completo: 95.8% backend, 100% frontend
+- Corrigidos bugs: debug.py, audit_logs.py, social.py, analytics.py
+- Teste de regressao: 95.8% backend, 100% frontend
+
+**Limpeza e Organizacao (DONE):**
+- 16 roteadores: imports nao utilizados removidos (ftplib, re, io, os, etc.)
+- 14 roteadores: kwargs blocks nao utilizados removidos
+- server.py: imports reduzidos de ~67 linhas para ~19 linhas
+- Endpoints movidos de server.py para roteadores:
+  - sandbox/status, sandbox/reset → routers/sandbox.py
+  - admin/migrate-uppercase, admin/online-users → routers/admin.py
+- Arquivos obsoletos removidos: app_factory.py, server_backup.py
+- Scripts utilitarios movidos para backend/scripts/
+- server.py reduzido de ~7600 → 488 linhas (93.6% reducao)
 
 ### Sessao 09/03/2026 - Otimizacao de Performance e Refatoracao
 
-**P0 - Paginacao Server-Side (DONE):**
-- Backend GET /api/students com paginacao (page, page_size, school_id, class_id, status, search)
-- Frontend StudentsComplete.js refatorado: removido offlineStudentsService e filtragem client-side
-- Busca server-side com debounce 500ms, controles de paginacao, skeleton loading
+**P0 - Paginacao Server-Side (DONE)**
+**P1 - Cache Server-Side (DONE)**
+**P1 - Lazy Loading React (DONE)**
+**P2 - Refatoracao Backend Fase 1 (DONE)**
 
-**P1 - Cache Server-Side (DONE):**
-- TTLCache in-memory: Escolas (3min), Turmas (2min), Cursos (5min)
-- Invalidacao automatica no create/update/delete
+### Sessao 08-09/03/2026 - Turmas Multisseriadas (DONE)
 
-**P1 - Lazy Loading React (DONE):**
-- React.lazy + Suspense para todas as 25+ paginas
-
-**P2 - Refatoracao Backend Fase 1 (DONE):**
-- Auth routes movidas para routers/auth.py
-- CPF validation movido para routers/students.py
-- offlineStudentsService.js removido
-
-### Sessao 08-09/03/2026 - Turmas Multisseriadas
-- Selecao e exibicao de serie individual (student_series) em turmas multisseriadas
-
-## Estrutura Backend (Modular)
+## Estrutura Backend (Final)
 ```
 backend/
-├── server.py (central - registro de roteadores, middleware, websocket)
-├── routers/
-│   ├── __init__.py
-│   ├── admin_messages.py, announcements.py, assignments.py
-│   ├── attendance.py, attendance_ext.py, audit_logs.py
-│   ├── auth.py, calendar.py, calendar_ext.py
-│   ├── class_details.py, class_schedule.py, classes.py
-│   ├── courses.py, debug.py, diary_dashboard.py
-│   ├── documents.py, enrollments.py, grades.py
-│   ├── guardians.py, learning_objects.py, maintenance.py
+├── server.py (488 linhas - registro de roteadores, middleware, websocket, health)
+├── routers/ (39 arquivos)
+│   ├── admin.py, admin_messages.py, aee.py, analytics.py
+│   ├── announcements.py, assignments.py, attendance.py, attendance_ext.py
+│   ├── audit_logs.py, auth.py, calendar.py, calendar_ext.py
+│   ├── class_details.py, class_schedule.py, classes.py, courses.py
+│   ├── debug.py, diary_dashboard.py, documents.py, enrollments.py
+│   ├── grades.py, guardians.py, learning_objects.py, maintenance.py
 │   ├── mantenedora.py, medical_certificates.py, notifications.py
-│   ├── pre_matricula.py, professor.py, profiles.py
-│   ├── schools.py, social.py, staff.py
-│   ├── students.py, sync.py, uploads.py, users.py
-│   └── aee.py
-└── utils/
-    ├── cache.py, connection_manager.py, academic_year.py
-    └── text_utils.py
+│   ├── pre_matricula.py, professor.py, profiles.py, sandbox.py
+│   ├── schools.py, social.py, staff.py, students.py
+│   ├── sync.py, uploads.py, users.py
+│   └── __init__.py
+├── utils/ (cache.py, connection_manager.py, academic_year.py, text_utils.py)
+└── scripts/ (cadastrar_escolas.py, cleanup_orphans.py, etc.)
 ```
 
 ## Issues Pendentes
-- P1: Alterar carga horaria de componentes curriculares em producao (BLOCKED - dados apenas em producao)
+- P1: Alterar carga horaria de componentes curriculares em producao (BLOCKED)
 - P2: Dashboard Analitico (pendente verificacao do usuario)
-- NOTA: Credenciais SEMED3 (semed3@sigesc.com / semed123) retornando 401 - senha pode ter sido alterada
+- NOTA: Credenciais SEMED3 (semed3@sigesc.com / semed123) retornando 401
 
 ## Tarefas Futuras
 - P2: Envio de e-mail na pre-matricula
