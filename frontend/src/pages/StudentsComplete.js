@@ -9,6 +9,7 @@ import { formatPhone, formatCEP, formatCPF, formatNIS, formatSUS, isValidEmail, 
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
 import { CityAutocomplete } from '@/components/CityAutocomplete';
@@ -3395,14 +3396,35 @@ export function StudentsComplete() {
               
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading ? (
-                  <tr>
-                    <td colSpan={batchMode ? 7 : 6} className="px-4 py-8 text-center">
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                        <span className="ml-2 text-gray-500">Carregando...</span>
-                      </div>
-                    </td>
-                  </tr>
+                  Array.from({ length: 8 }).map((_, i) => (
+                    <tr key={`skeleton-${i}`} className="animate-in fade-in duration-300" style={{ animationDelay: `${i * 50}ms` }}>
+                      {batchMode && (
+                        <td className="px-4 py-3">
+                          <Skeleton className="h-4 w-4 rounded" />
+                        </td>
+                      )}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                          <div className="space-y-1.5">
+                            <Skeleton className="h-4 w-40" />
+                            <Skeleton className="h-3 w-24" />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-6 w-16 rounded-full" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-10" /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-1">
+                          <Skeleton className="h-8 w-8 rounded" />
+                          <Skeleton className="h-8 w-8 rounded" />
+                          <Skeleton className="h-8 w-8 rounded" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 ) : students.length === 0 ? (
                   <tr>
                     <td colSpan={batchMode ? 7 : 6} className="px-4 py-8 text-center text-gray-500">
