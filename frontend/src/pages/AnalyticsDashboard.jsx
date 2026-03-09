@@ -611,7 +611,8 @@ export function AnalyticsDashboard() {
           const data = await response.json();
           setStudents(data.students || []);
         } else {
-          const allStudents = await studentsAPI.getAll();
+          const allStudentsData = await studentsAPI.getAll({page_size: 10000});
+          const allStudents = allStudentsData.items || [];
           const filtered = allStudents.filter(s => 
             s.class_id === selectedClass || s.turma_id === selectedClass
           );

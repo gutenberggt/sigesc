@@ -59,14 +59,15 @@ export const Enrollments = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [enrollmentsData, studentsData, schoolsData, classesData, coursesData] = await Promise.all([
+        const [enrollmentsData, studentsResponse, schoolsData, classesData, coursesData] = await Promise.all([
           enrollmentsAPI.getAll(),
-          studentsAPI.getAll(),
+          studentsAPI.getAll({page_size: 10000}),
           schoolsAPI.getAll(),
           classesAPI.getAll(),
           coursesAPI.getAll()
         ]);
         setEnrollments(enrollmentsData);
+        const studentsData = studentsResponse.items || [];
         setStudents(studentsData);
         setSchools(schoolsData);
         setClasses(classesData);

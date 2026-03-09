@@ -301,8 +301,9 @@ export function Promotion() {
       
       // Buscar dados dos alunos
       const studentIds = enrollments.map(e => e.student_id);
-      const studentsData = await studentsAPI.getAll();
-      const filteredStudents = (studentsData || []).filter(s => studentIds.includes(s.id));
+      const studentsResponse = await studentsAPI.getAll({page_size: 10000});
+      const studentsData = studentsResponse.items || [];
+      const filteredStudents = studentsData.filter(s => studentIds.includes(s.id));
       setStudents(filteredStudents);
       
       // Buscar componentes curriculares e ordenar conforme o nível de ensino

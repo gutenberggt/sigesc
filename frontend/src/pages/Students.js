@@ -31,12 +31,12 @@ export const Students = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [studentsData, schoolsData, classesData] = await Promise.all([
-          studentsAPI.getAll(),
+        const [studentsResponse, schoolsData, classesData] = await Promise.all([
+          studentsAPI.getAll({page_size: 10000}),
           schoolsAPI.getAll(),
           classesAPI.getAll()
         ]);
-        setStudents(studentsData);
+        setStudents(studentsResponse.items || []);
         setSchools(schoolsData);
         setClasses(classesData);
       } catch (error) {

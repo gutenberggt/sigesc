@@ -8,15 +8,20 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestao escolar municipal.
 - **Backend:** FastAPI com Motor (MongoDB async)
 - **DB:** MongoDB
 
-## Implementado (08-09/03/2026)
-27. Selecao de serie em turma multisseriada (Novo/Editar Aluno)
-28. Exibicao de serie na edicao (Editar Aluno)
-29. Backend student_series completo
-30. **Correcao student_series em todas as views:**
-    - **Detalhes da Turma (Distribuicao por Serie):** Agora conta corretamente alunos por serie individual (student_series da matricula), com comparacao case-insensitive
-    - **Detalhes da Turma (Alunos Matriculados):** Mostra o student_series individual do aluno, nao o grade_level da turma
-    - **Tabela de Alunos (coluna Ano):** Mostra o student_series individual do aluno via nova funcao getStudentSeries(), nao todas as series da turma
-    - **Backend lista alunos:** Endpoint /api/students agora faz lookup na enrollment ativa e inclui student_series no response
+## Implementado
+
+### Sessao 09/03/2026 - Otimizacao de Performance P0
+31. **Paginacao Server-Side na Lista de Alunos (DONE):**
+    - Backend GET /api/students ja suportava paginacao (page, page_size, school_id, class_id, status, search)
+    - Frontend StudentsComplete.js refatorado: removido offlineStudentsService, carregamento client-side e dropdowns de sugestao
+    - Agora usa busca server-side paginada com debounce de 500ms na busca por nome/CPF
+    - Controles de paginacao (Primeira/Anterior/Proxima/Ultima) com total do servidor
+    - Removidos indicadores de modo offline (CloudOff, Cloud, sincronizacao)
+    - Corrigido Dashboard.js, AnalyticsDashboard.jsx, Grades.js, Enrollments.js, Promotion.jsx, AssocialDashboard.js, Students.js, Guardians.js, useOfflineSync.js para lidar com novo formato de resposta paginada {items, total, page, page_size, total_pages}
+    - Testes: 100% backend (9/9), 100% frontend
+
+### Sessao 08-09/03/2026 - Turmas Multisseriadas
+27-30. Selecao e exibicao de serie individual (student_series) em turmas multisseriadas
 
 ## Regras de Negocio - student_series
 - Cada aluno tem seu student_series individual armazenado na enrollment
@@ -27,13 +32,20 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestao escolar municipal.
 - Fallback: se student_series nao definido e turma nao-multi, usa grade_level; se multi, mostra '-'
 
 ## Issues Pendentes
+- P1: Alterar carga horaria de componentes curriculares em producao (BLOCKED - dados apenas em producao)
 - P2: Dashboard Analitico (pendente verificacao do usuario)
 
 ## Tarefas Futuras
-- P1: Paginacao na listagem de turmas
-- P2: Refatorar StudentsComplete.js
+- P1: Cache server-side (Redis/memcached) para dados frequentemente acessados
+- P1: Lazy loading para componentes pesados (React.lazy)
+- P2: Refatorar StudentsComplete.js (componente monolitico)
 - P2: Envio de e-mail na pre-matricula
 - P2: Refatoracao backend (mover rotas do server.py)
+- P2: Remover offlineStudentsService.js (agora obsoleto)
+
+## Bug Recorrente Conhecido
+- format_data_uppercase (backend/utils/text_utils.py) causa falhas com campos Literal do Pydantic
+- Solucao: adicionar @validator no modelo Pydantic para normalizar para minusculas
 
 ## Credenciais
 - Admin: gutenberg@sigesc.com / @Celta2007

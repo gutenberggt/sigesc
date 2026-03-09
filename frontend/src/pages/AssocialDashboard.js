@@ -22,13 +22,13 @@ export default function AssocialDashboard() {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const [studentsData, schoolsData, classesData] = await Promise.all([
-          studentsAPI.getAll(),
+        const [studentsResponse, schoolsData, classesData] = await Promise.all([
+          studentsAPI.getAll({page_size: 10000}),
           schoolsAPI.getAll(),
           classesAPI.getAll()
         ]);
         
-        setAllStudents(studentsData);
+        setAllStudents(studentsResponse.items || []);
         
         const schoolsMap = {};
         schoolsData.forEach(s => { schoolsMap[s.id] = s; });

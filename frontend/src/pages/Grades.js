@@ -351,20 +351,20 @@ export function Grades() {
           }
           
           // Carrega alunos para busca por aluno (se necessário)
-          const studentsData = await studentsAPI.getAll();
-          setStudents(studentsData);
+          const studentsResponse = await studentsAPI.getAll({page_size: 10000});
+          setStudents(studentsResponse.items || []);
         } else {
           // Para outros usuários, carrega todos os dados
-          const [schoolsData, classesData, coursesData, studentsData] = await Promise.all([
+          const [schoolsData, classesData, coursesData, studentsResponse2] = await Promise.all([
             schoolsAPI.getAll(),
             classesAPI.getAll(),
             coursesAPI.getAll(),
-            studentsAPI.getAll()
+            studentsAPI.getAll({page_size: 10000})
           ]);
           setSchools(schoolsData);
           setClasses(classesData);
           setCourses(coursesData);
-          setStudents(studentsData);
+          setStudents(studentsResponse2.items || []);
         }
       } catch (error) {
         console.error('Erro ao carregar dados:', error);

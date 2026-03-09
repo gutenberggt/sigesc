@@ -71,12 +71,12 @@ export const Guardians = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [guardiansData, studentsData] = await Promise.all([
+        const [guardiansData, studentsResponse] = await Promise.all([
           guardiansAPI.getAll(),
-          studentsAPI.getAll()
+          studentsAPI.getAll({page_size: 10000})
         ]);
         setGuardians(guardiansData);
-        setStudents(studentsData);
+        setStudents(studentsResponse.items || []);
       } catch (error) {
         setAlert({ type: 'error', message: 'Erro ao carregar dados' });
         setTimeout(() => setAlert(null), 5000);

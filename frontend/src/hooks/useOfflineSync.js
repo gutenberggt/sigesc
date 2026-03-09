@@ -45,7 +45,7 @@ export function useOfflineSync() {
       setProgress(prev => ({ ...prev, collection }));
       
       const data = await fetchFn(params);
-      const records = Array.isArray(data) ? data : (data.data || data.students || data.classes || data.courses || data.schools || []);
+      const records = Array.isArray(data) ? data : (data.items || data.data || data.students || data.classes || data.courses || data.schools || []);
       
       await db.transaction('rw', db[collection], async () => {
         // Limpa dados antigos
