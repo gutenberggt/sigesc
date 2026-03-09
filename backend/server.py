@@ -1110,10 +1110,16 @@ async def get_class_details(class_id: str, request: Request):
     if class_doc.get('is_multi_grade') and class_doc.get('series'):
         for serie in class_doc.get('series', []):
             series_count[serie] = 0
+        # Comparação case-insensitive para lidar com variações de maiúsculas/minúsculas
+        series_lower_map = {s.lower(): s for s in series_count.keys()}
         for student in students_list:
             serie = student.get('student_series')
-            if serie and serie in series_count:
-                series_count[serie] += 1
+            if serie:
+                # Tenta correspondência exata primeiro, depois case-insensitive
+                if serie in series_count:
+                    series_count[serie] += 1
+                elif serie.lower() in series_lower_map:
+                    series_count[series_lower_map[serie.lower()]] += 1
     
     return {
         "class": class_doc,

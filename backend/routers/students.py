@@ -141,6 +141,17 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         
         students = await current_db.students.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         
+        # Busca student_series das matrículas ativas para cada aluno
+        student_ids = [s.get('id') for s in students if s.get('id')]
+        if student_ids:
+            enrollments = await current_db.enrollments.find(
+                {"student_id": {"$in": student_ids}, "status": "active"},
+                {"_id": 0, "student_id": 1, "student_series": 1}
+            ).to_list(None)
+            enrollment_series_map = {e['student_id']: e.get('student_series') for e in enrollments}
+        else:
+            enrollment_series_map = {}
+        
         # Garante compatibilidade com registros antigos
         for student in students:
             student.setdefault('full_name', '')
@@ -158,7 +169,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             student.setdefault('benefits', [])
             student.setdefault('disabilities', [])
             student.setdefault('documents_urls', [])
-        
+            # Inclui student_series da matrícula ativa
+            student['student_series'] = enrollment_series_map.get(student.get('id'))
         return students
 
     @router.get("/{student_id}", response_model=Student)

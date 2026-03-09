@@ -1408,6 +1408,15 @@ export function StudentsComplete() {
     setFilterClassId('');
   };
 
+  // Retorna o ano/série individual do aluno (student_series) ou fallback para o da turma
+  const getStudentSeries = (row) => {
+    if (row.student_series) return row.student_series;
+    const classItem = classes.find(c => c.id === row.class_id);
+    if (!classItem) return '-';
+    if (classItem.is_multi_grade) return '-';
+    return classItem.grade_level || '-';
+  };
+
   const getClassGradeLevel = (classId) => {
     const classItem = classes.find(c => c.id === classId);
     if (!classItem) return '-';
@@ -1420,7 +1429,7 @@ export function StudentsComplete() {
   const columns = [
     { header: 'Nome', accessor: 'full_name', render: (row) => row.full_name || '-' },
     { header: 'Turma', accessor: 'class_id', render: (row) => getClassName(row.class_id) },
-    { header: 'Ano', accessor: 'grade_info', render: (row) => getClassGradeLevel(row.class_id) },
+    { header: 'Ano', accessor: 'grade_info', render: (row) => getStudentSeries(row) },
     { 
       header: 'Status', 
       accessor: 'status',
@@ -3621,7 +3630,7 @@ export function StudentsComplete() {
                         )}
                         <td className="px-4 py-3 text-sm text-gray-900">{row.full_name}</td>
                         <td className="px-4 py-3 text-sm text-gray-500">{getClassName(row.class_id)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-500">{getClassGradeLevel(row.class_id)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">{getStudentSeries(row)}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                             row.status === 'active' ? 'bg-green-100 text-green-800' :
