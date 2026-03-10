@@ -89,7 +89,7 @@ export const useStaff = () => {
   
   // Permissões
   const canEdit = user?.role === 'admin' || user?.role === 'secretario';
-  const canDelete = user?.role === 'admin';
+  const canDelete = user?.role === 'admin' || user?.role === 'secretario';
   
   // Helper para extrair mensagem de erro do Pydantic ou string
   const extractErrorMessage = (error) => {
