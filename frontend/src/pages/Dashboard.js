@@ -218,7 +218,7 @@ export const Dashboard = () => {
         {mensagemDestaque && (
           <p
             data-testid="mensagem-destaque-dashboard"
-            className="text-center font-bold"
+            className="text-center font-bold -my-5"
             style={{ color: '#87CEEB' }}
           >
             {mensagemDestaque}
