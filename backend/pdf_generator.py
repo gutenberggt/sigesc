@@ -1921,7 +1921,7 @@ def generate_ficha_individual_pdf(
         table_data.append(row)
     
     # Larguras das colunas
-    if is_educacao_infantil:
+    if usa_conceito:
         # Educação Infantil: 9 colunas - Total: 19cm
         col_widths = [
             7.5*cm,   # Componente
@@ -1950,8 +1950,8 @@ def generate_ficha_individual_pdf(
     
     grades_table = Table(table_data, colWidths=col_widths)
     
-    # Estilo da tabela - diferente para Educação Infantil
-    if is_educacao_infantil:
+    # Estilo da tabela - diferente para conceitual vs notas
+    if usa_conceito:
         # Educação Infantil: tabela simples sem merge de cabeçalho
         style_commands = [
             # Cabeçalho

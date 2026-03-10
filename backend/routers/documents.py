@@ -6,9 +6,21 @@ Extraído automaticamente de server.py.
 from fastapi import APIRouter, HTTPException, status, Request, Response
 from fastapi.responses import StreamingResponse
 from datetime import datetime, timedelta
+from io import BytesIO
+import logging
 
 from models import *
 from auth_middleware import AuthMiddleware
+from pdf_generator import (
+    generate_boletim_pdf,
+    generate_certificado_pdf,
+    generate_declaracao_frequencia_pdf,
+    generate_declaracao_matricula_pdf,
+    generate_ficha_individual_pdf,
+    generate_livro_promocao_pdf,
+)
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(tags=["Documentos"])
@@ -22,6 +34,18 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if user.get('is_sandbox'):
             return sandbox_db if sandbox_db else db
         return db
+
+    async def validate_student_for_document(student: dict, current_user: dict) -> tuple:
+        """Valida se o aluno pode ter documentos gerados e se o usuário tem permissão."""
+        if not student.get('class_id'):
+            return False, "Aluno(a) sem matrícula"
+        if current_user.get('role') in ['admin', 'admin_teste']:
+            return True, None
+        user_school_id = current_user.get('school_id')
+        student_school_id = student.get('school_id')
+        if user_school_id and student_school_id and user_school_id != student_school_id:
+            return False, "Aluno não matriculado nesta escola"
+        return True, None
 
 
 
