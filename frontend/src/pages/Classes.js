@@ -4,7 +4,7 @@ import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { classesAPI, schoolsAPI, documentsAPI } from '@/services/api';
-import { Plus, AlertCircle, CheckCircle, Home, Eye, Phone, FileText, User, Users, School, Calendar, ExternalLink } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, Eye, Phone, FileText, User, Users, School, Calendar, ExternalLink, Pencil } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { extractErrorMessage } from '@/utils/errorHandler';
 
@@ -936,13 +936,24 @@ export const Classes = () => {
                               ) : '-'}
                             </td>
                             <td className="px-3 py-2 text-center">
-                              <button
-                                onClick={() => handleOpenPDF(student.id)}
-                                className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
-                                title="Abrir Boletim"
-                              >
-                                <FileText size={16} />
-                              </button>
+                              <div className="flex justify-center gap-1">
+                                <button
+                                  onClick={() => navigate(`/admin/students?editStudent=${student.id}`)}
+                                  className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
+                                  title="Editar Aluno(a)"
+                                  data-testid={`edit-student-${student.id}`}
+                                >
+                                  <Pencil size={16} />
+                                </button>
+                                <button
+                                  onClick={() => navigate(`/admin/students?docStudent=${student.id}`)}
+                                  className="text-green-600 hover:text-green-800 p-1 rounded hover:bg-green-50"
+                                  title="Documentos"
+                                  data-testid={`doc-student-${student.id}`}
+                                >
+                                  <FileText size={16} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}

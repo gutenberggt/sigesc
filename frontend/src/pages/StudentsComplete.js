@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
@@ -237,6 +237,7 @@ const calculateIdealGrade = (birthDate) => {
 
 export function StudentsComplete() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const [students, setStudents] = useState([]);
   const [schools, setSchools] = useState([]);
@@ -391,6 +392,37 @@ export function StudentsComplete() {
     };
     fetchBaseData();
   }, []);
+
+  // Processar query params para abrir edição/documentos vindos de outra página
+  useEffect(() => {
+    const editStudentId = searchParams.get('editStudent');
+    const docStudentId = searchParams.get('docStudent');
+    if (!editStudentId && !docStudentId) return;
+
+    const studentId = editStudentId || docStudentId;
+    const action = editStudentId ? 'edit' : 'documents';
+
+    // Limpar os params da URL
+    searchParams.delete('editStudent');
+    searchParams.delete('docStudent');
+    setSearchParams(searchParams, { replace: true });
+
+    // Buscar o aluno e abrir o modal
+    const openStudentAction = async () => {
+      try {
+        const student = await studentsAPI.getById(studentId);
+        if (!student) return;
+        if (action === 'edit') {
+          handleEdit(student);
+        } else {
+          handleOpenDocuments(student);
+        }
+      } catch (error) {
+        console.error('Erro ao abrir aluno:', error);
+      }
+    };
+    openStudentAction();
+  }, [searchParams]);
 
   // Debounce para busca por nome/CPF
   useEffect(() => {
