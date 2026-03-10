@@ -62,7 +62,8 @@ export default function Mantenedora() {
     responsavel_email: '',
     
     // Configurações de Exibição
-    exibir_pre_matricula: true
+    exibir_pre_matricula: true,
+    mensagem_destaque: ''
   });
 
   const showAlert = (type, message) => {
@@ -108,7 +109,8 @@ export default function Mantenedora() {
         responsavel_celular: data.responsavel_celular || '',
         responsavel_email: data.responsavel_email || '',
         // Configurações de Exibição
-        exibir_pre_matricula: data.exibir_pre_matricula !== false // default true
+        exibir_pre_matricula: data.exibir_pre_matricula !== false, // default true
+        mensagem_destaque: data.mensagem_destaque || ''
       });
     } catch (error) {
       console.error('Erro ao carregar mantenedora:', error);
@@ -878,6 +880,21 @@ export default function Mantenedora() {
               <p className="text-xs text-gray-500">
                 Quando habilitado, o botão de pré-matrícula será exibido na tela de login para os responsáveis realizarem a pré-matrícula de novos alunos.
               </p>
+
+              <div className="pt-4 border-t">
+                <Label htmlFor="mensagem_destaque" className="font-medium">Mensagem de Destaque no Dashboard</Label>
+                <textarea
+                  id="mensagem_destaque"
+                  value={formData.mensagem_destaque}
+                  onChange={(e) => handleInputChange('mensagem_destaque', e.target.value)}
+                  placeholder="Digite aqui uma mensagem para exibir no topo do Dashboard (deixe vazio para não exibir)"
+                  className="mt-2 w-full min-h-[80px] rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+                  data-testid="mensagem-destaque-input"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  A mensagem será exibida em negrito, centralizada e na cor azul-celeste no topo do Dashboard de todos os usuários.
+                </p>
+              </div>
             </CardContent>
           </Card>
 

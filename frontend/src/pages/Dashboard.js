@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
-import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI } from '@/services/api';
+import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI } from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 
 export const Dashboard = () => {
@@ -20,6 +20,7 @@ export const Dashboard = () => {
   const [profile, setProfile] = useState(null);
   const [showRoleSelector, setShowRoleSelector] = useState(false);
   const [switchingRole, setSwitchingRole] = useState(false);
+  const [mensagemDestaque, setMensagemDestaque] = useState('');
 
   // IDs das escolas que o usuário (secretário) tem vínculo
   const userSchoolIdsJson = JSON.stringify(user?.school_ids || user?.school_links?.map(link => link.school_id) || []);
@@ -40,13 +41,14 @@ export const Dashboard = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [schoolsData, usersData, classesData, studentsData, staffData, profileData] = await Promise.all([
+        const [schoolsData, usersData, classesData, studentsData, staffData, profileData, mantenedoraData] = await Promise.all([
           schoolsAPI.getAll().catch(() => []),
           usersAPI.getAll().catch(() => []),
           classesAPI.getAll().catch(() => []),
           studentsAPI.getAll().catch(() => []),
           staffAPI.list().catch(() => []),
-          profilesAPI.getMyProfile().catch(() => null)
+          profilesAPI.getMyProfile().catch(() => null),
+          mantenedoraAPI.get().catch(() => null)
         ]);
 
         // Para secretário, diretor e coordenador, filtra apenas dados das escolas vinculadas
@@ -87,6 +89,9 @@ export const Dashboard = () => {
         });
         
         setProfile(profileData);
+        if (mantenedoraData?.mensagem_destaque) {
+          setMensagemDestaque(mantenedoraData.mensagem_destaque);
+        }
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
       } finally {
@@ -209,6 +214,17 @@ export const Dashboard = () => {
   return (
     <Layout>
       <div className="space-y-6">
+        {/* Mensagem de Destaque da Mantenedora */}
+        {mensagemDestaque && (
+          <p
+            data-testid="mensagem-destaque-dashboard"
+            className="text-center font-bold"
+            style={{ color: '#87CEEB' }}
+          >
+            {mensagemDestaque}
+          </p>
+        )}
+
         {/* Header com identificação do usuário - Barra azul */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
