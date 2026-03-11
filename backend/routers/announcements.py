@@ -33,7 +33,7 @@ def can_user_create_announcement(user: dict, recipient: dict) -> bool:
         return True
     
     # Diretor/Coordenador podem enviar para sua escola
-    if user_role in ['diretor', 'coordenador']:
+    if user_role in ['diretor', 'coordenador', 'auxiliar_secretaria']:
         if recipient_type in ['school', 'class']:
             return True
     

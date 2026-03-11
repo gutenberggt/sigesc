@@ -13,6 +13,7 @@ const ROLE_LABELS = {
   'secretario': 'Secretário(a)',
   'diretor': 'Diretor(a)',
   'coordenador': 'Coordenador(a)',
+  'auxiliar_secretaria': 'Auxiliar de Secretaria',
   'professor': 'Professor(a)',
   'ass_social': 'Ass. Social',
 };
@@ -25,6 +26,7 @@ const ROLE_COLORS = {
   'secretario': 'bg-blue-100 text-blue-800',
   'diretor': 'bg-green-100 text-green-800',
   'coordenador': 'bg-teal-100 text-teal-800',
+  'auxiliar_secretaria': 'bg-teal-100 text-teal-800',
   'professor': 'bg-yellow-100 text-yellow-800',
   'ass_social': 'bg-pink-100 text-pink-800',
 };

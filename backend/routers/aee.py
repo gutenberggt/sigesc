@@ -21,7 +21,7 @@ from text_utils import format_data_uppercase
 router = APIRouter(prefix="/aee", tags=["AEE"])
 
 # Roles permitidos para AEE
-ROLES_AEE = ['admin', 'admin_teste', 'coordenador', 'professor']
+ROLES_AEE = ['admin', 'admin_teste', 'coordenador', 'auxiliar_secretaria', 'professor']
 
 
 def setup_aee_router(db, audit_service):
@@ -177,7 +177,7 @@ def setup_aee_router(db, audit_service):
     @router.delete("/planos/{plano_id}")
     async def delete_plano_aee(plano_id: str, request: Request):
         """Exclui Plano AEE (apenas rascunhos)"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'coordenador'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'coordenador', 'auxiliar_secretaria'])(request)
         
         existing = await db.planos_aee.find_one({"id": plano_id}, {"_id": 0})
         if not existing:

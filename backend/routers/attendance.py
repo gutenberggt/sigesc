@@ -246,7 +246,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
     @router.post("")
     async def create_or_update_attendance(attendance: AttendanceCreate, request: Request):
         """Cria ou atualiza frequência de uma turma"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor', 'coordenador'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor', 'coordenador', 'auxiliar_secretaria'])(request)
         current_db = get_db_for_user(current_user)
         
         query = {"class_id": attendance.class_id, "date": attendance.date}

@@ -43,6 +43,7 @@ def setup_router(db, audit_service):
         funcao_priority = {
             'diretor': 5,
             'coordenador': 4,
+            'auxiliar_secretaria': 4,
             'secretario': 3,
             'professor': 2,
             'auxiliar': 1
@@ -109,12 +110,16 @@ def setup_router(db, audit_service):
         effective_role = user.role
         effective_school_links = user.school_links or []
         
-        if user.role in ['professor', 'secretario', 'coordenador', 'diretor']:
+        if user.role in ['professor', 'secretario', 'coordenador', 'auxiliar_secretaria', 'diretor']:
             effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.email, user.role)
             if lotacao_school_links:
                 effective_school_links = lotacao_school_links
         
-        school_ids = [link.get('school_id') for link in effective_school_links if link.get('school_id')]
+        school_ids = [
+            (link['school_id'] if isinstance(link, dict) else link.school_id)
+            for link in effective_school_links
+            if (link.get('school_id') if isinstance(link, dict) else getattr(link, 'school_id', None))
+        ]
         token_data = {
             "sub": user.id,
             "email": user.email,
@@ -169,12 +174,16 @@ def setup_router(db, audit_service):
             effective_role = user.role
             effective_school_links = user.school_links or []
             
-            if user.role in ['professor', 'secretario', 'coordenador', 'diretor']:
+            if user.role in ['professor', 'secretario', 'coordenador', 'auxiliar_secretaria', 'diretor']:
                 effective_role, lotacao_school_links = await get_effective_role_from_lotacoes(user.email, user.role)
                 if lotacao_school_links:
                     effective_school_links = lotacao_school_links
             
-            school_ids = [link.get('school_id') for link in effective_school_links if link.get('school_id')]
+            school_ids = [
+            (link['school_id'] if isinstance(link, dict) else link.school_id)
+            for link in effective_school_links
+            if (link.get('school_id') if isinstance(link, dict) else getattr(link, 'school_id', None))
+        ]
             token_data = {
                 "sub": user.id,
                 "email": user.email,

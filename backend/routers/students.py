@@ -229,7 +229,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         NOTA: Coordenadores NÃO podem editar alunos (apenas visualizar).
         """
         current_user = await AuthMiddleware.require_roles_with_coordinator_edit(
-            ['admin', 'admin_teste', 'secretario', 'coordenador'], 
+            ['admin', 'admin_teste', 'secretario', 'coordenador', 'auxiliar_secretaria'], 
             'students'
         )(request)
         current_db = get_db_for_user(current_user)

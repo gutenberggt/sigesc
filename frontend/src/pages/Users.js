@@ -141,6 +141,7 @@ export const Users = () => {
     secretario: 'Secretário(a)',
     diretor: 'Diretor(a)',
     coordenador: 'Coordenador(a)',
+    auxiliar_secretaria: 'Auxiliar de Secretaria',
     professor: 'Professor(a)',
     aluno: 'Aluno(a)',
     responsavel: 'Responsável(is)',

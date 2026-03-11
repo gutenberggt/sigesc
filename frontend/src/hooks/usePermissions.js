@@ -103,7 +103,7 @@ export const usePermissions = () => {
    * Verifica se o usuário pode ver o dashboard de acompanhamento
    */
   const canViewDiaryDashboard = useCallback(() => {
-    const allowedRoles = ['admin', 'admin_teste', 'diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'semed_nivel_2', 'semed_nivel_3'];
+    const allowedRoles = ['admin', 'admin_teste', 'diretor', 'coordenador', 'auxiliar_secretaria', 'secretario', 'semed_nivel_2', 'semed_nivel_3'];
     return allowedRoles.includes(user?.role);
   }, [user]);
 

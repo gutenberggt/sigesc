@@ -252,7 +252,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
     @router.post("", response_model=Grade)
     async def create_grade(grade_data: GradeCreate, request: Request):
         """Cria ou atualiza nota de um aluno"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor', 'coordenador'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor', 'coordenador', 'auxiliar_secretaria'])(request)
         current_db = get_db_for_user(current_user)
         
         existing = await current_db.grades.find_one({
@@ -291,7 +291,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
     @router.put("/{grade_id}", response_model=Grade)
     async def update_grade(grade_id: str, grade_update: GradeUpdate, request: Request):
         """Atualiza notas de um aluno"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor', 'coordenador'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor', 'coordenador', 'auxiliar_secretaria'])(request)
         current_db = get_db_for_user(current_user)
         
         grade = await current_db.grades.find_one({"id": grade_id}, {"_id": 0})
@@ -312,7 +312,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
     @router.post("/batch")
     async def update_grades_batch(request: Request, grades: List[dict]):
         """Atualiza notas em lote (por turma)"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor', 'coordenador'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor', 'coordenador', 'auxiliar_secretaria'])(request)
         current_db = get_db_for_user(current_user)
         user_role = current_user.get('role', '')
         

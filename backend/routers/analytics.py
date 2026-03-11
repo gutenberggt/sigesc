@@ -1126,7 +1126,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         is_admin = user_role in ['admin', 'admin_teste']
         is_semed = user_role == 'semed'
         is_global = is_admin or is_semed
-        is_school_staff = user_role in ['diretor', 'coordenador', 'secretario', 'secretário']
+        is_school_staff = user_role in ['diretor', 'coordenador', 'auxiliar_secretaria', 'secretario', 'secretário']
         is_professor = user_role == 'professor'
         
         user_school_ids = user.get('school_ids', []) or []

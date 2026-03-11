@@ -58,7 +58,7 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
         if user_role in ['admin', 'admin_teste', 'semed']:
             # Vê todos
             pass
-        elif user_role in ['secretario', 'diretor', 'coordenador']:
+        elif user_role in ['secretario', 'diretor', 'coordenador', 'auxiliar_secretaria']:
             # Filtra por escolas vinculadas
             if user_school_ids:
                 query['school_id'] = {'$in': user_school_ids}

@@ -323,7 +323,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             return True
 
         # Secretário, Diretor, Coordenador - limitado à escola
-        if user_role in ['secretario', 'diretor', 'coordenador']:
+        if user_role in ['secretario', 'diretor', 'coordenador', 'auxiliar_secretaria']:
             if recipient_type == 'school':
                 # Só pode enviar para escolas vinculadas
                 target_schools = recipient.get('school_ids', [])
