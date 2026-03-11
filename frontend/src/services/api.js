@@ -1118,3 +1118,11 @@ export const classScheduleAPI = {
   }
 };
 
+
+// ============= ANALYTICS =============
+export const analyticsAPI = {
+  getOverview: async (params = {}) => {
+    const response = await axios.get(`${API}/analytics/overview`, { params });
+    return response.data;
+  }
+};

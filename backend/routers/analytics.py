@@ -166,8 +166,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         transfer_rate = round((transfer_count / transfer_base * 100), 1) if transfer_base > 0 else 0
         
         # ============ DESISTÊNCIAS ============
-        # Contar matrículas/alunos com status de desistência
-        desistencia_statuses = ['desistente', 'Desistente', 'desistencia', 'Desistência', 'dropout', 'Dropout', 'cancelled', 'Cancelado', 'cancelado']
+        # Contar matrículas/alunos com status de desistência (apenas desistências reais, NÃO inclui cancelados)
+        desistencia_statuses = ['desistente', 'Desistente', 'desistencia', 'Desistência', 'dropout', 'Dropout']
         
         if school_id:
             # Escola específica: contar via enrollments
@@ -749,8 +749,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             status = doc['_id']['status'] or 'active'
             if school_id in schools:
                 schools[school_id]['enrollments_start'] += doc['count']
-                # Conta evasões (dropout, desistente, cancelado - NÃO conta transferido)
-                if status.lower() in ['dropout', 'desistente', 'desistencia', 'cancelled', 'cancelado', 'abandono']:
+                # Conta evasões/desistências (NÃO conta transferido e NÃO conta cancelado)
+                if status.lower() in ['dropout', 'desistente', 'desistencia', 'abandono']:
                     schools[school_id]['dropouts'] += doc['count']
         
         # ============================================

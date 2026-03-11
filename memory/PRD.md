@@ -28,14 +28,16 @@ Sistema de gestão escolar para a Prefeitura Municipal de Floresta do Araguaia. 
 ## Tarefas Concluídas (Sessão Atual - 2026-03-11)
 - [x] Validado papel "Auxiliar de Secretaria" (10+ erros de sintaxe corrigidos, 100% testes passando)
 - [x] Corrigido bug login SchoolLink.get() para auxiliar_secretaria
-- [x] **BUG FIX: Ano/Série em documentos PDF para turmas multisseriadas**
-  - Boletim, Ficha Individual e Declarações agora usam `enrollment.student_series` em vez de `class_info.grade_level`
-  - Corrigidos 7 pontos em `documents.py` e `pdf_generator.py`
-  - Testado com aluno em turma multisseriada: "ANO/ETAPA" exibe série correta do aluno
+- [x] BUG FIX: Ano/Série em documentos PDF para turmas multisseriadas
+- [x] Corrigida contagem de "Desistências" no Dashboard Analítico
+  - Removido `cancelled/Cancelado/cancelado` da lista de status de desistência
+  - Corrigido em overview, scoring e labels do frontend ("Evasões" → "Desistências")
+- [x] Card "Alunos(as)" do admin agora mostra contagem filtrada pelo ano corrente via analytics API
+  - Adicionado `analyticsAPI.getOverview()` ao serviço de API
+  - Dashboard usa `analytics.students.active` com fallback para contagem local
 
 ## Backlog Pendente
 ### P1
-- [ ] Corrigir contagem de "Desistências" no Dashboard Analítico (cancelled vs dropout)
 - [ ] Alterar carga horária de componentes curriculares (script para produção)
 
 ### P2

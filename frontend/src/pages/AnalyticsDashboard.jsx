@@ -150,7 +150,7 @@ const exportToExcel = (school, year) => {
     ['Matrículas Início do Ano', raw.enrollments_start || 0],
     ['Alunos Aprovados', raw.approved_count || 0],
     ['Alunos Avaliados', raw.evaluated_count || 0],
-    ['Evasões', raw.dropouts || 0],
+    ['Desistências', raw.dropouts || 0],
     ['Presenças Registradas', raw.attendance_present || 0],
     ['Total Registros Frequência', raw.attendance_total || 0],
     ['Objetos de Conhecimento', raw.learning_objects_count || 0],
@@ -317,7 +317,7 @@ const exportToPDF = (school, year) => {
     body: [
       ['Matrículas Ativas', raw.enrollments_active || 0],
       ['Alunos Aprovados', raw.approved_count || 0],
-      ['Evasões', raw.dropouts || 0],
+      ['Desistências', raw.dropouts || 0],
       ['Objetos de Conhecimento', raw.learning_objects_count || 0],
     ],
     theme: 'striped',

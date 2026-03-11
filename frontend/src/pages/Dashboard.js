@@ -3,7 +3,7 @@ import { Layout } from '@/components/Layout';
 import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
-import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI } from '@/services/api';
+import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI, analyticsAPI } from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 
 export const Dashboard = () => {
@@ -41,14 +41,16 @@ export const Dashboard = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [schoolsData, usersData, classesData, studentsData, staffData, profileData, mantenedoraData] = await Promise.all([
+        const currentYear = new Date().getFullYear();
+        const [schoolsData, usersData, classesData, studentsData, staffData, profileData, mantenedoraData, analyticsData] = await Promise.all([
           schoolsAPI.getAll().catch(() => []),
           usersAPI.getAll().catch(() => []),
           classesAPI.getAll().catch(() => []),
           studentsAPI.getAll().catch(() => []),
           staffAPI.list().catch(() => []),
           profilesAPI.getMyProfile().catch(() => null),
-          mantenedoraAPI.get().catch(() => null)
+          mantenedoraAPI.get().catch(() => null),
+          analyticsAPI.getOverview({ academic_year: currentYear }).catch(() => null)
         ]);
 
         // Para secretário, diretor e coordenador, filtra apenas dados das escolas vinculadas
@@ -72,10 +74,13 @@ export const Dashboard = () => {
           s.status === 'active' || s.status === 'Active' || !s.status
         ).length;
 
-        // Conta apenas alunos ATIVOS
-        const activeStudentsCount = filteredStudents.filter(s => 
-          s.status === 'active' || s.status === 'Ativo' || s.status === 'ativo'
-        ).length;
+        // Conta apenas alunos ATIVOS no ano corrente
+        // Se analytics retornou dados, usa a contagem filtrada por ano letivo
+        // Senão, faz fallback contando alunos ativos na lista
+        const activeStudentsCount = analyticsData?.students?.active 
+          ?? filteredStudents.filter(s => 
+            s.status === 'active' || s.status === 'Ativo' || s.status === 'ativo'
+          ).length;
 
         // Conta servidores - staffData pode ser array ou objeto com items
         const staffCount = Array.isArray(staffData) ? staffData.length : (staffData?.items?.length || 0);
