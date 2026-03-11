@@ -455,7 +455,7 @@ export function StudentsComplete() {
       try {
         setLoading(true);
         const params = { page: currentPage, page_size: PAGE_SIZE };
-        if (filterSchoolId) params.school_id = filterSchoolId;
+        if (filterSchoolId && filterSchoolId !== 'all') params.school_id = filterSchoolId;
         if (filterClassId) params.class_id = filterClassId;
         if (filterStatus) params.status = filterStatus;
         if (debouncedSearch) params.search = debouncedSearch;
@@ -1169,6 +1169,7 @@ export function StudentsComplete() {
   };
 
   const getSchoolName = (schoolId) => {
+    if (schoolId === 'all') return 'Todas as Escolas';
     const school = schools.find(s => s.id === schoolId);
     return school?.name || '-';
   };
@@ -1198,7 +1199,7 @@ export function StudentsComplete() {
   );
   
   // Turmas filtradas para o filtro de busca
-  const filterClassOptions = classes.filter(c => c.school_id === filterSchoolId);
+  const filterClassOptions = filterSchoolId === 'all' ? [] : classes.filter(c => c.school_id === filterSchoolId);
 
   // Reset de página quando filtros mudam (busca é resetada no debounce)
   useEffect(() => {
@@ -3190,6 +3191,7 @@ export function StudentsComplete() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Selecione uma escola</option>
+                {isAdmin && <option value="all">Todas as Escolas</option>}
                 {schools.map(school => (
                   <option key={school.id} value={school.id}>{school.name}</option>
                 ))}
@@ -3208,7 +3210,7 @@ export function StudentsComplete() {
                   setFilterClassId(e.target.value);
                   setCurrentPage(1);
                 }}
-                disabled={!filterSchoolId}
+                disabled={!filterSchoolId || filterSchoolId === 'all'}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
                 <option value="">Todas as turmas</option>
