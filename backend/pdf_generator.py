@@ -1147,7 +1147,7 @@ def generate_declaracao_matricula_pdf(
     # Corpo do texto
     student_name = student.get('full_name', 'N/A')
     birth_date = student.get('birth_date', 'N/A')
-    class_name = class_info.get('name', 'N/A')
+    display_grade = enrollment.get('student_series') or class_info.get('grade_level') or class_info.get('name', 'N/A')
     
     # Mapeamento de turnos para português
     TURNOS_PT = {
@@ -1174,7 +1174,7 @@ def generate_declaracao_matricula_pdf(
     Declaramos, para os devidos {purpose}, que <b>{student_name}</b>, 
     nascido(a) em <b>{birth_date}</b>, encontra-se regularmente matriculado(a) 
     nesta Unidade de Ensino no ano letivo de <b>{academic_year}</b>, 
-    cursando a turma <b>{class_name}</b>, no turno <b>{shift}</b>, 
+    cursando o <b>{display_grade}</b>, no turno <b>{shift}</b>, 
     sob o número de matrícula <b>{reg_number}</b>.
     """
     
@@ -1311,7 +1311,7 @@ def generate_declaracao_frequencia_pdf(
     
     # Corpo do texto
     student_name = student.get('full_name', 'N/A')
-    class_name = class_info.get('name', 'N/A')
+    display_grade = enrollment.get('student_series') or class_info.get('grade_level') or class_info.get('name', 'N/A')
     
     # Mapeamento de turnos para português
     TURNOS_PT = {
@@ -1329,7 +1329,7 @@ def generate_declaracao_frequencia_pdf(
     text = f"""
     Declaramos, para os devidos fins, que <b>{student_name}</b>, 
     matriculado(a) nesta Unidade de Ensino sob o número <b>{reg_number}</b>, 
-    cursando a turma <b>{class_name}</b>, turno <b>{shift}</b>, 
+    cursando o <b>{display_grade}</b>, turno <b>{shift}</b>, 
     no ano letivo de <b>{academic_year}</b>, apresenta a seguinte situação de frequência 
     referente ao {period}:
     """
