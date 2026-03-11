@@ -518,7 +518,8 @@ def generate_boletim_pdf(
     # Inferir nível de ensino da turma
     # Nota: O campo pode ser 'nivel_ensino' ou 'education_level' dependendo da versão
     nivel_ensino = class_info.get('nivel_ensino') or class_info.get('education_level')
-    grade_level = class_info.get('grade_level', '').lower()
+    # Para turmas multisseriadas, usar student_series da matrícula do aluno
+    grade_level = (enrollment.get('student_series') or class_info.get('grade_level', '')).lower()
     
     # Se não tem nivel_ensino definido, inferir pelo grade_level
     if not nivel_ensino:
@@ -628,8 +629,9 @@ def generate_boletim_pdf(
     # Verificar se é Educação Infantil (avaliação conceitual)
     is_educacao_infantil = nivel_ensino == 'educacao_infantil'
     
-    # Obter o grade_level original (não lowercase) para buscar carga horária por série
-    student_grade_level = class_info.get('grade_level', '')
+    # Obter o grade_level do ALUNO (não da turma) para buscar carga horária por série
+    # Para turmas multisseriadas, priorizar student_series da matrícula
+    student_grade_level = enrollment.get('student_series') or class_info.get('grade_level', '')
     
     # Verificar se é 1º ou 2º ano (avaliação conceitual específica)
     is_anos_iniciais_conceitual = is_serie_conceitual_anos_iniciais(student_grade_level)
@@ -891,7 +893,7 @@ def generate_boletim_pdf(
     # ===== RESULTADO FINAL =====
     # Obter status da matrícula e dados para cálculo do resultado
     enrollment_status = enrollment.get('status', 'active')
-    grade_level = class_info.get('grade_level', '')
+    grade_level = enrollment.get('student_series') or class_info.get('grade_level', '')
     
     # Obter data fim do 4º bimestre do calendário
     data_fim_4bim = None
@@ -1453,7 +1455,8 @@ def generate_ficha_individual_pdf(
     # Inferir nível de ensino da turma
     # Nota: O campo pode ser 'nivel_ensino' ou 'education_level' dependendo da versão
     nivel_ensino = class_info.get('nivel_ensino') or class_info.get('education_level')
-    grade_level = class_info.get('grade_level', '').lower()
+    # Para turmas multisseriadas, usar student_series da matrícula do aluno
+    grade_level = (enrollment.get('student_series') or class_info.get('grade_level', '')).lower()
     
     # Se não tem nivel_ensino definido, inferir pelo grade_level
     if not nivel_ensino:
@@ -1771,8 +1774,9 @@ def generate_ficha_individual_pdf(
     # Ordenar componentes curriculares por nível de ensino
     courses = ordenar_componentes_por_nivel(courses, nivel_ensino)
     
-    # Obter o grade_level original para buscar carga horária por série
-    student_grade_level = class_info.get('grade_level', '')
+    # Obter o grade_level do ALUNO para buscar carga horária por série
+    # Para turmas multisseriadas, priorizar student_series da matrícula
+    student_grade_level = enrollment.get('student_series') or class_info.get('grade_level', '')
     
     for course in courses:
         course_id = course.get('id')

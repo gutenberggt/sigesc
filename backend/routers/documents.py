@@ -135,9 +135,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         }, {"_id": 0}).to_list(100)
 
         # ===== FILTRAR COMPONENTES CURRICULARES =====
-        # Determinar nível de ensino e série da turma
+        # Determinar nível de ensino e série do ALUNO (não da turma)
+        # Para turmas multisseriadas, usar o student_series da matrícula
         nivel_ensino = class_info.get('nivel_ensino')
-        grade_level = class_info.get('grade_level', '')
+        grade_level = enrollment.get('student_series') or class_info.get('grade_level', '')
         grade_level_lower = grade_level.lower() if grade_level else ''
 
         # Se não tem nivel_ensino definido, inferir pelo grade_level
@@ -815,9 +816,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         ).to_list(100)
 
         # Buscar componentes curriculares da turma/escola
-        # Filtrar por nível de ensino da turma
+        # Filtrar por nível de ensino - usar série do ALUNO para turmas multisseriadas
         nivel_ensino = class_info.get('nivel_ensino')
-        grade_level = class_info.get('grade_level', '')
+        grade_level = enrollment.get('student_series') or class_info.get('grade_level', '')
         grade_level_lower = grade_level.lower() if grade_level else ''
         school_id = student.get('school_id')
 

@@ -14,25 +14,11 @@ Sistema de gestão escolar para a Prefeitura Municipal de Floresta do Araguaia. 
 - `secretario` - Secretário(a) escolar
 - `diretor` - Diretor(a) escolar
 - `coordenador` - Coordenador(a) - apenas visualização
-- `auxiliar_secretaria` - Auxiliar de Secretaria - permissões idênticas ao coordenador (apenas visualização)
+- `auxiliar_secretaria` - Auxiliar de Secretaria - permissões idênticas ao coordenador
 - `professor` - Professor(a)
 - `aluno`, `responsavel` - Aluno e Responsável
 - `semed`, `semed3` - SEMED (Secretaria Municipal de Educação)
 - `ass_social` - Assistente Social
-
-## Funcionalidades Implementadas
-1. CRUD completo: Escolas, Turmas, Alunos, Servidores, Notas, Frequência
-2. Geração de PDFs: Declarações, Boletins, Fichas Individuais, Livro de Promoção
-3. Dashboard com estatísticas e mensagem de destaque configurável
-4. Dashboard Analítico com gráficos
-5. Sistema de anúncios
-6. Calendário letivo
-7. Objetos de Aprendizagem (AEE)
-8. Pré-matrícula online
-9. Gestão de servidores com lotações e alocações
-10. Perfil de usuário
-11. Acompanhamento de diários
-12. Horário de aulas
 
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
@@ -40,10 +26,12 @@ Sistema de gestão escolar para a Prefeitura Municipal de Floresta do Araguaia. 
 - Secretário: secretario@sigesc.com / secretario123
 
 ## Tarefas Concluídas (Sessão Atual - 2026-03-11)
-- [x] Corrigidos todos os erros de sintaxe do papel auxiliar_secretaria (10+ arquivos)
-- [x] Corrigido bug de login (SchoolLink.get() → acesso por atributo/dict)
-- [x] Criado usuário de teste auxiliar_secretaria
-- [x] Validado papel auxiliar_secretaria com testing agent (100% testes passando)
+- [x] Validado papel "Auxiliar de Secretaria" (10+ erros de sintaxe corrigidos, 100% testes passando)
+- [x] Corrigido bug login SchoolLink.get() para auxiliar_secretaria
+- [x] **BUG FIX: Ano/Série em documentos PDF para turmas multisseriadas**
+  - Boletim, Ficha Individual e Declarações agora usam `enrollment.student_series` em vez de `class_info.grade_level`
+  - Corrigidos 7 pontos em `documents.py` e `pdf_generator.py`
+  - Testado com aluno em turma multisseriada: "ANO/ETAPA" exibe série correta do aluno
 
 ## Backlog Pendente
 ### P1
