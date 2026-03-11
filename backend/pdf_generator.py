@@ -576,7 +576,7 @@ def generate_boletim_pdf(
     
     # ===== INFORMAÇÕES DA ESCOLA E ALUNO =====
     school_name = school.get('name', 'Escola Municipal')
-    grade_level = class_info.get('grade_level', 'N/A')
+    grade_level = enrollment.get('student_series') or class_info.get('grade_level', 'N/A')
     class_name = class_info.get('name', 'N/A')
     student_number = enrollment.get('registration_number', student.get('enrollment_number', '1'))
     student_name = student.get('full_name', 'N/A').upper()
@@ -1510,7 +1510,7 @@ def generate_ficha_individual_pdf(
     
     # ===== INFORMAÇÕES DO ALUNO E ESCOLA =====
     school_name = school.get('name', 'Escola Municipal')
-    grade_level = class_info.get('grade_level', 'N/A')
+    grade_level = enrollment.get('student_series') or class_info.get('grade_level', 'N/A')
     class_name = class_info.get('name', 'N/A')
     
     # Mapeamento de turnos para português
@@ -2296,6 +2296,7 @@ def generate_certificado_pdf(
     
     # Determinar o nível de ensino para o certificado
     grade_level = class_info.get('grade_level', '')
+    display_grade_level = enrollment.get('student_series') or grade_level
     education_level = class_info.get('education_level', '')
     
     if 'eja' in education_level.lower() or '4' in str(grade_level):
