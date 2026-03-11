@@ -63,7 +63,8 @@ export default function Mantenedora() {
     
     // Configurações de Exibição
     exibir_pre_matricula: true,
-    mensagem_destaque: ''
+    mensagem_destaque: '',
+    mensagem_destaque_cor: 'azul_marinho'
   });
 
   const showAlert = (type, message) => {
@@ -110,7 +111,8 @@ export default function Mantenedora() {
         responsavel_email: data.responsavel_email || '',
         // Configurações de Exibição
         exibir_pre_matricula: data.exibir_pre_matricula !== false, // default true
-        mensagem_destaque: data.mensagem_destaque || ''
+        mensagem_destaque: data.mensagem_destaque || '',
+        mensagem_destaque_cor: data.mensagem_destaque_cor || 'azul_marinho'
       });
     } catch (error) {
       console.error('Erro ao carregar mantenedora:', error);
@@ -891,8 +893,39 @@ export default function Mantenedora() {
                   className="mt-2 w-full min-h-[80px] rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
                   data-testid="mensagem-destaque-input"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  A mensagem será exibida em negrito, centralizada e na cor azul-celeste no topo do Dashboard de todos os usuários.
+
+                <div className="mt-3">
+                  <Label className="font-medium text-sm">Cor de exibição da mensagem</Label>
+                  <div className="flex gap-3 mt-2">
+                    {[
+                      { value: 'azul_marinho', label: 'Azul-marinho', color: '#001f5b' },
+                      { value: 'verde', label: 'Verde', color: '#16a34a' },
+                      { value: 'amarelo', label: 'Amarelo', color: '#ca8a04' },
+                      { value: 'vermelho', label: 'Vermelho', color: '#dc2626' },
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => handleInputChange('mensagem_destaque_cor', opt.value)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
+                          formData.mensagem_destaque_cor === opt.value
+                            ? 'border-gray-800 shadow-md scale-105'
+                            : 'border-gray-200 hover:border-gray-400'
+                        }`}
+                        data-testid={`cor-${opt.value}`}
+                      >
+                        <span
+                          className="w-4 h-4 rounded-full inline-block"
+                          style={{ backgroundColor: opt.color }}
+                        />
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500 mt-2">
+                  A mensagem será exibida em negrito, centralizada e na cor selecionada no topo do Dashboard de todos os usuários.
                 </p>
               </div>
             </CardContent>

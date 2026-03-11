@@ -21,6 +21,7 @@ export const Dashboard = () => {
   const [showRoleSelector, setShowRoleSelector] = useState(false);
   const [switchingRole, setSwitchingRole] = useState(false);
   const [mensagemDestaque, setMensagemDestaque] = useState('');
+  const [mensagemDestaqueCor, setMensagemDestaqueCor] = useState('azul_marinho');
 
   // IDs das escolas que o usuário (secretário) tem vínculo
   const userSchoolIdsJson = JSON.stringify(user?.school_ids || user?.school_links?.map(link => link.school_id) || []);
@@ -96,6 +97,7 @@ export const Dashboard = () => {
         setProfile(profileData);
         if (mantenedoraData?.mensagem_destaque) {
           setMensagemDestaque(mantenedoraData.mensagem_destaque);
+          setMensagemDestaqueCor(mantenedoraData.mensagem_destaque_cor || 'azul_marinho');
         }
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
@@ -226,7 +228,7 @@ export const Dashboard = () => {
           <p
             data-testid="mensagem-destaque-dashboard"
             className="text-center font-bold -my-5"
-            style={{ color: '#87CEEB' }}
+            style={{ color: { azul_marinho: '#001f5b', verde: '#16a34a', amarelo: '#ca8a04', vermelho: '#dc2626' }[mensagemDestaqueCor] || '#001f5b' }}
           >
             {mensagemDestaque}
           </p>
