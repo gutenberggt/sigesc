@@ -763,23 +763,34 @@ export const LearningObjects = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Seletor de Campo de Experiência no formulário (infantil com multi-seleção) */}
+                    {/* Campos de Experiência selecionados - visíveis como radio buttons */}
                     {isInfantil && !editingRecord && selectedCourses.length > 1 && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
                           Campo de Experiência *
                         </label>
-                        <select
-                          value={formCourseId}
-                          onChange={(e) => setFormCourseId(e.target.value)}
-                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-                          data-testid="form-campo-experiencia-select"
-                        >
-                          <option value="">Selecione o campo</option>
+                        <div className="space-y-1.5" data-testid="form-campo-experiencia-select">
                           {courses.filter(c => selectedCourses.includes(c.id)).map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
+                            <label
+                              key={c.id}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+                                formCourseId === c.id
+                                  ? 'bg-purple-50 border-purple-400 text-purple-800'
+                                  : 'bg-white border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="formCampoExperiencia"
+                                value={c.id}
+                                checked={formCourseId === c.id}
+                                onChange={() => setFormCourseId(c.id)}
+                                className="text-purple-600 focus:ring-purple-500"
+                              />
+                              <span className="text-sm">{c.name}</span>
+                            </label>
                           ))}
-                        </select>
+                        </div>
                       </div>
                     )}
                     {/* Mostrar nome do campo ao editar em modo infantil */}
