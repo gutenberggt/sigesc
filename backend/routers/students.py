@@ -172,7 +172,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         
         students = await current_db.students.find(
             filter_query, list_projection
-        ).sort("full_name", 1).skip(effective_skip).limit(effective_limit).to_list(effective_limit)
+        ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).skip(effective_skip).limit(effective_limit).to_list(effective_limit)
         
         # Busca student_series das matrículas ativas (batch)
         student_ids = [s.get('id') for s in students if s.get('id')]

@@ -6,6 +6,7 @@ Extraído automaticamente de server.py.
 from fastapi import APIRouter, HTTPException, Request
 from typing import Optional
 from datetime import datetime
+import unicodedata
 
 from models import *
 from auth_middleware import AuthMiddleware
@@ -129,7 +130,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 alunos.append(student)
 
         # Ordena por nome
-        alunos.sort(key=lambda x: x.get('full_name', ''))
+        alunos.sort(key=lambda x: unicodedata.normalize('NFD', x.get('full_name', '')).encode('ascii', 'ignore').decode('ascii'))
 
         return alunos
 

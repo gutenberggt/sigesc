@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from datetime import datetime, timedelta
 from io import BytesIO
 import logging
+import unicodedata
 
 from models import *
 from auth_middleware import AuthMiddleware
@@ -1344,7 +1345,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 })
 
             # Ordenar por nome
-            students_data.sort(key=lambda x: x.get("studentName", ""))
+            students_data.sort(key=lambda x: unicodedata.normalize('NFD', x.get("studentName", "")).encode('ascii', 'ignore').decode('ascii'))
 
             # Gerar PDF
             pdf_buffer = generate_livro_promocao_pdf(
@@ -1447,7 +1448,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         students = await db.students.find(
             {"id": {"$in": student_ids}},
             {"_id": 0}
-        ).sort("full_name", 1).to_list(1000)
+        ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
 
         if not students:
             raise HTTPException(status_code=404, detail="Alunos não encontrados")

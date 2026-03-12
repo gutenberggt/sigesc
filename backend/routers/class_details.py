@@ -125,7 +125,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             students = await db.students.find(
                 {"id": {"$in": all_student_ids}},
                 {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "guardian_name": 1, "guardian_phone": 1, "guardian_relationship": 1, "mother_name": 1, "mother_phone": 1, "father_name": 1, "father_phone": 1, "enrollment_number": 1}
-            ).sort("full_name", 1).to_list(1000)
+            ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
 
             for student in students:
                 # Determina responsável principal
@@ -263,7 +263,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             students = await db.students.find(
                 {"id": {"$in": all_student_ids}},
                 {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "guardian_name": 1, "guardian_phone": 1, "mother_name": 1, "mother_phone": 1, "father_name": 1, "father_phone": 1}
-            ).sort("full_name", 1).to_list(1000)
+            ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
 
             for student in students:
                 guardian_name = student.get('guardian_name') or student.get('mother_name') or student.get('father_name') or '-'

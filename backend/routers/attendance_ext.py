@@ -225,7 +225,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             students = await db.students.find(
                 {"id": {"$in": student_ids}},
                 {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1}
-            ).sort("full_name", 1).to_list(1000)
+            ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
 
         # Busca frequências do período do bimestre
         attendances = await db.attendance.find(

@@ -4,6 +4,7 @@ Extraído de server.py durante a refatoração modular.
 """
 
 from fastapi import APIRouter, HTTPException, status, Request
+import unicodedata
 
 from auth_middleware import AuthMiddleware
 
@@ -128,7 +129,7 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
                 "last_activity": data["last_activity"].isoformat()
             })
 
-        result.sort(key=lambda x: x['full_name'])
+        result.sort(key=lambda x: unicodedata.normalize('NFD', x['full_name']).encode('ascii', 'ignore').decode('ascii'))
         return result
 
     return router

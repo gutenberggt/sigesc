@@ -203,7 +203,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             students = await current_db.students.find(
                 {"id": {"$in": all_student_ids}},
                 {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "status": 1, "class_id": 1}
-            ).sort("full_name", 1).to_list(1000)
+            ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
         
         # Busca frequência existente
         query = {"class_id": class_id, "date": date}
@@ -453,7 +453,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             students = await current_db.students.find(
                 {"id": {"$in": all_student_ids}},
                 {"_id": 0, "id": 1, "full_name": 1}
-            ).sort("full_name", 1).to_list(1000)
+            ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
         
         # Busca todos os registros de frequência da turma
         attendances = await current_db.attendance.find(
