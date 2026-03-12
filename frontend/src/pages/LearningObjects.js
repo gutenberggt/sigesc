@@ -400,10 +400,13 @@ export const LearningObjects = () => {
       return;
     }
 
-    // Determinar o course_id efetivo
-    const effectiveCourseId = editingRecord ? editingRecord.course_id : (isInfantil ? formCourseId : selectedCourse);
-    if (!editingRecord && !effectiveCourseId) {
-      showAlert('error', isInfantil ? 'Selecione o campo de experiência para o registro' : 'Selecione o componente curricular');
+    // Verificar seleção de curso
+    if (!editingRecord && !isInfantil && !selectedCourse) {
+      showAlert('error', 'Selecione o componente curricular');
+      return;
+    }
+    if (!editingRecord && isInfantil && selectedCourses.length === 0) {
+      showAlert('error', 'Selecione ao menos um campo de experiência');
       return;
     }
     
@@ -419,14 +422,33 @@ export const LearningObjects = () => {
       setSaving(true);
       
       if (editingRecord) {
-        // Atualizar
         await learningObjectsAPI.update(editingRecord.id, formData);
         showAlert('success', 'Registro atualizado com sucesso!');
+      } else if (isInfantil && selectedCourses.length > 0) {
+        // Infantil: criar um registro para cada campo de experiência selecionado
+        const promises = selectedCourses.map(courseId =>
+          learningObjectsAPI.create({
+            class_id: selectedClass,
+            course_id: courseId,
+            date: selectedDate,
+            academic_year: academicYear,
+            ...formData
+          }).catch(() => null) // ignora duplicatas (já existe registro nessa data/campo)
+        );
+        const results = await Promise.all(promises);
+        const created = results.filter(r => r !== null).length;
+        const skipped = results.length - created;
+        if (created > 0 && skipped > 0) {
+          showAlert('success', `${created} registro(s) criado(s). ${skipped} já existia(m) nesta data.`);
+        } else if (created > 0) {
+          showAlert('success', `${created} registro(s) criado(s) com sucesso!`);
+        } else {
+          showAlert('error', 'Já existem registros para todos os campos nesta data.');
+        }
       } else {
-        // Criar
         await learningObjectsAPI.create({
           class_id: selectedClass,
-          course_id: effectiveCourseId,
+          course_id: selectedCourse,
           date: selectedDate,
           academic_year: academicYear,
           ...formData
@@ -763,34 +785,11 @@ export const LearningObjects = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Campos de Experiência selecionados - visíveis como radio buttons */}
-                    {isInfantil && !editingRecord && selectedCourses.length > 1 && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Campo de Experiência *
-                        </label>
-                        <div className="space-y-1.5" data-testid="form-campo-experiencia-select">
-                          {courses.filter(c => selectedCourses.includes(c.id)).map(c => (
-                            <label
-                              key={c.id}
-                              className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
-                                formCourseId === c.id
-                                  ? 'bg-purple-50 border-purple-400 text-purple-800'
-                                  : 'bg-white border-gray-200 hover:bg-gray-50'
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name="formCampoExperiencia"
-                                value={c.id}
-                                checked={formCourseId === c.id}
-                                onChange={() => setFormCourseId(c.id)}
-                                className="text-purple-600 focus:ring-purple-500"
-                              />
-                              <span className="text-sm">{c.name}</span>
-                            </label>
-                          ))}
-                        </div>
+                    {/* Campos de Experiência selecionados - exibição fixa */}
+                    {isInfantil && !editingRecord && selectedCourses.length > 0 && (
+                      <div className="text-sm text-purple-700 bg-purple-50 px-3 py-2 rounded-lg" data-testid="form-campos-experiencia-display">
+                        <span className="font-medium">Campo de Experiência: </span>
+                        {courses.filter(c => selectedCourses.includes(c.id)).map(c => c.name).join(' - ')}
                       </div>
                     )}
                     {/* Mostrar nome do campo ao editar em modo infantil */}
