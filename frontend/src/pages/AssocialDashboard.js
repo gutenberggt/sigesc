@@ -88,13 +88,17 @@ export default function AssocialDashboard() {
     
     try {
       const currentYear = new Date().getFullYear();
-      const frequencyData = await attendanceAPI.getStudentFrequency(student.id, currentYear);
+      // Buscar dados completos do aluno e frequência em paralelo
+      const [fullStudent, frequencyData] = await Promise.all([
+        studentsAPI.getById(student.id),
+        attendanceAPI.getStudentFrequency(student.id, currentYear)
+      ]);
       
-      const school = schools[student.school_id];
-      const classInfo = classes[student.class_id];
+      const school = schools[fullStudent.school_id || student.school_id];
+      const classInfo = classes[fullStudent.class_id || student.class_id];
       
       setStudentDetails({
-        ...student,
+        ...fullStudent,
         school_name: school?.name || 'Nao matriculado',
         class_name: classInfo?.name || 'Nao informada',
         attendance: frequencyData?.summary || null,
