@@ -25,18 +25,32 @@ Sistema de gestão escolar para a Prefeitura Municipal de Floresta do Araguaia. 
 - Auxiliar Secretaria: auxiliar_teste@sigesc.com / auxiliar123
 - Secretário: secretario@sigesc.com / secretario123
 
-## Tarefas Concluídas (Sessão Atual - 2026-03-11)
+## Tarefas Concluídas
+### Sessão 2026-03-11
 - [x] Validado papel "Auxiliar de Secretaria" (10+ erros de sintaxe corrigidos, 100% testes passando)
 - [x] Corrigido bug login SchoolLink.get() para auxiliar_secretaria
 - [x] BUG FIX: Ano/Série em documentos PDF para turmas multisseriadas
 - [x] Corrigida contagem de "Desistências" no Dashboard Analítico
-  - Removido `cancelled/Cancelado/cancelado` da lista de status de desistência
-  - Corrigido em overview, scoring e labels do frontend ("Evasões" → "Desistências")
 - [x] Card "Alunos(as)" do admin agora mostra contagem filtrada pelo ano corrente via analytics API
-  - Adicionado `analyticsAPI.getOverview()` ao serviço de API
-  - Dashboard usa `analytics.students.active` com fallback para contagem local
+- [x] Ordenação de listas ignorando acentos (collation MongoDB pt)
+- [x] Filtro "Todas as Escolas" para administradores na página de alunos
+- [x] Seletor de cor para mensagem de destaque do Dashboard
+- [x] Removida coluna "Matrícula" da página "Controle de Frequência"
+
+### Sessão 2026-03-12
+- [x] Funcionalidade "Objetos de Conhecimento" para Educação Infantil (100% testes passando - 11/11)
+  - Multi-select de "Campo de Experiência" para turmas infantis
+  - Detecção automática do nível de ensino da turma
+  - Seleção "Todos" / individual com contagem
+  - Formulário de criação com seletor de campo específico
+  - Badge com nome do campo na lista de registros
+  - Click-outside handler para fechar dropdown
+  - Reset de estado ao trocar turma
 
 ## Backlog Pendente
+### P0
+- [ ] Bug de exclusão de frequência (relatado pelo usuário, investigação inconclusiva)
+
 ### P1
 - [ ] Alterar carga horária de componentes curriculares (script para produção)
 
@@ -45,3 +59,8 @@ Sistema de gestão escolar para a Prefeitura Municipal de Floresta do Araguaia. 
 
 ### Refatoração
 - [ ] Centralizar lógica de permissões no frontend em hook usePermissions
+- [ ] Extrair seletor multi-select para componente reutilizável
+
+## Dados de Teste Criados
+- Turma infantil: PRE-ESCOLA I (id: 2df28f9e-1b80-4bbb-828a-d5a477639854, educacao_infantil)
+- 5 Campos de Experiência (BNCC): O EU O OUTRO E O NÓS, CORPO GESTOS E MOVIMENTOS, TRAÇOS SONS CORES E FORMAS, ESCUTA FALA PENSAMENTO E IMAGINAÇÃO, ESPAÇOS TEMPOS QUANTIDADES RELAÇÕES E TRANSFORMAÇÕES
