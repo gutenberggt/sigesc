@@ -88,10 +88,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             )
 
         # Buscar matrícula ativa do aluno
+        academic_year_int_query = int(academic_year) if academic_year else datetime.now().year
         enrollment = await db.enrollments.find_one({
             "student_id": student_id,
             "status": "active",
-            "academic_year": academic_year
+            "academic_year": academic_year_int_query
         }, {"_id": 0})
 
         if not enrollment:
@@ -107,8 +108,13 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "class_id": student.get("class_id"),
                 "registration_number": student.get("enrollment_number", "N/A"),
                 "status": "active",
-                "academic_year": academic_year
+                "academic_year": academic_year,
+                "student_series": student.get("student_series")
             }
+
+        # Garantir que student_series venha do aluno se a matrícula não tiver
+        if not enrollment.get('student_series') and student.get('student_series'):
+            enrollment['student_series'] = student['student_series']
 
         # Buscar turma (do enrollment ou do aluno)
         class_id = enrollment.get("class_id") or student.get("class_id")
@@ -453,8 +459,13 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "class_id": student.get("class_id"),
                 "registration_number": student.get("enrollment_number", "N/A"),
                 "status": "active",
-                "academic_year": academic_year
+                "academic_year": academic_year,
+                "student_series": student.get("student_series")
             }
+
+        # Garantir que student_series venha do aluno se a matrícula não tiver
+        if not enrollment.get('student_series') and student.get('student_series'):
+            enrollment['student_series'] = student['student_series']
 
         # Garantir que o número de matrícula seja preenchido corretamente
         # Prioridade: registration_number do enrollment > enrollment_number do aluno
@@ -571,8 +582,13 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "class_id": student.get("class_id"),
                 "registration_number": student.get("enrollment_number", "N/A"),
                 "status": "active",
-                "academic_year": academic_year
+                "academic_year": academic_year,
+                "student_series": student.get("student_series")
             }
+
+        # Garantir que student_series venha do aluno se a matrícula não tiver
+        if not enrollment.get('student_series') and student.get('student_series'):
+            enrollment['student_series'] = student['student_series']
 
 
         # Buscar turma
@@ -1130,7 +1146,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # Buscar matrícula
         enrollment = await db.enrollments.find_one(
-            {"student_id": student_id, "academic_year": academic_year},
+            {"student_id": student_id, "academic_year": int(academic_year) if academic_year else datetime.now().year},
             {"_id": 0}
         )
         if not enrollment:
@@ -1415,8 +1431,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         }, {"_id": 0})
 
         # Buscar alunos matriculados na turma
+        academic_year_int_livro = int(academic_year) if academic_year else datetime.now().year
         enrollments = await db.enrollments.find(
-            {"class_id": class_id, "status": "active", "academic_year": academic_year},
+            {"class_id": class_id, "status": "active", "academic_year": academic_year_int_livro},
             {"_id": 0}
         ).to_list(1000)
 
