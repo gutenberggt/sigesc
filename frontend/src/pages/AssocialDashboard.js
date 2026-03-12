@@ -357,9 +357,9 @@ export default function AssocialDashboard() {
                             <BookOpen className="h-5 w-5 text-purple-600" />
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500">Serie / Turma</p>
+                            <p className="text-sm text-gray-500">Ano/Série</p>
                             <p className="font-medium text-gray-900" data-testid="student-class">
-                              {enrolled ? studentDetails.class_name : '-'}
+                              {enrolled ? (studentDetails.student_series || studentDetails.class_name || '-') : '-'}
                             </p>
                           </div>
                         </div>
