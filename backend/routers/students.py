@@ -301,9 +301,12 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             action_type = 'remanejamento'
             
             academic_year = datetime.now().year
+            remanejamento_update = {"class_id": new_class_id}
+            if update_data.get('student_series'):
+                remanejamento_update["student_series"] = update_data['student_series']
             await current_db.enrollments.update_one(
                 {"student_id": student_id, "school_id": old_school_id, "status": "active", "academic_year": academic_year},
-                {"$set": {"class_id": new_class_id}}
+                {"$set": remanejamento_update}
             )
             
             new_class = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
@@ -405,7 +408,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                         "class_id": new_class_id,
                         "academic_year": academic_year,
                         "enrollment_number": new_enrollment_number,
-                        "student_series": target_class.get('grade_level') if target_class else None,
+                        "student_series": update_data.get('student_series') or (target_class.get('grade_level') if target_class else None),
                         "status": "active",
                         "enrollment_date": datetime.now(timezone.utc).isoformat(),
                         "created_at": datetime.now(timezone.utc).isoformat()
@@ -429,6 +432,13 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             {"id": student_id},
             {"$set": update_data}
         )
+        
+        # Propaga student_series para a matrícula ativa (se foi alterado)
+        if 'student_series' in update_data:
+            await current_db.enrollments.update_one(
+                {"student_id": student_id, "status": "active", "academic_year": datetime.now().year},
+                {"$set": {"student_series": update_data['student_series']}}
+            )
         
         # Busca dados para o histórico
         school = await current_db.schools.find_one({"id": new_school_id or old_school_id}, {"_id": 0, "name": 1})
@@ -562,7 +572,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "class_id": new_class_id,
             "academic_year": academic_year,
             "enrollment_number": new_enrollment_number,
-            "student_series": new_class.get('grade_level') if new_class else None,
+            "student_series": student_doc.get('student_series') or (new_class.get('grade_level') if new_class else None),
             "status": "active",
             "created_at": datetime.now(timezone.utc).isoformat()
         }
