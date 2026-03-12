@@ -942,7 +942,6 @@ export const Attendance = () => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Matrícula</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Frequência</th>
                         </tr>
                       </thead>
@@ -971,7 +970,6 @@ export const Attendance = () => {
                                   )}
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-sm text-gray-500">{student.enrollment_number || '-'}</td>
                               <td className="px-4 py-3">
                                 {hasCertificate ? (
                                   <div className="flex justify-center">
