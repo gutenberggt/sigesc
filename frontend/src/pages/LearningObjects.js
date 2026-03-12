@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,8 +43,22 @@ export const LearningObjects = () => {
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
+  const [selectedCourses, setSelectedCourses] = useState([]);
+  const [showCoursesDropdown, setShowCoursesDropdown] = useState(false);
   const [academicYear, setAcademicYear] = useState(currentYear);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  const coursesDropdownRef = useRef(null);
+
+  // Fechar dropdown de campos de experiência ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (coursesDropdownRef.current && !coursesDropdownRef.current.contains(e.target)) {
+        setShowCoursesDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   
   // Hook para verificar status de edição dos bimestres
   const { 
@@ -72,6 +86,9 @@ export const LearningObjects = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   
+  // Curso selecionado no formulário (para infantil com multi-seleção)
+  const [formCourseId, setFormCourseId] = useState('');
+
   // Estados do formulário
   const [formData, setFormData] = useState({
     content: '',
@@ -168,36 +185,65 @@ export const LearningObjects = () => {
     }
   }, [isProfessor, selectedClass, professorTurmas]);
 
-  // Carrega registros quando filtros mudam
-  useEffect(() => {
-    if (selectedClass && selectedCourse) {
-      loadRecords();
-    }
-  }, [selectedClass, selectedCourse, academicYear, currentMonth]);
-
-  const loadRecords = async () => {
-    try {
-      const data = await learningObjectsAPI.list({
-        class_id: selectedClass,
-        course_id: selectedCourse,
-        academic_year: academicYear,
-        month: currentMonth + 1
-      });
-      setRecords(data);
-    } catch (error) {
-      console.error('Erro ao carregar registros:', error);
-    }
-  };
-
   // Turmas filtradas por escola
   const filteredClasses = useMemo(() => {
     if (isProfessor) {
-      // Para professor, já filtramos no estado classes
       return classes;
     }
     if (!selectedSchool) return classes;
     return classes.filter(c => c.school_id === selectedSchool);
   }, [classes, selectedSchool, isProfessor]);
+
+  // Detectar se turma selecionada é Educação Infantil
+  const isInfantil = useMemo(() => {
+    if (!selectedClass) return false;
+    const classInfo = classes.find(c => c.id === selectedClass);
+    if (!classInfo) return false;
+    const level = (classInfo.nivel_ensino || classInfo.education_level || '').toLowerCase();
+    return level === 'educacao_infantil' || level === 'educação infantil';
+  }, [selectedClass, classes]);
+
+  // Curso(s) efetivamente selecionado(s) para carregamento
+  const hasValidSelection = useMemo(() => {
+    if (isInfantil) return selectedCourses.length > 0;
+    return !!selectedCourse;
+  }, [isInfantil, selectedCourses, selectedCourse]);
+
+  // Carrega registros quando filtros mudam
+  useEffect(() => {
+    if (selectedClass && hasValidSelection) {
+      loadRecords();
+    }
+  }, [selectedClass, selectedCourse, selectedCourses, academicYear, currentMonth, isInfantil]);
+
+  const loadRecords = async () => {
+    try {
+      if (isInfantil && selectedCourses.length > 0) {
+        // Para infantil: buscar registros de todos os cursos selecionados
+        const promises = selectedCourses.map(courseId =>
+          learningObjectsAPI.list({
+            class_id: selectedClass,
+            course_id: courseId,
+            academic_year: academicYear,
+            month: currentMonth + 1
+          })
+        );
+        const results = await Promise.all(promises);
+        const merged = results.flat();
+        setRecords(merged);
+      } else if (selectedCourse) {
+        const data = await learningObjectsAPI.list({
+          class_id: selectedClass,
+          course_id: selectedCourse,
+          academic_year: academicYear,
+          month: currentMonth + 1
+        });
+        setRecords(data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar registros:', error);
+    }
+  };
 
   // Carregar componentes curriculares da turma selecionada (para não-professores)
   useEffect(() => {
@@ -207,6 +253,8 @@ export const LearningObjects = () => {
         if (!isProfessor) {
           setCourses([]);
           setSelectedCourse('');
+          setSelectedCourses([]);
+          setFormCourseId('');
         }
         return;
       }
@@ -230,6 +278,8 @@ export const LearningObjects = () => {
         }
         
         setSelectedCourse('');
+        setSelectedCourses([]);
+        setFormCourseId('');
       } catch (error) {
         console.error('Erro ao carregar componentes da turma:', error);
       }
@@ -296,13 +346,14 @@ export const LearningObjects = () => {
 
   // Handler de clique no dia
   const handleDayClick = (dayInfo) => {
-    if (!dayInfo.date || !selectedClass || !selectedCourse) return;
+    if (!dayInfo.date || !selectedClass || !hasValidSelection) return;
     
     setSelectedDate(dayInfo.date);
     
     if (dayInfo.record) {
       // Editar registro existente
       setEditingRecord(dayInfo.record);
+      setFormCourseId(dayInfo.record.course_id || '');
       setFormData({
         content: dayInfo.record.content || '',
         observations: dayInfo.record.observations || '',
@@ -313,6 +364,14 @@ export const LearningObjects = () => {
     } else {
       // Novo registro
       setEditingRecord(null);
+      // Para infantil com multi-seleção, pré-selecionar se só tem 1 curso selecionado
+      if (isInfantil && selectedCourses.length === 1) {
+        setFormCourseId(selectedCourses[0]);
+      } else if (!isInfantil) {
+        setFormCourseId(selectedCourse);
+      } else {
+        setFormCourseId('');
+      }
       setFormData({
         content: '',
         observations: '',
@@ -340,6 +399,13 @@ export const LearningObjects = () => {
       showAlert('error', 'O conteúdo é obrigatório');
       return;
     }
+
+    // Determinar o course_id efetivo
+    const effectiveCourseId = editingRecord ? editingRecord.course_id : (isInfantil ? formCourseId : selectedCourse);
+    if (!editingRecord && !effectiveCourseId) {
+      showAlert('error', isInfantil ? 'Selecione o campo de experiência para o registro' : 'Selecione o componente curricular');
+      return;
+    }
     
     // Verificar se o bimestre está bloqueado
     const bimestre = getBimestreFromDate(selectedDate);
@@ -360,7 +426,7 @@ export const LearningObjects = () => {
         // Criar
         await learningObjectsAPI.create({
           class_id: selectedClass,
-          course_id: selectedCourse,
+          course_id: effectiveCourseId,
           date: selectedDate,
           academic_year: academicYear,
           ...formData
@@ -499,19 +565,77 @@ export const LearningObjects = () => {
                 </select>
               </div>
 
-              {/* Componente Curricular */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Componente Curricular *</label>
-                <select
-                  value={selectedCourse}
-                  onChange={(e) => setSelectedCourse(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="">Selecione o componente</option>
-                  {courses.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+              {/* Componente Curricular / Campo de experiência */}
+              <div className="relative" ref={coursesDropdownRef}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {isInfantil ? 'Campo de experiência *' : 'Componente Curricular *'}
+                </label>
+                {isInfantil ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowCoursesDropdown(!showCoursesDropdown)}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-left bg-white flex items-center justify-between"
+                      data-testid="campo-experiencia-toggle"
+                    >
+                      <span className={selectedCourses.length === 0 ? 'text-gray-400' : 'text-gray-900 truncate'}>
+                        {selectedCourses.length === 0
+                          ? 'Selecione'
+                          : selectedCourses.length === courses.length
+                            ? 'Todos'
+                            : `${selectedCourses.length} selecionado(s)`}
+                      </span>
+                      <svg className={`w-4 h-4 transition-transform ${showCoursesDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    {showCoursesDropdown && (
+                      <div className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <label className="flex items-center gap-2 px-3 py-2 hover:bg-purple-50 cursor-pointer border-b font-medium">
+                          <input
+                            type="checkbox"
+                            checked={selectedCourses.length === courses.length && courses.length > 0}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedCourses(courses.map(c => c.id));
+                              } else {
+                                setSelectedCourses([]);
+                              }
+                            }}
+                            className="rounded text-purple-600"
+                          />
+                          Todos
+                        </label>
+                        {courses.map(c => (
+                          <label key={c.id} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedCourses.includes(c.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedCourses(prev => [...prev, c.id]);
+                                } else {
+                                  setSelectedCourses(prev => prev.filter(id => id !== c.id));
+                                }
+                              }}
+                              className="rounded text-purple-600"
+                            />
+                            {c.name}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <select
+                    value={selectedCourse}
+                    onChange={(e) => setSelectedCourse(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="">Selecione o componente</option>
+                    {courses.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* Ano Letivo */}
@@ -532,11 +656,11 @@ export const LearningObjects = () => {
         </Card>
 
         {/* Conteúdo principal */}
-        {!selectedClass || !selectedCourse ? (
+        {!selectedClass || !hasValidSelection ? (
           <Card>
             <CardContent className="p-8 text-center text-gray-500">
               <BookOpen size={48} className="mx-auto mb-2 text-gray-300" />
-              <p>Selecione a turma e o componente curricular para visualizar o calendário de registros.</p>
+              <p>Selecione a turma e {isInfantil ? 'o campo de experiência' : 'o componente curricular'} para visualizar o calendário de registros.</p>
             </CardContent>
           </Card>
         ) : (
@@ -639,6 +763,32 @@ export const LearningObjects = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Seletor de Campo de Experiência no formulário (infantil com multi-seleção) */}
+                    {isInfantil && !editingRecord && selectedCourses.length > 1 && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Campo de Experiência *
+                        </label>
+                        <select
+                          value={formCourseId}
+                          onChange={(e) => setFormCourseId(e.target.value)}
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                          data-testid="form-campo-experiencia-select"
+                        >
+                          <option value="">Selecione o campo</option>
+                          {courses.filter(c => selectedCourses.includes(c.id)).map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {/* Mostrar nome do campo ao editar em modo infantil */}
+                    {isInfantil && editingRecord && (
+                      <div className="text-sm text-purple-600 bg-purple-50 px-3 py-2 rounded-lg">
+                        Campo: {courses.find(c => c.id === editingRecord.course_id)?.name || editingRecord.course_name || 'N/A'}
+                      </div>
+                    )}
+
                     {/* Conteúdo */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -756,9 +906,16 @@ export const LearningObjects = () => {
                             <span className="text-sm font-medium text-purple-700">
                               {new Date(record.date + 'T12:00:00').toLocaleDateString('pt-BR')}
                             </span>
-                            <span className="text-xs text-gray-500">
-                              {record.number_of_classes} aula(s)
-                            </span>
+                            <div className="flex items-center gap-2">
+                              {isInfantil && selectedCourses.length > 1 && (
+                                <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+                                  {record.course_name || courses.find(c => c.id === record.course_id)?.name || ''}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-500">
+                                {record.number_of_classes} aula(s)
+                              </span>
+                            </div>
                           </div>
                           <p className="text-xs text-gray-600 line-clamp-2">
                             {record.content}

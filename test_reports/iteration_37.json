@@ -1,0 +1,67 @@
+{
+  "summary": "Validated Educação Infantil multi-select Campo de Experiência feature on Learning Objects page - ALL 11 TESTS PASSED. The feature correctly shows multi-select for infantil classes and simple select for non-infantil classes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "WebSocket connection",
+        "issue": "WebSocket closes before connection established - transient issue in test environment",
+        "priority": "LOW"
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "LearningObjects.js correctly detects infantil class via nivel_ensino === 'educacao_infantil'",
+    "Multi-select toggle has proper data-testid='campo-experiencia-toggle'",
+    "Form dropdown has proper data-testid='form-campo-experiencia-select'",
+    "Click outside handler properly implemented using useRef and mousedown event",
+    "'Todos' checkbox correctly selects/deselects all campos de experiência",
+    "Calendar and form correctly show when campos are selected",
+    "Record badge shows campo name for infantil with multiple campos selected",
+    "Switching turmas correctly toggles between multi-select and simple select"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend only test)",
+    "frontend": "100% (11/11 tests passed)"
+  },
+  "test_credentials": {
+    "admin": "gutenberg@sigesc.com / @Celta2007"
+  },
+  "seed_data_creation": "Created one test record for PRE-ESCOLA I on 10/03/2026 with content TEST_INFANTIL_CONTENT_* and campo CORPO, GESTOS E MOVIMENTOS",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Educação Infantil multi-select Campo de Experiência feature is fully validated. PRE-ESCOLA I (id: 2df28f9e-1b80-4bbb-828a-d5a477639854) is the infantil class with 5 campos. TURMA MULTI 1-2-3 (id: c09b8666-c8bb-40d1-b835-c2b0fa4b8ecd) is a non-infantil class for comparison testing.",
+  "verified_features": {
+    "test_01_non_infantil_simple_select": "PASS - TURMA MULTI 1-2-3 shows 'Componente Curricular *' with simple <select>",
+    "test_02_infantil_multiselect_button": "PASS - PRE-ESCOLA I shows 'Campo de experiência *' with multi-select button",
+    "test_03_dropdown_content": "PASS - Dropdown shows 'Todos' + 5 campos (CORPO GESTOS E MOVIMENTOS, ESCUTA FALA PENSAMENTO E IMAGINAÇÃO, ESPAÇOS TEMPOS QUANTIDADES RELAÇÕES E TRANSFORMAÇÕES, O EU O OUTRO E O NÓS, TRAÇOS SONS CORES E FORMAS)",
+    "test_04_select_todos": "PASS - Checking 'Todos' selects all items, button shows 'Todos'",
+    "test_05_deselect_todos": "PASS - Unchecking 'Todos' deselects all items, button shows 'Selecione'",
+    "test_06_select_individual": "PASS - Selecting 2 items shows '2 selecionado(s)', calendar appears",
+    "test_07_calendar_day_click_form": "PASS - Clicking calendar day shows form with 'Campo de Experiência *' dropdown (data-testid='form-campo-experiencia-select')",
+    "test_08_fill_and_save": "PASS - Form saves successfully with success message 'Registro criado com sucesso!'",
+    "test_09_record_in_list": "PASS - Record appears in 'Registros do Mês' with purple badge showing campo name",
+    "test_10_switch_to_non_infantil": "PASS - Switching to TURMA MULTI 1-2-3 returns to simple select",
+    "test_11_click_outside_closes_dropdown": "PASS - Clicking outside closes the multi-select dropdown"
+  },
+  "turma_data": {
+    "infantil": {
+      "name": "PRE-ESCOLA I",
+      "id": "2df28f9e-1b80-4bbb-828a-d5a477639854",
+      "nivel_ensino": "educacao_infantil"
+    },
+    "non_infantil": {
+      "name": "TURMA MULTI 1-2-3",
+      "id": "c09b8666-c8bb-40d1-b835-c2b0fa4b8ecd",
+      "nivel_ensino": "fundamental_anos_iniciais"
+    }
+  }
+}
