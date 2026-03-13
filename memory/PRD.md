@@ -10,42 +10,32 @@ Sistema de gestão escolar para a Prefeitura Municipal de Floresta do Araguaia. 
 - **Auth:** JWT (access + refresh tokens)
 
 ## Papéis de Usuário
-- `admin`, `admin_teste` - Administradores com acesso total
-- `secretario` - Secretário(a) escolar
-- `diretor` - Diretor(a) escolar
-- `coordenador` - Coordenador(a) - apenas visualização
-- `auxiliar_secretaria` - Auxiliar de Secretaria - permissões idênticas ao coordenador
-- `professor` - Professor(a)
-- `aluno`, `responsavel` - Aluno e Responsável
-- `semed`, `semed3` - SEMED (Secretaria Municipal de Educação)
-- `ass_social` - Assistente Social
+- `admin`, `admin_teste` - Administradores
+- `secretario`, `diretor`, `coordenador`, `auxiliar_secretaria`
+- `professor`, `aluno`, `responsavel`
+- `semed`, `semed3`, `ass_social`
 
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
-- Auxiliar Secretaria: auxiliar_teste@sigesc.com / auxiliar123
-- Secretário: secretario@sigesc.com / secretario123
 
 ## Tarefas Concluídas
 ### Sessão 2026-03-11
-- [x] Validado papel "Auxiliar de Secretaria" (10+ erros de sintaxe corrigidos, 100% testes passando)
-- [x] Corrigido bug login SchoolLink.get() para auxiliar_secretaria
-- [x] BUG FIX: Ano/Série em documentos PDF para turmas multisseriadas
-- [x] Corrigida contagem de "Desistências" no Dashboard Analítico
-- [x] Card "Alunos(as)" do admin agora mostra contagem filtrada pelo ano corrente via analytics API
-- [x] Ordenação de listas ignorando acentos (collation MongoDB pt)
-- [x] Filtro "Todas as Escolas" para administradores na página de alunos
-- [x] Seletor de cor para mensagem de destaque do Dashboard
-- [x] Removida coluna "Matrícula" da página "Controle de Frequência"
+- [x] Validado papel "Auxiliar de Secretaria"
+- [x] Bug fix: Ano/Série em PDFs para turmas multisseriadas
+- [x] Corrigida contagem "Desistências" no Dashboard
+- [x] Ordenação ignorando acentos (collation MongoDB pt)
+- [x] Filtro "Todas as Escolas" para admin
+- [x] Seletor de cor para mensagem de destaque
+- [x] Removida coluna "Matrícula" da frequência
 
 ### Sessão 2026-03-12
-- [x] Funcionalidade "Objetos de Conhecimento" para Educação Infantil (100% testes passando - 11/11)
-  - Multi-select de "Campo de Experiência" para turmas infantis
-  - Detecção automática do nível de ensino da turma
-  - Seleção "Todos" / individual com contagem
-  - Formulário de criação com seletor de campo específico
-  - Badge com nome do campo na lista de registros
-  - Click-outside handler para fechar dropdown
-  - Reset de estado ao trocar turma
+- [x] Objetos de Conhecimento para Educação Infantil (multi-select Campo de Experiência)
+
+### Sessão 2026-03-13
+- [x] Consulta Alunos (Assistência Social): label "Serie/Turma" -> "Ano/Série", valor corrigido para student_series
+- [x] Consulta Alunos: corrigido "Nome da Mãe = Não informado" (loadStudentDetails agora busca registro completo via getById)
+- [x] Objetos de Conhecimento infantil: campos de experiência exibidos como texto fixo separado por hífen no formulário
+- [x] **Controle de Frequência - Multi-Aula (P0)**: Para turmas de Anos Finais e EJA Final, adicionado seletor "N° de Aulas" (1-6) que multiplica as colunas de frequência. Backend salva number_of_classes e status pipe-separated (ex: "P|F|P|J"). Turmas de Anos Iniciais mantêm comportamento original.
 
 ## Backlog Pendente
 ### P0
@@ -58,9 +48,11 @@ Sistema de gestão escolar para a Prefeitura Municipal de Floresta do Araguaia. 
 - [ ] Implementar envio de e-mail de confirmação na pré-matrícula
 
 ### Refatoração
-- [ ] Centralizar lógica de permissões no frontend em hook usePermissions
+- [ ] Centralizar lógica de permissões em hook usePermissions
 - [ ] Extrair seletor multi-select para componente reutilizável
 
 ## Dados de Teste Criados
-- Turma infantil: PRE-ESCOLA I (id: 2df28f9e-1b80-4bbb-828a-d5a477639854, educacao_infantil)
-- 5 Campos de Experiência (BNCC): O EU O OUTRO E O NÓS, CORPO GESTOS E MOVIMENTOS, TRAÇOS SONS CORES E FORMAS, ESCUTA FALA PENSAMENTO E IMAGINAÇÃO, ESPAÇOS TEMPOS QUANTIDADES RELAÇÕES E TRANSFORMAÇÕES
+- Turma infantil: PRE-ESCOLA I (educacao_infantil)
+- Turma anos finais: 6º ANO A (fundamental_anos_finais) com 3 alunos + 2 cursos
+- 5 Campos de Experiência (BNCC)
+- 2 Componentes curriculares anos finais: MATEMÁTICA, PORTUGUÊS

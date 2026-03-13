@@ -22,7 +22,7 @@ router = APIRouter(prefix="/attendance", tags=["Frequência"])
 
 class AttendanceRecord(BaseModel):
     student_id: str
-    status: str  # present, absent, justified, late
+    status: str  # present, absent, justified, late - pipe-separated for multi-class: "P|F|P|J"
 
 
 class AttendanceCreate(BaseModel):
@@ -32,6 +32,7 @@ class AttendanceCreate(BaseModel):
     course_id: Optional[str] = None
     period: str = "regular"
     observations: Optional[str] = None
+    number_of_classes: int = 1
 
 
 def setup_attendance_router(db, audit_service, sandbox_db=None):
@@ -227,6 +228,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             "period": period,
             "attendance_id": attendance.get('id') if attendance else None,
             "observations": attendance.get('observations') if attendance else None,
+            "number_of_classes": attendance.get('number_of_classes', 1) if attendance else 1,
             "students": [
                 {
                     "id": s['id'],
@@ -265,6 +267,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 {"$set": {
                     "records": records_data,
                     "observations": attendance.observations,
+                    "number_of_classes": attendance.number_of_classes,
                     "updated_by": current_user['id'],
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }}
@@ -298,6 +301,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 "attendance_type": attendance_type,
                 "records": records_data,
                 "observations": attendance.observations,
+                "number_of_classes": attendance.number_of_classes,
                 "academic_year": turma.get('academic_year', datetime.now().year) if turma else datetime.now().year,
                 "created_by": current_user['id'],
                 "created_at": datetime.now(timezone.utc).isoformat()
