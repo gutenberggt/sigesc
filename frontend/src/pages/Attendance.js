@@ -44,6 +44,34 @@ const EDUCATION_LEVEL_LABELS = {
   'ensino_medio': 'Ensino Médio'
 };
 
+// Infere o nível de ensino da turma a partir de education_level, grade_level ou name
+const inferEducationLevel = (classInfo) => {
+  if (!classInfo) return '';
+  const explicit = (classInfo.education_level || classInfo.nivel_ensino || '').toLowerCase();
+  if (explicit && explicit !== '') return explicit;
+  const ref = (classInfo.grade_level || classInfo.name || '').toUpperCase();
+  if (/PRÉ[- ]?ESCOLA|BERÇÁRIO|MATERNAL|CRECHE|INFANTIL/.test(ref)) return 'educacao_infantil';
+  if (/\bEJA\b/.test(ref)) {
+    if (/FINAL|ANOS?\s*FINAI|[6-9]/.test(ref)) return 'eja_final';
+    return 'eja_inicial';
+  }
+  const match = ref.match(/(\d+)[ºª°]?\s*(ANO|SÉRIE)/i);
+  if (match) {
+    const num = parseInt(match[1]);
+    if (num >= 1 && num <= 5) return 'fundamental_anos_iniciais';
+    if (num >= 6 && num <= 9) return 'fundamental_anos_finais';
+  }
+  if (classInfo.series && classInfo.series.length > 0) {
+    const m = (classInfo.series[0] || '').match(/(\d+)/);
+    if (m) {
+      const num = parseInt(m[1]);
+      if (num >= 1 && num <= 5) return 'fundamental_anos_iniciais';
+      if (num >= 6 && num <= 9) return 'fundamental_anos_finais';
+    }
+  }
+  return '';
+};
+
 // Tipos de frequência por nível
 const getAttendanceType = (educationLevel, period) => {
   // Para Escola Integral e Aulas Complementares, sempre por componente
@@ -52,7 +80,7 @@ const getAttendanceType = (educationLevel, period) => {
   }
   
   // Anos Iniciais = frequência diária
-  if (['fundamental_anos_iniciais', 'eja', 'educacao_infantil'].includes(educationLevel)) {
+  if (['fundamental_anos_iniciais', 'eja', 'eja_inicial', 'educacao_infantil'].includes(educationLevel)) {
     return 'daily';
   }
   
@@ -697,12 +725,12 @@ export const Attendance = () => {
   // Turma selecionada
   const selectedClassData = classes.find(c => c.id === selectedClass);
   const attendanceType = selectedClassData 
-    ? getAttendanceType(selectedClassData.education_level, selectedPeriod)
+    ? getAttendanceType(inferEducationLevel(selectedClassData), selectedPeriod)
     : 'daily';
   
   // Turmas de anos finais/EJA final permitem múltiplas aulas por lançamento
   const isMultiAula = selectedClassData && 
-    ['fundamental_anos_finais', 'eja_final'].includes(selectedClassData.education_level);
+    ['fundamental_anos_finais', 'eja_final'].includes(inferEducationLevel(selectedClassData));
   
   return (
     <Layout>
@@ -904,7 +932,7 @@ export const Attendance = () => {
                 {/* Info do tipo de frequência */}
                 {selectedClassData && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
-                    <strong>{EDUCATION_LEVEL_LABELS[selectedClassData.education_level] || selectedClassData.education_level}</strong>
+                    <strong>{EDUCATION_LEVEL_LABELS[inferEducationLevel(selectedClassData)] || selectedClassData.education_level || inferEducationLevel(selectedClassData)}</strong>
                     {' - '}
                     {attendanceType === 'daily' 
                       ? 'Frequência diária (uma por dia)'

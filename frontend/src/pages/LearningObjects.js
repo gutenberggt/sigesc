@@ -25,6 +25,41 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI } from '@/services/api';
 
+
+// Infere o nível de ensino da turma a partir de education_level, nivel_ensino, grade_level ou name
+const inferEducationLevel = (classInfo) => {
+  if (!classInfo) return '';
+  // Tentar campo explícito
+  const explicit = (classInfo.education_level || classInfo.nivel_ensino || classInfo.level || '').toLowerCase();
+  if (explicit && explicit !== '') return explicit;
+  // Inferir do grade_level ou name
+  const ref = (classInfo.grade_level || classInfo.name || '').toUpperCase();
+  if (/PRÉ[- ]?ESCOLA|BERÇÁRIO|MATERNAL|CRECHE|INFANTIL/.test(ref)) return 'educacao_infantil';
+  // EJA
+  if (/\bEJA\b/.test(ref)) {
+    if (/FINAL|ANOS?\s*FINAI|[6-9]/.test(ref)) return 'eja_final';
+    return 'eja_inicial';
+  }
+  // Fundamental: extrair o número do ano
+  const match = ref.match(/(\d+)[ºª°]?\s*(ANO|SÉRIE)/i);
+  if (match) {
+    const num = parseInt(match[1]);
+    if (num >= 1 && num <= 5) return 'fundamental_anos_iniciais';
+    if (num >= 6 && num <= 9) return 'fundamental_anos_finais';
+  }
+  // Multisseriado: verificar séries
+  if (classInfo.series && classInfo.series.length > 0) {
+    const firstSeries = classInfo.series[0] || '';
+    const m = firstSeries.match(/(\d+)/);
+    if (m) {
+      const num = parseInt(m[1]);
+      if (num >= 1 && num <= 5) return 'fundamental_anos_iniciais';
+      if (num >= 6 && num <= 9) return 'fundamental_anos_finais';
+    }
+  }
+  return '';
+};
+
 // Nomes dos meses
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -195,30 +230,37 @@ export const LearningObjects = () => {
   }, [classes, selectedSchool, isProfessor]);
 
   // Detectar se turma selecionada é Educação Infantil
-  const isInfantil = useMemo(() => {
+  const isInfantilLevel = useMemo(() => {
     if (!selectedClass) return false;
     const classInfo = classes.find(c => c.id === selectedClass);
-    if (!classInfo) return false;
-    const level = (classInfo.nivel_ensino || classInfo.education_level || '').toLowerCase();
-    return level === 'educacao_infantil' || level === 'educação infantil';
+    const level = inferEducationLevel(classInfo);
+    return level === 'educacao_infantil';
+  }, [selectedClass, classes]);
+
+  // Multi-select: infantil + anos iniciais (fundamental e EJA)
+  const isMultiSelectMode = useMemo(() => {
+    if (!selectedClass) return false;
+    const classInfo = classes.find(c => c.id === selectedClass);
+    const level = inferEducationLevel(classInfo);
+    return ['educacao_infantil', 'fundamental_anos_iniciais', 'eja_inicial'].includes(level);
   }, [selectedClass, classes]);
 
   // Curso(s) efetivamente selecionado(s) para carregamento
   const hasValidSelection = useMemo(() => {
-    if (isInfantil) return selectedCourses.length > 0;
+    if (isMultiSelectMode) return selectedCourses.length > 0;
     return !!selectedCourse;
-  }, [isInfantil, selectedCourses, selectedCourse]);
+  }, [isMultiSelectMode, selectedCourses, selectedCourse]);
 
   // Carrega registros quando filtros mudam
   useEffect(() => {
     if (selectedClass && hasValidSelection) {
       loadRecords();
     }
-  }, [selectedClass, selectedCourse, selectedCourses, academicYear, currentMonth, isInfantil]);
+  }, [selectedClass, selectedCourse, selectedCourses, academicYear, currentMonth, isMultiSelectMode]);
 
   const loadRecords = async () => {
     try {
-      if (isInfantil && selectedCourses.length > 0) {
+      if (isMultiSelectMode && selectedCourses.length > 0) {
         // Para infantil: buscar registros de todos os cursos selecionados
         const promises = selectedCourses.map(courseId =>
           learningObjectsAPI.list({
@@ -264,10 +306,10 @@ export const LearningObjects = () => {
         const classInfo = classes.find(c => c.id === selectedClass);
         if (!classInfo) return;
         
-        const turmaLevel = classInfo.nivel_ensino || classInfo.education_level || classInfo.level;
+        const turmaLevel = inferEducationLevel(classInfo);
         
         // Buscar componentes do nível de ensino da turma
-        const allCourses = await coursesAPI.getAll(turmaLevel);
+        const allCourses = await coursesAPI.getAll(turmaLevel || null);
         
         // Se não encontrou nenhum, buscar todos
         if (allCourses.length === 0) {
@@ -365,9 +407,9 @@ export const LearningObjects = () => {
       // Novo registro
       setEditingRecord(null);
       // Para infantil com multi-seleção, pré-selecionar se só tem 1 curso selecionado
-      if (isInfantil && selectedCourses.length === 1) {
+      if (isMultiSelectMode && selectedCourses.length === 1) {
         setFormCourseId(selectedCourses[0]);
-      } else if (!isInfantil) {
+      } else if (!isMultiSelectMode) {
         setFormCourseId(selectedCourse);
       } else {
         setFormCourseId('');
@@ -401,12 +443,12 @@ export const LearningObjects = () => {
     }
 
     // Verificar seleção de curso
-    if (!editingRecord && !isInfantil && !selectedCourse) {
+    if (!editingRecord && !isMultiSelectMode && !selectedCourse) {
       showAlert('error', 'Selecione o componente curricular');
       return;
     }
-    if (!editingRecord && isInfantil && selectedCourses.length === 0) {
-      showAlert('error', 'Selecione ao menos um campo de experiência');
+    if (!editingRecord && isMultiSelectMode && selectedCourses.length === 0) {
+      showAlert('error', isInfantilLevel ? 'Selecione ao menos um campo de experiência' : 'Selecione ao menos um componente curricular');
       return;
     }
     
@@ -424,7 +466,7 @@ export const LearningObjects = () => {
       if (editingRecord) {
         await learningObjectsAPI.update(editingRecord.id, formData);
         showAlert('success', 'Registro atualizado com sucesso!');
-      } else if (isInfantil && selectedCourses.length > 0) {
+      } else if (isMultiSelectMode && selectedCourses.length > 0) {
         // Infantil: criar um registro para cada campo de experiência selecionado
         const promises = selectedCourses.map(courseId =>
           learningObjectsAPI.create({
@@ -590,9 +632,9 @@ export const LearningObjects = () => {
               {/* Componente Curricular / Campo de experiência */}
               <div className="relative" ref={coursesDropdownRef}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {isInfantil ? 'Campo de experiência *' : 'Componente Curricular *'}
+                  {isInfantilLevel ? 'Campo de experiência *' : 'Componente Curricular *'}
                 </label>
-                {isInfantil ? (
+                {isMultiSelectMode ? (
                   <>
                     <button
                       type="button"
@@ -682,7 +724,7 @@ export const LearningObjects = () => {
           <Card>
             <CardContent className="p-8 text-center text-gray-500">
               <BookOpen size={48} className="mx-auto mb-2 text-gray-300" />
-              <p>Selecione a turma e {isInfantil ? 'o campo de experiência' : 'o componente curricular'} para visualizar o calendário de registros.</p>
+              <p>Selecione a turma e {isInfantilLevel ? 'o campo de experiência' : 'o componente curricular'} para visualizar o calendário de registros.</p>
             </CardContent>
           </Card>
         ) : (
@@ -786,16 +828,16 @@ export const LearningObjects = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {/* Campos de Experiência selecionados - exibição fixa */}
-                    {isInfantil && !editingRecord && selectedCourses.length > 0 && (
+                    {isMultiSelectMode && !editingRecord && selectedCourses.length > 0 && (
                       <div className="text-sm text-purple-700 bg-purple-50 px-3 py-2 rounded-lg" data-testid="form-campos-experiencia-display">
-                        <span className="font-medium">Campo de Experiência: </span>
+                        <span className="font-medium">{isInfantilLevel ? 'Campo de Experiência' : 'Componente Curricular'}: </span>
                         {courses.filter(c => selectedCourses.includes(c.id)).map(c => c.name).join(' - ')}
                       </div>
                     )}
-                    {/* Mostrar nome do campo ao editar em modo infantil */}
-                    {isInfantil && editingRecord && (
+                    {/* Mostrar nome do campo ao editar em modo multi-select */}
+                    {isMultiSelectMode && editingRecord && (
                       <div className="text-sm text-purple-600 bg-purple-50 px-3 py-2 rounded-lg">
-                        Campo: {courses.find(c => c.id === editingRecord.course_id)?.name || editingRecord.course_name || 'N/A'}
+                        {isInfantilLevel ? 'Campo' : 'Componente'}: {courses.find(c => c.id === editingRecord.course_id)?.name || editingRecord.course_name || 'N/A'}
                       </div>
                     )}
 
@@ -917,7 +959,7 @@ export const LearningObjects = () => {
                               {new Date(record.date + 'T12:00:00').toLocaleDateString('pt-BR')}
                             </span>
                             <div className="flex items-center gap-2">
-                              {isInfantil && selectedCourses.length > 1 && (
+                              {isMultiSelectMode && selectedCourses.length > 1 && (
                                 <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
                                   {record.course_name || courses.find(c => c.id === record.course_id)?.name || ''}
                                 </span>
