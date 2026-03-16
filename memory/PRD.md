@@ -30,7 +30,11 @@ Sistema de gestão escolar para a Prefeitura Municipal de Floresta do Araguaia.
 - [x] Consulta Alunos: corrigido "Nome da Mãe = Não informado" (busca registro completo via getById)
 - [x] Objetos de Conhecimento infantil: campos exibidos como texto fixo separado por hífen
 - [x] Controle de Frequência Multi-Aula para Anos Finais/EJA (seletor N° de Aulas, colunas múltiplas)
-- [x] **Alinhamento contagem de alunos**: Dashboard coordenador agora usa mesma lógica da listagem de escolas (students com status "active"), sem exigir registro em enrollments
+- [x] Alinhamento contagem de alunos (Dashboard usa mesma lógica da listagem de escolas)
+
+### Sessão 2026-03-16
+- [x] **Declaração de Transferência** - Novo documento PDF com texto sobre transferência, menção ao Histórico Escolar em 30 dias, e assinatura do secretário(a)
+- [x] **Correção Ano Letivo** - Todos os defaults "2025" corrigidos para ano dinâmico (2026) em: api.js, DocumentGeneratorModal.js, StudentsComplete.js, e backend endpoints
 
 ## Backlog Pendente
 ### P0

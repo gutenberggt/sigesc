@@ -3650,7 +3650,7 @@ export function StudentsComplete() {
             setDocumentStudent(null);
           }}
           student={documentStudent}
-          academicYear="2025"
+          academicYear={new Date().getFullYear().toString()}
           classInfo={classes.find(c => c.id === filterClassId) || null}
         />
         

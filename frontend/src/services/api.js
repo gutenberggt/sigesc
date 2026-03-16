@@ -897,32 +897,37 @@ export const notificationsAPI = {
 // ============= DOCUMENTS API =============
 export const documentsAPI = {
   // Gerar Boletim Escolar (retorna URL do PDF)
-  getBoletimUrl: (studentId, academicYear = '2025') => {
+  getBoletimUrl: (studentId, academicYear = new Date().getFullYear().toString()) => {
     return `${BACKEND_URL}/api/documents/boletim/${studentId}?academic_year=${academicYear}`;
   },
   
   // Gerar Declaração de Matrícula (retorna URL do PDF)
-  getDeclaracaoMatriculaUrl: (studentId, academicYear = '2025', purpose = 'fins comprobatórios') => {
+  getDeclaracaoMatriculaUrl: (studentId, academicYear = new Date().getFullYear().toString(), purpose = 'fins comprobatórios') => {
     return `${BACKEND_URL}/api/documents/declaracao-matricula/${studentId}?academic_year=${academicYear}&purpose=${encodeURIComponent(purpose)}`;
   },
   
   // Gerar Declaração de Frequência (retorna URL do PDF)
-  getDeclaracaoFrequenciaUrl: (studentId, academicYear = '2025') => {
+  getDeclaracaoFrequenciaUrl: (studentId, academicYear = new Date().getFullYear().toString()) => {
     return `${BACKEND_URL}/api/documents/declaracao-frequencia/${studentId}?academic_year=${academicYear}`;
   },
   
   // Gerar Ficha Individual (retorna URL do PDF)
-  getFichaIndividualUrl: (studentId, academicYear = '2025') => {
+  getFichaIndividualUrl: (studentId, academicYear = new Date().getFullYear().toString()) => {
     return `${BACKEND_URL}/api/documents/ficha-individual/${studentId}?academic_year=${academicYear}`;
   },
   
   // Gerar Certificado (retorna URL do PDF)
-  getCertificadoUrl: (studentId, academicYear = '2025') => {
+  getCertificadoUrl: (studentId, academicYear = new Date().getFullYear().toString()) => {
     return `${BACKEND_URL}/api/documents/certificado/${studentId}?academic_year=${academicYear}`;
   },
   
+  // Gerar Declaração de Transferência (retorna URL do PDF)
+  getDeclaracaoTransferenciaUrl: (studentId, academicYear = new Date().getFullYear().toString()) => {
+    return `${BACKEND_URL}/api/documents/declaracao-transferencia/${studentId}?academic_year=${academicYear}`;
+  },
+  
   // Gerar documentos em lote (PDF consolidado da turma)
-  getBatchDocumentsUrl: (classId, documentType, academicYear = '2025') => {
+  getBatchDocumentsUrl: (classId, documentType, academicYear = new Date().getFullYear().toString()) => {
     return `${BACKEND_URL}/api/documents/batch/${classId}/${documentType}?academic_year=${academicYear}`;
   },
   

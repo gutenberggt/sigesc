@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, ExternalLink, X, GraduationCap, ClipboardCheck, Calendar, User, Award } from 'lucide-react';
+import { FileText, ExternalLink, X, GraduationCap, ClipboardCheck, Calendar, User, Award, ArrowRightLeft } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { documentsAPI, getToken } from '@/services/api';
@@ -19,7 +19,7 @@ export const DocumentGeneratorModal = ({
   isOpen, 
   onClose, 
   student,
-  academicYear = '2025',
+  academicYear = new Date().getFullYear().toString(),
   classInfo = null  // Informações da turma para verificar elegibilidade do certificado
 }) => {
   const [loading, setLoading] = useState(null);
@@ -62,6 +62,9 @@ export const DocumentGeneratorModal = ({
           break;
         case 'frequencia':
           url = documentsAPI.getDeclaracaoFrequenciaUrl(student.id, academicYear);
+          break;
+        case 'transferencia':
+          url = documentsAPI.getDeclaracaoTransferenciaUrl(student.id, academicYear);
           break;
         case 'certificado':
           url = documentsAPI.getCertificadoUrl(student.id, academicYear);
@@ -136,6 +139,13 @@ export const DocumentGeneratorModal = ({
       icon: Calendar,
       color: 'purple'
     },
+    {
+      id: 'transferencia',
+      title: 'Declaração de Transferência',
+      description: 'Formaliza a transferência do aluno para outra instituição',
+      icon: ArrowRightLeft,
+      color: 'rose'
+    },
     // Certificado só aparece se a turma for elegível (9º Ano ou EJA 4ª Etapa)
     ...(isEligibleForCertificate ? [{
       id: 'certificado',
@@ -176,6 +186,12 @@ export const DocumentGeneratorModal = ({
       border: 'border-indigo-200 hover:border-indigo-400',
       icon: 'text-indigo-600',
       button: 'bg-indigo-600 hover:bg-indigo-700'
+    },
+    rose: {
+      bg: 'bg-rose-50 hover:bg-rose-100',
+      border: 'border-rose-200 hover:border-rose-400',
+      icon: 'text-rose-600',
+      button: 'bg-rose-600 hover:bg-rose-700'
     }
   };
 

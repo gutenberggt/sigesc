@@ -17,6 +17,7 @@ from pdf_generator import (
     generate_certificado_pdf,
     generate_declaracao_frequencia_pdf,
     generate_declaracao_matricula_pdf,
+    generate_declaracao_transferencia_pdf,
     generate_ficha_individual_pdf,
     generate_livro_promocao_pdf,
 )
@@ -51,7 +52,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
 
     @router.get("/documents/boletim/{student_id}")
-    async def generate_boletim(student_id: str, request: Request, academic_year: str = "2025"):
+    async def generate_boletim(student_id: str, request: Request, academic_year: str = None):
         """
         Gera o Boletim Escolar do aluno em PDF
 
@@ -402,7 +403,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     async def generate_declaracao_matricula(
         student_id: str, 
         request: Request, 
-        academic_year: str = "2025",
+        academic_year: str = None,
         purpose: str = "fins comprobatórios"
     ):
         """
@@ -414,6 +415,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             purpose: Finalidade da declaração
         """
         current_user = await AuthMiddleware.get_current_user(request)
+        if not academic_year:
+            academic_year = str(datetime.now().year)
+
 
         # Buscar dados do aluno
         student = await db.students.find_one({"id": student_id}, {"_id": 0})
@@ -523,11 +527,92 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
 
+    @router.get("/documents/declaracao-transferencia/{student_id}")
+    async def generate_declaracao_transferencia(
+        student_id: str, 
+        request: Request, 
+        academic_year: str = None
+    ):
+        """
+        Gera a Declaração de Transferência do aluno em PDF
+        """
+        current_user = await AuthMiddleware.get_current_user(request)
+        if not academic_year:
+            academic_year = str(datetime.now().year)
+
+        student = await db.students.find_one({"id": student_id}, {"_id": 0})
+        if not student:
+            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+
+        is_valid, error_message = await validate_student_for_document(student, current_user)
+        if not is_valid:
+            raise HTTPException(status_code=403, detail=error_message)
+
+        # Buscar matrícula
+        enrollment = await db.enrollments.find_one({
+            "student_id": student_id,
+            "status": "active"
+        }, {"_id": 0})
+        if not enrollment:
+            enrollment = await db.enrollments.find_one({"student_id": student_id}, {"_id": 0})
+        if not enrollment:
+            enrollment = {
+                "student_id": student_id,
+                "class_id": student.get("class_id"),
+                "registration_number": student.get("enrollment_number", "N/A"),
+                "status": "active",
+                "academic_year": academic_year,
+                "student_series": student.get("student_series")
+            }
+
+        if not enrollment.get('student_series') and student.get('student_series'):
+            enrollment['student_series'] = student['student_series']
+        if not enrollment.get("registration_number") or enrollment.get("registration_number") == "N/A":
+            enrollment["registration_number"] = student.get("enrollment_number", "N/A")
+
+        # Buscar turma
+        class_id = enrollment.get("class_id") or student.get("class_id")
+        class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
+        if not class_info:
+            class_info = {"name": "Turma não informada", "shift": "N/A", "school_id": student.get("school_id")}
+
+        actual_academic_year = str(class_info.get("academic_year", academic_year))
+
+        # Buscar escola
+        school_id = class_info.get("school_id") or student.get("school_id")
+        school = await db.schools.find_one({"id": school_id}, {"_id": 0})
+        if not school:
+            school = {"name": "Escola Municipal", "cnpj": "N/A", "phone": "N/A", "city": "Município", "address": "Endereço não informado"}
+
+        mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+
+        try:
+            pdf_buffer = generate_declaracao_transferencia_pdf(
+                student=student,
+                school=school,
+                enrollment=enrollment,
+                class_info=class_info,
+                academic_year=actual_academic_year,
+                mantenedora=mantenedora
+            )
+
+            filename = f"declaracao_transferencia_{student.get('full_name', 'aluno').replace(' ', '_')}.pdf"
+
+            return StreamingResponse(
+                pdf_buffer,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'inline; filename="{filename}"'}
+            )
+        except Exception as e:
+            logger.error(f"Erro ao gerar declaração de transferência: {e}")
+            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+
+
     @router.get("/documents/declaracao-frequencia/{student_id}")
     async def generate_declaracao_frequencia(
         student_id: str, 
         request: Request, 
-        academic_year: str = "2025"
+        academic_year: str = None
     ):
         """
         Gera a Declaração de Frequência do aluno em PDF
@@ -536,6 +621,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             student_id: ID do aluno
             academic_year: Ano letivo
         """
+        if not academic_year:
+            academic_year = str(datetime.now().year)
+
         current_user = await AuthMiddleware.get_current_user(request)
 
         # Buscar dados do aluno
