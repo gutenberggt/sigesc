@@ -1976,6 +1976,7 @@ class MantenedoraBase(BaseModel):
     # Configurações de Exibição
     exibir_pre_matricula: Optional[bool] = True  # Exibir botão de pré-matrícula na tela de login
     mensagem_destaque: Optional[str] = None  # Mensagem de destaque exibida no Dashboard
+    mensagem_destaque_cor: Optional[str] = None  # Cor da mensagem de destaque
 
 class MantenedoraUpdate(BaseModel):
     """Modelo para atualização da Mantenedora"""
@@ -2019,6 +2020,7 @@ class MantenedoraUpdate(BaseModel):
     # Configurações de Exibição
     exibir_pre_matricula: Optional[bool] = None
     mensagem_destaque: Optional[str] = None
+    mensagem_destaque_cor: Optional[str] = None
 
 
 # ============= ATESTADO MÉDICO MODELS =============
