@@ -492,6 +492,13 @@ export const attendanceAPI = {
     if (academicYear) url += `academic_year=${academicYear}`;
     const response = await axios.get(url);
     return response.data;
+  },
+  
+  getAttendanceSummary: async (classId, academicYear, courseId = null) => {
+    let url = `${API}/attendance/attendance-summary/${classId}?academic_year=${academicYear}`;
+    if (courseId) url += `&course_id=${courseId}`;
+    const response = await axios.get(url);
+    return response.data;
   }
 };
 

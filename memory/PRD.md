@@ -1,51 +1,50 @@
 # SIGESC - Sistema Integrado de Gestão Escolar
 
-## Problema Original
-Sistema de gestão escolar para a Prefeitura Municipal de Floresta do Araguaia.
-
 ## Arquitetura
 - **Frontend:** React (CRA) + TailwindCSS + Shadcn/UI
-- **Backend:** FastAPI (Python) com roteadores modulares
-- **Banco:** MongoDB
-- **Auth:** JWT (access + refresh tokens)
+- **Backend:** FastAPI (Python) + MongoDB
+- **Auth:** JWT
 
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
 
 ## Tarefas Concluídas
 ### Sessão 2026-03-11
-- [x] Validado papel "Auxiliar de Secretaria"
-- [x] Bug fix: Ano/Série em PDFs para turmas multisseriadas
-- [x] Corrigida contagem "Desistências" no Dashboard
-- [x] Ordenação ignorando acentos (collation MongoDB pt)
-- [x] Filtro "Todas as Escolas" para admin
-- [x] Seletor de cor para mensagem de destaque
-- [x] Removida coluna "Matrícula" da frequência
+- [x] Papel "Auxiliar de Secretaria", Bug PDFs multisseriadas, Dashboard analytics
+- [x] Ordenação sem acentos, filtro "Todas as Escolas", seletor de cor mensagem, removida coluna Matrícula
 
 ### Sessão 2026-03-12
 - [x] Objetos de Conhecimento para Educação Infantil (multi-select Campo de Experiência)
 
 ### Sessão 2026-03-13
-- [x] Consulta Alunos (Assistência Social): label "Serie/Turma" -> "Ano/Série", valor usa student_series
-- [x] Consulta Alunos: corrigido "Nome da Mãe = Não informado" (busca registro completo via getById)
-- [x] Objetos de Conhecimento infantil: campos exibidos como texto fixo separado por hífen
-- [x] Controle de Frequência Multi-Aula para Anos Finais/EJA (seletor N° de Aulas, colunas múltiplas)
-- [x] Alinhamento contagem de alunos (Dashboard usa mesma lógica da listagem de escolas)
+- [x] Consulta Alunos: "Serie/Turma" → "Ano/Série", corrigido "Nome da Mãe"
+- [x] Objetos de Conhecimento: campos como texto fixo separado por hífen
+- [x] Frequência Multi-Aula para Anos Finais/EJA
+- [x] Alinhamento contagem de alunos no Dashboard
 
 ### Sessão 2026-03-16
-- [x] **Declaração de Transferência** - Novo documento PDF com texto sobre transferência, menção ao Histórico Escolar em 30 dias, e assinatura do secretário(a)
-- [x] **Correção Ano Letivo** - Todos os defaults "2025" corrigidos para ano dinâmico (2026) em: api.js, DocumentGeneratorModal.js, StudentsComplete.js, e backend endpoints
+- [x] Declaração de Transferência (novo documento PDF)
+- [x] Correção Ano Letivo (2025 → dinâmico)
+- [x] Bug cor mensagem destaque (campo faltante no modelo Pydantic)
+- [x] Multi-select de componentes para Anos Iniciais
+- [x] `inferEducationLevel()` - detecção robusta do nível de ensino (funciona com ou sem campo education_level)
+- [x] Removido campo "Período" da frequência
+
+### Sessão 2026-03-17
+- [x] **Resumo de frequência**: 3 campos informativos (Previstos/Registrados/Restantes) com dias ou aulas conforme nível de ensino
+- [x] Layout otimizado: Ano Letivo e Turma reduzidos, campos informativos na mesma linha
+- [x] Endpoint `GET /api/attendance/attendance-summary/{class_id}` com cálculo de dias/aulas
 
 ## Backlog Pendente
 ### P0
-- [ ] Bug de exclusão de frequência (relatado pelo usuário)
+- [ ] Bug de exclusão de frequência
 
 ### P1
 - [ ] Alterar carga horária de componentes curriculares (script para produção)
 
 ### P2
-- [ ] Implementar envio de e-mail de confirmação na pré-matrícula
+- [ ] Envio de e-mail de confirmação na pré-matrícula
 
 ### Refatoração
-- [ ] Centralizar lógica de permissões em hook usePermissions
-- [ ] Extrair seletor multi-select para componente reutilizável
+- [ ] Centralizar permissões em hook usePermissions
+- [ ] Extrair multi-select para componente reutilizável

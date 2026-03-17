@@ -527,4 +527,115 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             "students": report
         }
 
+
+    @router.get("/attendance-summary/{class_id}")
+    async def get_attendance_summary(
+        class_id: str,
+        request: Request,
+        academic_year: Optional[int] = None,
+        course_id: Optional[str] = None
+    ):
+        """
+        Resumo de frequência da turma: dias/aulas previstos, registrados e restantes.
+        Para anos iniciais/infantil: conta dias distintos.
+        Para anos finais: conta aulas (soma de number_of_classes por registro).
+        """
+        current_user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(current_user)
+
+        if not academic_year:
+            academic_year = datetime.now().year
+
+        # Buscar turma
+        turma = await current_db.classes.find_one({"id": class_id}, {"_id": 0})
+        if not turma:
+            raise HTTPException(status_code=404, detail="Turma não encontrada")
+
+        # Buscar calendário letivo
+        calendar = await current_db.school_calendar.find_one(
+            {"ano_letivo": academic_year}, {"_id": 0}
+        )
+        if not calendar:
+            calendar = await current_db.school_calendar.find_one(
+                {"ano_letivo": str(academic_year)}, {"_id": 0}
+            )
+        dias_letivos_previstos = 0
+        if calendar:
+            dias_letivos_previstos = calendar.get('dias_letivos_previstos', 0) or 0
+
+        # Detectar nível de ensino
+        education_level = turma.get('education_level') or turma.get('nivel_ensino') or ''
+        # Inferir do nome se não tem campo
+        if not education_level:
+            ref = (turma.get('grade_level') or turma.get('name') or '').upper()
+            import re
+            if re.search(r'PRÉ|BERÇÁRIO|MATERNAL|CRECHE|INFANTIL', ref):
+                education_level = 'educacao_infantil'
+            elif re.search(r'\bEJA\b', ref):
+                education_level = 'eja_final' if re.search(r'FINAL|[6-9]', ref) else 'eja_inicial'
+            else:
+                m = re.match(r'(\d+)', ref)
+                if m:
+                    num = int(m.group(1))
+                    education_level = 'fundamental_anos_iniciais' if num <= 5 else 'fundamental_anos_finais'
+                else:
+                    if turma.get('series'):
+                        m2 = re.match(r'(\d+)', str(turma['series'][0]))
+                        if m2:
+                            num = int(m2.group(1))
+                            education_level = 'fundamental_anos_iniciais' if num <= 5 else 'fundamental_anos_finais'
+
+        is_anos_finais = education_level in ['fundamental_anos_finais', 'eja_final']
+
+        # Buscar registros de frequência
+        att_query = {"class_id": class_id, "academic_year": academic_year}
+        if course_id:
+            att_query["course_id"] = course_id
+        attendances = await current_db.attendance.find(att_query, {"_id": 0}).to_list(5000)
+
+        if is_anos_finais:
+            # Para anos finais: contar AULAS (soma de number_of_classes)
+            aulas_registradas = 0
+            for att in attendances:
+                aulas_registradas += att.get('number_of_classes', 1)
+
+            # Calcular aulas previstas: dias_letivos * aulas por semana do componente / 5
+            # Se existe horário, contar aulas semanais do componente
+            aulas_previstas = 0
+            if course_id:
+                schedule = await current_db.class_schedules.find_one(
+                    {"class_id": class_id}, {"_id": 0}
+                )
+                if schedule and schedule.get('schedule_slots'):
+                    aulas_semana = sum(
+                        1 for s in schedule['schedule_slots']
+                        if s.get('course_id') == course_id
+                    )
+                    # dias_letivos / 5 (semanas) * aulas_semana
+                    aulas_previstas = int((dias_letivos_previstos / 5) * aulas_semana) if aulas_semana > 0 else 0
+
+            # Se não tem horário cadastrado, usar carga horária do curso
+            if aulas_previstas == 0 and course_id:
+                course = await current_db.courses.find_one({"id": course_id}, {"_id": 0})
+                if course:
+                    aulas_previstas = course.get('workload', 0) or 0
+
+            return {
+                "type": "aulas",
+                "previstos": aulas_previstas,
+                "registrados": aulas_registradas,
+                "restantes": max(0, aulas_previstas - aulas_registradas)
+            }
+        else:
+            # Para anos iniciais/infantil: contar DIAS distintos
+            dias_registrados = len(set(att.get('date') for att in attendances if att.get('date')))
+
+            return {
+                "type": "dias",
+                "previstos": dias_letivos_previstos,
+                "registrados": dias_registrados,
+                "restantes": max(0, dias_letivos_previstos - dias_registrados)
+            }
+
+
     return router

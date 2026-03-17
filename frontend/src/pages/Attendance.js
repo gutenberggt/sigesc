@@ -164,6 +164,9 @@ export const Attendance = () => {
   // Número de aulas (para anos finais e EJA)
   const [numberOfClasses, setNumberOfClasses] = useState(1);
   
+  // Resumo de frequência (previstos/registrados/restantes)
+  const [attendanceSummary, setAttendanceSummary] = useState(null);
+  
   // Permissões
   const canEdit = user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'secretario' || user?.role === 'professor';
   const canConfigSettings = user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'secretario';
@@ -575,6 +578,12 @@ export const Attendance = () => {
         // Online: salva diretamente na API
         await attendanceAPI.save(attendancePayload);
         showAlertMessage('success', 'Frequência salva com sucesso!');
+        // Atualizar resumo após salvar
+        try {
+          const courseForSummary = isMultiAula ? selectedCourse : null;
+          const summary = await attendanceAPI.getAttendanceSummary(selectedClass, academicYear, courseForSummary);
+          setAttendanceSummary(summary);
+        } catch {}
       } else {
         // Offline: salva no IndexedDB e adiciona à fila de sincronização
         const now = new Date().toISOString();
@@ -731,6 +740,24 @@ export const Attendance = () => {
   // Turmas de anos finais/EJA final permitem múltiplas aulas por lançamento
   const isMultiAula = selectedClassData && 
     ['fundamental_anos_finais', 'eja_final'].includes(inferEducationLevel(selectedClassData));
+
+  // Carregar resumo de frequência quando turma/componente muda
+  useEffect(() => {
+    if (!selectedClass) {
+      setAttendanceSummary(null);
+      return;
+    }
+    const fetchSummary = async () => {
+      try {
+        const courseForSummary = isMultiAula ? selectedCourse : null;
+        const data = await attendanceAPI.getAttendanceSummary(selectedClass, academicYear, courseForSummary);
+        setAttendanceSummary(data);
+      } catch {
+        setAttendanceSummary(null);
+      }
+    };
+    fetchSummary();
+  }, [selectedClass, selectedCourse, academicYear, isMultiAula]);
   
   return (
     <Layout>
@@ -810,8 +837,8 @@ export const Attendance = () => {
             {activeTab === 'lancamento' && (
               <div className="space-y-4">
                 {/* Filtros */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                  <div className="lg:col-span-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Ano Letivo</label>
                     <select
                       value={academicYear}
@@ -824,7 +851,7 @@ export const Attendance = () => {
                     </select>
                   </div>
                   
-                  <div>
+                  <div className="lg:col-span-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
                     <select
                       value={selectedSchool}
@@ -838,7 +865,7 @@ export const Attendance = () => {
                     </select>
                   </div>
                   
-                  <div>
+                  <div className="lg:col-span-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
                     <select
                       value={selectedClass}
@@ -856,7 +883,7 @@ export const Attendance = () => {
                   </div>
                   
                   {attendanceType === 'by_component' && (
-                    <div>
+                    <div className="lg:col-span-1">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Componente Curricular</label>
                       <select
                         value={selectedCourse}
@@ -869,6 +896,36 @@ export const Attendance = () => {
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
+                    </div>
+                  )}
+
+                  {/* Campos informativos: Previstos | Registrados | Restantes */}
+                  {selectedClass && attendanceSummary && (
+                    <div className={`${attendanceType === 'by_component' ? 'lg:col-span-2' : 'lg:col-span-3'} flex items-end`}>
+                      <div className="w-full grid grid-cols-3 gap-2" data-testid="attendance-summary">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-center">
+                          <p className="text-xs font-medium text-blue-600">
+                            {attendanceSummary.type === 'aulas' ? 'Previstas' : 'Previstos'}
+                          </p>
+                          <p className="text-lg font-bold text-blue-800">
+                            {attendanceSummary.previstos} <span className="text-xs font-normal">{attendanceSummary.type === 'aulas' ? 'aulas' : 'dias'}</span>
+                          </p>
+                        </div>
+                        <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-center">
+                          <p className="text-xs font-medium text-green-600">
+                            {attendanceSummary.type === 'aulas' ? 'Registradas' : 'Registrados'}
+                          </p>
+                          <p className="text-lg font-bold text-green-800">
+                            {attendanceSummary.registrados} <span className="text-xs font-normal">{attendanceSummary.type === 'aulas' ? 'aulas' : 'dias'}</span>
+                          </p>
+                        </div>
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
+                          <p className="text-xs font-medium text-amber-600">Restantes</p>
+                          <p className="text-lg font-bold text-amber-800">
+                            {attendanceSummary.restantes} <span className="text-xs font-normal">{attendanceSummary.type === 'aulas' ? 'aulas' : 'dias'}</span>
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
