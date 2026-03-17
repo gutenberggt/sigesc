@@ -3,7 +3,7 @@ import httpx
 import json
 
 # URL da API
-API_URL = "https://sigesc-infantil.preview.emergentagent.com/api"
+API_URL = "https://sigesc-frequency-fix.preview.emergentagent.com/api"
 
 # Escolas extraídas da imagem
 ESCOLAS = [
