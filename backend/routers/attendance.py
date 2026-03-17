@@ -562,27 +562,36 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
 
         dias_letivos_previstos = 0
         if calendario:
-            # Calcular dias letivos a partir dos períodos bimestrais (mesma lógica de documents.py)
+            # Calcular dias letivos — lógica idêntica ao endpoint /calendario-letivo/{ano}/dias-letivos
             from datetime import timedelta
-            eventos = await current_db.calendar_events.find(
-                {"year": academic_year}, {"_id": 0}
-            ).to_list(500)
+
+            eventos_nao_letivos = ['feriado_nacional', 'feriado_estadual', 'feriado_municipal', 'recesso_escolar']
+            events = await current_db.calendar_events.find(
+                {"academic_year": academic_year}, {"_id": 0}
+            ).to_list(1000)
 
             datas_nao_letivas = set()
             datas_sabados_letivos = set()
-            for evento in eventos:
-                tipo = evento.get('type', '')
-                data_str = evento.get('date', '')
-                if tipo in ['feriado', 'recesso', 'ferias', 'nao_letivo', 'ponto_facultativo', 'conselho']:
-                    try:
-                        datas_nao_letivas.add(datetime.strptime(data_str[:10], '%Y-%m-%d').date())
-                    except Exception:
-                        pass
-                elif tipo == 'sabado_letivo':
-                    try:
-                        datas_sabados_letivos.add(datetime.strptime(data_str[:10], '%Y-%m-%d').date())
-                    except Exception:
-                        pass
+            for event in events:
+                event_type = event.get('event_type', '')
+                start_date_str = event.get('start_date')
+                end_date_str = event.get('end_date') or start_date_str
+                if not start_date_str:
+                    continue
+                try:
+                    start_date = datetime.strptime(start_date_str[:10], '%Y-%m-%d').date()
+                    end_date = datetime.strptime(end_date_str[:10], '%Y-%m-%d').date()
+                    current = start_date
+                    while current <= end_date:
+                        if event_type in eventos_nao_letivos:
+                            datas_nao_letivas.add(current)
+                        elif event_type == 'sabado_letivo':
+                            datas_sabados_letivos.add(current)
+                        elif event.get('is_school_day', False) and current.weekday() == 5:
+                            datas_sabados_letivos.add(current)
+                        current += timedelta(days=1)
+                except (ValueError, TypeError):
+                    continue
 
             def _calcular_dias_periodo(inicio_str, fim_str):
                 if not inicio_str or not fim_str:
@@ -590,17 +599,15 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 try:
                     inicio = datetime.strptime(str(inicio_str)[:10], '%Y-%m-%d').date()
                     fim = datetime.strptime(str(fim_str)[:10], '%Y-%m-%d').date()
-                except Exception:
+                except (ValueError, TypeError):
                     return 0
                 dias = 0
                 current = inicio
                 while current <= fim:
-                    dia_semana = current.weekday()
-                    if dia_semana < 5:
+                    if current in datas_sabados_letivos:
+                        dias += 1
+                    elif current.weekday() < 5:
                         if current not in datas_nao_letivas:
-                            dias += 1
-                    elif dia_semana == 5:
-                        if current in datas_sabados_letivos:
                             dias += 1
                     current += timedelta(days=1)
                 return dias
