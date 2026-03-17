@@ -309,7 +309,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         academic_year: Optional[int] = None
     ):
         """Lista alunos com frequência abaixo de 75%"""
-        await AuthMiddleware.get_current_user(request)
+        current_user = await AuthMiddleware.get_current_user(request)
 
         if not academic_year:
             academic_year = datetime.now().year
@@ -318,6 +318,19 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         class_query = {}
         if school_id:
             class_query["school_id"] = school_id
+
+        # Se for professor, limitar às turmas vinculadas via teacher_assignments
+        if current_user.get('role') == 'professor':
+            staff = await db.staff.find_one({"user_id": current_user['id']}, {"_id": 0, "id": 1})
+            if staff:
+                assignments = await db.teacher_assignments.find(
+                    {"staff_id": staff['id'], "status": "ativo", "academic_year": academic_year},
+                    {"_id": 0, "class_id": 1}
+                ).to_list(1000)
+                linked_class_ids = list(set(a['class_id'] for a in assignments))
+                class_query["id"] = {"$in": linked_class_ids}
+            else:
+                return {"academic_year": academic_year, "total_alerts": 0, "alerts": []}
 
         classes = await db.classes.find(class_query, {"_id": 0}).to_list(1000)
 
