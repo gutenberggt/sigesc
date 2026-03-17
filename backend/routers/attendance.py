@@ -551,17 +551,69 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         if not turma:
             raise HTTPException(status_code=404, detail="Turma não encontrada")
 
-        # Buscar calendário letivo
-        calendar = await current_db.school_calendar.find_one(
-            {"ano_letivo": academic_year}, {"_id": 0}
+        # Buscar calendário letivo (coleção: calendario_letivo, calendário geral com school_id=None)
+        calendario = await current_db.calendario_letivo.find_one(
+            {"ano_letivo": academic_year, "school_id": None}, {"_id": 0}
         )
-        if not calendar:
-            calendar = await current_db.school_calendar.find_one(
-                {"ano_letivo": str(academic_year)}, {"_id": 0}
+        if not calendario:
+            calendario = await current_db.calendario_letivo.find_one(
+                {"ano_letivo": academic_year}, {"_id": 0}
             )
+
         dias_letivos_previstos = 0
-        if calendar:
-            dias_letivos_previstos = calendar.get('dias_letivos_previstos', 0) or 0
+        if calendario:
+            # Calcular dias letivos a partir dos períodos bimestrais (mesma lógica de documents.py)
+            from datetime import timedelta
+            eventos = await current_db.calendar_events.find(
+                {"year": academic_year}, {"_id": 0}
+            ).to_list(500)
+
+            datas_nao_letivas = set()
+            datas_sabados_letivos = set()
+            for evento in eventos:
+                tipo = evento.get('type', '')
+                data_str = evento.get('date', '')
+                if tipo in ['feriado', 'recesso', 'ferias', 'nao_letivo', 'ponto_facultativo', 'conselho']:
+                    try:
+                        datas_nao_letivas.add(datetime.strptime(data_str[:10], '%Y-%m-%d').date())
+                    except Exception:
+                        pass
+                elif tipo == 'sabado_letivo':
+                    try:
+                        datas_sabados_letivos.add(datetime.strptime(data_str[:10], '%Y-%m-%d').date())
+                    except Exception:
+                        pass
+
+            def _calcular_dias_periodo(inicio_str, fim_str):
+                if not inicio_str or not fim_str:
+                    return 0
+                try:
+                    inicio = datetime.strptime(str(inicio_str)[:10], '%Y-%m-%d').date()
+                    fim = datetime.strptime(str(fim_str)[:10], '%Y-%m-%d').date()
+                except Exception:
+                    return 0
+                dias = 0
+                current = inicio
+                while current <= fim:
+                    dia_semana = current.weekday()
+                    if dia_semana < 5:
+                        if current not in datas_nao_letivas:
+                            dias += 1
+                    elif dia_semana == 5:
+                        if current in datas_sabados_letivos:
+                            dias += 1
+                    current += timedelta(days=1)
+                return dias
+
+            b1 = _calcular_dias_periodo(calendario.get('bimestre_1_inicio'), calendario.get('bimestre_1_fim'))
+            b2 = _calcular_dias_periodo(calendario.get('bimestre_2_inicio'), calendario.get('bimestre_2_fim'))
+            b3 = _calcular_dias_periodo(calendario.get('bimestre_3_inicio'), calendario.get('bimestre_3_fim'))
+            b4 = _calcular_dias_periodo(calendario.get('bimestre_4_inicio'), calendario.get('bimestre_4_fim'))
+            dias_letivos_previstos = b1 + b2 + b3 + b4
+
+            # Fallback para o campo dias_letivos_previstos se cálculo dos bimestres retornar 0
+            if dias_letivos_previstos == 0:
+                dias_letivos_previstos = calendario.get('dias_letivos_previstos', 200) or 200
 
         # Detectar nível de ensino
         education_level = turma.get('education_level') or turma.get('nivel_ensino') or ''

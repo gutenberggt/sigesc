@@ -34,6 +34,7 @@
 - [x] **Resumo de frequência**: 3 campos informativos (Previstos/Registrados/Restantes) com dias ou aulas conforme nível de ensino
 - [x] Layout otimizado: Ano Letivo e Turma reduzidos, campos informativos na mesma linha
 - [x] Endpoint `GET /api/attendance/attendance-summary/{class_id}` com cálculo de dias/aulas
+- [x] **Bug fix**: Corrigido bug no box informativo de frequência que não mostrava dados em produção (coleção `school_calendar` → `calendario_letivo`, adicionado cálculo de dias letivos a partir dos períodos bimestrais)
 
 ## Backlog Pendente
 ### P0
