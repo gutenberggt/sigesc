@@ -6,9 +6,13 @@ Extraído automaticamente de server.py.
 from fastapi import APIRouter, HTTPException, status, Request
 from fastapi.responses import StreamingResponse
 from datetime import datetime
+import logging
 
 from models import *
 from auth_middleware import AuthMiddleware
+from pdf_generator import generate_class_details_pdf
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(tags=["Detalhes de Turma"])

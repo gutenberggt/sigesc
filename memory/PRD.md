@@ -36,6 +36,7 @@
 - [x] Endpoint `GET /api/attendance/attendance-summary/{class_id}` com cálculo de dias/aulas
 - [x] **Bug fix**: Corrigido bug no box informativo de frequência que não mostrava dados em produção (coleção `school_calendar` → `calendario_letivo`, adicionado cálculo de dias letivos a partir dos períodos bimestrais)
 - [x] **Alertas professor**: Filtro no endpoint `/api/attendance/alerts` para limitar professor às turmas vinculadas via `teacher_assignments`
+- [x] **Bug fix**: Corrigido botão "Gerar PDF" em Detalhes da Turma (import faltante de `generate_class_details_pdf` e `logger`)
 
 ## Backlog Pendente
 ### P0
