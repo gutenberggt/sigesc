@@ -271,6 +271,10 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if not update_data:
             return Student(**student_doc)
         
+        # Extrai campos auxiliares ANTES de qualquer lógica de negócio
+        custom_action_date = update_data.pop('action_date', None)
+        action_hint = update_data.pop('action_hint', None)
+        
         # Converte dados para maiúsculas
         update_data = format_data_uppercase(update_data)
         
@@ -296,21 +300,45 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         action_type = 'edicao'
         history_obs = None
         
-        # Verifica se é mudança de turma (remanejamento)
+        # Verifica se é mudança de turma (remanejamento ou progressão)
         if new_class_id and new_class_id != old_class_id and new_school_id == old_school_id:
-            action_type = 'remanejamento'
+            if action_hint == 'progressao':
+                action_type = 'progressao'
+                enrollment_inactive_status = 'progressed'
+            else:
+                action_type = 'remanejamento'
+                enrollment_inactive_status = 'relocated'
             
             academic_year = datetime.now().year
-            remanejamento_update = {"class_id": new_class_id}
-            if update_data.get('student_series'):
-                remanejamento_update["student_series"] = update_data['student_series']
+            
+            # Marca a matrícula antiga como inativa (mantém registro na turma de origem)
             await current_db.enrollments.update_one(
-                {"student_id": student_id, "school_id": old_school_id, "status": "active", "academic_year": academic_year},
-                {"$set": remanejamento_update}
+                {"student_id": student_id, "school_id": old_school_id, "class_id": old_class_id, "status": "active", "academic_year": academic_year},
+                {"$set": {"status": enrollment_inactive_status}}
             )
             
+            # Cria nova matrícula ativa na turma de destino
+            old_enrollment = await current_db.enrollments.find_one(
+                {"student_id": student_id, "school_id": old_school_id, "class_id": old_class_id, "academic_year": academic_year},
+                {"_id": 0}
+            )
+            new_enrollment = {
+                "id": str(uuid.uuid4()),
+                "student_id": student_id,
+                "school_id": old_school_id,
+                "class_id": new_class_id,
+                "academic_year": academic_year,
+                "status": "active",
+                "enrollment_number": old_enrollment.get("enrollment_number") if old_enrollment else None,
+                "student_series": update_data.get('student_series') or (old_enrollment.get("student_series") if old_enrollment else None)
+            }
+            await current_db.enrollments.insert_one(new_enrollment)
+            
             new_class = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
-            history_obs = f"Remanejado para turma: {new_class.get('name') if new_class else new_class_id}"
+            if action_type == 'progressao':
+                history_obs = f"Progressão para turma: {new_class.get('name') if new_class else new_class_id}"
+            else:
+                history_obs = f"Remanejado para turma: {new_class.get('name') if new_class else new_class_id}"
         
         # Proteção contra re-matrícula quando aluno já está ativo (UI stale / clique duplo)
         if new_status == 'active' and old_status == 'active' and new_class_id and new_class_id == old_class_id:
@@ -442,9 +470,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                     new_class = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
                     history_obs = f"Matriculado na turma {new_class.get('name') if new_class else new_class_id} - Ano letivo {academic_year} - Matrícula: {new_enrollment_number}"
         
-        # Remove academic_year e action_date do update_data pois não são campos do aluno
+        # Remove academic_year do update_data pois não é campo do aluno
         update_data.pop('academic_year', None)
-        custom_action_date = update_data.pop('action_date', None)
         
         # Atualiza o aluno
         await current_db.students.update_one(
@@ -469,13 +496,16 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         else:
             history_action_date = datetime.now(timezone.utc).isoformat()
         
+        # Define class_id do histórico: para remanejamento/progressão, usa a turma de ORIGEM
+        history_class_id = old_class_id if action_type in ('remanejamento', 'progressao') else (new_class_id or old_class_id)
+        
         # Registra no histórico
         history_entry = {
             "id": str(uuid.uuid4()),
             "student_id": student_id,
             "school_id": new_school_id or old_school_id,
             "school_name": school.get('name') if school else 'N/A',
-            "class_id": new_class_id or old_class_id,
+            "class_id": history_class_id,
             "class_name": class_info.get('name') if class_info else 'N/A',
             "action_type": action_type,
             "previous_status": old_status,

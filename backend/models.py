@@ -1066,6 +1066,8 @@ class StudentUpdate(BaseModel):
     
     # Data da ação (para registro no histórico)
     action_date: Optional[str] = None
+    # Hint de ação (para diferenciar remanejamento de progressão)
+    action_hint: Optional[str] = None
 
 class Student(StudentBase):
     model_config = ConfigDict(extra="ignore")

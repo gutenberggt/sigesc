@@ -894,7 +894,8 @@ export function StudentsComplete() {
             const turmaProgressao = classes.find(c => c.id === actionData.targetClassId);
             
             updateData = {
-              class_id: actionData.targetClassId
+              class_id: actionData.targetClassId,
+              action_hint: 'progressao'
             };
             
             historyEntry = {
