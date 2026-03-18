@@ -38,6 +38,8 @@
 - [x] **Alertas professor**: Filtro no endpoint `/api/attendance/alerts` para limitar professor às turmas vinculadas via `teacher_assignments`
 - [x] **Bug fix**: Corrigido botão "Gerar PDF" em Detalhes da Turma (import faltante de `generate_class_details_pdf` e `logger`)
 - [x] **Data da Ação**: Campo de data adicionado aos modais de Matricular, Transferir, Remanejar, Progredir e Cancelar. Migração executada para registros antigos (matrículas: 15/jan, transferências: 10/mar, cancelamentos: 18/jan)
+- [x] **Ação Desistir**: Nova ação "Desistir" adicionada ao dropdown de ações do aluno (status: dropout)
+- [x] **Alunos inativos no diário**: Alunos transferidos, remanejados, progredidos, desistentes e cancelados permanecem na listagem da turma de origem com label (Transferido), (Remanejado), etc. Edição de frequência e notas bloqueada a partir da data da ação
 
 ## Backlog Pendente
 ### P0

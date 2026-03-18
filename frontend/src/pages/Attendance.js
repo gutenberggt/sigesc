@@ -1079,11 +1079,21 @@ export const Attendance = () => {
                             ? (student.status || '').split('|')
                             : [];
                           
+                          // Bloqueio por ação (transferido, desistente, etc.)
+                          const hasActionLabel = !!student.action_label;
+                          const isBlockedByAction = hasActionLabel && student.action_date && 
+                            attendanceData.date >= student.action_date.substring(0, 10);
+                          
                           return (
-                            <tr key={student.id} className={`hover:bg-gray-50 ${hasCertificate ? 'bg-red-50' : ''} ${isBlocked ? 'bg-gray-100' : ''}`}>
+                            <tr key={student.id} className={`hover:bg-gray-50 ${hasCertificate ? 'bg-red-50' : ''} ${isBlocked || isBlockedByAction ? 'bg-gray-100' : ''}`}>
                               <td className="px-4 py-3 font-medium text-gray-900">
                                 <div className="flex items-center gap-2">
                                   {student.full_name}
+                                  {hasActionLabel && (
+                                    <span className="inline-flex items-center px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
+                                      ({student.action_label})
+                                    </span>
+                                  )}
                                   {hasCertificate && (
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full" title={certInfo?.period}>
                                       <Stethoscope size={12} />
@@ -1107,7 +1117,7 @@ export const Attendance = () => {
                                         <div className="flex justify-center">
                                           <div className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">AM</div>
                                         </div>
-                                      ) : isBlocked ? (
+                                      ) : isBlocked || isBlockedByAction ? (
                                         <div className="flex justify-center">
                                           <div className="px-2 py-1 bg-gray-200 text-gray-500 rounded text-xs">-</div>
                                         </div>
@@ -1149,10 +1159,10 @@ export const Attendance = () => {
                                         <span className="text-xs font-normal">Atestado Médico</span>
                                       </div>
                                     </div>
-                                  ) : isBlocked ? (
+                                  ) : isBlocked || isBlockedByAction ? (
                                     <div className="flex justify-center">
-                                      <div className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-center" title={blockedMessage}>
-                                        <span className="text-sm">Edição bloqueada</span>
+                                      <div className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-center" title={isBlockedByAction ? `Aluno ${student.action_label}` : blockedMessage}>
+                                        <span className="text-sm">{isBlockedByAction ? student.action_label : 'Edição bloqueada'}</span>
                                       </div>
                                     </div>
                                   ) : (

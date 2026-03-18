@@ -331,6 +331,24 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                     {"$set": {"status": "transferred"}}
                 )
             
+            elif new_status == 'dropout':
+                action_type = 'desistencia'
+                history_obs = "Aluno registrado como desistente"
+                
+                await current_db.enrollments.update_many(
+                    {"student_id": student_id, "status": "active"},
+                    {"$set": {"status": "dropout"}}
+                )
+            
+            elif new_status == 'cancelled':
+                action_type = 'cancelamento'
+                history_obs = "Matrícula cancelada"
+                
+                await current_db.enrollments.update_many(
+                    {"student_id": student_id, "status": "active"},
+                    {"$set": {"status": "cancelled"}}
+                )
+            
             # Se está sendo matriculado (de transferido/inativo para ativo)
             elif new_status == 'active' and old_status in ['transferred', 'inactive', 'dropout', None, '']:
                 action_type = 'matricula'

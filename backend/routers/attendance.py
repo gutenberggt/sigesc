@@ -168,7 +168,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         academic_year = turma.get('academic_year', datetime.now().year)
         
         # Busca alunos matriculados - usando múltiplas fontes para maior robustez
-        # Estratégia 1: Busca na coleção enrollments (matrícula formal)
+        # Estratégia 1: Busca na coleção enrollments (matrícula formal - ativos)
         enrollments = await current_db.enrollments.find(
             {"class_id": class_id, "status": "active"},
             {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1}
@@ -181,6 +181,22 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             enrollment_student_ids.add(student_id)
             if student_id not in enrollment_numbers or e.get('academic_year') == academic_year:
                 enrollment_numbers[student_id] = e.get('enrollment_number')
+        
+        # Busca alunos inativos que JÁ ESTIVERAM nesta turma (transferidos, desistentes, etc.)
+        inactive_enrollments = await current_db.enrollments.find(
+            {"class_id": class_id, "status": {"$in": ["transferred", "dropout", "cancelled"]}},
+            {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1, "status": 1}
+        ).to_list(1000)
+        
+        inactive_student_ids = set()
+        inactive_enrollment_status = {}
+        for e in inactive_enrollments:
+            sid = e.get('student_id')
+            if sid not in enrollment_student_ids:
+                inactive_student_ids.add(sid)
+                if sid not in enrollment_numbers or e.get('academic_year') == academic_year:
+                    enrollment_numbers[sid] = e.get('enrollment_number')
+                inactive_enrollment_status[sid] = e.get('status')
         
         # Estratégia 2: Busca alunos diretamente com class_id (fallback)
         direct_students = await current_db.students.find(
@@ -195,16 +211,42 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         
         direct_student_ids = {s.get('id') for s in direct_students}
         
-        # Combina ambas as fontes
-        all_student_ids = list(enrollment_student_ids.union(direct_student_ids))
+        # Combina todas as fontes
+        all_student_ids = list(enrollment_student_ids.union(direct_student_ids).union(inactive_student_ids))
         
         students = []
         if all_student_ids:
-            # Inclui status do aluno para verificação de bloqueio
             students = await current_db.students.find(
                 {"id": {"$in": all_student_ids}},
                 {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "status": 1, "class_id": 1}
             ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
+        
+        # Busca ação mais recente (data e tipo) para alunos inativos
+        action_info_map = {}
+        if inactive_student_ids:
+            action_type_map = {
+                'transferencia_saida': 'Transferido',
+                'remanejamento': 'Remanejado',
+                'progressao': 'Progredido',
+                'desistencia': 'Desistente',
+                'cancelamento': 'Cancelado'
+            }
+            history_entries = await current_db.student_history.find(
+                {
+                    "student_id": {"$in": list(inactive_student_ids)},
+                    "class_id": class_id,
+                    "action_type": {"$in": list(action_type_map.keys())}
+                },
+                {"_id": 0, "student_id": 1, "action_type": 1, "action_date": 1}
+            ).sort("action_date", -1).to_list(1000)
+            
+            for h in history_entries:
+                sid = h.get('student_id')
+                if sid not in action_info_map:
+                    action_info_map[sid] = {
+                        "action_label": action_type_map.get(h.get('action_type'), ''),
+                        "action_date": h.get('action_date', '')
+                    }
         
         # Busca frequência existente
         query = {"class_id": class_id, "date": date}
@@ -235,11 +277,11 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                     "full_name": s['full_name'],
                     "enrollment_number": enrollment_numbers.get(s['id']) or s.get('enrollment_number'),
                     "status": records_map.get(s['id'], None),
-                    # Inclui status do aluno e turma atual para verificação de bloqueio
                     "student_status": s.get('status', 'active'),
                     "current_class_id": s.get('class_id'),
-                    # Indica se o aluno foi remanejado/progredido para outra turma
-                    "is_transferred_from_class": s.get('class_id') and s.get('class_id') != class_id
+                    "is_transferred_from_class": s.get('class_id') and s.get('class_id') != class_id,
+                    "action_label": action_info_map.get(s['id'], {}).get('action_label', ''),
+                    "action_date": action_info_map.get(s['id'], {}).get('action_date', '')
                 }
                 for s in students
             ]

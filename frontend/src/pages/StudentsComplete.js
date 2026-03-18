@@ -713,6 +713,9 @@ export function StudentsComplete() {
       case 'cancelar':
         // Cancelar: só se ativo
         return status === 'active' || status === 'ativo';
+      case 'desistir':
+        // Desistir: só se ativo
+        return status === 'active' || status === 'ativo';
       default:
         return false;
     }
@@ -741,7 +744,8 @@ export function StudentsComplete() {
         'transferir': 'A ação "Transferir" só é permitida para alunos com status "Ativo".',
         'remanejar': 'A ação "Remanejar" só é permitida para alunos com status "Ativo".',
         'progredir': 'A ação "Progredir" só é permitida para alunos com status "Ativo".',
-        'cancelar': 'A ação "Cancelar" só é permitida para alunos com status "Ativo".'
+        'cancelar': 'A ação "Cancelar" só é permitida para alunos com status "Ativo".',
+        'desistir': 'A ação "Desistir" só é permitida para alunos com status "Ativo".'
       };
       
       showAlert('error', `${actionMessages[action]} Status atual: ${currentStatus}`);
@@ -916,6 +920,21 @@ export function StudentsComplete() {
             school_id: formData.school_id,
             class_id: formData.class_id,
             observations: actionData.reason || 'Matrícula cancelada'
+          };
+          break;
+          
+        case 'desistir':
+          updateData = {
+            status: 'dropout'
+          };
+          
+          historyEntry = {
+            ...historyEntry,
+            action_type: 'desistencia',
+            new_status: 'dropout',
+            school_id: formData.school_id,
+            class_id: formData.class_id,
+            observations: actionData.reason || 'Aluno desistente'
           };
           break;
           
@@ -2737,10 +2756,13 @@ export function StudentsComplete() {
                   <option value="cancelar" disabled={!canExecuteAction('cancelar', editingStudent?.status)}>
                     ❌ Cancelar {!canExecuteAction('cancelar', editingStudent?.status) ? '(indisponível)' : ''}
                   </option>
+                  <option value="desistir" disabled={!canExecuteAction('desistir', editingStudent?.status)}>
+                    🚫 Desistir {!canExecuteAction('desistir', editingStudent?.status) ? '(indisponível)' : ''}
+                  </option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
                   {formData.status === 'active' || formData.status === 'ativo' 
-                    ? 'Disponível: Transferir, Remanejar, Progredir, Cancelar'
+                    ? 'Disponível: Transferir, Remanejar, Progredir, Cancelar, Desistir'
                     : 'Disponível: Matricular'}
                 </p>
               </div>
@@ -3897,6 +3919,7 @@ export function StudentsComplete() {
             selectedAction === 'remanejar' ? '↔️ Remanejar Aluno' :
             selectedAction === 'progredir' ? '⬆️ Progredir Aluno' :
             selectedAction === 'cancelar' ? '❌ Cancelar Matrícula' :
+            selectedAction === 'desistir' ? '🚫 Registrar Desistência' :
             'Ação do Aluno'
           }
           size="md"
@@ -4204,6 +4227,7 @@ export function StudentsComplete() {
                  selectedAction === 'remanejar' ? 'Data do Remanejamento' :
                  selectedAction === 'progredir' ? 'Data da Progressão' :
                  selectedAction === 'cancelar' ? 'Data do Cancelamento' :
+                 selectedAction === 'desistir' ? 'Data da Desistência' :
                  'Data da Ação'} <span className="text-red-500">*</span>
               </label>
               <input
