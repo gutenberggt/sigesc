@@ -107,12 +107,28 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         for e in enrollments:
             student_id = e.get('student_id')
             enrollment_student_ids.add(student_id)
-            # Prioriza matrículas do ano letivo da turma, mas aceita qualquer matrícula ativa
             if student_id not in enrollment_map or e.get('academic_year') == academic_year:
                 enrollment_map[student_id] = {
                     'enrollment_number': e.get('enrollment_number'),
                     'student_series': e.get('student_series')
                 }
+
+        # Busca alunos inativos que JÁ ESTIVERAM nesta turma
+        inactive_enrollments = await db.enrollments.find(
+            {"class_id": class_id, "status": {"$in": ["transferred", "dropout", "cancelled", "relocated", "progressed"]}},
+            {"_id": 0, "student_id": 1, "enrollment_number": 1, "student_series": 1, "academic_year": 1}
+        ).to_list(1000)
+
+        inactive_student_ids = set()
+        for e in inactive_enrollments:
+            sid = e.get('student_id')
+            if sid not in enrollment_student_ids:
+                inactive_student_ids.add(sid)
+                if sid not in enrollment_map or e.get('academic_year') == academic_year:
+                    enrollment_map[sid] = {
+                        'enrollment_number': e.get('enrollment_number'),
+                        'student_series': e.get('student_series')
+                    }
 
         # Estratégia 2: Busca alunos diretamente com class_id (fallback para dados antigos/inconsistentes)
         direct_students = await db.students.find(
@@ -121,8 +137,35 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         ).to_list(1000)
         direct_student_ids = {s.get('id') for s in direct_students}
 
-        # Combina ambas as fontes (união de IDs)
-        all_student_ids = list(enrollment_student_ids.union(direct_student_ids))
+        # Combina todas as fontes (união de IDs)
+        all_student_ids = list(enrollment_student_ids.union(direct_student_ids).union(inactive_student_ids))
+
+        # Busca ação mais recente para alunos inativos
+        action_info_map = {}
+        if inactive_student_ids:
+            action_type_map = {
+                'transferencia_saida': 'Transferido',
+                'remanejamento': 'Remanejado',
+                'progressao': 'Progredido',
+                'desistencia': 'Desistente',
+                'cancelamento': 'Cancelado'
+            }
+            history_entries = await db.student_history.find(
+                {
+                    "student_id": {"$in": list(inactive_student_ids)},
+                    "class_id": class_id,
+                    "action_type": {"$in": list(action_type_map.keys())}
+                },
+                {"_id": 0, "student_id": 1, "action_type": 1, "action_date": 1}
+            ).sort("action_date", -1).to_list(1000)
+
+            for h in history_entries:
+                sid = h.get('student_id')
+                if sid not in action_info_map:
+                    action_info_map[sid] = {
+                        "action_label": action_type_map.get(h.get('action_type'), ''),
+                        "action_date": h.get('action_date', '')
+                    }
 
         students_list = []
         if all_student_ids:
@@ -147,7 +190,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     "student_series": enrollment_info.get('student_series') or class_doc.get('grade_level'),
                     "birth_date": student.get('birth_date'),
                     "guardian_name": guardian_name,
-                    "guardian_phone": guardian_phone
+                    "guardian_phone": guardian_phone,
+                    "action_label": action_info_map.get(student.get('id'), {}).get('action_label', ''),
+                    "action_date": action_info_map.get(student.get('id'), {}).get('action_date', '')
                 })
 
         # Calcula contagem por série para turmas multisseriadas

@@ -906,9 +906,16 @@ export const Classes = () => {
                       </thead>
                       <tbody>
                         {classDetails.students.map((student, idx) => (
-                          <tr key={student.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <tr key={student.id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${student.action_label ? 'bg-orange-50' : ''}`}>
                             <td className="px-3 py-2">{idx + 1}</td>
-                            <td className="px-3 py-2 font-medium">{student.full_name}</td>
+                            <td className="px-3 py-2 font-medium">
+                              {student.full_name}
+                              {student.action_label && (
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
+                                  ({student.action_label})
+                                </span>
+                              )}
+                            </td>
                             {classDetails.class?.is_multi_grade && (
                               <td className="px-3 py-2">
                                 {student.student_series ? (
