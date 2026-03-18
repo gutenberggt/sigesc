@@ -16,6 +16,7 @@ import {
   Clock
 } from 'lucide-react';
 import { professorAPI } from '../services/api';
+import { mantenedoraAPI } from '../services/api';
 
 export default function ProfessorDashboard() {
   const { user } = useAuth();
@@ -24,6 +25,8 @@ export default function ProfessorDashboard() {
   const [profile, setProfile] = useState(null);
   const [turmas, setTurmas] = useState([]);
   const [error, setError] = useState(null);
+  const [mensagemDestaque, setMensagemDestaque] = useState('');
+  const [mensagemDestaqueCor, setMensagemDestaqueCor] = useState('azul_marinho');
 
   useEffect(() => {
     loadData();
@@ -34,13 +37,20 @@ export default function ProfessorDashboard() {
       setLoading(true);
       setError(null);
       
-      // Carregar perfil do professor
-      const profileData = await professorAPI.getProfile();
-      setProfile(profileData);
+      // Carregar perfil do professor e mantenedora em paralelo
+      const [profileData, turmasData, mantenedoraData] = await Promise.all([
+        professorAPI.getProfile(),
+        professorAPI.getTurmas(),
+        mantenedoraAPI.get().catch(() => null)
+      ]);
       
-      // Carregar turmas do professor
-      const turmasData = await professorAPI.getTurmas();
+      setProfile(profileData);
       setTurmas(turmasData);
+      
+      if (mantenedoraData?.mensagem_destaque) {
+        setMensagemDestaque(mantenedoraData.mensagem_destaque);
+        setMensagemDestaqueCor(mantenedoraData.mensagem_destaque_cor || 'azul_marinho');
+      }
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
       setError(err.response?.data?.detail || 'Erro ao carregar dados');
@@ -94,6 +104,20 @@ export default function ProfessorDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Mensagem de Destaque */}
+        {mensagemDestaque && (
+          <div
+            data-testid="mensagem-destaque-professor-dashboard"
+            className="p-4 bg-gray-50 border-l-4 rounded-lg font-semibold text-base"
+            style={{ 
+              color: { azul_marinho: '#001f5b', verde: '#16a34a', amarelo: '#ca8a04', vermelho: '#dc2626' }[mensagemDestaqueCor] || '#001f5b',
+              borderColor: { azul_marinho: '#001f5b', verde: '#16a34a', amarelo: '#ca8a04', vermelho: '#dc2626' }[mensagemDestaqueCor] || '#001f5b'
+            }}
+          >
+            {mensagemDestaque}
+          </div>
+        )}
 
         {/* Cards de estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
