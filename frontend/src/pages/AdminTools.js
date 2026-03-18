@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Wrench, Type, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Home, Wrench, Type, CheckCircle2, AlertCircle, Loader2, Calendar } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -24,6 +24,9 @@ const AdminTools = () => {
       switch (type) {
         case 'uppercase':
           endpoint = '/api/admin/migrate-uppercase';
+          break;
+        case 'history-dates':
+          endpoint = '/api/admin/migrate-history-dates';
           break;
         default:
           throw new Error('Tipo de migração inválido');
@@ -138,6 +141,43 @@ const AdminTools = () => {
                 ) : (
                   <>
                     <Type size={18} />
+                    Executar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Migração de Datas do Histórico */}
+          <div className="border rounded-lg p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Calendar className="text-blue-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Migrar Datas do Histórico</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Define datas retroativas nos registros de histórico de alunos que não possuem data personalizada.
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Matrículas: 15/jan | Transferências: 10/mar | Cancelamentos: 18/jan
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => runMigration('history-dates')}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    Executando...
+                  </>
+                ) : (
+                  <>
+                    <Calendar size={18} />
                     Executar
                   </>
                 )}
