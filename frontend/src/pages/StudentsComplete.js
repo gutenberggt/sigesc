@@ -4199,7 +4199,12 @@ export function StudentsComplete() {
             {/* Data da Ação (comum a todas as ações) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Data da Ação <span className="text-red-500">*</span>
+                {selectedAction === 'matricular' ? 'Data da Matrícula' :
+                 selectedAction === 'transferir' ? 'Data da Transferência' :
+                 selectedAction === 'remanejar' ? 'Data do Remanejamento' :
+                 selectedAction === 'progredir' ? 'Data da Progressão' :
+                 selectedAction === 'cancelar' ? 'Data do Cancelamento' :
+                 'Data da Ação'} <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
