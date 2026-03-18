@@ -756,7 +756,8 @@ export function StudentsComplete() {
       reason: '',
       notes: '',
       emitirHistorico: false,
-      studentSeries: '' // Limpa série ao abrir modal
+      studentSeries: '',
+      actionDate: new Date().toISOString().split('T')[0]
     });
     setShowActionModal(true);
   };
@@ -924,6 +925,11 @@ export function StudentsComplete() {
           return;
       }
       
+      // Inclui a data da ação no updateData para registro no histórico
+      if (actionData.actionDate) {
+        updateData.action_date = actionData.actionDate;
+      }
+
       // Executa a atualização
       await studentsAPI.update(editingStudent.id, updateData);
       
@@ -4189,6 +4195,20 @@ export function StudentsComplete() {
                 )}
               </div>
             )}
+
+            {/* Data da Ação (comum a todas as ações) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Data da Ação <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                data-testid="action-date-input"
+                value={actionData.actionDate || ''}
+                onChange={(e) => setActionData(prev => ({ ...prev, actionDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
             {/* Observações (comum a todas as ações) */}
             <div>

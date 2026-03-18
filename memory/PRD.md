@@ -37,6 +37,7 @@
 - [x] **Bug fix**: Corrigido bug no box informativo de frequência que não mostrava dados em produção (coleção `school_calendar` → `calendario_letivo`, adicionado cálculo de dias letivos a partir dos períodos bimestrais)
 - [x] **Alertas professor**: Filtro no endpoint `/api/attendance/alerts` para limitar professor às turmas vinculadas via `teacher_assignments`
 - [x] **Bug fix**: Corrigido botão "Gerar PDF" em Detalhes da Turma (import faltante de `generate_class_details_pdf` e `logger`)
+- [x] **Data da Ação**: Campo de data adicionado aos modais de Matricular, Transferir, Remanejar, Progredir e Cancelar. Migração executada para registros antigos (matrículas: 15/jan, transferências: 10/mar, cancelamentos: 18/jan)
 
 ## Backlog Pendente
 ### P0

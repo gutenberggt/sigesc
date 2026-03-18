@@ -424,8 +424,9 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                     new_class = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
                     history_obs = f"Matriculado na turma {new_class.get('name') if new_class else new_class_id} - Ano letivo {academic_year} - Matrícula: {new_enrollment_number}"
         
-        # Remove academic_year do update_data pois não é um campo do aluno
+        # Remove academic_year e action_date do update_data pois não são campos do aluno
         update_data.pop('academic_year', None)
+        custom_action_date = update_data.pop('action_date', None)
         
         # Atualiza o aluno
         await current_db.students.update_one(
@@ -444,6 +445,12 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         school = await current_db.schools.find_one({"id": new_school_id or old_school_id}, {"_id": 0, "name": 1})
         class_info = await current_db.classes.find_one({"id": new_class_id or old_class_id}, {"_id": 0, "name": 1})
         
+        # Define a data da ação: usa a data informada pelo usuário ou a data atual
+        if custom_action_date:
+            history_action_date = f"{custom_action_date}T12:00:00+00:00"
+        else:
+            history_action_date = datetime.now(timezone.utc).isoformat()
+        
         # Registra no histórico
         history_entry = {
             "id": str(uuid.uuid4()),
@@ -458,7 +465,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "observations": history_obs,
             "user_id": current_user.get('id'),
             "user_name": current_user.get('full_name') or current_user.get('email'),
-            "action_date": datetime.now(timezone.utc).isoformat()
+            "action_date": history_action_date
         }
         
         await current_db.student_history.insert_one(history_entry)

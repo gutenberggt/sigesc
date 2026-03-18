@@ -1063,6 +1063,9 @@ class StudentUpdate(BaseModel):
     # Observações
     observations: Optional[str] = None
     status: Optional[Literal['active', 'inactive', 'dropout', 'transferred', 'deceased', 'cancelled']] = None
+    
+    # Data da ação (para registro no histórico)
+    action_date: Optional[str] = None
 
 class Student(StudentBase):
     model_config = ConfigDict(extra="ignore")
