@@ -61,7 +61,7 @@ function PageLoader() {
 // Roles SEMED (todos os níveis)
 const SEMED_ROLES = ['semed', 'semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3'];
 // Roles que podem ver o dashboard de diários
-const DIARY_DASHBOARD_ROLES = ['admin', 'admin_teste', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'secretario', 'semed_nivel_2', 'semed_nivel_3'];
+const DIARY_DASHBOARD_ROLES = ['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed3'];
 
 function App() {
   return (
@@ -110,7 +110,7 @@ function App() {
           <Route
             path="/admin/diary-dashboard"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'secretario', 'semed3', 'semed_nivel_2', 'semed_nivel_3']}>
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed3']}>
                 <DiaryDashboard />
               </ProtectedRoute>
             }

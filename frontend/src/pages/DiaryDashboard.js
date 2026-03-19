@@ -56,7 +56,7 @@ export const DiaryDashboard = () => {
   const [contentStats, setContentStats] = useState(null);
 
   // Verificar permissão de acesso
-  const allowedRoles = ['admin', 'admin_teste', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'secretario', 'semed_nivel_2', 'semed_nivel_3'];
+  const allowedRoles = ['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed3'];
   const hasAccess = allowedRoles.includes(user?.role);
 
   // Carregar escolas

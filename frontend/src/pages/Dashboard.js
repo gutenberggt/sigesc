@@ -446,8 +446,8 @@ export const Dashboard = () => {
                 <span className="font-medium text-gray-900">Dashboard Analítico</span>
               </button>
               
-              {/* Dashboard de Acompanhamento de Diários - visível para admin, diretor, coordenador, secretário, auxiliar_secretaria, semed3, semed_nivel_2, semed_nivel_3 */}
-              {(['admin', 'admin_teste', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'secretario', 'semed3', 'semed_nivel_2', 'semed_nivel_3'].includes(user?.role)) && (
+              {/* Dashboard de Acompanhamento de Diários */}
+              {(['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed3'].includes(user?.role)) && (
                 <button
                   onClick={() => navigate('/admin/diary-dashboard')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-300 transition-all"
