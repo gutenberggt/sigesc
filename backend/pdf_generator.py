@@ -3675,6 +3675,12 @@ def generate_learning_objects_pdf(
     elements = []
     mantenedora = mantenedora or {}
     
+    # Função auxiliar para sanitizar texto (evitar None em Paragraph)
+    def safe(val, default=''):
+        if val is None:
+            return default
+        return str(val)
+    
     page_width = A4[0] - 3*cm  # largura útil
     
     # Estilos
@@ -3755,15 +3761,15 @@ def generate_learning_objects_pdf(
     col_w = page_width / 4
     info_data = [
         [
-            Paragraph(f"<b>Turma:</b> {class_info.get('name', '')}", info_style),
-            Paragraph(f"<b>Série/Ano:</b> {serie}", info_style),
-            Paragraph(f"<b>Turno:</b> {turno}", info_style),
-            Paragraph(f"<b>Nível:</b> {nivel}", info_style),
+            Paragraph(f"<b>Turma:</b> {safe(class_info.get('name'))}", info_style),
+            Paragraph(f"<b>Série/Ano:</b> {safe(serie)}", info_style),
+            Paragraph(f"<b>Turno:</b> {safe(turno)}", info_style),
+            Paragraph(f"<b>Nível:</b> {safe(nivel)}", info_style),
         ],
         [
-            Paragraph(f"<b>Professor(a):</b> {teacher_name}", info_style),
+            Paragraph(f"<b>Professor(a):</b> {safe(teacher_name)}", info_style),
             Paragraph(f"<b>Total de Registros:</b> {len(records)}", info_style),
-            Paragraph(f"<b>Total de Aulas:</b> {sum(r.get('number_of_classes', 1) for r in records)}", info_style),
+            Paragraph(f"<b>Total de Aulas:</b> {sum(r.get('number_of_classes', 1) or 1 for r in records)}", info_style),
             '',
         ]
     ]
@@ -3783,7 +3789,7 @@ def generate_learning_objects_pdf(
     # Agrupar registros por componente curricular
     by_course = {}
     for r in records:
-        cname = r.get('course_name', 'Sem componente')
+        cname = safe(r.get('course_name'), 'Sem componente') or 'Sem componente'
         if cname not in by_course:
             by_course[cname] = []
         by_course[cname].append(r)
@@ -3801,14 +3807,14 @@ def generate_learning_objects_pdf(
     
     # Ordenar por componente e data
     for course_name in sorted(by_course.keys()):
-        course_records = sorted(by_course[course_name], key=lambda x: x.get('date', ''))
+        course_records = sorted(by_course[course_name], key=lambda x: safe(x.get('date')))
         for r in course_records:
             row = [
-                Paragraph(fmt_date_short(r.get('date', '')), small_center),
-                Paragraph(course_name, content_style),
-                Paragraph(r.get('content', ''), content_style),
-                Paragraph(r.get('methodology', '') or '-', content_style),
-                Paragraph(str(r.get('number_of_classes', 1)), small_center),
+                Paragraph(fmt_date_short(safe(r.get('date'))), small_center),
+                Paragraph(safe(course_name), content_style),
+                Paragraph(safe(r.get('content')), content_style),
+                Paragraph(safe(r.get('methodology'), '-'), content_style),
+                Paragraph(safe(r.get('number_of_classes', 1)), small_center),
             ]
             table_data.append(row)
     
@@ -3852,7 +3858,7 @@ def generate_learning_objects_pdf(
         elements.append(Spacer(1, 4))
         for r in obs_records:
             elements.append(Paragraph(
-                f"<b>{fmt_date_short(r.get('date', ''))} - {r.get('course_name', '')}:</b> {r.get('observations', '')}",
+                f"<b>{fmt_date_short(safe(r.get('date')))} - {safe(r.get('course_name'))}:</b> {safe(r.get('observations'))}",
                 content_style
             ))
             elements.append(Spacer(1, 2))

@@ -566,7 +566,10 @@ export const LearningObjects = () => {
         `${API}/api/learning-objects/pdf/bimestre/${selectedClass}?${params}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (!response.ok) throw new Error('Erro ao gerar PDF');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Erro ao gerar PDF');
+      }
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');

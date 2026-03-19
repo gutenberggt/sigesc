@@ -323,7 +323,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 headers={"Content-Disposition": f"inline; filename={filename}"}
             )
         except Exception as e:
-            logger.error(f"Erro ao gerar PDF de objetos de conhecimento: {e}")
+            import traceback
+            logger.error(f"Erro ao gerar PDF de objetos de conhecimento: {e}\n{traceback.format_exc()}")
             raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
 
