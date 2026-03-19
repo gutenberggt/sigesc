@@ -391,7 +391,7 @@ export function AnalyticsDashboard() {
   const isAdmin = ['admin', 'admin_teste'].includes(userRole);
   const isSemed = userRole === 'semed' || userRole === 'semed3';
   const isGlobal = isAdmin || isSemed;
-  const isSchoolStaff = ['diretor', 'coordenador', 'auxiliar_secretaria', 'secretario', 'secretário'].includes(userRole);
+  const isSchoolStaff = ['diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'secretario', 'secretário'].includes(userRole);
   const isProfessor = userRole === 'professor';
   
   // Determina se pode ver ranking (apenas admin/semed)

@@ -221,10 +221,10 @@ const Announcements = () => {
   const availableRoles = () => {
     // Admin, SEMED e SEMED3 podem enviar para todos
     if (user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'semed' || user?.role === 'semed3') {
-      return ['secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel'];
+      return ['secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel'];
     }
     // Secretário, Diretor, Coordenador podem enviar para professores e alunos
-    if (['secretario', 'diretor', 'coordenador', 'auxiliar_secretaria'].includes(user?.role)) {
+    if (['secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria'].includes(user?.role)) {
       return ['professor', 'aluno', 'responsavel'];
     }
     // Professor pode enviar para alunos e responsáveis
@@ -268,7 +268,7 @@ const Announcements = () => {
   };
 
   // Verificar se pode criar avisos
-  const canCreate = ['admin', 'semed', 'semed3', 'secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor'].includes(user?.role);
+  const canCreate = ['admin', 'semed', 'semed3', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor'].includes(user?.role);
 
   return (
     <Layout>

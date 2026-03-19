@@ -335,7 +335,7 @@ export function StudentsComplete() {
   const isAdmin = user?.role === 'admin' || user?.role === 'admin_teste';
   const isSecretario = user?.role === 'secretario';
   const isSemed = user?.role === 'semed' || user?.role === 'semed3';
-  const isCoordenador = user?.role === 'coordenador' || user?.role === 'auxiliar_secretaria';
+  const isCoordenador = user?.role === 'coordenador' || user?.role === 'apoio_pedagogico' || user?.role === 'auxiliar_secretaria';
   
   // IDs das escolas que o usuário (secretário) tem vínculo
   const userSchoolIdsJson = JSON.stringify(user?.school_ids || user?.school_links?.map(link => link.school_id) || []);

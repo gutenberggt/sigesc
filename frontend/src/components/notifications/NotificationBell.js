@@ -130,6 +130,7 @@ export const NotificationBell = () => {
     secretario: 'Secretário(a)',
     diretor: 'Diretor(a)',
     coordenador: 'Coordenador(a)',
+    apoio_pedagogico: 'Apoio Pedagógico',
     auxiliar_secretaria: 'Auxiliar de Secretaria',
     professor: 'Professor(a)'
   };

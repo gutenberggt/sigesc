@@ -1,6 +1,7 @@
 // Constantes para o módulo de Gestão de Servidores(as)
 
 export const CARGOS = {
+  apoio_pedagogico: 'Apoio Pedagógico',
   auxiliar: 'Auxiliar Administrativo(a)',
   auxiliar_secretaria: 'Auxiliar de Secretaria',
   auxiliar_servicos_gerais: 'Auxiliar de Serviços Gerais',
