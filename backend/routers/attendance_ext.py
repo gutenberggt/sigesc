@@ -7,9 +7,13 @@ from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from typing import Optional
 from datetime import datetime, timedelta
+import logging
 
 from models import *
 from auth_middleware import AuthMiddleware
+from pdf_generator import generate_relatorio_frequencia_bimestre_pdf
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(tags=["Frequência Estendida"])
