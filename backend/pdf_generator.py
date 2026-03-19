@@ -3397,13 +3397,15 @@ def generate_relatorio_frequencia_bimestre_pdf(
         alignment=0  # LEFT
     )
     
-    # Brasão da mantenedora
+    # Brasão da mantenedora (70% da largura anterior: 1.5cm * 0.7 = 1.05cm)
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    logo = get_logo_image(width=1.5*cm, height=1*cm, logo_url=logo_url)
+    logo = get_logo_image(width=1.05*cm, height=0.7*cm, logo_url=logo_url)
     
-    # Meses em português
+    # Meses abreviados em português
     meses_pt = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
                 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+    meses_abrev = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN',
+                   'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
     
     # Formatação de datas
     def format_date_short(date_str):
@@ -3415,12 +3417,13 @@ def generate_relatorio_frequencia_bimestre_pdf(
         except:
             return date_str
     
-    def format_day_only(date_str):
+    def format_day_month(date_str):
+        """Retorna dia na primeira linha e mês abreviado na segunda"""
         if not date_str:
             return ""
         try:
             d = datetime.strptime(date_str, '%Y-%m-%d')
-            return d.strftime('%d')
+            return f"{d.day:02d}\n{meses_abrev[d.month - 1]}"
         except:
             return date_str
     
@@ -3521,10 +3524,24 @@ def generate_relatorio_frequencia_bimestre_pdf(
     elements.append(Spacer(1, 5))
     
     # === TABELA DE FREQUÊNCIA ===
+    # Estilo para cabeçalho de data (dia + mês em duas linhas)
+    header_date_style = ParagraphStyle(
+        'HeaderDate',
+        parent=styles['CenterText'],
+        fontSize=5,
+        leading=6,
+        alignment=1  # CENTER
+    )
+    
     header_row = ['Nº', 'NOME']
     
     for day_str in attendance_days:
-        header_row.append(Paragraph(format_day_only(day_str), tiny_text))
+        try:
+            d = datetime.strptime(day_str, '%Y-%m-%d')
+            day_text = f"{d.day:02d}<br/>{meses_abrev[d.month - 1]}"
+        except:
+            day_text = day_str
+        header_row.append(Paragraph(day_text, header_date_style))
     
     header_row.extend(['FALTAS', 'PRESEN.'])
     
@@ -3557,15 +3574,19 @@ def generate_relatorio_frequencia_bimestre_pdf(
         row.extend([str(faltas), str(presencas)])
         table_data.append(row)
     
-    # Larguras das colunas
+    # Larguras das colunas — colunas de data ajustadas para 2 caracteres
     num_days = len(attendance_days)
-    nome_width = 5*cm
     num_width = 0.6*cm
+    nome_width = 5*cm
+    day_width = 0.45*cm  # Largura para 2 caracteres
     falta_width = 0.9*cm
     presen_width = 0.9*cm
     
-    available_width = page_width - 2*cm - nome_width - num_width - falta_width - presen_width
-    day_width = min(available_width / max(num_days, 1), 0.6*cm)
+    # Verificar se cabe na página, senão reduzir proporcionalmente
+    total_days_width = day_width * num_days
+    available_width = page_width - 2*cm - num_width - nome_width - falta_width - presen_width
+    if total_days_width > available_width:
+        day_width = available_width / max(num_days, 1)
     
     col_widths = [num_width, nome_width] + [day_width] * num_days + [falta_width, presen_width]
     
@@ -3576,7 +3597,7 @@ def generate_relatorio_frequencia_bimestre_pdf(
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 6),
+        ('FONTSIZE', (0, 0), (-1, 0), 5),
         
         # Corpo
         ('FONTSIZE', (0, 1), (-1, -1), 6),
@@ -3588,7 +3609,7 @@ def generate_relatorio_frequencia_bimestre_pdf(
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         
-        # Espaçamento simples (padding mínimo)
+        # Espaçamento simples
         ('TOPPADDING', (0, 0), (-1, -1), 1),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
         ('LEFTPADDING', (0, 0), (-1, -1), 1),
