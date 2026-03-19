@@ -3660,6 +3660,8 @@ def generate_learning_objects_pdf(
     mantenedora: Dict[str, Any] = None
 ) -> BytesIO:
     """Gera PDF do relatório de Objetos de Conhecimento por bimestre"""
+    from reportlab.pdfgen import canvas as canvas_module
+
     buffer = BytesIO()
     
     doc = SimpleDocTemplate(
@@ -3668,14 +3670,13 @@ def generate_learning_objects_pdf(
         rightMargin=1.5*cm,
         leftMargin=1.5*cm,
         topMargin=1.5*cm,
-        bottomMargin=1.5*cm
+        bottomMargin=2*cm
     )
     
     styles = get_styles()
     elements = []
     mantenedora = mantenedora or {}
     
-    # Função auxiliar para sanitizar texto (evitar None em Paragraph)
     def safe(val, default=''):
         if val is None:
             return default
@@ -3684,8 +3685,6 @@ def generate_learning_objects_pdf(
     page_width = A4[0] - 3*cm  # largura útil
     
     # Estilos
-    title_style = ParagraphStyle('LOTitle', parent=styles['CenterText'], fontSize=12, leading=14, spaceAfter=2)
-    subtitle_style = ParagraphStyle('LOSubtitle', parent=styles['CenterText'], fontSize=9, leading=11, spaceAfter=2)
     info_style = ParagraphStyle('LOInfo', fontSize=8, leading=10, alignment=0)
     content_style = ParagraphStyle('LOContent', fontSize=8, leading=10, alignment=0)
     content_bold = ParagraphStyle('LOContentBold', fontSize=8, leading=10, alignment=0, fontName='Helvetica-Bold')
@@ -3703,12 +3702,13 @@ def generate_learning_objects_pdf(
         except:
             return date_str
     
+    # Ajuste #6: Formato de data DD/MM (sem ano)
     def fmt_date_short(date_str):
         if not date_str:
             return ""
         try:
             d = datetime.strptime(date_str, '%Y-%m-%d')
-            return f"{d.day:02d}/{d.month:02d}/{d.year}"
+            return f"{d.day:02d}/{d.month:02d}"
         except:
             return date_str
     
@@ -3730,34 +3730,48 @@ def generate_learning_objects_pdf(
     is_infantil = education_level == 'educacao_infantil'
     label_componente = 'Campo de Experiência' if is_infantil else 'Componente Curricular'
     
-    # === CABEÇALHO INSTITUCIONAL ===
+    # Totais para o cabeçalho
+    total_registros = len(records)
+    total_aulas = sum(r.get('number_of_classes', 1) or 1 for r in records)
+    
+    # === CABEÇALHO INSTITUCIONAL (Ajuste #1: Brasão maior, posicionado à esquerda) ===
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    logo = get_logo_image(width=1.05*cm, height=0.7*cm, logo_url=logo_url)
+    logo = get_logo_image(width=2.5*cm, height=2.8*cm, logo_url=logo_url)
     
     mant_nome = mantenedora.get('nome', '')
     mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
     mant_estado = mantenedora.get('estado', 'PA')
     
-    header_data = [[
-        logo if logo else '',
-        Paragraph(f"<b>{mant_nome}</b><br/>{school.get('name', '').upper()}", subtitle_style),
-    ]]
-    header_table = Table(header_data, colWidths=[2*cm, page_width - 2*cm])
-    header_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    ]))
-    elements.append(header_table)
-    elements.append(Spacer(1, 8))
+    header_right_html = (
+        f"<b>{safe(mant_nome)}</b><br/>"
+        f"{school.get('name', '').upper()}<br/><br/>"
+        f"<b><font size=\"12\">REGISTRO DE OBJETOS DE CONHECIMENTO</font></b><br/>"
+        f"{bimestre}º Bimestre - Ano Letivo {academic_year}<br/>"
+        f"Período: {fmt_date(period_start)} a {fmt_date(period_end)}"
+    )
+    header_text_style = ParagraphStyle('LOHeaderRight', fontSize=9, leading=12, alignment=TA_CENTER)
     
-    # Título
-    elements.append(Paragraph(f"<b>REGISTRO DE OBJETOS DE CONHECIMENTO</b>", title_style))
-    elements.append(Paragraph(f"{bimestre}º Bimestre - Ano Letivo {academic_year}", subtitle_style))
-    elements.append(Paragraph(f"Período: {fmt_date(period_start)} a {fmt_date(period_end)}", subtitle_style))
+    if logo:
+        header_data = [[logo, Paragraph(header_right_html, header_text_style)]]
+        header_table = Table(header_data, colWidths=[3.5*cm, page_width - 3.5*cm])
+        header_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+            ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+    else:
+        header_data = [[Paragraph(header_right_html, header_text_style)]]
+        header_table = Table(header_data, colWidths=[page_width])
+        header_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+    elements.append(header_table)
     elements.append(Spacer(1, 10))
     
-    # === INFORMAÇÕES DA TURMA (4 colunas x 2 linhas) ===
+    # === INFORMAÇÕES DA TURMA (Ajustes #2-5) ===
+    # Linha 1: Turma | Série/Ano | Turno | Nível
+    # Linha 2: Professor(a) [mesclado cols 0-1] | Total de Registros [abaixo Turno] | Total de Aulas [abaixo Nível]
     col_w = page_width / 4
     info_data = [
         [
@@ -3768,9 +3782,9 @@ def generate_learning_objects_pdf(
         ],
         [
             Paragraph(f"<b>Professor(a):</b> {safe(teacher_name)}", info_style),
-            Paragraph(f"<b>Total de Registros:</b> {len(records)}", info_style),
-            Paragraph(f"<b>Total de Aulas:</b> {sum(r.get('number_of_classes', 1) or 1 for r in records)}", info_style),
             '',
+            Paragraph(f"<b>Total de Registros:</b> {total_registros}", info_style),
+            Paragraph(f"<b>Total de Aulas:</b> {total_aulas}", info_style),
         ]
     ]
     info_table = Table(info_data, colWidths=[col_w]*4)
@@ -3781,20 +3795,13 @@ def generate_learning_objects_pdf(
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
         ('LEFTPADDING', (0, 0), (-1, -1), 4),
         ('BACKGROUND', (0, 0), (-1, -1), colors.Color(0.96, 0.96, 0.96)),
+        # Ajuste #4 e #5: Mesclar células abaixo de Turma e Série/Ano para Professor(a)
+        ('SPAN', (0, 1), (1, 1)),
     ]))
     elements.append(info_table)
     elements.append(Spacer(1, 12))
     
     # === TABELA DE CONTEÚDOS ===
-    # Agrupar registros por componente curricular
-    by_course = {}
-    for r in records:
-        cname = safe(r.get('course_name'), 'Sem componente') or 'Sem componente'
-        if cname not in by_course:
-            by_course[cname] = []
-        by_course[cname].append(r)
-    
-    # Cabeçalho da tabela
     table_header = [
         Paragraph('<b>DATA</b>', small_center),
         Paragraph(f'<b>{label_componente.upper()}</b>', content_bold),
@@ -3805,45 +3812,43 @@ def generate_learning_objects_pdf(
     
     table_data = [table_header]
     
-    # Ordenar por componente e data
-    for course_name in sorted(by_course.keys()):
-        course_records = sorted(by_course[course_name], key=lambda x: safe(x.get('date')))
-        for r in course_records:
-            row = [
-                Paragraph(fmt_date_short(safe(r.get('date'))), small_center),
-                Paragraph(safe(course_name), content_style),
-                Paragraph(safe(r.get('content')), content_style),
-                Paragraph(safe(r.get('methodology'), '-'), content_style),
-                Paragraph(safe(r.get('number_of_classes', 1)), small_center),
-            ]
-            table_data.append(row)
+    # Ajuste #9: Ordenar TODOS os registros em ordem cronológica
+    all_records_sorted = sorted(records, key=lambda x: safe(x.get('date')))
     
-    # Se não tem registros
+    for r in all_records_sorted:
+        row = [
+            Paragraph(fmt_date_short(safe(r.get('date'))), small_center),
+            Paragraph(safe(r.get('course_name', '')), content_style),
+            Paragraph(safe(r.get('content')), content_style),
+            Paragraph(safe(r.get('methodology'), '-'), content_style),
+            Paragraph(safe(r.get('number_of_classes', 1)), small_center),
+        ]
+        table_data.append(row)
+    
     if len(table_data) == 1:
         table_data.append([
             '', '', Paragraph('Nenhum registro encontrado para este bimestre.', content_style), '', ''
         ])
     
-    col_widths = [1.5*cm, 3.5*cm, page_width - 9.5*cm, 3*cm, 1.5*cm]
+    # Ajustes #7 e #8: Estreitar CONTEÚDO para 3/4 e ampliar METODOLOGIA
+    conteudo_original = page_width - 9.5*cm
+    conteudo_w = conteudo_original * 0.75
+    metodologia_w = 3*cm + conteudo_original * 0.25
+    col_widths = [1.5*cm, 3.5*cm, conteudo_w, metodologia_w, 1.5*cm]
     
     content_table = Table(table_data, colWidths=col_widths, repeatRows=1)
     content_table.setStyle(TableStyle([
-        # Cabeçalho
         ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.2, 0.3, 0.5)),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('FONTSIZE', (0, 0), (-1, 0), 7),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        
-        # Corpo
         ('FONTSIZE', (0, 1), (-1, -1), 7),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.Color(0.7, 0.7, 0.7)),
         ('TOPPADDING', (0, 0), (-1, -1), 3),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
         ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-        
-        # Cores alternadas
         *[('BACKGROUND', (0, i), (-1, i), colors.Color(0.97, 0.97, 0.97))
           for i in range(2, len(table_data), 2)],
     ]))
@@ -3887,6 +3892,29 @@ def generate_learning_objects_pdf(
     ]))
     elements.append(sig_table)
     
-    doc.build(elements)
+    # Ajuste #10: Numeração de página "Página X de Y"
+    class NumberedCanvas(canvas_module.Canvas):
+        def __init__(self, *args, **kwargs):
+            canvas_module.Canvas.__init__(self, *args, **kwargs)
+            self._saved_page_states = []
+
+        def showPage(self):
+            self._saved_page_states.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            num_pages = len(self._saved_page_states)
+            for i, state in enumerate(self._saved_page_states):
+                self.__dict__.update(state)
+                self.setFont("Helvetica", 8)
+                self.drawCentredString(
+                    A4[0] / 2,
+                    1 * cm,
+                    f"Página {i + 1} de {num_pages}"
+                )
+                canvas_module.Canvas.showPage(self)
+            canvas_module.Canvas.save(self)
+    
+    doc.build(elements, canvasmaker=NumberedCanvas)
     buffer.seek(0)
     return buffer
