@@ -133,7 +133,8 @@ const initialFormData = {
   
   // Observações
   observations: '',
-  status: 'active'
+  status: 'active',
+  enrollment_date: ''
 };
 
 // Função para calcular a idade a partir da data de nascimento
@@ -2886,6 +2887,17 @@ export function StudentsComplete() {
               <option value="deceased">Falecido</option>
             </select>
           </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data da Matrícula</label>
+              <input
+                type="date"
+                value={formData.enrollment_date || ''}
+                onChange={(e) => updateFormData('enrollment_date', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                data-testid="new-student-enrollment-date"
+              />
+            </div>
         </div>
         </div>
       )}

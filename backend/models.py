@@ -963,6 +963,9 @@ class StudentBase(BaseModel):
     
     # Status
     status: Literal['active', 'inactive', 'dropout', 'transferred', 'deceased', 'cancelled'] = 'active'
+    
+    # Data da matrícula (informada pelo usuário no cadastro)
+    enrollment_date: Optional[str] = None
 
 class StudentCreate(StudentBase):
     pass

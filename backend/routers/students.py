@@ -87,7 +87,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 "status": "active",
                 "student_series": student_data.student_series or (class_info.get('grade_level') if class_info else None),
                 "enrollment_number": new_enrollment_number,
-                "enrollment_date": datetime.now().isoformat(),
+                "enrollment_date": student_data.enrollment_date or datetime.now().isoformat(),
                 "created_at": datetime.now().isoformat()
             }
             await current_db.enrollments.insert_one(enrollment_doc)
