@@ -3538,7 +3538,7 @@ def generate_relatorio_frequencia_bimestre_pdf(
     for day_str in attendance_days:
         try:
             d = datetime.strptime(day_str, '%Y-%m-%d')
-            day_text = f"{d.day:02d}<br/>{meses_abrev[d.month - 1]}"
+            day_text = f"{d.day:02d}<br/>{d.month:02d}"
         except:
             day_text = day_str
         header_row.append(Paragraph(day_text, header_date_style))
