@@ -3347,28 +3347,9 @@ def generate_relatorio_frequencia_bimestre_pdf(
 ) -> BytesIO:
     """
     Gera o PDF do Relatório de Frequência por Bimestre
-    
-    Args:
-        school: Dados da escola
-        class_info: Dados da turma
-        course_info: Dados do componente curricular (pode ser None para frequência diária)
-        students_attendance: Lista de alunos com dados de frequência por dia
-        bimestre: Número do bimestre (1, 2, 3 ou 4)
-        academic_year: Ano letivo
-        period_start: Data início do período (YYYY-MM-DD)
-        period_end: Data fim do período (YYYY-MM-DD)
-        attendance_days: Lista de datas com aula no período
-        aulas_previstas: Número de aulas previstas
-        aulas_ministradas: Número de aulas ministradas
-        teacher_name: Nome do(a) professor(a)
-        mantenedora: Dados da mantenedora
-    
-    Returns:
-        BytesIO com o PDF gerado
     """
     buffer = BytesIO()
     
-    # Usar orientação paisagem (Landscape) para caber mais dias
     from reportlab.lib.pagesizes import landscape
     page_width, page_height = landscape(A4)
     
@@ -3385,12 +3366,20 @@ def generate_relatorio_frequencia_bimestre_pdf(
     elements = []
     mantenedora = mantenedora or {}
     
-    # Estilos personalizados
+    # Estilos com espaçamento simples
     small_text = ParagraphStyle(
         'SmallText',
         parent=styles['CenterText'],
         fontSize=8,
-        leading=10
+        leading=9
+    )
+    
+    small_text_left = ParagraphStyle(
+        'SmallTextLeft',
+        parent=styles['CenterText'],
+        fontSize=8,
+        leading=9,
+        alignment=0  # LEFT
     )
     
     tiny_text = ParagraphStyle(
@@ -3400,17 +3389,29 @@ def generate_relatorio_frequencia_bimestre_pdf(
         leading=7
     )
     
-    # Brasão/Logo
+    tiny_text_left = ParagraphStyle(
+        'TinyTextLeft',
+        parent=styles['CenterText'],
+        fontSize=6,
+        leading=7,
+        alignment=0  # LEFT
+    )
+    
+    # Brasão da mantenedora
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
     logo = get_logo_image(width=1.5*cm, height=1*cm, logo_url=logo_url)
     
-    # Formatar datas do período
+    # Meses em português
+    meses_pt = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+                'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+    
+    # Formatação de datas
     def format_date_short(date_str):
         if not date_str:
             return ""
         try:
             d = datetime.strptime(date_str, '%Y-%m-%d')
-            return d.strftime('%d de %B').lower()
+            return f"{d.day} de {meses_pt[d.month - 1]}"
         except:
             return date_str
     
@@ -3423,47 +3424,45 @@ def generate_relatorio_frequencia_bimestre_pdf(
         except:
             return date_str
     
-    # Cabeçalho
+    # Dados da turma
     mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
     periodo_texto = f"De {format_date_short(period_start)} a {format_date_short(period_end)}"
     
-    # Turno traduzido
     turnos = {'morning': 'MATUTINO', 'afternoon': 'VESPERTINO', 'night': 'NOTURNO', 'full_time': 'INTEGRAL'}
     turno = turnos.get(class_info.get('shift', ''), class_info.get('shift', '').upper())
     
-    # Nível de ensino traduzido
     niveis = {
-        'fundamental_anos_iniciais': 'ENSINO FUNDAMENTAL - ANOS INICIAIS',
-        'fundamental_anos_finais': 'ENSINO FUNDAMENTAL - ANOS FINAIS',
+        'fundamental_anos_iniciais': 'ANOS INICIAIS',
+        'fundamental_anos_finais': 'ANOS FINAIS',
         'eja': 'EJA - ANOS INICIAIS',
         'eja_final': 'EJA - ANOS FINAIS',
-        'educacao_infantil': 'EDUCAÇÃO INFANTIL',
+        'educacao_infantil': 'ED. INFANTIL',
         'ensino_medio': 'ENSINO MÉDIO'
     }
-    nivel = niveis.get(class_info.get('education_level', ''), class_info.get('education_level', '').upper())
+    education_level = class_info.get('education_level', '')
+    nivel = niveis.get(education_level, education_level.upper())
     
-    # Série/Ano da turma
-    serie = class_info.get('grade', class_info.get('name', ''))
+    is_anos_finais = education_level in ('fundamental_anos_finais', 'eja_final')
     
-    # Header com logo e informações
+    serie = class_info.get('grade', class_info.get('grade_level', class_info.get('name', '')))
+    
+    # Título: se Anos Finais e tem componente, usa nome do componente
+    componente_nome = ''
+    titulo_frequencia = f"FREQUÊNCIA - {bimestre}º BIMESTRE DE {academic_year}"
+    if is_anos_finais and course_info:
+        componente_nome = course_info.get('name', '')
+        titulo_frequencia = f"{componente_nome.upper()} - {bimestre}º BIMESTRE DE {academic_year}"
+    
+    # === CABEÇALHO ===
     header_data = []
-    
-    # Linha 1: Logo + Nome da Escola + Título
-    if logo:
-        header_row1 = [
-            logo,
-            Paragraph(f"<b>{school.get('name', 'ESCOLA').upper()}</b>", styles['CenterText']),
-            Paragraph(f"<b>FREQUÊNCIA - {bimestre}º BIMESTRE DE {academic_year}</b>", styles['CenterText'])
-        ]
-    else:
-        header_row1 = [
-            Paragraph(mant_municipio.upper(), small_text),
-            Paragraph(f"<b>{school.get('name', 'ESCOLA').upper()}</b>", styles['CenterText']),
-            Paragraph(f"<b>FREQUÊNCIA - {bimestre}º BIMESTRE DE {academic_year}</b>", styles['CenterText'])
-        ]
+    col1 = logo if logo else Paragraph(mant_municipio.upper(), small_text)
+    header_row1 = [
+        col1,
+        Paragraph(f"<b>{school.get('name', 'ESCOLA').upper()}</b>", styles['CenterText']),
+        Paragraph(f"<b>{titulo_frequencia}</b>", styles['CenterText'])
+    ]
     header_data.append(header_row1)
     
-    # Linha 2: Período
     header_row2 = ['', Paragraph(periodo_texto, small_text), '']
     header_data.append(header_row2)
     
@@ -3471,74 +3470,72 @@ def generate_relatorio_frequencia_bimestre_pdf(
     header_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('SPAN', (0, 0), (0, 1)),  # Logo ocupa 2 linhas
+        ('SPAN', (0, 0), (0, 1)),
     ]))
     elements.append(header_table)
     elements.append(Spacer(1, 5))
     
-    # Informações da turma
-    componente_nome = course_info.get('name', 'FREQUÊNCIA DIÁRIA') if course_info else 'FREQUÊNCIA DIÁRIA'
+    # === INFORMAÇÕES DA TURMA (4 colunas x 2 linhas) ===
+    col_w = (page_width - 2*cm) / 4
     
-    info_data = [
-        [
-            Paragraph(f"<b>DISCIPLINA:</b> {componente_nome}", small_text),
-            Paragraph(f"<b>SÉRIE/ANO:</b> {serie}", small_text),
-            Paragraph(f"<b>TURMA:</b> {class_info.get('name', '')}", small_text),
-        ],
-        [
-            Paragraph(f"<b>TURNO:</b> {turno}", small_text),
-            Paragraph(f"<b>NÍVEL:</b> {nivel}", small_text),
-            Paragraph(f"<b>AULAS PREVISTAS:</b> {aulas_previstas}", small_text),
-        ],
-        [
-            Paragraph(f"<b>PROFESSOR(A):</b> {teacher_name}", small_text),
-            '',
-            Paragraph(f"<b>AULAS MINISTRADAS:</b> {aulas_ministradas}", small_text),
+    if is_anos_finais:
+        info_data = [
+            [
+                Paragraph(f"<b>COMPONENTE:</b> {componente_nome}", small_text_left),
+                Paragraph(f"<b>SÉRIE/ANO:</b> {serie}", small_text_left),
+                Paragraph(f"<b>TURMA:</b> {class_info.get('name', '')}", small_text_left),
+                Paragraph(f"<b>TURNO:</b> {turno}", small_text_left),
+            ],
+            [
+                Paragraph(f"<b>NÍVEL:</b> {nivel}", small_text_left),
+                Paragraph(f"<b>AULAS PREVISTAS:</b> {aulas_previstas}", small_text_left),
+                Paragraph(f"<b>PROFESSOR(A):</b> {teacher_name}", small_text_left),
+                Paragraph(f"<b>AULAS MINISTRADAS:</b> {aulas_ministradas}", small_text_left),
+            ]
         ]
-    ]
+    else:
+        info_data = [
+            [
+                Paragraph(f"<b>SÉRIE/ANO:</b> {serie}", small_text_left),
+                Paragraph(f"<b>TURMA:</b> {class_info.get('name', '')}", small_text_left),
+                Paragraph(f"<b>TURNO:</b> {turno}", small_text_left),
+                Paragraph(f"<b>NÍVEL:</b> {nivel}", small_text_left),
+            ],
+            [
+                Paragraph(f"<b>AULAS PREVISTAS:</b> {aulas_previstas}", small_text_left),
+                Paragraph(f"<b>PROFESSOR(A):</b> {teacher_name}", small_text_left),
+                Paragraph(f"<b>AULAS MINISTRADAS:</b> {aulas_ministradas}", small_text_left),
+                '',
+            ]
+        ]
     
-    info_table = Table(info_data, colWidths=[10*cm, 9*cm, 8*cm])
+    info_table = Table(info_data, colWidths=[col_w] * 4)
     info_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('GRID', (0, 0), (-1, -1), 0.3, colors.Color(0.8, 0.8, 0.8)),
     ]))
     elements.append(info_table)
     elements.append(Spacer(1, 5))
     
-    # Tabela de frequência
-    # Preparar cabeçalho com dias do mês
+    # === TABELA DE FREQUÊNCIA ===
     header_row = ['Nº', 'NOME']
     
-    # Agrupar dias por mês para melhor visualização
-    days_by_month = {}
-    for day_str in attendance_days:
-        try:
-            d = datetime.strptime(day_str, '%Y-%m-%d')
-            month_key = d.strftime('%m/%Y')
-            if month_key not in days_by_month:
-                days_by_month[month_key] = []
-            days_by_month[month_key].append(day_str)
-        except:
-            pass
-    
-    # Adicionar dias ao cabeçalho (mostrar apenas o dia)
     for day_str in attendance_days:
         header_row.append(Paragraph(format_day_only(day_str), tiny_text))
     
     header_row.extend(['FALTAS', 'PRESEN.'])
     
-    # Linhas dos alunos
     table_data = [header_row]
     
     for idx, student in enumerate(students_attendance, 1):
         row = [
             str(idx),
-            Paragraph(student.get('name', '')[:35], tiny_text)  # Limitar nome
+            Paragraph(student.get('name', '')[:40], tiny_text_left)
         ]
         
-        # Adicionar status de cada dia
         attendance_by_date = student.get('attendance_by_date', {})
         faltas = 0
         presencas = 0
@@ -3553,21 +3550,20 @@ def generate_relatorio_frequencia_bimestre_pdf(
                 faltas += 1
             elif status == 'justified':
                 row.append('J')
-                presencas += 1  # Justificada conta como presença
+                presencas += 1
             else:
-                row.append('')  # Sem registro
+                row.append('')
         
         row.extend([str(faltas), str(presencas)])
         table_data.append(row)
     
-    # Calcular larguras das colunas
+    # Larguras das colunas
     num_days = len(attendance_days)
     nome_width = 5*cm
     num_width = 0.6*cm
     falta_width = 0.9*cm
     presen_width = 0.9*cm
     
-    # Largura disponível para os dias
     available_width = page_width - 2*cm - nome_width - num_width - falta_width - presen_width
     day_width = min(available_width / max(num_days, 1), 0.6*cm)
     
@@ -3585,20 +3581,21 @@ def generate_relatorio_frequencia_bimestre_pdf(
         # Corpo
         ('FONTSIZE', (0, 1), (-1, -1), 6),
         ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # Nº
-        ('ALIGN', (1, 1), (1, -1), 'LEFT'),    # Nome
-        ('ALIGN', (2, 1), (-1, -1), 'CENTER'), # Dias e totais
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),    # Nome à esquerda
+        ('ALIGN', (2, 1), (-1, -1), 'CENTER'),  # Dias e totais
         
         # Bordas
         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         
-        # Padding
+        # Espaçamento simples (padding mínimo)
         ('TOPPADDING', (0, 0), (-1, -1), 1),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
         ('LEFTPADDING', (0, 0), (-1, -1), 1),
         ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+        ('LEFTPADDING', (1, 1), (1, -1), 3),  # Nomes com padding extra à esquerda
         
-        # Cores alternadas nas linhas
+        # Cores alternadas
         *[('BACKGROUND', (0, i), (-1, i), colors.Color(0.97, 0.97, 0.97)) 
           for i in range(2, len(table_data), 2)],
     ]))
@@ -3606,7 +3603,7 @@ def generate_relatorio_frequencia_bimestre_pdf(
     elements.append(freq_table)
     elements.append(Spacer(1, 15))
     
-    # Rodapé com local, data e assinaturas
+    # Rodapé
     today = datetime.now()
     local_data = f"{mant_municipio} - {mantenedora.get('estado', 'PA')}, {format_date_pt(today.date())}"
     elements.append(Paragraph(local_data, small_text))
@@ -3625,7 +3622,6 @@ def generate_relatorio_frequencia_bimestre_pdf(
     ]))
     elements.append(assinatura_table)
     
-    # Gerar PDF
     doc.build(elements)
     buffer.seek(0)
     return buffer

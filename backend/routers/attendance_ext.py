@@ -201,18 +201,76 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if not school:
             raise HTTPException(status_code=404, detail="Escola não encontrada")
 
-        # Buscar mantenedora
-        mantenedora = await db.config.find_one({"tipo": "mantenedora"}, {"_id": 0})
+        # Buscar mantenedora (coleção correta)
+        mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
 
-        # Definir período do bimestre
-        bimestre_periodos = {
-            1: (f"{academic_year}-02-01", f"{academic_year}-04-30"),
-            2: (f"{academic_year}-05-01", f"{academic_year}-07-15"),
-            3: (f"{academic_year}-07-16", f"{academic_year}-09-30"),
-            4: (f"{academic_year}-10-01", f"{academic_year}-12-20"),
-        }
+        # Buscar calendário letivo para datas reais dos bimestres e cálculo de dias previstos
+        calendario = await db.calendario_letivo.find_one(
+            {"ano_letivo": academic_year, "school_id": None}, {"_id": 0}
+        )
+        if not calendario:
+            calendario = await db.calendario_letivo.find_one(
+                {"ano_letivo": academic_year}, {"_id": 0}
+            )
 
-        period_start, period_end = bimestre_periodos.get(bimestre, (None, None))
+        # Definir período do bimestre a partir do calendário ou fallback
+        bimestre_key_inicio = f"bimestre_{bimestre}_inicio"
+        bimestre_key_fim = f"bimestre_{bimestre}_fim"
+
+        if calendario and calendario.get(bimestre_key_inicio) and calendario.get(bimestre_key_fim):
+            period_start = str(calendario[bimestre_key_inicio])[:10]
+            period_end = str(calendario[bimestre_key_fim])[:10]
+        else:
+            bimestre_periodos = {
+                1: (f"{academic_year}-02-01", f"{academic_year}-04-30"),
+                2: (f"{academic_year}-05-01", f"{academic_year}-07-15"),
+                3: (f"{academic_year}-07-16", f"{academic_year}-09-30"),
+                4: (f"{academic_year}-10-01", f"{academic_year}-12-20"),
+            }
+            period_start, period_end = bimestre_periodos.get(bimestre, (None, None))
+
+        # Calcular aulas previstas para o bimestre (dias letivos no período)
+        aulas_previstas_bimestre = 0
+        if calendario:
+            eventos_nao_letivos = ['feriado_nacional', 'feriado_estadual', 'feriado_municipal', 'recesso_escolar']
+            events = await db.calendar_events.find(
+                {"academic_year": academic_year}, {"_id": 0}
+            ).to_list(1000)
+
+            datas_nao_letivas = set()
+            datas_sabados_letivos = set()
+            for event in events:
+                event_type = event.get('event_type', '')
+                start_date_str = event.get('start_date')
+                end_date_str = event.get('end_date') or start_date_str
+                if not start_date_str:
+                    continue
+                try:
+                    from datetime import date as date_type
+                    start_date = datetime.strptime(start_date_str[:10], '%Y-%m-%d').date()
+                    end_date = datetime.strptime(end_date_str[:10], '%Y-%m-%d').date()
+                    current = start_date
+                    while current <= end_date:
+                        if event_type in eventos_nao_letivos:
+                            datas_nao_letivas.add(current)
+                        elif event_type == 'sabado_letivo' or (event.get('is_school_day') and current.weekday() == 5):
+                            datas_sabados_letivos.add(current)
+                        current += timedelta(days=1)
+                except (ValueError, TypeError):
+                    continue
+
+            try:
+                inicio = datetime.strptime(period_start, '%Y-%m-%d').date()
+                fim = datetime.strptime(period_end, '%Y-%m-%d').date()
+                current = inicio
+                while current <= fim:
+                    if current in datas_sabados_letivos:
+                        aulas_previstas_bimestre += 1
+                    elif current.weekday() < 5 and current not in datas_nao_letivas:
+                        aulas_previstas_bimestre += 1
+                    current += timedelta(days=1)
+            except (ValueError, TypeError):
+                pass
 
         # Busca alunos matriculados na turma
         enrollments = await db.enrollments.find(
@@ -280,14 +338,14 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             pdf_buffer = generate_relatorio_frequencia_bimestre_pdf(
                 school=school,
                 class_info=turma,
-                course_info=None,  # Frequência diária
+                course_info=None,
                 students_attendance=students_attendance,
                 bimestre=bimestre,
                 academic_year=academic_year,
                 period_start=period_start,
                 period_end=period_end,
                 attendance_days=attendance_days,
-                aulas_previstas=len(attendance_days),
+                aulas_previstas=aulas_previstas_bimestre,
                 aulas_ministradas=len(attendance_days),
                 teacher_name=teacher_name,
                 mantenedora=mantenedora
