@@ -272,11 +272,19 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             except (ValueError, TypeError):
                 pass
 
-        # Busca alunos matriculados na turma
+        # Busca TODOS os alunos matriculados na turma (ativos e inativos)
         enrollments = await db.enrollments.find(
-            {"class_id": class_id, "status": "active", "academic_year": academic_year},
-            {"_id": 0, "student_id": 1, "enrollment_number": 1}
+            {"class_id": class_id, "academic_year": academic_year},
+            {"_id": 0, "student_id": 1, "enrollment_number": 1, "status": 1}
         ).to_list(1000)
+
+        # Deduplica por student_id (manter a primeira ocorrência, preferindo active)
+        seen = {}
+        for e in enrollments:
+            sid = e['student_id']
+            if sid not in seen or e.get('status') == 'active':
+                seen[sid] = e
+        enrollments = list(seen.values())
 
         student_ids = [e['student_id'] for e in enrollments]
         enrollment_numbers = {e['student_id']: e.get('enrollment_number') for e in enrollments}
