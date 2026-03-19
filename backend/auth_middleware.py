@@ -67,7 +67,12 @@ class AuthMiddleware:
             user = await AuthMiddleware.get_current_user(request)
             
             # admin_teste tem as mesmas permissões que admin
-            effective_role = 'admin' if user['role'] == 'admin_teste' else user['role']
+            # apoio_pedagogico tem as mesmas permissões que coordenador
+            effective_role = user['role']
+            if effective_role == 'admin_teste':
+                effective_role = 'admin'
+            elif effective_role == 'apoio_pedagogico':
+                effective_role = 'coordenador'
             
             if effective_role not in allowed_roles:
                 raise HTTPException(
@@ -89,8 +94,8 @@ class AuthMiddleware:
         async def role_checker(request: Request):
             user = await AuthMiddleware.get_current_user(request)
             
-            # Se não for coordenador, verifica normalmente
-            if user['role'] != 'coordenador':
+            # Se não for coordenador/apoio_pedagogico, verifica normalmente
+            if user['role'] not in ('coordenador', 'apoio_pedagogico'):
                 if user['role'] not in allowed_roles:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,

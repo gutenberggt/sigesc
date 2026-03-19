@@ -1,0 +1,171 @@
+<analysis>**original_problem_statement:**
+O usuário solicitou uma série de novas funcionalidades, correções de bugs e melhorias para a aplicação SIGESC. As solicitações abordadas nesta sessão foram:
+
+1.  **Correção de Bug (P0):** O box informativo de frequência mostrava uma contagem de dias previstos diferente da página de calendário.
+2.  **Nova Funcionalidade (P0):** Limitar o acesso do professor na aba Alertas (Controle de Frequência) apenas aos alunos de suas turmas.
+3.  **Correção de Bug (P0):** O botão para gerar PDF em Detalhes da Turma não funcionava (retornava erro 500).
+4.  **Nova Funcionalidade (P0):** Adicionar um campo Data da Ação nos modais de Matricular, Transferir, Remanejar, Progredir e Cancelar.
+5.  **Melhoria (P0):** Criar um mecanismo (botão na UI) para um administrador executar uma migração de dados em produção para popular as datas de ações antigas no histórico do aluno.
+6.  **Melhoria de UI (P1):** Tornar o label do campo Data da Ação dinâmico (ex: Data da Matrícula, Data da Transferência).
+7.  **Nova Funcionalidade (P0):** Alunos transferidos, remanejados, progredidos ou desistentes devem permanecer no diário da turma de origem com um label indicando a ação, e as edições de frequência/notas devem ser bloqueadas a partir da data da ação. Isso incluiu a criação da ação Desistir.
+8.  **Melhoria de UI (P1):** A Mensagem de Destaque no Dashboard deve ser visível para todos os perfis de usuário, não apenas para o administrador.
+9.  **Correção de Bug (P0):** Corrigir a lógica de remanejamento/progressão para que o aluno de fato permaneça na lista da turma de origem.
+10. **Nova Funcionalidade (P1):** Criar o cargo Apoio Pedagógico e um papel de usuário correspondente com os mesmos acessos do Coordenador.
+
+**User's preferred language**: Portuguese (Português)
+
+**what currently exists?**
+A aplicação está funcional. Nesta sessão, o agente implementou um grande número de funcionalidades e correções, com foco em consistência de dados e controle de acesso. As principais realizações incluem:
+-   Correção da divergência na contagem de dias letivos entre o Calendário e o Controle de Frequência.
+-   Implementação de um filtro de acesso para professores na aba de Alertas.
+-   Correção de múltiplos bugs críticos, incluindo a geração de PDF e erros 500.
+-   Adição de um campo Data da Ação para todas as operações de vínculo do aluno, com um endpoint de migração para dados legados acionado por um botão na UI de administração.
+-   Implementação da complexa lógica para manter alunos transferidos/remanejados/etc. nos diários da turma de origem, com bloqueio de edição baseado na data da ação.
+-   Criação de um novo cargo e papel de usuário (Apoio Pedagógico) com permissões espelhadas nas do Coordenador.
+
+**Last working item**:
+-   **Last item agent was working:** Criação do cargo Apoio Pedagógico e do papel de usuário correspondente, com os mesmos acessos do Coordenador. O agente modificou os modelos de dados do backend, o middleware de autenticação e as listas de papéis no frontend.
+-   **Status:** USER VERIFICATION PENDING
+-   **Agent Testing Done:** N
+-   **Which testing method agent to use?** Manual testing. O próximo agente ou o usuário deve criar/modificar um usuário com o novo papel apoio_pedagogico, fazer login e verificar se as seções e permissões acessíveis são idênticas às de um usuário coordenador.
+-   **User Testing Done:** N
+
+**All Pending/In progress Issue list**:
+-   **Issue 1: (P0)** A ação de excluir frequência não está funcionando.
+-   **Issue 2: (P1)** Alterar carga horária de componentes curriculares.
+
+**Issues Detail:**
+-   **Issue 1: A ação de excluir frequência não está funcionando.**
+    -   **Attempted fixes:** Nenhuma nesta sessão. É um bug herdado de sessões anteriores.
+    -   **Next debug checklist:**
+        1.  Reproduzir o erro no frontend.
+        2.  Verificar o console do navegador e a aba de rede para identificar a chamada de API e a resposta.
+        3.  Investigar o handler do frontend em  (provavelmente uma função ).
+        4.  Investigar o endpoint do backend em  (rota ).
+    -   **Why fix this issue and what will be achieved with the fix?** Para restaurar uma funcionalidade básica de gerenciamento de dados que está quebrada.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** both
+    -   **Blocked on other issue:** Não.
+
+-   **Issue 2: Alterar carga horária de componentes curriculares.**
+    -   **Attempted fixes:** Nenhuma. A tarefa continua bloqueada, aguardando um plano de execução.
+    -   **Next debug checklist:**
+        1.  Analisar a estrutura dos dados de componentes curriculares.
+        2.  Preparar um script de migração de dados (similar ao ) ou uma série de comandos  para serem executados pelo usuário em seu ambiente de produção.
+        3.  Considerar criar uma UI administrativa para essa alteração.
+    -   **Why fix this issue and what will be achieved with the fix?** Atender a uma solicitação de correção de dados mestres da aplicação.
+    -   **Status:** BLOCKED
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** backend (validar o script).
+    -   **Blocked on other issue:** Não.
+
+**In progress Task List**:
+Nenhum.
+
+**Upcoming and Future Tasks**
+-   **Upcoming Tasks:**
+    -   (P0) Corrigir bug da exclusão de frequência.
+    -   (P1) Fornecer script/ferramenta para o usuário alterar a carga horária.
+-   **Future Tasks:**
+    -   (P2) Implementar envio de e-mail de confirmação na pré-matrícula.
+
+**Completed work in this session**
+-   **Correção do Resumo de Frequência:** Alinhada a lógica de cálculo de dias letivos entre  e  para resolver divergências.
+-   **Filtro de Alertas para Professor:** Implementado filtro no endpoint  para que professores vejam apenas alertas de suas turmas.
+-   **Correção do PDF de Detalhes da Turma:** Corrigido erro 500 no endpoint  adicionando os imports ausentes (, ) em .
+-   **Implementação da Data da Ação:** Adicionado campo de data nos modais de ações do aluno, com backend e migração de dados correspondentes.
+-   **Botão de Migração na UI:** Criado botão em  () que chama o endpoint  para facilitar a execução da migração em produção.
+-   **Manutenção de Alunos Inativos no Diário:** Implementada lógica complexa para manter alunos , ,  e  nos diários (, , ) com um label e bloqueio de edição após a data da ação.
+-   **Mensagem de Destaque para Todos:** A mensagem do dashboard foi adicionada ao , tornando-a visível para todos os perfis.
+-   **Criação do Papel Apoio Pedagógico:** Adicionado novo cargo e papel de usuário com as mesmas permissões do Coordenador no backend e frontend.
+
+**Earlier issues found/mentioned but not fixed**
+-   **Issue 1: A ação de excluir frequência não está funcionando.** Este é um bug de alta prioridade relatado em sessões anteriores que foi postergado novamente.
+
+**Known issue recurrence from previous fork**
+-   **Issue recurrence in previous fork:** A ação de excluir frequência não está funcionando.
+-   **Recurrence count:** 2+
+-   **Status:** NOT STARTED
+
+**Code Architecture**
+
+
+**Key Technical Concepts**
+-   **Data Consistency:** Unificação da lógica de cálculo de dias letivos em múltiplos endpoints para garantir consistência.
+-   **RBAC (Role-Based Access Control):** Extensão do sistema de papéis para incluir Apoio Pedagógico e espelhar suas permissões com as de Coordenador no middleware.
+-   **Data Migration via API:** Criação de um endpoint administrativo () e um botão na UI para executar migrações de dados em produção de forma segura e controlada.
+-   **Complex State Logic:** Implementação de uma lógica de soft delete para matrículas, onde alunos transferidos/remanejados permanecem visíveis na turma de origem com um status inativo (, ), alterando fundamentalmente como os diários são construídos.
+-   **Conditional UI Rendering:** Bloqueio de campos de input (frequência, notas) no frontend baseado em múltiplas condições, incluindo a data da ação de um aluno em relação à data do diário.
+
+**key DB schema**
+-   **enrollments:** Utiliza novos status como  e  para manter o histórico do aluno na turma de origem.
+-   **student_history:** O campo Thu Mar 19 12:06:29 UTC 2026 agora é populado com a  fornecida pelo usuário, permitindo datas retroativas.
+-   **models.py (Pydantic):**
+    -    agora aceita  e .
+    -   , , : O  de  foi estendido para incluir .
+    -   , , : O  de  foi estendido para incluir .
+
+**changes in tech stack**
+-   Nenhuma.
+
+**All files of reference**
+-   : Contém a lógica central para o status do aluno e o histórico.
+-   , , : Foram atualizados para consultar matrículas inativas.
+-   : Contém a UI para acionar as ações do aluno.
+-   , : Contêm a UI que exibe os alunos inativos e bloqueia a edição.
+-    e : Implementação da ferramenta de migração.
+-    e : Definição do novo cargo/papel .
+
+**Areas that need refactoring**:
+-   A função  continua duplicada em  e . Deve ser movida para um arquivo de utilitários.
+-   Os arquivos  e  se tornaram extremamente grandes e complexos, sendo fortes candidatos à refatoração em componentes menores.
+
+**key api endpoints**
+-   : Modificado extensivamente para aceitar  e , e para gerenciar os status de matrícula (, , ).
+-   , , : Modificados para incluir alunos com matrículas inativas nos resultados.
+-   : Modificado para filtrar por professor.
+-   : (NOVO) Endpoint administrativo para executar a migração de datas do histórico.
+
+**Critical Info for New Agent**
+-   **Prioridade Máxima (P0):** A tarefa mais importante é investigar e corrigir o bug da exclusão de frequência, que é recorrente e impacta uma funcionalidade básica.
+-   **Validação de Papel:** É necessário validar se o novo papel Apoio Pedagógico funciona conforme o esperado, tendo os mesmos acessos do Coordenador.
+-   **Lógica de Status do Aluno:** A lógica para manter alunos na turma de origem após remanejamento/progressão é nova e complexa. Envolve a criação de uma matrícula inativa (/). Qualquer bug relacionado à listagem de alunos deve considerar essa nova lógica.
+
+**documents and test reports created in this job**
+-   : Script Python contendo a lógica de migração, que foi movida para um endpoint de API.
+
+**Last 10 User Messages and any pending HUMAN messages**
+1.  **Usuário:** Solicitou a criação do cargo e papel Apoio Pedagógico. (Status: **RESOLVED**)
+2.  **Usuário:** Solicitou que os alunos remanejados/progredidos permaneçam no diário da turma de origem. (Status: **RESOLVED**)
+3.  **Usuário:** Pediu para a Mensagem de Destaque ser visível para todos os usuários. (Status: **RESOLVED**)
+4.  **Usuário:** Pediu para a implementação de bloqueio de edição para alunos inativos e a criação da ação Desistir. (Status: **RESOLVED**)
+5.  **Usuário:** Solicitou que o label do campo Data da Ação seja dinâmico. (Status: **RESOLVED**)
+6.  **Usuário:** Pediu um botão na UI para executar a migração de dados. (Status: **RESOLVED**)
+7.  **Usuário:** Perguntou como a migração de datas seria executada em produção. (Status: **RESOLVED**)
+8.  **Usuário:** Pediu para adicionar o campo Data da Ação nas ações de Matricular, Transferir, etc. (Status: **RESOLVED**)
+9.  **Usuário:** Reportou que o botão de gerar PDF em Detalhes da Turma não funcionava. (Status: **RESOLVED**)
+10. **Usuário:** Reportou que o professor deveria ter acesso limitado na aba Alertas. (Status: **RESOLVED**)
+
+**Project Health Check:**
+-   **Broken:** Não. A aplicação está funcional, mas possui um bug de alta prioridade conhecido (excluir frequência).
+
+**3rd Party Integrations**
+-   : Usado para cache no backend.
+
+**Testing status**
+-   **Testing agent used after significant changes:** NO
+-   **Troubleshoot agent used after agent stuck in loop:** NO
+-   **Test files created:** []
+-   **Known regressions:** Nenhuma conhecida.
+
+**Credentials to test flow:**
+-   **Administrador:**  / 
+-   **Coordenador:**  / 
+-   **Secretário:**  / 
+-   **Professor:**  /  (senha presumida, verificar no banco se necessário)
+
+**What agent forgot to execute**
+-   O agente não abordou o bug pendente de alta prioridade: A ação de excluir frequência não está funcionando.
+-   O agente não abordou a tarefa pendente: Alterar carga horária de componentes curriculares.
+-   A refatoração da função duplicada  ainda está pendente.</analysis>

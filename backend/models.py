@@ -17,7 +17,7 @@ class SchoolLink(BaseModel):
 class UserBase(BaseModel):
     full_name: str
     email: EmailStr
-    role: Literal['admin', 'admin_teste', 'ass_social', 'secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel', 'semed', 'semed3']
+    role: Literal['admin', 'admin_teste', 'ass_social', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel', 'semed', 'semed3']
     roles: List[str] = []  # Lista de papéis do usuário (até 3)
     status: Literal['active', 'inactive'] = 'active'
     avatar_url: Optional[str] = None
@@ -27,7 +27,7 @@ class UserCreate(BaseModel):
     full_name: str
     email: EmailStr
     password: str
-    role: Literal['admin', 'admin_teste', 'ass_social', 'secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel', 'semed', 'semed3']
+    role: Literal['admin', 'admin_teste', 'ass_social', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel', 'semed', 'semed3']
     roles: List[str] = []  # Lista de papéis (até 3)
     school_links: List[SchoolLink] = []
 
@@ -35,7 +35,7 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = None  # Nova senha (será hasheada antes de salvar)
-    role: Optional[Literal['admin', 'admin_teste', 'ass_social', 'secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel', 'semed', 'semed3']] = None
+    role: Optional[Literal['admin', 'admin_teste', 'ass_social', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel', 'semed', 'semed3']] = None
     roles: Optional[List[str]] = None  # Lista de papéis (até 3)
     status: Optional[Literal['active', 'inactive']] = None
     avatar_url: Optional[str] = None
@@ -1744,7 +1744,7 @@ class StaffBase(BaseModel):
     email: Optional[str] = None
     
     # Dados Funcionais (matrícula será gerada automaticamente)
-    cargo: Literal['auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
+    cargo: Literal['apoio_pedagogico', 'auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
     cargo_especifico: Optional[str] = None  # Descrição específica do cargo
     
     # Vínculo Empregatício
@@ -1778,7 +1778,7 @@ class StaffCreate(BaseModel):
     cor_raca: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarado']] = None
     celular: Optional[str] = None
     email: Optional[str] = None
-    cargo: Literal['auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
+    cargo: Literal['apoio_pedagogico', 'auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
     cargo_especifico: Optional[str] = None
     tipo_vinculo: Literal['efetivo', 'contratado', 'temporario', 'comissionado'] = 'efetivo'
     data_admissao: Optional[str] = None
@@ -1800,7 +1800,7 @@ class StaffUpdate(BaseModel):
     cor_raca: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarado']] = None
     celular: Optional[str] = None
     email: Optional[str] = None
-    cargo: Optional[Literal['auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']] = None
+    cargo: Optional[Literal['apoio_pedagogico', 'auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']] = None
     cargo_especifico: Optional[str] = None
     tipo_vinculo: Optional[Literal['efetivo', 'contratado', 'temporario', 'comissionado']] = None
     data_admissao: Optional[str] = None
@@ -1827,7 +1827,7 @@ class Staff(BaseModel):
     cor_raca: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarado']] = None
     celular: Optional[str] = None
     email: Optional[str] = None
-    cargo: Literal['auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
+    cargo: Literal['apoio_pedagogico', 'auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
     cargo_especifico: Optional[str] = None
     tipo_vinculo: Literal['efetivo', 'contratado', 'temporario', 'comissionado'] = 'efetivo'
     data_admissao: Optional[str] = None
