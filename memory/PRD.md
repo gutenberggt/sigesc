@@ -42,9 +42,19 @@
 - [x] **Remanejamento preserva origem**: Ao remanejar/progredir, matrícula na turma de origem é mantida com status `relocated`/`progressed`, nova matrícula criada na turma destino. Histórico grava `class_id` da turma de ORIGEM
 - [x] **Ação "Desistir"**: Nova ação no dropdown com status `dropout`, enrollment atualizado, histórico registrado
 
+### Sessão 2026-03-19
+- [x] **10 ajustes no PDF de Objetos de Conhecimento**:
+  - Brasão maior (2.5x2.8cm) posicionado à esquerda com texto institucional ao lado
+  - Tabela info reestruturada: Professor(a) em células mescladas (Turma+Série/Ano)
+  - Total de Registros abaixo de Turno, Total de Aulas abaixo de Nível
+  - Data no formato DD/MM (sem ano) na tabela de conteúdos
+  - Coluna CONTEÚDO reduzida a 3/4, METODOLOGIA ampliada
+  - Registros em ordem cronológica (não mais por componente)
+  - Numeração de página "Página X de Y" usando NumberedCanvas
+
 ## Backlog Pendente
 ### P0
-- [ ] Bug de exclusão de frequência
+- [x] ~~Bug de exclusão de frequência~~ (RESOLVIDO)
 
 ### P1
 - [ ] Alterar carga horária de componentes curriculares (script para produção)
@@ -55,3 +65,4 @@
 ### Refatoração
 - [ ] Centralizar permissões em hook usePermissions
 - [ ] Extrair multi-select para componente reutilizável
+- [ ] Modularizar pdf_generator.py (dividir por tipo de relatório)
