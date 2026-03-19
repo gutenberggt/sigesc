@@ -272,22 +272,47 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             except (ValueError, TypeError):
                 pass
 
-        # Busca TODOS os alunos matriculados na turma (ativos e inativos)
-        enrollments = await db.enrollments.find(
-            {"class_id": class_id, "academic_year": academic_year},
-            {"_id": 0, "student_id": 1, "enrollment_number": 1, "status": 1}
+        # Busca alunos matriculados - mesma lógica robusta do endpoint de frequência
+        # Fonte 1: Matrículas ativas
+        enrollments_active = await db.enrollments.find(
+            {"class_id": class_id, "status": "active"},
+            {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1}
         ).to_list(1000)
 
-        # Deduplica por student_id (manter a primeira ocorrência, preferindo active)
-        seen = {}
-        for e in enrollments:
-            sid = e['student_id']
-            if sid not in seen or e.get('status') == 'active':
-                seen[sid] = e
-        enrollments = list(seen.values())
+        enrollment_student_ids = set()
+        enrollment_numbers = {}
+        for e in enrollments_active:
+            sid = e.get('student_id')
+            enrollment_student_ids.add(sid)
+            enrollment_numbers[sid] = e.get('enrollment_number')
 
-        student_ids = [e['student_id'] for e in enrollments]
-        enrollment_numbers = {e['student_id']: e.get('enrollment_number') for e in enrollments}
+        # Fonte 2: Matrículas inativas (transferidos, desistentes, etc.)
+        inactive_enrollments = await db.enrollments.find(
+            {"class_id": class_id, "status": {"$in": ["transferred", "dropout", "cancelled", "relocated", "progressed"]}},
+            {"_id": 0, "student_id": 1, "enrollment_number": 1}
+        ).to_list(1000)
+
+        for e in inactive_enrollments:
+            sid = e.get('student_id')
+            if sid not in enrollment_student_ids:
+                enrollment_student_ids.add(sid)
+            if sid not in enrollment_numbers:
+                enrollment_numbers[sid] = e.get('enrollment_number')
+
+        # Fonte 3: Alunos com class_id direto (fallback)
+        direct_students = await db.students.find(
+            {"class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
+            {"_id": 0, "id": 1, "enrollment_number": 1}
+        ).to_list(1000)
+
+        for s in direct_students:
+            sid = s.get('id')
+            if sid not in enrollment_student_ids:
+                enrollment_student_ids.add(sid)
+            if sid not in enrollment_numbers:
+                enrollment_numbers[sid] = s.get('enrollment_number')
+
+        student_ids = list(enrollment_student_ids)
 
         # Busca dados dos alunos
         students = []
