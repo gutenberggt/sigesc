@@ -557,7 +557,7 @@ export const LearningObjects = () => {
     setGeneratingPdf(true);
     try {
       const API = process.env.REACT_APP_BACKEND_URL;
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       const params = new URLSearchParams({
         bimestre: pdfBimestre,
         academic_year: academicYear
