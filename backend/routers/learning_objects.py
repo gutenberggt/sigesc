@@ -3,12 +3,17 @@ Router para Objetos de Aprendizagem.
 Extraído automaticamente de server.py.
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi.responses import StreamingResponse
 from typing import Optional
 from datetime import datetime, timezone
+import logging
 
 from models import *
 from auth_middleware import AuthMiddleware
+from pdf_generator import generate_learning_objects_pdf
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(tags=["Objetos de Aprendizagem"])
@@ -209,6 +214,117 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "record": existing
         }
 
+
+
+    @router.get("/learning-objects/pdf/bimestre/{class_id}")
+    async def get_learning_objects_pdf(
+        class_id: str,
+        request: Request,
+        bimestre: int = Query(..., ge=1, le=4),
+        academic_year: Optional[int] = None,
+        course_id: Optional[str] = None
+    ):
+        """Gera PDF dos objetos de conhecimento por bimestre"""
+        await AuthMiddleware.get_current_user(request)
+
+        if not academic_year:
+            academic_year = datetime.now().year
+
+        # Buscar turma
+        turma = await db.classes.find_one({"id": class_id}, {"_id": 0})
+        if not turma:
+            raise HTTPException(status_code=404, detail="Turma não encontrada")
+
+        # Buscar escola
+        school = await db.schools.find_one({"id": turma.get('school_id')}, {"_id": 0})
+        if not school:
+            raise HTTPException(status_code=404, detail="Escola não encontrada")
+
+        # Buscar mantenedora
+        mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+
+        # Buscar calendário para datas do bimestre
+        calendario = await db.calendario_letivo.find_one(
+            {"ano_letivo": academic_year, "school_id": None}, {"_id": 0}
+        )
+        if not calendario:
+            calendario = await db.calendario_letivo.find_one(
+                {"ano_letivo": academic_year}, {"_id": 0}
+            )
+
+        bk_inicio = f"bimestre_{bimestre}_inicio"
+        bk_fim = f"bimestre_{bimestre}_fim"
+
+        if calendario and calendario.get(bk_inicio) and calendario.get(bk_fim):
+            period_start = str(calendario[bk_inicio])[:10]
+            period_end = str(calendario[bk_fim])[:10]
+        else:
+            periodos = {
+                1: (f"{academic_year}-02-01", f"{academic_year}-04-30"),
+                2: (f"{academic_year}-05-01", f"{academic_year}-07-15"),
+                3: (f"{academic_year}-07-16", f"{academic_year}-09-30"),
+                4: (f"{academic_year}-10-01", f"{academic_year}-12-20"),
+            }
+            period_start, period_end = periodos.get(bimestre, (None, None))
+
+        # Buscar registros do bimestre
+        query = {
+            "class_id": class_id,
+            "academic_year": academic_year,
+            "date": {"$gte": period_start, "$lte": period_end}
+        }
+        if course_id:
+            query["course_id"] = course_id
+
+        records = await db.learning_objects.find(query, {"_id": 0}).sort("date", 1).to_list(1000)
+
+        # Enriquecer com nomes dos componentes
+        course_names = {}
+        for r in records:
+            cid = r.get('course_id')
+            if cid and cid not in course_names:
+                course = await db.courses.find_one({"id": cid}, {"_id": 0, "name": 1})
+                course_names[cid] = course.get('name', '') if course else ''
+            r['course_name'] = course_names.get(cid, '')
+
+        # Buscar professor
+        teacher_name = ""
+        teacher_assignment = await db.teacher_assignments.find_one(
+            {"class_id": class_id, "academic_year": academic_year},
+            {"_id": 0, "staff_id": 1}
+        )
+        if teacher_assignment:
+            teacher = await db.staff.find_one(
+                {"id": teacher_assignment['staff_id']},
+                {"_id": 0, "nome": 1}
+            )
+            if teacher:
+                teacher_name = teacher.get('nome', '')
+
+        try:
+            pdf_buffer = generate_learning_objects_pdf(
+                school=school,
+                class_info=turma,
+                records=records,
+                bimestre=bimestre,
+                academic_year=academic_year,
+                period_start=period_start,
+                period_end=period_end,
+                teacher_name=teacher_name,
+                mantenedora=mantenedora
+            )
+
+            filename = f"objetos_conhecimento_{turma.get('name', 'turma')}_{bimestre}bim_{academic_year}.pdf"
+            filename = filename.replace(' ', '_').replace('/', '-')
+
+            return StreamingResponse(
+                pdf_buffer,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"inline; filename={filename}"}
+            )
+        except Exception as e:
+            logger.error(f"Erro ao gerar PDF de objetos de conhecimento: {e}")
+            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
 
     return router

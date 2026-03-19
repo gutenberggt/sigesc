@@ -84,6 +84,11 @@ export const LearningObjects = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const coursesDropdownRef = useRef(null);
 
+  // PDF
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [pdfBimestre, setPdfBimestre] = useState(1);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
   // Fechar dropdown de campos de experiência ao clicar fora
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -543,6 +548,37 @@ export const LearningObjects = () => {
     return { totalRecords, totalClasses };
   }, [records]);
 
+  // Gerar PDF de objetos de conhecimento
+  const handleGeneratePdf = async () => {
+    if (!selectedClass) {
+      showAlert('error', 'Selecione uma turma antes de gerar o PDF.');
+      return;
+    }
+    setGeneratingPdf(true);
+    try {
+      const API = process.env.REACT_APP_BACKEND_URL;
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams({
+        bimestre: pdfBimestre,
+        academic_year: academicYear
+      });
+      const response = await fetch(
+        `${API}/api/learning-objects/pdf/bimestre/${selectedClass}?${params}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!response.ok) throw new Error('Erro ao gerar PDF');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setShowPdfModal(false);
+      showAlert('success', 'PDF gerado com sucesso!');
+    } catch (err) {
+      showAlert('error', 'Erro ao gerar PDF: ' + err.message);
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -590,6 +626,17 @@ export const LearningObjects = () => {
               <p className="text-gray-600 text-sm">Registro de conteúdos ministrados</p>
             </div>
           </div>
+          {selectedClass && (
+            <Button
+              onClick={() => setShowPdfModal(true)}
+              variant="outline"
+              className="flex items-center gap-2"
+              data-testid="btn-gerar-pdf-lo"
+            >
+              <FileText size={16} />
+              Gerar PDF
+            </Button>
+          )}
         </div>
 
         {/* Filtros */}
@@ -982,6 +1029,45 @@ export const LearningObjects = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de seleção de bimestre para PDF */}
+      {showPdfModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowPdfModal(false)}>
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">Gerar PDF - Objetos de Conhecimento</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Selecione o Bimestre</label>
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map(b => (
+                  <button
+                    key={b}
+                    onClick={() => setPdfBimestre(b)}
+                    className={`py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                      pdfBimestre === b
+                        ? 'bg-purple-600 text-white border-purple-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
+                    }`}
+                    data-testid={`pdf-bimestre-${b}`}
+                  >
+                    {b}º Bim
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowPdfModal(false)}>Cancelar</Button>
+              <Button
+                onClick={handleGeneratePdf}
+                disabled={generatingPdf}
+                className="bg-purple-600 text-white hover:bg-purple-700"
+                data-testid="btn-confirmar-pdf-lo"
+              >
+                {generatingPdf ? 'Gerando...' : 'Gerar PDF'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };
