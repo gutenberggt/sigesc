@@ -3801,40 +3801,73 @@ def generate_learning_objects_pdf(
     elements.append(info_table)
     elements.append(Spacer(1, 12))
     
-    # === TABELA DE CONTEÚDOS ===
+    # === TABELA DE CONTEÚDOS (agrupado por data) ===
+    # 4 colunas: DATA | COMPONENTES/CONTEÚDO | METODOLOGIA | AULAS
+    label_col2 = 'CAMPOS DE EXPERIÊNCIA / CONTEÚDO' if is_infantil else 'COMPONENTE CURRICULAR / CONTEÚDO'
     table_header = [
         Paragraph('<b>DATA</b>', small_center),
-        Paragraph(f'<b>{label_componente.upper()}</b>', content_bold),
-        Paragraph('<b>CONTEÚDO / OBJETO DE CONHECIMENTO</b>', content_bold),
+        Paragraph(f'<b>{label_col2}</b>', content_bold),
         Paragraph('<b>METODOLOGIA</b>', content_bold),
         Paragraph('<b>AULAS</b>', small_center),
     ]
     
     table_data = [table_header]
     
-    # Ajuste #9: Ordenar TODOS os registros em ordem cronológica
-    all_records_sorted = sorted(records, key=lambda x: safe(x.get('date')))
+    # Agrupar registros por data em ordem cronológica
+    from collections import OrderedDict
+    records_by_date = OrderedDict()
+    for r in sorted(records, key=lambda x: safe(x.get('date'))):
+        dt = safe(r.get('date'))
+        if dt not in records_by_date:
+            records_by_date[dt] = []
+        records_by_date[dt].append(r)
     
-    for r in all_records_sorted:
+    for dt, day_records in records_by_date.items():
+        # Coluna 2: todos os componentes + conteúdo do dia
+        componentes_lines = []
+        metodologias_set = []
+        total_aulas_dia = 0
+        for r in day_records:
+            nome = safe(r.get('course_name', ''))
+            conteudo = safe(r.get('content', ''))
+            if nome and conteudo:
+                componentes_lines.append(f"<b>{nome}:</b> {conteudo}")
+            elif nome:
+                componentes_lines.append(f"<b>{nome}</b>")
+            elif conteudo:
+                componentes_lines.append(conteudo)
+            met = safe(r.get('methodology'), '').strip()
+            if met and met != '-':
+                metodologias_set.append(met)
+            total_aulas_dia += (r.get('number_of_classes', 1) or 1)
+        
+        componentes_html = '<br/>'.join(componentes_lines) if componentes_lines else '-'
+        # Deduplica metodologias iguais mantendo ordem
+        seen = set()
+        metodologias_unicas = []
+        for m in metodologias_set:
+            if m not in seen:
+                seen.add(m)
+                metodologias_unicas.append(m)
+        metodologias_html = '<br/>'.join(metodologias_unicas) if metodologias_unicas else '-'
+        
         row = [
-            Paragraph(fmt_date_short(safe(r.get('date'))), small_center),
-            Paragraph(safe(r.get('course_name', '')), content_style),
-            Paragraph(safe(r.get('content')), content_style),
-            Paragraph(safe(r.get('methodology'), '-'), content_style),
-            Paragraph(safe(r.get('number_of_classes', 1)), small_center),
+            Paragraph(fmt_date_short(dt), small_center),
+            Paragraph(componentes_html, content_style),
+            Paragraph(metodologias_html, content_style),
+            Paragraph(str(total_aulas_dia), small_center),
         ]
         table_data.append(row)
     
     if len(table_data) == 1:
         table_data.append([
-            '', '', Paragraph('Nenhum registro encontrado para este bimestre.', content_style), '', ''
+            '', Paragraph('Nenhum registro encontrado para este bimestre.', content_style), '', ''
         ])
     
-    # Ajustes #7 e #8: Estreitar CONTEÚDO para 3/4 e ampliar METODOLOGIA
-    conteudo_original = page_width - 9.5*cm
-    conteudo_w = conteudo_original * 0.75
-    metodologia_w = 3*cm + conteudo_original * 0.25
-    col_widths = [1.5*cm, 3.5*cm, conteudo_w, metodologia_w, 1.5*cm]
+    # 4 colunas: DATA=1.5cm, COMPONENTES/CONTEÚDO, METODOLOGIA, AULAS=1.5cm
+    comp_w = (page_width - 3*cm) * 0.55
+    met_w = (page_width - 3*cm) * 0.45
+    col_widths = [1.5*cm, comp_w, met_w, 1.5*cm]
     
     content_table = Table(table_data, colWidths=col_widths, repeatRows=1)
     content_table.setStyle(TableStyle([

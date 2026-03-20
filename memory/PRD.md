@@ -51,6 +51,7 @@
   - Coluna CONTEÚDO reduzida a 3/4, METODOLOGIA ampliada
   - Registros em ordem cronológica (não mais por componente)
   - Numeração de página "Página X de Y" usando NumberedCanvas
+- [x] **Tabela agrupada por data**: Registros consolidados por data em uma única linha (4 colunas: DATA | COMPONENTES+CONTEÚDO | METODOLOGIA | AULAS). Metodologias duplicadas deduplicadas.
 
 ## Backlog Pendente
 ### P0
