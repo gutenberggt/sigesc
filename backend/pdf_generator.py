@@ -3823,22 +3823,34 @@ def generate_learning_objects_pdf(
         records_by_date[dt].append(r)
     
     for dt, day_records in records_by_date.items():
+        # 1. Enumerar componentes
         componentes = []
-        conteudos = []
-        metodologias = []
-        total_aulas_dia = 0
+        for i, r in enumerate(day_records, 1):
+            componentes.append(f"{i}. {safe(r.get('course_name', ''), '-')}")
+        
+        # 2. Conteúdos únicos (sem repetir)
+        seen_conteudos = []
         for r in day_records:
-            componentes.append(safe(r.get('course_name', ''), '-'))
-            conteudos.append(safe(r.get('content', ''), '-'))
-            metodologias.append(safe(r.get('methodology', ''), '-'))
-            total_aulas_dia += (r.get('number_of_classes', 1) or 1)
+            c = safe(r.get('content', ''), '').strip()
+            if c and c not in seen_conteudos:
+                seen_conteudos.append(c)
+        
+        # 3. Metodologias únicas (sem repetir)
+        seen_metodologias = []
+        for r in day_records:
+            m = safe(r.get('methodology', ''), '').strip()
+            if m and m not in seen_metodologias:
+                seen_metodologias.append(m)
+        
+        # 4. Aulas: valor registrado (não soma dos componentes)
+        aulas_dia = day_records[0].get('number_of_classes', 1) or 1
         
         row = [
             Paragraph(fmt_date_short(dt), small_center),
             Paragraph('<br/>'.join(componentes), content_style),
-            Paragraph('<br/>'.join(conteudos), content_style),
-            Paragraph('<br/>'.join(metodologias), content_style),
-            Paragraph(str(total_aulas_dia), small_center),
+            Paragraph('<br/>'.join(seen_conteudos) if seen_conteudos else '-', content_style),
+            Paragraph('<br/>'.join(seen_metodologias) if seen_metodologias else '-', content_style),
+            Paragraph(str(aulas_dia), small_center),
         ]
         table_data.append(row)
     
