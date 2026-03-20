@@ -3730,9 +3730,14 @@ def generate_learning_objects_pdf(
     is_infantil = education_level == 'educacao_infantil'
     label_componente = 'Campo de Experiência' if is_infantil else 'Componente Curricular'
     
-    # Totais para o cabeçalho
+    # Totais para o cabeçalho (aulas agrupadas por data, não por registro)
     total_registros = len(records)
-    total_aulas = sum(r.get('number_of_classes', 1) or 1 for r in records)
+    dates_aulas = {}
+    for r in sorted(records, key=lambda x: safe(x.get('date'))):
+        dt = safe(r.get('date'))
+        if dt not in dates_aulas:
+            dates_aulas[dt] = r.get('number_of_classes', 1) or 1
+    total_aulas = sum(dates_aulas.values())
     
     # === CABEÇALHO INSTITUCIONAL (Ajuste #1: Brasão maior, posicionado à esquerda) ===
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
@@ -3807,7 +3812,7 @@ def generate_learning_objects_pdf(
         Paragraph('<b>DATA</b>', small_center),
         Paragraph(f'<b>{label_componente.upper()}</b>', content_bold),
         Paragraph('<b>CONTEÚDO / OBJETO DE CONHECIMENTO</b>', content_bold),
-        Paragraph('<b>METODOLOGIA</b>', content_bold),
+        Paragraph('<b>PRÁTICAS PEDAGÓGICAS</b>', content_bold),
         Paragraph('<b>AULAS</b>', small_center),
     ]
     
@@ -3884,19 +3889,6 @@ def generate_learning_objects_pdf(
     
     elements.append(content_table)
     elements.append(Spacer(1, 20))
-    
-    # === OBSERVAÇÕES GERAIS ===
-    obs_records = [r for r in records if r.get('observations')]
-    if obs_records:
-        elements.append(Paragraph('<b>OBSERVAÇÕES</b>', content_bold))
-        elements.append(Spacer(1, 4))
-        for r in obs_records:
-            elements.append(Paragraph(
-                f"<b>{fmt_date_short(safe(r.get('date')))} - {safe(r.get('course_name'))}:</b> {safe(r.get('observations'))}",
-                content_style
-            ))
-            elements.append(Spacer(1, 2))
-        elements.append(Spacer(1, 15))
     
     # === RODAPÉ: Local, data e assinaturas ===
     today = datetime.now()
