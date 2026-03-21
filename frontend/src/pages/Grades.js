@@ -501,16 +501,13 @@ export function Grades() {
     ? professorTurmas.filter(t => t.school_id === selectedSchool)
     : classes.filter(c => c.school_id === selectedSchool);
   
-  // Filtra componentes curriculares
+  // Filtra componentes curriculares (só quando turma selecionada)
   const filteredCourses = isProfessor
     ? (selectedClassData?.componentes || [])
-    : courses.filter(course => {
+    : !selectedClassData ? [] : courses.filter(course => {
         // Se o componente é global (sem school_id) ou é da mesma escola
         const matchesSchool = !course.school_id || course.school_id === selectedSchool;
         if (!matchesSchool) return false;
-        
-        // Se não tem turma selecionada, mostra todos os componentes compatíveis
-        if (!selectedClassData) return true;
         
         // Deve ser do mesmo nível de ensino (se o componente tiver nível definido)
         if (course.nivel_ensino && course.nivel_ensino !== selectedClassData.education_level) return false;
@@ -975,7 +972,7 @@ export function Grades() {
                         setSelectedCourse(e.target.value);
                         setGradesData([]);
                       }}
-                      disabled={!selectedSchool || (isMultiGrade && !selectedSeries)}
+                      disabled={!selectedClass || (isMultiGrade && !selectedSeries)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                     >
                       <option value="">Selecione o componente</option>
@@ -985,6 +982,7 @@ export function Grades() {
                     </select>
                   </div>
                   
+                  {selectedCourse && (
                   <div className="flex items-end gap-2">
                     <button
                       onClick={loadGradesByClass}
@@ -1004,6 +1002,7 @@ export function Grades() {
                       Gerar PDF
                     </button>
                   </div>
+                  )}
                 </div>
                 
                 {/* Tabela de Notas */}
