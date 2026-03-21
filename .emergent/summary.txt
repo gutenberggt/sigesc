@@ -1,166 +1,144 @@
-<analysis>**original_problem_statement:**
-O usuário solicitou uma série de novas funcionalidades e correções para a aplicação SIGESC. As solicitações abordadas nesta sessão foram:
+<analysis>**original_problem_statement**: 
+O usuário solicitou diversas melhorias, correções de bugs e novas funcionalidades para o sistema SIGESC. Os principais pedidos incluíram: formatação detalhada do PDF de Objetos de Conhecimento, inclusão de botões de atalho em dashboards específicos, reestruturação profunda do cancelamento de matrícula (deletando vínculos e notas), criação de campo Data da Matrícula na edição do aluno, adaptação do lançamento de notas para turmas multisseriadas com filtros de Ano/Série, criação de PDF de Relatório de Notas, e por fim, a implementação de regras de bloqueio para lançamento de frequência e notas baseadas nas datas de matrícula e transferência/desistência.
 
-1.  **Correção de Bug (P0):** O cargo e usuário Apoio Pedagógico não havia sido criado/configurado corretamente no frontend, impedindo seu uso.
-2.  **Verificação de Bug (P0):** Investigar um bug recorrente onde a exclusão de frequência não funcionava.
-3.  **Melhoria (P0):** Ajustar os papéis com permissão para acessar a página Acompanhamento de Diários.
-4.  **Nova Funcionalidade (P0):** Adicionar um campo Data da Matrícula na tela de criação de um novo aluno.
-5.  **Correção de Bug (P0):** Corrigir a geração do PDF de frequência, que retornava erro ou exibia uma lista de alunos inconsistente com o total da turma.
-6.  **Melhoria de UI (P1):** Realizar uma série de ajustes de layout e conteúdo no PDF de frequência, como formato de data, espaçamento, e labels.
-7.  **Nova Funcionalidade (P0):** Criar uma funcionalidade para gerar um PDF dos Objetos de Conhecimento (conteúdos ministrados) a partir da tela correspondente, com filtro por bimestre.
-8.  **Correção de Bug (P0):** Corrigir erros na geração do novo PDF de Objetos de Conhecimento.
-9.  **Melhoria de UI (P1):** Implementar uma lista de 10 ajustes específicos de layout e conteúdo para o PDF de Objetos de Conhecimento.
+**User's preferred language**: Portuguese (Português). Instruct the next agent to respond in Portuguese.
 
-**User's preferred language**: Portuguese (Português)
+**what currently exists?**: 
+O SIGESC é um sistema de gestão escolar full-stack (React + FastAPI + MongoDB). Possui módulos completos de alunos, matrículas, frequência, notas e geração de relatórios em PDF (usando ReportLab). Nesta sessão, a aplicação recebeu atualizações importantes nas regras de negócios de exclusão de matrículas e nos formulários/PDFs dinâmicos.
 
-**what currently exists?**
-A aplicação é um sistema de gestão escolar (SIGESC). Nesta sessão, o agente concluiu com sucesso várias tarefas críticas, principalmente focadas na correção de permissões de usuário e na implementação e depuração de funcionalidades complexas de geração de PDF.
+**Last working item**: 
+- **Last item agent was working**: Implementação das condições de bloqueio para lançamento de notas baseado na data de matrícula (bloqueado antes da data, exceto para admin/secretário) e bloqueio após transferência/desistência.
+- **Status**: IN PROGRESS
+- **Agent Testing Done**: N
+- **Which testing method agent to use?**: both (verificar a resposta do endpoint via curl e testar o bloqueio visual e lógica de permissões no frontend com screenshot tool).
+- **User Testing Done**: N
 
-- O cargo Apoio Pedagógico agora está totalmente funcional, com as mesmas permissões do Coordenador em todo o frontend.
-- O bug de exclusão de frequência foi investigado e confirmado como **resolvido** (provavelmente em uma sessão anterior).
-- As permissões da página Acompanhamento de Diários foram ajustadas conforme solicitado.
-- O formulário de Novo Aluno agora inclui o campo Data da Matrícula, e o backend foi atualizado para salvar essa data.
-- O PDF de frequência foi corrigido para listar todos os alunos da turma (incluindo ativos e inativos) e teve seu layout aprimorado.
-- Foi criada uma nova funcionalidade completa para gerar um PDF de Objetos de Conhecimento, incluindo um novo endpoint de backend, uma função geradora de PDF em , e a interface no frontend com um botão e modal de seleção de bimestre. Vários bugs nesta nova funcionalidade foram corrigidos.
+**All Pending/In progress Issue list**: 
+Issue 1: (P0) Finalizar bloqueio de lançamento de notas baseado em datas de matrícula/movimentação.
+Issue 2: (P1) Alterar carga horária de componentes curriculares.
 
-**Last working item**:
--   **Last item agent was working:** O agente recebeu uma lista de 10 novos requisitos de ajuste para o PDF de Objetos de Conhecimento que acabou de criar.
--   **Status:** NOT STARTED
--   **Agent Testing Done:** N
--   **Which testing method agent to use?** backend testing agent. O próximo agente deve implementar as mudanças na função  em  e testar gerando um novo PDF via  ou script para validar visualmente todas as 10 alterações.
--   **User Testing Done:** N
+Issues Detail:
+- Issue 1: Finalizar bloqueio de lançamento de notas baseado em datas de matrícula/movimentação.
+  - Attempted fixes: O agente iniciou a edição do arquivo  para injetar as lógicas de  e  no retorno da API. O frontend () ainda não foi atualizado.
+  - Next debug checklist: 
+    1. Revisar o endpoint em  para garantir que a lógica de bimestres bloqueados diferencie bloqueios por antes da matrícula (que podem ser ignorados por admin/secretário) dos bloqueios por após transferência (bloqueio definitivo).
+    2. Atualizar o frontend  para consumir essa informação e desabilitar os inputs () considerando as permissões do .
+  - Why fix this issue and what will be achieved with the fix?: Evita que professores lancem notas em bimestres onde o aluno não estava na escola, cumprindo as regras de negócio solicitadas.
+  - Status: IN PROGRESS
+  - Is recurring issue?: N
+  - Should Test frontend/backend/both after fix?: both
+  - Blocked on other issue: N/A
 
-**All Pending/In progress Issue list**:
--   **Issue 1: (P0)** Implementar 10 ajustes no PDF de Objetos de Conhecimento.
--   **Issue 2: (P1)** Alterar carga horária de componentes curriculares.
+- Issue 2: Alterar carga horária de componentes curriculares.
+  - Attempted fixes: Nenhuma. Herança de backlog.
+  - Next debug checklist: Planejar script ou UI para atualização em massa de carga horária nas matrizes curriculares.
+  - Why fix this issue and what will be achieved with the fix?: Ajuste de dados mestres essenciais.
+  - Status: NOT STARTED
+  - Is recurring issue?: N
+  - Should Test frontend/backend/both after fix?: backend
+  - Blocked on other issue: N/A
 
-**Issues Detail:**
--   **Issue 1: Implementar 10 ajustes no PDF de Objetos de Conhecimento.**
-    -   **Attempted fixes:** Nenhuma. Esta é a tarefa imediata.
-    -   **Next debug checklist:**
-        1.  Revisar a função  em .
-        2.  Implementar as mudanças de layout com :
-            -   Alterar posição e tamanho do brasão.
-            -   Reestruturar a tabela de informações do cabeçalho para 4 colunas com células mescladas.
-            -   Adicionar Total de aula e Total de Registros.
-            -   Alterar o formato da data na tabela para .
-            -   Ajustar a largura das colunas de conteúdo e metodologia.
-            -   Garantir que os registros na tabela estão em ordem cronológica.
-            -   Adicionar numeração de página no formato Página X de Y.
-    -   **Why fix this issue and what will be achieved with the fix?** Atender aos requisitos de formatação do usuário para que o documento tenha uma aparência institucional e organizada.
-    -   **Status:** NOT STARTED
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** backend
-    -   **Blocked on other issue:** Não.
+**In progress Task List**: 
+Nenhum (todas as tarefas exceto o bloqueio de notas foram finalizadas).
 
--   **Issue 2: Alterar carga horária de componentes curriculares.**
-    -   **Attempted fixes:** Nenhuma. Tarefa herdada de sessões anteriores.
-    -   **Next debug checklist:**
-        1.  Analisar a estrutura de dados dos componentes curriculares e suas dependências.
-        2.  Planejar um script de migração (similar ao  de sessões passadas) ou uma ferramenta na UI administrativa.
-    -   **Why fix this issue and what will be achieved with the fix?** Atender a uma solicitação de correção de dados mestres da aplicação.
-    -   **Status:** BLOCKED
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** backend
-    -   **Blocked on other issue:** Não.
+**Upcoming and Future Tasks**:
+Upcoming Tasks:
+- Finalizar a UI do bloqueio de notas (descrito no Issue 1).
 
-**In progress Task List**:
-Nenhum.
+Future Tasks:
+- (P2) Implementar envio de e-mail de confirmação na pré-matrícula.
+- (Refatoração P2) Modularizar  (arquivo possui quase 4000 linhas).
+- (Refatoração P2) Centralizar permissões no frontend em um hook .
+- (Refatoração P2) Extrair multi-select para componente reutilizável.
 
-**Upcoming and Future Tasks**
--   **Future Tasks:**
-    -   (P2) Implementar envio de e-mail de confirmação na pré-matrícula.
+**Completed work in this session**:
+- PDF de Objetos de Conhecimento (ReportLab): Refinamentos de UI, agrupamento de dados por data, remoção de repetições (DONE).
+- Adição do botão Acompanhamento de Diários no dashboard do papel  (DONE).
+- Cancelamento de Matrícula profundo: A ação agora deleta notas, remove o aluno de arrays de frequência, deleta a matrícula e limpa turmas, setando status como  (DONE).
+- Limpeza retroativa de matrículas: Criada rota  e botão em Ferramentas de Administração para executar limpeza de cancelamentos antigos (DONE).
+- Exclusão de bancos de dados de sandbox não utilizados do servidor (DONE).
+- Edição do Aluno: Adicionado campo Data da Matrícula na aba Turma/Observações (atualiza tanto o aluno quanto o registro de matrícula ativo) (DONE).
+- Lançamento de Notas (UI): Inclusão do dropdown de Ano/Série para filtrar alunos e componentes curriculares especificamente em turmas multisseriadas. Layout reduzido para ocupar meia coluna (DONE).
+- Relatório de Notas em PDF: Criado endpoint gerador  e botão corrigido no frontend usando  (DONE).
+- Regras de bloqueio de Frequência: Frontend atualizado para exibir A partir de DD/MM/AAAA (antes da matrícula) ou Transferido/Remanejado (após a movimentação), bloqueando o registro (DONE).
 
-**Completed work in this session**
--   **Correção do Papel Apoio Pedagógico**: O papel  foi adicionado a todas as  e listas de papéis no frontend (, , , etc.), garantindo acesso idêntico ao .
--   **Verificação do Bug de Exclusão de Frequência**: Investigado e confirmado que o bug foi resolvido. A exclusão agora funciona como esperado.
--   **Ajuste de Permissão em Acompanhamento de Diários**: As listas de papéis autorizados () foram atualizadas em ,  e .
--   **Adição do Campo Data da Matrícula**: Adicionado o campo no formulário de novo aluno () e atualizado o endpoint de criação ( em ) e o modelo ( em ) para aceitar e salvar a data.
--   **Correção do PDF de Frequência**: Resolvido o problema que listava apenas alunos ativos, alinhando a lógica de busca de alunos em  com a da página de frequência, que busca em múltiplas fontes (matrículas ativas/inativas e fallback na coleção ).
--   **Implementação do PDF de Objetos de Conhecimento**:
-    -   Criado o endpoint  em .
-    -   Criada a função  em  para gerar o documento.
-    -   Adicionado um botão Gerar PDF e um modal de seleção de bimestre em .
--   **Correção de Bugs no PDF de Objetos de Conhecimento**:
-    -   Resolvido um  movendo uma função utilitária para o escopo correto em .
-    -   Corrigido um erro de autenticação (401) no frontend ao usar a chave  correta do .
-    -   Adicionada proteção contra valores  para tornar a geração do PDF mais robusta.
+**Earlier issues found/mentioned but not fixed**:
+Issue 1:
+- Debug checklist: Refatoração da função duplicada .
+- Why to solve this issue and what will be achieved with this?: Melhorar qualidade e manutenção do código no frontend.
+- Should Test frontend/backend/both after fix: frontend
+- Is recurring issue?: N
 
-**Earlier issues found/mentioned but not fixed**
--   **Issue 1: Alterar carga horária de componentes curriculares.** Tarefa de baixa prioridade que continua pendente.
--   **Issue 2: Refatoração da função duplicada .** Ainda pendente.
+**Known issue recurrence from previous fork**:
+- Issue recurrence in previous fork: Nenhuma nesta sessão.
+- Recurrence count: 0
+- Status: RESOLVED
 
-**Known issue recurrence from previous fork**
--   **Issue recurrence in previous fork:** A ação de excluir frequência não está funcionando.
--   **Recurrence count:** 2+
--   **Status:** RESOLVED (Nesta sessão, o agente testou exaustivamente e confirmou que a funcionalidade está operando corretamente).
-
-**Code Architecture**
+**Code Architecture**:
 
 
-**Key Technical Concepts**
--   **PDF Generation (ReportLab)**: Uso extensivo da biblioteca  para criar dinamicamente documentos PDF complexos com tabelas, cabeçalhos estilizados, e paginação.
--   **Data Consistency Logic**: A principal causa de bugs nos relatórios era a lógica inconsistente de busca de dados. A solução foi alinhar a query do PDF com a query da página da UI correspondente, que era mais completa e tratava casos de borda (alunos inativos, dados legados).
--   **Frontend-Backend Integration**: Depuração de todo o fluxo, desde o clique do botão no React, passando pela chamada de API (com o token de autorização correto), até o processamento no backend e a resposta.
+**Key Technical Concepts**:
+React, FastAPI, MongoDB, TailwindCSS, ReportLab (Geração de PDFs). Os relatórios exigem junção complexa de dados de múltiplas collections (, , , , ).
 
-**key DB schema**
--   Nenhuma alteração de esquema. As modificações foram na lógica de consulta e nos modelos Pydantic para aceitar novos campos opcionais ().
+**key DB schema**:
+- : 
+- : 
+- : 
+- : 
 
-**All files of reference**
--   : Arquivo central para as tarefas de PDF. Contém a lógica para  e a nova .
--   : Contém o novo endpoint para o PDF de objetos de conhecimento.
--   : Contém o endpoint corrigido para o PDF de frequência.
--   : Página onde o novo botão de PDF foi adicionado.
--   : Página onde o campo de data de matrícula foi adicionado.
+**changes in tech stack**:
+- Nenhuma. O agente removeu bases de dados MongoDB ociosas (, ) preservando apenas a base de produção.
+
+**All files of reference**:
+- : Modificado recentemente para enviar .
+- : Necessita ser atualizado com a lógica de bloqueio por admin/secretário e bloqueio por transferência (usando os dados retornados pelo backend).
 
 **Areas that need refactoring**:
--   O arquivo  está crescendo consideravelmente e contém a lógica para múltiplos PDFs diferentes. Seria ideal dividi-lo em módulos, um para cada tipo de relatório, para melhorar a manutenção.
--   A complexidade de  e  continua sendo um ponto de atenção para futuras refatorações.
+- : Extremamente grande e denso, deve ser dividido em módulos menores.
+-  e : Extensos e complexos.
 
-**key api endpoints**
--   : Endpoint corrigido para buscar todos os alunos da turma.
--   : Endpoint atualizado para aceitar  na criação de um aluno.
--   : **(NOVO)** Endpoint para gerar o PDF de objetos de conhecimento.
+**key api endpoints**:
+- : Atualiza o aluno e propaga .
+- : Traz as notas e a nova lógica de .
+- : Geração do boletim de notas.
+- : Limpa dados órfãos/cancelados no BD.
 
-**Critical Info for New Agent**
--   **Prioridade Máxima (P0):** A tarefa imediata é implementar os 10 ajustes de layout solicitados para o PDF de Objetos de Conhecimento na função  em .
--   **Dados de Preview Incompletos:** O ambiente de preview tem dados de teste inconsistentes (ex: alunos referenciados em matrículas que não existem na coleção ). O agente deve estar ciente de que os resultados dos testes no preview (e.g., contagem de alunos) podem não corresponder exatamente ao ambiente de produção do usuário, mas a lógica implementada agora é robusta para lidar com isso.
--   **Reiniciar o Servidor:** O agente encontrou um problema onde o servidor  estava servindo uma versão antiga e cacheada do código Python. Usar backend: stopped
-backend: started foi a solução para forçar o recarregamento. Tenha isso em mente se uma correção de código parecer não ter efeito.
+**Critical Info for New Agent**:
+- **Atenção à regra de negócio de notas (Task atual)**: O usuário informou que o lançamento de notas de bimestres que caem *antes* da data da matrícula do aluno devem ser **bloqueados para professores**, mas **liberados** se o usuário logado tiver o papel de  ou . Já o bloqueio por transferência/desistência (após a data de saída) deve ser bloqueado para todos na turma de origem.
+- Sempre recupere o token via  para geração de PDFs no frontend e abra usando , pois outras abordagens com axios blob apresentam instabilidades.
 
-**documents and test reports created in this job**
--   Nenhum documento de longa duração foi criado. Vários arquivos PDF de teste () foram gerados e analisados durante a sessão.
+**documents and test reports created in this job**:
+- 
+- 
 
-**Last 10 User Messages and any pending HUMAN messages**
-1.  **Usuário:** Solicitou 10 ajustes de layout e conteúdo para o PDF de Objetos de Conhecimento. (Status: **PENDING - current task**)
-2.  **Usuário:** Solicitou que o mês no cabeçalho do PDF de frequência seja numérico (ex: FEV -> 02). (Status: **RESOLVED**)
-3.  **Usuário:** Apontou que o PDF de frequência deve listar todos os alunos da turma, pois estava mostrando uma contagem menor. (Status: **RESOLVED**)
-4.  **Usuário:** Reportou que o problema com a contagem de alunos no PDF de frequência persistia, fornecendo novos exemplos. (Status: **RESOLVED**)
-5.  **Usuário:** Reportou que o erro na geração do PDF de Objetos de Conhecimento persistia no ambiente de teste. (Status: **RESOLVED**)
-6.  **Usuário:** Reportou que a geração do PDF de Objetos de Conhecimento retornava um erro genérico Erro ao gerar PDF. (Status: **RESOLVED**)
-7.  **Usuário:** Adicionou um requisito: o PDF de Objetos de Conhecimento deve ser gerado por bimestre. (Status: **RESOLVED**)
-8.  **Usuário:** Solicitou a criação de um PDF para os Objetos de Conhecimento. (Status: **RESOLVED**)
-9.  **Usuário:** Solicitou que o campo Data da Matrícula fosse inserido na mesma linha dos outros campos de vínculo no formulário de novo aluno. (Status: **RESOLVED**)
-10. **Usuário:** Solicitou o ajuste de permissões para a página Acompanhamento de Diários. (Status: **RESOLVED**)
+**Last 10 User Messages and any pending HUMAN messages**:
+1. (User) Pediu regra para notas: bloqueio antes da matrícula (exceto Admin/Secretário) e bloqueio após transferência. (Status: IN PROGRESS)
+2. (User) Bloqueio de frequência: aviso e desabilitação antes da matrícula e após transferência. (Status: COMPLETED)
+3. (User) Informou que o botão de gerar PDF de notas não faz nada. (Status: COMPLETED)
+4. (User) Solicitou botão para gerar PDF do Relatório de Notas escolhendo bimestres. (Status: COMPLETED)
+5. (User) Pediu redução dos campos Turma, Série e Componente no layout de notas. (Status: COMPLETED)
+6. (User) Solicitou filtro de Ano/Série exclusivamente para turmas multisseriadas na tela de Notas. (Status: COMPLETED)
+7. (User) Pediu inclusão de Data da Matrícula na edição do aluno em Vínculo com Turma. (Status: COMPLETED)
+8. (User) Sugeriu facilitar com um botão na área administrativa para a limpeza de matrículas canceladas retroativas. (Status: COMPLETED)
+9. (User) Teve problemas rodando o script de migração no terminal do seu servidor local pela ausência do . (Status: COMPLETED)
+10. (User) Confirmou a criação de um script de migração para retroagir a nova lógica nas matrículas antigas. (Status: COMPLETED)
 
-**Project Health Check:**
--   **Broken:** Não. A aplicação está funcional, com as correções e novas funcionalidades da sessão implementadas e testadas pelo agente. Apenas a nova tarefa de layout do PDF está pendente.
+**Project Health Check**:
+Funcional e estável. 
 
-**3rd Party Integrations**
--   : Usado intensivamente para geração de PDFs no backend.
--   : Usado para cache no backend.
+**3rd Party Integrations**:
+- ReportLab (Geração de PDF interna)
 
-**Testing status**
--   **Testing agent used after significant changes:** NO
--   **Troubleshoot agent used after agent stuck in loop:** NO
--   **Test files created:** []
--   **Known regressions:** Nenhuma conhecida.
+**Testing status**:
+- Testing agent used after significant changes: YES (iteration 38)
+- Troubleshoot agent used after agent stuck in loop: NO
+- Test files created: []
+- Known regressions: []
 
-**Credentials to test flow:**
--   **Administrador:**  / 
--   **Coordenador:**  / 
--   **Secretário:**  / 
+**Credentials to test flow**:
+- Administrador:  / 
+- Coordenador:  / 
+- Secretário:  / 
 
-**What agent forgot to execute**
--   O agente não abordou a tarefa pendente: Alterar carga horária de componentes curriculares.
--   A refatoração da função duplicada  ainda está pendente.</analysis>
+**What agent forgot to execute**:
+O agente não concluiu a implementação da Issue 1. Ele modificou o backend em seu último passo (), mas parou de atuar e não atualizou a interface frontend () para consumir os  considerando o papel (role) do usuário logado (Admin e Secretário ignoram bloqueio anterior à matrícula).</analysis>

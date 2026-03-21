@@ -227,6 +227,23 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                         "action_date": h.get('action_date', '')
                     }
         
+        # Busca calendário para determinar períodos dos bimestres
+        calendario = await current_db.mantenedora.find_one({}, {"_id": 0})
+        bimestre_ranges = {}
+        for b in [1, 2, 3, 4]:
+            bk_ini = f"bimestre_{b}_inicio"
+            bk_fim = f"bimestre_{b}_fim"
+            if calendario and calendario.get(bk_ini) and calendario.get(bk_fim):
+                bimestre_ranges[b] = (str(calendario[bk_ini])[:10], str(calendario[bk_fim])[:10])
+            else:
+                fallback = {
+                    1: (f"{academic_year}-02-01", f"{academic_year}-04-30"),
+                    2: (f"{academic_year}-05-01", f"{academic_year}-07-15"),
+                    3: (f"{academic_year}-07-16", f"{academic_year}-09-30"),
+                    4: (f"{academic_year}-10-01", f"{academic_year}-12-20"),
+                }
+                bimestre_ranges[b] = fallback[b]
+        
         # Busca notas existentes
         grades = await current_db.grades.find(
             {"class_id": class_id, "course_id": course_id, "academic_year": academic_year},
@@ -246,6 +263,27 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 'rec_s1': None, 'rec_s2': None,
                 'recovery': None, 'final_average': None, 'status': 'cursando'
             })
+            
+            # Calcula bimestres bloqueados por enrollment_date e action_date
+            enroll_dt = enrollment_dates.get(student['id'], '') or ''
+            if enroll_dt:
+                enroll_dt = str(enroll_dt)[:10]
+            action_dt = action_info_map.get(student['id'], {}).get('action_date', '') or ''
+            if action_dt:
+                action_dt = str(action_dt)[:10]
+            action_label = action_info_map.get(student['id'], {}).get('action_label', '')
+            
+            blocked_before = []  # Bimestres antes da matrícula
+            blocked_after = []   # Bimestres após a ação
+            for b in [1, 2, 3, 4]:
+                b_start, b_end = bimestre_ranges[b]
+                # Bloqueio pré-matrícula: bimestre termina antes da data de matrícula
+                if enroll_dt and b_end < enroll_dt:
+                    blocked_before.append(b)
+                # Bloqueio pós-ação: bimestre inicia após a data da ação
+                if action_dt and action_label and b_start > action_dt:
+                    blocked_after.append(b)
+            
             student_data = {
                 'id': student['id'],
                 'full_name': student['full_name'],
@@ -254,8 +292,11 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 'student_series': enrollment_series.get(student['id']) or student.get('student_series', ''),
                 'current_class_id': student.get('class_id'),
                 'is_transferred_from_class': student.get('class_id') and student.get('class_id') != class_id,
-                'action_label': action_info_map.get(student['id'], {}).get('action_label', ''),
-                'action_date': action_info_map.get(student['id'], {}).get('action_date', '')
+                'action_label': action_label,
+                'action_date': action_info_map.get(student['id'], {}).get('action_date', ''),
+                'enrollment_date': enroll_dt,
+                'blocked_before_enrollment': blocked_before,
+                'blocked_after_action': blocked_after
             }
             result.append({
                 'student': student_data,
