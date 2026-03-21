@@ -54,9 +54,22 @@
 - [x] **Tabela agrupada por data**: Registros consolidados por data em uma única linha (4 colunas: DATA | COMPONENTES+CONTEÚDO | METODOLOGIA | AULAS). Metodologias duplicadas deduplicadas.
 - [x] **Cancelamento de matrícula**: Ao cancelar, deleta matrícula, remove aluno de frequências/notas, seta status 'inactive' e limpa escola/turma
 
+### Sessão 2026-03-21
+- [x] **Bloqueio de notas por data de matrícula/movimentação**: Backend retorna `blocked_before_enrollment` e `blocked_after_action` por aluno. Frontend desabilita inputs por bimestre conforme regras:
+  - Bimestres antes da matrícula → bloqueado para professor, liberado para admin/secretário
+  - Bimestres após transferência/desistência → bloqueado para todos
+  - Exibe data de matrícula do aluno na listagem
+  - Corrigido bug: variável `enrollment_dates` não definida no endpoint
+- [x] **Bloqueio de frequência por data**: Avisos e desabilitação antes da matrícula e após transferência (sessão anterior)
+- [x] **PDF Relatório de Notas**: Endpoint e botão corrigidos
+- [x] **Filtro Ano/Série em Notas**: Para turmas multisseriadas
+- [x] **Campo Data da Matrícula**: Na edição do aluno (aba Turma/Observações)
+- [x] **Limpeza retroativa de matrículas**: Rota de manutenção e botão admin
+
 ## Backlog Pendente
 ### P0
 - [x] ~~Bug de exclusão de frequência~~ (RESOLVIDO)
+- [x] ~~Bloqueio de notas por data de matrícula/movimentação~~ (RESOLVIDO)
 
 ### P1
 - [ ] Alterar carga horária de componentes curriculares (script para produção)
