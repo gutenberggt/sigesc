@@ -10,7 +10,7 @@ import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
 import { 
   Home, BookOpen, Users, User, Save, AlertCircle, CheckCircle, 
-  Search, X, Calculator, TrendingUp, TrendingDown, Lock, CloudOff
+  Search, X, Calculator, TrendingUp, TrendingDown, Lock, CloudOff, FileText
 } from 'lucide-react';
 
 // ===== SISTEMA DE AVALIAÇÃO CONCEITUAL - EDUCAÇÃO INFANTIL =====
@@ -267,9 +267,49 @@ export function Grades() {
   const [studentGrades, setStudentGrades] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
   
+  // Modal PDF de notas
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [pdfBimestres, setPdfBimestres] = useState([1, 2, 3, 4]);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  
   // SEMED e Coordenador podem visualizar, mas não editar
   const canEdit = !['semed', 'semed3', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria'].includes(user?.role);
   
+  const API_URL = process.env.REACT_APP_BACKEND_URL;
+  
+  const handleGeneratePdf = async () => {
+    if (!selectedClass || !selectedCourse || pdfBimestres.length === 0) return;
+    setPdfLoading(true);
+    try {
+      const bimestresParam = pdfBimestres.sort().join(',');
+      let url = `${API_URL}/api/grades/pdf/${selectedClass}/${selectedCourse}?bimestres=${bimestresParam}&academic_year=${academicYear}`;
+      if (isMultiGrade && selectedSeries) {
+        url += `&student_series=${encodeURIComponent(selectedSeries)}`;
+      }
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+      if (!response.ok) throw new Error('Erro ao gerar PDF');
+      const blob = await response.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `notas_${bimestresParam.replace(/,/g, '-')}_bim.pdf`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      setShowPdfModal(false);
+    } catch (err) {
+      alert('Erro ao gerar PDF de notas: ' + err.message);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const togglePdfBimestre = (b) => {
+    setPdfBimestres(prev => 
+      prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b].sort()
+    );
+  };
+
   // Função para verificar se um aluno está bloqueado para edição pelo professor
   // Condições de bloqueio:
   // 2. Aluno "transferido" - bloqueado para professor
@@ -931,14 +971,23 @@ export function Grades() {
                     </select>
                   </div>
                   
-                  <div className="flex items-end">
+                  <div className="flex items-end gap-2">
                     <button
                       onClick={loadGradesByClass}
                       disabled={!selectedClass || !selectedCourse || loading}
-                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       <Search size={18} />
                       Carregar Notas
+                    </button>
+                    <button
+                      onClick={() => setShowPdfModal(true)}
+                      disabled={!selectedClass || !selectedCourse}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      data-testid="btn-generate-grades-pdf"
+                    >
+                      <FileText size={18} />
+                      Gerar PDF
                     </button>
                   </div>
                 </div>
@@ -1417,6 +1466,53 @@ export function Grades() {
           </div>
         </div>
       </div>
+
+      {/* Modal de seleção de bimestres para PDF */}
+      {showPdfModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Gerar PDF de Notas</h3>
+            <p className="text-sm text-gray-600 mb-4">Selecione os bimestres:</p>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {[1, 2, 3, 4].map(b => (
+                <button
+                  key={b}
+                  onClick={() => togglePdfBimestre(b)}
+                  className={`px-4 py-3 rounded-lg border-2 font-medium transition-colors ${
+                    pdfBimestres.includes(b)
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                  }`}
+                  data-testid={`pdf-bimestre-${b}`}
+                >
+                  {b}º Bimestre
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPdfModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleGeneratePdf}
+                disabled={pdfBimestres.length === 0 || pdfLoading}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center justify-center gap-2"
+                data-testid="btn-confirm-grades-pdf"
+              >
+                {pdfLoading ? (
+                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                ) : (
+                  <FileText size={18} />
+                )}
+                {pdfLoading ? 'Gerando...' : 'Gerar PDF'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

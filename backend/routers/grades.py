@@ -13,9 +13,12 @@ from fastapi import APIRouter, HTTPException, status, Request
 from typing import Optional, List
 from datetime import datetime, timezone
 import uuid
+import logging
 
 from models import Grade, GradeCreate, GradeUpdate
 from auth_middleware import AuthMiddleware
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/grades", tags=["Notas"])
 
@@ -489,5 +492,124 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
             raise HTTPException(status_code=404, detail="Nota não encontrada")
         
         return None
+
+    @router.get("/pdf/{class_id}/{course_id}")
+    async def generate_grades_pdf(
+        class_id: str,
+        course_id: str,
+        request: Request,
+        bimestres: str = "1,2,3,4",
+        academic_year: Optional[int] = None,
+        student_series: Optional[str] = None
+    ):
+        """Gera PDF do relatório de notas por turma e componente"""
+        from fastapi.responses import StreamingResponse
+        from pdf_generator import generate_grades_report_pdf
+        
+        current_user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(current_user)
+        
+        if not academic_year:
+            academic_year = datetime.now().year
+        
+        bimestres_list = [int(b.strip()) for b in bimestres.split(',') if b.strip().isdigit()]
+        
+        # Busca dados da turma
+        class_info = await current_db.classes.find_one({"id": class_id}, {"_id": 0})
+        if not class_info:
+            raise HTTPException(status_code=404, detail="Turma não encontrada")
+        
+        # Busca dados da escola
+        school = await current_db.schools.find_one({"id": class_info.get('school_id')}, {"_id": 0})
+        if not school:
+            school = {"name": ""}
+        
+        # Busca componente curricular
+        course = await current_db.courses.find_one({"id": course_id}, {"_id": 0})
+        if not course:
+            raise HTTPException(status_code=404, detail="Componente não encontrado")
+        
+        # Busca mantenedora
+        mantenedora = await current_db.mantenedora.find_one({}, {"_id": 0})
+        
+        # Busca alunos matriculados
+        enrollments = await current_db.enrollments.find(
+            {"class_id": class_id, "status": "active"},
+            {"_id": 0, "student_id": 1, "enrollment_number": 1, "student_series": 1}
+        ).to_list(1000)
+        
+        enrollment_map = {}
+        for e in enrollments:
+            sid = e.get('student_id')
+            enrollment_map[sid] = {
+                'enrollment_number': e.get('enrollment_number'),
+                'student_series': e.get('student_series', '')
+            }
+        
+        student_ids = list(enrollment_map.keys())
+        
+        students = []
+        if student_ids:
+            students = await current_db.students.find(
+                {"id": {"$in": student_ids}},
+                {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "student_series": 1}
+            ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
+        
+        # Filtra por série se for multisseriada
+        if student_series:
+            students = [s for s in students if enrollment_map.get(s['id'], {}).get('student_series') == student_series]
+        
+        # Busca notas
+        grades = await current_db.grades.find(
+            {"class_id": class_id, "course_id": course_id, "academic_year": academic_year},
+            {"_id": 0}
+        ).to_list(1000)
+        grades_map = {g['student_id']: g for g in grades}
+        
+        # Monta dados para o PDF
+        students_data = []
+        for s in students:
+            grade = grades_map.get(s['id'], {})
+            students_data.append({
+                'full_name': s.get('full_name', ''),
+                'enrollment_number': enrollment_map.get(s['id'], {}).get('enrollment_number') or s.get('enrollment_number', ''),
+                'b1': grade.get('b1'),
+                'b2': grade.get('b2'),
+                'b3': grade.get('b3'),
+                'b4': grade.get('b4'),
+                'rec_s1': grade.get('rec_s1'),
+                'rec_s2': grade.get('rec_s2'),
+                'recovery': grade.get('recovery'),
+                'final_average': grade.get('final_average'),
+                'status': grade.get('status', 'cursando')
+            })
+        
+        try:
+            grade_level = student_series or class_info.get('grade_level', '')
+            buffer = generate_grades_report_pdf(
+                school=school,
+                class_info=class_info,
+                course=course,
+                students_data=students_data,
+                bimestres=bimestres_list,
+                academic_year=academic_year,
+                grade_level=grade_level,
+                mantenedora=mantenedora
+            )
+            
+            class_name = class_info.get('name', 'turma').replace(' ', '_')
+            course_name = course.get('name', 'comp').replace(' ', '_')
+            filename = f"notas_{class_name}_{course_name}_{academic_year}.pdf"
+            
+            return StreamingResponse(
+                buffer,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        except Exception as e:
+            logger.error(f"Erro ao gerar PDF de notas: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
     return router
