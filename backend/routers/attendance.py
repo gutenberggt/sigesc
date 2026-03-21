@@ -171,16 +171,19 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         # Estratégia 1: Busca na coleção enrollments (matrícula formal - ativos)
         enrollments = await current_db.enrollments.find(
             {"class_id": class_id, "status": "active"},
-            {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1}
+            {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1, "enrollment_date": 1}
         ).to_list(1000)
         
         enrollment_student_ids = set()
         enrollment_numbers = {}
+        enrollment_dates = {}
         for e in enrollments:
             student_id = e.get('student_id')
             enrollment_student_ids.add(student_id)
             if student_id not in enrollment_numbers or e.get('academic_year') == academic_year:
                 enrollment_numbers[student_id] = e.get('enrollment_number')
+            if e.get('enrollment_date'):
+                enrollment_dates[student_id] = e.get('enrollment_date')
         
         # Busca alunos inativos que JÁ ESTIVERAM nesta turma (transferidos, desistentes, etc.)
         inactive_enrollments = await current_db.enrollments.find(
@@ -281,7 +284,8 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                     "current_class_id": s.get('class_id'),
                     "is_transferred_from_class": s.get('class_id') and s.get('class_id') != class_id,
                     "action_label": action_info_map.get(s['id'], {}).get('action_label', ''),
-                    "action_date": action_info_map.get(s['id'], {}).get('action_date', '')
+                    "action_date": action_info_map.get(s['id'], {}).get('action_date', ''),
+                    "enrollment_date": enrollment_dates.get(s['id'], s.get('enrollment_date', ''))
                 }
                 for s in students
             ]

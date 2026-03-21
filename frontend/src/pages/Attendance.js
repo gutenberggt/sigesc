@@ -1079,13 +1079,23 @@ export const Attendance = () => {
                             ? (student.status || '').split('|')
                             : [];
                           
-                          // Bloqueio por ação (transferido, desistente, etc.)
+                          // Bloqueio por ação (transferido, desistente, etc.) - após a data da ação
                           const hasActionLabel = !!student.action_label;
                           const isBlockedByAction = hasActionLabel && student.action_date && 
                             attendanceData.date >= student.action_date.substring(0, 10);
                           
+                          // Bloqueio por data de matrícula - antes da matrícula
+                          const enrollDate = student.enrollment_date ? student.enrollment_date.substring(0, 10) : '';
+                          const isBeforeEnrollment = enrollDate && attendanceData.date < enrollDate;
+                          
+                          // Formata data de matrícula para exibição DD/MM/AAAA
+                          const enrollDateDisplay = enrollDate ? 
+                            `${enrollDate.substring(8,10)}/${enrollDate.substring(5,7)}/${enrollDate.substring(0,4)}` : '';
+                          
+                          const isAnyBlock = isBlocked || isBlockedByAction || isBeforeEnrollment;
+                          
                           return (
-                            <tr key={student.id} className={`hover:bg-gray-50 ${hasCertificate ? 'bg-red-50' : ''} ${isBlocked || isBlockedByAction ? 'bg-gray-100' : ''}`}>
+                            <tr key={student.id} className={`hover:bg-gray-50 ${hasCertificate ? 'bg-red-50' : ''} ${isAnyBlock ? 'bg-gray-100' : ''}`}>
                               <td className="px-4 py-3 font-medium text-gray-900">
                                 <div className="flex items-center gap-2">
                                   {student.full_name}
@@ -1117,9 +1127,15 @@ export const Attendance = () => {
                                         <div className="flex justify-center">
                                           <div className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">AM</div>
                                         </div>
-                                      ) : isBlocked || isBlockedByAction ? (
+                                      ) : isAnyBlock ? (
                                         <div className="flex justify-center">
-                                          <div className="px-2 py-1 bg-gray-200 text-gray-500 rounded text-xs">-</div>
+                                          <div className="px-2 py-1 bg-gray-200 text-gray-500 rounded text-xs text-center leading-tight">
+                                            {isBeforeEnrollment ? (
+                                              <><div>A partir de</div><div>{enrollDateDisplay}</div></>
+                                            ) : isBlockedByAction ? (
+                                              student.action_label
+                                            ) : '-'}
+                                          </div>
                                         </div>
                                       ) : (
                                         <div className="flex justify-center gap-1">
@@ -1159,10 +1175,19 @@ export const Attendance = () => {
                                         <span className="text-xs font-normal">Atestado Médico</span>
                                       </div>
                                     </div>
-                                  ) : isBlocked || isBlockedByAction ? (
+                                  ) : isAnyBlock ? (
                                     <div className="flex justify-center">
-                                      <div className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-center" title={isBlockedByAction ? `Aluno ${student.action_label}` : blockedMessage}>
-                                        <span className="text-sm">{isBlockedByAction ? student.action_label : 'Edição bloqueada'}</span>
+                                      <div className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-center">
+                                        {isBeforeEnrollment ? (
+                                          <>
+                                            <span className="text-xs block">A partir de</span>
+                                            <span className="text-sm font-medium">{enrollDateDisplay}</span>
+                                          </>
+                                        ) : isBlockedByAction ? (
+                                          <span className="text-sm">{student.action_label}</span>
+                                        ) : (
+                                          <span className="text-sm">Edição bloqueada</span>
+                                        )}
                                       </div>
                                     </div>
                                   ) : (
