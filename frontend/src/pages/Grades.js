@@ -850,7 +850,7 @@ export function Grades() {
             {activeTab === 'turma' && (
               <div className="space-y-6">
                 {/* Filtros */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_0.5fr_0.5fr_0.5fr_auto] gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
                     <select
@@ -914,7 +914,7 @@ export function Grades() {
                   )}
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Componente Curricular</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Componente</label>
                     <select
                       value={selectedCourse}
                       onChange={(e) => {
