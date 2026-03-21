@@ -666,6 +666,18 @@ export const Dashboard = () => {
                   <span className="text-xs text-gray-500">Visualização</span>
                 </CardContent>
               </Card>
+
+              <Card 
+                className="cursor-pointer hover:bg-violet-50 transition-colors"
+                onClick={() => navigate('/admin/diary-dashboard')}
+                data-testid="nav-diary-dashboard-card"
+              >
+                <CardContent className="p-4 text-center">
+                  <BarChart3 className="mx-auto mb-2 text-violet-600" size={32} />
+                  <p className="font-medium text-sm">Acompanhamento de Diários</p>
+                  <span className="text-xs text-gray-500">Visualização</span>
+                </CardContent>
+              </Card>
             </div>
           </div>
         )}
@@ -738,6 +750,18 @@ export const Dashboard = () => {
                 <div className="text-left">
                   <span className="font-medium text-gray-900 block">Objetos de Conhecimento</span>
                   <span className="text-xs text-gray-500">Visualizar conteúdos</span>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => navigate('/admin/diary-dashboard')}
+                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-300 transition-all"
+                data-testid="nav-diary-dashboard-menu"
+              >
+                <BarChart3 className="text-violet-600" size={24} />
+                <div className="text-left">
+                  <span className="font-medium text-gray-900 block">Acompanhamento de Diários</span>
+                  <span className="text-xs text-gray-500">Acompanhar diários de classe</span>
                 </div>
               </button>
               
