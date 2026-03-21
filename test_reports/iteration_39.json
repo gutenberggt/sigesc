@@ -1,0 +1,66 @@
+{
+  "summary": "Tested grades blocking rules for enrollment/transfer dates. Backend API (13/15 tests passed) correctly returns blocked_before_enrollment and blocked_after_action arrays. Frontend loads without errors but UI testing was limited due to multi-grade class filtering complexity.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login", "issue": "Secretario credentials (secretario@sigesc.com / secretario123) returned 401 - credentials may be incorrect"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_grades_blocking.py",
+    "/app/test_reports/pytest/pytest_grades_blocking.xml"
+  ],
+  "action_items": [
+    "Verify secretario credentials - current ones (secretario@sigesc.com / secretario123) return 401",
+    "Consider adding data-testid attributes to grade input fields for easier UI testing"
+  ],
+  "critical_code_review_comments": [
+    "Backend grades.py (lines 138-311): Correctly builds enrollment_dates dict from both active and inactive enrollments",
+    "Backend grades.py (lines 281-290): Correctly calculates blocked_before_enrollment (bimestre ends before enrollment_date) and blocked_after_action (bimestre starts after action_date)",
+    "Frontend Grades.js (lines 362-378): canEditStudentGrade function correctly implements blocking rules - blocked_after_action blocks ALL users, blocked_before_enrollment blocks only non-admin/secretario"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_grades_blocking.py"
+  ],
+  "success_rate": {
+    "backend": "87% (13/15 tests passed, 1 failed due to credentials, 1 skipped)",
+    "frontend": "Page loads correctly, API integration working (5 items returned)"
+  },
+  "test_credentials": {
+    "admin": "gutenberg@sigesc.com / @Celta2007 (WORKING)",
+    "secretario": "secretario@sigesc.com / secretario123 (NOT WORKING - 401)"
+  },
+  "seed_data_creation": "Used existing test class c09b8666-c8bb-40d1-b835-c2b0fa4b8ecd (TURMA MULTI 1-2-3)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Grades blocking rules tested. Backend API correctly returns blocked_before_enrollment and blocked_after_action arrays. Test class c09b8666-c8bb-40d1-b835-c2b0fa4b8ecd has 5 students with various blocking states. Use academic_year=2026 for testing. Frontend multi-grade class requires selecting Ano/Série before component. Secretario credentials need verification.",
+  "verified_features": {
+    "GET /api/grades/by-class returns blocking arrays": "PASS - API returns blocked_before_enrollment and blocked_after_action per student",
+    "blocked_after_action lists bimestres after action_date": "PASS - Transferred students have [2,3,4] blocked (action in March 2026)",
+    "blocked_before_enrollment lists bimestres before enrollment_date": "PASS - Students enrolled in 2026 have all 2025 bimestres blocked",
+    "enrollment_date returned per student": "PASS - enrollment_date field present in API response",
+    "Frontend Grades page loads": "PASS - Page loads at /admin/grades without errors",
+    "Frontend disables blocked_after_action for ALL users": "VERIFIED IN CODE - canEditStudentGrade returns false for blocked_after_action",
+    "Frontend allows admin to edit blocked_before_enrollment": "VERIFIED IN CODE - isAdminOrSecretary check allows editing",
+    "Frontend disables blocked_before_enrollment for professor": "VERIFIED IN CODE - non-admin/secretario blocked"
+  },
+  "api_test_results": {
+    "test_class_id": "c09b8666-c8bb-40d1-b835-c2b0fa4b8ecd",
+    "test_course_id": "42d470dd-5183-48d3-ae9a-aa3e698ef01a",
+    "academic_year_2026": {
+      "students_returned": 5,
+      "students_with_blocked_after_action": 4,
+      "students_with_blocked_before_enrollment": 0
+    },
+    "academic_year_2025": {
+      "students_returned": 5,
+      "students_with_blocked_after_action": 0,
+      "students_with_blocked_before_enrollment": 4
+    }
+  }
+}

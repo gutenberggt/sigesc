@@ -148,12 +148,13 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         # Estratégia 1: Busca na coleção enrollments (matrícula formal)
         enrollments = await current_db.enrollments.find(
             {"class_id": class_id, "status": "active"},
-            {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1, "student_series": 1}
+            {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1, "student_series": 1, "enrollment_date": 1}
         ).to_list(1000)
         
         enrollment_student_ids = set()
         enrollment_numbers = {}
         enrollment_series = {}
+        enrollment_dates = {}
         for e in enrollments:
             student_id = e.get('student_id')
             enrollment_student_ids.add(student_id)
@@ -161,11 +162,13 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 enrollment_numbers[student_id] = e.get('enrollment_number')
             if e.get('student_series'):
                 enrollment_series[student_id] = e.get('student_series')
+            if e.get('enrollment_date'):
+                enrollment_dates[student_id] = e.get('enrollment_date')
         
         # Busca alunos inativos que JÁ ESTIVERAM nesta turma
         inactive_enrollments = await current_db.enrollments.find(
             {"class_id": class_id, "status": {"$in": ["transferred", "dropout", "cancelled", "relocated", "progressed"]}},
-            {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1, "status": 1}
+            {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1, "status": 1, "enrollment_date": 1}
         ).to_list(1000)
         
         inactive_student_ids = set()
@@ -175,6 +178,8 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 inactive_student_ids.add(sid)
                 if sid not in enrollment_numbers or e.get('academic_year') == academic_year:
                     enrollment_numbers[sid] = e.get('enrollment_number')
+            if e.get('enrollment_date') and sid not in enrollment_dates:
+                enrollment_dates[sid] = e.get('enrollment_date')
         
         # Estratégia 2: Busca alunos diretamente com class_id (fallback para dados antigos/inconsistentes)
         direct_students = await current_db.students.find(

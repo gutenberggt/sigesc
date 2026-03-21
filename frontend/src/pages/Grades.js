@@ -355,13 +355,27 @@ export function Grades() {
     return canEdit && canEditBimestre(bimestre);
   };
   
-  // Função para verificar se pode editar notas de um aluno específico
+  // Função para verificar se pode editar notas de um aluno específico em um bimestre
+  // Regras:
+  // - blocked_after_action: bloqueado para TODOS (transferência/desistência)
+  // - blocked_before_enrollment: bloqueado para professor, liberado para admin/secretário
   const canEditStudentGrade = useCallback((student, bimestre) => {
     if (isStudentBlockedForProfessor(student)) {
       return false;
     }
+    // Bloqueio pós-ação (transferência/desistência) → bloqueio absoluto
+    if (student.blocked_after_action && student.blocked_after_action.includes(bimestre)) {
+      return false;
+    }
+    // Bloqueio pré-matrícula → bloqueio apenas para professor
+    if (student.blocked_before_enrollment && student.blocked_before_enrollment.includes(bimestre)) {
+      const isAdminOrSecretary = ['admin', 'admin_teste', 'secretario'].includes(user?.role);
+      if (!isAdminOrSecretary) {
+        return false;
+      }
+    }
     return canEditField(bimestre);
-  }, [isStudentBlockedForProfessor, canEditField]);
+  }, [isStudentBlockedForProfessor, canEditField, user?.role]);
   
   // Carrega dados iniciais
   useEffect(() => {
@@ -1060,11 +1074,29 @@ export function Grades() {
                             const isBlocked = isStudentBlockedForProfessor(item.student);
                             const blockedMessage = getBlockedMessage(item.student);
                             const hasActionLabel = !!item.student.action_label;
-                            const isBlockedByAction = hasActionLabel;
-                            const effectivelyBlocked = isBlocked || isBlockedByAction;
+                            const hasAnyBlocking = isBlocked || hasActionLabel || 
+                              (item.student.blocked_before_enrollment && item.student.blocked_before_enrollment.length > 0) ||
+                              (item.student.blocked_after_action && item.student.blocked_after_action.length > 0);
+                            
+                            // Helper: verifica se um bimestre específico está bloqueado para este aluno
+                            const canEditBim = (bim) => canEditStudentGrade(item.student, bim);
+                            
+                            // Tooltip para campos bloqueados por data de matrícula
+                            const getBlockTooltip = (bim) => {
+                              if (item.student.blocked_after_action && item.student.blocked_after_action.includes(bim)) {
+                                return `${item.student.action_label || 'Movimentado'} - bimestre bloqueado`;
+                              }
+                              if (item.student.blocked_before_enrollment && item.student.blocked_before_enrollment.includes(bim)) {
+                                const isAdminOrSecretary = ['admin', 'admin_teste', 'secretario'].includes(user?.role);
+                                if (!isAdminOrSecretary) {
+                                  return `Aluno matriculado após este bimestre (${item.student.enrollment_date || ''})`;
+                                }
+                              }
+                              return '';
+                            };
                             
                             return (
-                            <tr key={item.student.id} className={`hover:bg-gray-50 ${effectivelyBlocked ? 'bg-gray-100' : ''}`}>
+                            <tr key={item.student.id} className={`hover:bg-gray-50 ${hasAnyBlocking ? 'bg-gray-50' : ''}`}>
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
                                   <div>
@@ -1076,44 +1108,51 @@ export function Grades() {
                                         </span>
                                       )}
                                     </div>
-                                    <div className="text-xs text-gray-500">{item.student.enrollment_number}</div>
+                                    <div className="text-xs text-gray-500">
+                                      {item.student.enrollment_number}
+                                      {item.student.enrollment_date && (
+                                        <span className="ml-2 text-gray-400">
+                                          Matr: {item.student.enrollment_date.split('-').reverse().join('/')}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                   {isBlocked && (
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-600 text-xs font-medium rounded-full" title={blockedMessage}>
-                                      🔒
+                                      <Lock size={10} />
                                     </span>
                                   )}
                                 </div>
                               </td>
-                              <td className={`px-4 py-3 text-center ${!canEditField(1) || effectivelyBlocked ? 'bg-red-50/50' : ''}`}>
+                              <td className={`px-4 py-3 text-center ${!canEditBim(1) ? 'bg-red-50/50' : ''}`} title={getBlockTooltip(1)}>
                                 {usaConceito ? (
                                   <ConceitoSelect
                                     value={item.grade.b1}
                                     onChange={(v) => updateLocalGrade(index, 'b1', v)}
-                                    disabled={!canEditField(1) || effectivelyBlocked}
+                                    disabled={!canEditBim(1)}
                                     gradeLevel={currentGradeLevel}
                                   />
                                 ) : (
                                   <GradeInput
                                     value={item.grade.b1}
                                     onChange={(v) => updateLocalGrade(index, 'b1', v)}
-                                    disabled={!canEditField(1) || effectivelyBlocked}
+                                    disabled={!canEditBim(1)}
                                   />
                                 )}
                               </td>
-                              <td className={`px-4 py-3 text-center ${!canEditField(2) || effectivelyBlocked ? 'bg-red-50/50' : ''}`}>
+                              <td className={`px-4 py-3 text-center ${!canEditBim(2) ? 'bg-red-50/50' : ''}`} title={getBlockTooltip(2)}>
                                 {usaConceito ? (
                                   <ConceitoSelect
                                     value={item.grade.b2}
                                     onChange={(v) => updateLocalGrade(index, 'b2', v)}
-                                    disabled={!canEditField(2) || effectivelyBlocked}
+                                    disabled={!canEditBim(2)}
                                     gradeLevel={currentGradeLevel}
                                   />
                                 ) : (
                                   <GradeInput
                                     value={item.grade.b2}
                                     onChange={(v) => updateLocalGrade(index, 'b2', v)}
-                                    disabled={!canEditField(2) || effectivelyBlocked}
+                                    disabled={!canEditBim(2)}
                                   />
                                 )}
                               </td>
@@ -1122,40 +1161,40 @@ export function Grades() {
                                   <GradeInput
                                     value={item.grade.rec_s1}
                                     onChange={(v) => updateLocalGrade(index, 'rec_s1', v)}
-                                    disabled={(!canEditField(1) && !canEditField(2)) || effectivelyBlocked}
+                                    disabled={!canEditBim(1) && !canEditBim(2)}
                                     placeholder="-"
                                   />
                                 </td>
                               )}
-                              <td className={`px-4 py-3 text-center ${!canEditField(3) || effectivelyBlocked ? 'bg-red-50/50' : ''}`}>
+                              <td className={`px-4 py-3 text-center ${!canEditBim(3) ? 'bg-red-50/50' : ''}`} title={getBlockTooltip(3)}>
                                 {usaConceito ? (
                                   <ConceitoSelect
                                     value={item.grade.b3}
                                     onChange={(v) => updateLocalGrade(index, 'b3', v)}
-                                    disabled={!canEditField(3) || effectivelyBlocked}
+                                    disabled={!canEditBim(3)}
                                     gradeLevel={currentGradeLevel}
                                   />
                                 ) : (
                                   <GradeInput
                                     value={item.grade.b3}
                                     onChange={(v) => updateLocalGrade(index, 'b3', v)}
-                                    disabled={!canEditField(3) || effectivelyBlocked}
+                                    disabled={!canEditBim(3)}
                                   />
                                 )}
                               </td>
-                              <td className={`px-4 py-3 text-center ${!canEditField(4) || effectivelyBlocked ? 'bg-red-50/50' : ''}`}>
+                              <td className={`px-4 py-3 text-center ${!canEditBim(4) ? 'bg-red-50/50' : ''}`} title={getBlockTooltip(4)}>
                                 {usaConceito ? (
                                   <ConceitoSelect
                                     value={item.grade.b4}
                                     onChange={(v) => updateLocalGrade(index, 'b4', v)}
-                                    disabled={!canEditField(4) || effectivelyBlocked}
+                                    disabled={!canEditBim(4)}
                                     gradeLevel={currentGradeLevel}
                                   />
                                 ) : (
                                   <GradeInput
                                     value={item.grade.b4}
                                     onChange={(v) => updateLocalGrade(index, 'b4', v)}
-                                    disabled={!canEditField(4) || effectivelyBlocked}
+                                    disabled={!canEditBim(4)}
                                   />
                                 )}
                               </td>
@@ -1164,7 +1203,7 @@ export function Grades() {
                                   <GradeInput
                                     value={item.grade.rec_s2}
                                     onChange={(v) => updateLocalGrade(index, 'rec_s2', v)}
-                                    disabled={(!canEditField(3) && !canEditField(4)) || effectivelyBlocked}
+                                    disabled={!canEditBim(3) && !canEditBim(4)}
                                     placeholder="-"
                                   />
                                 </td>
