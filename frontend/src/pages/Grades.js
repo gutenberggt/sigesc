@@ -275,27 +275,27 @@ export function Grades() {
   // SEMED e Coordenador podem visualizar, mas não editar
   const canEdit = !['semed', 'semed3', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria'].includes(user?.role);
   
-  const API_URL = process.env.REACT_APP_BACKEND_URL;
-  
   const handleGeneratePdf = async () => {
     if (!selectedClass || !selectedCourse || pdfBimestres.length === 0) return;
     setPdfLoading(true);
     try {
+      const API = process.env.REACT_APP_BACKEND_URL;
+      const token = localStorage.getItem('accessToken');
       const bimestresParam = pdfBimestres.sort().join(',');
-      let url = `${API_URL}/api/grades/pdf/${selectedClass}/${selectedCourse}?bimestres=${bimestresParam}&academic_year=${academicYear}`;
+      let url = `${API}/api/grades/pdf/${selectedClass}/${selectedCourse}?bimestres=${bimestresParam}&academic_year=${academicYear}`;
       if (isMultiGrade && selectedSeries) {
         url += `&student_series=${encodeURIComponent(selectedSeries)}`;
       }
       const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error('Erro ao gerar PDF');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Erro ao gerar PDF');
+      }
       const blob = await response.blob();
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `notas_${bimestresParam.replace(/,/g, '-')}_bim.pdf`;
-      link.click();
-      URL.revokeObjectURL(link.href);
+      const pdfUrl = window.URL.createObjectURL(blob);
+      window.open(pdfUrl, '_blank');
       setShowPdfModal(false);
     } catch (err) {
       alert('Erro ao gerar PDF de notas: ' + err.message);
