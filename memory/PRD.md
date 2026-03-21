@@ -52,6 +52,7 @@
   - Registros em ordem cronológica (não mais por componente)
   - Numeração de página "Página X de Y" usando NumberedCanvas
 - [x] **Tabela agrupada por data**: Registros consolidados por data em uma única linha (4 colunas: DATA | COMPONENTES+CONTEÚDO | METODOLOGIA | AULAS). Metodologias duplicadas deduplicadas.
+- [x] **Cancelamento de matrícula**: Ao cancelar, deleta matrícula, remove aluno de frequências/notas, seta status 'inactive' e limpa escola/turma
 
 ## Backlog Pendente
 ### P0

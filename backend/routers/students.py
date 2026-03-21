@@ -371,11 +371,39 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             elif new_status == 'cancelled':
                 action_type = 'cancelamento'
                 history_obs = "Matrícula cancelada"
+                academic_year = datetime.now().year
                 
-                await current_db.enrollments.update_many(
+                # Busca matrículas ativas para obter class_ids e school_ids antes de deletar
+                active_enrollments_cursor = current_db.enrollments.find(
                     {"student_id": student_id, "status": "active"},
-                    {"$set": {"status": "cancelled"}}
+                    {"_id": 0, "class_id": 1, "school_id": 1, "id": 1}
                 )
+                active_enrollments = await active_enrollments_cursor.to_list(50)
+                cancelled_class_ids = list(set(e.get('class_id') for e in active_enrollments if e.get('class_id')))
+                
+                # 1. Remover aluno dos registros de frequência das turmas
+                if cancelled_class_ids:
+                    await current_db.attendance.update_many(
+                        {"class_id": {"$in": cancelled_class_ids}},
+                        {"$pull": {"records": {"student_id": student_id}}}
+                    )
+                
+                # 2. Deletar notas do aluno nas turmas
+                if cancelled_class_ids:
+                    await current_db.grades.delete_many(
+                        {"student_id": student_id, "class_id": {"$in": cancelled_class_ids}}
+                    )
+                
+                # 3. Deletar as matrículas ativas (não apenas marcar como cancelled)
+                await current_db.enrollments.delete_many(
+                    {"student_id": student_id, "status": "active"}
+                )
+                
+                # 4. Status do aluno: inativo, sem escola e turma
+                update_data['status'] = 'inactive'
+                update_data['school_id'] = ''
+                update_data['class_id'] = ''
+                new_status = 'inactive'
             
             # Se está sendo matriculado (de transferido/inativo para ativo)
             elif new_status == 'active' and old_status in ['transferred', 'inactive', 'dropout', None, '']:

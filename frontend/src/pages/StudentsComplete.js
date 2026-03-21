@@ -918,10 +918,10 @@ export function StudentsComplete() {
           historyEntry = {
             ...historyEntry,
             action_type: 'cancelamento',
-            new_status: 'cancelled',
+            new_status: 'inactive',
             school_id: formData.school_id,
             class_id: formData.class_id,
-            observations: actionData.reason || 'Matrícula cancelada'
+            observations: actionData.reason || 'Matrícula cancelada - dados da turma removidos'
           };
           break;
           

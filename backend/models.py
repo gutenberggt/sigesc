@@ -857,7 +857,7 @@ class AuthorizedPerson(BaseModel):
 
 class StudentBase(BaseModel):
     # === IDENTIFICAÇÃO ===
-    school_id: str
+    school_id: Optional[str] = None
     enrollment_number: Optional[str] = None  # Código interno/matrícula (gerado automaticamente se não informado)
     inep_code: Optional[str] = None  # Código INEP do aluno
     
