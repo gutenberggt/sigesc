@@ -276,4 +276,112 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
 
 
+    @router.post("/maintenance/cleanup-cancelled-enrollments")
+    async def cleanup_cancelled_enrollments(request: Request, dry_run: bool = True):
+        """
+        Limpeza retroativa de matrículas canceladas.
+        Remove frequências, notas e matrículas de alunos com status 'cancelled'.
+        Seta o aluno como 'inactive' sem escola/turma.
+        Use dry_run=false para executar a limpeza real.
+        """
+        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+
+        cancelled_students = await db.students.find(
+            {"status": {"$in": ["cancelled", "cancelado"]}},
+            {"_id": 0, "id": 1, "full_name": 1, "status": 1}
+        ).to_list(1000)
+
+        cancelled_enrollments = await db.enrollments.find(
+            {"status": "cancelled"},
+            {"_id": 0, "student_id": 1, "class_id": 1}
+        ).to_list(5000)
+
+        ids_from_students = {s["id"] for s in cancelled_students}
+        ids_from_enrollments = {e["student_id"] for e in cancelled_enrollments}
+        all_ids = ids_from_students | ids_from_enrollments
+
+        if not all_ids:
+            return {
+                "message": "Nenhum aluno cancelado encontrado para limpar.",
+                "totals": {"students": 0, "enrollments": 0, "attendance": 0, "grades": 0}
+            }
+
+        t_att = t_gr = t_en = t_st = 0
+        affected = []
+
+        for sid in sorted(all_ids):
+            student = await db.students.find_one({"id": sid}, {"_id": 0, "id": 1, "full_name": 1, "status": 1})
+            name = student.get("full_name", "???") if student else "???"
+
+            enrollments_list = await db.enrollments.find(
+                {"student_id": sid, "status": "cancelled"},
+                {"_id": 0, "class_id": 1}
+            ).to_list(50)
+            class_ids = list(set(e.get("class_id") for e in enrollments_list if e.get("class_id")))
+
+            att_count = 0
+            grade_count = 0
+            if class_ids:
+                att_count = await db.attendance.count_documents(
+                    {"class_id": {"$in": class_ids}, "records.student_id": sid}
+                )
+                grade_count = await db.grades.count_documents(
+                    {"student_id": sid, "class_id": {"$in": class_ids}}
+                )
+
+            entry = {
+                "name": name,
+                "enrollments": len(enrollments_list),
+                "attendance": att_count,
+                "grades": grade_count
+            }
+
+            if not dry_run:
+                if class_ids:
+                    r = await db.attendance.update_many(
+                        {"class_id": {"$in": class_ids}},
+                        {"$pull": {"records": {"student_id": sid}}}
+                    )
+                    t_att += r.modified_count
+                    r = await db.grades.delete_many(
+                        {"student_id": sid, "class_id": {"$in": class_ids}}
+                    )
+                    t_gr += r.deleted_count
+                r = await db.enrollments.delete_many(
+                    {"student_id": sid, "status": "cancelled"}
+                )
+                t_en += r.deleted_count
+                if student and student.get("status") in ["cancelled", "cancelado"]:
+                    await db.students.update_one(
+                        {"id": sid},
+                        {"$set": {"status": "inactive", "school_id": "", "class_id": ""}}
+                    )
+                    t_st += 1
+            else:
+                t_att += att_count
+                t_gr += grade_count
+                t_en += len(enrollments_list)
+                if student and student.get("status") in ["cancelled", "cancelado"]:
+                    t_st += 1
+
+            affected.append(entry)
+
+        if not dry_run:
+            await audit_service.log(
+                action='delete',
+                collection='system',
+                user=current_user,
+                request=request,
+                description=f"Limpeza de matrículas canceladas: {t_st} alunos, {t_en} matrículas, {t_att} frequências, {t_gr} notas",
+                extra_data={"students": t_st, "enrollments": t_en, "attendance": t_att, "grades": t_gr}
+            )
+
+        return {
+            "mode": "dry_run" if dry_run else "executed",
+            "message": f"{'Prévia' if dry_run else 'Limpeza concluída'}: {t_st} alunos, {t_en} matrículas, {t_att} frequências, {t_gr} notas",
+            "totals": {"students": t_st, "enrollments": t_en, "attendance": t_att, "grades": t_gr},
+            "affected": affected
+        }
+
+
     return router
