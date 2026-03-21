@@ -60,6 +60,7 @@
   - Bimestres após transferência/desistência → bloqueado para todos
   - Exibe data de matrícula do aluno na listagem
   - Corrigido bug: variável `enrollment_dates` não definida no endpoint
+- [x] **Bug fix: enrollment_date não salva na matrícula**: Ao usar ação "Matricular" (re-ativação de aluno), o `enrollment_date` não era propagado para o enrollment nem para o student. Corrigido frontend (envia enrollment_date no updateData) e backend (usa a data informada pelo usuário ao criar enrollment).
 - [x] **Bloqueio de frequência por data**: Avisos e desabilitação antes da matrícula e após transferência (sessão anterior)
 - [x] **PDF Relatório de Notas**: Endpoint e botão corrigidos
 - [x] **Filtro Ano/Série em Notas**: Para turmas multisseriadas

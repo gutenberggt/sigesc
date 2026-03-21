@@ -806,7 +806,8 @@ export function StudentsComplete() {
             school_id: actionData.targetSchoolId,
             class_id: actionData.targetClassId,
             status: 'active',
-            academic_year: actionData.academicYear
+            academic_year: actionData.academicYear,
+            enrollment_date: actionData.actionDate || new Date().toISOString().split('T')[0]
           };
           
           // Adiciona informação da série na observação se for turma multisseriada

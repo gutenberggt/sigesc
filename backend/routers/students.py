@@ -484,7 +484,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                         "enrollment_number": new_enrollment_number,
                         "student_series": update_data.get('student_series') or (target_class.get('grade_level') if target_class else None),
                         "status": "active",
-                        "enrollment_date": datetime.now(timezone.utc).isoformat(),
+                        "enrollment_date": update_data.get('enrollment_date') or (f"{custom_action_date}T12:00:00+00:00" if custom_action_date else datetime.now(timezone.utc).isoformat()),
                         "created_at": datetime.now(timezone.utc).isoformat()
                     }
                     try:
