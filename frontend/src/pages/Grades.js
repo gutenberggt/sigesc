@@ -250,6 +250,7 @@ export function Grades() {
   // Filtros - Por Turma
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
+  const [selectedSeries, setSelectedSeries] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
   
   // Filtros - Por Aluno
@@ -398,8 +399,37 @@ export function Grades() {
     ? professorTurmas.find(t => t.id === selectedClass)
     : classes.find(c => c.id === selectedClass);
   
-  // Grade level da turma selecionada
-  const currentGradeLevel = selectedClassData?.grade_level || '';
+  // Verifica se é turma multisseriada
+  const isMultiGrade = selectedClassData?.is_multi_grade === true;
+  
+  // Séries disponíveis para turmas multisseriadas
+  const [availableSeries, setAvailableSeries] = useState([]);
+  
+  // Busca séries disponíveis quando seleciona turma multisseriada
+  useEffect(() => {
+    if (!isMultiGrade || !selectedClass) {
+      setAvailableSeries([]);
+      return;
+    }
+    const fetchSeries = async () => {
+      try {
+        const details = await classesAPI.getDetails(selectedClass);
+        const seriesSet = new Set();
+        (details.students || []).forEach(s => {
+          if (s.student_series) seriesSet.add(s.student_series);
+        });
+        setAvailableSeries(Array.from(seriesSet).sort());
+      } catch {
+        setAvailableSeries([]);
+      }
+    };
+    fetchSeries();
+  }, [selectedClass, isMultiGrade]);
+  
+  // Grade level: usa selectedSeries para multisseriada, senão grade_level da turma
+  const currentGradeLevel = isMultiGrade && selectedSeries
+    ? selectedSeries
+    : (selectedClassData?.grade_level || '');
   
   // Verifica se é Educação Infantil
   const isEdInfantil = selectedClassData 
@@ -431,6 +461,14 @@ export function Grades() {
         // Deve ser do mesmo nível de ensino (se o componente tiver nível definido)
         if (course.nivel_ensino && course.nivel_ensino !== selectedClassData.education_level) return false;
         
+        // Para multisseriada com série selecionada, filtra pelo ano/série
+        if (isMultiGrade && selectedSeries) {
+          if (course.grade_levels && course.grade_levels.length > 0) {
+            return course.grade_levels.includes(selectedSeries);
+          }
+          return true;
+        }
+        
         // Se o componente não tem séries específicas, aplica a todas do nível
         if (!course.grade_levels || course.grade_levels.length === 0) return true;
         
@@ -457,7 +495,11 @@ export function Grades() {
       if (isOnline) {
         // Online: busca da API e atualiza cache local
         const data = await gradesAPI.getByClass(selectedClass, selectedCourse, academicYear);
-        setGradesData(data);
+        // Para turmas multisseriadas, filtra apenas alunos da série selecionada
+        const filteredData = (isMultiGrade && selectedSeries)
+          ? data.filter(item => item.student?.student_series === selectedSeries)
+          : data;
+        setGradesData(filteredData);
         
         // Atualiza cache local com dados do servidor
         if (data && data.length > 0) {
@@ -816,6 +858,7 @@ export function Grades() {
                       onChange={(e) => {
                         setSelectedSchool(e.target.value);
                         setSelectedClass('');
+                        setSelectedSeries('');
                         setSelectedCourse('');
                         setGradesData([]);
                       }}
@@ -834,6 +877,8 @@ export function Grades() {
                       value={selectedClass}
                       onChange={(e) => {
                         setSelectedClass(e.target.value);
+                        setSelectedSeries('');
+                        setSelectedCourse('');
                         setGradesData([]);
                       }}
                       disabled={!selectedSchool}
@@ -846,6 +891,28 @@ export function Grades() {
                     </select>
                   </div>
                   
+                  {/* Dropdown de Ano/Série - apenas para turmas multisseriadas */}
+                  {isMultiGrade && selectedClass && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ano/Série</label>
+                      <select
+                        value={selectedSeries}
+                        onChange={(e) => {
+                          setSelectedSeries(e.target.value);
+                          setSelectedCourse('');
+                          setGradesData([]);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        data-testid="select-series-filter"
+                      >
+                        <option value="">Selecione o ano/série</option>
+                        {availableSeries.map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Componente Curricular</label>
                     <select
@@ -854,7 +921,7 @@ export function Grades() {
                         setSelectedCourse(e.target.value);
                         setGradesData([]);
                       }}
-                      disabled={!selectedSchool}
+                      disabled={!selectedSchool || (isMultiGrade && !selectedSeries)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                     >
                       <option value="">Selecione o componente</option>

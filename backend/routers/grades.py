@@ -145,16 +145,19 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         # Estratégia 1: Busca na coleção enrollments (matrícula formal)
         enrollments = await current_db.enrollments.find(
             {"class_id": class_id, "status": "active"},
-            {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1}
+            {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1, "student_series": 1}
         ).to_list(1000)
         
         enrollment_student_ids = set()
         enrollment_numbers = {}
+        enrollment_series = {}
         for e in enrollments:
             student_id = e.get('student_id')
             enrollment_student_ids.add(student_id)
             if student_id not in enrollment_numbers or e.get('academic_year') == academic_year:
                 enrollment_numbers[student_id] = e.get('enrollment_number')
+            if e.get('student_series'):
+                enrollment_series[student_id] = e.get('student_series')
         
         # Busca alunos inativos que JÁ ESTIVERAM nesta turma
         inactive_enrollments = await current_db.enrollments.find(
@@ -191,7 +194,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         if all_student_ids:
             students = await current_db.students.find(
                 {"id": {"$in": all_student_ids}},
-                {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "status": 1, "class_id": 1}
+                {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "status": 1, "class_id": 1, "student_series": 1}
             ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
         
         # Busca ação mais recente para alunos inativos
@@ -245,6 +248,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 'full_name': student['full_name'],
                 'enrollment_number': enrollment_numbers.get(student['id']) or student.get('enrollment_number'),
                 'student_status': student.get('status', 'active'),
+                'student_series': enrollment_series.get(student['id']) or student.get('student_series', ''),
                 'current_class_id': student.get('class_id'),
                 'is_transferred_from_class': student.get('class_id') and student.get('class_id') != class_id,
                 'action_label': action_info_map.get(student['id'], {}).get('action_label', ''),
