@@ -2631,7 +2631,7 @@ export function StudentsComplete() {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
               <select
@@ -2710,6 +2710,17 @@ export function StudentsComplete() {
                   />
                 );
               })()}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data da Matrícula</label>
+              <input
+                type="date"
+                value={formData.enrollment_date || ''}
+                onChange={(e) => updateFormData('enrollment_date', e.target.value)}
+                disabled={viewMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                data-testid="enrollment-date-edit"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>

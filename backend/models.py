@@ -1067,6 +1067,9 @@ class StudentUpdate(BaseModel):
     observations: Optional[str] = None
     status: Optional[Literal['active', 'inactive', 'dropout', 'transferred', 'deceased', 'cancelled']] = None
     
+    # Data da matrícula
+    enrollment_date: Optional[str] = None
+    
     # Data da ação (para registro no histórico)
     action_date: Optional[str] = None
     # Hint de ação (para diferenciar remanejamento de progressão)
