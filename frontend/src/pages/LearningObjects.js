@@ -230,7 +230,7 @@ export const LearningObjects = () => {
     if (isProfessor) {
       return classes;
     }
-    if (!selectedSchool) return classes;
+    if (!selectedSchool) return [];
     return classes.filter(c => c.school_id === selectedSchool);
   }, [classes, selectedSchool, isProfessor]);
 
@@ -312,17 +312,28 @@ export const LearningObjects = () => {
         if (!classInfo) return;
         
         const turmaLevel = inferEducationLevel(classInfo);
+        const turmaGradeLevel = classInfo.grade_level;
         
         // Buscar componentes do nível de ensino da turma
         const allCourses = await coursesAPI.getAll(turmaLevel || null);
         
-        // Se não encontrou nenhum, buscar todos
-        if (allCourses.length === 0) {
-          const fallbackCourses = await coursesAPI.getAll();
-          setCourses(fallbackCourses.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
-        } else {
-          setCourses(allCourses.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        // Filtrar por grade_level da turma (se o componente tiver grade_levels definido)
+        let filtered = allCourses;
+        if (turmaGradeLevel) {
+          filtered = allCourses.filter(c => 
+            !c.grade_levels || c.grade_levels.length === 0 || c.grade_levels.includes(turmaGradeLevel)
+          );
         }
+        
+        // Se não encontrou nenhum, buscar todos do nível sem filtrar
+        if (filtered.length === 0 && allCourses.length > 0) {
+          filtered = allCourses;
+        } else if (filtered.length === 0) {
+          const fallbackCourses = await coursesAPI.getAll();
+          filtered = fallbackCourses;
+        }
+        
+        setCourses(filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
         
         setSelectedCourse('');
         setSelectedCourses([]);
@@ -670,7 +681,8 @@ export const LearningObjects = () => {
                 <select
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                  disabled={!selectedSchool}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
                 >
                   <option value="">Selecione a turma</option>
                   {filteredClasses.map(c => (
@@ -688,8 +700,9 @@ export const LearningObjects = () => {
                   <>
                     <button
                       type="button"
-                      onClick={() => setShowCoursesDropdown(!showCoursesDropdown)}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-left bg-white flex items-center justify-between"
+                      onClick={() => selectedClass && setShowCoursesDropdown(!showCoursesDropdown)}
+                      disabled={!selectedClass}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-left bg-white flex items-center justify-between disabled:bg-gray-100 disabled:cursor-not-allowed"
                       data-testid="campo-experiencia-toggle"
                     >
                       <span className={selectedCourses.length === 0 ? 'text-gray-400' : 'text-gray-900 truncate'}>
@@ -742,7 +755,8 @@ export const LearningObjects = () => {
                   <select
                     value={selectedCourse}
                     onChange={(e) => setSelectedCourse(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    disabled={!selectedClass}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
                   >
                     <option value="">Selecione o componente</option>
                     {courses.map(c => (
