@@ -515,8 +515,11 @@ export function Grades() {
         // Filtrar por atendimento_programa (regular, integral, AEE)
         const turmaAtendimento = (selectedClassData.atendimento_programa || '').toLowerCase();
         const courseAtendimento = (course.atendimento_programa || course.atendimento || '').toLowerCase();
-        if (turmaAtendimento) {
-          // Turma com programa específico: só componentes do mesmo programa
+        if (turmaAtendimento === 'atendimento_integral') {
+          // Turma integral: aceita regulares + integrais (exclui AEE e outros)
+          if (courseAtendimento && courseAtendimento !== 'atendimento_integral') return false;
+        } else if (turmaAtendimento) {
+          // Turma com outro programa (AEE etc): só componentes do mesmo programa
           if (courseAtendimento !== turmaAtendimento) return false;
         } else {
           // Turma regular: só componentes regulares (sem programa)
@@ -536,6 +539,15 @@ export function Grades() {
         
         // Verifica se a série da turma está nas séries do componente
         return course.grade_levels.includes(selectedClassData.grade_level);
+      }).sort((a, b) => {
+        // Turma integral: regulares primeiro, depois integrais
+        if ((selectedClassData.atendimento_programa || '').toLowerCase() === 'atendimento_integral') {
+          const aAtend = (a.atendimento_programa || a.atendimento || '').toLowerCase();
+          const bAtend = (b.atendimento_programa || b.atendimento || '').toLowerCase();
+          if (!aAtend && bAtend) return -1;
+          if (aAtend && !bAtend) return 1;
+        }
+        return (a.name || '').localeCompare(b.name || '');
       });
   
   // Sugestões de busca

@@ -321,14 +321,28 @@ export const LearningObjects = () => {
         // Filtrar por atendimento_programa (regular, integral, AEE)
         let filtered = allCourses.filter(c => {
           const courseAtendimento = (c.atendimento_programa || c.atendimento || '').toLowerCase();
-          if (turmaAtendimento) {
-            // Turma com programa específico: só componentes do mesmo programa
+          if (turmaAtendimento === 'atendimento_integral') {
+            // Turma integral: aceita regulares + integrais (exclui AEE e outros)
+            return !courseAtendimento || courseAtendimento === 'atendimento_integral';
+          } else if (turmaAtendimento) {
+            // Turma com outro programa (AEE etc): só componentes do mesmo programa
             return courseAtendimento === turmaAtendimento;
           } else {
             // Turma regular: só componentes regulares (sem programa)
             return !courseAtendimento;
           }
         });
+        
+        // Ordenar: regulares primeiro, depois integrais
+        if (turmaAtendimento === 'atendimento_integral') {
+          filtered.sort((a, b) => {
+            const aAtend = (a.atendimento_programa || a.atendimento || '').toLowerCase();
+            const bAtend = (b.atendimento_programa || b.atendimento || '').toLowerCase();
+            if (!aAtend && bAtend) return -1;
+            if (aAtend && !bAtend) return 1;
+            return (a.name || '').localeCompare(b.name || '');
+          });
+        }
         
         // Filtrar por grade_level da turma (se o componente tiver grade_levels definido)
         if (turmaGradeLevel) {
