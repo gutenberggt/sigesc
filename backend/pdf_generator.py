@@ -495,9 +495,8 @@ def generate_boletim_pdf(
     
     # ===== CABEÇALHO =====
     # Usar logotipo da mantenedora se disponível
-    # Tamanho reduzido em 40% (2.7cm -> 1.62cm, 1.8cm -> 1.08cm)
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    logo = get_logo_image(width=1.62*cm, height=1.08*cm, logo_url=logo_url)
+    logo = get_logo_image(width=2.5*cm, height=3*cm, logo_url=logo_url)
     
     # Usar dados da mantenedora
     mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
@@ -544,8 +543,8 @@ def generate_boletim_pdf(
     slogan_html = f'<font size="8" color="#666666">"{slogan}"</font>' if slogan else ''
     
     header_text = f"""
-    <b>{mant_nome}</b><br/>
-    <font size="9">Secretaria Municipal de Educação</font><br/>
+    <font size="11"><b>{mant_nome.upper()}</b></font><br/>
+    <font size="9"><i>Secretaria Municipal de Educação</i></font><br/>
     {slogan_html}
     """
     
@@ -558,10 +557,14 @@ def generate_boletim_pdf(
     header_style_right = ParagraphStyle('HeaderRight', fontSize=10, alignment=TA_RIGHT, leading=16)
     
     if logo:
-        # Coluna do nível de ensino (header_right): 7.5cm
+        # Layout: [Brasão | separador | Texto Prefeitura | Título Boletim]
+        separator = Table([['']], colWidths=[0.3*cm], rowHeights=[3*cm])
+        separator.setStyle(TableStyle([
+            ('LINEAFTER', (0, 0), (0, 0), 1, colors.black),
+        ]))
         header_table = Table([
-            [logo, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
-        ], colWidths=[3.2*cm, 7.3*cm, 7.5*cm])
+            [logo, separator, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
+        ], colWidths=[3*cm, 0.5*cm, 7*cm, 7.5*cm])
     else:
         header_table = Table([
             [Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
@@ -1589,9 +1592,8 @@ def generate_ficha_individual_pdf(
     
     # ===== CABEÇALHO =====
     # Usar logotipo da mantenedora se disponível
-    # Tamanho reduzido em 40% (2.4cm -> 1.44cm, 1.6cm -> 0.96cm)
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    logo = get_logo_image(width=1.44*cm, height=0.96*cm, logo_url=logo_url)
+    logo = get_logo_image(width=2.5*cm, height=3*cm, logo_url=logo_url)
     
     # Usar cidade/estado da mantenedora
     mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
@@ -1638,8 +1640,8 @@ def generate_ficha_individual_pdf(
     slogan_html = f'<font size="8" color="#666666">"{slogan}"</font>' if slogan else ''
     
     header_text = f"""
-    <b>{mant_nome}</b><br/>
-    <font size="9">Secretaria Municipal de Educação</font><br/>
+    <font size="11"><b>{mant_nome.upper()}</b></font><br/>
+    <font size="9"><i>Secretaria Municipal de Educação</i></font><br/>
     {slogan_html}
     """
     
@@ -1652,9 +1654,14 @@ def generate_ficha_individual_pdf(
     header_style_right = ParagraphStyle('HeaderRight', fontSize=10, alignment=TA_RIGHT, leading=16)
     
     if logo:
+        # Layout: [Brasão | separador | Texto Prefeitura | Título Ficha]
+        separator = Table([['']], colWidths=[0.3*cm], rowHeights=[3*cm])
+        separator.setStyle(TableStyle([
+            ('LINEAFTER', (0, 0), (0, 0), 1, colors.black),
+        ]))
         header_table = Table([
-            [logo, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
-        ], colWidths=[3*cm, 9*cm, 7*cm])  # Texto +1cm para melhor estética
+            [logo, separator, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
+        ], colWidths=[3*cm, 0.5*cm, 8.5*cm, 7*cm])
     else:
         header_table = Table([
             [Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
