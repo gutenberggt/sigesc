@@ -43,7 +43,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         cache.invalidate('classes')
         return class_obj
 
-    @router.get("", response_model=List[Class])
+    @router.get("")
     async def list_classes(request: Request, school_id: Optional[str] = None, skip: int = 0, limit: int = 1000):
         """Lista turmas"""
         current_user = await AuthMiddleware.get_current_user(request)
@@ -73,6 +73,18 @@ def setup_router(db, audit_service, sandbox_db=None):
                 filter_query['school_id'] = {"$in": current_user.get('school_ids', [])}
         
         classes = await current_db.classes.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+        
+        # Adicionar contagem de alunos matriculados por turma
+        if classes:
+            class_ids = [c['id'] for c in classes]
+            pipeline = [
+                {"$match": {"class_id": {"$in": class_ids}, "status": "active"}},
+                {"$group": {"_id": "$class_id", "count": {"$sum": 1}}}
+            ]
+            counts = await current_db.enrollments.aggregate(pipeline).to_list(1000)
+            count_map = {c['_id']: c['count'] for c in counts}
+            for c in classes:
+                c['student_count'] = count_map.get(c['id'], 0)
         
         cache.set('classes', cache_params, classes, CACHE_TTL_CLASSES)
         return classes

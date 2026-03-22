@@ -1718,8 +1718,11 @@ export function SchoolsComplete() {
   };
 
   const renderTurmas = () => {
-    // Filtra turmas da escola atual
-    const schoolClasses = classes.filter(c => c.school_id === (editingSchool?.id || formData.school_id));
+    // Filtra turmas da escola atual E pelo ano letivo selecionado
+    const schoolClasses = classes.filter(c => 
+      c.school_id === (editingSchool?.id || formData.school_id) &&
+      c.academic_year === selectedYear
+    );
 
     // Função para renderizar o badge de tipo/programa
     const renderTipoBadge = (atendimentoPrograma) => {
@@ -1754,7 +1757,10 @@ export function SchoolsComplete() {
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center mb-4">
-          <h4 className="text-md font-semibold text-gray-900">Turmas Cadastradas</h4>
+          <h4 className="text-md font-semibold text-gray-900">
+            Turmas Cadastradas
+            <span className="ml-2 text-sm font-normal text-gray-500">({selectedYear})</span>
+          </h4>
           <button
             type="button"
             onClick={() => navigate('/admin/classes')}
@@ -1781,7 +1787,7 @@ export function SchoolsComplete() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turma</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ano Letivo</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Alunos</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
                 </tr>
@@ -1790,7 +1796,7 @@ export function SchoolsComplete() {
                 {schoolClasses.map((classItem, index) => (
                   <tr key={index} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">{classItem.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{classItem.academic_year}</td>
+                    <td className="px-4 py-3 text-sm text-center text-gray-900 font-medium">{classItem.student_count ?? '-'}</td>
                     <td className="px-4 py-3 text-sm">{renderTipoBadge(classItem.atendimento_programa)}</td>
                     <td className="px-4 py-3 text-sm">
                       <div className="flex items-center justify-center gap-2">
@@ -2531,7 +2537,7 @@ export function SchoolsComplete() {
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          title={viewMode ? 'Visualizar Escola' : (editingSchool ? 'Editar Escola' : 'Nova Escola')}
+          title={viewMode ? `Visualizar Escola - ${formData.name || ''}` : (editingSchool ? 'Editar Escola' : 'Nova Escola')}
           size="xl"
         >
           <form onSubmit={handleSubmit} className="space-y-6">
