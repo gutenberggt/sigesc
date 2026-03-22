@@ -557,14 +557,10 @@ def generate_boletim_pdf(
     header_style_right = ParagraphStyle('HeaderRight', fontSize=10, alignment=TA_RIGHT, leading=16)
     
     if logo:
-        # Layout: [Brasão | separador | Texto Prefeitura | Título Boletim]
-        separator = Table([['']], colWidths=[0.3*cm], rowHeights=[3*cm])
-        separator.setStyle(TableStyle([
-            ('LINEAFTER', (0, 0), (0, 0), 1, colors.black),
-        ]))
+        # Layout: [Brasão | Texto Prefeitura | Título Boletim]
         header_table = Table([
-            [logo, separator, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
-        ], colWidths=[3*cm, 0.5*cm, 7*cm, 7.5*cm])
+            [logo, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
+        ], colWidths=[3*cm, 8*cm, 7*cm])
     else:
         header_table = Table([
             [Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
@@ -573,7 +569,8 @@ def generate_boletim_pdf(
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-        ('LEFTPADDING', (1, 0), (1, 0), 10),  # Padding extra no texto
+        ('LEFTPADDING', (1, 0), (1, 0), 10),
+        ('LINEAFTER', (0, 0), (0, 0), 1, colors.black),
     ]))
     elements.append(header_table)
     elements.append(Spacer(1, 10))
@@ -1654,14 +1651,10 @@ def generate_ficha_individual_pdf(
     header_style_right = ParagraphStyle('HeaderRight', fontSize=10, alignment=TA_RIGHT, leading=16)
     
     if logo:
-        # Layout: [Brasão | separador | Texto Prefeitura | Título Ficha]
-        separator = Table([['']], colWidths=[0.3*cm], rowHeights=[3*cm])
-        separator.setStyle(TableStyle([
-            ('LINEAFTER', (0, 0), (0, 0), 1, colors.black),
-        ]))
+        # Layout: [Brasão | Texto Prefeitura | Título Ficha]
         header_table = Table([
-            [logo, separator, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
-        ], colWidths=[3*cm, 0.5*cm, 8.5*cm, 7*cm])
+            [logo, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
+        ], colWidths=[3*cm, 9*cm, 7*cm])
     else:
         header_table = Table([
             [Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
@@ -1670,7 +1663,8 @@ def generate_ficha_individual_pdf(
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ('LEFTPADDING', (1, 0), (1, 0), 10),  # Padding extra no texto
+        ('LEFTPADDING', (1, 0), (1, 0), 10),
+        ('LINEAFTER', (0, 0), (0, 0), 1, colors.black),
     ]))
     elements.append(header_table)
     elements.append(Spacer(1, 5))
