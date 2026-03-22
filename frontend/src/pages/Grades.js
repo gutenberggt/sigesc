@@ -512,6 +512,17 @@ export function Grades() {
         // Deve ser do mesmo nível de ensino (se o componente tiver nível definido)
         if (course.nivel_ensino && course.nivel_ensino !== selectedClassData.education_level) return false;
         
+        // Filtrar por atendimento_programa (regular, integral, AEE)
+        const turmaAtendimento = (selectedClassData.atendimento_programa || '').toLowerCase();
+        const courseAtendimento = (course.atendimento_programa || course.atendimento || '').toLowerCase();
+        if (turmaAtendimento) {
+          // Turma com programa específico: só componentes do mesmo programa
+          if (courseAtendimento !== turmaAtendimento) return false;
+        } else {
+          // Turma regular: só componentes regulares (sem programa)
+          if (courseAtendimento) return false;
+        }
+        
         // Para multisseriada com série selecionada, filtra pelo ano/série
         if (isMultiGrade && selectedSeries) {
           if (course.grade_levels && course.grade_levels.length > 0) {

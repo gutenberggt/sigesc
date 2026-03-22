@@ -313,19 +313,34 @@ export const LearningObjects = () => {
         
         const turmaLevel = inferEducationLevel(classInfo);
         const turmaGradeLevel = classInfo.grade_level;
+        const turmaAtendimento = (classInfo.atendimento_programa || '').toLowerCase();
         
         // Buscar componentes do nível de ensino da turma
         const allCourses = await coursesAPI.getAll(turmaLevel || null);
         
+        // Filtrar por atendimento_programa (regular, integral, AEE)
+        let filtered = allCourses.filter(c => {
+          const courseAtendimento = (c.atendimento_programa || c.atendimento || '').toLowerCase();
+          if (turmaAtendimento) {
+            // Turma com programa específico: só componentes do mesmo programa
+            return courseAtendimento === turmaAtendimento;
+          } else {
+            // Turma regular: só componentes regulares (sem programa)
+            return !courseAtendimento;
+          }
+        });
+        
         // Filtrar por grade_level da turma (se o componente tiver grade_levels definido)
-        let filtered = allCourses;
         if (turmaGradeLevel) {
-          filtered = allCourses.filter(c => 
+          const gradeFiltered = filtered.filter(c => 
             !c.grade_levels || c.grade_levels.length === 0 || c.grade_levels.includes(turmaGradeLevel)
           );
+          if (gradeFiltered.length > 0) {
+            filtered = gradeFiltered;
+          }
         }
         
-        // Se não encontrou nenhum, buscar todos do nível sem filtrar
+        // Se não encontrou nenhum, fallback para todos do nível
         if (filtered.length === 0 && allCourses.length > 0) {
           filtered = allCourses;
         } else if (filtered.length === 0) {
