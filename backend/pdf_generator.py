@@ -806,8 +806,10 @@ def generate_boletim_pdf(
         if is_optativo:
             course_name = f"{course_name} (Optativo)"
         
+        course_name_p = Paragraph(course_name, ParagraphStyle('CourseName', fontSize=8, leading=10))
+        
         row = [
-            course_name,
+            course_name_p,
             fmt_int(carga_horaria) if carga_horaria else '',
             fmt_grade(n1),
             fmt_grade(n2),
@@ -1948,9 +1950,10 @@ def generate_ficha_individual_pdf(
         else:
             carga_horaria = course.get('carga_horaria', course.get('workload', 80))
         
-        # Marcar componentes optativos com "(Optativo)" - igual ao Boletim
         if is_optativo:
             course_name = f"{course_name} (Optativo)"
+        
+        course_name_p = Paragraph(course_name, ParagraphStyle('CourseName', fontSize=8, leading=10))
         
         grade = grades_by_course.get(course_id, {})
         
@@ -1997,7 +2000,7 @@ def generate_ficha_individual_pdf(
                 conceito_final = '-'
             
             row = [
-                course_name,
+                course_name_p,
                 str(carga_horaria),
                 fmt_grade_conceitual(b1, student_grade_level),
                 fmt_grade_conceitual(b2, student_grade_level),
@@ -2070,7 +2073,7 @@ def generate_ficha_individual_pdf(
             media_anual = total_pontos / 10 if total_pontos > 0 else 0
             
             row = [
-                course_name,
+                course_name_p,
                 str(carga_horaria),
                 fmt_grade(b1_orig), fmt_grade(b2_orig), fmt_grade(rec_s1),
                 fmt_grade(b3_orig), fmt_grade(b4_orig), fmt_grade(rec_s2),
