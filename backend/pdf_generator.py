@@ -1090,7 +1090,7 @@ def generate_declaracao_matricula_pdf(
     # Usar logotipo da mantenedora se disponível
     # Tamanho reduzido em 40% (3.75cm -> 2.25cm, 2.5cm -> 1.5cm)
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    logo = get_logo_image(width=2.25*cm, height=1.5*cm, logo_url=logo_url)
+    logo = get_logo_image(width=3*cm, height=3.5*cm, logo_url=logo_url)
     if logo:
         logo_table = Table([[logo]], colWidths=[16*cm])
         logo_table.setStyle(TableStyle([
@@ -1233,7 +1233,7 @@ def generate_declaracao_transferencia_pdf(
     
     # Logotipo
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    logo = get_logo_image(width=2.25*cm, height=1.5*cm, logo_url=logo_url)
+    logo = get_logo_image(width=3*cm, height=3.5*cm, logo_url=logo_url)
     if logo:
         logo_table = Table([[logo]], colWidths=[16*cm])
         logo_table.setStyle(TableStyle([
@@ -1406,7 +1406,7 @@ def generate_declaracao_frequencia_pdf(
     # Usar logotipo da mantenedora se disponível
     # Tamanho reduzido em 40% (3.75cm -> 2.25cm, 2.5cm -> 1.5cm)
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    logo = get_logo_image(width=2.25*cm, height=1.5*cm, logo_url=logo_url)
+    logo = get_logo_image(width=3*cm, height=3.5*cm, logo_url=logo_url)
     if logo:
         logo_table = Table([[logo]], colWidths=[16*cm])
         logo_table.setStyle(TableStyle([
