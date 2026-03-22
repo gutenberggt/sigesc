@@ -255,6 +255,7 @@ export function StudentsComplete() {
   // Server-side pagination
   const [serverTotal, setServerTotal] = useState(0);
   const [serverTotalPages, setServerTotalPages] = useState(0);
+  const [serverActiveCount, setServerActiveCount] = useState(0);
   const PAGE_SIZE = 20;
   
   // Estado para modal de documentos
@@ -450,6 +451,7 @@ export function StudentsComplete() {
         setStudents([]);
         setServerTotal(0);
         setServerTotalPages(0);
+        setServerActiveCount(0);
         setLoading(false);
         return;
       }
@@ -465,6 +467,7 @@ export function StudentsComplete() {
         setStudents(result.items || []);
         setServerTotal(result.total || 0);
         setServerTotalPages(result.total_pages || 0);
+        setServerActiveCount(result.active_count ?? result.total ?? 0);
       } catch (error) {
         console.error('Erro ao carregar alunos:', error);
         showAlert('error', 'Erro ao carregar dados');
@@ -3335,7 +3338,7 @@ export function StudentsComplete() {
                 </>
               )}
               <span className="text-gray-400">|</span>
-              <span>{serverTotal} aluno(s)</span>
+              <span>{serverActiveCount} aluno(s) ativo(s)</span>
             </div>
           )}
         </div>

@@ -159,6 +159,10 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         # Conta total para paginação
         total = await current_db.students.count_documents(filter_query)
         
+        # Conta alunos ativos (para exibição no frontend)
+        active_filter = {**filter_query, 'status': 'active'}
+        active_count = await current_db.students.count_documents(active_filter) if not status else (total if status == 'active' else 0)
+        
         # Calcula skip com base na página
         effective_skip = (page - 1) * page_size if page > 0 else skip
         effective_limit = page_size if page > 0 else limit
@@ -194,6 +198,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         return {
             "items": students,
             "total": total,
+            "active_count": active_count,
             "page": page,
             "page_size": page_size,
             "total_pages": (total + page_size - 1) // page_size
