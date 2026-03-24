@@ -522,7 +522,12 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 'total': 0
             }
         
+        # Coleta datas de aula para calcular atestados
+        attendance_dates = set()
         for att in attendances:
+            att_date = att.get('date', '')[:10]
+            if att_date:
+                attendance_dates.add(att_date)
             for record in att.get('records', []):
                 sid = record.get('student_id')
                 if sid in student_stats:
@@ -536,6 +541,31 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                         student_stats[sid]['justified'] += 1
                     elif status in ['late', 'L']:
                         student_stats[sid]['late'] += 1
+        
+        # Busca atestados médicos para os alunos da turma
+        medical_days = {}
+        if all_student_ids and attendance_dates:
+            sorted_dates = sorted(attendance_dates)
+            min_date = sorted_dates[0]
+            max_date = sorted_dates[-1]
+            certificates = await current_db.medical_certificates.find(
+                {
+                    "student_id": {"$in": all_student_ids},
+                    "start_date": {"$lte": max_date},
+                    "end_date": {"$gte": min_date}
+                },
+                {"_id": 0, "student_id": 1, "start_date": 1, "end_date": 1}
+            ).to_list(None)
+            
+            for cert in certificates:
+                sid = cert.get('student_id')
+                if sid not in medical_days:
+                    medical_days[sid] = set()
+                start = cert.get('start_date', '')[:10]
+                end = cert.get('end_date', '')[:10]
+                for d in attendance_dates:
+                    if start <= d <= end:
+                        medical_days[sid].add(d)
         
         report = []
         for student in students:
@@ -558,6 +588,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 "present": present,
                 "absent": absent,
                 "justified": justified,
+                "medical": len(medical_days.get(student['id'], set())),
                 "late": stats.get('late', 0),
                 "total": total,
                 "attendance_percentage": attendance_percentage,

@@ -1348,6 +1348,7 @@ export const Attendance = () => {
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Presenças</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Faltas</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Justificadas</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Atestado</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">% Frequência</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
                         </tr>
@@ -1359,6 +1360,7 @@ export const Attendance = () => {
                             <td className="px-4 py-3 text-center text-green-600">{student.present}</td>
                             <td className="px-4 py-3 text-center text-red-600">{student.absent}</td>
                             <td className="px-4 py-3 text-center text-yellow-600">{student.justified}</td>
+                            <td className="px-4 py-3 text-center text-blue-600">{student.medical || 0}</td>
                             <td className="px-4 py-3 text-center font-bold">
                               <span className={student.attendance_percentage >= 75 ? 'text-green-600' : 'text-red-600'}>
                                 {student.attendance_percentage}%
