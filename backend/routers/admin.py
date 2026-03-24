@@ -135,52 +135,20 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
     @router.post("/admin/migrate-history-dates")
     async def migrate_history_dates(request: Request):
         """
-        Define datas retroativas no histórico de alunos para registros existentes.
-        - Matrículas: 15 de janeiro
-        - Transferências: 10 de março
-        - Cancelamentos: 18 de janeiro
+        Define data de matrícula como 15/01/2026 para todos os registros de matrícula no histórico.
         Endpoint de uso único. Apenas admin pode executar.
         """
         current_user = await AuthMiddleware.require_roles(['admin'])(request)
         current_db = get_db_for_user(current_user) if get_db_for_user else db
 
-        all_history = await current_db.student_history.find(
-            {"action_type": {"$in": ["matricula", "transferencia_saida", "transferencia_entrada", "cancelamento"]}},
-            {"_id": 0, "id": 1, "action_type": 1, "action_date": 1}
-        ).to_list(None)
-
-        updated = 0
-        for entry in all_history:
-            entry_id = entry.get('id')
-            if not entry_id:
-                continue
-
-            action_date = entry.get('action_date', '')
-            year = 2026
-            if action_date:
-                try:
-                    year = int(str(action_date)[:4])
-                except (ValueError, TypeError):
-                    pass
-
-            date_map = {
-                'matricula': f"{year}-01-15T12:00:00+00:00",
-                'transferencia_saida': f"{year}-03-10T12:00:00+00:00",
-                'transferencia_entrada': f"{year}-03-10T12:00:00+00:00",
-                'cancelamento': f"{year}-01-18T12:00:00+00:00",
-            }
-
-            new_date = date_map.get(entry.get('action_type'))
-            if new_date:
-                await current_db.student_history.update_one(
-                    {"id": entry_id},
-                    {"$set": {"action_date": new_date}}
-                )
-                updated += 1
+        result = await current_db.student_history.update_many(
+            {"action_type": "matricula"},
+            {"$set": {"action_date": "2026-01-15T12:00:00+00:00"}}
+        )
 
         return {
-            "message": f"Migração concluída: {updated} registros atualizados",
-            "updated": updated
+            "message": f"Migração concluída: {result.modified_count} registros de matrícula atualizados para 15/01/2026",
+            "updated": result.modified_count
         }
 
     return router

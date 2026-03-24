@@ -201,10 +201,7 @@ const AdminTools = () => {
                 <div>
                   <h3 className="font-semibold text-gray-900">Migrar Datas do Histórico</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    Define datas retroativas nos registros de histórico de alunos que não possuem data personalizada.
-                  </p>
-                  <p className="text-xs text-gray-400 mt-2">
-                    Matrículas: 15/jan | Transferências: 10/mar | Cancelamentos: 18/jan
+                    Define a data de matrícula como 15/01/2026 para todos os registros de matrícula no histórico.
                   </p>
                 </div>
               </div>
