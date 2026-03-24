@@ -349,10 +349,13 @@ def calcular_resultado_final_aluno(
     status_especiais = {
         'desistencia': ('DESISTENTE', '#dc2626'),
         'desistente': ('DESISTENTE', '#dc2626'),
+        'dropout': ('DESISTENTE', '#dc2626'),
         'falecimento': ('FALECIDO', '#6b7280'),
         'falecido': ('FALECIDO', '#6b7280'),
-        'transferencia': ('TRANSFERIDO', '#f59e0b'),
-        'transferido': ('TRANSFERIDO', '#f59e0b'),
+        'deceased': ('FALECIDO', '#6b7280'),
+        'transferencia': ('TRANSFERIDO(A)', '#f59e0b'),
+        'transferido': ('TRANSFERIDO(A)', '#f59e0b'),
+        'transferred': ('TRANSFERIDO(A)', '#f59e0b'),
     }
     
     if enrollment_status.lower() in status_especiais:
@@ -661,10 +664,13 @@ def determinar_resultado_documento(
         status_especiais = {
             'desistencia': ('DESISTENTE', '#dc2626'),
             'desistente': ('DESISTENTE', '#dc2626'),
+            'dropout': ('DESISTENTE', '#dc2626'),
             'falecimento': ('FALECIDO', '#6b7280'),
             'falecido': ('FALECIDO', '#6b7280'),
-            'transferencia': ('TRANSFERIDO', '#f59e0b'),
-            'transferido': ('TRANSFERIDO', '#f59e0b'),
+            'deceased': ('FALECIDO', '#6b7280'),
+            'transferencia': ('TRANSFERIDO(A)', '#f59e0b'),
+            'transferido': ('TRANSFERIDO(A)', '#f59e0b'),
+            'transferred': ('TRANSFERIDO(A)', '#f59e0b'),
         }
         
         if status_lower in status_especiais:
@@ -684,10 +690,13 @@ def determinar_resultado_documento(
     status_especiais = {
         'desistencia': ('DESISTENTE', '#dc2626'),
         'desistente': ('DESISTENTE', '#dc2626'),
+        'dropout': ('DESISTENTE', '#dc2626'),
         'falecimento': ('FALECIDO', '#6b7280'),
         'falecido': ('FALECIDO', '#6b7280'),
-        'transferencia': ('TRANSFERIDO', '#f59e0b'),
-        'transferido': ('TRANSFERIDO', '#f59e0b'),
+        'deceased': ('FALECIDO', '#6b7280'),
+        'transferencia': ('TRANSFERIDO(A)', '#f59e0b'),
+        'transferido': ('TRANSFERIDO(A)', '#f59e0b'),
+        'transferred': ('TRANSFERIDO(A)', '#f59e0b'),
     }
     
     if status_lower in status_especiais:
