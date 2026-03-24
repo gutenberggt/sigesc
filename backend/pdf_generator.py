@@ -2602,90 +2602,76 @@ def generate_class_details_pdf(
     - Professores alocados
     - Lista de alunos com responsáveis
     """
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm, mm
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from xml.sax.saxutils import escape as xml_escape
+
     buffer = BytesIO()
+
+    # Cores do tema
+    PRIMARY = colors.HexColor('#1e3a5f')
+    PRIMARY_LIGHT = colors.HexColor('#e8edf3')
+    ACCENT = colors.HexColor('#2563eb')
+    SECTION_BG = colors.HexColor('#1e3a5f')
+    ROW_ALT = colors.HexColor('#f8fafc')
+    BORDER = colors.HexColor('#cbd5e1')
+    TEXT_DARK = colors.HexColor('#1e293b')
+    TEXT_MUTED = colors.HexColor('#64748b')
+
+    page_width = A4[0]
+    usable_width = page_width - 3*cm  # margens
+
+    def footer_handler(canvas, doc):
+        canvas.saveState()
+        canvas.setFont('Helvetica', 7)
+        canvas.setFillColor(TEXT_MUTED)
+        today = datetime.now().strftime('%d/%m/%Y às %H:%M')
+        canvas.drawString(1.5*cm, 1*cm, f"Documento gerado em {today}")
+        canvas.drawRightString(page_width - 1.5*cm, 1*cm, f"Página {doc.page}")
+        # Linha fina no footer
+        canvas.setStrokeColor(BORDER)
+        canvas.setLineWidth(0.5)
+        canvas.line(1.5*cm, 1.3*cm, page_width - 1.5*cm, 1.3*cm)
+        canvas.restoreState()
+
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
         rightMargin=1.5*cm,
         leftMargin=1.5*cm,
         topMargin=1.5*cm,
-        bottomMargin=1.5*cm
+        bottomMargin=2*cm
     )
-    
+
     styles = getSampleStyleSheet()
-    
-    # Estilos personalizados
-    styles.add(ParagraphStyle(
-        name='TitleMain',
-        parent=styles['Heading1'],
-        fontSize=16,
-        alignment=TA_CENTER,
-        spaceAfter=20,
-        textColor=colors.HexColor('#1e40af')
-    ))
-    styles.add(ParagraphStyle(
-        name='SectionTitle',
-        parent=styles['Heading2'],
-        fontSize=12,
-        alignment=TA_LEFT,
-        spaceBefore=15,
-        spaceAfter=10,
-        textColor=colors.HexColor('#1e3a5f'),
-        borderPadding=5
-    ))
-    styles.add(ParagraphStyle(
-        name='NormalText',
-        parent=styles['Normal'],
-        fontSize=10,
-        alignment=TA_LEFT,
-        spaceAfter=5
-    ))
-    styles.add(ParagraphStyle(
-        name='SmallText',
-        parent=styles['Normal'],
-        fontSize=8,
-        alignment=TA_LEFT
-    ))
-    styles.add(ParagraphStyle(
-        name='CenterText',
-        parent=styles['Normal'],
-        fontSize=10,
-        alignment=TA_CENTER
-    ))
-    
+
     elements = []
-    
-    # Cabeçalho com logo
-    header_data = []
+
+    # ===== CABEÇALHO =====
     logo = None
-    
-    # Tentar carregar logo da mantenedora
     if mantenedora and mantenedora.get('logo_url'):
-        logo = get_logo_image(width=2.5*cm, height=2.5*cm, logo_url=mantenedora.get('logo_url'))
-    
+        logo = get_logo_image(width=2*cm, height=2*cm, logo_url=mantenedora.get('logo_url'))
     if not logo:
-        logo = get_logo_image(width=2.5*cm, height=2.5*cm)
-    
-    # Texto do cabeçalho
+        logo = get_logo_image(width=2*cm, height=2*cm)
+
     mantenedora_nome = mantenedora.get('nome', 'Secretaria Municipal de Educação') if mantenedora else 'Secretaria Municipal de Educação'
     city = mantenedora.get('cidade', 'Município') if mantenedora else 'Município'
     state = mantenedora.get('estado', 'PA') if mantenedora else 'PA'
-    
-    header_text = f"""<b>{mantenedora_nome}</b><br/>
-    {city} - {state}<br/>
-    <b>{school.get('name', 'Escola')}</b>"""
-    
-    header_style = ParagraphStyle(
-        name='HeaderStyle',
-        parent=styles['Normal'],
-        fontSize=10,
-        alignment=TA_CENTER,
-        leading=14
-    )
-    
+    school_name = xml_escape(school.get('name', 'Escola'))
+
+    header_style = ParagraphStyle('HeaderInst', fontSize=9, alignment=TA_CENTER, leading=13, textColor=TEXT_DARK)
+
+    header_text = f"""<b>{xml_escape(mantenedora_nome.upper())}</b><br/>
+    {xml_escape(city)} - {xml_escape(state)}<br/>
+    <b>{school_name}</b>"""
+
     if logo:
         header_data = [[logo, Paragraph(header_text, header_style)]]
-        header_table = Table(header_data, colWidths=[3*cm, 14*cm])
+        header_table = Table(header_data, colWidths=[2.5*cm, usable_width - 2.5*cm])
         header_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (0, 0), 'CENTER'),
             ('ALIGN', (1, 0), (1, 0), 'CENTER'),
@@ -2694,136 +2680,180 @@ def generate_class_details_pdf(
         elements.append(header_table)
     else:
         elements.append(Paragraph(header_text, header_style))
-    
-    elements.append(Spacer(1, 15))
-    
-    # Título
-    elements.append(Paragraph(f"DETALHES DA TURMA: {class_info.get('name', '')}", styles['TitleMain']))
-    elements.append(Spacer(1, 10))
-    
-    # Dados da Turma
-    elements.append(Paragraph("📋 DADOS DA TURMA", styles['SectionTitle']))
-    
-    # Mapeamento de níveis de ensino
-    education_levels = {
-        'educacao_infantil': 'Educação Infantil',
-        'fundamental_anos_iniciais': 'Ensino Fundamental - Anos Iniciais',
-        'fundamental_anos_finais': 'Ensino Fundamental - Anos Finais',
-        'eja': 'EJA - Educação de Jovens e Adultos'
-    }
-    
-    # Mapeamento de turnos
-    shifts = {
-        'morning': 'Manhã',
-        'afternoon': 'Tarde',
-        'evening': 'Noite',
-        'full_time': 'Integral'
-    }
-    
-    class_data = [
-        ['Nome:', class_info.get('name', '-'), 'Ano Letivo:', str(class_info.get('academic_year', '-'))],
-        ['Escola:', school.get('name', '-'), 'Turno:', shifts.get(class_info.get('shift'), class_info.get('shift', '-'))],
-        ['Nível de Ensino:', education_levels.get(class_info.get('education_level'), class_info.get('education_level', '-')), 'Série/Etapa:', class_info.get('grade_level', '-')],
-    ]
-    
-    class_table = Table(class_data, colWidths=[3*cm, 6*cm, 3*cm, 5*cm])
-    class_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e0e7ff')),
-        ('BACKGROUND', (2, 0), (2, -1), colors.HexColor('#e0e7ff')),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-    ]))
-    elements.append(class_table)
-    elements.append(Spacer(1, 15))
-    
-    # Professores Alocados
-    elements.append(Paragraph("👨‍🏫 PROFESSOR(ES) ALOCADO(S)", styles['SectionTitle']))
-    
-    if teachers:
-        teacher_data = [['Nome', 'Componente Curricular', 'Celular']]
-        for teacher in teachers:
-            teacher_data.append([
-                teacher.get('nome', '-'),
-                teacher.get('componente', '-') or '-',
-                teacher.get('celular', '-') or '-'
-            ])
-        
-        teacher_table = Table(teacher_data, colWidths=[7*cm, 6*cm, 4*cm])
-        teacher_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#dcfce7')),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+
+    # Linha divisória
+    elements.append(Spacer(1, 6))
+    elements.append(HRFlowable(width="100%", thickness=1.5, color=PRIMARY, spaceAfter=8))
+
+    # ===== TÍTULO =====
+    title_style = ParagraphStyle('DocTitle', fontSize=13, alignment=TA_CENTER, textColor=PRIMARY, fontName='Helvetica-Bold', spaceAfter=4)
+    elements.append(Paragraph(f"DETALHES DA TURMA", title_style))
+
+    class_name = xml_escape(class_info.get('name', ''))
+    subtitle_style = ParagraphStyle('DocSubtitle', fontSize=11, alignment=TA_CENTER, textColor=ACCENT, fontName='Helvetica-Bold', spaceAfter=12)
+    elements.append(Paragraph(class_name, subtitle_style))
+
+    # ===== HELPER: Cabeçalho de seção =====
+    def section_header(text):
+        s = ParagraphStyle('SectionHdr', fontSize=9, fontName='Helvetica-Bold', textColor=colors.white, leading=12)
+        data = [[Paragraph(text, s)]]
+        t = Table(data, colWidths=[usable_width])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), SECTION_BG),
             ('TOPPADDING', (0, 0), (-1, -1), 5),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('ROUNDEDCORNERS', [3, 3, 0, 0]),
         ]))
-        elements.append(teacher_table)
+        return t
+
+    # ===== DADOS DA TURMA =====
+    elements.append(section_header("DADOS DA TURMA"))
+
+    education_levels = {
+        'educacao_infantil': 'Educação Infantil',
+        'fundamental_anos_iniciais': 'Ens. Fundamental - Anos Iniciais',
+        'fundamental_anos_finais': 'Ens. Fundamental - Anos Finais',
+        'eja': 'EJA - Educação de Jovens e Adultos'
+    }
+    shifts = {
+        'morning': 'Manhã', 'afternoon': 'Tarde',
+        'evening': 'Noite', 'full_time': 'Integral'
+    }
+    atendimentos = {
+        'regular': 'Regular', 'atendimento_integral': 'Escola Integral',
+        'aee': 'AEE', '': '-'
+    }
+
+    label_style = ParagraphStyle('LabelCell', fontSize=8, fontName='Helvetica-Bold', textColor=TEXT_DARK)
+    value_style = ParagraphStyle('ValueCell', fontSize=8.5, textColor=TEXT_DARK)
+
+    def make_field(label, value):
+        return [Paragraph(label, label_style), Paragraph(xml_escape(str(value or '-')), value_style)]
+
+    nivel = education_levels.get(class_info.get('education_level') or class_info.get('nivel_ensino', ''), class_info.get('education_level', '-'))
+    turno = shifts.get(class_info.get('shift'), class_info.get('shift', '-'))
+    atendimento = atendimentos.get(class_info.get('atendimento_programa', ''), class_info.get('atendimento_programa', '-'))
+
+    fields_data = [
+        make_field('Nome:', class_info.get('name', '-')) + make_field('Ano Letivo:', str(class_info.get('academic_year', '-'))),
+        make_field('Escola:', school.get('name', '-')) + make_field('Turno:', turno),
+        make_field('Nível de Ensino:', nivel) + make_field('Série/Etapa:', class_info.get('grade_level', '-')),
+        make_field('Atendimento:', atendimento) + make_field('Alunos Matriculados:', str(len(students))),
+    ]
+
+    col_w = [2.8*cm, 5.8*cm, 2.8*cm, usable_width - 11.4*cm]
+    fields_table = Table(fields_data, colWidths=col_w)
+    fields_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), PRIMARY_LIGHT),
+        ('BACKGROUND', (2, 0), (2, -1), PRIMARY_LIGHT),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.4, BORDER),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(fields_table)
+    elements.append(Spacer(1, 12))
+
+    # ===== PROFESSORES =====
+    elements.append(section_header("PROFESSOR(ES) ALOCADO(S)"))
+
+    th_style = ParagraphStyle('THCell', fontSize=8, fontName='Helvetica-Bold', textColor=colors.white, alignment=TA_LEFT)
+    td_style = ParagraphStyle('TDCell', fontSize=8, textColor=TEXT_DARK, leading=10)
+
+    if teachers:
+        t_header = [
+            Paragraph('Nome', th_style),
+            Paragraph('Componente Curricular', th_style),
+            Paragraph('Celular', th_style)
+        ]
+        t_data = [t_header]
+        for teacher in teachers:
+            t_data.append([
+                Paragraph(xml_escape(teacher.get('nome', '-')), td_style),
+                Paragraph(xml_escape(teacher.get('componente', '-') or '-'), td_style),
+                Paragraph(xml_escape(teacher.get('celular', '-') or '-'), td_style)
+            ])
+
+        t_table = Table(t_data, colWidths=[6*cm, usable_width - 10*cm, 4*cm])
+        t_styles = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#166534')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.4, BORDER),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ]
+        for i in range(1, len(t_data)):
+            if i % 2 == 0:
+                t_styles.append(('BACKGROUND', (0, i), (-1, i), ROW_ALT))
+        t_table.setStyle(TableStyle(t_styles))
+        elements.append(t_table)
     else:
-        elements.append(Paragraph("Nenhum professor alocado", styles['NormalText']))
-    
-    elements.append(Spacer(1, 15))
-    
-    # Lista de Alunos
-    elements.append(Paragraph(f"👥 ALUNOS MATRICULADOS ({len(students)})", styles['SectionTitle']))
-    
+        no_data_style = ParagraphStyle('NoData', fontSize=9, textColor=TEXT_MUTED, alignment=TA_CENTER)
+        elements.append(Paragraph("Nenhum professor alocado", no_data_style))
+
+    elements.append(Spacer(1, 12))
+
+    # ===== ALUNOS MATRICULADOS =====
+    elements.append(section_header(f"ALUNOS MATRICULADOS ({len(students)})"))
+
     if students:
-        student_data = [['#', 'Aluno', 'Data Nasc.', 'Responsável', 'Celular']]
-        
+        s_header = [
+            Paragraph('#', ParagraphStyle('THNum', fontSize=8, fontName='Helvetica-Bold', textColor=colors.white, alignment=TA_CENTER)),
+            Paragraph('Aluno(a)', th_style),
+            Paragraph('Data Nasc.', th_style),
+            Paragraph('Responsável', th_style),
+            Paragraph('Celular', th_style)
+        ]
+        s_data = [s_header]
+
         for idx, student in enumerate(students, 1):
-            # Formatar data de nascimento
             birth_date = student.get('birth_date', '')
             if birth_date:
                 try:
-                    if isinstance(birth_date, str):
-                        date_obj = datetime.strptime(birth_date, '%Y-%m-%d')
-                        birth_date = date_obj.strftime('%d/%m/%Y')
+                    if isinstance(birth_date, str) and '-' in birth_date:
+                        parts = birth_date.split('T')[0].split('-')
+                        if len(parts) == 3:
+                            birth_date = f"{parts[2]}/{parts[1]}/{parts[0]}"
                 except:
                     pass
-            
-            student_data.append([
-                str(idx),
-                student.get('full_name', '-'),
-                birth_date or '-',
-                student.get('guardian_name', '-') or '-',
-                student.get('guardian_phone', '-') or '-'
+
+            num_style = ParagraphStyle('TDNum', fontSize=8, textColor=TEXT_DARK, alignment=TA_CENTER)
+            s_data.append([
+                Paragraph(str(idx), num_style),
+                Paragraph(xml_escape(student.get('full_name', '-')), td_style),
+                Paragraph(xml_escape(str(birth_date or '-')), td_style),
+                Paragraph(xml_escape(student.get('guardian_name', '-') or '-'), td_style),
+                Paragraph(xml_escape(student.get('guardian_phone', '-') or '-'), td_style)
             ])
-        
-        student_table = Table(student_data, colWidths=[1*cm, 6.5*cm, 2.5*cm, 4.5*cm, 2.5*cm])
-        student_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+
+        s_table = Table(s_data, colWidths=[1*cm, 6*cm, 2.2*cm, usable_width - 12.8*cm, 2.6*cm], repeatRows=1)
+        s_styles = [
+            ('BACKGROUND', (0, 0), (-1, 0), ACCENT),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-            ('ALIGN', (1, 0), (-1, -1), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('GRID', (0, 0), (-1, -1), 0.4, BORDER),
+            ('TOPPADDING', (0, 0), (-1, -1), 3.5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3.5),
             ('LEFTPADDING', (0, 0), (-1, -1), 4),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
-        ]))
-        elements.append(student_table)
+        ]
+        for i in range(1, len(s_data)):
+            if i % 2 == 0:
+                s_styles.append(('BACKGROUND', (0, i), (-1, i), ROW_ALT))
+        s_table.setStyle(TableStyle(s_styles))
+        elements.append(s_table)
     else:
-        elements.append(Paragraph("Nenhum aluno matriculado", styles['NormalText']))
-    
-    elements.append(Spacer(1, 20))
-    
-    # Rodapé com data de geração
-    today = datetime.now().strftime('%d/%m/%Y às %H:%M')
-    elements.append(Paragraph(f"Documento gerado em {today}", styles['SmallText']))
-    
+        no_data_style = ParagraphStyle('NoData2', fontSize=9, textColor=TEXT_MUTED, alignment=TA_CENTER)
+        elements.append(Paragraph("Nenhum aluno matriculado", no_data_style))
+
     # Gerar PDF
-    doc.build(elements)
+    doc.build(elements, onFirstPage=footer_handler, onLaterPages=footer_handler)
     buffer.seek(0)
     return buffer
 
