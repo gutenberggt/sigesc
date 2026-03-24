@@ -129,7 +129,7 @@ export const Layout = ({ children }) => {
       </main>
       
       {/* Footer com Copyright - Fixo na parte inferior */}
-      <footer className="fixed bottom-0 left-0 right-0 py-3 px-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white z-30 relative">
+      <footer className="fixed bottom-0 left-0 right-0 py-3 px-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white z-30">
         <span>
           © 2026 Desenvolvido por{' '}
           <a 
@@ -145,7 +145,7 @@ export const Layout = ({ children }) => {
           href="https://aprenderdigital.top"
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors no-underline"
+          className="fixed bottom-3 right-4 flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors no-underline z-30"
           data-testid="aprender-digital-link"
         >
           <img src="https://aprenderdigital.top/imagens/favicom.png" alt="Aprender Digital" className="w-5 h-5" />
