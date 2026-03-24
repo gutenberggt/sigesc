@@ -59,10 +59,28 @@ def get_logo_image(width=2*cm, height=2*cm, logo_url=None):
         suffix = '.jpg' if '.jpg' in url.lower() or '.jpeg' in url.lower() else '.png'
         cache_path = os.path.join(_logo_cache_dir, f'{url_hash}{suffix}')
         
-        # Verificar cache em disco
+        # Verificar cache em disco (e se é imagem válida)
+        if os.path.exists(cache_path):
+            with open(cache_path, 'rb') as f:
+                header = f.read(4)
+            # Validar que é uma imagem (PNG ou JPEG)
+            is_png = header[:4] == b'\x89PNG'
+            is_jpeg = header[:2] == b'\xff\xd8'
+            if not (is_png or is_jpeg):
+                os.remove(cache_path)  # Cache corrompido
+        
         if not os.path.exists(cache_path):
-            with urllib.request.urlopen(url, timeout=10) as response:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                content_type = response.headers.get('Content-Type', '')
+                if 'image' not in content_type and 'octet-stream' not in content_type:
+                    print(f"Logo URL retornou content-type inválido: {content_type}")
+                    return None
                 image_data = response.read()
+                # Validar cabeçalho da imagem
+                if not (image_data[:4] == b'\x89PNG' or image_data[:2] == b'\xff\xd8'):
+                    print(f"Logo URL não retornou imagem válida")
+                    return None
             with open(cache_path, 'wb') as f:
                 f.write(image_data)
         
@@ -2653,20 +2671,20 @@ def generate_class_details_pdf(
 
     # ===== CABEÇALHO =====
     logo = None
-    if mantenedora and mantenedora.get('logo_url'):
-        logo = get_logo_image(width=2*cm, height=2*cm, logo_url=mantenedora.get('logo_url'))
+    if mantenedora and mantenedora.get('brasao_url'):
+        logo = get_logo_image(width=2*cm, height=2*cm, logo_url=mantenedora.get('brasao_url'))
+    if not logo and mantenedora and mantenedora.get('logotipo_url'):
+        logo = get_logo_image(width=2*cm, height=2*cm, logo_url=mantenedora.get('logotipo_url'))
     if not logo:
         logo = get_logo_image(width=2*cm, height=2*cm)
 
     mantenedora_nome = mantenedora.get('nome', 'Secretaria Municipal de Educação') if mantenedora else 'Secretaria Municipal de Educação'
-    city = mantenedora.get('cidade', 'Município') if mantenedora else 'Município'
-    state = mantenedora.get('estado', 'PA') if mantenedora else 'PA'
     school_name = xml_escape(school.get('name', 'Escola'))
 
     header_style = ParagraphStyle('HeaderInst', fontSize=9, alignment=TA_CENTER, leading=13, textColor=TEXT_DARK)
 
     header_text = f"""<b>{xml_escape(mantenedora_nome.upper())}</b><br/>
-    {xml_escape(city)} - {xml_escape(state)}<br/>
+    SECRETARIA MUNICIPAL DE EDUCAÇÃO<br/>
     <b>{school_name}</b>"""
 
     if logo:
