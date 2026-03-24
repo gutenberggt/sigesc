@@ -7,27 +7,38 @@ Para cada aluno/matricula ativa sem enrollment_date, busca a data da acao
   - students.enrollment_date
   - enrollments.enrollment_date
 
-Uso no servidor de producao:
-  cd /root/sigesc/backend
-  python3 scripts/sync_enrollment_dates.py
+Uso:
+  python3 sync_enrollment_dates.py --dry-run    # apenas mostra o que seria feito
+  python3 sync_enrollment_dates.py              # executa de fato
 
-Ou com dry-run (apenas mostra o que seria feito):
-  python3 scripts/sync_enrollment_dates.py --dry-run
+Se precisar informar conexao diferente:
+  MONGO_URL="mongodb://localhost:27017" DB_NAME="sigesc" python3 sync_enrollment_dates.py --dry-run
 """
 
 import asyncio
 import sys
 import os
 
-# Adiciona o diretorio do backend ao path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from motor.motor_asyncio import AsyncIOMotorClient
-from dotenv import load_dotenv
-
-load_dotenv()
-
 DRY_RUN = '--dry-run' in sys.argv
+
+# Tenta carregar .env se existir no diretorio atual ou no pai
+for env_path in ['.env', '../.env', 'backend/.env', os.path.join(os.path.dirname(__file__), '.env'), os.path.join(os.path.dirname(__file__), '..', '.env')]:
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, val = line.split('=', 1)
+                    val = val.strip().strip('"').strip("'")
+                    if key.strip() not in os.environ:
+                        os.environ[key.strip()] = val
+        break
+
+try:
+    from motor.motor_asyncio import AsyncIOMotorClient
+except ImportError:
+    print("ERRO: motor nao encontrado. Instale com: pip install motor")
+    sys.exit(1)
 
 
 async def main():
@@ -84,7 +95,6 @@ async def main():
         return
 
     # 3. Buscar historico de matricula para esses alunos
-    # Pega a ULTIMA acao de matricula para cada aluno (mais recente)
     history_entries = await db.student_history.find(
         {
             "student_id": {"$in": list(student_ids)},
@@ -100,7 +110,6 @@ async def main():
         if sid not in history_map:
             action_date = h.get('action_date', '')
             if action_date:
-                # Extrair apenas a data (YYYY-MM-DD)
                 date_str = str(action_date)[:10]
                 history_map[sid] = date_str
 
@@ -115,7 +124,7 @@ async def main():
         enrollment_date = history_map.get(sid)
 
         if not enrollment_date:
-            # Fallback: buscar a data de criacao da matricula ativa
+            # Fallback: data de criacao da matricula ativa
             enrollment = await db.enrollments.find_one(
                 {"student_id": sid, "status": "active"},
                 {"_id": 0, "created_at": 1}
@@ -130,14 +139,12 @@ async def main():
             skipped += 1
             continue
 
-        # Buscar nome para log
         student = await db.students.find_one({"id": sid}, {"_id": 0, "full_name": 1, "enrollment_date": 1})
         name = student.get('full_name', sid) if student else sid
 
         print(f"  {name}: enrollment_date = {enrollment_date}")
 
         if not DRY_RUN:
-            # Atualizar student
             result_s = await db.students.update_one(
                 {"id": sid, "$or": [
                     {"enrollment_date": {"$exists": False}},
@@ -149,7 +156,6 @@ async def main():
             if result_s.modified_count > 0:
                 updated_students += 1
 
-            # Atualizar enrollment(s) ativa(s)
             result_e = await db.enrollments.update_many(
                 {"student_id": sid, "status": "active", "$or": [
                     {"enrollment_date": {"$exists": False}},
