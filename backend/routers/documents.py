@@ -24,6 +24,25 @@ from pdf_generator import (
 
 logger = logging.getLogger(__name__)
 
+# Cache simples para dados que raramente mudam (mantenedora, escolas)
+import time as _time
+_doc_cache = {}
+_CACHE_TTL = 300  # 5 minutos
+
+async def _get_cached(db_ref, collection, query, cache_key):
+    now = _time.time()
+    if cache_key in _doc_cache and (now - _doc_cache[cache_key]['ts']) < _CACHE_TTL:
+        return _doc_cache[cache_key]['data']
+    data = await db_ref[collection].find_one(query, {"_id": 0})
+    _doc_cache[cache_key] = {'data': data, 'ts': now}
+    return data
+
+async def get_mantenedora_cached(db_ref):
+    return await _get_cached(db_ref, 'mantenedora', {}, 'mantenedora')
+
+async def get_school_cached(db_ref, school_id):
+    return await _get_cached(db_ref, 'schools', {"id": school_id}, f'school_{school_id}')
+
 
 router = APIRouter(tags=["Documentos"])
 
@@ -130,7 +149,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # Buscar escola
         school_id = class_info.get("school_id") or student.get("school_id")
-        school = await db.schools.find_one({"id": school_id}, {"_id": 0})
+        school = await get_school_cached(db, school_id)
         if not school:
             school = {"name": "Escola Municipal", "cnpj": "N/A", "phone": "N/A", "city": "Município"}
 
@@ -248,7 +267,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         courses = filtered_courses
 
         # Buscar dados da mantenedora
-        mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+        mantenedora = await get_mantenedora_cached(db)
 
         # Buscar calendário letivo para obter os dias letivos (usar ano da turma)
         calendario_letivo = await db.calendario_letivo.find_one({
@@ -488,7 +507,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # Buscar escola
         school_id = class_info.get("school_id") or student.get("school_id")
-        school = await db.schools.find_one({"id": school_id}, {"_id": 0})
+        school = await get_school_cached(db, school_id)
         if not school:
             school = {
                 "name": "Escola Municipal", 
@@ -499,7 +518,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             }
 
         # Buscar dados da mantenedora
-        mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+        mantenedora = await get_mantenedora_cached(db)
 
         # Gerar PDF
         try:
@@ -580,11 +599,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # Buscar escola
         school_id = class_info.get("school_id") or student.get("school_id")
-        school = await db.schools.find_one({"id": school_id}, {"_id": 0})
+        school = await get_school_cached(db, school_id)
         if not school:
             school = {"name": "Escola Municipal", "cnpj": "N/A", "phone": "N/A", "city": "Município", "address": "Endereço não informado"}
 
-        mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+        mantenedora = await get_mantenedora_cached(db)
 
         try:
             pdf_buffer = generate_declaracao_transferencia_pdf(
@@ -691,7 +710,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # Buscar escola
         school_id = class_info.get("school_id") or student.get("school_id")
-        school = await db.schools.find_one({"id": school_id}, {"_id": 0})
+        school = await get_school_cached(db, school_id)
         if not school:
             school = {
                 "name": "Escola Municipal", 
@@ -828,7 +847,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         }
 
         # Buscar dados da mantenedora
-        mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+        mantenedora = await get_mantenedora_cached(db)
 
         # Gerar PDF
         try:
@@ -894,7 +913,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             )
 
         # Buscar escola
-        school = await db.schools.find_one({"id": student.get("school_id")}, {"_id": 0})
+        school = await get_school_cached(db, student.get("school_id"))
         if not school:
             school = {"name": "Escola Municipal", "city": "Município"}
 
@@ -1086,7 +1105,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             }
 
         # Buscar dados da mantenedora
-        mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+        mantenedora = await get_mantenedora_cached(db)
 
         # Buscar calendário letivo para dias letivos e data fim do 4º bimestre
         calendario_letivo = await db.calendario_letivo.find_one({
@@ -1211,7 +1230,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             raise HTTPException(status_code=403, detail=error_message)
 
         # Buscar escola
-        school = await db.schools.find_one({"id": student.get("school_id")}, {"_id": 0})
+        school = await get_school_cached(db, student.get("school_id"))
         if not school:
             school = {"name": "Escola Municipal", "city": "Município"}
 
@@ -1242,7 +1261,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             enrollment = {"registration_number": student.get("enrollment_number", "N/A")}
 
         # Buscar mantenedora (para o brasão)
-        mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+        mantenedora = await get_mantenedora_cached(db)
 
         # Gerar PDF
         try:
@@ -1293,12 +1312,12 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 raise HTTPException(status_code=404, detail="Turma não encontrada")
 
             # Buscar escola
-            school = await db.schools.find_one({"id": class_info.get("school_id")}, {"_id": 0})
+            school = await get_school_cached(db, class_info.get("school_id"))
             if not school:
                 school = {"name": "Escola Municipal"}
 
             # Buscar mantenedora
-            mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+            mantenedora = await get_mantenedora_cached(db)
 
             # Buscar matrículas da turma
             enrollments = await db.enrollments.find({
@@ -1507,12 +1526,12 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 )
 
         # Buscar escola da turma
-        school = await db.schools.find_one({"id": class_info.get("school_id")}, {"_id": 0})
+        school = await get_school_cached(db, class_info.get("school_id"))
         if not school:
             school = {"name": "Escola Municipal"}
 
         # Buscar mantenedora
-        mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+        mantenedora = await get_mantenedora_cached(db)
 
         # Buscar calendário letivo para data fim do 4º bimestre
         calendario_letivo = await db.calendar.find_one({

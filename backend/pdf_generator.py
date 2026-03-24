@@ -28,6 +28,10 @@ import os
 # URL do logotipo da prefeitura
 LOGO_URL = "https://aprenderdigital.top/imagens/logotipo/logoprefeitura.jpg"
 
+# Cache de logos em disco para evitar downloads repetidos
+_logo_cache_dir = os.path.join(tempfile.gettempdir(), 'sigesc_logo_cache')
+os.makedirs(_logo_cache_dir, exist_ok=True)
+
 # Tentar configurar locale para português
 try:
     locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
@@ -40,9 +44,8 @@ except:
 
 def get_logo_image(width=2*cm, height=2*cm, logo_url=None):
     """
-    Baixa e retorna o logotipo como um objeto Image do reportlab.
-    Se logo_url não for fornecido, usa a URL padrão.
-    Retorna None se não conseguir baixar.
+    Retorna o logotipo como Image do reportlab.
+    Usa cache em disco para evitar downloads repetidos.
     """
     url = logo_url if logo_url else LOGO_URL
     
@@ -50,20 +53,20 @@ def get_logo_image(width=2*cm, height=2*cm, logo_url=None):
         return None
     
     try:
-        # Baixar a imagem
-        with urllib.request.urlopen(url, timeout=5) as response:
-            image_data = response.read()
-        
-        # Salvar em arquivo temporário
+        # Gerar nome de cache baseado na URL
+        import hashlib
+        url_hash = hashlib.md5(url.encode()).hexdigest()
         suffix = '.jpg' if '.jpg' in url.lower() or '.jpeg' in url.lower() else '.png'
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-        temp_file.write(image_data)
-        temp_file.close()
+        cache_path = os.path.join(_logo_cache_dir, f'{url_hash}{suffix}')
         
-        # Criar objeto Image
-        logo = Image(temp_file.name, width=width, height=height)
+        # Verificar cache em disco
+        if not os.path.exists(cache_path):
+            with urllib.request.urlopen(url, timeout=10) as response:
+                image_data = response.read()
+            with open(cache_path, 'wb') as f:
+                f.write(image_data)
         
-        return logo
+        return Image(cache_path, width=width, height=height)
     except Exception as e:
         print(f"Erro ao carregar logotipo de {url}: {e}")
         return None
