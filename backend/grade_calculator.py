@@ -356,6 +356,8 @@ def calcular_resultado_final_aluno(
         'transferencia': ('TRANSFERIDO(A)', '#f59e0b'),
         'transferido': ('TRANSFERIDO(A)', '#f59e0b'),
         'transferred': ('TRANSFERIDO(A)', '#f59e0b'),
+        'remanejado': ('REMANEJADO', '#2563eb'),
+        'relocated': ('REMANEJADO', '#2563eb'),
     }
     
     if enrollment_status.lower() in status_especiais:
@@ -671,6 +673,8 @@ def determinar_resultado_documento(
             'transferencia': ('TRANSFERIDO(A)', '#f59e0b'),
             'transferido': ('TRANSFERIDO(A)', '#f59e0b'),
             'transferred': ('TRANSFERIDO(A)', '#f59e0b'),
+            'remanejado': ('REMANEJADO', '#2563eb'),
+            'relocated': ('REMANEJADO', '#2563eb'),
         }
         
         if status_lower in status_especiais:
@@ -697,6 +701,8 @@ def determinar_resultado_documento(
         'transferencia': ('TRANSFERIDO(A)', '#f59e0b'),
         'transferido': ('TRANSFERIDO(A)', '#f59e0b'),
         'transferred': ('TRANSFERIDO(A)', '#f59e0b'),
+        'remanejado': ('REMANEJADO', '#2563eb'),
+        'relocated': ('REMANEJADO', '#2563eb'),
     }
     
     if status_lower in status_especiais:

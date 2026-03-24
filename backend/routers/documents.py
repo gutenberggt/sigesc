@@ -924,11 +924,16 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # Usar o ano letivo da turma em vez do parâmetro (a turma determina o ano)
         actual_academic_year = class_info.get("academic_year", academic_year)
 
-        # Buscar matrícula
+        # Buscar matrícula (priorizar ativa sobre relocated)
         enrollment = await db.enrollments.find_one(
-            {"student_id": student_id, "academic_year": actual_academic_year},
+            {"student_id": student_id, "academic_year": actual_academic_year, "status": "active"},
             {"_id": 0}
         )
+        if not enrollment:
+            enrollment = await db.enrollments.find_one(
+                {"student_id": student_id, "academic_year": actual_academic_year},
+                {"_id": 0}
+            )
         if not enrollment:
             enrollment = {"registration_number": student.get("enrollment_number", "N/A")}
 
