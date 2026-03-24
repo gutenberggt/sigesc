@@ -1176,6 +1176,221 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if calendario_letivo:
             calendario_letivo['dias_letivos_calculados'] = dias_letivos_calculados
 
+        # ===== DETECTAR REMANEJAMENTO (mesma escola) =====
+        relocated_enrollments = await db.enrollments.find({
+            "student_id": student_id,
+            "academic_year": actual_academic_year,
+            "status": "relocated"
+        }, {"_id": 0}).to_list(10)
+
+        # Filtrar apenas remanejamentos dentro da mesma escola
+        origin_data_list = []
+        current_school_id = class_info.get("school_id") or student.get("school_id")
+        for rel_enroll in relocated_enrollments:
+            origin_class = await db.classes.find_one({"id": rel_enroll.get("class_id")}, {"_id": 0})
+            if origin_class and origin_class.get("school_id") == current_school_id:
+                origin_data_list.append({
+                    "enrollment": rel_enroll,
+                    "class_info": origin_class
+                })
+
+        if origin_data_list:
+            # REMANEJAMENTO DETECTADO - Gerar 2 fichas (destino + origem)
+            from PyPDF2 import PdfMerger
+            logger.info(f"Ficha Individual: Remanejamento detectado - {len(origin_data_list)} turma(s) de origem")
+
+            # Coletar class_ids de origem
+            origin_class_ids = [od["class_info"].get("id") or od["enrollment"].get("class_id") for od in origin_data_list]
+
+            # ===== PÁGINA 1: FICHA DESTINO (notas combinadas + frequências somadas) =====
+            # Notas: a query atual já busca TODAS as notas do aluno no ano (sem filtro de class_id)
+            # Então `grades` já contém as notas de ambas as turmas - perfeito para destino
+            
+            # Frequência destino: somar faltas da turma atual + turmas de origem
+            combined_faltas_regular = faltas_regular
+            combined_faltas_por_componente = dict(faltas_por_componente)
+
+            for origin_cid in origin_class_ids:
+                origin_att_records = await db.attendance.find(
+                    {"class_id": origin_cid, "academic_year": actual_academic_year},
+                    {"_id": 0}
+                ).to_list(500)
+                for att_record in origin_att_records:
+                    period = att_record.get('period', 'regular')
+                    o_course_id = att_record.get('course_id')
+                    attendance_type = att_record.get('attendance_type', 'daily')
+                    for sr in att_record.get('records', []):
+                        if sr.get('student_id') == student_id and sr.get('status') == 'F':
+                            if attendance_type == 'daily' and period == 'regular':
+                                combined_faltas_regular += 1
+                            elif o_course_id:
+                                combined_faltas_por_componente[o_course_id] = combined_faltas_por_componente.get(o_course_id, 0) + 1
+
+            # Montar attendance_data combinado para destino
+            combined_attendance_data = {
+                '_meta': {
+                    'faltas_regular': combined_faltas_regular,
+                    'faltas_por_componente': combined_faltas_por_componente,
+                    'is_escola_integral': turma_integral
+                }
+            }
+            for course in courses:
+                cid = course.get('id')
+                atendimento_c = course.get('atendimento_programa')
+                if atendimento_c == 'atendimento_integral':
+                    f = combined_faltas_por_componente.get(cid, 0)
+                else:
+                    f = 0
+                combined_attendance_data[cid] = {'absences': f, 'atendimento_programa': atendimento_c}
+
+            # Gerar ficha DESTINO
+            pdf_destino = generate_ficha_individual_pdf(
+                student=student,
+                school=school,
+                class_info=class_info,
+                enrollment=enrollment,
+                academic_year=actual_academic_year,
+                grades=grades,
+                courses=courses,
+                attendance_data=combined_attendance_data,
+                mantenedora=mantenedora,
+                calendario_letivo=calendario_letivo
+            )
+
+            # ===== PÁGINA 2: FICHA ORIGEM (apenas notas/frequências da turma de origem) =====
+            merger = PdfMerger()
+            merger.append(pdf_destino)
+
+            for origin_data in origin_data_list:
+                origin_class_info = origin_data["class_info"]
+                origin_enrollment = origin_data["enrollment"]
+                origin_class_id = origin_class_info.get("id") or origin_enrollment.get("class_id")
+
+                # Escola de origem (pode ser a mesma)
+                origin_school_id = origin_class_info.get("school_id")
+                origin_school = await get_school_cached(db, origin_school_id)
+                if not origin_school:
+                    origin_school = school
+
+                # Notas: filtrar apenas da turma de origem
+                origin_grades = [g for g in grades if g.get('class_id') == origin_class_id]
+
+                # Frequência: apenas da turma de origem
+                origin_att_records = await db.attendance.find(
+                    {"class_id": origin_class_id, "academic_year": actual_academic_year},
+                    {"_id": 0}
+                ).to_list(500)
+                origin_faltas_regular = 0
+                origin_faltas_por_componente = {}
+                for att_record in origin_att_records:
+                    period = att_record.get('period', 'regular')
+                    o_course_id = att_record.get('course_id')
+                    attendance_type = att_record.get('attendance_type', 'daily')
+                    for sr in att_record.get('records', []):
+                        if sr.get('student_id') == student_id and sr.get('status') == 'F':
+                            if attendance_type == 'daily' and period == 'regular':
+                                origin_faltas_regular += 1
+                            elif o_course_id:
+                                origin_faltas_por_componente[o_course_id] = origin_faltas_por_componente.get(o_course_id, 0) + 1
+
+                # Componentes curriculares da turma de origem
+                origin_nivel_ensino = origin_class_info.get('nivel_ensino')
+                origin_grade_level = origin_enrollment.get('student_series') or origin_class_info.get('grade_level', '')
+                origin_gl_lower = origin_grade_level.lower() if origin_grade_level else ''
+                if not origin_nivel_ensino:
+                    if any(x in origin_gl_lower for x in ['berçário', 'bercario', 'maternal', 'pré', 'pre']):
+                        origin_nivel_ensino = 'educacao_infantil'
+                    elif any(x in origin_gl_lower for x in ['1º ano', '2º ano', '3º ano', '4º ano', '5º ano', '1 ano', '2 ano', '3 ano', '4 ano', '5 ano']):
+                        origin_nivel_ensino = 'fundamental_anos_iniciais'
+                    elif any(x in origin_gl_lower for x in ['6º ano', '7º ano', '8º ano', '9º ano', '6 ano', '7 ano', '8 ano', '9 ano']):
+                        origin_nivel_ensino = 'fundamental_anos_finais'
+                    elif any(x in origin_gl_lower for x in ['eja', 'etapa']):
+                        origin_nivel_ensino = 'eja_final' if any(x in origin_gl_lower for x in ['3', '4', 'final']) else 'eja'
+                    else:
+                        origin_nivel_ensino = nivel_ensino  # fallback para o mesmo nível
+
+                origin_turma_atendimento = origin_class_info.get('atendimento_programa', '')
+                origin_turma_integral = origin_turma_atendimento == 'atendimento_integral'
+
+                origin_courses_filter = {
+                    "$and": [
+                        {"nivel_ensino": origin_nivel_ensino},
+                        {"$or": [
+                            {"school_id": {"$exists": False}},
+                            {"school_id": None},
+                            {"school_id": ""},
+                            {"school_id": origin_school_id}
+                        ]}
+                    ]
+                }
+                origin_all_courses = await db.courses.find(origin_courses_filter, {"_id": 0}).to_list(100)
+
+                origin_filtered_courses = []
+                for oc in origin_all_courses:
+                    oc_atendimento = oc.get('atendimento_programa')
+                    oc_grade_levels = oc.get('grade_levels', [])
+                    if oc_atendimento == 'transversal_formativa':
+                        pass
+                    elif oc_atendimento == 'atendimento_integral':
+                        if not origin_turma_integral:
+                            continue
+                    elif oc_atendimento and oc_atendimento not in ['atendimento_integral', 'transversal_formativa']:
+                        if origin_turma_atendimento != oc_atendimento:
+                            continue
+                    if oc_grade_levels and origin_grade_level and origin_grade_level not in oc_grade_levels:
+                        continue
+                    origin_filtered_courses.append(oc)
+
+                origin_filtered_courses.sort(key=lambda x: x.get('name', ''))
+                if not origin_filtered_courses:
+                    origin_filtered_courses = courses  # fallback
+
+                # Montar attendance_data para origem
+                origin_attendance_data = {
+                    '_meta': {
+                        'faltas_regular': origin_faltas_regular,
+                        'faltas_por_componente': origin_faltas_por_componente,
+                        'is_escola_integral': origin_turma_integral
+                    }
+                }
+                for oc in origin_filtered_courses:
+                    cid = oc.get('id')
+                    oc_atendimento = oc.get('atendimento_programa')
+                    if oc_atendimento == 'atendimento_integral':
+                        f = origin_faltas_por_componente.get(cid, 0)
+                    else:
+                        f = 0
+                    origin_attendance_data[cid] = {'absences': f, 'atendimento_programa': oc_atendimento}
+
+                # Gerar ficha ORIGEM
+                pdf_origem = generate_ficha_individual_pdf(
+                    student=student,
+                    school=origin_school,
+                    class_info=origin_class_info,
+                    enrollment=origin_enrollment,
+                    academic_year=actual_academic_year,
+                    grades=origin_grades,
+                    courses=origin_filtered_courses,
+                    attendance_data=origin_attendance_data,
+                    mantenedora=mantenedora,
+                    calendario_letivo=calendario_letivo
+                )
+                merger.append(pdf_origem)
+
+            # Mesclar PDFs
+            merged_buffer = BytesIO()
+            merger.write(merged_buffer)
+            merger.close()
+            merged_buffer.seek(0)
+
+            filename = f"ficha_individual_{student.get('full_name', 'aluno').replace(' ', '_')}.pdf"
+            return StreamingResponse(
+                merged_buffer,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'inline; filename="{filename}"'}
+            )
+
+        # ===== CASO NORMAL (sem remanejamento) =====
         # Gerar PDF
         try:
             pdf_buffer = generate_ficha_individual_pdf(
