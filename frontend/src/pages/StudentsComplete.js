@@ -10,7 +10,7 @@ import { extractErrorMessage } from '@/utils/errorHandler';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone, FileDown } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
 import { CityAutocomplete } from '@/components/CityAutocomplete';
 
@@ -273,6 +273,17 @@ export function StudentsComplete() {
   const [filterClassId, setFilterClassId] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [showBatchPrintModal, setShowBatchPrintModal] = useState(false);
+
+  // Estado para modal de relatório PDF
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportColumns, setReportColumns] = useState({
+    full_name: true, birth_date: true, sex: true, color_race: false,
+    cpf: false, nis: false, sus_number: false,
+    father_name: false, mother_name: true,
+    father_phone: false, mother_phone: true,
+    bolsa_familia: false, has_disability: false, has_laudo: false
+  });
+  const [generatingReport, setGeneratingReport] = useState(false);
   
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
@@ -1251,6 +1262,39 @@ export function StudentsComplete() {
       setBatchSchoolId('');
       setBatchClassId('');
       setBatchStatus('');
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    const selected = Object.entries(reportColumns).filter(([, v]) => v).map(([k]) => k);
+    if (selected.length === 0) {
+      showAlert('error', 'Selecione pelo menos uma coluna');
+      return;
+    }
+    setGeneratingReport(true);
+    try {
+      const API = process.env.REACT_APP_BACKEND_URL;
+      const token = localStorage.getItem('token');
+      const payload = {
+        columns: selected,
+        school_id: filterSchoolId && filterSchoolId !== 'all' ? filterSchoolId : null,
+        class_id: filterClassId || null
+      };
+      const response = await fetch(`${API}/api/students/report/pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error('Erro ao gerar relatório');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setShowReportModal(false);
+    } catch (error) {
+      console.error('Erro ao gerar relatório:', error);
+      showAlert('error', 'Erro ao gerar relatório PDF');
+    } finally {
+      setGeneratingReport(false);
     }
   };
 
@@ -3380,11 +3424,19 @@ export function StudentsComplete() {
         ) : (
         <>
         <div className="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg mb-4">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 flex items-center gap-3">
             <span className="font-medium">Total: {serverTotal} registros</span>
             {batchMode && selectedStudentIds.length > 0 && (
-              <span className="ml-2 text-blue-600">({selectedStudentIds.length} selecionado(s))</span>
+              <span className="text-blue-600">({selectedStudentIds.length} selecionado(s))</span>
             )}
+            <button
+              onClick={() => setShowReportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors"
+              data-testid="generate-report-btn"
+            >
+              <FileDown size={14} />
+              Gerar PDF
+            </button>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -3822,6 +3874,91 @@ export function StudentsComplete() {
               >
                 Fechar
               </button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Modal de Relatório PDF */}
+        <Modal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          title="Gerar Relatório PDF"
+          size="md"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Selecione os dados que deseja incluir no relatório:
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { key: 'full_name', label: 'Nome Completo' },
+                { key: 'birth_date', label: 'Data de Nascimento' },
+                { key: 'sex', label: 'Sexo' },
+                { key: 'color_race', label: 'Cor/Raça' },
+                { key: 'cpf', label: 'CPF' },
+                { key: 'nis', label: 'NIS' },
+                { key: 'sus_number', label: 'SUS' },
+                { key: 'father_name', label: 'Pai' },
+                { key: 'mother_name', label: 'Mãe' },
+                { key: 'father_phone', label: 'Telefone do Pai' },
+                { key: 'mother_phone', label: 'Telefone da Mãe' },
+                { key: 'bolsa_familia', label: 'Bolsa Família' },
+                { key: 'has_disability', label: 'Deficiência/Transtorno' },
+                { key: 'has_laudo', label: 'Laudo' },
+              ].map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={reportColumns[key]}
+                    onChange={() => setReportColumns(prev => ({ ...prev, [key]: !prev[key] }))}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    data-testid={`report-col-${key}`}
+                  />
+                  <span className="text-sm text-gray-700">{label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex items-center justify-between pt-3 border-t gap-3">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setReportColumns(prev => Object.fromEntries(Object.keys(prev).map(k => [k, true])))}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Marcar todos
+                </button>
+                <button
+                  onClick={() => setReportColumns(prev => Object.fromEntries(Object.keys(prev).map(k => [k, false])))}
+                  className="text-xs text-gray-500 hover:underline"
+                >
+                  Desmarcar todos
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleGenerateReport}
+                  disabled={generatingReport || !Object.values(reportColumns).some(v => v)}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  data-testid="confirm-generate-report-btn"
+                >
+                  {generatingReport ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <FileDown size={16} />
+                      Gerar PDF
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </Modal>

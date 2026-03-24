@@ -71,6 +71,7 @@
 ### Sessão 2026-02-XX
 - [x] **Geração de documentos para alunos transferidos**: Boletim Escolar e Ficha Individual agora podem ser gerados para alunos com status `transferred`. O resultado exibe "TRANSFERIDO(A)" no campo de resultado final do PDF. Impressão em lote também inclui alunos transferidos.
 - [x] **Ficha Individual dupla para remanejamento**: Quando o aluno foi remanejado dentro da mesma escola, a Ficha Individual gera 2 páginas: Página 1 com dados da turma de destino (notas e frequências combinadas) e Página 2 com dados da turma de origem (apenas notas/frequências da origem). Detecta automaticamente matrículas com status `relocated` na mesma escola e ano letivo.
+- [x] **Relatório PDF de alunos com colunas selecionáveis**: Botão "Gerar PDF" na tela de Alunos permite selecionar quais dados incluir (Nome, Data Nasc., Sexo, Cor/Raça, CPF, NIS, SUS, Pai, Mãe, Telefones, Bolsa Família, Deficiência, Laudo). Respeita filtros de escola/turma e exibe cabeçalho contextual.
 ## Backlog Pendente
 ### P0
 - [x] ~~Bug de exclusão de frequência~~ (RESOLVIDO)

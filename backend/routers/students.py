@@ -10,8 +10,11 @@ Endpoints para gestão de alunos incluindo:
 """
 
 from fastapi import APIRouter, HTTPException, status, Request, Query
-from typing import Optional
+from fastapi.responses import StreamingResponse
+from typing import Optional, List
 from datetime import datetime, timezone
+from pydantic import BaseModel
+from io import BytesIO
 import uuid
 from pymongo.errors import DuplicateKeyError
 
@@ -220,6 +223,197 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "page_size": page_size,
             "total_pages": (total + page_size - 1) // page_size
         }
+
+    class StudentReportRequest(BaseModel):
+        school_id: Optional[str] = None
+        class_id: Optional[str] = None
+        columns: List[str] = []
+
+    @router.post("/report/pdf")
+    async def generate_students_report_pdf(body: StudentReportRequest, request: Request):
+        """Gera relatório PDF de alunos com colunas selecionadas"""
+        current_user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(current_user)
+
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib import colors
+        from reportlab.lib.units import mm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+        # Filtrar apenas alunos ativos
+        filter_query = {"status": "active"}
+        if body.school_id:
+            filter_query["school_id"] = body.school_id
+        if body.class_id:
+            filter_query["class_id"] = body.class_id
+
+        # Definição das colunas disponíveis
+        column_defs = {
+            "full_name": {"label": "Nome Completo", "width": 50*mm},
+            "birth_date": {"label": "Data Nasc.", "width": 22*mm},
+            "sex": {"label": "Sexo", "width": 14*mm},
+            "color_race": {"label": "Cor/Raça", "width": 18*mm},
+            "cpf": {"label": "CPF", "width": 28*mm},
+            "nis": {"label": "NIS", "width": 25*mm},
+            "sus_number": {"label": "SUS", "width": 25*mm},
+            "father_name": {"label": "Pai", "width": 40*mm},
+            "mother_name": {"label": "Mãe", "width": 40*mm},
+            "father_phone": {"label": "Tel. Pai", "width": 25*mm},
+            "mother_phone": {"label": "Tel. Mãe", "width": 25*mm},
+            "bolsa_familia": {"label": "Bolsa Família", "width": 18*mm},
+            "has_disability": {"label": "Deficiência", "width": 18*mm},
+            "has_laudo": {"label": "Laudo", "width": 14*mm},
+        }
+
+        selected_columns = [c for c in body.columns if c in column_defs]
+        if not selected_columns:
+            raise HTTPException(status_code=400, detail="Selecione pelo menos uma coluna")
+
+        # Buscar nomes para cabeçalho
+        school_name = ""
+        class_name = ""
+        if body.school_id:
+            school_doc = await current_db.schools.find_one({"id": body.school_id}, {"_id": 0, "name": 1})
+            school_name = school_doc.get("name", "") if school_doc else ""
+        if body.class_id:
+            class_doc = await current_db.classes.find_one({"id": body.class_id}, {"_id": 0, "name": 1})
+            class_name = class_doc.get("name", "") if class_doc else ""
+
+        # Projeção dos campos necessários
+        projection = {"_id": 0, "full_name": 1}
+        for col in selected_columns:
+            if col == "bolsa_familia":
+                projection["benefits"] = 1
+            elif col == "has_laudo":
+                projection["medical_report_url"] = 1
+            elif col not in ("bolsa_familia", "has_laudo"):
+                projection[col] = 1
+
+        students = await current_db.students.find(
+            filter_query, projection
+        ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(5000)
+
+        # Mapa de cor/raça
+        race_labels = {
+            'branca': 'Branca', 'preta': 'Preta', 'parda': 'Parda',
+            'amarela': 'Amarela', 'indigena': 'Indígena', 'cigano': 'Cigano',
+            'quilombola': 'Quilombola', 'ribeirinho': 'Ribeirinho',
+            'extrativista': 'Extrativista', 'nao_declarada': 'N/D'
+        }
+
+        # Calcular larguras com base nas colunas selecionadas
+        num_col = 8*mm  # coluna do nº
+        available_width = landscape(A4)[0] - 20*mm  # margens
+        total_col_width = sum(column_defs[c]["width"] for c in selected_columns)
+        scale = min(1.0, (available_width - num_col) / total_col_width) if total_col_width > 0 else 1.0
+
+        col_widths = [num_col] + [column_defs[c]["width"] * scale for c in selected_columns]
+
+        # Estilos
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle('Title', parent=styles['Title'], fontSize=12, spaceAfter=2*mm, alignment=TA_CENTER)
+        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER, spaceAfter=1*mm)
+        cell_style = ParagraphStyle('Cell', fontSize=6.5, leading=8, alignment=TA_LEFT)
+        header_cell_style = ParagraphStyle('HeaderCell', fontSize=7, leading=8.5, alignment=TA_CENTER, textColor=colors.white)
+
+        # Construir tabela
+        header_row = [Paragraph("<b>Nº</b>", header_cell_style)]
+        for col in selected_columns:
+            header_row.append(Paragraph(f"<b>{column_defs[col]['label']}</b>", header_cell_style))
+
+        data_rows = [header_row]
+        for idx, s in enumerate(students, 1):
+            row = [Paragraph(str(idx), cell_style)]
+            for col in selected_columns:
+                val = ""
+                if col == "full_name":
+                    val = s.get("full_name", "")
+                elif col == "birth_date":
+                    bd = s.get("birth_date", "")
+                    if bd and len(bd) >= 10 and "-" in bd:
+                        parts = bd.split("-")
+                        if len(parts) == 3:
+                            val = f"{parts[2]}/{parts[1]}/{parts[0]}"
+                        else:
+                            val = bd
+                    else:
+                        val = bd or ""
+                elif col == "sex":
+                    sex_val = s.get("sex", "")
+                    val = "M" if sex_val == "masculino" else "F" if sex_val == "feminino" else ""
+                elif col == "color_race":
+                    val = race_labels.get(s.get("color_race", ""), "")
+                elif col == "cpf":
+                    val = s.get("cpf", "") or ""
+                elif col == "nis":
+                    val = s.get("nis", "") or ""
+                elif col == "sus_number":
+                    val = s.get("sus_number", "") or ""
+                elif col == "father_name":
+                    val = s.get("father_name", "") or ""
+                elif col == "mother_name":
+                    val = s.get("mother_name", "") or ""
+                elif col == "father_phone":
+                    val = s.get("father_phone", "") or ""
+                elif col == "mother_phone":
+                    val = s.get("mother_phone", "") or ""
+                elif col == "bolsa_familia":
+                    benefits = s.get("benefits", []) or []
+                    val = "Sim" if any("bolsa" in b.lower() for b in benefits) else "Não"
+                elif col == "has_disability":
+                    val = "Sim" if s.get("has_disability") else "Não"
+                elif col == "has_laudo":
+                    val = "Sim" if s.get("medical_report_url") else "Não"
+                row.append(Paragraph(str(val), cell_style))
+            data_rows.append(row)
+
+        # Gerar PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer, pagesize=landscape(A4),
+            leftMargin=10*mm, rightMargin=10*mm,
+            topMargin=10*mm, bottomMargin=10*mm
+        )
+
+        elements = []
+
+        # Cabeçalho
+        header_text = "RELATÓRIO DE ALUNOS"
+        elements.append(Paragraph(header_text, title_style))
+        if school_name:
+            elements.append(Paragraph(school_name, subtitle_style))
+        if class_name:
+            elements.append(Paragraph(f"Turma: {class_name}", subtitle_style))
+        elements.append(Paragraph(f"Total: {len(students)} aluno(s) ativo(s)", subtitle_style))
+        elements.append(Spacer(1, 3*mm))
+
+        table = Table(data_rows, colWidths=col_widths, repeatRows=1)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+            ('TOPPADDING', (0, 0), (-1, -1), 1.5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1.5),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ]))
+        elements.append(table)
+
+        doc.build(elements)
+        buffer.seek(0)
+
+        filename = f"relatorio_alunos{'_' + class_name.replace(' ', '_') if class_name else ''}.pdf"
+        return StreamingResponse(
+            buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{filename}"'}
+        )
 
     @router.get("/{student_id}", response_model=Student)
     async def get_student(student_id: str, request: Request):
