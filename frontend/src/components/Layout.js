@@ -129,15 +129,27 @@ export const Layout = ({ children }) => {
       </main>
       
       {/* Footer com Copyright - Fixo na parte inferior */}
-      <footer className="fixed bottom-0 left-0 right-0 py-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white z-30">
-        © 2026 Desenvolvido por{' '}
-        <a 
-          href="https://www.facebook.com/prof.gutenbergbarroso" 
-          target="_blank" 
+      <footer className="fixed bottom-0 left-0 right-0 py-3 px-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white z-30 flex items-center justify-between">
+        <span>
+          © 2026 Desenvolvido por{' '}
+          <a 
+            href="https://www.facebook.com/prof.gutenbergbarroso" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:text-blue-700 hover:underline"
+          >
+            Gutenberg Barroso
+          </a>
+        </span>
+        <a
+          href="https://aprenderdigital.top"
+          target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-500 hover:text-blue-700 hover:underline"
+          className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors no-underline"
+          data-testid="aprender-digital-link"
         >
-          Gutenberg Barroso
+          <img src="https://aprenderdigital.top/imagens/favicom.png" alt="Aprender Digital" className="w-5 h-5" />
+          <span className="text-xs font-medium">Aprender Digital</span>
         </a>
       </footer>
       
