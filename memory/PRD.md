@@ -67,10 +67,14 @@
 - [x] **Campo Data da Matrícula**: Na edição do aluno (aba Turma/Observações)
 - [x] **Limpeza retroativa de matrículas**: Rota de manutenção e botão admin
 
+
+### Sessão 2026-02-XX
+- [x] **Geração de documentos para alunos transferidos**: Boletim Escolar e Ficha Individual agora podem ser gerados para alunos com status `transferred`. O resultado exibe "TRANSFERIDO" no campo de resultado final do PDF. Impressão em lote também inclui alunos transferidos. Corrigido `UnboundLocalError` causado por imports locais de `datetime` que conflitavam com o import do topo do arquivo.
 ## Backlog Pendente
 ### P0
 - [x] ~~Bug de exclusão de frequência~~ (RESOLVIDO)
 - [x] ~~Bloqueio de notas por data de matrícula/movimentação~~ (RESOLVIDO)
+- [x] ~~Geração de Boletim/Ficha Individual para alunos transferidos~~ (RESOLVIDO)
 
 ### P1
 - [ ] Alterar carga horária de componentes curriculares (script para produção)

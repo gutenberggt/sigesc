@@ -91,12 +91,12 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if not is_valid:
             raise HTTPException(status_code=403, detail=error_message)
 
-        # Verificar se o aluno está ativo
+        # Verificar se o aluno está ativo ou transferido (transferidos podem gerar boletim/ficha)
         student_status = student.get('status', 'active')
-        if student_status != 'active':
+        allowed_statuses_for_docs = ['active', 'transferred']
+        if student_status not in allowed_statuses_for_docs:
             status_labels = {
                 'inactive': 'Inativo',
-                'transferred': 'Transferido',
                 'graduated': 'Formado',
                 'deceased': 'Falecido',
                 'cancelled': 'Matrícula Cancelada',
@@ -105,14 +105,14 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             status_label = status_labels.get(student_status, student_status)
             raise HTTPException(
                 status_code=400, 
-                detail=f"Não é possível gerar documentos para este aluno. Status atual: {status_label}. Apenas alunos com status 'Ativo' podem ter documentos gerados."
+                detail=f"Não é possível gerar documentos para este aluno. Status atual: {status_label}. Apenas alunos com status 'Ativo' ou 'Transferido' podem ter documentos gerados."
             )
 
-        # Buscar matrícula ativa do aluno
+        # Buscar matrícula do aluno (ativa ou transferida)
         academic_year_int_query = int(academic_year) if academic_year else datetime.now().year
         enrollment = await db.enrollments.find_one({
             "student_id": student_id,
-            "status": "active",
+            "status": {"$in": ["active", "transferred"]},
             "academic_year": academic_year_int_query
         }, {"_id": 0})
 
@@ -283,7 +283,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "year": int(actual_academic_year)
             }, {"_id": 0}).to_list(500)
 
-            from datetime import datetime, timedelta
             datas_nao_letivas = set()
             datas_sabados_letivos = set()
 
@@ -895,12 +894,12 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if not is_valid:
             raise HTTPException(status_code=403, detail=error_message)
 
-        # Verificar se o aluno está ativo
+        # Verificar se o aluno está ativo ou transferido (transferidos podem gerar ficha individual)
         student_status = student.get('status', 'active')
-        if student_status != 'active':
+        allowed_statuses_for_docs = ['active', 'transferred']
+        if student_status not in allowed_statuses_for_docs:
             status_labels = {
                 'inactive': 'Inativo',
-                'transferred': 'Transferido',
                 'graduated': 'Formado',
                 'deceased': 'Falecido',
                 'cancelled': 'Matrícula Cancelada',
@@ -909,7 +908,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             status_label = status_labels.get(student_status, student_status)
             raise HTTPException(
                 status_code=400, 
-                detail=f"Não é possível gerar documentos para este aluno. Status atual: {status_label}. Apenas alunos com status 'Ativo' podem ter documentos gerados."
+                detail=f"Não é possível gerar documentos para este aluno. Status atual: {status_label}. Apenas alunos com status 'Ativo' ou 'Transferido' podem ter documentos gerados."
             )
 
         # Buscar escola
@@ -1121,7 +1120,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             }, {"_id": 0}).to_list(500)
 
             # Identificar datas não letivas (feriados, recessos, etc.)
-            from datetime import datetime, timedelta
             datas_nao_letivas = set()
             datas_sabados_letivos = set()
 
@@ -1538,10 +1536,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "year": academic_year
         }, {"_id": 0})
 
-        # Buscar alunos matriculados na turma
+        # Buscar alunos matriculados na turma (ativos e transferidos)
         academic_year_int_livro = int(academic_year) if academic_year else datetime.now().year
         enrollments = await db.enrollments.find(
-            {"class_id": class_id, "status": "active", "academic_year": academic_year_int_livro},
+            {"class_id": class_id, "status": {"$in": ["active", "transferred"]}, "academic_year": academic_year_int_livro},
             {"_id": 0}
         ).to_list(1000)
 
