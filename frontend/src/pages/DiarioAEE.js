@@ -55,6 +55,7 @@ const DiarioAEE = () => {
   
   // Estados principais
   const [loading, setLoading] = useState(true);
+  const initialLoadDone = useRef(false);
   const [activeTab, setActiveTab] = useState('estudantes'); // estudantes, planos, atendimentos, diario
   const [schools, setSchools] = useState([]);
   const [selectedSchool, setSelectedSchool] = useState('');
@@ -171,7 +172,10 @@ const DiarioAEE = () => {
     
     const authHeader = { 'Authorization': `Bearer ${tokenRef.current}` };
     
-    setLoading(true);
+    // Mostrar loading apenas na primeira carga
+    if (!initialLoadDone.current) {
+      setLoading(true);
+    }
     try {
       // Busca estudantes AEE
       const estudantesRes = await fetch(
@@ -226,6 +230,7 @@ const DiarioAEE = () => {
       showAlert('error', 'Erro ao carregar dados do AEE');
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
   }, [selectedSchool, academicYear]);
 
@@ -1392,7 +1397,7 @@ const DiarioAEE = () => {
           <label className="block text-sm font-medium text-gray-700 mb-1">Escola/Polo AEE</label>
           <select
             value={selectedSchool}
-            onChange={(e) => setSelectedSchool(e.target.value)}
+            onChange={(e) => { initialLoadDone.current = false; setSelectedSchool(e.target.value); }}
             className="border rounded-lg px-3 py-2 min-w-[250px]"
           >
             {schools.length === 0 ? (
