@@ -135,20 +135,38 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
     @router.post("/admin/migrate-history-dates")
     async def migrate_history_dates(request: Request):
         """
-        Define data de matrícula como 15/01/2026 para todos os registros de matrícula no histórico.
-        Endpoint de uso único. Apenas admin pode executar.
+        Define data de matrícula como 15/01/2026 para todos os registros.
+        Atualiza: student_history, students e enrollments.
         """
         current_user = await AuthMiddleware.require_roles(['admin'])(request)
         current_db = get_db_for_user(current_user) if get_db_for_user else db
 
-        result = await current_db.student_history.update_many(
-            {"action_type": "matricula"},
-            {"$set": {"action_date": "2026-01-15T12:00:00+00:00"}}
+        target_date = "2026-01-15"
+        target_date_iso = "2026-01-15T12:00:00+00:00"
+
+        # 1. Histórico: todas as matrículas
+        r1 = await current_db.student_history.update_many(
+            {"action_type": "matricula", "action_date": {"$ne": target_date_iso}},
+            {"$set": {"action_date": target_date_iso}}
+        )
+
+        # 2. Alunos ativos: enrollment_date diferente de 15/01/2026
+        r2 = await current_db.students.update_many(
+            {"status": "active", "enrollment_date": {"$ne": target_date}},
+            {"$set": {"enrollment_date": target_date}}
+        )
+
+        # 3. Matrículas ativas: enrollment_date diferente de 15/01/2026
+        r3 = await current_db.enrollments.update_many(
+            {"status": "active", "enrollment_date": {"$ne": target_date}},
+            {"$set": {"enrollment_date": target_date}}
         )
 
         return {
-            "message": f"Migração concluída: {result.modified_count} registros de matrícula atualizados para 15/01/2026",
-            "updated": result.modified_count
+            "message": f"Migração concluída: histórico={r1.modified_count}, alunos={r2.modified_count}, matrículas={r3.modified_count} atualizados para 15/01/2026",
+            "updated_history": r1.modified_count,
+            "updated_students": r2.modified_count,
+            "updated_enrollments": r3.modified_count
         }
 
     return router
