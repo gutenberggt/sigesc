@@ -256,6 +256,7 @@ export function StudentsComplete() {
   const [serverTotal, setServerTotal] = useState(0);
   const [serverTotalPages, setServerTotalPages] = useState(0);
   const [serverActiveCount, setServerActiveCount] = useState(0);
+  const [raceCounts, setRaceCounts] = useState({});
   const PAGE_SIZE = 20;
   
   // Estado para modal de documentos
@@ -468,6 +469,7 @@ export function StudentsComplete() {
         setServerTotal(result.total || 0);
         setServerTotalPages(result.total_pages || 0);
         setServerActiveCount(result.active_count ?? result.total ?? 0);
+        setRaceCounts(result.race_counts || {});
       } catch (error) {
         console.error('Erro ao carregar alunos:', error);
         showAlert('error', 'Erro ao carregar dados');
@@ -1598,6 +1600,10 @@ export function StudentsComplete() {
             <option value="parda">Parda</option>
             <option value="amarela">Amarela</option>
             <option value="indigena">Indígena</option>
+            <option value="cigano">Cigano</option>
+            <option value="quilombola">Quilombola</option>
+            <option value="ribeirinho">Ribeirinho</option>
+            <option value="extrativista">Extrativista</option>
             <option value="nao_declarada">Não Declarada</option>
           </select>
         </div>
@@ -3339,6 +3345,27 @@ export function StudentsComplete() {
               )}
               <span className="text-gray-400">|</span>
               <span>{serverActiveCount} aluno(s) ativo(s)</span>
+            </div>
+          )}
+
+          {/* Contagem por Cor/Raça */}
+          {(filterSchoolId || debouncedSearch) && serverActiveCount > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded-lg" data-testid="race-counts">
+              {[
+                { key: 'branca', label: 'Branca' },
+                { key: 'preta', label: 'Preta' },
+                { key: 'parda', label: 'Parda' },
+                { key: 'amarela', label: 'Amarela' },
+                { key: 'indigena', label: 'Indígena' },
+                { key: 'cigano', label: 'Cigano' },
+                { key: 'quilombola', label: 'Quilombola' },
+                { key: 'ribeirinho', label: 'Ribeirinho' },
+                { key: 'extrativista', label: 'Extrativista' },
+              ].map(({ key, label }) => (
+                <span key={key}>
+                  <span className="font-medium text-gray-700">{label}:</span> {raceCounts[key] || 0}
+                </span>
+              ))}
             </div>
           )}
         </div>

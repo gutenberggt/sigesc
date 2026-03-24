@@ -163,6 +163,22 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         active_filter = {**filter_query, 'status': 'active'}
         active_count = await current_db.students.count_documents(active_filter) if not status else (total if status == 'active' else 0)
         
+        # Contagem por cor/raça (respeitando os filtros ativos, apenas alunos ativos)
+        race_pipeline = [
+            {"$match": active_filter},
+            {"$group": {
+                "_id": {"$ifNull": ["$color_race", "nao_informada"]},
+                "count": {"$sum": 1}
+            }}
+        ]
+        race_cursor = current_db.students.aggregate(race_pipeline)
+        race_counts = {}
+        async for doc in race_cursor:
+            race_key = doc["_id"] if doc["_id"] else "nao_informada"
+            if race_key == "":
+                race_key = "nao_informada"
+            race_counts[race_key] = doc["count"]
+        
         # Calcula skip com base na página
         effective_skip = (page - 1) * page_size if page > 0 else skip
         effective_limit = page_size if page > 0 else limit
@@ -199,6 +215,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "items": students,
             "total": total,
             "active_count": active_count,
+            "race_counts": race_counts,
             "page": page,
             "page_size": page_size,
             "total_pages": (total + page_size - 1) // page_size
