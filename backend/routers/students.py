@@ -241,6 +241,9 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        from xml.sax.saxutils import escape as xml_escape
+        import logging
+        logger = logging.getLogger(__name__)
 
         # Filtrar apenas alunos ativos
         filter_query = {"status": "active"}
@@ -328,92 +331,104 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             row = [Paragraph(str(idx), cell_style)]
             for col in selected_columns:
                 val = ""
-                if col == "full_name":
-                    val = s.get("full_name", "")
-                elif col == "birth_date":
-                    bd = s.get("birth_date", "")
-                    if bd and len(bd) >= 10 and "-" in bd:
-                        parts = bd.split("-")
-                        if len(parts) == 3:
-                            val = f"{parts[2]}/{parts[1]}/{parts[0]}"
+                try:
+                    if col == "full_name":
+                        val = s.get("full_name", "")
+                    elif col == "birth_date":
+                        bd = s.get("birth_date", "")
+                        if bd and len(str(bd)) >= 10 and "-" in str(bd):
+                            parts = str(bd).split("T")[0].split("-")
+                            if len(parts) == 3:
+                                val = f"{parts[2]}/{parts[1]}/{parts[0]}"
+                            else:
+                                val = str(bd)
                         else:
-                            val = bd
-                    else:
-                        val = bd or ""
-                elif col == "sex":
-                    sex_val = s.get("sex", "")
-                    val = "M" if sex_val == "masculino" else "F" if sex_val == "feminino" else ""
-                elif col == "color_race":
-                    val = race_labels.get(s.get("color_race", ""), "")
-                elif col == "cpf":
-                    val = s.get("cpf", "") or ""
-                elif col == "nis":
-                    val = s.get("nis", "") or ""
-                elif col == "sus_number":
-                    val = s.get("sus_number", "") or ""
-                elif col == "father_name":
-                    val = s.get("father_name", "") or ""
-                elif col == "mother_name":
-                    val = s.get("mother_name", "") or ""
-                elif col == "father_phone":
-                    val = s.get("father_phone", "") or ""
-                elif col == "mother_phone":
-                    val = s.get("mother_phone", "") or ""
-                elif col == "bolsa_familia":
-                    benefits = s.get("benefits", []) or []
-                    val = "Sim" if any("bolsa" in b.lower() for b in benefits) else "Não"
-                elif col == "has_disability":
-                    val = "Sim" if s.get("has_disability") else "Não"
-                elif col == "has_laudo":
-                    val = "Sim" if s.get("medical_report_url") else "Não"
-                row.append(Paragraph(str(val), cell_style))
+                            val = str(bd) if bd else ""
+                    elif col == "sex":
+                        sex_val = s.get("sex", "")
+                        val = "M" if sex_val == "masculino" else "F" if sex_val == "feminino" else ""
+                    elif col == "color_race":
+                        val = race_labels.get(s.get("color_race", ""), "")
+                    elif col == "cpf":
+                        val = s.get("cpf", "") or ""
+                    elif col == "nis":
+                        val = s.get("nis", "") or ""
+                    elif col == "sus_number":
+                        val = s.get("sus_number", "") or ""
+                    elif col == "father_name":
+                        val = s.get("father_name", "") or ""
+                    elif col == "mother_name":
+                        val = s.get("mother_name", "") or ""
+                    elif col == "father_phone":
+                        val = s.get("father_phone", "") or ""
+                    elif col == "mother_phone":
+                        val = s.get("mother_phone", "") or ""
+                    elif col == "bolsa_familia":
+                        benefits = s.get("benefits", []) or []
+                        if isinstance(benefits, list):
+                            val = "Sim" if any("bolsa" in str(b).lower() for b in benefits) else "Não"
+                        else:
+                            val = "Não"
+                    elif col == "has_disability":
+                        val = "Sim" if s.get("has_disability") else "Não"
+                    elif col == "has_laudo":
+                        val = "Sim" if s.get("medical_report_url") else "Não"
+                except Exception:
+                    val = ""
+                # Escapar caracteres XML para evitar erros no ReportLab Paragraph
+                safe_val = xml_escape(str(val)) if val else ""
+                row.append(Paragraph(safe_val, cell_style))
             data_rows.append(row)
 
         # Gerar PDF
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(
-            buffer, pagesize=landscape(A4),
-            leftMargin=10*mm, rightMargin=10*mm,
-            topMargin=10*mm, bottomMargin=10*mm
-        )
+        try:
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(
+                buffer, pagesize=landscape(A4),
+                leftMargin=10*mm, rightMargin=10*mm,
+                topMargin=10*mm, bottomMargin=10*mm
+            )
 
-        elements = []
+            elements = []
 
-        # Cabeçalho
-        header_text = "RELATÓRIO DE ALUNOS"
-        elements.append(Paragraph(header_text, title_style))
-        if school_name:
-            elements.append(Paragraph(school_name, subtitle_style))
-        if class_name:
-            elements.append(Paragraph(f"Turma: {class_name}", subtitle_style))
-        elements.append(Paragraph(f"Total: {len(students)} aluno(s) ativo(s)", subtitle_style))
-        elements.append(Spacer(1, 3*mm))
+            # Cabeçalho
+            header_text = "RELATÓRIO DE ALUNOS"
+            elements.append(Paragraph(header_text, title_style))
+            if school_name:
+                elements.append(Paragraph(xml_escape(school_name), subtitle_style))
+            if class_name:
+                elements.append(Paragraph(f"Turma: {xml_escape(class_name)}", subtitle_style))
+            elements.append(Paragraph(f"Total: {len(students)} aluno(s) ativo(s)", subtitle_style))
+            elements.append(Spacer(1, 3*mm))
 
-        table = Table(data_rows, colWidths=col_widths, repeatRows=1)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTSIZE', (0, 0), (-1, -1), 7),
-            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
-            ('TOPPADDING', (0, 0), (-1, -1), 1.5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 1.5),
-            ('LEFTPADDING', (0, 0), (-1, -1), 2),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-        ]))
-        elements.append(table)
+            table = Table(data_rows, colWidths=col_widths, repeatRows=1)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTSIZE', (0, 0), (-1, -1), 7),
+                ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+                ('TOPPADDING', (0, 0), (-1, -1), 1.5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 1.5),
+                ('LEFTPADDING', (0, 0), (-1, -1), 2),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+            ]))
+            elements.append(table)
 
-        doc.build(elements)
-        buffer.seek(0)
+            doc.build(elements)
+            buffer.seek(0)
 
-        filename = f"relatorio_alunos{'_' + class_name.replace(' ', '_') if class_name else ''}.pdf"
-        return StreamingResponse(
-            buffer,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'inline; filename="{filename}"'}
-        )
+            filename = f"relatorio_alunos{'_' + class_name.replace(' ', '_') if class_name else ''}.pdf"
+            return StreamingResponse(
+                buffer,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'inline; filename="{filename}"'}
+            )
+        except Exception as e:
+            logger.error(f"Erro ao gerar PDF do relatório: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
     @router.get("/{student_id}", response_model=Student)
     async def get_student(student_id: str, request: Request):
