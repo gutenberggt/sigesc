@@ -2661,7 +2661,7 @@ def generate_class_details_pdf(
         pagesize=A4,
         rightMargin=1.5*cm,
         leftMargin=1.5*cm,
-        topMargin=1.5*cm,
+        topMargin=0.75*cm,
         bottomMargin=2*cm
     )
 
