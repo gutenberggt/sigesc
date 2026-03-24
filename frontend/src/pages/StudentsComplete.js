@@ -1274,7 +1274,7 @@ export function StudentsComplete() {
     setGeneratingReport(true);
     try {
       const API = process.env.REACT_APP_BACKEND_URL;
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       const payload = {
         columns: selected,
         school_id: filterSchoolId && filterSchoolId !== 'all' ? filterSchoolId : null,
