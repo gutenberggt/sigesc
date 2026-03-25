@@ -52,7 +52,8 @@ const EDUCATION_LEVELS = [
   { value: 'fundamental_anos_finais', label: 'Ensino Fundamental - Anos Finais' },
   { value: 'ensino_medio', label: 'Ensino Médio' },
   { value: 'eja', label: 'EJA - Anos Iniciais' },
-  { value: 'eja_final', label: 'EJA - Anos Finais' }
+  { value: 'eja_final', label: 'EJA - Anos Finais' },
+  { value: 'global', label: 'Global' }
 ];
 
 export const Classes = () => {

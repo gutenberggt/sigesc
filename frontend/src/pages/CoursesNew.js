@@ -77,7 +77,8 @@ export const Courses = () => {
     'fundamental_anos_finais': 'Fundamental - Anos Finais',
     'ensino_medio': 'Ensino Médio',
     'eja': 'EJA - Anos Iniciais',
-    'eja_final': 'EJA - Anos Finais'
+    'eja_final': 'EJA - Anos Finais',
+    'global': 'Global'
   };
 
   const atendimentosProgramas = {

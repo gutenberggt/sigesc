@@ -41,7 +41,8 @@ const EDUCATION_LEVEL_LABELS = {
   'eja': 'EJA - Anos Iniciais',
   'eja_final': 'EJA - Anos Finais',
   'educacao_infantil': 'Educação Infantil',
-  'ensino_medio': 'Ensino Médio'
+  'ensino_medio': 'Ensino Médio',
+  'global': 'Global'
 };
 
 // Infere o nível de ensino da turma a partir de education_level, grade_level ou name

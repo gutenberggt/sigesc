@@ -532,7 +532,8 @@ def generate_boletim_pdf(
         'fundamental_anos_finais': 'ENSINO FUNDAMENTAL',
         'ensino_medio': 'ENSINO MÉDIO',
         'eja': 'EJA - ANOS INICIAIS',
-        'eja_final': 'EJA - ANOS FINAIS'
+        'eja_final': 'EJA - ANOS FINAIS',
+        'global': 'GLOBAL'
     }
     
     # Inferir nível de ensino da turma
@@ -1628,7 +1629,8 @@ def generate_ficha_individual_pdf(
         'fundamental_anos_finais': 'ENSINO FUNDAMENTAL',
         'ensino_medio': 'ENSINO MÉDIO',
         'eja': 'EJA - ANOS INICIAIS',
-        'eja_final': 'EJA - ANOS FINAIS'
+        'eja_final': 'EJA - ANOS FINAIS',
+        'global': 'GLOBAL'
     }
     
     # Inferir nível de ensino da turma
@@ -2732,7 +2734,10 @@ def generate_class_details_pdf(
         'educacao_infantil': 'Educação Infantil',
         'fundamental_anos_iniciais': 'Ens. Fundamental - Anos Iniciais',
         'fundamental_anos_finais': 'Ens. Fundamental - Anos Finais',
-        'eja': 'EJA - Educação de Jovens e Adultos'
+        'eja': 'EJA - Anos Iniciais',
+        'eja_final': 'EJA - Anos Finais',
+        'ensino_medio': 'Ensino Médio',
+        'global': 'Global'
     }
     shifts = {
         'morning': 'Manhã', 'afternoon': 'Tarde',
@@ -3495,7 +3500,8 @@ def generate_relatorio_frequencia_bimestre_pdf(
         'eja': 'EJA - ANOS INICIAIS',
         'eja_final': 'EJA - ANOS FINAIS',
         'educacao_infantil': 'ED. INFANTIL',
-        'ensino_medio': 'ENSINO MÉDIO'
+        'ensino_medio': 'ENSINO MÉDIO',
+        'global': 'GLOBAL'
     }
     education_level = class_info.get('education_level', '')
     nivel = niveis.get(education_level, education_level.upper())
@@ -3774,7 +3780,8 @@ def generate_learning_objects_pdf(
         'eja': 'EJA - Anos Iniciais',
         'eja_final': 'EJA - Anos Finais',
         'educacao_infantil': 'Educação Infantil',
-        'ensino_medio': 'Ensino Médio'
+        'ensino_medio': 'Ensino Médio',
+        'global': 'Global'
     }
     turnos = {'morning': 'Matutino', 'afternoon': 'Vespertino', 'night': 'Noturno', 'full_time': 'Integral'}
     
@@ -4068,7 +4075,8 @@ def generate_grades_report_pdf(
         'eja': 'EJA - Anos Iniciais',
         'eja_final': 'EJA - Anos Finais',
         'educacao_infantil': 'Educação Infantil',
-        'ensino_medio': 'Ensino Médio'
+        'ensino_medio': 'Ensino Médio',
+        'global': 'Global'
     }
     turnos = {'morning': 'Matutino', 'afternoon': 'Vespertino', 'night': 'Noturno', 'full_time': 'Integral'}
     nivel_label = niveis.get(nivel, nivel)

@@ -800,7 +800,7 @@ class CourseBase(BaseModel):
     school_id: Optional[str] = None
     
     # Nível de Ensino (opcional para compatibilidade com dados legados)
-    nivel_ensino: Optional[Literal['educacao_infantil', 'fundamental_anos_iniciais', 'fundamental_anos_finais', 'ensino_medio', 'eja', 'eja_final']] = None
+    nivel_ensino: Optional[Literal['educacao_infantil', 'fundamental_anos_iniciais', 'fundamental_anos_finais', 'ensino_medio', 'eja', 'eja_final', 'global']] = None
     
     # Séries/Anos que usam este componente (opcional - se vazio, aplica a todas do nível)
     # Para Fundamental Anos Iniciais: não precisa preencher (é o mesmo para todos)
@@ -832,7 +832,7 @@ class CourseCreate(CourseBase):
 
 class CourseUpdate(BaseModel):
     school_id: Optional[str] = None
-    nivel_ensino: Optional[Literal['educacao_infantil', 'fundamental_anos_iniciais', 'fundamental_anos_finais', 'ensino_medio', 'eja', 'eja_final']] = None
+    nivel_ensino: Optional[Literal['educacao_infantil', 'fundamental_anos_iniciais', 'fundamental_anos_finais', 'ensino_medio', 'eja', 'eja_final', 'global']] = None
     grade_levels: Optional[List[str]] = None
     atendimento_programa: Optional[Literal['aee', 'atendimento_integral', 'reforco_escolar', 'aulas_complementares', 'transversal_formativa', 'recomposicao_aprendizagem']] = None
     name: Optional[str] = None

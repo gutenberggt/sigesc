@@ -34,7 +34,8 @@ export const Courses = () => {
     { value: 'fundamental_anos_finais', label: 'Fundamental - Anos Finais' },
     { value: 'ensino_medio', label: 'Ensino Médio' },
     { value: 'eja', label: 'EJA - Anos Iniciais' },
-    { value: 'eja_final', label: 'EJA - Anos Finais' }
+    { value: 'eja_final', label: 'EJA - Anos Finais' },
+    { value: 'global', label: 'Global' }
   ];
 
   const ATENDIMENTO_OPTIONS = [
