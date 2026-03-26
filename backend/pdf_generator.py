@@ -3508,6 +3508,11 @@ def generate_relatorio_frequencia_bimestre_pdf(
     
     is_anos_finais = education_level in ('fundamental_anos_finais', 'eja_final')
     
+    # Níveis que usam "DIAS" ao invés de "AULAS"
+    is_dias = education_level in ('educacao_infantil', 'fundamental_anos_iniciais', 'eja')
+    label_previstas = "DIAS PREVISTOS" if is_dias else "AULAS PREVISTAS"
+    label_ministradas = "DIAS REGISTRADOS" if is_dias else "AULAS MINISTRADAS"
+    
     serie = class_info.get('grade', class_info.get('grade_level', class_info.get('name', '')))
     
     # Título: se Anos Finais e tem componente, usa nome do componente
@@ -3552,9 +3557,9 @@ def generate_relatorio_frequencia_bimestre_pdf(
             ],
             [
                 Paragraph(f"<b>NÍVEL:</b> {nivel}", small_text_left),
-                Paragraph(f"<b>AULAS PREVISTAS:</b> {aulas_previstas}", small_text_left),
+                Paragraph(f"<b>{label_previstas}:</b> {aulas_previstas}", small_text_left),
                 Paragraph(f"<b>PROFESSOR(A):</b> {teacher_name}", small_text_left),
-                Paragraph(f"<b>AULAS MINISTRADAS:</b> {aulas_ministradas}", small_text_left),
+                Paragraph(f"<b>{label_ministradas}:</b> {aulas_ministradas}", small_text_left),
             ]
         ]
     else:
@@ -3566,9 +3571,9 @@ def generate_relatorio_frequencia_bimestre_pdf(
                 Paragraph(f"<b>NÍVEL:</b> {nivel}", small_text_left),
             ],
             [
-                Paragraph(f"<b>AULAS PREVISTAS:</b> {aulas_previstas}", small_text_left),
+                Paragraph(f"<b>{label_previstas}:</b> {aulas_previstas}", small_text_left),
                 Paragraph(f"<b>PROFESSOR(A):</b> {teacher_name}", small_text_left),
-                Paragraph(f"<b>AULAS MINISTRADAS:</b> {aulas_ministradas}", small_text_left),
+                Paragraph(f"<b>{label_ministradas}:</b> {aulas_ministradas}", small_text_left),
                 '',
             ]
         ]
