@@ -3495,11 +3495,11 @@ def generate_relatorio_frequencia_bimestre_pdf(
     turno = turnos.get(class_info.get('shift', ''), class_info.get('shift', '').upper())
     
     niveis = {
-        'fundamental_anos_iniciais': 'ANOS INICIAIS',
-        'fundamental_anos_finais': 'ANOS FINAIS',
+        'fundamental_anos_iniciais': 'ENSINO FUNDAMENTAL - ANOS INICIAIS',
+        'fundamental_anos_finais': 'ENSINO FUNDAMENTAL - ANOS FINAIS',
         'eja': 'EJA - ANOS INICIAIS',
         'eja_final': 'EJA - ANOS FINAIS',
-        'educacao_infantil': 'ED. INFANTIL',
+        'educacao_infantil': 'EDUCAÇÃO INFANTIL',
         'ensino_medio': 'ENSINO MÉDIO',
         'global': 'GLOBAL'
     }

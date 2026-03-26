@@ -183,7 +183,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         class_id: str,
         request: Request,
         bimestre: int = Query(..., ge=1, le=4, description="Número do bimestre (1-4)"),
-        academic_year: Optional[int] = None
+        academic_year: Optional[int] = None,
+        course_id: Optional[str] = Query(None, description="ID do componente curricular")
     ):
         """Gera PDF do relatório de frequência por bimestre"""
         await AuthMiddleware.get_current_user(request)
@@ -366,12 +367,17 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             if teacher:
                 teacher_name = teacher.get('nome', '')
 
+        # Buscar componente curricular (para Anos Finais/EJA)
+        course_info = None
+        if course_id:
+            course_info = await db.courses.find_one({"id": course_id}, {"_id": 0})
+
         # Gerar PDF
         try:
             pdf_buffer = generate_relatorio_frequencia_bimestre_pdf(
                 school=school,
                 class_info=turma,
-                course_info=None,
+                course_info=course_info,
                 students_attendance=students_attendance,
                 bimestre=bimestre,
                 academic_year=academic_year,

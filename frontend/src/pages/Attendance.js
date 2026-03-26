@@ -653,7 +653,7 @@ export const Attendance = () => {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(
-        `${API_URL}/api/attendance/pdf/bimestre/${selectedClass}?bimestre=${selectedBimestre}&academic_year=${academicYear}`,
+        `${API_URL}/api/attendance/pdf/bimestre/${selectedClass}?bimestre=${selectedBimestre}&academic_year=${academicYear}${selectedCourse ? `&course_id=${selectedCourse}` : ''}`,
         {
           method: 'GET',
           headers: {
