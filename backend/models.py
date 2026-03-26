@@ -2349,9 +2349,15 @@ class PayrollItem(BaseModel):
     worked_hours: float = 0         # Horas trabalhadas
     expected_classes: int = 0       # Aulas previstas (professor)
     taught_classes: int = 0         # Aulas ministradas
+    classes_not_taught: int = 0     # Aulas não cumpridas
+    classes_replaced: int = 0       # Aulas repostas
     extra_classes: int = 0          # Aulas extras/substituição
-    complementary_hours: float = 0  # Horas complementares
+    # Horas complementares
+    complementary_hours: float = 0
     complementary_reason: Optional[str] = None
+    complementary_type: Optional[str] = None  # Tipo parametrizado
+    complementary_period: Optional[str] = None
+    complementary_authorized_by: Optional[str] = None
     # Ausências
     absences: int = 0               # Faltas (total)
     justified_absences: int = 0     # Faltas justificadas
@@ -2367,9 +2373,14 @@ class PayrollItem(BaseModel):
 class PayrollItemUpdate(BaseModel):
     worked_hours: Optional[float] = None
     taught_classes: Optional[int] = None
+    classes_not_taught: Optional[int] = None
+    classes_replaced: Optional[int] = None
     extra_classes: Optional[int] = None
     complementary_hours: Optional[float] = None
     complementary_reason: Optional[str] = None
+    complementary_type: Optional[str] = None
+    complementary_period: Optional[str] = None
+    complementary_authorized_by: Optional[str] = None
     absences: Optional[int] = None
     justified_absences: Optional[int] = None
     medical_leave_days: Optional[int] = None

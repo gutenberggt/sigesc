@@ -21,44 +21,48 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Calendário letivo
 - Analytics / Ranking de escolas
 
-### Módulo RH / Folha (Fase 1 - Implementado em 26/03/2026)
+### Módulo RH / Folha (Fase 1 + Fase 2 - Implementado em 26/03/2026)
 **Backend**: `/app/backend/routers/hr.py`
 **Frontend**: `/app/frontend/src/pages/HRPayroll.js`
 **Modelos**: Adicionados ao final de `/app/backend/models.py`
 **Rota**: `/admin/hr`
 **Acesso**: admin, semed, semed3, diretor, secretario
+**Coleções**: payroll_competencies, school_payrolls, payroll_items, payroll_occurrences, hr_audit_logs
+**Uploads**: /app/backend/uploads/hr/
 
-#### Funcionalidades da Fase 1:
-- Abertura de competência mensal
-- Geração automática de pré-folha (baseada em school_assignments)
+#### Fase 1 - Base:
+- Abertura de competência mensal + pré-folha automática
 - Dashboard com resumo por status
 - Lista de folhas por escola
 - Detalhe da folha com tabela de servidores
 - Edição de lançamentos (horas, aulas, complementares)
-- Registro de ocorrências (faltas, atestados, afastamentos, etc.)
-- Validações automáticas (excesso de carga, complementar sem motivo, etc.)
-- Recálculo automático de totalizadores por ocorrências
+- Registro de ocorrências (faltas, atestados, afastamentos)
+- Validações automáticas
 - Fluxo de status: não_iniciada → em_preenchimento → enviada → aprovada/devolvida → fechada
 
-#### Coleções MongoDB:
-- `payroll_competencies`: Competências mensais
-- `school_payrolls`: Folha por escola/competência
-- `payroll_items`: Linha do servidor na folha
-- `payroll_occurrences`: Ocorrências (faltas, atestados, etc.)
+#### Fase 2 - Avançado:
+- Upload de documentos comprobatórios (PDF/imagem até 10MB)
+- Indicador visual de documentos anexados (coluna "Docs" e ícone de clipe)
+- Hora-aula avançado: aulas não cumpridas, repostas, extras, substituição
+- Horas complementares detalhadas: tipo/motivo parametrizado, período, autorizado por
+- Substituições vinculadas com validação (exige servidor substituído, sem duplicata)
+- Subtipos de afastamento/licença parametrizados
+- Histórico de alterações (auditoria) com diff campo-a-campo
+- Endpoint de enums parametrizáveis (/api/hr/enums)
+- Seletor de servidores para substituição (/api/hr/school-employees)
+- Validação: aulas não cumpridas sem falta/atestado, total aulas > previstas
 
 ## Correções desta sessão (26/03/2026)
-- Bug fix: Benefícios do aluno não salvavam (case mismatch entre uppercase e checkboxes)
-- Adequação: Labels do PDF frequência (DIAS PREVISTOS/REGISTRADOS para Ed. Infantil e Anos Iniciais)
-- Adequação: Registros de conteúdo incluídos na conversão CAIXA ALTA
-- Adequação: Nomes completos dos níveis de ensino no PDF frequência
-- Adequação: Componente curricular exibido no PDF de frequência para Anos Finais
+- Bug fix: Benefícios do aluno (case mismatch uppercase/checkboxes)
+- PDF Frequência: labels DIAS vs AULAS por nível
+- Registros de conteúdo: incluídos na conversão CAIXA ALTA
+- PDF Frequência: componente e nível completo para Anos Finais
 
 ## Tarefas Pendentes
 
 ### Módulo RH - Fases Futuras
-- **Fase 2** (P1): Lançamento detalhado (hora-aula avançado, upload de documentos, substituições vinculadas)
-- **Fase 3** (P1): Fluxo de aprovação avançado (análise pela Secretaria, validações mais rigorosas)
-- **Fase 4** (P2): Relatórios (espelho individual, consolidado por escola, consolidado da rede, auditoria)
+- **Fase 3** (P1): Fluxo de aprovação avançado (validações rigorosas, bloqueio por prazo)
+- **Fase 4** (P2): Relatórios (espelho individual, consolidado por escola/rede, auditoria)
 
 ### Outras Tarefas
 - (P1) Alterar carga horária de componentes curriculares
@@ -75,8 +79,8 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Coordenador: coordenador@sigesc.com / coordenador123
 - Secretário: secretario@sigesc.com / secretario123
 
-## Notas Técnicas Importantes
+## Notas Técnicas
 - Token no frontend: `localStorage.getItem('accessToken')` (NÃO 'token')
-- Escapar HTML em PDFs: usar `xml_escape` para dados textuais do banco
-- Background polling: páginas devem usar `useRef` para initial load para não desmontar com setLoading
-- Benefits/disabilities: são campos com valores predefinidos, excluídos de uppercase
+- Escapar HTML em PDFs: usar `xml_escape`
+- Background polling: usar `useRef` para initial load
+- Benefits/disabilities: excluídos de uppercase (valores predefinidos)

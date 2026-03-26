@@ -1,11 +1,14 @@
 """
 Router para módulo de RH / Folha de Pagamento
 Gerencia competências mensais, folhas por escola, itens e ocorrências.
+Fase 2: Upload de documentos, hora-aula avançado, substituições vinculadas,
+        horas complementares detalhadas, auditoria de alterações.
 """
 
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, HTTPException, Request, Query, UploadFile, File
 from typing import Optional, List
 from datetime import datetime, timezone
+from pathlib import Path
 import uuid
 import logging
 
@@ -15,7 +18,6 @@ from models import (
     PayrollOccurrence, PayrollOccurrenceCreate, PayrollOccurrenceUpdate
 )
 from auth_middleware import AuthMiddleware
-from text_utils import format_data_uppercase
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,41 @@ SEMED_ROLES = ['semed', 'semed3']
 SCHOOL_ROLES = ['diretor', 'secretario']
 ALL_HR_ROLES = ADMIN_ROLES + SEMED_ROLES + SCHOOL_ROLES
 
+# Diretório de uploads de documentos HR
+HR_UPLOADS_DIR = Path(__file__).parent.parent / "uploads" / "hr"
+HR_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Motivos parametrizados de horas complementares
+COMPLEMENTARY_MOTIVES = [
+    "Planejamento pedagógico extraordinário",
+    "Reforço escolar",
+    "Reposição de aulas",
+    "Substituição temporária",
+    "Atividade administrativa",
+    "Projeto especial",
+    "Atendimento individualizado",
+    "Jornada suplementar autorizada",
+    "Formação continuada",
+    "Reunião de pais/responsáveis",
+    "Outro"
+]
+
+# Subtipos de afastamento/licença
+LEAVE_SUBTYPES = [
+    "Licença médica",
+    "Licença maternidade",
+    "Licença paternidade",
+    "Licença prêmio",
+    "Licença sem vencimento",
+    "Cessão",
+    "Afastamento disciplinar",
+    "Readaptação",
+    "Férias",
+    "Licença para tratamento",
+    "Licença para estudo",
+    "Outro"
+]
+
 
 def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     """Configura o router com dependências."""
@@ -35,6 +72,44 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if user.get('is_sandbox'):
             return sandbox_db if sandbox_db else db
         return db
+
+    # ============================================
+    # ENUMS / PARAMETROS
+    # ============================================
+
+    @router.get("/enums")
+    async def get_hr_enums(request: Request):
+        """Retorna listas parametrizáveis do módulo RH"""
+        await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        return {
+            "complementary_motives": COMPLEMENTARY_MOTIVES,
+            "leave_subtypes": LEAVE_SUBTYPES,
+        }
+
+    # ============================================
+    # UPLOAD DE DOCUMENTOS
+    # ============================================
+
+    @router.post("/upload")
+    async def upload_hr_document(request: Request, file: UploadFile = File(...)):
+        """Upload de documento comprobatório (atestado, portaria, etc.)"""
+        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+
+        allowed_ext = ['.pdf', '.jpg', '.jpeg', '.png', '.webp']
+        file_ext = Path(file.filename).suffix.lower() if file.filename else ''
+        if file_ext not in allowed_ext:
+            raise HTTPException(400, "Tipo não permitido. Use PDF, JPG, PNG ou WEBP.")
+
+        content = await file.read()
+        if len(content) > 10 * 1024 * 1024:  # 10MB max
+            raise HTTPException(400, "Arquivo muito grande. Máximo 10MB.")
+
+        unique_name = f"{uuid.uuid4()}{file_ext}"
+        file_path = HR_UPLOADS_DIR / unique_name
+        with open(file_path, 'wb') as f:
+            f.write(content)
+
+        return {"url": f"/api/uploads/hr/{unique_name}", "filename": file.filename}
 
     # ============================================
     # COMPETÊNCIAS MENSAIS
@@ -220,11 +295,16 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             item['employee_ch_semanal'] = emp.get('carga_horaria_semanal', 0)
             item['employee_status'] = emp.get('status', '')
 
-            # Contar ocorrências
+            # Contar ocorrências e documentos
             occ_count = await current_db.payroll_occurrences.count_documents({
                 "payroll_item_id": item['id'], "status": "active"
             })
+            doc_count = await current_db.payroll_occurrences.count_documents({
+                "payroll_item_id": item['id'], "status": "active",
+                "document_url": {"$ne": None, "$ne": ""}
+            })
             item['occurrences_count'] = occ_count
+            item['documents_count'] = doc_count
 
         # Ordenar por nome
         items.sort(key=lambda x: x.get('employee_name', ''))
@@ -250,7 +330,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if payroll['status'] not in ('drafting', 'returned', 'not_started', 'reopened'):
             raise HTTPException(400, f"Folha não pode ser enviada no status '{payroll['status']}'")
 
-        # Validar: verificar se há itens sem conferência
         items_pending = await current_db.payroll_items.count_documents({
             "school_payroll_id": payroll_id, "validation_status": "pending"
         })
@@ -329,38 +408,64 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # Verifica se a folha ainda permite edição
         payroll = await current_db.school_payrolls.find_one({"id": item['school_payroll_id']})
         if payroll and payroll['status'] in ('approved', 'closed'):
-            is_admin = user.get('role') in ADMIN_ROLES
-            if not is_admin:
+            if user.get('role') not in ADMIN_ROLES:
                 raise HTTPException(403, "Folha já aprovada/fechada. Apenas administrador pode editar.")
 
         update_data = {k: v for k, v in data.model_dump(exclude_unset=True).items()}
-        if update_data:
-            update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
-            update_data['updated_by'] = user.get('id')
+        if not update_data:
+            return await current_db.payroll_items.find_one({"id": item_id}, {"_id": 0})
 
-            # Marca folha como em rascunho se estava não iniciada
-            if payroll and payroll['status'] == 'not_started':
-                await current_db.school_payrolls.update_one(
-                    {"id": payroll['id']},
-                    {"$set": {"status": "drafting"}}
-                )
+        # Registrar auditoria (antes de alterar)
+        await _log_item_change(current_db, item, update_data, user)
 
-            # Validações automáticas
-            merged = {**item, **update_data}
-            alerts = _validate_item(merged)
-            if alerts:
-                update_data['validation_status'] = 'has_issues'
-                update_data['validation_notes'] = '; '.join(alerts)
-            else:
-                update_data['validation_status'] = 'ok'
-                update_data['validation_notes'] = None
+        update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+        update_data['updated_by'] = user.get('id')
 
-            await current_db.payroll_items.update_one(
-                {"id": item_id},
-                {"$set": update_data}
+        # Marca folha como em rascunho se estava não iniciada
+        if payroll and payroll['status'] == 'not_started':
+            await current_db.school_payrolls.update_one(
+                {"id": payroll['id']},
+                {"$set": {"status": "drafting"}}
             )
 
+        # Validações automáticas
+        merged = {**item, **update_data}
+        alerts = _validate_item(merged)
+        if alerts:
+            update_data['validation_status'] = 'has_issues'
+            update_data['validation_notes'] = '; '.join(alerts)
+        else:
+            update_data['validation_status'] = 'ok'
+            update_data['validation_notes'] = None
+
+        await current_db.payroll_items.update_one(
+            {"id": item_id},
+            {"$set": update_data}
+        )
+
         return await current_db.payroll_items.find_one({"id": item_id}, {"_id": 0})
+
+    @router.get("/payroll-items/{item_id}/history")
+    async def get_item_history(item_id: str, request: Request):
+        """Retorna histórico de alterações de um item"""
+        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        current_db = get_db_for_user(user)
+
+        logs = await current_db.hr_audit_logs.find(
+            {"item_id": item_id}, {"_id": 0}
+        ).sort("timestamp", -1).to_list(100)
+
+        # Enriquecer com nome do usuário
+        user_ids = list(set(l.get('user_id', '') for l in logs if l.get('user_id')))
+        users_map = {}
+        if user_ids:
+            async for u in current_db.users.find({"id": {"$in": user_ids}}, {"_id": 0, "id": 1, "name": 1}):
+                users_map[u['id']] = u.get('name', 'N/A')
+
+        for log in logs:
+            log['user_name'] = users_map.get(log.get('user_id', ''), 'Sistema')
+
+        return logs
 
     # ============================================
     # OCORRÊNCIAS
@@ -383,6 +488,26 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             query['school_payroll_id'] = school_payroll_id
 
         items = await current_db.payroll_occurrences.find(query, {"_id": 0}).to_list(500)
+
+        # Enriquecer nomes de substituídos
+        emp_ids = set()
+        for occ in items:
+            if occ.get('substituted_employee_id'):
+                emp_ids.add(occ['substituted_employee_id'])
+            if occ.get('substitute_employee_id'):
+                emp_ids.add(occ['substitute_employee_id'])
+
+        emp_map = {}
+        if emp_ids:
+            async for s in current_db.staff.find({"id": {"$in": list(emp_ids)}}, {"_id": 0, "id": 1, "nome": 1}):
+                emp_map[s['id']] = s.get('nome', 'N/A')
+
+        for occ in items:
+            if occ.get('substituted_employee_id'):
+                occ['substituted_name'] = emp_map.get(occ['substituted_employee_id'], 'N/A')
+            if occ.get('substitute_employee_id'):
+                occ['substitute_name'] = emp_map.get(occ['substitute_employee_id'], 'N/A')
+
         return items
 
     @router.post("/occurrences")
@@ -391,7 +516,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
         current_db = get_db_for_user(user)
 
-        # Busca o item da folha
         item = await current_db.payroll_items.find_one({"id": data.payroll_item_id})
         if not item:
             raise HTTPException(404, "Item da folha não encontrado")
@@ -399,6 +523,34 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # Validação: hora complementar precisa de motivo
         if data.type == 'hora_complementar' and not data.reason:
             raise HTTPException(400, "Hora complementar exige motivo/justificativa")
+
+        # Validação: substituição precisa de servidor substituído
+        if data.type == 'substituicao' and not data.substituted_employee_id:
+            raise HTTPException(400, "Substituição exige indicar o servidor substituído")
+
+        # Validação: não duplicar substituição no mesmo período
+        if data.type == 'substituicao' and data.substituted_employee_id:
+            existing_sub = await current_db.payroll_occurrences.find_one({
+                "school_payroll_id": item['school_payroll_id'],
+                "type": "substituicao",
+                "substituted_employee_id": data.substituted_employee_id,
+                "start_date": data.start_date,
+                "status": "active"
+            })
+            if existing_sub:
+                raise HTTPException(400, "Já existe substituição ativa para este servidor nesta data")
+
+        # Validação: atestado/afastamento conflitando com presença
+        if data.type in ('atestado', 'afastamento', 'licenca'):
+            conflict = await current_db.payroll_occurrences.find_one({
+                "payroll_item_id": data.payroll_item_id,
+                "type": {"$nin": ['atestado', 'afastamento', 'licenca', 'hora_complementar']},
+                "start_date": {"$lte": data.end_date or data.start_date},
+                "end_date": {"$gte": data.start_date},
+                "status": "active"
+            })
+            if conflict:
+                logger.warning(f"Possível conflito de datas: {data.type} vs {conflict.get('type')} para item {data.payroll_item_id}")
 
         occ = PayrollOccurrence(
             payroll_item_id=data.payroll_item_id,
@@ -451,7 +603,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 {"id": occurrence_id},
                 {"$set": update_data}
             )
-            # Recalcula contadores
             await _recalc_item_from_occurrences(current_db, occ['payroll_item_id'])
 
         return await current_db.payroll_occurrences.find_one({"id": occurrence_id}, {"_id": 0})
@@ -474,6 +625,33 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         return {"message": "Ocorrência cancelada"}
 
     # ============================================
+    # SERVIDORES DA ESCOLA (para seletor de substituição)
+    # ============================================
+
+    @router.get("/school-employees/{school_payroll_id}")
+    async def list_school_employees(school_payroll_id: str, request: Request):
+        """Lista servidores de uma folha (para seletor de substituição)"""
+        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        current_db = get_db_for_user(user)
+
+        items = await current_db.payroll_items.find(
+            {"school_payroll_id": school_payroll_id},
+            {"_id": 0, "id": 1, "employee_id": 1}
+        ).to_list(500)
+
+        emp_ids = [i['employee_id'] for i in items]
+        employees = []
+        if emp_ids:
+            async for s in current_db.staff.find(
+                {"id": {"$in": emp_ids}},
+                {"_id": 0, "id": 1, "nome": 1, "matricula": 1, "cargo": 1}
+            ):
+                employees.append(s)
+
+        employees.sort(key=lambda x: x.get('nome', ''))
+        return employees
+
+    # ============================================
     # DASHBOARD / RESUMO
     # ============================================
 
@@ -488,14 +666,13 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
         current_db = get_db_for_user(user)
 
-        # Buscar competência (a mais recente se não especificada)
         comp_query = {}
         if competency_id:
             comp_query['id'] = competency_id
         elif year and month:
             comp_query['year'] = year
             comp_query['month'] = month
-        
+
         comp = await current_db.payroll_competencies.find_one(
             comp_query, {"_id": 0},
             sort=[("year", -1), ("month", -1)]
@@ -508,7 +685,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "payrolls_by_status": {}
             }
 
-        # Contar folhas por status
         pipeline = [
             {"$match": {"competency_id": comp['id']}},
             {"$group": {"_id": "$status", "count": {"$sum": 1}}}
@@ -522,13 +698,18 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         total_issues = await current_db.payroll_items.count_documents({
             "competency_id": comp['id'], "validation_status": "has_issues"
         })
+        total_occurrences = await current_db.payroll_occurrences.count_documents({
+            "school_payroll_id": {"$in": [p['id'] async for p in current_db.school_payrolls.find({"competency_id": comp['id']}, {"id": 1})]},
+            "status": "active"
+        })
 
         return {
             "competency": comp,
             "summary": {
                 "total_schools": total_schools,
                 "total_employees": total_employees,
-                "total_issues": total_issues
+                "total_issues": total_issues,
+                "total_occurrences": total_occurrences
             },
             "payrolls_by_status": status_counts
         }
@@ -539,7 +720,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     async def _generate_pre_payroll(current_db, competency: PayrollCompetency):
         """Gera pré-folha automática para todas as escolas"""
-        # Buscar escolas ativas
         schools = await current_db.schools.find(
             {"status": "active"}, {"_id": 0, "id": 1, "name": 1}
         ).to_list(500)
@@ -547,7 +727,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         for school in schools:
             school_id = school['id']
 
-            # Verifica se já existe folha para esta escola/competência
             existing = await current_db.school_payrolls.find_one({
                 "competency_id": competency.id,
                 "school_id": school_id
@@ -555,7 +734,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             if existing:
                 continue
 
-            # Cria folha da escola
             payroll = SchoolPayroll(
                 competency_id=competency.id,
                 school_id=school_id,
@@ -564,13 +742,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             )
             await current_db.school_payrolls.insert_one(payroll.model_dump())
 
-            # Buscar servidores lotados nesta escola (via school_assignments ativos)
             assignments = await current_db.school_assignments.find(
                 {"school_id": school_id, "status": "ativo"},
                 {"_id": 0}
             ).to_list(500)
 
-            # Fallback: se não há assignments, buscar staff com lotação direta
             seen_employees = set()
             for assign in assignments:
                 emp_id = assign.get('staff_id')
@@ -578,19 +754,16 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     continue
                 seen_employees.add(emp_id)
 
-                # Buscar dados do servidor
                 staff = await current_db.staff.find_one(
                     {"id": emp_id}, {"_id": 0, "carga_horaria_semanal": 1, "cargo": 1, "status": 1}
                 )
                 if not staff:
                     continue
-
-                # Servidor exonerado/aposentado não entra
                 if staff.get('status') in ('exonerado', 'aposentado'):
                     continue
 
                 ch_semanal = staff.get('carga_horaria_semanal') or 0
-                ch_mensal = round(ch_semanal * 4.33, 1)  # Aproximação mensal
+                ch_mensal = round(ch_semanal * 4.33, 1)
                 is_professor = staff.get('cargo') == 'professor'
                 carga_aulas = int(assign.get('carga_horaria') or 0)
 
@@ -603,7 +776,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     year=competency.year,
                     month=competency.month,
                     expected_hours=ch_mensal,
-                    worked_hours=ch_mensal,  # Pré-preenchido com carga total
+                    worked_hours=ch_mensal,
                     expected_classes=carga_aulas if is_professor else 0,
                     taught_classes=carga_aulas if is_professor else 0,
                 )
@@ -620,19 +793,27 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         absences = item.get('absences', 0) or 0
         medical = item.get('medical_leave_days', 0) or 0
         leave = item.get('leave_days', 0) or 0
+        taught = item.get('taught_classes', 0) or 0
+        expected_c = item.get('expected_classes', 0) or 0
+        not_taught = item.get('classes_not_taught', 0) or 0
 
-        # Horas trabalhadas acima do previsto
         if worked > expected * 1.2 and expected > 0:
             alerts.append(f"Horas trabalhadas ({worked}h) excedem 120% da carga prevista ({expected}h)")
 
-        # Hora complementar sem motivo
         if complementary > 0 and not item.get('complementary_reason'):
             alerts.append("Horas complementares sem motivo informado")
 
-        # Faltas + atestado + afastamento > dias úteis do mês (~22)
         total_ausencia = absences + medical + leave
         if total_ausencia > 22:
             alerts.append(f"Total de ausências ({total_ausencia} dias) excede dias úteis do mês")
+
+        # Aulas não cumpridas sem justificativa (sem ocorrências de falta/atestado)
+        if not_taught > 0 and absences == 0 and medical == 0 and leave == 0:
+            alerts.append(f"{not_taught} aula(s) não cumprida(s) sem ocorrência de falta/atestado registrada")
+
+        # Aulas ministradas + não cumpridas != previstas
+        if expected_c > 0 and (taught + not_taught) > expected_c:
+            alerts.append(f"Aulas ministradas ({taught}) + não cumpridas ({not_taught}) excedem as previstas ({expected_c})")
 
         return alerts
 
@@ -670,7 +851,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             elif t == 'substituicao':
                 totals['extra_classes'] += days
 
-        # Busca item para validação
         item = await current_db.payroll_items.find_one({"id": payroll_item_id})
         if item:
             merged = {**item, **totals}
@@ -683,3 +863,28 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             {"id": payroll_item_id},
             {"$set": totals}
         )
+
+    async def _log_item_change(current_db, old_item: dict, changes: dict, user: dict):
+        """Registra alteração em um item para auditoria"""
+        changed_fields = []
+        for key, new_val in changes.items():
+            old_val = old_item.get(key)
+            if old_val != new_val and key not in ('updated_at', 'updated_by', 'validation_status', 'validation_notes'):
+                changed_fields.append({
+                    "field": key,
+                    "old_value": str(old_val) if old_val is not None else None,
+                    "new_value": str(new_val) if new_val is not None else None,
+                })
+
+        if changed_fields:
+            log_entry = {
+                "id": str(uuid.uuid4()),
+                "item_id": old_item.get('id'),
+                "employee_id": old_item.get('employee_id'),
+                "school_payroll_id": old_item.get('school_payroll_id'),
+                "user_id": user.get('id'),
+                "action": "update",
+                "changes": changed_fields,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            await current_db.hr_audit_logs.insert_one(log_entry)
