@@ -12,6 +12,7 @@ import logging
 from models import *
 from auth_middleware import AuthMiddleware
 from pdf_generator import generate_learning_objects_pdf
+from text_utils import format_data_uppercase
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +139,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             )
 
         new_object = LearningObject(
-            **data.model_dump(),
+            **format_data_uppercase(data.model_dump()),
             recorded_by=current_user['id']
         )
 
@@ -174,6 +175,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                         break
 
         update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+        update_data = format_data_uppercase(update_data)
         update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         await db.learning_objects.update_one(

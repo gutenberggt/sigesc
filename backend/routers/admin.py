@@ -41,7 +41,8 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
             'classes': ['name', 'room'],
             'courses': ['name', 'description'],
             'users': ['full_name'],
-            'enrollments': ['student_name', 'class_name', 'school_name']
+            'enrollments': ['student_name', 'class_name', 'school_name'],
+            'learning_objects': ['content', 'observations', 'methodology', 'resources']
         }
 
         results = {}
