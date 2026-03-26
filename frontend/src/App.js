@@ -40,6 +40,7 @@ const DiaryDashboard = lazy(() => import('@/pages/DiaryDashboard'));
 const DiarioAEE = lazy(() => import('@/pages/DiarioAEE'));
 const AssocialDashboard = lazy(() => import('@/pages/AssocialDashboard'));
 const OnlineUsers = lazy(() => import('@/pages/OnlineUsers'));
+const HRPayroll = lazy(() => import('@/pages/HRPayroll'));
 
 // Loading fallback
 function PageLoader() {
@@ -404,6 +405,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed', 'semed3']}>
                 <Promotion />
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* RH / Folha - admin, semed, semed3, diretor, secretario */}
+          <Route
+            path="/admin/hr"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'semed', 'semed3', 'diretor', 'secretario']}>
+                <HRPayroll />
               </ProtectedRoute>
             }
           />

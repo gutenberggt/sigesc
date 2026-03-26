@@ -592,6 +592,18 @@ export const Dashboard = () => {
                   <span className="font-medium text-gray-900">Ferramentas</span>
                 </button>
               )}
+              
+              {/* RH / Folha - admin, semed, semed3, diretor, secretario */}
+              {['admin', 'admin_teste', 'semed', 'semed3', 'diretor', 'secretario'].includes(user?.role) && (
+                <button
+                  onClick={() => navigate('/admin/hr')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all"
+                  data-testid="nav-hr-payroll-button"
+                >
+                  <FileText className="text-teal-600" size={24} />
+                  <span className="font-medium text-gray-900">RH / Folha</span>
+                </button>
+              )}
             </div>
           </div>
         )}

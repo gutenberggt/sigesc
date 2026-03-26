@@ -2283,3 +2283,150 @@ class AuditLogFilter(BaseModel):
     end_date: Optional[str] = None  # YYYY-MM-DD
     academic_year: Optional[int] = None
     search: Optional[str] = None  # Busca na descrição
+
+
+
+# ============= RH / FOLHA MODELS =============
+
+class PayrollCompetency(BaseModel):
+    """Competência mensal da folha de pagamento"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    year: int
+    month: int  # 1-12
+    status: Literal['open', 'closed'] = 'open'
+    launch_start: Optional[str] = None  # Data início do lançamento
+    launch_end: Optional[str] = None    # Data limite do lançamento
+    review_end: Optional[str] = None    # Data limite da revisão SEMED
+    opened_by: Optional[str] = None
+    closed_by: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    closed_at: Optional[str] = None
+
+class PayrollCompetencyCreate(BaseModel):
+    year: int
+    month: int
+    launch_start: Optional[str] = None
+    launch_end: Optional[str] = None
+    review_end: Optional[str] = None
+
+class SchoolPayroll(BaseModel):
+    """Folha da escola para uma competência"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    competency_id: str
+    school_id: str
+    year: int
+    month: int
+    status: Literal[
+        'not_started', 'drafting', 'pending_review',
+        'submitted', 'under_analysis', 'returned',
+        'approved', 'closed', 'reopened', 'cancelled'
+    ] = 'not_started'
+    submitted_at: Optional[str] = None
+    submitted_by: Optional[str] = None
+    approved_at: Optional[str] = None
+    approved_by: Optional[str] = None
+    returned_at: Optional[str] = None
+    returned_by: Optional[str] = None
+    return_reason: Optional[str] = None
+    observations: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class PayrollItem(BaseModel):
+    """Linha individual do servidor na folha da escola"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    school_payroll_id: str
+    competency_id: str
+    school_id: str
+    employee_id: str      # staff.id
+    assignment_id: Optional[str] = None  # school_assignments.id
+    year: int
+    month: int
+    # Carga horária
+    expected_hours: float = 0       # Carga prevista (mensal)
+    worked_hours: float = 0         # Horas trabalhadas
+    expected_classes: int = 0       # Aulas previstas (professor)
+    taught_classes: int = 0         # Aulas ministradas
+    extra_classes: int = 0          # Aulas extras/substituição
+    complementary_hours: float = 0  # Horas complementares
+    complementary_reason: Optional[str] = None
+    # Ausências
+    absences: int = 0               # Faltas (total)
+    justified_absences: int = 0     # Faltas justificadas
+    medical_leave_days: int = 0     # Dias de atestado
+    leave_days: int = 0             # Dias de afastamento/licença
+    # Observações
+    observations: Optional[str] = None
+    validation_status: Literal['pending', 'ok', 'has_issues'] = 'pending'
+    validation_notes: Optional[str] = None
+    updated_at: Optional[str] = None
+    updated_by: Optional[str] = None
+
+class PayrollItemUpdate(BaseModel):
+    worked_hours: Optional[float] = None
+    taught_classes: Optional[int] = None
+    extra_classes: Optional[int] = None
+    complementary_hours: Optional[float] = None
+    complementary_reason: Optional[str] = None
+    absences: Optional[int] = None
+    justified_absences: Optional[int] = None
+    medical_leave_days: Optional[int] = None
+    leave_days: Optional[int] = None
+    observations: Optional[str] = None
+    validation_status: Optional[Literal['pending', 'ok', 'has_issues']] = None
+    validation_notes: Optional[str] = None
+
+class PayrollOccurrence(BaseModel):
+    """Ocorrência vinculada a um item da folha"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    payroll_item_id: str
+    school_payroll_id: str
+    employee_id: str
+    type: Literal['falta', 'falta_justificada', 'atestado', 'afastamento', 'licenca', 'substituicao', 'hora_complementar', 'atraso', 'saida_antecipada', 'outro']
+    subtype: Optional[str] = None  # Ex: licença maternidade, licença prêmio
+    start_date: str  # YYYY-MM-DD
+    end_date: Optional[str] = None
+    days: int = 1
+    hours: float = 0
+    reason: Optional[str] = None
+    justification: Optional[str] = None
+    document_url: Optional[str] = None
+    document_number: Optional[str] = None
+    # Substituição
+    substituted_employee_id: Optional[str] = None  # Quem está sendo substituído
+    substitute_employee_id: Optional[str] = None    # Quem está substituindo
+    # Controle
+    status: Literal['active', 'cancelled'] = 'active'
+    created_by: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: Optional[str] = None
+
+class PayrollOccurrenceCreate(BaseModel):
+    payroll_item_id: str
+    type: Literal['falta', 'falta_justificada', 'atestado', 'afastamento', 'licenca', 'substituicao', 'hora_complementar', 'atraso', 'saida_antecipada', 'outro']
+    subtype: Optional[str] = None
+    start_date: str
+    end_date: Optional[str] = None
+    days: int = 1
+    hours: float = 0
+    reason: Optional[str] = None
+    justification: Optional[str] = None
+    document_url: Optional[str] = None
+    document_number: Optional[str] = None
+    substituted_employee_id: Optional[str] = None
+    substitute_employee_id: Optional[str] = None
+
+class PayrollOccurrenceUpdate(BaseModel):
+    subtype: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    days: Optional[int] = None
+    hours: Optional[float] = None
+    reason: Optional[str] = None
+    justification: Optional[str] = None
+    document_url: Optional[str] = None
+    document_number: Optional[str] = None
+    status: Optional[Literal['active', 'cancelled']] = None

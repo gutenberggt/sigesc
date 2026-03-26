@@ -63,6 +63,7 @@ from routers import (
     admin as admin_mod,
     sandbox as sandbox_mod,
 )
+from routers import hr as hr_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
@@ -189,6 +190,18 @@ async def create_indexes():
         await db.medical_certificates.create_index("id", unique=True)
         await db.medical_certificates.create_index("student_id")
         await db.medical_certificates.create_index([("student_id", 1), ("start_date", 1), ("end_date", 1)])
+        
+        # Índices para RH / Folha
+        await db.payroll_competencies.create_index("id", unique=True)
+        await db.payroll_competencies.create_index([("year", -1), ("month", -1)], unique=True)
+        await db.school_payrolls.create_index("id", unique=True)
+        await db.school_payrolls.create_index([("competency_id", 1), ("school_id", 1)], unique=True)
+        await db.school_payrolls.create_index("school_id")
+        await db.payroll_items.create_index("id", unique=True)
+        await db.payroll_items.create_index("school_payroll_id")
+        await db.payroll_items.create_index([("competency_id", 1), ("employee_id", 1)])
+        await db.payroll_occurrences.create_index("id", unique=True)
+        await db.payroll_occurrences.create_index("payroll_item_id")
         
         logger.info("Índices MongoDB criados/verificados com sucesso")
         
@@ -347,6 +360,7 @@ social_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 uploads_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 admin_mod.setup_router(db, active_sessions=active_sessions, connection_manager=connection_manager, get_db_for_user=get_db_for_user)
 sandbox_mod.setup_router(sandbox_service=sandbox_service)
+hr_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 
 # --- Incluir TODOS os roteadores na app ---
 # Fase 1
@@ -390,6 +404,7 @@ app.include_router(social_mod.router, prefix="/api")
 app.include_router(uploads_mod.router, prefix="/api")
 app.include_router(admin_mod.router, prefix="/api")
 app.include_router(sandbox_mod.router, prefix="/api")
+app.include_router(hr_mod.router, prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)
