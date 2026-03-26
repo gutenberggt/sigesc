@@ -2355,7 +2355,7 @@ export function StudentsComplete() {
           <label key={benefit} className="flex items-center gap-2">
             <input
               type="checkbox"
-              checked={formData.benefits.includes(benefit)}
+              checked={formData.benefits.some(b => b.toLowerCase() === benefit.toLowerCase())}
               onChange={(e) => handleCheckboxChange('benefits', benefit, e.target.checked)}
               disabled={viewMode}
               className="h-4 w-4 text-blue-600 rounded"
@@ -2385,7 +2385,7 @@ export function StudentsComplete() {
               <label key={disability} className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={formData.disabilities.includes(disability)}
+                  checked={formData.disabilities.some(d => d.toLowerCase() === disability.toLowerCase())}
                   onChange={(e) => handleCheckboxChange('disabilities', disability, e.target.checked)}
                   disabled={viewMode}
                   className="h-4 w-4 text-blue-600 rounded"

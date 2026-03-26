@@ -38,7 +38,9 @@ LOWERCASE_FIELDS = {
     'atendimento_programa_tipo', 'atendimento_programa_class_id',
     'atendimento_programa_school_id',
     'anexa_a',
-    'student_series'
+    'student_series',
+    # Campos com valores predefinidos (checkboxes) - não devem ser convertidos
+    'benefits', 'disabilities'
 }
 
 
