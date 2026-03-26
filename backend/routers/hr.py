@@ -67,11 +67,79 @@ LEAVE_SUBTYPES = [
 
 def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     """Configura o router com dependências."""
+    connection_manager = kwargs.get('connection_manager')
 
     def get_db_for_user(user: dict):
         if user.get('is_sandbox'):
             return sandbox_db if sandbox_db else db
         return db
+
+    async def _notify_school_return(current_db, payroll: dict, reason: str, returned_by_name: str):
+        """Cria aviso para diretor e secretário da escola quando folha é devolvida"""
+        school_id = payroll.get('school_id')
+        if not school_id:
+            return
+
+        school = await current_db.schools.find_one({"id": school_id}, {"_id": 0, "name": 1})
+        school_name = school.get('name', 'Escola') if school else 'Escola'
+        month = payroll.get('month', 0)
+        year = payroll.get('year', 0)
+        month_names = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+        comp_label = f"{month_names[month] if 0 < month <= 12 else month}/{year}"
+
+        # Buscar diretores e secretários vinculados a esta escola
+        target_users = set()
+        async for u in current_db.users.find(
+            {
+                'school_links.school_id': school_id,
+                'role': {'$in': ['diretor', 'secretario']},
+                'status': 'active'
+            },
+            {'id': 1}
+        ):
+            target_users.add(u['id'])
+
+        if not target_users:
+            return
+
+        # Criar aviso no sistema
+        announcement = {
+            'id': str(uuid.uuid4()),
+            'title': f'Folha Devolvida - {comp_label}',
+            'content': f'A folha de pagamento da escola {school_name} referente a {comp_label} foi devolvida pela Secretaria para correção.\n\nMotivo: {reason or "Não informado"}\n\nPor favor, acesse o módulo RH/Folha para revisar e corrigir os itens apontados.',
+            'recipient': {
+                'type': 'school',
+                'school_ids': [school_id],
+                'target_roles': ['diretor', 'secretario'],
+                'class_ids': [],
+                'user_ids': []
+            },
+            'sender_id': 'sistema',
+            'sender_name': returned_by_name or 'Secretaria de Educação',
+            'sender_role': 'admin',
+            'sender_foto_url': None,
+            'target_user_ids': list(target_users),
+            'created_at': datetime.now(timezone.utc).isoformat(),
+            'updated_at': None
+        }
+        await current_db.announcements.insert_one(announcement)
+
+        # Notificar em tempo real via WebSocket
+        if connection_manager:
+            for user_id in target_users:
+                try:
+                    await connection_manager.send_notification(user_id, {
+                        'type': 'new_announcement',
+                        'announcement': {
+                            'id': announcement['id'],
+                            'title': announcement['title'],
+                            'sender_name': announcement['sender_name']
+                        }
+                    })
+                except Exception:
+                    pass
+
+        logger.info(f"Notificação de devolução enviada para {len(target_users)} usuários da escola {school_name}")
 
     # ============================================
     # ENUMS / PARAMETROS
@@ -194,15 +262,42 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.put("/competencies/{competency_id}/reopen")
     async def reopen_competency(competency_id: str, request: Request):
-        """Reabre uma competência fechada"""
+        """Reabre uma competência fechada (com justificativa obrigatória e log)"""
         user = await AuthMiddleware.require_roles(ADMIN_ROLES)(request)
         current_db = get_db_for_user(user)
+
+        try:
+            body = await request.json()
+            justification = body.get('justification', '')
+        except Exception:
+            justification = ''
+
+        if not justification or len(justification.strip()) < 5:
+            raise HTTPException(400, "Justificativa obrigatória para reabertura (mínimo 5 caracteres)")
+
+        comp = await current_db.payroll_competencies.find_one({"id": competency_id})
+        if not comp:
+            raise HTTPException(404, "Competência não encontrada")
 
         await current_db.payroll_competencies.update_one(
             {"id": competency_id},
             {"$set": {"status": "open", "closed_at": None, "closed_by": None}}
         )
-        return {"message": "Competência reaberta"}
+
+        # Log de auditoria da reabertura
+        await current_db.hr_audit_logs.insert_one({
+            "id": str(uuid.uuid4()),
+            "item_id": competency_id,
+            "employee_id": None,
+            "school_payroll_id": None,
+            "user_id": user.get('id'),
+            "action": "reopen_competency",
+            "changes": [{"field": "status", "old_value": "closed", "new_value": "open"}],
+            "justification": justification,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
+        return {"message": "Competência reaberta com sucesso"}
 
     # ============================================
     # FOLHAS POR ESCOLA
@@ -330,20 +425,64 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if payroll['status'] not in ('drafting', 'returned', 'not_started', 'reopened'):
             raise HTTPException(400, f"Folha não pode ser enviada no status '{payroll['status']}'")
 
-        items_pending = await current_db.payroll_items.count_documents({
-            "school_payroll_id": payroll_id, "validation_status": "pending"
+        # Verificar se competência ainda está aberta
+        comp = await current_db.payroll_competencies.find_one({"id": payroll['competency_id']})
+        if comp and comp.get('status') == 'closed':
+            raise HTTPException(400, "Competência já foi fechada. Não é possível enviar a folha.")
+
+        # Verificar prazo de lançamento
+        if comp and comp.get('launch_end'):
+            from datetime import date
+            try:
+                limit = date.fromisoformat(comp['launch_end'])
+                if date.today() > limit:
+                    is_admin = user.get('role') in ADMIN_ROLES
+                    if not is_admin:
+                        raise HTTPException(400, f"Prazo de lançamento encerrado em {comp['launch_end']}. Solicite liberação à Secretaria.")
+            except ValueError:
+                pass
+
+        # Validações rigorosas antes do envio
+        warnings = []
+        total_items = await current_db.payroll_items.count_documents({"school_payroll_id": payroll_id})
+        items_issues = await current_db.payroll_items.count_documents({"school_payroll_id": payroll_id, "validation_status": "has_issues"})
+        items_pending = await current_db.payroll_items.count_documents({"school_payroll_id": payroll_id, "validation_status": "pending"})
+
+        # Servidores sem nenhum lançamento (horas = previsto, 0 ocorrências)
+        items_no_movement = 0
+        async for item in current_db.payroll_items.find({"school_payroll_id": payroll_id}, {"_id": 0, "id": 1, "expected_hours": 1, "worked_hours": 1}):
+            occ_count = await current_db.payroll_occurrences.count_documents({"payroll_item_id": item['id'], "status": "active"})
+            if occ_count == 0 and item.get('worked_hours', 0) == item.get('expected_hours', 0):
+                items_no_movement += 1
+
+        # Ocorrências sem documento
+        occs_no_doc = await current_db.payroll_occurrences.count_documents({
+            "school_payroll_id": payroll_id,
+            "status": "active",
+            "type": {"$in": ["atestado", "afastamento", "licenca"]},
+            "$or": [{"document_url": None}, {"document_url": ""}]
         })
 
+        if items_issues > 0:
+            warnings.append(f"{items_issues} servidor(es) com pendências de validação")
+        if items_pending > 0:
+            warnings.append(f"{items_pending} servidor(es) ainda não conferido(s)")
+        if items_no_movement > 0:
+            warnings.append(f"{items_no_movement} servidor(es) sem nenhum lançamento/ocorrência")
+        if occs_no_doc > 0:
+            warnings.append(f"{occs_no_doc} ocorrência(s) (atestado/afastamento/licença) sem documento anexado")
+
+        obs = '; '.join(warnings) if warnings else None
         await current_db.school_payrolls.update_one(
             {"id": payroll_id},
             {"$set": {
                 "status": "submitted",
                 "submitted_at": datetime.now(timezone.utc).isoformat(),
                 "submitted_by": user.get('id'),
-                "observations": f"Enviada com {items_pending} item(ns) pendente(s) de conferência" if items_pending > 0 else None
+                "observations": obs
             }}
         )
-        return {"message": "Folha enviada para análise", "pending_items": items_pending}
+        return {"message": "Folha enviada para análise", "warnings": warnings}
 
     @router.put("/school-payrolls/{payroll_id}/approve")
     async def approve_payroll(payroll_id: str, request: Request):
@@ -369,7 +508,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.put("/school-payrolls/{payroll_id}/return")
     async def return_payroll(payroll_id: str, request: Request):
-        """Secretaria devolve a folha para correção"""
+        """Secretaria devolve a folha para correção e notifica a escola"""
         user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ROLES)(request)
         current_db = get_db_for_user(user)
 
@@ -389,7 +528,12 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "return_reason": reason
             }}
         )
-        return {"message": "Folha devolvida para correção"}
+
+        # Enviar notificação para diretor e secretário da escola
+        sender_name = user.get('name', 'Secretaria de Educação')
+        await _notify_school_return(current_db, payroll, reason, sender_name)
+
+        return {"message": "Folha devolvida para correção. Notificação enviada à escola."}
 
     # ============================================
     # ITENS DA FOLHA (SERVIDORES)

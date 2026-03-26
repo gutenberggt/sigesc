@@ -100,6 +100,10 @@ export default function HRPayroll() {
   const [returnPayrollId, setReturnPayrollId] = useState(null);
   const [returnReason, setReturnReason] = useState('');
 
+  // Reopen competency modal
+  const [showReopenModal, setShowReopenModal] = useState(false);
+  const [reopenJustification, setReopenJustification] = useState('');
+
   // =================== API CALLS ===================
 
   const fetchCompetencies = useCallback(async () => {
@@ -188,7 +192,17 @@ export default function HRPayroll() {
   const handleSubmitPayroll = async (payrollId) => {
     if (!confirm('Confirma o envio desta folha para análise da Secretaria?')) return;
     const res = await fetch(`${API_URL}/api/hr/school-payrolls/${payrollId}/submit`, { method: 'PUT', headers });
-    if (res.ok) { if (currentPayroll) fetchPayrollDetail(payrollId); if (selectedCompetency) { fetchPayrolls(selectedCompetency.id); fetchDashboard(selectedCompetency.id); } }
+    if (res.ok) {
+      const data = await res.json();
+      if (data.warnings && data.warnings.length > 0) {
+        alert(`Folha enviada com alertas:\n\n${data.warnings.map(w => '- ' + w).join('\n')}`);
+      }
+      if (currentPayroll) fetchPayrollDetail(payrollId);
+      if (selectedCompetency) { fetchPayrolls(selectedCompetency.id); fetchDashboard(selectedCompetency.id); }
+    } else {
+      const err = await res.json();
+      alert(err.detail || 'Erro ao enviar folha');
+    }
   };
 
   const handleApprovePayroll = async (payrollId) => {
@@ -198,7 +212,11 @@ export default function HRPayroll() {
   };
 
   const handleReturnPayroll = async () => {
-    await fetch(`${API_URL}/api/hr/school-payrolls/${returnPayrollId}/return`, { method: 'PUT', headers, body: JSON.stringify({ reason: returnReason }) });
+    const res = await fetch(`${API_URL}/api/hr/school-payrolls/${returnPayrollId}/return`, { method: 'PUT', headers, body: JSON.stringify({ reason: returnReason }) });
+    if (res.ok) {
+      const data = await res.json();
+      alert(data.message || 'Folha devolvida com sucesso');
+    }
     setShowReturnModal(false); setReturnReason('');
     if (currentPayroll) fetchPayrollDetail(returnPayrollId);
     if (selectedCompetency) { fetchPayrolls(selectedCompetency.id); fetchDashboard(selectedCompetency.id); }
@@ -270,11 +288,32 @@ export default function HRPayroll() {
   };
 
   const handleCloseCompetency = async () => {
-    if (!selectedCompetency || !confirm('Fechar esta competência?')) return;
+    if (!selectedCompetency || !confirm('Fechar esta competência? As folhas aprovadas serão bloqueadas.')) return;
     await fetch(`${API_URL}/api/hr/competencies/${selectedCompetency.id}/close`, { method: 'PUT', headers });
     fetchCompetencies();
     setSelectedCompetency(prev => ({ ...prev, status: 'closed' }));
     fetchDashboard(selectedCompetency.id);
+  };
+
+  const handleReopenCompetency = async () => {
+    if (!reopenJustification || reopenJustification.trim().length < 5) {
+      alert('Justificativa obrigatória (mínimo 5 caracteres)');
+      return;
+    }
+    const res = await fetch(`${API_URL}/api/hr/competencies/${selectedCompetency.id}/reopen`, {
+      method: 'PUT', headers,
+      body: JSON.stringify({ justification: reopenJustification })
+    });
+    if (res.ok) {
+      setShowReopenModal(false);
+      setReopenJustification('');
+      fetchCompetencies();
+      setSelectedCompetency(prev => ({ ...prev, status: 'open' }));
+      fetchDashboard(selectedCompetency.id);
+    } else {
+      const err = await res.json();
+      alert(err.detail || 'Erro ao reabrir');
+    }
   };
 
   // =================== RENDER: ITEM DETAIL ===================
@@ -618,6 +657,18 @@ export default function HRPayroll() {
           </div>
         )}
 
+        {currentPayroll.observations && currentPayroll.status === 'submitted' && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 flex items-start gap-2">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <div>
+              <strong>Alertas no envio:</strong>
+              <ul className="mt-1 list-disc list-inside">
+                {currentPayroll.observations.split('; ').map((w, i) => <li key={i}>{w}</li>)}
+              </ul>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <SummaryCard icon={<Users size={18} />} label="Servidores" value={items.length} color="blue" />
           <SummaryCard icon={<CheckCircle2 size={18} />} label="Conferidos" value={items.filter(i => i.validation_status === 'ok').length} color="green" />
@@ -774,6 +825,28 @@ export default function HRPayroll() {
           {isAdmin && selectedCompetency.status === 'open' && (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="border-red-300 text-red-600" onClick={handleCloseCompetency} data-testid="hr-close-competency-btn">Fechar Competência</Button>
+            </div>
+          )}
+
+          {isAdmin && selectedCompetency.status === 'closed' && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="border-purple-300 text-purple-600" onClick={() => setShowReopenModal(true)} data-testid="hr-reopen-competency-btn">
+                <RefreshCw size={14} className="mr-1" /> Reabrir Competência
+              </Button>
+            </div>
+          )}
+
+          {showReopenModal && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" data-testid="hr-reopen-modal">
+              <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                <h3 className="font-bold text-lg mb-3">Reabrir Competência</h3>
+                <p className="text-sm text-gray-600 mb-3">Esta ação será registrada na auditoria. Informe a justificativa:</p>
+                <Textarea placeholder="Justificativa para reabertura (mínimo 5 caracteres)..." value={reopenJustification} onChange={e => setReopenJustification(e.target.value)} rows={3} data-testid="hr-reopen-justification" />
+                <div className="flex gap-2 mt-4 justify-end">
+                  <Button variant="outline" onClick={() => { setShowReopenModal(false); setReopenJustification(''); }}>Cancelar</Button>
+                  <Button className="bg-purple-600 hover:bg-purple-700" onClick={handleReopenCompetency} data-testid="hr-confirm-reopen-btn">Reabrir</Button>
+                </div>
+              </div>
             </div>
           )}
 
