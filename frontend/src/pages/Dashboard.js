@@ -465,7 +465,7 @@ export const Dashboard = () => {
               )}
               
               {/* Diário AEE - visível para admin, coordenador, professor, semed3 */}
-              {(['admin', 'admin_teste', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'semed1', 'semed2', 'semed3'].includes(user?.role)) && (
+              {(['admin', 'admin_teste', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'secretario', 'diretor', 'semed1', 'semed2', 'semed3'].includes(user?.role)) && (
                 <button
                   onClick={() => navigate('/admin/diario-aee')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
@@ -561,8 +561,8 @@ export const Dashboard = () => {
                 </button>
               )}
               
-              {/* Logs de Auditoria - apenas admin */}
-              {['admin', 'admin_teste'].includes(user?.role) && (
+              {/* Logs de Auditoria - admin e SEMED 3 */}
+              {['admin', 'admin_teste', 'semed3'].includes(user?.role) && (
                 <button
                   onClick={() => navigate('/admin/audit-logs')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"

@@ -29,11 +29,16 @@ def can_user_create_announcement(user: dict, recipient: dict) -> bool:
     recipient_type = recipient.get('type', '')
     
     # Admin e SEMED podem enviar para qualquer destinatário
-    if user_role in ['admin', 'admin_teste', 'semed', 'semed3']:
+    if user_role in ['admin', 'admin_teste', 'semed', 'semed1', 'semed2', 'semed3']:
         return True
     
-    # Diretor/Coordenador podem enviar para sua escola
-    if user_role in ['diretor', 'coordenador', 'auxiliar_secretaria']:
+    # Secretário pode enviar para escolas vinculadas e para todos
+    if user_role == 'secretario':
+        if recipient_type in ['school', 'class', 'all']:
+            return True
+    
+    # Diretor/Coordenador podem enviar para sua escola e turmas
+    if user_role in ['diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria']:
         if recipient_type in ['school', 'class']:
             return True
     
@@ -42,9 +47,9 @@ def can_user_create_announcement(user: dict, recipient: dict) -> bool:
         if recipient_type == 'class':
             return True
     
-    # Secretário pode enviar para escolas vinculadas
-    if user_role == 'secretario':
-        if recipient_type in ['school', 'class', 'all']:
+    # Alunos e responsáveis podem enviar para suas turmas
+    if user_role in ['aluno', 'responsavel']:
+        if recipient_type == 'class':
             return True
     
     return False

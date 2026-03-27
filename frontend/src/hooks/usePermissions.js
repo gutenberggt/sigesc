@@ -166,15 +166,15 @@ function getDefaultPermissions(role) {
     },
     diretor: {
       role: 'diretor',
-      can_edit_grades: true,
-      can_edit_attendance: true,
-      can_edit_learning_objects: true,
-      can_edit_students: true,
-      can_edit_classes: true,
-      can_edit_staff: true,
-      can_edit_enrollments: true,
+      can_edit_grades: false,
+      can_edit_attendance: false,
+      can_edit_learning_objects: false,
+      can_edit_students: false,
+      can_edit_classes: false,
+      can_edit_staff: false,
+      can_edit_enrollments: false,
       can_view_all_school_data: true,
-      is_read_only_except_diary: false,
+      is_read_only_except_diary: true,
       school_ids: []
     },
     coordenador: {

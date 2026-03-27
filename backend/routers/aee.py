@@ -20,8 +20,12 @@ from text_utils import format_data_uppercase
 
 router = APIRouter(prefix="/aee", tags=["AEE"])
 
-# Roles permitidos para AEE
-ROLES_AEE = ['admin', 'admin_teste', 'coordenador', 'auxiliar_secretaria', 'professor']
+# Roles permitidos para AEE (leitura + escrita)
+ROLES_AEE_WRITE = ['admin', 'admin_teste', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'secretario']
+# Roles somente visualização
+ROLES_AEE_VIEW = ['diretor', 'semed1', 'semed2', 'semed3']
+# Todos com acesso
+ROLES_AEE = ROLES_AEE_WRITE + ROLES_AEE_VIEW
 
 
 def setup_aee_router(db, audit_service):
@@ -37,12 +41,22 @@ def setup_aee_router(db, audit_service):
             )
         return user
 
+    async def check_aee_write_access(request: Request):
+        """Verifica se o usuário pode editar no módulo AEE"""
+        user = await AuthMiddleware.get_current_user(request)
+        if user.get('role') not in ROLES_AEE_WRITE:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Seu perfil permite apenas visualização no módulo AEE"
+            )
+        return user
+
     # ==================== PLANOS AEE ====================
 
     @router.post("/planos", response_model=PlanoAEE, status_code=status.HTTP_201_CREATED)
     async def create_plano_aee(plano_data: PlanoAEECreate, request: Request):
         """Cria novo Plano de AEE"""
-        current_user = await check_aee_access(request)
+        current_user = await check_aee_write_access(request)
         
         # Busca dados do aluno
         student = await db.students.find_one({"id": plano_data.student_id}, {"_id": 0, "full_name": 1})
@@ -145,7 +159,7 @@ def setup_aee_router(db, audit_service):
     @router.put("/planos/{plano_id}")
     async def update_plano_aee(plano_id: str, plano_update: PlanoAEEUpdate, request: Request):
         """Atualiza Plano AEE"""
-        current_user = await check_aee_access(request)
+        current_user = await check_aee_write_access(request)
         
         existing = await db.planos_aee.find_one({"id": plano_id}, {"_id": 0})
         if not existing:
@@ -177,7 +191,7 @@ def setup_aee_router(db, audit_service):
     @router.delete("/planos/{plano_id}")
     async def delete_plano_aee(plano_id: str, request: Request):
         """Exclui Plano AEE (apenas rascunhos)"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'coordenador', 'auxiliar_secretaria'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'secretario'])(request)
         
         existing = await db.planos_aee.find_one({"id": plano_id}, {"_id": 0})
         if not existing:
@@ -195,7 +209,7 @@ def setup_aee_router(db, audit_service):
     @router.post("/atendimentos", response_model=AtendimentoAEE, status_code=status.HTTP_201_CREATED)
     async def create_atendimento_aee(atendimento_data: AtendimentoAEECreate, request: Request):
         """Registra novo atendimento AEE"""
-        current_user = await check_aee_access(request)
+        current_user = await check_aee_write_access(request)
         
         # Verifica se o plano existe e está ativo
         plano = await db.planos_aee.find_one({"id": atendimento_data.plano_aee_id}, {"_id": 0})
@@ -299,7 +313,7 @@ def setup_aee_router(db, audit_service):
     @router.put("/atendimentos/{atendimento_id}")
     async def update_atendimento_aee(atendimento_id: str, atendimento_update: AtendimentoAEEUpdate, request: Request):
         """Atualiza atendimento AEE"""
-        current_user = await check_aee_access(request)
+        current_user = await check_aee_write_access(request)
         
         existing = await db.atendimentos_aee.find_one({"id": atendimento_id}, {"_id": 0})
         if not existing:
@@ -328,7 +342,7 @@ def setup_aee_router(db, audit_service):
     @router.delete("/atendimentos/{atendimento_id}")
     async def delete_atendimento_aee(atendimento_id: str, request: Request):
         """Exclui atendimento AEE"""
-        current_user = await check_aee_access(request)
+        current_user = await check_aee_write_access(request)
         
         existing = await db.atendimentos_aee.find_one({"id": atendimento_id}, {"_id": 0})
         if not existing:
@@ -343,7 +357,7 @@ def setup_aee_router(db, audit_service):
     @router.post("/evolucoes")
     async def create_evolucao_aee(evolucao_data: dict, request: Request):
         """Registra síntese de evolução bimestral/semestral"""
-        current_user = await check_aee_access(request)
+        current_user = await check_aee_write_access(request)
         
         evolucao = EvolucaoAEE(**evolucao_data)
         doc = evolucao.model_dump()
@@ -380,7 +394,7 @@ def setup_aee_router(db, audit_service):
     @router.post("/articulacoes")
     async def create_articulacao(articulacao_data: dict, request: Request):
         """Registra articulação com sala comum"""
-        current_user = await check_aee_access(request)
+        current_user = await check_aee_write_access(request)
         
         articulacao = ArticulacaoSalaComum(**articulacao_data)
         doc = articulacao.model_dump()
