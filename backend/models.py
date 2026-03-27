@@ -1857,7 +1857,7 @@ class SchoolAssignmentBase(BaseModel):
     school_id: str  # ID da escola
     
     # Função na escola
-    funcao: Literal['professor', 'diretor', 'vice_diretor', 'coordenador', 'secretario', 'apoio'] = 'professor'
+    funcao: Literal['professor', 'diretor', 'vice_diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'apoio'] = 'professor'
     
     # Tipo de lotação: sede (aparece no quadro), anexa (não aparece, só tem acesso), regular
     tipo_lotacao: Literal['sede', 'anexa', 'regular'] = 'regular'

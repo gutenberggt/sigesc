@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CARGOS, FUNCOES, TURNOS } from './constants';
 
 // Funções que exigem Escola Sede + Escola(s) Anexa(s)
-const FUNCOES_COM_SEDE = ['secretario', 'diretor', 'vice_diretor', 'coordenador'];
+const FUNCOES_COM_SEDE = ['secretario', 'diretor', 'vice_diretor', 'coordenador', 'auxiliar_secretaria'];
 
 export const LotacaoModal = ({
   isOpen,

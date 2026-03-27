@@ -53,6 +53,7 @@ export const FUNCOES = {
   vice_diretor: 'Vice-Diretor(a)',
   coordenador: 'Coordenador(a)',
   secretario: 'Secretário(a)',
+  auxiliar_secretaria: 'Auxiliar de Secretaria',
   apoio: 'Apoio'
 };
 
