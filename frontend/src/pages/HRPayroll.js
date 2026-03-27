@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -10,7 +11,7 @@ import {
   Clock, UserCheck, X, AlertCircle, Eye, Edit3, Trash2,
   Loader2, CheckCircle2, XCircle, Upload, Paperclip,
   History, FileUp, UserMinus, RefreshCw, Download, Printer,
-  BarChart3, TrendingUp, ShieldCheck
+  BarChart3, TrendingUp, ShieldCheck, Home
 } from 'lucide-react';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -86,6 +87,7 @@ function SummaryCard({ icon, label, value, color }) {
 
 export default function HRPayroll() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const token = localStorage.getItem('accessToken');
   const isAdmin = ['admin', 'admin_teste'].includes(user?.role);
   const isAnalista = ['semed2'].includes(user?.role);
@@ -822,7 +824,12 @@ export default function HRPayroll() {
   return (
     <div className="p-4 max-w-6xl mx-auto space-y-5" data-testid="hr-dashboard">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><FileText size={26} /> RH / Folha de Pagamento</h1>
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate('/dashboard')} className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors" data-testid="hr-home-btn">
+            <Home size={18} /><span>Início</span>
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><FileText size={26} /> RH / Folha de Pagamento</h1>
+        </div>
         {(isAdmin || isAnalista) && <Button onClick={() => setShowNewCompetency(!showNewCompetency)} data-testid="hr-new-competency-btn"><Plus size={16} className="mr-1" /> Nova Competência</Button>}
       </div>
 
