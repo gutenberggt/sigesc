@@ -44,9 +44,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     ):
         """
         Lista logs de auditoria com filtros.
-        Apenas admin e secretário podem visualizar.
+        Apenas admin e SEMED 3 podem visualizar.
         """
-        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed1', 'semed2', 'semed3'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'semed3'])(request)
 
         filters = {
             'user_id': user_id,

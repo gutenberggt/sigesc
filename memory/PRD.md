@@ -84,12 +84,25 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 | Módulo | SEMED | SEMED 1 | SEMED 2 | SEMED 3 |
 |---|:---:|:---:|:---:|:---:|
 | Base (Escolas, Turmas, Alunos, etc.) | Viz | Viz | Viz | Viz |
+| Avisos | Edita | Edita | Edita | Edita |
 | Acomp. Diários | Viz | Viz | Viz | Viz |
 | Diário AEE | - | Viz | Viz | Viz |
 | RH / Folha | - | - | Analista | Viz |
 | Dashboard Analítico | - | - | - | Viz |
 | Pré-Matrículas | - | - | - | Viz |
 | Usuários Online | - | - | - | Viz |
+| Auditoria | - | - | - | Viz |
+
+### Diretor (Ajustado em 27/03/2026)
+- **Somente visualização** em todos os módulos acadêmicos (Escolas, Turmas, Alunos, Notas, Frequência, etc.)
+- **Edita**: RH/Folha e Avisos
+- **Visualiza**: Diário AEE (novo acesso)
+
+### Secretário (Ajustado em 27/03/2026)
+- **Edita**: Diário AEE (novo acesso)
+
+### Auditoria (Ajustado em 27/03/2026)
+- Acesso restrito a Admin e SEMED 3 apenas
 
 ## Tela de Gestão de Papéis (Implementado em 27/03/2026)
 - Botão "Matriz de Permissões" no módulo de Usuários (somente admin)
