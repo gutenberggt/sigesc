@@ -1175,7 +1175,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             await current_db.school_payrolls.insert_one(payroll.model_dump())
 
             assignments = await current_db.school_assignments.find(
-                {"school_id": school_id, "status": "ativo"},
+                {"school_id": school_id, "status": "ativo", "tipo_lotacao": {"$ne": "anexa"}},
                 {"_id": 0}
             ).to_list(500)
 
