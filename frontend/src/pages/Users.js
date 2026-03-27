@@ -6,7 +6,57 @@ import { Modal } from '@/components/Modal';
 import { usersAPI, schoolsAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { extractErrorMessage } from '@/utils/errorHandler';
-import { Plus, AlertCircle, CheckCircle, Home } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, Shield, ChevronDown, Check, X, Minus, Eye, Edit3 } from 'lucide-react';
+
+// Dados da matriz de permissões por papel
+const ROLE_MATRIX = {
+  modules: [
+    { key: 'schools', label: 'Escolas', category: 'Acadêmico' },
+    { key: 'classes', label: 'Turmas', category: 'Acadêmico' },
+    { key: 'students', label: 'Alunos', category: 'Acadêmico' },
+    { key: 'staff', label: 'Servidores', category: 'Acadêmico' },
+    { key: 'grades', label: 'Notas', category: 'Acadêmico' },
+    { key: 'attendance', label: 'Frequência', category: 'Acadêmico' },
+    { key: 'learning_objects', label: 'Reg. Conteúdos', category: 'Acadêmico' },
+    { key: 'calendar', label: 'Calendário', category: 'Acadêmico' },
+    { key: 'announcements', label: 'Avisos', category: 'Acadêmico' },
+    { key: 'promotion', label: 'Livro de Promoção', category: 'Acadêmico' },
+    { key: 'diary_dashboard', label: 'Acomp. Diários', category: 'Pedagógico' },
+    { key: 'diario_aee', label: 'Diário AEE', category: 'Pedagógico' },
+    { key: 'hr', label: 'RH / Folha', category: 'Gestão' },
+    { key: 'analytics', label: 'Dashboard Analítico', category: 'Gestão' },
+    { key: 'pre_matriculas', label: 'Pré-Matrículas', category: 'Gestão' },
+    { key: 'users', label: 'Usuários', category: 'Sistema' },
+    { key: 'online_users', label: 'Usuários Online', category: 'Sistema' },
+    { key: 'audit_logs', label: 'Auditoria', category: 'Sistema' },
+  ],
+  roles: {
+    admin: { label: 'Admin', color: 'red' },
+    secretario: { label: 'Secretário', color: 'blue' },
+    diretor: { label: 'Diretor', color: 'indigo' },
+    coordenador: { label: 'Coordenador', color: 'purple' },
+    professor: { label: 'Professor', color: 'green' },
+    semed: { label: 'SEMED', color: 'teal' },
+    semed1: { label: 'SEMED 1', color: 'teal' },
+    semed2: { label: 'SEMED 2', color: 'teal' },
+    semed3: { label: 'SEMED 3', color: 'teal' },
+  },
+  // access: 'full' = edita, 'view' = visualiza, 'analyst' = analista HR, null = sem acesso
+  access: {
+    admin:       { schools: 'full', classes: 'full', students: 'full', staff: 'full', grades: 'full', attendance: 'full', learning_objects: 'full', calendar: 'full', announcements: 'full', promotion: 'full', diary_dashboard: 'full', diario_aee: 'full', hr: 'full', analytics: 'full', pre_matriculas: 'full', users: 'full', online_users: 'full', audit_logs: 'full' },
+    secretario:  { schools: 'full', classes: 'full', students: 'full', staff: 'full', grades: 'full', attendance: 'full', learning_objects: 'full', calendar: 'full', announcements: 'full', promotion: 'full', diary_dashboard: 'view', diario_aee: null, hr: 'full', analytics: 'view', pre_matriculas: 'full', users: 'full', online_users: null, audit_logs: 'view' },
+    diretor:     { schools: null, classes: 'full', students: 'full', staff: 'full', grades: 'full', attendance: 'full', learning_objects: 'full', calendar: 'full', announcements: 'full', promotion: 'view', diary_dashboard: 'view', diario_aee: null, hr: 'full', analytics: 'view', pre_matriculas: 'full', users: null, online_users: null, audit_logs: null },
+    coordenador: { schools: null, classes: 'view', students: 'view', staff: null, grades: 'view', attendance: 'view', learning_objects: 'view', calendar: 'view', announcements: 'view', promotion: 'view', diary_dashboard: 'view', diario_aee: 'view', hr: null, analytics: 'view', pre_matriculas: null, users: null, online_users: null, audit_logs: null },
+    professor:   { schools: null, classes: null, students: null, staff: null, grades: 'full', attendance: 'full', learning_objects: 'full', calendar: 'view', announcements: 'view', promotion: null, diary_dashboard: null, diario_aee: 'full', hr: null, analytics: null, pre_matriculas: null, users: null, online_users: null, audit_logs: null },
+    semed:       { schools: 'view', classes: 'view', students: 'view', staff: 'view', grades: 'view', attendance: 'view', learning_objects: 'view', calendar: 'view', announcements: 'view', promotion: 'view', diary_dashboard: 'view', diario_aee: null, hr: null, analytics: null, pre_matriculas: null, users: 'view', online_users: null, audit_logs: 'view' },
+    semed1:      { schools: 'view', classes: 'view', students: 'view', staff: 'view', grades: 'view', attendance: 'view', learning_objects: 'view', calendar: 'view', announcements: 'view', promotion: 'view', diary_dashboard: 'view', diario_aee: 'view', hr: null, analytics: null, pre_matriculas: null, users: 'view', online_users: null, audit_logs: 'view' },
+    semed2:      { schools: 'view', classes: 'view', students: 'view', staff: 'view', grades: 'view', attendance: 'view', learning_objects: 'view', calendar: 'view', announcements: 'view', promotion: 'view', diary_dashboard: 'view', diario_aee: 'view', hr: 'analyst', analytics: null, pre_matriculas: null, users: 'view', online_users: null, audit_logs: 'view' },
+    semed3:      { schools: 'view', classes: 'view', students: 'view', staff: 'view', grades: 'view', attendance: 'view', learning_objects: 'view', calendar: 'view', announcements: 'view', promotion: 'view', diary_dashboard: 'view', diario_aee: 'view', hr: 'view', analytics: 'view', pre_matriculas: 'view', users: 'view', online_users: 'view', audit_logs: 'view' },
+  }
+};
+
+const ADMIN_ONLY_ROLES = ['admin', 'admin_teste', 'semed', 'semed1', 'semed2', 'semed3', 'ass_social'];
+const SEMED_ROLES_LIST = ['semed', 'semed1', 'semed2', 'semed3'];
 
 export const Users = () => {
   const navigate = useNavigate();
@@ -27,11 +77,12 @@ export const Users = () => {
   });
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState('users');
+  const [semedDropdownUserId, setSemedDropdownUserId] = useState(null);
   
-  // SEMED pode visualizar tudo, mas não pode editar/excluir
-  // Secretário pode criar e editar, mas não excluir
-  const canEdit = !['semed', 'semed3'].includes(user?.role);
-  const canDelete = user?.role === 'admin' || user?.role === 'admin_teste'; // Só admin pode excluir usuários
+  // Restrições: todos SEMED são somente visualização no módulo de Usuários
+  const canEdit = !SEMED_ROLES_LIST.includes(user?.role);
+  const canDelete = user?.role === 'admin' || user?.role === 'admin_teste';
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
   useEffect(() => {
@@ -147,18 +198,34 @@ export const Users = () => {
     aluno: 'Aluno(a)',
     responsavel: 'Responsável(is)',
     semed: 'SEMED',
+    semed1: 'SEMED 1',
+    semed2: 'SEMED 2',
     semed3: 'SEMED 3'
   };
 
   // Verifica se o usuário atual é administrador
   const isCurrentUserAdmin = user?.role === 'admin' || user?.role === 'admin_teste';
   
-  // Filtra os papéis disponíveis - admin e ass_social só aparecem se o usuário atual for admin
+  // Papéis admin/semed/ass_social só podem ser criados/selecionados por admins
   const availableRoles = Object.entries(roleLabels).filter(([value]) => {
-    // Se não for admin, não pode ver/selecionar a opção "admin" ou "ass_social"
-    if ((value === 'admin' || value === 'ass_social') && !isCurrentUserAdmin) return false;
+    if (ADMIN_ONLY_ROLES.includes(value) && !isCurrentUserAdmin) return false;
     return true;
   });
+
+  // Troca rápida de nível SEMED
+  const handleQuickSemedChange = async (userId, currentUser, newRole) => {
+    setSemedDropdownUserId(null);
+    try {
+      await usersAPI.update(userId, {
+        role: newRole,
+        roles: [newRole, ...(currentUser.roles || []).filter(r => !SEMED_ROLES_LIST.includes(r))].slice(0, 3)
+      });
+      showAlert('success', `Papel alterado para ${roleLabels[newRole]}`);
+      reloadData();
+    } catch (error) {
+      showAlert('error', extractErrorMessage(error, 'Erro ao alterar papel'));
+    }
+  };
 
   const columns = [
     { header: 'Nome', accessor: 'full_name' },
@@ -168,7 +235,36 @@ export const Users = () => {
       accessor: 'role',
       render: (row) => (
         <div className="flex flex-col gap-1">
-          <span className="font-medium">{roleLabels[row.role]}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium">{roleLabels[row.role] || row.role}</span>
+            {isCurrentUserAdmin && SEMED_ROLES_LIST.includes(row.role) && (
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setSemedDropdownUserId(semedDropdownUserId === row.id ? null : row.id); }}
+                  className="text-xs px-1.5 py-0.5 bg-teal-100 text-teal-700 rounded hover:bg-teal-200 transition-colors"
+                  title="Trocar nível SEMED"
+                  data-testid={`semed-level-btn-${row.id}`}
+                >
+                  <ChevronDown size={12} />
+                </button>
+                {semedDropdownUserId === row.id && (
+                  <div className="absolute left-0 top-full mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                    {SEMED_ROLES_LIST.map(r => (
+                      <button
+                        key={r}
+                        onClick={(e) => { e.stopPropagation(); handleQuickSemedChange(row.id, row, r); }}
+                        className={`w-full text-left px-3 py-1.5 text-sm hover:bg-teal-50 flex items-center justify-between ${r === row.role ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`}
+                        data-testid={`semed-option-${r}`}
+                      >
+                        <span>{roleLabels[r]}</span>
+                        {r === row.role && <Check size={14} className="text-teal-600" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           {row.roles && row.roles.length > 1 && (
             <div className="flex flex-wrap gap-1">
               {row.roles.filter(r => r !== row.role).map(r => (
@@ -217,16 +313,28 @@ export const Users = () => {
               <p className="text-gray-600 text-sm">Gerencie os usuários do sistema</p>
             </div>
           </div>
-          {canEdit && (
-            <button
-              onClick={handleCreate}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-              data-testid="create-user-button"
-            >
-              <Plus size={20} />
-              <span>Novo Usuário</span>
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {isCurrentUserAdmin && (
+              <button
+                onClick={() => setActiveTab(activeTab === 'matrix' ? 'users' : 'matrix')}
+                className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors border ${activeTab === 'matrix' ? 'bg-teal-600 text-white border-teal-600' : 'border-teal-300 text-teal-700 hover:bg-teal-50'}`}
+                data-testid="toggle-matrix-btn"
+              >
+                <Shield size={18} />
+                <span>Matriz de Permissões</span>
+              </button>
+            )}
+            {canEdit && activeTab === 'users' && (
+              <button
+                onClick={handleCreate}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                data-testid="create-user-button"
+              >
+                <Plus size={20} />
+                <span>Novo Usuário</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {alert && (
@@ -249,15 +357,95 @@ export const Users = () => {
           </div>
         )}
 
-        <DataTable
-          columns={columns}
-          data={users}
-          loading={loading}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          canEdit={canEdit}
-          canDelete={canDelete}
-        />
+        {/* Aba: Matriz de Permissões */}
+        {activeTab === 'matrix' && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden" data-testid="role-matrix-panel">
+            <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-teal-50 to-white">
+              <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <Shield size={20} className="text-teal-600" />
+                Matriz de Permissões por Papel
+              </h2>
+              <p className="text-xs text-gray-500 mt-1">Visualize o acesso de cada papel aos módulos do sistema</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wide sticky left-0 bg-gray-50 z-10 min-w-[150px]">Módulo</th>
+                    {Object.entries(ROLE_MATRIX.roles).map(([role, info]) => (
+                      <th key={role} className="text-center px-2 py-2.5 text-xs font-semibold text-gray-600 uppercase tracking-wide min-w-[80px]">
+                        <span className={`inline-block px-2 py-0.5 rounded text-${info.color}-700 bg-${info.color}-50`}>
+                          {info.label}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    let lastCategory = '';
+                    return ROLE_MATRIX.modules.map((mod) => {
+                      const showCat = mod.category !== lastCategory;
+                      lastCategory = mod.category;
+                      return (
+                        <tr key={mod.key} className="border-t border-gray-100 hover:bg-gray-50/50">
+                          <td className="px-3 py-2 sticky left-0 bg-white z-10">
+                            {showCat && <span className="text-[10px] font-bold text-gray-400 uppercase block -mb-0.5">{mod.category}</span>}
+                            <span className="text-gray-800 font-medium">{mod.label}</span>
+                          </td>
+                          {Object.keys(ROLE_MATRIX.roles).map(role => {
+                            const access = ROLE_MATRIX.access[role]?.[mod.key];
+                            return (
+                              <td key={role} className="text-center px-2 py-2">
+                                {access === 'full' && (
+                                  <span className="inline-flex items-center gap-0.5 text-xs font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded" title="Edição completa">
+                                    <Edit3 size={10} /> Edita
+                                  </span>
+                                )}
+                                {access === 'view' && (
+                                  <span className="inline-flex items-center gap-0.5 text-xs font-medium text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded" title="Somente visualização">
+                                    <Eye size={10} /> Viz
+                                  </span>
+                                )}
+                                {access === 'analyst' && (
+                                  <span className="inline-flex items-center gap-0.5 text-xs font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded" title="Analista (aprova/devolve)">
+                                    <Check size={10} /> Analista
+                                  </span>
+                                )}
+                                {!access && (
+                                  <span className="text-gray-300"><Minus size={14} /></span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-3 border-t border-gray-100 bg-gray-50 flex items-center gap-4 text-xs text-gray-500">
+              <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded bg-green-500"></span> Edição completa</span>
+              <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded bg-blue-500"></span> Somente visualização</span>
+              <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded bg-amber-500"></span> Analista RH</span>
+              <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded bg-gray-300"></span> Sem acesso</span>
+            </div>
+          </div>
+        )}
+
+        {/* Aba: Lista de Usuários */}
+        {activeTab === 'users' && (
+          <DataTable
+            columns={columns}
+            data={users}
+            loading={loading}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            canEdit={canEdit}
+            canDelete={canDelete}
+          />
+        )}
 
         <Modal
           isOpen={isModalOpen}
