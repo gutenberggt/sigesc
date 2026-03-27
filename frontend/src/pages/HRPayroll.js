@@ -61,8 +61,8 @@ const ChartTooltip = ({ active, payload, label }) => {
   );
 };
 const FIELD_LABELS = {
-  worked_hours: 'Horas Trabalhadas', taught_classes: 'Aulas Ministradas', classes_not_taught: 'Aulas Não Cumpridas',
-  classes_replaced: 'Aulas Repostas', extra_classes: 'Aulas Extras', complementary_hours: 'Horas Complementares',
+  worked_hours: 'Horas Trabalhadas', classes_not_taught: 'Horas Não Cumpridas',
+  classes_replaced: 'Horas Repostas', extra_classes: 'Horas Extras', complementary_hours: 'Horas Complementares',
   complementary_reason: 'Motivo Complementar', complementary_type: 'Tipo Complementar',
   complementary_period: 'Período Complementar', complementary_authorized_by: 'Autorizado por',
   absences: 'Faltas', justified_absences: 'Faltas Justificadas', medical_leave_days: 'Dias Atestado',
@@ -405,17 +405,15 @@ export default function HRPayroll() {
             {editingItem ? (
               /* ===== EDITING MODE ===== */
               <div className="space-y-4">
-                <h4 className="font-semibold text-sm text-gray-700 border-b pb-1">Carga Horária / Aulas</h4>
+                <h4 className="font-semibold text-sm text-gray-700 border-b pb-1">Carga Horária</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <div><label className="text-xs font-medium text-gray-600">Horas Trabalhadas</label>
                     <Input type="number" step="0.5" value={editingItem.worked_hours||''} onChange={e => setEditingItem({...editingItem, worked_hours: e.target.value})} data-testid="hr-edit-worked-hours" /></div>
-                  <div><label className="text-xs font-medium text-gray-600">Aulas Ministradas</label>
-                    <Input type="number" value={editingItem.taught_classes||''} onChange={e => setEditingItem({...editingItem, taught_classes: e.target.value})} data-testid="hr-edit-taught-classes" /></div>
-                  <div><label className="text-xs font-medium text-gray-600">Aulas Não Cumpridas</label>
+                  <div><label className="text-xs font-medium text-gray-600">Horas Não Cumpridas</label>
                     <Input type="number" value={editingItem.classes_not_taught||''} onChange={e => setEditingItem({...editingItem, classes_not_taught: e.target.value})} data-testid="hr-edit-classes-not-taught" /></div>
-                  <div><label className="text-xs font-medium text-gray-600">Aulas Repostas</label>
+                  <div><label className="text-xs font-medium text-gray-600">Horas Repostas</label>
                     <Input type="number" value={editingItem.classes_replaced||''} onChange={e => setEditingItem({...editingItem, classes_replaced: e.target.value})} data-testid="hr-edit-classes-replaced" /></div>
-                  <div><label className="text-xs font-medium text-gray-600">Aulas Extras / Substituição</label>
+                  <div><label className="text-xs font-medium text-gray-600">Horas Extras / Substituição</label>
                     <Input type="number" value={editingItem.extra_classes||''} onChange={e => setEditingItem({...editingItem, extra_classes: e.target.value})} data-testid="hr-edit-extra-classes" /></div>
                 </div>
 
@@ -452,11 +450,9 @@ export default function HRPayroll() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                   <InfoCard label="Carga Prevista" value={`${currentItem.expected_hours||0}h`} />
                   <InfoCard label="Horas Trabalhadas" value={`${currentItem.worked_hours||0}h`} />
-                  <InfoCard label="Aulas Previstas" value={currentItem.expected_classes||0} />
-                  <InfoCard label="Aulas Ministradas" value={currentItem.taught_classes||0} />
-                  <InfoCard label="Aulas Não Cumpridas" value={currentItem.classes_not_taught||0} />
-                  <InfoCard label="Aulas Repostas" value={currentItem.classes_replaced||0} />
-                  <InfoCard label="Aulas Extras" value={currentItem.extra_classes||0} />
+                  <InfoCard label="Horas Não Cumpridas" value={currentItem.classes_not_taught||0} />
+                  <InfoCard label="Horas Repostas" value={currentItem.classes_replaced||0} />
+                  <InfoCard label="Horas Extras" value={currentItem.extra_classes||0} />
                   <InfoCard label="H. Complementares" value={`${currentItem.complementary_hours||0}h`} />
                   <InfoCard label="Faltas" value={currentItem.absences||0} />
                   <InfoCard label="Faltas Justif." value={currentItem.justified_absences||0} />
@@ -757,7 +753,7 @@ export default function HRPayroll() {
                     <th className="text-center p-3 font-medium">Cargo</th>
                     <th className="text-center p-3 font-medium">CH Prev.</th>
                     <th className="text-center p-3 font-medium">H. Trab.</th>
-                    <th className="text-center p-3 font-medium">Aulas</th>
+                    <th className="text-center p-3 font-medium">Horas</th>
                     <th className="text-center p-3 font-medium">Compl.</th>
                     <th className="text-center p-3 font-medium">Faltas</th>
                     <th className="text-center p-3 font-medium">Atest.</th>
