@@ -34,7 +34,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         academic_year: Optional[int] = None
     ):
         """Lista lotações"""
-        await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed3', 'diretor'])(request)
+        await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed1', 'semed2', 'semed3', 'diretor'])(request)
 
         query = {}
         if school_id:
@@ -209,7 +209,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         status: Optional[str] = None
     ):
         """Lista alocações de professores"""
-        await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed3', 'diretor', 'coordenador', 'auxiliar_secretaria'])(request)
+        await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed1', 'semed2', 'semed3', 'diretor', 'coordenador', 'auxiliar_secretaria'])(request)
 
         query = {}
         if school_id:

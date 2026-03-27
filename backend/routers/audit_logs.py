@@ -46,7 +46,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         Lista logs de auditoria com filtros.
         Apenas admin e secretário podem visualizar.
         """
-        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'semed'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed1', 'semed2', 'semed3'])(request)
 
         filters = {
             'user_id': user_id,
@@ -78,7 +78,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/audit-logs/user/{user_id}")
     async def get_user_audit_logs(user_id: str, request: Request, limit: int = 20):
         """Retorna atividades recentes de um usuário específico"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'semed'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed1', 'semed2', 'semed3'])(request)
 
         logs = await audit_service.get_user_activity(user_id, limit)
         return {'items': logs}
@@ -87,7 +87,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/audit-logs/document/{collection}/{document_id}")
     async def get_document_audit_history(collection: str, document_id: str, request: Request):
         """Retorna histórico de alterações de um documento específico"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'diretor'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed1', 'semed2', 'semed3', 'diretor'])(request)
 
         logs = await audit_service.get_document_history(collection, document_id)
         return {'items': logs}
@@ -96,7 +96,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/audit-logs/critical")
     async def get_critical_audit_events(request: Request, hours: int = 24):
         """Retorna eventos críticos das últimas X horas"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'semed'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed1', 'semed2', 'semed3'])(request)
 
         logs = await audit_service.get_critical_events(hours)
         return {'items': logs, 'hours': hours}
@@ -105,7 +105,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/audit-logs/stats")
     async def get_audit_stats(request: Request, days: int = 7):
         """Retorna estatísticas de auditoria"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'semed'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed1', 'semed2', 'semed3'])(request)
 
         from datetime import timedelta
         cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()

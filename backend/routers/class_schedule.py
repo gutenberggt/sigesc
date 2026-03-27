@@ -55,7 +55,7 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
         if user.get('school_links'):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
         
-        if user_role in ['admin', 'admin_teste', 'semed']:
+        if user_role in ['admin', 'admin_teste', 'semed', 'semed1', 'semed2', 'semed3']:
             # Vê todos
             pass
         elif user_role in ['secretario', 'diretor', 'coordenador', 'auxiliar_secretaria']:
@@ -543,7 +543,7 @@ def setup_class_schedule_router(db, audit_service=None, sandbox_db=None):
         user = await AuthMiddleware.get_current_user(request)
         
         # Verificar permissão
-        if user.get('role') not in ['admin', 'admin_teste', 'semed', 'secretario']:
+        if user.get('role') not in ['admin', 'admin_teste', 'semed', 'semed1', 'semed2', 'semed3', 'secretario']:
             raise HTTPException(status_code=403, detail="Sem permissão para visualizar conflitos da rede")
         
         # Buscar todos os horários do ano

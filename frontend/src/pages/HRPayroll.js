@@ -88,8 +88,9 @@ export default function HRPayroll() {
   const { user } = useAuth();
   const token = localStorage.getItem('accessToken');
   const isAdmin = ['admin', 'admin_teste'].includes(user?.role);
-  const isSemed = ['semed', 'semed3'].includes(user?.role);
-  const isGlobal = isAdmin || isSemed;
+  const isAnalista = ['semed2'].includes(user?.role);
+  const isSemedViewer = ['semed3'].includes(user?.role);
+  const isGlobal = isAdmin || isAnalista || isSemedViewer;
   const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
   const [view, setView] = useState('dashboard');
@@ -368,7 +369,7 @@ export default function HRPayroll() {
 
   // =================== RENDER: ITEM DETAIL ===================
   if (view === 'item-detail' && currentItem) {
-    const isEditable = currentPayroll && !['approved', 'closed'].includes(currentPayroll.status);
+    const isEditable = currentPayroll && !['approved', 'closed'].includes(currentPayroll.status) && !isSemedViewer;
     return (
       <div className="p-4 max-w-5xl mx-auto space-y-4" data-testid="hr-item-detail">
         <button onClick={() => { setView('payroll-detail'); setCurrentItem(null); setShowHistory(false); }}
@@ -679,9 +680,9 @@ export default function HRPayroll() {
 
   // =================== RENDER: PAYROLL DETAIL ===================
   if (view === 'payroll-detail' && currentPayroll) {
-    const canSubmit = ['not_started', 'drafting', 'returned', 'reopened'].includes(currentPayroll.status);
-    const canApprove = isGlobal && currentPayroll.status === 'submitted';
-    const canReturn = isGlobal && ['submitted', 'under_analysis'].includes(currentPayroll.status);
+    const canSubmit = ['not_started', 'drafting', 'returned', 'reopened'].includes(currentPayroll.status) && !isSemedViewer;
+    const canApprove = (isAdmin || isAnalista) && currentPayroll.status === 'submitted';
+    const canReturn = (isAdmin || isAnalista) && ['submitted', 'under_analysis'].includes(currentPayroll.status);
     const items = currentPayroll.items || [];
 
     return (

@@ -45,7 +45,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         month: Optional[int] = None
     ):
         """Lista objetos de conhecimento (conteúdos ministrados)"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor', 'semed', 'semed3'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor', 'semed', 'semed1', 'semed2', 'semed3'])(request)
 
         query = {}
         if class_id:
@@ -81,7 +81,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/learning-objects/{object_id}")
     async def get_learning_object(object_id: str, request: Request):
         """Retorna um objeto de conhecimento específico"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor', 'semed', 'semed3'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor', 'semed', 'semed1', 'semed2', 'semed3'])(request)
 
         obj = await db.learning_objects.find_one({"id": object_id}, {"_id": 0})
         if not obj:
@@ -203,7 +203,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/learning-objects/check-date/{class_id}/{course_id}/{date}")
     async def check_learning_object_date(class_id: str, course_id: str, date: str, request: Request):
         """Verifica se existe registro para uma data específica"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor', 'semed', 'semed3'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor', 'coordenador', 'auxiliar_secretaria', 'professor', 'semed', 'semed1', 'semed2', 'semed3'])(request)
 
         existing = await db.learning_objects.find_one({
             "class_id": class_id,

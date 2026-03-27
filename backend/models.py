@@ -17,7 +17,7 @@ class SchoolLink(BaseModel):
 class UserBase(BaseModel):
     full_name: str
     email: EmailStr
-    role: Literal['admin', 'admin_teste', 'ass_social', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel', 'semed', 'semed3']
+    role: Literal['admin', 'admin_teste', 'ass_social', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel', 'semed', 'semed1', 'semed2', 'semed3']
     roles: List[str] = []  # Lista de papéis do usuário (até 3)
     status: Literal['active', 'inactive'] = 'active'
     avatar_url: Optional[str] = None
@@ -27,7 +27,7 @@ class UserCreate(BaseModel):
     full_name: str
     email: EmailStr
     password: str
-    role: Literal['admin', 'admin_teste', 'ass_social', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel', 'semed', 'semed3']
+    role: Literal['admin', 'admin_teste', 'ass_social', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel', 'semed', 'semed1', 'semed2', 'semed3']
     roles: List[str] = []  # Lista de papéis (até 3)
     school_links: List[SchoolLink] = []
 

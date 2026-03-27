@@ -1,0 +1,56 @@
+{
+  "summary": "Tested SEMED role restructuring (semed, semed1, semed2, semed3). All 21 backend tests passed. Frontend routes and HR role logic verified via code review and Playwright testing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_semed_roles_restructure.py",
+    "/app/test_reports/pytest/pytest_semed_roles_restructure.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "All SEMED role restrictions correctly implemented in backend hr.py",
+    "Frontend App.js routes have correct allowedRoles arrays for all SEMED variants",
+    "HRPayroll.js isEditable correctly excludes semed3 (view-only mode)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_semed_roles_restructure.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "SEMED role restructuring complete. Role hierarchy: semed (base) < semed1 (+ AEE) < semed2 (+ HR Analista) < semed3 (+ Analytics + PreMatriculas, HR view-only). No test users exist for semed1/semed2 roles - tests verified code structure.",
+  "verified_features": {
+    "backend_hr_roles": {
+      "ADMIN_ROLES": ["admin", "admin_teste"],
+      "SEMED_ANALISTA": ["semed2"],
+      "SEMED_VIEWER": ["semed3"],
+      "HR_WRITE_ROLES": "ADMIN_ROLES + SEMED_ANALISTA + SCHOOL_ROLES (excludes semed3)",
+      "ALL_HR_ROLES": "ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER + SCHOOL_ROLES"
+    },
+    "frontend_routes": {
+      "/admin/analytics": "semed3 included, semed/semed1/semed2 excluded",
+      "/admin/hr": "semed2 and semed3 included, semed/semed1 excluded",
+      "/admin/diary-dashboard": "all semed variants included",
+      "/admin/diario-aee": "semed1/semed2/semed3 included, semed excluded",
+      "/admin/pre-matriculas": "semed3 included, semed/semed1/semed2 excluded"
+    },
+    "hr_payroll_logic": {
+      "isSemedViewer": "['semed3'].includes(user?.role)",
+      "isEditable": "excludes semed3 (view-only)",
+      "canApprove": "(isAdmin || isAnalista) - semed2 can approve",
+      "canReturn": "(isAdmin || isAnalista) - semed2 can return"
+    }
+  }
+}

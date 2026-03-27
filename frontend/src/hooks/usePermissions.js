@@ -12,9 +12,10 @@ import { authAPI } from '@/services/api';
  * - diretor: Acesso total à escola vinculada
  * - coordenador: Apenas visualização
  * - professor: Edita apenas notas, frequência e conteúdos das suas turmas
- * - semed_nivel_1: Visualização de todas as escolas
- * - semed_nivel_2: Visualização de todas as escolas + dashboard de acompanhamento
- * - semed_nivel_3: Visualização de todas as escolas + dashboard de acompanhamento
+ * - semed: Visualização básica de todas as escolas
+ * - semed1: SEMED + Diário AEE
+ * - semed2: SEMED 1 + RH/Folha (Analista)
+ * - semed3: SEMED 2 + Dashboard Analítico + Pré-Matrículas
  */
 export const usePermissions = () => {
   const { user } = useAuth();
@@ -103,7 +104,7 @@ export const usePermissions = () => {
    * Verifica se o usuário pode ver o dashboard de acompanhamento
    */
   const canViewDiaryDashboard = useCallback(() => {
-    const allowedRoles = ['admin', 'admin_teste', 'diretor', 'coordenador', 'auxiliar_secretaria', 'secretario', 'semed_nivel_2', 'semed_nivel_3'];
+    const allowedRoles = ['admin', 'admin_teste', 'diretor', 'coordenador', 'auxiliar_secretaria', 'secretario', 'semed', 'semed1', 'semed2', 'semed3'];
     return allowedRoles.includes(user?.role);
   }, [user]);
 
@@ -202,8 +203,8 @@ function getDefaultPermissions(role) {
       is_read_only_except_diary: true,
       school_ids: []
     },
-    semed_nivel_1: {
-      role: 'semed_nivel_1',
+    semed: {
+      role: 'semed',
       can_edit_grades: false,
       can_edit_attendance: false,
       can_edit_learning_objects: false,
@@ -215,8 +216,8 @@ function getDefaultPermissions(role) {
       is_read_only_except_diary: true,
       school_ids: []
     },
-    semed_nivel_2: {
-      role: 'semed_nivel_2',
+    semed1: {
+      role: 'semed1',
       can_edit_grades: false,
       can_edit_attendance: false,
       can_edit_learning_objects: false,
@@ -228,8 +229,21 @@ function getDefaultPermissions(role) {
       is_read_only_except_diary: true,
       school_ids: []
     },
-    semed_nivel_3: {
-      role: 'semed_nivel_3',
+    semed2: {
+      role: 'semed2',
+      can_edit_grades: false,
+      can_edit_attendance: false,
+      can_edit_learning_objects: false,
+      can_edit_students: false,
+      can_edit_classes: false,
+      can_edit_staff: false,
+      can_edit_enrollments: false,
+      can_view_all_school_data: true,
+      is_read_only_except_diary: true,
+      school_ids: []
+    },
+    semed3: {
+      role: 'semed3',
       can_edit_grades: false,
       can_edit_attendance: false,
       can_edit_learning_objects: false,

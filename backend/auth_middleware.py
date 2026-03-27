@@ -183,7 +183,7 @@ class AuthMiddleware:
                 'is_read_only_except_diary': True
             }
         # SEMED 3 e SEMED Níveis 1, 2, 3 - apenas visualização
-        elif user['role'] in ['semed3', 'semed_nivel_1', 'semed_nivel_2', 'semed_nivel_3']:
+        elif user['role'] in ['semed', 'semed1', 'semed2', 'semed3']:
             return {
                 'role': user['role'],
                 'can_edit_grades': False,

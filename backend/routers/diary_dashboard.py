@@ -21,7 +21,7 @@ def create_diary_dashboard_router():
     router = APIRouter(prefix="/diary-dashboard", tags=["Diary Dashboard"])
 
     # Roles permitidos para acessar o dashboard
-    ALLOWED_ROLES = ['admin', 'admin_teste', 'diretor', 'coordenador', 'auxiliar_secretaria', 'secretario', 'semed_nivel_2', 'semed_nivel_3']
+    ALLOWED_ROLES = ['admin', 'admin_teste', 'diretor', 'coordenador', 'auxiliar_secretaria', 'secretario', 'semed', 'semed1', 'semed2', 'semed3']
 
     async def check_access(request: Request):
         """Verifica se o usuário tem acesso ao dashboard"""

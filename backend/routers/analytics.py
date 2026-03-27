@@ -633,7 +633,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         # RESTRIÇÃO DE ACESSO AO RANKING
         # ============================================
         is_admin = user_role in ['admin', 'admin_teste']
-        is_semed = user_role in ['semed', 'semed3']
+        is_semed = user_role in ['semed3']
         is_global = is_admin or is_semed
         
         # Apenas Admin e SEMED podem ver o ranking completo
@@ -1096,7 +1096,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         # RESTRIÇÕES DE ACESSO POR PERFIL
         # ============================================
         is_admin = user_role in ['admin', 'admin_teste']
-        is_semed = user_role == 'semed'
+        is_semed = user_role == 'semed3'
         is_global = is_admin or is_semed
         is_school_staff = user_role in ['diretor', 'coordenador', 'auxiliar_secretaria', 'secretario', 'secretário']
         is_professor = user_role == 'professor'
@@ -1268,7 +1268,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         user = await AuthMiddleware.get_current_user(request)
         user_role = user.get('role', '').lower()
         
-        if user_role not in ['semed', 'semed3']:
+        if user_role not in ['semed3']:
             raise HTTPException(status_code=403, detail="Apenas usuários SEMED podem aceitar este termo")
         
         user_id = user.get('id') or user.get('user_id')
@@ -1306,7 +1306,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         user = await AuthMiddleware.get_current_user(request)
         user_role = user.get('role', '').lower()
         
-        if user_role not in ['semed', 'semed3']:
+        if user_role not in ['semed3']:
             return {"needs_acceptance": False, "is_semed": False}
         
         user_id = user.get('id') or user.get('user_id')

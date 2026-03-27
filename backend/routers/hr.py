@@ -32,9 +32,11 @@ router = APIRouter(prefix="/hr", tags=["RH / Folha"])
 
 # Roles com acesso ao módulo
 ADMIN_ROLES = ['admin', 'admin_teste']
-SEMED_ROLES = ['semed', 'semed3']
+SEMED_ANALISTA = ['semed2']           # Analista da Secretaria: pode aprovar/devolver
+SEMED_VIEWER = ['semed3']             # Somente visualização
 SCHOOL_ROLES = ['diretor', 'secretario']
-ALL_HR_ROLES = ADMIN_ROLES + SEMED_ROLES + SCHOOL_ROLES
+ALL_HR_ROLES = ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER + SCHOOL_ROLES
+HR_WRITE_ROLES = ADMIN_ROLES + SEMED_ANALISTA + SCHOOL_ROLES  # Quem pode editar
 
 # Diretório de uploads de documentos HR
 HR_UPLOADS_DIR = Path(__file__).parent.parent / "uploads" / "hr"
@@ -168,7 +170,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.post("/upload")
     async def upload_hr_document(request: Request, file: UploadFile = File(...)):
         """Upload de documento comprobatório (atestado, portaria, etc.)"""
-        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        user = await AuthMiddleware.require_roles(HR_WRITE_ROLES)(request)
 
         allowed_ext = ['.pdf', '.jpg', '.jpeg', '.png', '.webp']
         file_ext = Path(file.filename).suffix.lower() if file.filename else ''
@@ -197,7 +199,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         status: Optional[str] = None
     ):
         """Lista competências mensais (apenas admin/semed)"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ROLES)(request)
+        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER)(request)
         current_db = get_db_for_user(user)
 
         query = {}
@@ -328,7 +330,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             query['status'] = status
 
         # Restrição por escola para diretor/secretário
-        is_global = user.get('role') in ADMIN_ROLES + SEMED_ROLES
+        is_global = user.get('role') in ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER
         if not is_global:
             user_school_ids = user.get('school_ids', []) or []
             if user.get('school_links'):
@@ -494,7 +496,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.put("/school-payrolls/{payroll_id}/approve")
     async def approve_payroll(payroll_id: str, request: Request):
         """Secretaria aprova a folha"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ROLES)(request)
+        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA)(request)
         current_db = get_db_for_user(user)
 
         payroll = await current_db.school_payrolls.find_one({"id": payroll_id})
@@ -516,7 +518,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.put("/school-payrolls/{payroll_id}/return")
     async def return_payroll(payroll_id: str, request: Request):
         """Secretaria devolve a folha para correção e notifica a escola"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ROLES)(request)
+        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA)(request)
         current_db = get_db_for_user(user)
 
         body = await request.json()
@@ -549,7 +551,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.put("/payroll-items/{item_id}")
     async def update_payroll_item(item_id: str, data: PayrollItemUpdate, request: Request):
         """Atualiza dados de um servidor na folha"""
-        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        user = await AuthMiddleware.require_roles(HR_WRITE_ROLES)(request)
         current_db = get_db_for_user(user)
 
         item = await current_db.payroll_items.find_one({"id": item_id})
@@ -664,7 +666,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.post("/occurrences")
     async def create_occurrence(data: PayrollOccurrenceCreate, request: Request):
         """Registra uma ocorrência para um servidor"""
-        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        user = await AuthMiddleware.require_roles(HR_WRITE_ROLES)(request)
         current_db = get_db_for_user(user)
 
         item = await current_db.payroll_items.find_one({"id": data.payroll_item_id})
@@ -740,7 +742,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.put("/occurrences/{occurrence_id}")
     async def update_occurrence(occurrence_id: str, data: PayrollOccurrenceUpdate, request: Request):
         """Atualiza uma ocorrência"""
-        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        user = await AuthMiddleware.require_roles(HR_WRITE_ROLES)(request)
         current_db = get_db_for_user(user)
 
         occ = await current_db.payroll_occurrences.find_one({"id": occurrence_id})
@@ -761,7 +763,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.delete("/occurrences/{occurrence_id}")
     async def cancel_occurrence(occurrence_id: str, request: Request):
         """Cancela uma ocorrência (soft delete)"""
-        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        user = await AuthMiddleware.require_roles(HR_WRITE_ROLES)(request)
         current_db = get_db_for_user(user)
 
         occ = await current_db.payroll_occurrences.find_one({"id": occurrence_id})
@@ -871,7 +873,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         competency_id: str = Query(...)
     ):
         """Retorna dados analíticos para gráficos do dashboard RH"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ROLES)(request)
+        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER)(request)
         current_db = get_db_for_user(user)
 
         comp = await current_db.payroll_competencies.find_one({"id": competency_id}, {"_id": 0})
@@ -1063,7 +1065,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/reports/consolidado-rede/{competency_id}")
     async def report_consolidado_rede(competency_id: str, request: Request):
         """Gera PDF consolidado de toda a rede"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ROLES)(request)
+        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER)(request)
         current_db = get_db_for_user(user)
 
         comp = await current_db.payroll_competencies.find_one({"id": competency_id}, {"_id": 0})
@@ -1099,7 +1101,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/reports/auditoria/{competency_id}")
     async def report_auditoria(competency_id: str, request: Request):
         """Gera PDF do relatório de auditoria"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ROLES)(request)
+        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER)(request)
         current_db = get_db_for_user(user)
 
         comp = await current_db.payroll_competencies.find_one({"id": competency_id}, {"_id": 0})
