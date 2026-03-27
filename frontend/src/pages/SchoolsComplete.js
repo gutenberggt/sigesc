@@ -340,7 +340,9 @@ export function SchoolsComplete() {
       if (year) {
         params.academic_year = year;
       }
-      const assignments = await schoolAssignmentAPI.list(params);
+      const allAssignments = await schoolAssignmentAPI.list(params);
+      // Filtrar lotações anexas — não aparecem no quadro de servidores
+      const assignments = allAssignments.filter(a => a.tipo_lotacao !== 'anexa');
       
       // Busca as alocações de professor para a escola (para mostrar turmas)
       let teacherAssignments = [];
