@@ -9,8 +9,13 @@ import {
   FileText, Users, Building2, Calendar, ChevronRight,
   Clock, UserCheck, X, AlertCircle, Eye, Edit3, Trash2,
   Loader2, CheckCircle2, XCircle, Upload, Paperclip,
-  History, FileUp, UserMinus, RefreshCw, Download, Printer
+  History, FileUp, UserMinus, RefreshCw, Download, Printer,
+  BarChart3, TrendingUp, ShieldCheck
 } from 'lucide-react';
+import {
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -35,6 +40,26 @@ const OCCURRENCE_TYPES = [
   { value: 'outro', label: 'Outro' },
 ];
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+const PIE_COLORS = {
+  not_started: '#94a3b8', drafting: '#fbbf24', submitted: '#3b82f6',
+  under_analysis: '#6366f1', returned: '#ef4444', approved: '#22c55e',
+  closed: '#64748b', reopened: '#a855f7',
+};
+
+const ChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-xs">
+      <p className="font-semibold text-gray-700 mb-1">{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} style={{ color: p.color }} className="flex justify-between gap-4">
+          <span>{p.name}:</span><span className="font-bold">{typeof p.value === 'number' && p.value % 1 !== 0 ? p.value.toFixed(1) : p.value}{p.unit || ''}</span>
+        </p>
+      ))}
+    </div>
+  );
+};
 const FIELD_LABELS = {
   worked_hours: 'Horas Trabalhadas', taught_classes: 'Aulas Ministradas', classes_not_taught: 'Aulas Não Cumpridas',
   classes_replaced: 'Aulas Repostas', extra_classes: 'Aulas Extras', complementary_hours: 'Horas Complementares',
@@ -100,6 +125,10 @@ export default function HRPayroll() {
   const [returnPayrollId, setReturnPayrollId] = useState(null);
   const [returnReason, setReturnReason] = useState('');
 
+  // Analytics
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
   // Reopen competency modal
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [reopenJustification, setReopenJustification] = useState('');
@@ -164,12 +193,23 @@ export default function HRPayroll() {
     } catch (e) { console.error(e); }
   }, [token]);
 
+  const fetchAnalytics = useCallback(async (compId) => {
+    if (!isGlobal) return;
+    setAnalyticsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/hr/dashboard/analytics?competency_id=${compId}`, { headers });
+      if (res.ok) setAnalytics(await res.json());
+    } catch (e) { console.error(e); }
+    setAnalyticsLoading(false);
+  }, [token, isGlobal]);
+
   useEffect(() => { fetchCompetencies(); fetchEnums(); }, []);
 
   useEffect(() => {
     if (selectedCompetency) {
       fetchPayrolls(selectedCompetency.id);
       fetchDashboard(selectedCompetency.id);
+      fetchAnalytics(selectedCompetency.id);
     }
   }, [selectedCompetency]);
 
@@ -839,6 +879,168 @@ export default function HRPayroll() {
               {Object.entries(dashboardData.payrolls_by_status).map(([st, count]) => (
                 <div key={st} className="flex items-center gap-1.5"><StatusBadge status={st} /><span className="text-sm font-medium">{count}</span></div>
               ))}
+            </div>
+          )}
+
+          {/* =================== PAINEL DE INDICADORES =================== */}
+          {isGlobal && analytics && (
+            <div className="space-y-4" data-testid="hr-analytics-panel">
+              {/* Linha 1: Conformidade + Pizza de Status */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Cards de conformidade */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                    <ShieldCheck size={16} className="text-emerald-600" /> Taxa de Conformidade
+                  </h3>
+                  <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
+                    <CardContent className="p-4">
+                      <div className="text-xs text-gray-500 mb-1">Servidores sem pendências</div>
+                      <div className="flex items-end gap-2">
+                        <span className="text-3xl font-bold text-emerald-700">{analytics.conformity.employees_ok_pct}%</span>
+                        <span className="text-xs text-gray-500 mb-1">{analytics.conformity.ok_employees}/{analytics.conformity.total_employees}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                        <div className="bg-emerald-500 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(analytics.conformity.employees_ok_pct, 100)}%` }} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white">
+                    <CardContent className="p-4">
+                      <div className="text-xs text-gray-500 mb-1">Folhas enviadas/aprovadas</div>
+                      <div className="flex items-end gap-2">
+                        <span className="text-3xl font-bold text-blue-700">{analytics.conformity.payrolls_sent_pct}%</span>
+                        <span className="text-xs text-gray-500 mb-1">{analytics.conformity.sent_payrolls}/{analytics.conformity.total_payrolls}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                        <div className="bg-blue-500 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(analytics.conformity.payrolls_sent_pct, 100)}%` }} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Pizza de distribuição de status */}
+                <Card className="lg:col-span-2">
+                  <CardHeader className="pb-1">
+                    <CardTitle className="text-sm flex items-center gap-1.5"><BarChart3 size={16} className="text-indigo-600" /> Distribuição de Status das Folhas</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2">
+                    {Object.keys(analytics.status_distribution).length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-8">Sem dados</p>
+                    ) : (
+                      <div className="flex items-center">
+                        <ResponsiveContainer width="55%" height={200}>
+                          <PieChart>
+                            <Pie
+                              data={Object.entries(analytics.status_distribution).map(([k, v]) => ({ name: STATUS_LABELS[k] || k, value: v, key: k }))}
+                              cx="50%" cy="50%" innerRadius={45} outerRadius={80}
+                              paddingAngle={3} dataKey="value" strokeWidth={2} stroke="#fff"
+                            >
+                              {Object.entries(analytics.status_distribution).map(([k]) => (
+                                <Cell key={k} fill={PIE_COLORS[k] || '#94a3b8'} />
+                              ))}
+                            </Pie>
+                            <Tooltip content={<ChartTooltip />} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="flex-1 space-y-1.5 pl-2">
+                          {Object.entries(analytics.status_distribution).map(([k, v]) => (
+                            <div key={k} className="flex items-center gap-2 text-xs">
+                              <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: PIE_COLORS[k] || '#94a3b8' }} />
+                              <span className="text-gray-600 flex-1">{STATUS_LABELS[k] || k}</span>
+                              <span className="font-bold text-gray-800">{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Linha 2: Horas da Rede + Ranking de Ausências */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Resumo de horas da rede */}
+                <Card>
+                  <CardHeader className="pb-1">
+                    <CardTitle className="text-sm flex items-center gap-1.5"><TrendingUp size={16} className="text-blue-600" /> Horas da Rede</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={[
+                        { name: 'Previstas', value: analytics.network_summary.expected, fill: '#3b82f6' },
+                        { name: 'Trabalhadas', value: analytics.network_summary.worked, fill: '#22c55e' },
+                        { name: 'Complementares', value: analytics.network_summary.complementary, fill: '#a855f7' },
+                      ]} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={v => `${v}h`} />
+                        <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11 }} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="value" name="Horas" radius={[0, 6, 6, 0]} barSize={28}>
+                          {[
+                            { fill: '#3b82f6' },
+                            { fill: '#22c55e' },
+                            { fill: '#a855f7' },
+                          ].map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
+                {/* Ranking de ausências por escola */}
+                <Card>
+                  <CardHeader className="pb-1">
+                    <CardTitle className="text-sm flex items-center gap-1.5"><AlertTriangle size={16} className="text-amber-600" /> Ausências por Escola</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2">
+                    {analytics.schools_ranking.filter(s => s.absences > 0).length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-8">Nenhuma ausência registrada</p>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={analytics.schools_ranking.filter(s => s.absences > 0).slice(0, 8)}
+                          layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                          <XAxis type="number" tick={{ fontSize: 11 }} />
+                          <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 10 }} />
+                          <Tooltip content={<ChartTooltip />} />
+                          <Bar dataKey="absences" name="Total Ausências" fill="#f59e0b" radius={[0, 6, 6, 0]} barSize={22} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Linha 3: Detalhamento de ausências da rede */}
+              {(analytics.network_summary.absences > 0 || analytics.network_summary.medical > 0 || analytics.network_summary.leave > 0) && (
+                <Card>
+                  <CardHeader className="pb-1">
+                    <CardTitle className="text-sm flex items-center gap-1.5"><Users size={16} className="text-red-600" /> Detalhamento de Ausências da Rede</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2">
+                    <ResponsiveContainer width="100%" height={180}>
+                      <BarChart data={[
+                        { name: 'Faltas', value: analytics.network_summary.absences, fill: '#ef4444' },
+                        { name: 'Atestados', value: analytics.network_summary.medical, fill: '#f97316' },
+                        { name: 'Afastamentos', value: analytics.network_summary.leave, fill: '#eab308' },
+                      ]} margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                        <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="value" name="Dias" radius={[6, 6, 0, 0]} barSize={50}>
+                          {[{ fill: '#ef4444' }, { fill: '#f97316' }, { fill: '#eab308' }].map((e, i) => <Cell key={i} fill={e.fill} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+          {isGlobal && analyticsLoading && (
+            <div className="flex items-center justify-center py-6 text-gray-400">
+              <Loader2 size={20} className="animate-spin mr-2" /> Carregando indicadores...
             </div>
           )}
 

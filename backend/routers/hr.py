@@ -865,6 +865,112 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "payrolls_by_status": status_counts
         }
 
+    @router.get("/dashboard/analytics")
+    async def hr_dashboard_analytics(
+        request: Request,
+        competency_id: str = Query(...)
+    ):
+        """Retorna dados analíticos para gráficos do dashboard RH"""
+        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ROLES)(request)
+        current_db = get_db_for_user(user)
+
+        comp = await current_db.payroll_competencies.find_one({"id": competency_id}, {"_id": 0})
+        if not comp:
+            raise HTTPException(404, "Competência não encontrada")
+
+        # Buscar todas as folhas desta competência
+        payroll_docs = await current_db.school_payrolls.find(
+            {"competency_id": competency_id}, {"_id": 0}
+        ).to_list(500)
+
+        # Mapa de nomes de escolas
+        school_ids = list(set(p['school_id'] for p in payroll_docs))
+        schools_map = {}
+        if school_ids:
+            async for s in current_db.schools.find({"id": {"$in": school_ids}}, {"_id": 0, "id": 1, "name": 1}):
+                schools_map[s['id']] = s['name']
+
+        # 1) Distribuição de status (pizza)
+        status_dist = {}
+        for p in payroll_docs:
+            st = p.get('status', 'not_started')
+            status_dist[st] = status_dist.get(st, 0) + 1
+
+        # 2) Dados por escola (barras horizontais + resumo da rede)
+        schools_data = []
+        total_expected = 0
+        total_worked = 0
+        total_complementary = 0
+        total_absences = 0
+        total_medical = 0
+        total_leave = 0
+        total_employees = 0
+        ok_employees = 0
+
+        for p in payroll_docs:
+            items = await current_db.payroll_items.find(
+                {"school_payroll_id": p['id']}, {"_id": 0}
+            ).to_list(500)
+
+            s_expected = sum(i.get('expected_hours', 0) or 0 for i in items)
+            s_worked = sum(i.get('worked_hours', 0) or 0 for i in items)
+            s_compl = sum(i.get('complementary_hours', 0) or 0 for i in items)
+            s_absences = sum(i.get('absences', 0) or 0 for i in items)
+            s_medical = sum(i.get('medical_leave_days', 0) or 0 for i in items)
+            s_leave = sum(i.get('leave_days', 0) or 0 for i in items)
+            s_ok = sum(1 for i in items if i.get('validation_status') == 'ok')
+
+            total_expected += s_expected
+            total_worked += s_worked
+            total_complementary += s_compl
+            total_absences += s_absences
+            total_medical += s_medical
+            total_leave += s_leave
+            total_employees += len(items)
+            ok_employees += s_ok
+
+            school_name = schools_map.get(p['school_id'], 'N/A')
+            short_name = school_name[:25] + '...' if len(school_name) > 25 else school_name
+            schools_data.append({
+                "name": short_name,
+                "full_name": school_name,
+                "employees": len(items),
+                "absences": s_absences + s_medical + s_leave,
+                "expected": s_expected,
+                "worked": s_worked,
+                "complementary": s_compl,
+            })
+
+        # Ordenar escolas por total de ausências (desc) para top chart
+        schools_data.sort(key=lambda x: x['absences'], reverse=True)
+
+        # 3) Taxas de conformidade
+        submitted_or_better = sum(1 for p in payroll_docs if p.get('status') in ('submitted', 'under_analysis', 'approved', 'closed'))
+        conformity_employees = round((ok_employees / total_employees * 100), 1) if total_employees > 0 else 0
+        conformity_payrolls = round((submitted_or_better / len(payroll_docs) * 100), 1) if payroll_docs else 0
+
+        return {
+            "status_distribution": status_dist,
+            "schools_ranking": schools_data[:15],
+            "network_summary": {
+                "expected": total_expected,
+                "worked": total_worked,
+                "complementary": total_complementary,
+                "absences": total_absences,
+                "medical": total_medical,
+                "leave": total_leave,
+            },
+            "conformity": {
+                "employees_ok_pct": conformity_employees,
+                "payrolls_sent_pct": conformity_payrolls,
+                "ok_employees": ok_employees,
+                "total_employees": total_employees,
+                "sent_payrolls": submitted_or_better,
+                "total_payrolls": len(payroll_docs),
+            }
+        }
+
+
     # ============================================
     # RELATÓRIOS PDF (Fase 4)
     # ============================================
