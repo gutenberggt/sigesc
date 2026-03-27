@@ -75,6 +75,22 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Registros de conteúdo: incluídos na conversão CAIXA ALTA
 - PDF Frequência: componente e nível completo para Anos Finais
 
+## Papéis SEMED (Reestruturado em 27/03/2026)
+- **SEMED** (base): Visualização de módulos acadêmicos + Acompanhamento de Diários
+- **SEMED 1** (`semed1`): SEMED + Diário AEE
+- **SEMED 2** (`semed2`): SEMED 1 + RH/Folha como Analista (aprovar/devolver)
+- **SEMED 3** (`semed3`): SEMED 2 + Dashboard Analítico + Pré-Matrículas (RH somente visualização)
+
+| Módulo | SEMED | SEMED 1 | SEMED 2 | SEMED 3 |
+|---|:---:|:---:|:---:|:---:|
+| Base (Escolas, Turmas, Alunos, etc.) | Viz | Viz | Viz | Viz |
+| Acomp. Diários | Viz | Viz | Viz | Viz |
+| Diário AEE | - | Viz | Viz | Viz |
+| RH / Folha | - | - | Analista | Viz |
+| Dashboard Analítico | - | - | - | Viz |
+| Pré-Matrículas | - | - | - | Viz |
+| Usuários Online | - | - | - | Viz |
+
 ## Tarefas Pendentes
 
 ### Outras Tarefas
