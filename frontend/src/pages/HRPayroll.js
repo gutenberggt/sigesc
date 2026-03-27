@@ -328,14 +328,23 @@ export default function HRPayroll() {
     fetchPayrollDetail(currentPayroll.id);
   };
 
-  const handleDownloadPdf = (url, fallbackName) => {
-    const link = document.createElement('a');
-    link.href = `${API_URL}${url}`;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownloadPdf = async (url, fallbackName) => {
+    try {
+      const res = await fetch(`${API_URL}${url}`, { headers });
+      if (!res.ok) throw new Error('Erro ao gerar PDF');
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    } catch (e) {
+      console.error('Erro ao baixar PDF:', e);
+    }
   };
 
   const handleCloseCompetency = async () => {
