@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Wrench, Type, CheckCircle2, AlertCircle, Loader2, Calendar, Trash2 } from 'lucide-react';
+import { Home, Wrench, Type, CheckCircle2, AlertCircle, Loader2, Calendar, Trash2, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -31,6 +31,9 @@ const AdminTools = () => {
           break;
         case 'history-dates':
           endpoint = '/api/admin/migrate-history-dates';
+          break;
+        case 'payroll-hours':
+          endpoint = '/api/admin/migrate-payroll-hours';
           break;
         default:
           throw new Error('Tipo de migração inválido');
@@ -136,14 +139,33 @@ const AdminTools = () => {
           </div>
           {result.details && (
             <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
-              {Object.entries(result.details).map(([key, value]) => (
-                <div key={key} className="bg-white rounded p-2 text-sm">
-                  <p className="font-medium text-gray-700 capitalize">{key}</p>
-                  <p className="text-gray-500">
-                    {value.updated} / {value.total} atualizados
-                  </p>
-                </div>
-              ))}
+              {typeof result.details.total === 'number' ? (
+                <>
+                  <div className="bg-white rounded p-2 text-sm">
+                    <p className="font-medium text-gray-700">Total</p>
+                    <p className="text-gray-500">{result.details.total}</p>
+                  </div>
+                  <div className="bg-white rounded p-2 text-sm">
+                    <p className="font-medium text-gray-700">Atualizados</p>
+                    <p className="text-gray-500">{result.details.updated}</p>
+                  </div>
+                  {result.details.skipped !== undefined && (
+                    <div className="bg-white rounded p-2 text-sm">
+                      <p className="font-medium text-gray-700">Sem alteração</p>
+                      <p className="text-gray-500">{result.details.skipped}</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                Object.entries(result.details).map(([key, value]) => (
+                  <div key={key} className="bg-white rounded p-2 text-sm">
+                    <p className="font-medium text-gray-700 capitalize">{key}</p>
+                    <p className="text-gray-500">
+                      {value.updated} / {value.total} atualizados
+                    </p>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>
@@ -218,6 +240,45 @@ const AdminTools = () => {
                 ) : (
                   <>
                     <Calendar size={18} />
+                    Executar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Migração de Carga Horária da Folha */}
+          <div className="border rounded-lg p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Clock className="text-green-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Recalcular Carga Horária Mensal (Folha)</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Atualiza as horas previstas e trabalhadas de todos os itens da folha de pagamento.
+                    Aplica a fórmula correta: Carga Semanal × 5.
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Afeta: Itens da Folha de Pagamento (payroll_items)
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => runMigration('payroll-hours')}
+                disabled={loading}
+                data-testid="btn-migrate-payroll-hours"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {loading && loadingType === 'payroll-hours' ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    Executando...
+                  </>
+                ) : (
+                  <>
+                    <Clock size={18} />
                     Executar
                   </>
                 )}

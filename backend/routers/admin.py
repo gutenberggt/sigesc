@@ -133,6 +133,64 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
         result.sort(key=lambda x: unicodedata.normalize('NFD', x['full_name']).encode('ascii', 'ignore').decode('ascii'))
         return result
 
+    @router.post("/admin/migrate-payroll-hours")
+    async def migrate_payroll_hours(request: Request):
+        """
+        Recalcula expected_hours e worked_hours de todos os payroll_items existentes.
+        Fórmula antiga: carga_horaria_semanal * 4.33
+        Fórmula nova: carga_horaria_semanal * 5
+        """
+        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_db = get_db_for_user(current_user) if get_db_for_user else db
+
+        items_cursor = current_db.payroll_items.find({}, {"_id": 1, "employee_id": 1, "expected_hours": 1, "worked_hours": 1})
+        updated_count = 0
+        skipped_count = 0
+        total_count = 0
+
+        async for item in items_cursor:
+            total_count += 1
+            emp_id = item.get('employee_id')
+            if not emp_id:
+                skipped_count += 1
+                continue
+
+            staff = await current_db.staff.find_one(
+                {"id": emp_id}, {"_id": 0, "carga_horaria_semanal": 1, "nome": 1}
+            )
+            if not staff:
+                skipped_count += 1
+                continue
+
+            ch_semanal = staff.get('carga_horaria_semanal') or 0
+            new_expected = round(ch_semanal * 5, 1)
+            old_expected = item.get('expected_hours', 0) or 0
+            old_worked = item.get('worked_hours', 0) or 0
+
+            if old_expected == new_expected:
+                skipped_count += 1
+                continue
+
+            update_fields = {"expected_hours": new_expected}
+            if old_worked == old_expected:
+                update_fields["worked_hours"] = new_expected
+
+            await current_db.payroll_items.update_one(
+                {"_id": item["_id"]},
+                {"$set": update_fields}
+            )
+            updated_count += 1
+
+        return {
+            "success": True,
+            "message": f"Migração de horas concluída! {updated_count} itens atualizados de {total_count} total.",
+            "details": {
+                "total": total_count,
+                "updated": updated_count,
+                "skipped": skipped_count
+            }
+        }
+
     @router.post("/admin/migrate-history-dates")
     async def migrate_history_dates(request: Request):
         """

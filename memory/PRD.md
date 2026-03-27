@@ -74,6 +74,8 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - PDF Frequência: labels DIAS vs AULAS por nível
 - Registros de conteúdo: incluídos na conversão CAIXA ALTA
 - PDF Frequência: componente e nível completo para Anos Finais
+- Fórmula Carga Horária Mensal: Alterada de Semanal×4.33 para Semanal×5 (27/03/2026)
+- Migração retroativa: endpoint `/api/admin/migrate-payroll-hours` + botão em Ferramentas de Administração (27/03/2026)
 
 ## Papéis SEMED (Reestruturado em 27/03/2026)
 - **SEMED** (base): Visualização de módulos acadêmicos + Acompanhamento de Diários

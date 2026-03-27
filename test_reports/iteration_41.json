@@ -46,7 +46,7 @@
   },
   "api_test_results": {
     "analytics_endpoint": {
-      "endpoint": "/api/hr/dashboard/analytics?competency_id=4f702c74-46c6-4233-ba50-9e1443b493f2",
+      "endpoint": "/api/hr/dashboard/analytics?competency_id=payroll-hours-update",
       "status": 200,
       "response_structure": {
         "status_distribution": "dict with status counts",

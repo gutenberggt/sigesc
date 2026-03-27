@@ -1,197 +1,134 @@
 <analysis>**original_problem_statement**: 
-O usuário solicitou uma vasta gama de melhorias e correções para o sistema SIGESC. As principais solicitações incluem:
-- Implementar regras de bloqueio para lançamento de frequência e notas baseadas nas datas de matrícula e transferência/desistência.
-- Corrigir um bug onde a data de matrícula não era salva ao reativar um aluno.
-- Melhorar a UX dos formulários de Lançamento de Notas e Objetos de Conhecimento, tornando os dropdowns dependentes uns dos outros.
-- Refinar a lógica de filtragem de componentes curriculares para considerar o tipo de atendimento da turma (Regular, Integral, AEE).
-- Permitir que turmas de tempo integral visualizem componentes curriculares regulares e integrais.
-- Adicionar funcionalidades à tela Visualizar Escola, como filtro de turmas por ano e contagem de alunos.
-- Realizar ajustes visuais nos PDFs gerados (Boletim, Ficha Individual, Declarações) para redimensionar e reposicionar o brasão.
-- Otimizar a performance da geração de PDFs, que estava muito lenta.
-- Contabilizar apenas alunos ativos na contagem do Filtro ativo na tela de Alunos.
-- Criar e depurar um script para sincronizar em massa as datas de matrícula faltantes a partir do histórico do aluno.
-- Adicionar uma coluna Atestado no relatório de frequência.
-- Permitir que alunos com status transferido gerem Boletim e Ficha Individual, exibindo TRANSFERIDO no resultado.
+O usuário solicitou a finalização da Fase 4 do Módulo de RH/Folha de Pagamento (geração de relatórios em PDF) e a implementação de diversas melhorias no sistema:
+1. Painel de Indicadores Visuais (Analytics) no dashboard do RH.
+2. Reestruturação completa dos papéis da Secretaria (SEMED, SEMED 1, SEMED 2, SEMED 3) com permissões granulares de visualização e edição.
+3. Criação de uma matriz visual de permissões na página de Usuários.
+4. Ajustes finos de permissões (Diretor com acesso restrito a visualização na maioria dos módulos, todos podem criar avisos, etc.).
+5. Reestruturação do formulário de Lotações para suportar escolas Sede e Anexas dependendo da função do servidor.
+6. Correção de nomenclatura no RH (Aulas -> Horas).
+7. Mudança da fórmula de cálculo de carga horária mensal (de Carga Semanal x 4.33 para Carga Semanal x 5).
 
-**User's preferred language**: Portuguese (Português). Instruct the next agent to respond in Portuguese.
+**User's preferred language**: Portuguese (Português). INSTRUCT next agent to respond in Portuguese.
 
 **what currently exists?**: 
-O SIGESC é um sistema de gestão escolar full-stack (React + FastAPI + MongoDB). Nesta sessão, o sistema passou por uma série de melhorias significativas. Foi implementada a lógica de bloqueio de notas por data de matrícula e movimentação. A UX de diversos formulários foi aprimorada com seletores dependentes e filtros mais inteligentes (ex: componentes por tipo de atendimento da turma). A performance da geração de PDFs foi drasticamente melhorada com a implementação de cache para imagens (brasão) e consultas de banco de dados. Vários scripts de manutenção de dados foram criados e executados para corrigir inconsistências no banco de dados de produção do usuário, lidando com desafios de ambiente como a execução de scripts dentro de containers Docker.
+O SIGESC é um sistema full-stack (React + FastAPI + MongoDB). O módulo de RH/Folha agora está completo (Fases 1 a 4) incluindo relatórios em PDF gerados via  e um Dashboard Analítico construído com . O sistema possui um controle de RBAC (Role-Based Access Control) altamente granular através de um middleware no backend e do hook  no frontend, suportando hierarquias complexas como Múltiplos níveis de SEMED, Diretores, Secretários e Professores. As Lotações () agora diferenciam  entre Sede e Anexa para evitar que servidores de escopo global poluam o quadro local de funcionários.
 
 **Last working item**: 
-- **Last item agent was working**: Investigando como gerar Boletim Escolar e Ficha Individual para alunos com status . O agente identificou que a função  em  bloqueia a geração para alunos não ativos e estava começando a analisar a lógica de exibição do resultado (TRANSFERIDO) no PDF em .
-- **Status**: IN PROGRESS
-- **Agent Testing Done**: N
-- **Which testing method agent to use?**: backend testing agent (para testar a API de geração de documento com um ID de aluno transferido e verificar se o PDF é gerado sem erros). A verificação do conteúdo do PDF (TRANSFERIDO) terá que ser feita pelo usuário ou por uma análise manual do PDF gerado, se possível.
-- **User Testing Done**: N
+    - **Last item agent was working**: O agente estava escrevendo um script/query MongoDB para atualizar retroativamente a carga horária mensal ( e ) dos itens de folha de pagamento () já existentes. A fórmula foi alterada no código (de x 4.33 para x 5), mas os registros antigos no banco de dados continuaram com os valores antigos (ex: 173.2h em vez de 200h).
+    - **Status**: IN PROGRESS
+    - **Agent Testing Done**: N
+    - **Which testing method agent to use?**: backend manual testing by python -c ou mongosh script seguido de screenshot tool na interface do RH para verificar se os valores foram atualizados.
+    - **User Testing Done**: N
 
 **All Pending/In progress Issue list**: 
-  - Issue 1: (P0) Permitir geração de Boletim e Ficha Individual para alunos transferidos.
-  - Issue 2: (P1) Alterar carga horária de componentes curriculares.
+  Issue 1: (P0) Atualização Retroativa da Carga Horária Mensal no Banco de Dados
   
   Issues Detail:
-  - Issue 1: 
-     - **Attempted fixes**: O agente identificou a função de bloqueio  em  que só permite status 'active'. Também começou a inspecionar  e  para entender como o resultado final (APROVADO, REPROVADO, etc.) é determinado.
-     - **Next debug checklist**: 
-       1. Modificar a função  em  para permitir .
-       2. Ajustar a query para buscar a matrícula correta do aluno, que terá o status , em vez de buscar apenas a matrícula .
-       3. Garantir que a função  em  retorne TRANSFERIDO quando o status da matrícula for .
-       4. Testar a geração do PDF para um aluno transferido.
-     - **Why fix this issue and what will be achieved with the fix?**: Para permitir que a secretaria da escola possa emitir documentos para alunos que saíram da escola, o que é um requisito fundamental.
+  - Issue 1: Atualização do MongoDB para 
+     - **Attempted fixes**: O agente atualizou a fórmula na rota de criação de competências no  e fez um  para inspecionar os itens existentes, mas o contexto acabou antes de realizar o update.
+     - **Next debug checklist**: Criar um script (via  com python ou direto em uma rota temporária) para buscar todos os  e  existentes, recalcular o  (e  se for igual ao expected) multiplicando a carga semanal original por 5, e atualizar no banco de dados (MongoDB). Verifique também se precisa atualizar o  global dentro do documento de .
+     - **Why fix this issue and what will be achieved with the fix?**: A interface do RH está exibindo a métrica antiga (173.2h) para competências já abertas, gerando inconsistência visual e de cálculo para os usuários.
      - **Status**: IN PROGRESS
      - **Is recurring issue?**: N
-     - **Should Test frontend/backend/both after fix?**: backend
-     - **Blocked on other issue**: N/A
-  - Issue 2: 
-     - **Attempted fixes**: Nenhum.
-     - **Next debug checklist**: Analisar onde a carga horária é definida e usada (provavelmente na collection  ou ) e planejar uma UI ou script para a atualização.
-     - **Why fix this issue and what will be achieved with the fix?**: Ajuste de dados mestres do sistema, essencial para o planejamento pedagógico e relatórios.
-     - **Status**: NOT STARTED
-     - **Is recurring issue?**: N
-     - **Should Test frontend/backend/both after fix?**: backend
-     - **Blocked on other issue**: N/A
+     - **Should Test frontend/backend/both after fix?**: both
+     - **Blocked on other issue**: None
 
 **In progress Task List**: 
-Nenhum.
+  Nenhuma tarefa adicional em andamento fora a atualização do banco de dados (Issue 1).
 
-**Upcoming and Future Tasks**
-- (P1) Alterar carga horária de componentes curriculares.
+**Upcoming and Future Tasks**:
+  Task 1: (P1) Alterar carga horária de componentes curriculares.
+  Task 2: (P2) Implementar envio de e-mail de confirmação na pré-matrícula.
+  Task 3: (P2 Refatoração) Modularizar o restante de  (arquivo muito extenso, mais de 4200 linhas).
+  Task 4: (P2 Refatoração) Centralizar permissões no frontend em um hook .
+  Task 5: (P2 Refatoração) Extrair multi-select para componente reutilizável.
 
-Future Tasks:
-- (P2) Implementar envio de e-mail de confirmação na pré-matrícula.
-- (Refatoração P2) Modularizar  (arquivo possui mais de 4000 linhas).
-- (Refatoração P2) Centralizar permissões no frontend em um hook .
-- (Refatoração P2) Extrair multi-select para componente reutilizável.
+**Completed work in this session**:
+- Fase 4 do Módulo RH: Endpoints e botões gerando 4 relatórios em PDF (DONE)
+- Painel Analytics no RH usando  (DONE)
+- Reestruturação completa de papéis SEMED (SEMED 1, 2, 3) no backend e frontend (DONE)
+- Matriz de Permissões UI em  com dropdown de troca rápida (DONE)
+- Ajustes de permissões: Diretor apenas visualiza módulos base; todos podem criar Avisos; Diário AEE com Secretário (edita) e Diretor (viz) (DONE)
+- Correção de bug no envio do Token via  para o download de PDFs do RH (DONE)
+- Reestruturação do modal  suportando campos condicionais (Escola Sede / Escolas Anexas) (DONE)
+- Inclusão do papel Auxiliar de Secretaria nas lotações (DONE)
+- Ocultação de servidores com  do quadro visual e da pré-folha (DONE)
+- Alteração de nomenclatura global no RH de Aulas para Horas (DONE)
+- Botão Início adicionado ao cabeçalho do Módulo RH (DONE)
+- Modificação na fórmula de conversão de horas semanais para mensais (x 5) implementada para **novas** competências (DONE).
 
-**Completed work in this session**
-- **Bloqueio de Lançamento de Notas**: Implementada lógica no backend e frontend para desabilitar campos de nota baseados na data de matrícula do aluno e data de transferência/cancelamento, com permissão especial para admin/secretário.
-- **Bug Fix - Data de Matrícula**: Corrigido bug onde a data de matrícula não era salva ao reativar um aluno.
-- **Melhorias de UX em Formulários**: Ajustados os formulários de Lançamento de Notas e Objetos de Conhecimento para que os dropdowns de Turma e Componente Curricular fiquem desabilitados até que o nível anterior seja selecionado.
-- **Filtro de Componentes por Atendimento**: Implementado filtro para que turmas Regulares, de Escola Integral e de AEE vejam apenas os componentes curriculares pertinentes.
-- **Ajuste em Visualizar Escola**: Adicionado filtro de turmas por ano, coluna com contagem de alunos matriculados e exibição do nome da escola no título do modal.
-- **Ajustes Visuais em PDFs**: Redimensionado e reposicionado o brasão nas Declarações, Boletim Escolar e Ficha Individual para um layout mais moderno.
-- **Otimização de Performance de PDFs**: Reduzido drasticamente o tempo de geração de documentos através de cache em disco para o brasão e cache em memória para consultas repetitivas ao banco (ex: dados da mantenedora).
-- **Bug Fix - Geração de PDF**: Resolvido erro  no ReportLab que impedia a geração do Boletim e Ficha Individual após o ajuste visual.
-- **Quebra de Linha em PDFs**: Implementada quebra de linha automática para nomes de componentes curriculares longos nas tabelas do Boletim e Ficha Individual.
-- **Ajuste em Contagem de Alunos**: Corrigido o contador Filtro ativo: para exibir apenas o total de alunos com status 'Ativo'.
-- **Script de Sincronização de Datas**: Criado, depurado e executado (via  no servidor do usuário) um script para popular em massa o campo  em alunos e matrículas, corrigindo dados históricos inconsistentes.
-- **Coluna Atestado em Relatório**: Adicionada contagem e coluna para dias de atestado médico no relatório de frequência.
-- **Ajuste em Ferramenta de Migração**: Simplificada a ferramenta administrativa Migrar Datas do Histórico para apenas definir a data de matrícula para 15/01/2026.
+**Earlier issues found/mentioned but not fixed**:
+  - Issue 1: Refatoração da função duplicada .
+    - **Debug checklist**: Localizar duplicatas no frontend e criar utilitário em .
+    - **Why to solve this issue and what will be achieved with this?**: Reduzir repetição de código no frontend.
+    - **Should Test frontend/backend/both after fix**: frontend
+    - **Is recurring issue?**: N
 
-**Earlier issues found/mentioned but not fixed**
-- **Issue 1**: Refatoração da função duplicada .
-  - **Debug checklist**: Localizar as duplicatas da função no frontend e unificá-las em um utilitário compartilhado.
-  - **Why to solve this issue and what will be achieved with this?**: Melhorar a qualidade e a manutenção do código, evitando inconsistências futuras.
-  - **Should Test frontend/backend/both after fix**: frontend
-  - **Is recurring issue?**: N
+**Known issue recurrence from previous fork**:
+  - Nenhuma recorrência registrada.
 
-**Known issue recurrence from previous fork**
-  - **Issue recurrence in previous fork**: Nenhuma.
-  - **Recurrence count**: 0
-  - **Status**: RESOLVED
-
-**Code Architecture**
+**Code Architecture**:
 
 
-**Key Technical Concepts**
-- React, FastAPI, MongoDB, TailwindCSS.
-- **ReportLab**: Geração avançada de PDF, incluindo tabelas complexas, estilos (, ), e  para quebra de linha.
-- **Performance**: Cache em memória e em disco () para otimizar operações repetitivas (downloads de imagem, queries de DB).
-- **Scripting de Banco de Dados**: Criação de scripts  e Current Mongosh Log ID:	69c2d508ced8fffc1c591666
-Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.7.0
-Using MongoDB:		7.0.30
-Using Mongosh:		2.7.0
+**Key Technical Concepts**:
+- **RBAC Complexo**: O sistema agora usa grupos de roles granulares. Frontend confia fortemente em  e em checagens ternárias (, ).
+- **Lotações Diferenciadas**:  agora carregam a chave  (sede ou anexa). O Frontend e a lógica da Folha de Pagamento baseiam-se nisso para filtrar exibições.
+- **Gráficos**: Uso da biblioteca  para indicadores visuais.
+- **Downloads Seguros**: Os PDFs agora são baixados usando a API  do JS para passar o  Header nativamente e convertidos em Blob.
 
-For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
-
-------
-   The server generated these startup warnings when booting
-   2026-03-24T18:16:26.077+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-03-24T18:16:27.321+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-03-24T18:16:27.321+00:00: You are running this process as the root user, which is not recommended
-   2026-03-24T18:16:27.321+00:00: Soft rlimits for open file descriptors too low
-------
-
-test>  para migração e correção de dados em massa.
-- **Docker**: Uso de  para interagir com o banco de dados de produção do usuário que roda em um container.
-
-**key DB schema**
-- : 
-- : 
-- : 
-- : 
+**key DB schema**:
+  - :  (Roles atualizados)
+  - : 
+  - :  (Necessita atualização retroativa via script).
 
 **changes in tech stack**:
-Nenhuma.
+  - Instalação do pacote frontend .
 
 **All files of reference**:
-- : Contém a lógica de acesso que bloqueia a geração para alunos transferidos.
-- : Contém a lógica de construção dos PDFs (Boletim e Ficha).
-- : Contém a função  que define o texto do resultado final.
+- : Contém a lógica das competências e a fórmula de cálculo (linha ~1198).
+- : Frontend da folha.
+- : Para referência aos literais de  e .
 
 **Areas that need refactoring**:
-- : Continua sendo um arquivo monolítico com mais de 4000 linhas, candidato principal para modularização por tipo de documento.
-- : Arquivo com mais de 4300 linhas, extremamente complexo.
+-  continua precisando ser quebrado.
+- O componente  cresceu bastante com a inclusão da Matriz de permissões, podendo ser subdividido.
 
 **key api endpoints**:
-- : Ferramenta de administração para ajustar datas de matrícula em massa.
-- : Gera o Boletim Escolar.
-- : Gera a Ficha Individual.
-- : Gera o relatório de frequência da turma.
+- : Painel visual do RH.
+- : Geração dos 4 tipos de relatórios em PDF.
+- : Fechamento de competência.
 
 **Critical Info for New Agent**:
-- **Tarefa Atual (Relatórios para Transferidos)**: O principal obstáculo está na função  em , que atualmente só permite status . Você precisa modificar esta função para aceitar também  e garantir que ela retorne a matrícula correta (a que tem o status , não uma antiga matrícula ).
-- **Scripts em Produção**: O usuário está executando scripts diretamente em seu servidor de produção via . Qualquer novo script deve ser robusto e, idealmente, ser um comando Current Mongosh Log ID:	69c2d509b159517f8f591666
-Connecting to:		mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.7.0
-Using MongoDB:		7.0.30
-Using Mongosh:		2.7.0
-
-For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
-
-------
-   The server generated these startup warnings when booting
-   2026-03-24T18:16:26.077+00:00: Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem
-   2026-03-24T18:16:27.321+00:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
-   2026-03-24T18:16:27.321+00:00: You are running this process as the root user, which is not recommended
-   2026-03-24T18:16:27.321+00:00: Soft rlimits for open file descriptors too low
-------
-
-test>  auto-contido para evitar problemas de dependência (, ).
-- **Performance**: As otimizações de cache de PDF foram cruciais. Mantenha essa abordagem para novas funcionalidades relacionadas a documentos.
+- **Fórmula do RH Alterada:** A pedido do usuário, a fórmula que calcula as horas mensais de um servidor mudou de  para . Isso já foi alterado em  para competências *futuras*.
+- **SEU PRIMEIRO PASSO**: O usuário mostrou um print de uma competência *já criada* com o valor antigo (173.2h). Você precisa rodar um script no MongoDB (via bash, python, ou script no app) que pegue todos os  existentes, encontre a carga horária semanal da lotação correspondente (ou reverta a matemática: divida o  por 4.33) e aplique a nova matemática (x 5) atualizando o banco de dados.
+- Não altere as rotas do frontend sem verificar as restrições em .
 
 **documents and test reports created in this job**:
-- 
-- 
+  -  até 
+  -  (Atualizado com Fases do RH, Ajustes de Permissões e Lotação)
 
 **Last 10 User Messages and any pending HUMAN messages**: 
-1. **User**: Pede para ajustar a migração de datas para que todas as matrículas fiquem com 15/01/2026. (COMPLETED)
-2. **User**: Pede para adicionar a coluna Atestado no relatório de frequência. (COMPLETED)
-3. **User**: Reporta que a geração de PDF está muito lenta e pede otimização. (COMPLETED)
-4. **User**: Informa que o status  deve permitir a geração de boletim e ficha, exibindo TRANSFERIDO no resultado. (IN PROGRESS)
-5. **User**: Inicia a última tarefa sobre permitir relatórios para alunos transferidos. (IN PROGRESS)
-6. **User**: Fornece o resultado da contagem de documentos no banco de produção (3738). (COMPLETED)
-7. **User**: Fornece o resultado da verificação do script de sincronização. (COMPLETED)
-8. **User**: Pede a lista dos 138 alunos ignorados pelo script. (COMPLETED)
-9. **User**: Pede para forçar a data  para os alunos ignorados. (COMPLETED)
-10. **User**: Pede um novo script para listar alunos com distorção idade-série. (COMPLETED)
+1. **User**: Porque um professor lotado com 40 horas semanais tem carga horária mensal prevista de 173.2h? Qual a fórmula...?
+2. **Agent**: Explicou que o sistema usa  (média de semanas no mês) e perguntou se o usuário queria alterar.
+3. **User**: Na Educação, a fórmula é 40h × 5 = 200h. Aplique essa fórmula para todos os cálculos...
+4. **Agent**: Alterou o backend  (de 4.33 para 5) e avisou que aplicaria para *novas* competências.
+5. **User**: A nova fórmula não foi aplicada em RH / Folha de Pagamento (Enviou screenshot provando que a UI continua com o valor antigo). *(MENSAGEM PENDENTE A SER RESOLVIDA)*
 
 **Project Health Check:**
-- **Broken**: Nada.
-- **Mocked**: Nenhum. O sistema está funcional e estável, com melhorias significativas de performance e correção de dados.
+  - **Broken**: Os itens de folha de pagamento () antigos no banco de dados estão defasados matematicamente em relação à nova regra de negócio e precisam de script de migração.
+  - **Mocked**: Nenhum.
 
 **3rd Party Integrations**
-- ReportLab (Geração de PDF interna)
+- MongoDB, ReportLab, Recharts. Não usa APIs externas de IA ou Pagamento no contexto trabalhado.
 
 **Testing status**
-  - **Testing agent used after significant changes**: YES
-  - **Troubleshoot agent used after agent stuck in loop**: NO
-  - **Test files created**: []
-  - **Known regressions**: []
+  - Testing agent used after significant changes: YES
+  - Troubleshoot agent used after agent stuck in loop: NO
+  - Test files created: []
+  - Known regressions: Valores antigos no BD após mudança de regra de negócio.
 
 **Credentials to test flow:**
-- Administrador:  / 
-- Coordenador:  / 
-- Secretário:  / 
+- Administrador:  /  (Este usuário vê o módulo Admin/RH completo e possui acesso a todas as configurações de permissão).
 
 **What agent forgot to execute**:
-Nada. O agente foi metódico e abordou todas as solicitações do usuário, incluindo as complexas depurações no ambiente de produção do cliente.</analysis>
+- O agente começou a investigar o banco para atualizar as competências 2 e 3 de 2026 com a nova fórmula matemática, mas a janela de contexto foi encerrada antes dele escrever o script de update do MongoDB. A sua primeira ação deve ser construir e rodar esse script.</analysis>
