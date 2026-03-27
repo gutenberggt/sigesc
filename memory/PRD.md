@@ -18,9 +18,10 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Registros de conteúdo, diário de classe e AEE
 - Calendário letivo, Analytics / Ranking de escolas
 
-### Módulo RH / Folha (Fases 1 + 2 + 3 - Implementado em 26/03/2026)
+### Módulo RH / Folha (Fases 1-4 Completas - 27/03/2026)
 **Backend**: `/app/backend/routers/hr.py`
 **Frontend**: `/app/frontend/src/pages/HRPayroll.js`
+**PDF Generator**: `/app/backend/hr_pdf_generator.py`
 **Rota**: `/admin/hr`
 **Acesso**: admin, semed, semed3, diretor, secretario
 **Coleções**: payroll_competencies, school_payrolls, payroll_items, payroll_occurrences, hr_audit_logs
@@ -29,7 +30,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Abertura de competência + pré-folha automática
 - Dashboard, lista de folhas, detalhe com tabela de servidores
 - Edição de lançamentos, ocorrências, validações automáticas
-- Fluxo: não_iniciada → em_preenchimento → enviada → aprovada/devolvida → fechada
+- Fluxo: não_iniciada -> em_preenchimento -> enviada -> aprovada/devolvida -> fechada
 
 #### Fase 2 - Avançado:
 - Upload de documentos comprobatórios (PDF/JPG/PNG até 10MB)
@@ -39,23 +40,33 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Histórico de alterações (auditoria) com diff campo-a-campo
 
 #### Fase 3 - Fluxo Avançado e Notificações:
-- Notificações automáticas ao devolver folha (aviso no sistema para diretor/secretário da escola)
+- Notificações automáticas ao devolver folha (aviso no sistema para diretor/secretário)
 - WebSocket em tempo real para notificações
-- Validações rigorosas no envio (servidores sem lançamento, ocorrências sem documento, pendências)
-- Bloqueio automático por prazo (data limite de lançamento da competência)
-- Reabertura de competência com justificativa obrigatória e log de auditoria
-- Alertas de envio exibidos na folha (warnings detalhados)
+- Validações rigorosas no envio
+- Bloqueio automático por prazo
+- Reabertura de competência com justificativa obrigatória
 
-## Correções desta sessão (26/03/2026)
+#### Fase 4 - Relatórios PDF (Implementado em 27/03/2026):
+- **Espelho Individual**: PDF com dados do servidor, carga horária, ausências, ocorrências, assinaturas
+  - Endpoint: `GET /api/hr/reports/espelho/{item_id}`
+  - Botão: Tela de detalhe do servidor (item-detail)
+- **Folha Consolidada por Escola**: Tabela de todos servidores com totalizadores
+  - Endpoint: `GET /api/hr/reports/folha-escola/{payroll_id}`
+  - Botão: Tela de detalhe da folha (payroll-detail)
+- **Consolidado da Rede**: Resumo de todas as escolas da competência
+  - Endpoint: `GET /api/hr/reports/consolidado-rede/{competency_id}`
+  - Botão: Dashboard (somente admin/semed)
+- **Relatório de Auditoria**: Log de todas as alterações da competência
+  - Endpoint: `GET /api/hr/reports/auditoria/{competency_id}`
+  - Botão: Dashboard (somente admin/semed)
+
+## Correções Implementadas
 - Bug fix: Benefícios do aluno (case mismatch)
 - PDF Frequência: labels DIAS vs AULAS por nível
 - Registros de conteúdo: incluídos na conversão CAIXA ALTA
 - PDF Frequência: componente e nível completo para Anos Finais
 
 ## Tarefas Pendentes
-
-### Módulo RH - Fase Futura
-- **Fase 4** (P2): Relatórios (espelho individual, consolidado por escola/rede, auditoria completa)
 
 ### Outras Tarefas
 - (P1) Alterar carga horária de componentes curriculares
@@ -64,6 +75,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 ### Refatoração
 - Modularizar pdf_generator.py (+4200 linhas)
 - Centralizar permissões em hook usePermissions
+- Refatorar inferEducationLevel duplicado
 
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
