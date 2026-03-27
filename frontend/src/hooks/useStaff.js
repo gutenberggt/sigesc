@@ -675,25 +675,34 @@ export const useStaff = () => {
     }
   }, [lotacaoForm.staff_id, loadExistingLotacoes]);
   
-  const addEscolaLotacao = useCallback(() => {
-    if (!selectedLotacaoSchool) return;
+  const addEscolaLotacao = useCallback((schoolId, tipoLotacao = 'regular') => {
+    const targetId = schoolId || selectedLotacaoSchool;
+    if (!targetId) return;
     
-    const escola = schools.find(s => s.id === selectedLotacaoSchool);
+    const escola = schools.find(s => s.id === targetId);
     if (!escola) return;
     
-    // Verificar se já existe uma entrada com a mesma escola E mesma função
+    // Para tipo 'sede', remover sede anterior se existir
+    if (tipoLotacao === 'sede') {
+      setLotacaoEscolas(prev => {
+        const semSede = prev.filter(e => e.tipo_lotacao !== 'sede');
+        return [...semSede, { ...escola, funcao: lotacaoForm.funcao, tipo_lotacao: 'sede' }];
+      });
+      return;
+    }
+    
+    // Verificar duplicata
     if (lotacaoEscolas.find(e => e.id === escola.id && e.funcao === lotacaoForm.funcao)) {
       showAlertMessage('error', 'Esta escola já foi adicionada com esta função');
       return;
     }
     
-    // Adicionar escola com a função selecionada
-    setLotacaoEscolas(prev => [...prev, { ...escola, funcao: lotacaoForm.funcao }]);
+    setLotacaoEscolas(prev => [...prev, { ...escola, funcao: lotacaoForm.funcao, tipo_lotacao: tipoLotacao }]);
     setSelectedLotacaoSchool('');
   }, [selectedLotacaoSchool, schools, lotacaoEscolas, lotacaoForm.funcao, showAlertMessage]);
   
-  const removeEscolaLotacao = useCallback((schoolId, funcao) => {
-    setLotacaoEscolas(prev => prev.filter(e => !(e.id === schoolId && e.funcao === funcao)));
+  const removeEscolaLotacao = useCallback((schoolId, funcao, tipoLotacao) => {
+    setLotacaoEscolas(prev => prev.filter(e => !(e.id === schoolId && e.funcao === funcao && (e.tipo_lotacao || 'regular') === (tipoLotacao || 'regular'))));
   }, []);
   
   const handleSaveLotacao = useCallback(async () => {
@@ -708,7 +717,8 @@ export const useStaff = () => {
         const data = {
           ...lotacaoForm,
           school_id: escola.id,
-          funcao: escola.funcao || lotacaoForm.funcao  // Usar a função salva na escola
+          funcao: escola.funcao || lotacaoForm.funcao,
+          tipo_lotacao: escola.tipo_lotacao || 'regular'
         };
         
         try {
@@ -1052,6 +1062,7 @@ export const useStaff = () => {
     
     // Lotação
     lotacaoEscolas,
+    setLotacaoEscolas,
     selectedLotacaoSchool,
     setSelectedLotacaoSchool,
     existingLotacoes,

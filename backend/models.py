@@ -1859,6 +1859,9 @@ class SchoolAssignmentBase(BaseModel):
     # Função na escola
     funcao: Literal['professor', 'diretor', 'vice_diretor', 'coordenador', 'secretario', 'apoio'] = 'professor'
     
+    # Tipo de lotação: sede (aparece no quadro), anexa (não aparece, só tem acesso), regular
+    tipo_lotacao: Literal['sede', 'anexa', 'regular'] = 'regular'
+    
     # Período da lotação
     data_inicio: str  # Data início (YYYY-MM-DD)
     data_fim: Optional[str] = None  # Data fim (YYYY-MM-DD) - null se ainda ativo
