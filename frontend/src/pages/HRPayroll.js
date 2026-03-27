@@ -818,7 +818,7 @@ export default function HRPayroll() {
     <div className="p-4 max-w-6xl mx-auto space-y-5" data-testid="hr-dashboard">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><FileText size={26} /> RH / Folha de Pagamento</h1>
-        {isAdmin && <Button onClick={() => setShowNewCompetency(!showNewCompetency)} data-testid="hr-new-competency-btn"><Plus size={16} className="mr-1" /> Nova Competência</Button>}
+        {(isAdmin || isAnalista) && <Button onClick={() => setShowNewCompetency(!showNewCompetency)} data-testid="hr-new-competency-btn"><Plus size={16} className="mr-1" /> Nova Competência</Button>}
       </div>
 
       {showNewCompetency && (
@@ -851,7 +851,7 @@ export default function HRPayroll() {
         <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Calendar size={18} /> Competências</CardTitle></CardHeader>
         <CardContent>
           {competencies.length === 0 ? (
-            <p className="text-sm text-gray-500 py-3 text-center">{isAdmin ? 'Clique em "Nova Competência" para começar.' : 'Aguarde a Secretaria abrir a competência.'}</p>
+            <p className="text-sm text-gray-500 py-3 text-center">{(isAdmin || isAnalista) ? 'Clique em "Nova Competência" para começar.' : 'Aguarde a Secretaria abrir a competência.'}</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {competencies.map(c => (
@@ -1045,13 +1045,13 @@ export default function HRPayroll() {
             </div>
           )}
 
-          {isAdmin && selectedCompetency.status === 'open' && (
+          {(isAdmin || isAnalista) && selectedCompetency.status === 'open' && (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="border-red-300 text-red-600" onClick={handleCloseCompetency} data-testid="hr-close-competency-btn">Fechar Competência</Button>
             </div>
           )}
 
-          {isAdmin && selectedCompetency.status === 'closed' && (
+          {(isAdmin || isAnalista) && selectedCompetency.status === 'closed' && (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="border-purple-300 text-purple-600" onClick={() => setShowReopenModal(true)} data-testid="hr-reopen-competency-btn">
                 <RefreshCw size={14} className="mr-1" /> Reabrir Competência

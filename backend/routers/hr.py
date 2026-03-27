@@ -216,7 +216,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.post("/competencies")
     async def create_competency(data: PayrollCompetencyCreate, request: Request):
         """Abre uma nova competência mensal"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES)(request)
+        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA)(request)
         current_db = get_db_for_user(user)
 
         # Verifica duplicata
@@ -245,7 +245,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.put("/competencies/{competency_id}/close")
     async def close_competency(competency_id: str, request: Request):
         """Fecha uma competência (bloqueia edições)"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES)(request)
+        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA)(request)
         current_db = get_db_for_user(user)
 
         comp = await current_db.payroll_competencies.find_one({"id": competency_id})
@@ -272,7 +272,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.put("/competencies/{competency_id}/reopen")
     async def reopen_competency(competency_id: str, request: Request):
         """Reabre uma competência fechada (com justificativa obrigatória e log)"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES)(request)
+        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA)(request)
         current_db = get_db_for_user(user)
 
         try:
