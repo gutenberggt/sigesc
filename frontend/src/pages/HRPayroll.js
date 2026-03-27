@@ -9,7 +9,7 @@ import {
   FileText, Users, Building2, Calendar, ChevronRight,
   Clock, UserCheck, X, AlertCircle, Eye, Edit3, Trash2,
   Loader2, CheckCircle2, XCircle, Upload, Paperclip,
-  History, FileUp, UserMinus, RefreshCw
+  History, FileUp, UserMinus, RefreshCw, Download, Printer
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -287,6 +287,16 @@ export default function HRPayroll() {
     fetchPayrollDetail(currentPayroll.id);
   };
 
+  const handleDownloadPdf = (url, fallbackName) => {
+    const link = document.createElement('a');
+    link.href = `${API_URL}${url}`;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleCloseCompetency = async () => {
     if (!selectedCompetency || !confirm('Fechar esta competência? As folhas aprovadas serão bloqueadas.')) return;
     await fetch(`${API_URL}/api/hr/competencies/${selectedCompetency.id}/close`, { method: 'PUT', headers });
@@ -422,6 +432,11 @@ export default function HRPayroll() {
                     <Edit3 size={14} className="mr-1" /> Editar Lançamento
                   </Button>
                 )}
+                <Button variant="outline" size="sm" className="ml-2 border-blue-300 text-blue-600 hover:bg-blue-50"
+                  onClick={() => handleDownloadPdf(`/api/hr/reports/espelho/${currentItem.id}`, 'espelho.pdf')}
+                  data-testid="hr-download-espelho-btn">
+                  <Printer size={14} className="mr-1" /> Espelho Individual (PDF)
+                </Button>
               </div>
             )}
           </CardContent>
@@ -648,6 +663,11 @@ export default function HRPayroll() {
             {canSubmit && <Button size="sm" onClick={() => handleSubmitPayroll(currentPayroll.id)} data-testid="hr-submit-payroll-btn"><Send size={14} className="mr-1" /> Enviar para Análise</Button>}
             {canApprove && <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleApprovePayroll(currentPayroll.id)} data-testid="hr-approve-payroll-btn"><Check size={14} className="mr-1" /> Aprovar</Button>}
             {canReturn && <Button size="sm" variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" onClick={() => { setReturnPayrollId(currentPayroll.id); setShowReturnModal(true); }} data-testid="hr-return-payroll-btn"><RotateCcw size={14} className="mr-1" /> Devolver</Button>}
+            <Button size="sm" variant="outline" className="border-blue-300 text-blue-600 hover:bg-blue-50"
+              onClick={() => handleDownloadPdf(`/api/hr/reports/folha-escola/${currentPayroll.id}`, 'folha.pdf')}
+              data-testid="hr-download-folha-btn">
+              <Download size={14} className="mr-1" /> PDF da Folha
+            </Button>
           </div>
         </div>
 
@@ -832,6 +852,21 @@ export default function HRPayroll() {
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="border-purple-300 text-purple-600" onClick={() => setShowReopenModal(true)} data-testid="hr-reopen-competency-btn">
                 <RefreshCw size={14} className="mr-1" /> Reabrir Competência
+              </Button>
+            </div>
+          )}
+
+          {isGlobal && selectedCompetency && (
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" className="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+                onClick={() => handleDownloadPdf(`/api/hr/reports/consolidado-rede/${selectedCompetency.id}`, 'consolidado.pdf')}
+                data-testid="hr-download-consolidado-btn">
+                <Download size={14} className="mr-1" /> Consolidado da Rede (PDF)
+              </Button>
+              <Button variant="outline" size="sm" className="border-amber-300 text-amber-600 hover:bg-amber-50"
+                onClick={() => handleDownloadPdf(`/api/hr/reports/auditoria/${selectedCompetency.id}`, 'auditoria.pdf')}
+                data-testid="hr-download-auditoria-btn">
+                <FileText size={14} className="mr-1" /> Relatório de Auditoria (PDF)
               </Button>
             </div>
           )}

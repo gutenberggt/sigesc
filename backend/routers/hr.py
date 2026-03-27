@@ -6,6 +6,7 @@ Fase 2: Upload de documentos, hora-aula avançado, substituições vinculadas,
 """
 
 from fastapi import APIRouter, HTTPException, Request, Query, UploadFile, File
+from fastapi.responses import StreamingResponse
 from typing import Optional, List
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +19,12 @@ from models import (
     PayrollOccurrence, PayrollOccurrenceCreate, PayrollOccurrenceUpdate
 )
 from auth_middleware import AuthMiddleware
+from hr_pdf_generator import (
+    generate_espelho_individual_pdf,
+    generate_folha_escola_pdf,
+    generate_consolidado_rede_pdf,
+    generate_auditoria_pdf,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -857,6 +864,179 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             },
             "payrolls_by_status": status_counts
         }
+
+    # ============================================
+    # RELATÓRIOS PDF (Fase 4)
+    # ============================================
+
+    @router.get("/reports/espelho/{item_id}")
+    async def report_espelho_individual(item_id: str, request: Request):
+        """Gera PDF do espelho individual do servidor"""
+        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        current_db = get_db_for_user(user)
+
+        item = await current_db.payroll_items.find_one({"id": item_id}, {"_id": 0})
+        if not item:
+            raise HTTPException(404, "Item não encontrado")
+
+        payroll = await current_db.school_payrolls.find_one({"id": item['school_payroll_id']}, {"_id": 0})
+        if not payroll:
+            raise HTTPException(404, "Folha não encontrada")
+
+        comp = await current_db.payroll_competencies.find_one({"id": payroll['competency_id']}, {"_id": 0})
+        school = await current_db.schools.find_one({"id": payroll['school_id']}, {"_id": 0})
+
+        employee = await current_db.staff.find_one({"id": item['employee_id']}, {"_id": 0})
+        if not employee:
+            employee = {"nome": item.get('employee_name', 'N/A'), "matricula": "", "cargo": "", "tipo_vinculo": ""}
+
+        occs = await current_db.payroll_occurrences.find(
+            {"payroll_item_id": item_id, "status": "active"}, {"_id": 0}
+        ).to_list(200)
+
+        buffer = generate_espelho_individual_pdf(
+            employee=employee,
+            item=item,
+            occurrences=occs,
+            school=school or {},
+            competency=comp or {"month": payroll.get('month', 1), "year": payroll.get('year', 2026)},
+        )
+        emp_name = (employee.get('nome') or 'servidor').replace(' ', '_')[:30]
+        filename = f"espelho_{emp_name}_{comp.get('month', 0):02d}_{comp.get('year', 0)}.pdf"
+
+        return StreamingResponse(buffer, media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{filename}"'})
+
+    @router.get("/reports/folha-escola/{payroll_id}")
+    async def report_folha_escola(payroll_id: str, request: Request):
+        """Gera PDF da folha consolidada por escola"""
+        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        current_db = get_db_for_user(user)
+
+        payroll = await current_db.school_payrolls.find_one({"id": payroll_id}, {"_id": 0})
+        if not payroll:
+            raise HTTPException(404, "Folha não encontrada")
+
+        comp = await current_db.payroll_competencies.find_one({"id": payroll['competency_id']}, {"_id": 0})
+        school = await current_db.schools.find_one({"id": payroll['school_id']}, {"_id": 0})
+
+        items = await current_db.payroll_items.find(
+            {"school_payroll_id": payroll_id}, {"_id": 0}
+        ).to_list(500)
+
+        # Enriquecer itens com dados do servidor
+        emp_ids = list(set(i['employee_id'] for i in items))
+        emp_map = {}
+        if emp_ids:
+            async for staff in current_db.staff.find(
+                {"id": {"$in": emp_ids}},
+                {"_id": 0, "id": 1, "nome": 1, "matricula": 1, "cargo": 1}
+            ):
+                emp_map[staff['id']] = staff
+
+        for it in items:
+            emp = emp_map.get(it['employee_id'], {})
+            it['employee_name'] = emp.get('nome', 'N/A')
+            it['employee_matricula'] = emp.get('matricula', '')
+            it['employee_cargo'] = emp.get('cargo', '')
+
+        items.sort(key=lambda x: x.get('employee_name', ''))
+
+        buffer = generate_folha_escola_pdf(
+            school=school or {},
+            payroll=payroll,
+            items=items,
+            competency=comp or {"month": payroll.get('month', 1), "year": payroll.get('year', 2026)},
+        )
+        school_name = (school.get('name', 'escola') if school else 'escola').replace(' ', '_')[:30]
+        filename = f"folha_{school_name}_{comp.get('month', 0):02d}_{comp.get('year', 0)}.pdf"
+
+        return StreamingResponse(buffer, media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{filename}"'})
+
+    @router.get("/reports/consolidado-rede/{competency_id}")
+    async def report_consolidado_rede(competency_id: str, request: Request):
+        """Gera PDF consolidado de toda a rede"""
+        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ROLES)(request)
+        current_db = get_db_for_user(user)
+
+        comp = await current_db.payroll_competencies.find_one({"id": competency_id}, {"_id": 0})
+        if not comp:
+            raise HTTPException(404, "Competência não encontrada")
+
+        payroll_docs = await current_db.school_payrolls.find(
+            {"competency_id": competency_id}, {"_id": 0}
+        ).to_list(500)
+
+        # Enriquecer com nome da escola e itens
+        school_ids = list(set(p['school_id'] for p in payroll_docs))
+        schools_map = {}
+        if school_ids:
+            async for s in current_db.schools.find({"id": {"$in": school_ids}}, {"_id": 0, "id": 1, "name": 1}):
+                schools_map[s['id']] = s['name']
+
+        for p in payroll_docs:
+            p['school_name'] = schools_map.get(p['school_id'], 'N/A')
+            p['items'] = await current_db.payroll_items.find(
+                {"school_payroll_id": p['id']}, {"_id": 0}
+            ).to_list(500)
+
+        buffer = generate_consolidado_rede_pdf(
+            payrolls=payroll_docs,
+            competency=comp,
+        )
+        filename = f"consolidado_rede_{comp.get('month', 0):02d}_{comp.get('year', 0)}.pdf"
+
+        return StreamingResponse(buffer, media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{filename}"'})
+
+    @router.get("/reports/auditoria/{competency_id}")
+    async def report_auditoria(competency_id: str, request: Request):
+        """Gera PDF do relatório de auditoria"""
+        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ROLES)(request)
+        current_db = get_db_for_user(user)
+
+        comp = await current_db.payroll_competencies.find_one({"id": competency_id}, {"_id": 0})
+        if not comp:
+            raise HTTPException(404, "Competência não encontrada")
+
+        # Buscar todos os payroll_ids dessa competência
+        payroll_ids = []
+        async for p in current_db.school_payrolls.find({"competency_id": competency_id}, {"id": 1}):
+            payroll_ids.append(p['id'])
+
+        # Buscar itens dessas folhas
+        item_ids = []
+        if payroll_ids:
+            async for it in current_db.payroll_items.find(
+                {"school_payroll_id": {"$in": payroll_ids}}, {"id": 1}
+            ):
+                item_ids.append(it['id'])
+
+        # Buscar logs de auditoria desses itens + da competência
+        query_ids = item_ids + [competency_id]
+        logs = await current_db.hr_audit_logs.find(
+            {"item_id": {"$in": query_ids}}, {"_id": 0}
+        ).sort("timestamp", -1).to_list(500)
+
+        # Enriquecer com nomes de usuários
+        user_ids = list(set(l.get('user_id', '') for l in logs if l.get('user_id')))
+        users_map = {}
+        if user_ids:
+            async for u in current_db.users.find({"id": {"$in": user_ids}}, {"_id": 0, "id": 1, "name": 1}):
+                users_map[u['id']] = u.get('name', 'N/A')
+        for log in logs:
+            log['user_name'] = users_map.get(log.get('user_id', ''), 'Sistema')
+
+        buffer = generate_auditoria_pdf(
+            logs=logs,
+            competency=comp,
+        )
+        filename = f"auditoria_{comp.get('month', 0):02d}_{comp.get('year', 0)}.pdf"
+
+        return StreamingResponse(buffer, media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{filename}"'})
+
 
     # ============================================
     # FUNÇÕES AUXILIARES
