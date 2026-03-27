@@ -1195,7 +1195,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     continue
 
                 ch_semanal = staff.get('carga_horaria_semanal') or 0
-                ch_mensal = round(ch_semanal * 4.33, 1)
+                ch_mensal = round(ch_semanal * 5, 1)
                 is_professor = staff.get('cargo') == 'professor'
                 carga_aulas = int(assign.get('carga_horaria') or 0)
 
