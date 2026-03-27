@@ -60,6 +60,15 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Endpoint: `GET /api/hr/reports/auditoria/{competency_id}`
   - Botão: Dashboard (somente admin/semed)
 
+#### Painel de Indicadores Visuais (Implementado em 27/03/2026):
+- **Taxa de Conformidade**: Cards com % de servidores sem pendências e % de folhas enviadas/aprovadas
+- **Distribuição de Status**: Gráfico de donut (pizza) com cores por status
+- **Horas da Rede**: Gráfico de barras horizontal (Previstas vs Trabalhadas vs Complementares)
+- **Ausências por Escola**: Ranking das escolas com mais ausências (barras horizontais)
+- **Detalhamento de Ausências**: Gráfico de barras verticais (Faltas, Atestados, Afastamentos)
+- Endpoint: `GET /api/hr/dashboard/analytics?competency_id={id}` (somente admin/semed)
+- Biblioteca: Recharts v3.8.1
+
 ## Correções Implementadas
 - Bug fix: Benefícios do aluno (case mismatch)
 - PDF Frequência: labels DIAS vs AULAS por nível
