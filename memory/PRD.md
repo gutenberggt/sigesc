@@ -91,6 +91,13 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 | Pré-Matrículas | - | - | - | Viz |
 | Usuários Online | - | - | - | Viz |
 
+## Tela de Gestão de Papéis (Implementado em 27/03/2026)
+- Botão "Matriz de Permissões" no módulo de Usuários (somente admin)
+- Tabela visual 9 papéis × 18 módulos com badges: Edita (verde), Viz (azul), Analista (âmbar), — (sem acesso)
+- Dropdown de troca rápida de nível SEMED na coluna "Papel" (semed→semed1→semed2→semed3)
+- Restrição: papéis admin/semed/ass_social só são visíveis e criáveis por administradores
+- Legenda explicativa no rodapé da matriz
+
 ## Tarefas Pendentes
 
 ### Outras Tarefas
