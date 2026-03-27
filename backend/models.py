@@ -35,7 +35,7 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = None  # Nova senha (será hasheada antes de salvar)
-    role: Optional[Literal['admin', 'admin_teste', 'ass_social', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel', 'semed', 'semed3']] = None
+    role: Optional[Literal['admin', 'admin_teste', 'ass_social', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel', 'semed', 'semed1', 'semed2', 'semed3']] = None
     roles: Optional[List[str]] = None  # Lista de papéis (até 3)
     status: Optional[Literal['active', 'inactive']] = None
     avatar_url: Optional[str] = None
