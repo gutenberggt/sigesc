@@ -76,6 +76,9 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - PDF Frequência: componente e nível completo para Anos Finais
 - Fórmula Carga Horária Mensal: Alterada de Semanal×4.33 para Semanal×5 (27/03/2026)
 - Migração retroativa: endpoint `/api/admin/migrate-payroll-hours` + botão em Ferramentas de Administração (27/03/2026)
+- Bug fix: Servidores com lotação "anexa" apareciam na folha de pagamento das escolas anexas (28/03/2026)
+  - Adicionado filtro `_filter_anexa_items` nos endpoints: detalhe da folha, lista de folhas, analytics, relatórios PDF
+  - Criado endpoint `/api/admin/cleanup-anexa-payroll` + botão "Limpar Servidores Anexos da Folha" em Ferramentas Admin
 
 ## Papéis SEMED (Reestruturado em 27/03/2026)
 - **SEMED** (base): Visualização de módulos acadêmicos + Acompanhamento de Diários

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Wrench, Type, CheckCircle2, AlertCircle, Loader2, Calendar, Trash2, Clock } from 'lucide-react';
+import { Home, Wrench, Type, CheckCircle2, AlertCircle, Loader2, Calendar, Trash2, Clock, UserX } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -34,6 +34,9 @@ const AdminTools = () => {
           break;
         case 'payroll-hours':
           endpoint = '/api/admin/migrate-payroll-hours';
+          break;
+        case 'cleanup-anexa':
+          endpoint = '/api/admin/cleanup-anexa-payroll';
           break;
         default:
           throw new Error('Tipo de migração inválido');
@@ -279,6 +282,46 @@ const AdminTools = () => {
                 ) : (
                   <>
                     <Clock size={18} />
+                    Executar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Limpeza de Servidores Anexos na Folha */}
+          <div className="border rounded-lg p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <UserX className="text-purple-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Limpar Servidores Anexos da Folha</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Remove itens da folha de pagamento vinculados a lotações do tipo "anexa".
+                    Servidores lotados como Secretário(a), Diretor(a) ou Coordenador(a) em escolas anexas
+                    não devem aparecer na folha dessas escolas.
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Afeta: Itens da Folha de Pagamento de escolas anexas
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => runMigration('cleanup-anexa')}
+                disabled={loading}
+                data-testid="btn-cleanup-anexa-payroll"
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {loading && loadingType === 'cleanup-anexa' ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    Executando...
+                  </>
+                ) : (
+                  <>
+                    <UserX size={18} />
                     Executar
                   </>
                 )}
