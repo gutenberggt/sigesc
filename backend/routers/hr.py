@@ -359,9 +359,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             p['school_name'] = schools_map.get(p['school_id'], 'N/A')
             # Contadores rápidos (excluindo itens de lotação "anexa")
             all_items = await current_db.payroll_items.find(
-                {"school_payroll_id": p['id']}, {"_id": 0, "id": 1, "assignment_id": 1, "validation_status": 1}
+                {"school_payroll_id": p['id']}, {"_id": 0, "id": 1, "employee_id": 1, "assignment_id": 1, "validation_status": 1}
             ).to_list(500)
-            filtered = await _filter_anexa_items(current_db, all_items)
+            filtered = await _filter_anexa_items(current_db, all_items, p['school_id'])
             p['total_employees'] = len(filtered)
             p['pending_issues'] = sum(1 for i in filtered if i.get('validation_status') == 'has_issues')
 
@@ -383,7 +383,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         ).to_list(500)
 
         # Filtrar itens de lotações "anexa"
-        items = await _filter_anexa_items(current_db, items)
+        items = await _filter_anexa_items(current_db, items, payroll['school_id'])
 
         # Enriquecer com dados do servidor
         emp_ids = list(set(i['employee_id'] for i in items))
@@ -865,13 +865,19 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         total_schools = sum(status_counts.values())
 
-        # Contar employees excluindo itens de lotação "anexa"
-        all_comp_items = await current_db.payroll_items.find(
-            {"competency_id": comp['id']}, {"_id": 0, "id": 1, "assignment_id": 1, "validation_status": 1}
-        ).to_list(5000)
-        filtered_items = await _filter_anexa_items(current_db, all_comp_items)
-        total_employees = len(filtered_items)
-        total_issues = sum(1 for i in filtered_items if i.get('validation_status') == 'has_issues')
+        # Contar employees excluindo itens de lotação "anexa" (filtrar por escola)
+        total_employees = 0
+        total_issues = 0
+        payroll_list = await current_db.school_payrolls.find(
+            {"competency_id": comp['id']}, {"_id": 0, "id": 1, "school_id": 1}
+        ).to_list(500)
+        for sp in payroll_list:
+            sp_items = await current_db.payroll_items.find(
+                {"school_payroll_id": sp['id']}, {"_id": 0, "id": 1, "employee_id": 1, "validation_status": 1}
+            ).to_list(500)
+            filtered = await _filter_anexa_items(current_db, sp_items, sp['school_id'])
+            total_employees += len(filtered)
+            total_issues += sum(1 for i in filtered if i.get('validation_status') == 'has_issues')
 
         total_occurrences = await current_db.payroll_occurrences.count_documents({
             "school_payroll_id": {"$in": [p['id'] async for p in current_db.school_payrolls.find({"competency_id": comp['id']}, {"id": 1})]},
@@ -935,7 +941,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             items = await current_db.payroll_items.find(
                 {"school_payroll_id": p['id']}, {"_id": 0}
             ).to_list(500)
-            items = await _filter_anexa_items(current_db, items)
+            items = await _filter_anexa_items(current_db, items, p['school_id'])
 
             s_expected = sum(i.get('expected_hours', 0) or 0 for i in items)
             s_worked = sum(i.get('worked_hours', 0) or 0 for i in items)
@@ -1062,7 +1068,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         items = await current_db.payroll_items.find(
             {"school_payroll_id": payroll_id}, {"_id": 0}
         ).to_list(500)
-        items = await _filter_anexa_items(current_db, items)
+        items = await _filter_anexa_items(current_db, items, payroll['school_id'])
 
         # Enriquecer itens com dados do servidor
         emp_ids = list(set(i['employee_id'] for i in items))
@@ -1131,7 +1137,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             all_items = await current_db.payroll_items.find(
                 {"school_payroll_id": p['id']}, {"_id": 0}
             ).to_list(500)
-            p['items'] = await _filter_anexa_items(current_db, all_items)
+            p['items'] = await _filter_anexa_items(current_db, all_items, p['school_id'])
 
         buffer = generate_consolidado_rede_pdf(
             payrolls=payroll_docs,
@@ -1194,22 +1200,24 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     # FUNÇÕES AUXILIARES
     # ============================================
 
-    async def _filter_anexa_items(current_db, items: list) -> list:
-        """Remove itens da folha cujas lotações são do tipo 'anexa'."""
-        if not items:
+    async def _filter_anexa_items(current_db, items: list, school_id: str = None) -> list:
+        """Remove itens da folha cujos servidores possuem lotação 'anexa' nesta escola."""
+        if not items or not school_id:
             return items
-        assign_ids = [i.get('assignment_id') for i in items if i.get('assignment_id')]
-        if not assign_ids:
+        # Buscar todos os employee_ids dos itens
+        emp_ids = list(set(i.get('employee_id') for i in items if i.get('employee_id')))
+        if not emp_ids:
             return items
-        anexa_ids = set()
+        # Buscar quais desses employees têm lotação "anexa" NESTA escola
+        anexa_emp_ids = set()
         async for a in current_db.school_assignments.find(
-            {"id": {"$in": assign_ids}, "tipo_lotacao": "anexa"},
-            {"_id": 0, "id": 1}
+            {"staff_id": {"$in": emp_ids}, "school_id": school_id, "tipo_lotacao": "anexa", "status": "ativo"},
+            {"_id": 0, "staff_id": 1}
         ):
-            anexa_ids.add(a['id'])
-        if not anexa_ids:
+            anexa_emp_ids.add(a['staff_id'])
+        if not anexa_emp_ids:
             return items
-        return [i for i in items if i.get('assignment_id') not in anexa_ids]
+        return [i for i in items if i.get('employee_id') not in anexa_emp_ids]
 
     async def _generate_pre_payroll(current_db, competency: PayrollCompetency):
         """Gera pré-folha automática para todas as escolas"""

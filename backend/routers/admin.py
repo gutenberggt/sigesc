@@ -194,52 +194,54 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
     @router.post("/admin/cleanup-anexa-payroll")
     async def cleanup_anexa_payroll(request: Request):
         """
-        Remove itens da folha de pagamento vinculados a lotações do tipo 'anexa'.
-        Servidores com lotação 'anexa' não devem aparecer na folha da escola anexa.
+        Remove itens da folha de pagamento onde o servidor possui lotação 'anexa' naquela escola.
+        Busca por combinação employee_id + school_id, não depende de assignment_id.
         """
         current_user = await AuthMiddleware.require_roles(['admin'])(request)
         current_db = get_db_for_user(current_user) if get_db_for_user else db
 
-        # Buscar todos os assignment_ids com tipo_lotacao "anexa"
-        anexa_assign_ids = []
+        # Buscar todas as lotações "anexa" ativas: mapear (staff_id, school_id)
+        anexa_pairs = set()
         async for a in current_db.school_assignments.find(
-            {"tipo_lotacao": "anexa"}, {"_id": 0, "id": 1}
+            {"tipo_lotacao": "anexa", "status": "ativo"},
+            {"_id": 0, "staff_id": 1, "school_id": 1}
         ):
-            anexa_assign_ids.append(a['id'])
+            anexa_pairs.add((a['staff_id'], a['school_id']))
 
-        if not anexa_assign_ids:
+        if not anexa_pairs:
             return {
                 "success": True,
                 "message": "Nenhuma lotação do tipo 'anexa' encontrada. Nada a limpar.",
                 "details": {"total": 0, "deleted": 0, "skipped": 0}
             }
 
-        # Buscar e remover payroll_items vinculados a essas lotações
-        items_to_delete = await current_db.payroll_items.find(
-            {"assignment_id": {"$in": anexa_assign_ids}},
-            {"_id": 0, "id": 1, "school_id": 1, "employee_id": 1}
-        ).to_list(5000)
+        # Buscar payroll_items que correspondem a essas combinações
+        items_to_delete_ids = []
+        async for item in current_db.payroll_items.find(
+            {}, {"_id": 0, "id": 1, "employee_id": 1, "school_id": 1}
+        ):
+            if (item.get('employee_id'), item.get('school_id')) in anexa_pairs:
+                items_to_delete_ids.append(item['id'])
 
         deleted_count = 0
-        if items_to_delete:
-            item_ids = [i['id'] for i in items_to_delete]
+        if items_to_delete_ids:
             # Remover ocorrências vinculadas
             await current_db.payroll_occurrences.delete_many(
-                {"payroll_item_id": {"$in": item_ids}}
+                {"payroll_item_id": {"$in": items_to_delete_ids}}
             )
             # Remover os itens
             result = await current_db.payroll_items.delete_many(
-                {"assignment_id": {"$in": anexa_assign_ids}}
+                {"id": {"$in": items_to_delete_ids}}
             )
             deleted_count = result.deleted_count
 
         return {
             "success": True,
-            "message": f"Limpeza concluída! {deleted_count} itens removidos de {len(anexa_assign_ids)} lotações 'anexa'.",
+            "message": f"Limpeza concluída! {deleted_count} itens removidos de {len(anexa_pairs)} lotações 'anexa'.",
             "details": {
-                "total": len(anexa_assign_ids),
+                "total": len(anexa_pairs),
                 "deleted": deleted_count,
-                "skipped": len(anexa_assign_ids) - deleted_count if deleted_count < len(anexa_assign_ids) else 0
+                "skipped": 0
             }
         }
 

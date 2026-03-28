@@ -77,8 +77,10 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Fórmula Carga Horária Mensal: Alterada de Semanal×4.33 para Semanal×5 (27/03/2026)
 - Migração retroativa: endpoint `/api/admin/migrate-payroll-hours` + botão em Ferramentas de Administração (27/03/2026)
 - Bug fix: Servidores com lotação "anexa" apareciam na folha de pagamento das escolas anexas (28/03/2026)
-  - Adicionado filtro `_filter_anexa_items` nos endpoints: detalhe da folha, lista de folhas, analytics, relatórios PDF
-  - Criado endpoint `/api/admin/cleanup-anexa-payroll` + botão "Limpar Servidores Anexos da Folha" em Ferramentas Admin
+  - Reescrito filtro `_filter_anexa_items(db, items, school_id)` — verifica por employee_id + school_id (não depende de assignment_id)
+  - Aplicado em: detalhe da folha, lista de folhas, dashboard summary, analytics, relatórios PDF (folha-escola, consolidado)
+  - Criado endpoint `/api/admin/cleanup-anexa-payroll` — busca por (employee_id, school_id) para remover dados
+  - Botão "Limpar Servidores Anexos da Folha" em Ferramentas de Administração
 - Bug fix: Cargo exibido na folha agora usa a função da lotação (`funcao` do assignment) ao invés do cargo global do staff (28/03/2026)
   - Corrigido nos endpoints: detalhe da folha, relatório folha-escola PDF, espelho individual PDF
 
