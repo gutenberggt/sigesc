@@ -62,7 +62,7 @@ const ChartTooltip = ({ active, payload, label }) => {
   );
 };
 const FIELD_LABELS = {
-  worked_hours: 'Horas Trabalhadas', classes_not_taught: 'Horas Não Cumpridas',
+  worked_hours: 'Horas Trabalhadas', classes_not_taught: 'Faltas',
   classes_replaced: 'Horas Repostas', extra_classes: 'Horas Extras', complementary_hours: 'Horas Complementares',
   complementary_reason: 'Motivo Complementar', complementary_type: 'Tipo Complementar',
   complementary_period: 'Período Complementar', complementary_authorized_by: 'Autorizado por',
@@ -411,7 +411,7 @@ export default function HRPayroll() {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   <div><label className="text-xs font-medium text-gray-600">Horas Trabalhadas</label>
                     <Input type="number" step="0.5" value={editingItem.worked_hours||''} onChange={e => setEditingItem({...editingItem, worked_hours: e.target.value})} data-testid="hr-edit-worked-hours" /></div>
-                  <div><label className="text-xs font-medium text-gray-600">Horas Não Cumpridas</label>
+                  <div><label className="text-xs font-medium text-gray-600">Faltas</label>
                     <Input type="number" value={editingItem.classes_not_taught||''} onChange={e => setEditingItem({...editingItem, classes_not_taught: e.target.value})} data-testid="hr-edit-classes-not-taught" /></div>
                   <div><label className="text-xs font-medium text-gray-600">Horas Repostas</label>
                     <Input type="number" value={editingItem.classes_replaced||''} onChange={e => setEditingItem({...editingItem, classes_replaced: e.target.value})} data-testid="hr-edit-classes-replaced" /></div>
@@ -452,7 +452,7 @@ export default function HRPayroll() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                   <InfoCard label="Carga Prevista" value={`${currentItem.expected_hours||0}h`} />
                   <InfoCard label="Horas Trabalhadas" value={`${currentItem.worked_hours||0}h`} />
-                  <InfoCard label="Horas Não Cumpridas" value={currentItem.classes_not_taught||0} />
+                  <InfoCard label="Faltas" value={currentItem.classes_not_taught||0} />
                   <InfoCard label="Horas Repostas" value={currentItem.classes_replaced||0} />
                   <InfoCard label="Horas Extras" value={currentItem.extra_classes||0} />
                   <InfoCard label="H. Complementares" value={`${currentItem.complementary_hours||0}h`} />

@@ -81,8 +81,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Aplicado em: detalhe da folha, lista de folhas, dashboard summary, analytics, relatórios PDF (folha-escola, consolidado)
   - Criado endpoint `/api/admin/cleanup-anexa-payroll` — busca por (employee_id, school_id) para remover dados
   - Botão "Limpar Servidores Anexos da Folha" em Ferramentas de Administração
-- Bug fix: Cargo exibido na folha agora usa a função da lotação (`funcao` do assignment) ao invés do cargo global do staff (28/03/2026)
-  - Corrigido nos endpoints: detalhe da folha, relatório folha-escola PDF, espelho individual PDF
+- Renomeado "Horas Não Cumpridas" para "Faltas" em toda a folha de pagamento: visualização, edição e PDFs (28/03/2026)
 
 ## Papéis SEMED (Reestruturado em 27/03/2026)
 - **SEMED** (base): Visualização de módulos acadêmicos + Acompanhamento de Diários

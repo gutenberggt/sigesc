@@ -40,7 +40,7 @@ OCC_LABELS = {
 
 FIELD_LABELS = {
     'worked_hours': 'Horas Trabalhadas', 'taught_classes': 'Aulas Ministradas',
-    'classes_not_taught': 'Aulas Não Cumpridas', 'classes_replaced': 'Aulas Repostas',
+    'classes_not_taught': 'Faltas', 'classes_replaced': 'Aulas Repostas',
     'extra_classes': 'Aulas Extras', 'complementary_hours': 'Horas Complementares',
     'complementary_reason': 'Motivo Complementar', 'complementary_type': 'Tipo Complementar',
     'absences': 'Faltas', 'justified_absences': 'Faltas Justificadas',
