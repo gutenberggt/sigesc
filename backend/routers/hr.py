@@ -395,11 +395,23 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             ):
                 emp_map[staff['id']] = staff
 
+        # Buscar função da lotação para exibir o cargo correto por escola
+        assign_ids = [i.get('assignment_id') for i in items if i.get('assignment_id')]
+        assign_map = {}
+        if assign_ids:
+            async for a in current_db.school_assignments.find(
+                {"id": {"$in": assign_ids}},
+                {"_id": 0, "id": 1, "funcao": 1}
+            ):
+                assign_map[a['id']] = a
+
         for item in items:
             emp = emp_map.get(item['employee_id'], {})
+            assign = assign_map.get(item.get('assignment_id'), {})
             item['employee_name'] = emp.get('nome', 'N/A')
             item['employee_matricula'] = emp.get('matricula', '')
-            item['employee_cargo'] = emp.get('cargo', '')
+            # Usar funcao da lotação se disponível, senão cargo global do staff
+            item['employee_cargo'] = assign.get('funcao') or emp.get('cargo', '')
             item['employee_vinculo'] = emp.get('tipo_vinculo', '')
             item['employee_ch_semanal'] = emp.get('carga_horaria_semanal', 0)
             item['employee_status'] = emp.get('status', '')
@@ -1009,6 +1021,14 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if not employee:
             employee = {"nome": item.get('employee_name', 'N/A'), "matricula": "", "cargo": "", "tipo_vinculo": ""}
 
+        # Usar funcao da lotação se disponível
+        if item.get('assignment_id'):
+            assign = await current_db.school_assignments.find_one(
+                {"id": item['assignment_id']}, {"_id": 0, "funcao": 1}
+            )
+            if assign and assign.get('funcao'):
+                employee['cargo'] = assign['funcao']
+
         occs = await current_db.payroll_occurrences.find(
             {"payroll_item_id": item_id, "status": "active"}, {"_id": 0}
         ).to_list(200)
@@ -1054,11 +1074,22 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             ):
                 emp_map[staff['id']] = staff
 
+        # Buscar função da lotação
+        assign_ids = [i.get('assignment_id') for i in items if i.get('assignment_id')]
+        assign_map = {}
+        if assign_ids:
+            async for a in current_db.school_assignments.find(
+                {"id": {"$in": assign_ids}},
+                {"_id": 0, "id": 1, "funcao": 1}
+            ):
+                assign_map[a['id']] = a
+
         for it in items:
             emp = emp_map.get(it['employee_id'], {})
+            assign = assign_map.get(it.get('assignment_id'), {})
             it['employee_name'] = emp.get('nome', 'N/A')
             it['employee_matricula'] = emp.get('matricula', '')
-            it['employee_cargo'] = emp.get('cargo', '')
+            it['employee_cargo'] = assign.get('funcao') or emp.get('cargo', '')
 
         items.sort(key=lambda x: x.get('employee_name', ''))
 
