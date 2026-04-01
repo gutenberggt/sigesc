@@ -77,6 +77,7 @@ export const Users = () => {
   });
   const [alert, setAlert] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [emailError, setEmailError] = useState('');
   const [activeTab, setActiveTab] = useState('users');
   const [semedDropdownUserId, setSemedDropdownUserId] = useState(null);
   
@@ -115,6 +116,7 @@ export const Users = () => {
 
   const handleCreate = () => {
     setEditingUser(null);
+    setEmailError('');
     setFormData({
       full_name: '',
       email: '',
@@ -129,6 +131,7 @@ export const Users = () => {
 
   const handleEdit = (user) => {
     setEditingUser(user);
+    setEmailError('');
     setFormData({
       full_name: user.full_name,
       email: user.email,
@@ -154,8 +157,22 @@ export const Users = () => {
     }
   };
 
+  const validateEmail = (email) => {
+    if (!email) return 'O e-mail é obrigatório';
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!regex.test(email)) return 'E-mail inválido. O formato correto é nome@email.com';
+    return '';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const emailErr = validateEmail(formData.email);
+    if (emailErr) {
+      setEmailError(emailErr);
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -470,11 +487,20 @@ export const Users = () => {
               <input
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, email: e.target.value });
+                  if (emailError) setEmailError(validateEmail(e.target.value));
+                }}
+                onBlur={(e) => setEmailError(validateEmail(e.target.value))}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${emailError ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                 data-testid="user-email-input"
               />
+              {emailError && (
+                <p className="mt-1 text-sm text-red-600 flex items-center gap-1" data-testid="email-error-message">
+                  <AlertCircle size={14} /> {emailError}
+                </p>
+              )}
             </div>
 
             <div>

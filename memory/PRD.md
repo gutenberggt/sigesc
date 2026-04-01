@@ -82,6 +82,9 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Criado endpoint `/api/admin/cleanup-anexa-payroll` — busca por (employee_id, school_id) para remover dados
   - Botão "Limpar Servidores Anexos da Folha" em Ferramentas de Administração
 - Renomeado "Horas Não Cumpridas" para "Faltas" em toda a folha de pagamento: visualização, edição e PDFs (28/03/2026)
+- Validação de email no formulário de Usuários: impede salvamento de emails sem formato válido (nome@email.com) com feedback visual em tempo real (01/04/2026)
+- Removida validação estrita (response_model) do endpoint /api/users para evitar erro 500 por dados inconsistentes no banco (01/04/2026)
+- Adicionado handler global de exceções para garantir CORS em respostas 500 (01/04/2026)
 
 ## Papéis SEMED (Reestruturado em 27/03/2026)
 - **SEMED** (base): Visualização de módulos acadêmicos + Acompanhamento de Diários
