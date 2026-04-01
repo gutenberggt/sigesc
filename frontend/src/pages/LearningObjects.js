@@ -110,21 +110,6 @@ export const LearningObjects = () => {
     getBimestreInfo 
   } = useBimestreEditStatus(academicYear);
   
-  // Verificar se a turma requer seleção de componente para PDF (EJA e Fundamental Anos Finais)
-  const selectedClassInfo = classes.find(c => c.id === selectedClass);
-  const isAnosFinaisOrEja = (() => {
-    if (!selectedClassInfo) return false;
-    const level = inferEducationLevel(selectedClassInfo);
-    const name = (selectedClassInfo.name || '').toUpperCase();
-    if (level === 'eja') return true;
-    if (level === 'fundamental' || level === 'fundamental_anos_finais') {
-      const grade = selectedClassInfo.grade_level || '';
-      if (['6', '7', '8', '9'].includes(grade)) return true;
-      if (name.match(/6|7|8|9|ANOS?\s*FINAIS/i)) return true;
-    }
-    return false;
-  })();
-
   // Estados de dados
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -164,6 +149,21 @@ export const LearningObjects = () => {
 
   // Verifica se usuário pode editar (coordenador agora só visualiza)
   const canEdit = ['admin', 'secretario', 'diretor', 'professor'].includes(user?.role);
+
+  // Verificar se a turma requer seleção de componente para PDF (EJA e Fundamental Anos Finais)
+  const selectedClassInfo = classes.find(c => c.id === selectedClass);
+  const isAnosFinaisOrEja = (() => {
+    if (!selectedClassInfo) return false;
+    const level = inferEducationLevel(selectedClassInfo);
+    const name = (selectedClassInfo.name || '').toUpperCase();
+    if (level === 'eja') return true;
+    if (level === 'fundamental' || level === 'fundamental_anos_finais') {
+      const grade = selectedClassInfo.grade_level || '';
+      if (['6', '7', '8', '9'].includes(grade)) return true;
+      if (name.match(/6|7|8|9|ANOS?\s*FINAIS/i)) return true;
+    }
+    return false;
+  })();
 
   // Carrega dados iniciais
   useEffect(() => {
