@@ -457,9 +457,11 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
     async def get_class_attendance_report(
         class_id: str,
         request: Request,
-        academic_year: Optional[int] = None
+        academic_year: Optional[int] = None,
+        course_id: Optional[str] = None,
+        bimestre: Optional[int] = None
     ):
-        """Relatório de frequência de uma turma"""
+        """Relatório de frequência de uma turma (filtro opcional por componente)"""
         current_user = await AuthMiddleware.get_current_user(request)
         current_db = get_db_for_user(current_user)
         
@@ -506,8 +508,11 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
         
         # Busca todos os registros de frequência da turma
+        att_query = {"class_id": class_id, "academic_year": academic_year}
+        if course_id:
+            att_query["course_id"] = course_id
         attendances = await current_db.attendance.find(
-            {"class_id": class_id, "academic_year": academic_year},
+            att_query,
             {"_id": 0}
         ).to_list(1000)
         
@@ -598,6 +603,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         return {
             "class": turma,
             "academic_year": academic_year,
+            "course_id": course_id,
             "total_records": len(attendances),
             "total_school_days_recorded": len(attendances),
             "total_students": len(students),

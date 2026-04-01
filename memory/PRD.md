@@ -89,6 +89,9 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Filtro de componentes aplicado também em Frequência (Attendance.js) e Notas (Grades.js) — mesma lógica por teacher_assignments (01/04/2026)
 - PDF por componente para EJA e Anos Finais: modal de PDF exige seleção de componente curricular, gerando PDF individual por disciplina (01/04/2026)
 - PDF de Frequência para EJA e Anos Finais: validação obrigatória de componente antes de gerar PDF (01/04/2026)
+- Aba Relatórios da Frequência: seletor de componente curricular obrigatório para EJA/Anos Finais, com dados filtrados por componente (01/04/2026)
+  - Backend: endpoint /report/class/{id} aceita course_id e bimestre como filtros opcionais
+  - Frontend: campo de componente aparece apenas para turmas Anos Finais/EJA; botões desabilitados sem seleção
 
 ## Papéis SEMED (Reestruturado em 27/03/2026)
 - **SEMED** (base): Visualização de módulos acadêmicos + Acompanhamento de Diários

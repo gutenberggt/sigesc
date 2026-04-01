@@ -126,6 +126,7 @@ export const Attendance = () => {
   
   // Estado para bimestre selecionado no relatório PDF
   const [selectedBimestre, setSelectedBimestre] = useState(1);
+  const [reportCourseId, setReportCourseId] = useState('');
   
   // Anos disponíveis para seleção
   const currentYear = new Date().getFullYear();
@@ -161,6 +162,18 @@ export const Attendance = () => {
   // Relatórios
   const [classReport, setClassReport] = useState(null);
   const [alertsData, setAlertsData] = useState(null);
+
+  // Detectar se turma é Anos Finais ou EJA (requer componente no relatório)
+  const selectedClassInfo = classes.find(c => c.id === selectedClass) || professorTurmas.find(t => t.id === selectedClass);
+  const isAnosFinaisOrEja = (() => {
+    if (!selectedClassInfo) return false;
+    const level = inferEducationLevel(selectedClassInfo);
+    if (['eja_final', 'eja_inicial', 'eja'].includes(level)) return true;
+    if (level === 'fundamental_anos_finais') return true;
+    const grade = selectedClassInfo.grade_level || '';
+    if (['6', '7', '8', '9'].includes(grade)) return true;
+    return false;
+  })();
   
   // Número de aulas (para anos finais e EJA)
   const [numberOfClasses, setNumberOfClasses] = useState(1);
@@ -640,12 +653,13 @@ export const Attendance = () => {
   };
   
   // Carrega relatório da turma
-  const loadClassReport = async () => {
+  const loadClassReport = async (courseIdOverride) => {
     if (!selectedClass) return;
     
     setLoading(true);
     try {
-      const data = await attendanceAPI.getClassReport(selectedClass, academicYear);
+      const cid = courseIdOverride !== undefined ? courseIdOverride : reportCourseId;
+      const data = await attendanceAPI.getClassReport(selectedClass, academicYear, cid || null);
       setClassReport(data);
     } catch (error) {
       console.error('Erro ao carregar relatório:', error);
@@ -662,26 +676,20 @@ export const Attendance = () => {
       return;
     }
     
+    // Determinar course_id: usar reportCourseId se na aba relatórios, senão selectedCourse
+    const courseForPdf = reportCourseId || selectedCourse;
+    
     // Verificar se é EJA ou Anos Finais — componente obrigatório
-    const classInfo = classes.find(c => c.id === selectedClass) || professorTurmas.find(t => t.id === selectedClass);
-    if (classInfo) {
-      const level = inferEducationLevel(classInfo);
-      const grade = classInfo.grade_level || '';
-      const name = (classInfo.name || '').toUpperCase();
-      const needsCourse = level === 'eja' || 
-        ((level === 'fundamental' || level === 'fundamental_anos_finais') && 
-         (['6','7','8','9'].includes(grade) || name.match(/6|7|8|9|ANOS?\s*FINAIS/i)));
-      if (needsCourse && !selectedCourse) {
-        showAlertMessage('error', 'Para EJA e Anos Finais, selecione um componente curricular antes de gerar o PDF.');
-        return;
-      }
+    if (isAnosFinaisOrEja && !courseForPdf) {
+      showAlertMessage('error', 'Para EJA e Anos Finais, selecione um componente curricular antes de gerar o PDF.');
+      return;
     }
     
     setLoading(true);
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(
-        `${API_URL}/api/attendance/pdf/bimestre/${selectedClass}?bimestre=${selectedBimestre}&academic_year=${academicYear}${selectedCourse ? `&course_id=${selectedCourse}` : ''}`,
+        `${API_URL}/api/attendance/pdf/bimestre/${selectedClass}?bimestre=${selectedBimestre}&academic_year=${academicYear}${courseForPdf ? `&course_id=${courseForPdf}` : ''}`,
         {
           method: 'GET',
           headers: {
@@ -1339,14 +1347,36 @@ export const Attendance = () => {
                     </select>
                   </div>
                   
+                  {isAnosFinaisOrEja && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Componente Curricular <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={reportCourseId}
+                        onChange={(e) => {
+                          setReportCourseId(e.target.value);
+                          setClassReport(null);
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg ${!reportCourseId ? 'border-orange-300' : 'border-gray-300'}`}
+                        data-testid="report-course-select"
+                      >
+                        <option value="">Selecione o componente</option>
+                        {courses.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  
                   <div className="flex items-end gap-2">
-                    <Button onClick={loadClassReport} disabled={!selectedClass}>
+                    <Button onClick={() => loadClassReport()} disabled={!selectedClass || (isAnosFinaisOrEja && !reportCourseId)}>
                       <FileText size={18} className="mr-2" />
                       Ver na Tela
                     </Button>
                     <Button 
                       onClick={generateBimestrePdf} 
-                      disabled={!selectedClass}
+                      disabled={!selectedClass || (isAnosFinaisOrEja && !reportCourseId)}
                       variant="outline"
                       className="border-green-500 text-green-600 hover:bg-green-50"
                     >
@@ -1365,6 +1395,11 @@ export const Attendance = () => {
                     <div className="p-4 bg-gray-50 border-b">
                       <h3 className="font-semibold">{classReport.class?.name}</h3>
                       <p className="text-sm text-gray-500">
+                        {classReport.course_id && reportCourseId && (
+                          <span className="font-medium text-blue-600">
+                            {courses.find(c => c.id === reportCourseId)?.name || 'Componente'} • 
+                          </span>
+                        )}
                         {classReport.total_school_days_recorded} dias com frequência registrada • 
                         {classReport.total_students} alunos
                       </p>
