@@ -483,7 +483,16 @@ async def track_active_sessions(request: Request, call_next):
                 pass
     return response
 
-# CORS middleware
+# Global exception handler para garantir CORS em erros 500
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Erro interno do servidor"}
+    )
+
+# CORS middleware (deve ser o último middleware adicionado)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

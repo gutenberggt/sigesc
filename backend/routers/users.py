@@ -26,7 +26,7 @@ def setup_router(db, audit_service, sandbox_db=None):
             return sandbox_db
         return db
 
-    @router.get("", response_model=List[UserResponse])
+    @router.get("")
     async def list_users(request: Request, skip: int = 0, limit: int = 1000):
         """Lista usuários (admin, secretario e semed)"""
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'semed', 'semed3'])(request)
@@ -40,7 +40,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         return users
 
-    @router.get("/{user_id}", response_model=UserResponse)
+    @router.get("/{user_id}")
     async def get_user(user_id: str, request: Request):
         """Busca usuário por ID"""
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'diretor', 'semed', 'semed3'])(request)
@@ -55,9 +55,9 @@ def setup_router(db, audit_service, sandbox_db=None):
             )
         
         user_doc.pop('password_hash', None)
-        return UserResponse(**user_doc)
+        return user_doc
 
-    @router.put("/{user_id}", response_model=UserResponse)
+    @router.put("/{user_id}")
     async def update_user(user_id: str, user_update: UserUpdate, request: Request):
         """Atualiza usuário"""
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario'])(request)
@@ -94,7 +94,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         updated_user = await current_db.users.find_one({"id": user_id}, {"_id": 0})
         updated_user.pop('password_hash', None)
         
-        return UserResponse(**updated_user)
+        return updated_user
 
     @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_user(user_id: str, request: Request):
