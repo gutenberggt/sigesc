@@ -92,6 +92,11 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Aba Relatórios da Frequência: seletor de componente curricular obrigatório para EJA/Anos Finais, com dados filtrados por componente (01/04/2026)
   - Backend: endpoint /report/class/{id} aceita course_id e bimestre como filtros opcionais
   - Frontend: campo de componente aparece apenas para turmas Anos Finais/EJA; botões desabilitados sem seleção
+- Correção de Relatório PDF de Frequência para EJA/Anos Finais (01/04/2026):
+  - attendance_ext.py: adicionado filtro course_id na query de frequência → PDF agora exibe apenas registros do componente selecionado
+  - attendance_ext.py: corrigida busca do professor via teacher_assignments com filtro course_id → nome correto no PDF
+  - attendance.py: adicionado filtro por bimestre (datas do calendário) ao endpoint /report/class/{id} → "Ver na Tela" mostra dados do bimestre selecionado
+  - Frontend: loadClassReport agora envia selectedBimestre para a API
 
 ## Papéis SEMED (Reestruturado em 27/03/2026)
 - **SEMED** (base): Visualização de módulos acadêmicos + Acompanhamento de Diários
