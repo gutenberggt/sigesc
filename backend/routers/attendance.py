@@ -507,10 +507,38 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 {"_id": 0, "id": 1, "full_name": 1}
             ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
         
+        # Filtrar por bimestre (datas) se informado
+        period_start = None
+        period_end = None
+        if bimestre:
+            calendario = await current_db.calendario_letivo.find_one(
+                {"ano_letivo": academic_year, "school_id": None}, {"_id": 0}
+            )
+            if not calendario:
+                calendario = await current_db.calendario_letivo.find_one(
+                    {"ano_letivo": academic_year}, {"_id": 0}
+                )
+            if calendario:
+                bim_inicio = calendario.get(f"bimestre_{bimestre}_inicio")
+                bim_fim = calendario.get(f"bimestre_{bimestre}_fim")
+                if bim_inicio and bim_fim:
+                    period_start = str(bim_inicio)[:10]
+                    period_end = str(bim_fim)[:10]
+            if not period_start:
+                bimestre_periodos = {
+                    1: (f"{academic_year}-02-01", f"{academic_year}-04-30"),
+                    2: (f"{academic_year}-05-01", f"{academic_year}-07-15"),
+                    3: (f"{academic_year}-07-16", f"{academic_year}-09-30"),
+                    4: (f"{academic_year}-10-01", f"{academic_year}-12-20"),
+                }
+                period_start, period_end = bimestre_periodos.get(bimestre, (None, None))
+
         # Busca todos os registros de frequência da turma
         att_query = {"class_id": class_id, "academic_year": academic_year}
         if course_id:
             att_query["course_id"] = course_id
+        if period_start and period_end:
+            att_query["date"] = {"$gte": period_start, "$lte": period_end}
         attendances = await current_db.attendance.find(
             att_query,
             {"_id": 0}

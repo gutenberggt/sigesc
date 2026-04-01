@@ -481,9 +481,10 @@ export const attendanceAPI = {
     return response.data;
   },
   
-  getClassReport: async (classId, academicYear, courseId = null) => {
+  getClassReport: async (classId, academicYear, courseId = null, bimestre = null) => {
     let url = `${API}/attendance/report/class/${classId}?academic_year=${academicYear}`;
     if (courseId) url += `&course_id=${courseId}`;
+    if (bimestre) url += `&bimestre=${bimestre}`;
     const response = await axios.get(url);
     return response.data;
   },

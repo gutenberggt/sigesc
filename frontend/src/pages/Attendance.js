@@ -659,7 +659,7 @@ export const Attendance = () => {
     setLoading(true);
     try {
       const cid = courseIdOverride !== undefined ? courseIdOverride : reportCourseId;
-      const data = await attendanceAPI.getClassReport(selectedClass, academicYear, cid || null);
+      const data = await attendanceAPI.getClassReport(selectedClass, academicYear, cid || null, selectedBimestre);
       setClassReport(data);
     } catch (error) {
       console.error('Erro ao carregar relatório:', error);

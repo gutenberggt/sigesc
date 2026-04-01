@@ -323,13 +323,16 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1}
             ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
 
-        # Busca frequências do período do bimestre
+        # Busca frequências do período do bimestre (filtrando por course_id se informado)
+        att_query = {
+            "class_id": class_id,
+            "academic_year": academic_year,
+            "date": {"$gte": period_start, "$lte": period_end}
+        }
+        if course_id:
+            att_query["course_id"] = course_id
         attendances = await db.attendance.find(
-            {
-                "class_id": class_id,
-                "academic_year": academic_year,
-                "date": {"$gte": period_start, "$lte": period_end}
-            },
+            att_query,
             {"_id": 0}
         ).sort("date", 1).to_list(1000)
 
@@ -353,10 +356,13 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 'attendance_by_date': attendance_by_date
             })
 
-        # Buscar professor responsável (opcional)
+        # Buscar professor responsável pelo componente (ou turma, se não houver componente)
         teacher_name = ""
+        teacher_query = {"class_id": class_id, "academic_year": academic_year}
+        if course_id:
+            teacher_query["course_id"] = course_id
         teacher_assignment = await db.teacher_assignments.find_one(
-            {"class_id": class_id, "academic_year": academic_year},
+            teacher_query,
             {"_id": 0, "staff_id": 1}
         )
         if teacher_assignment:
