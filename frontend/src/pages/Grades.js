@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
-import { gradesAPI, schoolsAPI, classesAPI, coursesAPI, studentsAPI, professorAPI } from '@/services/api';
+import { gradesAPI, schoolsAPI, classesAPI, coursesAPI, studentsAPI, professorAPI, teacherAssignmentAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
 import { BimestreBlockedAlert, BimestreDeadlineAlert, BimestreFieldIndicator } from '@/components/BimestreStatus';
@@ -252,6 +252,7 @@ export function Grades() {
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSeries, setSelectedSeries] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
+  const [classCourseIds, setClassCourseIds] = useState(null); // null = não carregou, [] = sem alocações
   
   // Filtros - Por Aluno
   const [searchName, setSearchName] = useState('');
@@ -501,10 +502,44 @@ export function Grades() {
     ? professorTurmas.filter(t => t.school_id === selectedSchool)
     : classes.filter(c => c.school_id === selectedSchool);
   
+  // Carregar componentes vinculados à turma via teacher_assignments (para não-professores)
+  useEffect(() => {
+    const loadClassAssignments = async () => {
+      if (isProfessor || !selectedClass) {
+        setClassCourseIds(null);
+        return;
+      }
+      try {
+        const assignments = await teacherAssignmentAPI.list({
+          class_id: selectedClass,
+          academic_year: academicYear
+        });
+        if (assignments && assignments.length > 0) {
+          const ids = [...new Set(assignments.map(a => a.course_id).filter(Boolean))];
+          setClassCourseIds(ids);
+        } else {
+          setClassCourseIds([]);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar alocações:', error);
+        setClassCourseIds([]);
+      }
+    };
+    loadClassAssignments();
+  }, [selectedClass, isProfessor, academicYear]);
+
   // Filtra componentes curriculares (só quando turma selecionada)
   const filteredCourses = isProfessor
     ? (selectedClassData?.componentes || [])
-    : !selectedClassData ? [] : courses.filter(course => {
+    : !selectedClassData ? [] : (() => {
+        // Se há alocações de professor, usar apenas os componentes alocados
+        if (classCourseIds && classCourseIds.length > 0) {
+          return courses
+            .filter(c => classCourseIds.includes(c.id))
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        }
+        // Fallback: filtrar por nível/atendimento (comportamento anterior)
+        return courses.filter(course => {
         // Se o componente é global (sem school_id) ou é da mesma escola
         const matchesSchool = !course.school_id || course.school_id === selectedSchool;
         if (!matchesSchool) return false;
@@ -549,6 +584,7 @@ export function Grades() {
         }
         return (a.name || '').localeCompare(b.name || '');
       });
+      })();
   
   // Sugestões de busca
   const nameSuggestions = searchName.length >= 3 

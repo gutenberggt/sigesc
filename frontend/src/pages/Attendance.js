@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert } from '@/components/ui/alert';
 import { Modal } from '@/components/Modal';
-import { schoolsAPI, classesAPI, coursesAPI, attendanceAPI, professorAPI, calendarAPI, medicalCertificatesAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, coursesAPI, attendanceAPI, professorAPI, calendarAPI, medicalCertificatesAPI, teacherAssignmentAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
@@ -332,14 +332,27 @@ export const Attendance = () => {
           setCourses([]);
         }
       } else {
-        const data = await coursesAPI.getAll();
-        // Filtra por nível de ensino da turma
-        const turma = classes.find(c => c.id === selectedClass);
-        if (turma) {
-          const filtered = data.filter(c => 
-            !c.nivel_ensino || c.nivel_ensino === turma.education_level
-          );
-          setCourses(filtered);
+        // Para não-professores, buscar componentes via teacher_assignments da turma
+        const assignments = await teacherAssignmentAPI.list({
+          class_id: selectedClass,
+          academic_year: academicYear
+        });
+
+        if (assignments && assignments.length > 0) {
+          const courseIds = [...new Set(assignments.map(a => a.course_id).filter(Boolean))];
+          const allCourses = await coursesAPI.getAll();
+          const filtered = allCourses.filter(c => courseIds.includes(c.id));
+          setCourses(filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        } else {
+          // Fallback: filtrar por nível de ensino
+          const data = await coursesAPI.getAll();
+          const turma = classes.find(c => c.id === selectedClass);
+          if (turma) {
+            const filtered = data.filter(c => 
+              !c.nivel_ensino || c.nivel_ensino === turma.education_level
+            );
+            setCourses(filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+          }
         }
       }
     } catch (error) {
