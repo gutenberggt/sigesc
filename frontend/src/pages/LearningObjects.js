@@ -23,7 +23,7 @@ import {
   Lock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI } from '@/services/api';
+import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI, teacherAssignmentAPI } from '@/services/api';
 
 
 // Infere o nível de ensino da turma a partir de education_level, nivel_ensino, grade_level ou name
@@ -307,62 +307,61 @@ export const LearningObjects = () => {
       }
       
       try {
-        // Buscar a turma para saber o nível de ensino
+        // Buscar alocações de professor da turma para saber quais componentes estão vinculados
         const classInfo = classes.find(c => c.id === selectedClass);
         if (!classInfo) return;
-        
-        const turmaLevel = inferEducationLevel(classInfo);
-        const turmaGradeLevel = classInfo.grade_level;
-        const turmaAtendimento = (classInfo.atendimento_programa || '').toLowerCase();
-        
-        // Buscar componentes do nível de ensino da turma
-        const allCourses = await coursesAPI.getAll(turmaLevel || null);
-        
-        // Filtrar por atendimento_programa (regular, integral, AEE)
-        let filtered = allCourses.filter(c => {
-          const courseAtendimento = (c.atendimento_programa || c.atendimento || '').toLowerCase();
-          if (turmaAtendimento === 'atendimento_integral') {
-            // Turma integral: aceita regulares + integrais (exclui AEE e outros)
-            return !courseAtendimento || courseAtendimento === 'atendimento_integral';
-          } else if (turmaAtendimento) {
-            // Turma com outro programa (AEE etc): só componentes do mesmo programa
-            return courseAtendimento === turmaAtendimento;
-          } else {
-            // Turma regular: só componentes regulares (sem programa)
-            return !courseAtendimento;
-          }
+
+        const assignments = await teacherAssignmentAPI.list({
+          class_id: selectedClass,
+          academic_year: academicYear
         });
-        
-        // Ordenar: regulares primeiro, depois integrais
-        if (turmaAtendimento === 'atendimento_integral') {
-          filtered.sort((a, b) => {
-            const aAtend = (a.atendimento_programa || a.atendimento || '').toLowerCase();
-            const bAtend = (b.atendimento_programa || b.atendimento || '').toLowerCase();
-            if (!aAtend && bAtend) return -1;
-            if (aAtend && !bAtend) return 1;
-            return (a.name || '').localeCompare(b.name || '');
+
+        if (assignments && assignments.length > 0) {
+          // Extrair course_ids únicos das alocações
+          const courseIds = [...new Set(assignments.map(a => a.course_id).filter(Boolean))];
+          
+          // Buscar dados completos dos componentes alocados
+          const allCourses = await coursesAPI.getAll();
+          const filtered = allCourses.filter(c => courseIds.includes(c.id));
+          
+          setCourses(filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        } else {
+          // Fallback: se não há alocações, buscar por nível de ensino (comportamento anterior)
+          const turmaLevel = inferEducationLevel(classInfo);
+          const turmaGradeLevel = classInfo.grade_level;
+          const turmaAtendimento = (classInfo.atendimento_programa || '').toLowerCase();
+          
+          const allCourses = await coursesAPI.getAll(turmaLevel || null);
+          
+          let filtered = allCourses.filter(c => {
+            const courseAtendimento = (c.atendimento_programa || c.atendimento || '').toLowerCase();
+            if (turmaAtendimento === 'atendimento_integral') {
+              return !courseAtendimento || courseAtendimento === 'atendimento_integral';
+            } else if (turmaAtendimento) {
+              return courseAtendimento === turmaAtendimento;
+            } else {
+              return !courseAtendimento;
+            }
           });
-        }
-        
-        // Filtrar por grade_level da turma (se o componente tiver grade_levels definido)
-        if (turmaGradeLevel) {
-          const gradeFiltered = filtered.filter(c => 
-            !c.grade_levels || c.grade_levels.length === 0 || c.grade_levels.includes(turmaGradeLevel)
-          );
-          if (gradeFiltered.length > 0) {
-            filtered = gradeFiltered;
+          
+          if (turmaGradeLevel) {
+            const gradeFiltered = filtered.filter(c => 
+              !c.grade_levels || c.grade_levels.length === 0 || c.grade_levels.includes(turmaGradeLevel)
+            );
+            if (gradeFiltered.length > 0) {
+              filtered = gradeFiltered;
+            }
           }
+          
+          if (filtered.length === 0 && allCourses.length > 0) {
+            filtered = allCourses;
+          } else if (filtered.length === 0) {
+            const fallbackCourses = await coursesAPI.getAll();
+            filtered = fallbackCourses;
+          }
+          
+          setCourses(filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
         }
-        
-        // Se não encontrou nenhum, fallback para todos do nível
-        if (filtered.length === 0 && allCourses.length > 0) {
-          filtered = allCourses;
-        } else if (filtered.length === 0) {
-          const fallbackCourses = await coursesAPI.getAll();
-          filtered = fallbackCourses;
-        }
-        
-        setCourses(filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
         
         setSelectedCourse('');
         setSelectedCourses([]);
@@ -373,7 +372,7 @@ export const LearningObjects = () => {
     };
     
     loadClassCourses();
-  }, [selectedClass, classes, isProfessor]);
+  }, [selectedClass, classes, isProfessor, academicYear]);
 
   // Gera os dias do mês
   const calendarDays = useMemo(() => {
