@@ -649,6 +649,21 @@ export const Attendance = () => {
       return;
     }
     
+    // Verificar se é EJA ou Anos Finais — componente obrigatório
+    const classInfo = classes.find(c => c.id === selectedClass) || professorTurmas.find(t => t.id === selectedClass);
+    if (classInfo) {
+      const level = inferEducationLevel(classInfo);
+      const grade = classInfo.grade_level || '';
+      const name = (classInfo.name || '').toUpperCase();
+      const needsCourse = level === 'eja' || 
+        ((level === 'fundamental' || level === 'fundamental_anos_finais') && 
+         (['6','7','8','9'].includes(grade) || name.match(/6|7|8|9|ANOS?\s*FINAIS/i)));
+      if (needsCourse && !selectedCourse) {
+        showAlertMessage('error', 'Para EJA e Anos Finais, selecione um componente curricular antes de gerar o PDF.');
+        return;
+      }
+    }
+    
     setLoading(true);
     try {
       const token = localStorage.getItem('accessToken');

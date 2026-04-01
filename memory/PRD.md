@@ -85,6 +85,9 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Validação de email no formulário de Usuários: impede salvamento de emails sem formato válido (nome@email.com) com feedback visual em tempo real (01/04/2026)
 - Removida validação estrita (response_model) do endpoint /api/users para evitar erro 500 por dados inconsistentes no banco (01/04/2026)
 - Adicionado handler global de exceções para garantir CORS em respostas 500 (01/04/2026)
+- Filtro de componentes em Objetos de Conhecimento: agora busca teacher_assignments da turma para exibir apenas componentes vinculados (01/04/2026)
+- PDF por componente para EJA e Anos Finais: modal de PDF exige seleção de componente curricular, gerando PDF individual por disciplina (01/04/2026)
+- PDF de Frequência para EJA e Anos Finais: validação obrigatória de componente antes de gerar PDF (01/04/2026)
 
 ## Papéis SEMED (Reestruturado em 27/03/2026)
 - **SEMED** (base): Visualização de módulos acadêmicos + Acompanhamento de Diários

@@ -87,6 +87,7 @@ export const LearningObjects = () => {
   // PDF
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [pdfBimestre, setPdfBimestre] = useState(1);
+  const [pdfCourseId, setPdfCourseId] = useState('');
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
   // Fechar dropdown de campos de experiência ao clicar fora
@@ -109,6 +110,21 @@ export const LearningObjects = () => {
     getBimestreInfo 
   } = useBimestreEditStatus(academicYear);
   
+  // Verificar se a turma requer seleção de componente para PDF (EJA e Fundamental Anos Finais)
+  const selectedClassInfo = classes.find(c => c.id === selectedClass);
+  const isAnosFinaisOrEja = (() => {
+    if (!selectedClassInfo) return false;
+    const level = inferEducationLevel(selectedClassInfo);
+    const name = (selectedClassInfo.name || '').toUpperCase();
+    if (level === 'eja') return true;
+    if (level === 'fundamental' || level === 'fundamental_anos_finais') {
+      const grade = selectedClassInfo.grade_level || '';
+      if (['6', '7', '8', '9'].includes(grade)) return true;
+      if (name.match(/6|7|8|9|ANOS?\s*FINAIS/i)) return true;
+    }
+    return false;
+  })();
+
   // Estados de dados
   const [schools, setSchools] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -593,6 +609,10 @@ export const LearningObjects = () => {
       showAlert('error', 'Selecione uma turma antes de gerar o PDF.');
       return;
     }
+    if (isAnosFinaisOrEja && !pdfCourseId) {
+      showAlert('error', 'Para EJA e Anos Finais, selecione um componente curricular.');
+      return;
+    }
     setGeneratingPdf(true);
     try {
       const API = process.env.REACT_APP_BACKEND_URL;
@@ -601,6 +621,9 @@ export const LearningObjects = () => {
         bimestre: pdfBimestre,
         academic_year: academicYear
       });
+      if (pdfCourseId) {
+        params.append('course_id', pdfCourseId);
+      }
       const response = await fetch(
         `${API}/api/learning-objects/pdf/bimestre/${selectedClass}?${params}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -1078,7 +1101,7 @@ export const LearningObjects = () => {
       {/* Modal de seleção de bimestre para PDF */}
       {showPdfModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowPdfModal(false)}>
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">Gerar PDF - Objetos de Conhecimento</h3>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Selecione o Bimestre</label>
@@ -1099,11 +1122,32 @@ export const LearningObjects = () => {
                 ))}
               </div>
             </div>
+            {isAnosFinaisOrEja && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Componente Curricular <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={pdfCourseId}
+                  onChange={(e) => setPdfCourseId(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 ${!pdfCourseId ? 'border-orange-300' : 'border-gray-300'}`}
+                  data-testid="pdf-course-select"
+                >
+                  <option value="">Selecione o componente</option>
+                  {courses.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Para EJA e Anos Finais, cada componente gera um PDF separado.
+                </p>
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowPdfModal(false)}>Cancelar</Button>
               <Button
                 onClick={handleGeneratePdf}
-                disabled={generatingPdf}
+                disabled={generatingPdf || (isAnosFinaisOrEja && !pdfCourseId)}
                 className="bg-purple-600 text-white hover:bg-purple-700"
                 data-testid="btn-confirmar-pdf-lo"
               >

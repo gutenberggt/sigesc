@@ -289,10 +289,13 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 course_names[cid] = course.get('name', '') if course else ''
             r['course_name'] = course_names.get(cid, '')
 
-        # Buscar professor
+        # Buscar professor (se course_id, buscar professor específico do componente)
         teacher_name = ""
+        ta_query = {"class_id": class_id, "academic_year": academic_year}
+        if course_id:
+            ta_query["course_id"] = course_id
         teacher_assignment = await db.teacher_assignments.find_one(
-            {"class_id": class_id, "academic_year": academic_year},
+            ta_query,
             {"_id": 0, "staff_id": 1}
         )
         if teacher_assignment:
@@ -316,7 +319,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 mantenedora=mantenedora
             )
 
-            filename = f"objetos_conhecimento_{turma.get('name', 'turma')}_{bimestre}bim_{academic_year}.pdf"
+            course_name_part = ""
+            if course_id and records:
+                course_name_part = f"_{records[0].get('course_name', '')}"
+            filename = f"objetos_conhecimento_{turma.get('name', 'turma')}{course_name_part}_{bimestre}bim_{academic_year}.pdf"
             filename = filename.replace(' ', '_').replace('/', '-')
 
             return StreamingResponse(
