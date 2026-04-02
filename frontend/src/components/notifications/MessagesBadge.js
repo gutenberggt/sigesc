@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, ChevronRight } from 'lucide-react';
+import { MessageCircle, X, ChevronRight, Minus, Maximize2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { notificationsAPI, connectionsAPI, getWebSocketUrl } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +10,7 @@ export const MessagesBadge = () => {
   const { openChat } = useMessaging();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -122,17 +123,41 @@ export const MessagesBadge = () => {
       </button>
 
       {/* Dropdown */}
-      {isOpen && (
+      {isOpen && minimized && (
+        <div
+          className="absolute right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-50 cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => setMinimized(false)}
+          title="Expandir mensagens"
+          data-testid="messages-minimized"
+        >
+          <div className="p-3 flex items-center justify-center">
+            <Maximize2 size={18} className="text-blue-600" />
+          </div>
+        </div>
+      )}
+
+      {isOpen && !minimized && (
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">Mensagens</h3>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="p-1 rounded hover:bg-gray-200 transition-colors"
-            >
-              <X size={16} className="text-gray-500" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setMinimized(true)}
+                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                title="Minimizar"
+                data-testid="messages-minimize-btn"
+              >
+                <Minus size={16} className="text-gray-500" />
+              </button>
+              <button
+                onClick={() => { setIsOpen(false); setMinimized(false); }}
+                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                title="Fechar"
+              >
+                <X size={16} className="text-gray-500" />
+              </button>
+            </div>
           </div>
 
           {/* Lista de conversas */}
