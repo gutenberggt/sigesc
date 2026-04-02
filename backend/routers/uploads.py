@@ -6,11 +6,24 @@ Extraído automaticamente de server.py.
 from fastapi import APIRouter, HTTPException, status, Request, UploadFile, File
 from fastapi.responses import FileResponse
 from typing import Optional
+from pathlib import Path
 import uuid
 import os
+import logging
 
 from models import *
 from auth_middleware import AuthMiddleware
+from ftp_upload import upload_to_ftp
+
+logger = logging.getLogger(__name__)
+
+# Constantes
+ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.webp'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+UPLOADS_DIR = Path("/app/backend/uploads")
+UPLOADS_DIR.mkdir(exist_ok=True)
+CERTIFICADOS_DIR = UPLOADS_DIR / "certificados"
+CERTIFICADOS_DIR.mkdir(exist_ok=True)
 
 
 router = APIRouter(tags=["Uploads"])
