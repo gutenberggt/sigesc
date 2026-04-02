@@ -43,8 +43,8 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
     
     def get_db_for_user(user: dict):
         """Retorna o banco correto baseado no usuário"""
-        if False:  # Sandbox desabilitado
-            return sandbox_db
+        if user.get('is_sandbox'):
+            return sandbox_db if sandbox_db else db
         return db
 
     @router.get("/settings/{academic_year}")
