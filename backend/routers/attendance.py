@@ -374,7 +374,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
     @router.delete("/{attendance_id}")
     async def delete_attendance(attendance_id: str, request: Request):
         """Remove registro de frequência"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor'])(request)
         current_db = get_db_for_user(current_user)
         
         existing = await current_db.attendance.find_one({"id": attendance_id})
