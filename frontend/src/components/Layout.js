@@ -5,10 +5,13 @@ import { useState } from 'react';
 import { NotificationBell, MessagesBadge } from '@/components/notifications';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { ConnectionStatusBadge, OfflineBanner, FloatingStatusIndicator } from '@/components/OfflineStatus';
+import { useMessaging } from '@/contexts/MessagingContext';
+import { ChatBox } from '@/components/messaging';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
   const { mantenedora } = useMantenedora();
+  const { activeChat, closeChat } = useMessaging();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -157,6 +160,14 @@ export const Layout = ({ children }) => {
       
       {/* Indicador flutuante de status */}
       <FloatingStatusIndicator />
+
+      {/* Chat Box Global */}
+      {activeChat && (
+        <ChatBox
+          connection={activeChat}
+          onClose={closeChat}
+        />
+      )}
     </div>
   );
 };

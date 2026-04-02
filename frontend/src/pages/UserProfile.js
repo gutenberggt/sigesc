@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/Modal';
 import { useAuth } from '@/contexts/AuthContext';
 import { profilesAPI, uploadAPI, connectionsAPI } from '@/services/api';
-import { ConnectionsList, ChatBox } from '@/components/messaging';
+import { useMessaging } from '@/contexts/MessagingContext';
+import { ConnectionsList } from '@/components/messaging';
 import { 
   Home, User, Edit, Plus, Trash2, MapPin, Phone, Mail, Globe, Linkedin,
   Briefcase, GraduationCap, Award, Star, Camera, Lock, Unlock, Save, X,
@@ -90,7 +91,7 @@ export const UserProfile = () => {
   // Estados para conexões e chat
   const [connectionStatus, setConnectionStatus] = useState(null);
   const [loadingConnection, setLoadingConnection] = useState(false);
-  const [activeChat, setActiveChat] = useState(null);
+  const { openChat } = useMessaging();
   const [selectedConnection, setSelectedConnection] = useState(null);
   
   // Verificar permissões
@@ -266,11 +267,11 @@ export const UserProfile = () => {
   };
 
   const handleOpenChat = (connection) => {
-    setActiveChat(connection);
+    openChat(connection);
   };
 
   const handleCloseChat = () => {
-    setActiveChat(null);
+    // Chat agora é gerenciado pelo contexto global
   };
 
   const handleSelectConnection = (connection) => {
@@ -690,16 +691,29 @@ export const UserProfile = () => {
                   {connectionStatus.is_requester ? 'Convite Enviado' : 'Convite Recebido'}
                 </Button>
               )}
-              {connectionStatus.status === 'accepted' && (
+              {(connectionStatus.status === 'accepted' || connectionStatus.status === 'admin_direct') && (
                 <Button 
-                  onClick={() => handleOpenChat({
-                    id: connectionStatus.connection_id,
-                    user_id: userId,
-                    full_name: profile.user?.full_name,
-                    foto_url: profile.foto_url,
-                    headline: profile.headline
-                  })}
+                  onClick={async () => {
+                    if (connectionStatus.status === 'admin_direct') {
+                      // Criar conexão direta e abrir chat
+                      try {
+                        const conn = await connectionsAPI.createDirect(userId);
+                        handleOpenChat(conn);
+                      } catch (err) {
+                        console.error('Erro ao criar conexão direta:', err);
+                      }
+                    } else {
+                      handleOpenChat({
+                        id: connectionStatus.connection_id,
+                        user_id: userId,
+                        full_name: profile.user?.full_name,
+                        foto_url: profile.foto_url,
+                        headline: profile.headline
+                      });
+                    }
+                  }}
                   className="bg-blue-600 hover:bg-blue-700"
+                  data-testid="btn-mensagem-direta"
                 >
                   <MessageCircle size={16} className="mr-1" />
                   Mensagem
@@ -1154,14 +1168,6 @@ export const UserProfile = () => {
             </div>
           )}
         </div>
-
-        {/* Chat Box */}
-        {activeChat && (
-          <ChatBox
-            connection={activeChat}
-            onClose={handleCloseChat}
-          />
-        )}
 
         {/* Modal - Editar Perfil */}
         <Modal

@@ -272,25 +272,95 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             ]
         }, {"_id": 0})
 
-        if not connection:
-            return {"status": "none", "connection_id": None}
+        if connection:
+            is_requester = connection['requester_id'] == current_user['id']
+            return {
+                "status": connection['status'],
+                "connection_id": connection['id'],
+                "is_requester": is_requester
+            }
 
-        # Verificar se o convite foi enviado por mim ou recebido
-        is_requester = connection['requester_id'] == current_user['id']
+        # Se admin está envolvido, permitir mensagem direta (status virtual)
+        current_is_admin = current_user.get('role') in ('admin', 'admin_teste')
+        other_is_admin = await _is_admin(user_id)
+        if current_is_admin or other_is_admin:
+            return {"status": "admin_direct", "connection_id": None, "is_requester": False}
 
-        return {
-            "status": connection['status'],
-            "connection_id": connection['id'],
-            "is_requester": is_requester
+        return {"status": "none", "connection_id": None}
+
+
+    async def _is_admin(user_id: str) -> bool:
+        """Verifica se um usuário é administrador"""
+        u = await db.users.find_one({"id": user_id}, {"_id": 0, "role": 1})
+        return u.get('role') in ('admin', 'admin_teste') if u else False
+
+    async def _ensure_connection(user_a_id: str, user_b_id: str):
+        """Garante que existe uma conexão aceita entre dois usuários. Cria se não existir."""
+        connection = await db.connections.find_one({
+            "$or": [
+                {"requester_id": user_a_id, "receiver_id": user_b_id},
+                {"requester_id": user_b_id, "receiver_id": user_a_id}
+            ]
+        })
+        if connection:
+            if connection['status'] != 'accepted':
+                await db.connections.update_one(
+                    {"id": connection['id']},
+                    {"$set": {"status": "accepted", "accepted_at": datetime.now(timezone.utc).isoformat()}}
+                )
+                connection['status'] = 'accepted'
+            return connection
+        # Criar nova conexão aceita
+        new_conn = {
+            "id": str(uuid.uuid4()),
+            "requester_id": user_a_id,
+            "receiver_id": user_b_id,
+            "status": "accepted",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "accepted_at": datetime.now(timezone.utc).isoformat()
         }
+        await db.connections.insert_one(new_conn)
+        return new_conn
 
+    @router.post("/connections/direct/{user_id}")
+    async def create_direct_connection(user_id: str, request: Request):
+        """Cria conexão direta com um usuário (admin pode com qualquer um, qualquer um pode com admin)"""
+        current_user = await AuthMiddleware.get_current_user(request)
+        if current_user['id'] == user_id:
+            raise HTTPException(status_code=400, detail="Não pode conectar consigo mesmo")
+        
+        sender_is_admin = current_user.get('role') in ('admin', 'admin_teste')
+        receiver_is_admin = await _is_admin(user_id)
+        
+        if not sender_is_admin and not receiver_is_admin:
+            raise HTTPException(status_code=403, detail="Conexão direta disponível apenas com administradores")
+        
+        # Buscar dados do outro usuário
+        other_user = await db.users.find_one({"id": user_id}, {"_id": 0})
+        if not other_user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        
+        connection = await _ensure_connection(current_user['id'], user_id)
+        other_profile = await db.user_profiles.find_one({"user_id": user_id}, {"_id": 0})
+        
+        return {
+            "id": connection['id'],
+            "user_id": user_id,
+            "full_name": other_user.get('full_name', ''),
+            "foto_url": other_profile.get('foto_url') if other_profile else None,
+            "headline": other_profile.get('headline', '') if other_profile else '',
+            "status": "accepted"
+        }
 
     @router.post("/messages")
     async def send_message(data: MessageCreate, request: Request):
-        """Envia uma mensagem para um usuário conectado"""
+        """Envia uma mensagem para um usuário conectado (admin pode enviar para qualquer um)"""
         current_user = await AuthMiddleware.get_current_user(request)
         sender_id = current_user['id']
         receiver_id = data.receiver_id
+
+        sender_is_admin = current_user.get('role') in ('admin', 'admin_teste')
+        receiver_is_admin = await _is_admin(receiver_id)
 
         # Verificar se estão conectados
         connection = await db.connections.find_one({
@@ -301,7 +371,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         })
 
         if not connection:
-            raise HTTPException(status_code=403, detail="Vocês não estão conectados")
+            # Se admin está envolvido, criar conexão automaticamente
+            if sender_is_admin or receiver_is_admin:
+                connection = await _ensure_connection(sender_id, receiver_id)
+            else:
+                raise HTTPException(status_code=403, detail="Vocês não estão conectados")
 
         # Validar que tem conteúdo ou anexo
         if not data.content and not data.attachments:

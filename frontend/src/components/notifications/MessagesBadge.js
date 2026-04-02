@@ -3,9 +3,11 @@ import { MessageCircle, X, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { notificationsAPI, connectionsAPI, getWebSocketUrl } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMessaging } from '@/contexts/MessagingContext';
 
 export const MessagesBadge = () => {
   const { user } = useAuth();
+  const { openChat } = useMessaging();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -146,8 +148,16 @@ export const MessagesBadge = () => {
                 <div
                   key={conv.id}
                   className="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
+                  data-testid={`conversation-item-${conv.user_id}`}
                   onClick={() => {
-                    navigate(`/profile?chat=${conv.user_id}`);
+                    // Open ChatBox directly using global context (no navigation)
+                    openChat({
+                      id: conv.id,
+                      user_id: conv.user_id,
+                      full_name: conv.full_name,
+                      foto_url: conv.foto_url,
+                      headline: conv.headline
+                    });
                     setIsOpen(false);
                   }}
                 >

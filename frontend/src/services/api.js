@@ -771,6 +771,12 @@ export const connectionsAPI = {
   // Remover conexão
   remove: async (connectionId) => {
     await axios.delete(`${API}/connections/${connectionId}`);
+  },
+
+  // Criar conexão direta (admin <-> qualquer usuário)
+  createDirect: async (userId) => {
+    const response = await axios.post(`${API}/connections/direct/${userId}`);
+    return response.data;
   }
 };
 
