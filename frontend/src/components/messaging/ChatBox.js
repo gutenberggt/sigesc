@@ -11,6 +11,7 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [pendingImage, setPendingImage] = useState(null); // {file, preview}
   const [showMenu, setShowMenu] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [unreadWhileMinimized, setUnreadWhileMinimized] = useState(0);
@@ -216,12 +217,32 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
   }, []);
 
   const handleSend = async () => {
-    if (!newMessage.trim()) return;
+    const hasText = newMessage.trim().length > 0;
+    const hasImage = !!pendingImage;
+    if (!hasText && !hasImage) return;
 
     setSending(true);
     try {
-      const message = await messagesAPI.send(connection.user_id, newMessage.trim());
-      // Verificar se a mensagem já existe para evitar duplicatas
+      let attachments = [];
+
+      if (pendingImage) {
+        setUploading(true);
+        const uploadResult = await uploadAPI.upload(pendingImage.file, 'profile');
+        attachments.push({
+          type: 'image',
+          url: uploadResult.url,
+          filename: pendingImage.file.name || 'imagem.png',
+          size: pendingImage.file.size
+        });
+        removePendingImage();
+        setUploading(false);
+      }
+
+      const message = await messagesAPI.send(
+        connection.user_id,
+        newMessage.trim(),
+        attachments.length > 0 ? attachments : undefined
+      );
       setMessages(prev => {
         const exists = prev.some(m => m.id === message.id);
         if (exists) return prev;
@@ -232,6 +253,7 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
       console.error('Erro ao enviar mensagem:', error);
     } finally {
       setSending(false);
+      setUploading(false);
     }
   };
 
@@ -240,6 +262,28 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  // Colar imagem da área de transferência (print screen, etc.)
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          const preview = URL.createObjectURL(file);
+          setPendingImage({ file, preview });
+        }
+        return;
+      }
+    }
+  };
+
+  const removePendingImage = () => {
+    if (pendingImage?.preview) URL.revokeObjectURL(pendingImage.preview);
+    setPendingImage(null);
   };
 
   const handleFileUpload = async (e) => {
@@ -254,14 +298,21 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
       return;
     }
 
+    if (isImage) {
+      // Imagem: mostra preview para enviar junto com texto
+      const preview = URL.createObjectURL(file);
+      setPendingImage({ file, preview });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // PDF: envia imediatamente
     setUploading(true);
     try {
-      // Determina o tipo de arquivo para o upload (imagem vai para /user, documento para /doc)
-      const fileType = isImage ? 'profile' : 'document';
-      const uploadResult = await uploadAPI.upload(file, fileType);
+      const uploadResult = await uploadAPI.upload(file, 'document');
       
       const attachment = {
-        type: isImage ? 'image' : 'pdf',
+        type: 'pdf',
         url: uploadResult.url,
         filename: file.name,
         size: file.size
@@ -269,11 +320,10 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
 
       const message = await messagesAPI.send(
         connection.user_id,
-        isImage ? '' : `📎 ${file.name}`,
+        `${file.name}`,
         [attachment]
       );
       
-      // Verificar se a mensagem já existe para evitar duplicatas
       setMessages(prev => {
         const exists = prev.some(m => m.id === message.id);
         if (exists) return prev;
@@ -283,9 +333,7 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
       console.error('Erro ao enviar arquivo:', error);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -528,6 +576,23 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
 
       {/* Input */}
       <div className="p-3 border-t bg-white rounded-b-lg">
+        {/* Preview da imagem pendente */}
+        {pendingImage && (
+          <div className="mb-2 relative inline-block">
+            <img
+              src={pendingImage.preview}
+              alt="Preview"
+              className="max-h-24 rounded-lg border border-gray-200"
+            />
+            <button
+              onClick={removePendingImage}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+              title="Remover imagem"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
         <div className="flex items-end gap-2">
           <input
             type="file"
@@ -552,13 +617,14 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
+            onPaste={handlePaste}
             placeholder="Digite sua mensagem..."
             className="flex-1 resize-none border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 max-h-20"
             rows={1}
           />
           <Button
             onClick={handleSend}
-            disabled={!newMessage.trim() || sending}
+            disabled={(!newMessage.trim() && !pendingImage) || sending}
             size="sm"
             className="bg-blue-600 hover:bg-blue-700"
           >
