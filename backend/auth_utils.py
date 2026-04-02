@@ -1,4 +1,4 @@
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
@@ -21,21 +21,20 @@ if not SECRET_KEY:
 ALGORITHM = 'HS256'
 
 # PATCH 3.1: Configurações de expiração com valores seguros
-# Access token: curto (15 min padrão) - pode ser configurado via .env
-# Refresh token: longo (7 dias padrão) - pode ser configurado via .env
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES', 15))  # PATCH 3.1: Reduzido de 7 dias para 15 minutos
-REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get('REFRESH_TOKEN_EXPIRE_DAYS', 7))  # PATCH 3.1: Reduzido de 30 dias para 7 dias
-
-# Context para hash de senhas
-pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES', 15))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get('REFRESH_TOKEN_EXPIRE_DAYS', 7))
 
 def hash_password(password: str) -> str:
-    """Gera hash da senha"""
-    return pwd_context.hash(password)
+    """Gera hash da senha usando bcrypt diretamente"""
+    salt = _bcrypt.gensalt()
+    return _bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifica se a senha corresponde ao hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verifica se a senha corresponde ao hash usando bcrypt diretamente"""
+    try:
+        return _bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception:
+        return False
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """Cria token de acesso JWT - PATCH 3.1: TTL reduzido"""
