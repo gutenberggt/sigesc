@@ -102,6 +102,15 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - students.py: re.escape() na busca de alunos por nome/CPF (previne regex injection via campo de busca)
   - attendance.py, hr.py, maintenance.py: substituído except:pass por logger.error para auditoria
   - students.py: corrigido bug pré-existente student_doc → student na transferência externa
+- Mensageiro Global e Mensagens Diretas Admin (02/04/2026):
+  - Criado MessagingContext para gerenciar estado de chat globalmente
+  - ChatBox renderizado no Layout → funciona em qualquer página do sistema
+  - MessagesBadge abre chat direto ao clicar (sem redirecionar para /profile)
+  - Admin pode enviar mensagem para qualquer usuário sem necessidade de "Conectar"
+  - Qualquer usuário pode enviar mensagem para Admin sem necessidade de "Conectar"
+  - Backend: endpoint POST /api/connections/direct/{user_id} para criar conexão direta
+  - Backend: send_message auto-cria conexão quando admin está envolvido
+  - Backend: get_connection_status retorna "admin_direct" quando admin está envolvido
 
 ## Papéis SEMED (Reestruturado em 27/03/2026)
 - **SEMED** (base): Visualização de módulos acadêmicos + Acompanhamento de Diários
