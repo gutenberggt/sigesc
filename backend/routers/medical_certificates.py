@@ -249,18 +249,12 @@ def setup_medical_certificates_router(db, auth_middleware):
     async def delete_certificate(request: Request, certificate_id: str):
         """
         Exclui um atestado médico.
-        APENAS ADMINISTRADORES podem excluir.
+        Administradores e secretários vinculados à escola do aluno podem excluir.
         """
         current_user = await auth_middleware.get_current_user(request)
+        role = current_user.get('role', '')
         
-        # Verificar permissão - APENAS admin
-        if current_user['role'] != 'admin':
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Apenas administradores podem excluir atestados médicos"
-            )
-        
-        # Verificar se existe
+        # Buscar o atestado
         existing = await db.medical_certificates.find_one({"id": certificate_id})
         if not existing:
             raise HTTPException(
@@ -268,9 +262,35 @@ def setup_medical_certificates_router(db, auth_middleware):
                 detail="Atestado médico não encontrado"
             )
         
+        # Admin pode excluir qualquer atestado
+        if role in ('admin', 'admin_teste'):
+            pass
+        elif role == 'secretario':
+            # Secretário precisa estar vinculado à escola do aluno
+            student_id = existing.get('student_id')
+            enrollment = await db.enrollments.find_one(
+                {"student_id": student_id, "status": {"$in": ["active", "Ativo"]}},
+                {"_id": 0, "school_id": 1}
+            )
+            if not enrollment:
+                raise HTTPException(status_code=403, detail="Aluno sem matrícula ativa")
+            
+            school_assignment = await db.school_assignments.find_one({
+                "staff_id": current_user.get('staff_id', current_user['id']),
+                "school_id": enrollment['school_id'],
+                "status": {"$in": ["active", "Ativo"]}
+            })
+            if not school_assignment:
+                raise HTTPException(status_code=403, detail="Sem permissão: você não está vinculado à escola deste aluno")
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Sem permissão para excluir atestados médicos"
+            )
+        
         await db.medical_certificates.delete_one({"id": certificate_id})
         
-        logger.info(f"[MedicalCertificate] Atestado {certificate_id} excluído por {current_user['email']}")
+        logger.info(f"[MedicalCertificate] Atestado {certificate_id} excluído por {current_user['email']} (role: {role})")
         
         return {"message": "Atestado médico excluído com sucesso"}
     
