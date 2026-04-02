@@ -266,6 +266,16 @@ export const LearningObjects = () => {
     return ['educacao_infantil', 'fundamental_anos_iniciais', 'eja_inicial'].includes(level);
   }, [selectedClass, classes]);
 
+  // Determina o número padrão de aulas baseado no nível de ensino da turma
+  const defaultNumberOfClasses = useMemo(() => {
+    if (!selectedClass) return 1;
+    const classInfo = classes.find(c => c.id === selectedClass);
+    const level = inferEducationLevel(classInfo);
+    if (level === 'educacao_infantil') return 4;
+    if (['fundamental_anos_iniciais', 'eja_inicial'].includes(level)) return 5;
+    return 1;
+  }, [selectedClass, classes]);
+
   // Curso(s) efetivamente selecionado(s) para carregamento
   const hasValidSelection = useMemo(() => {
     if (isMultiSelectMode) return selectedCourses.length > 0;
@@ -479,7 +489,7 @@ export const LearningObjects = () => {
         observations: '',
         methodology: '',
         resources: '',
-        number_of_classes: 1
+        number_of_classes: defaultNumberOfClasses
       });
     }
     setShowForm(true);
@@ -974,14 +984,16 @@ export const LearningObjects = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Número de Aulas
                       </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="10"
+                      <select
                         value={formData.number_of_classes}
                         onChange={(e) => setFormData({ ...formData, number_of_classes: parseInt(e.target.value) || 1 })}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-                      />
+                        data-testid="number-of-classes-select"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
                     </div>
 
                     {/* Metodologia */}
