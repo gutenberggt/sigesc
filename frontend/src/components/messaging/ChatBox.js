@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, Paperclip, Image, FileText, User, Trash2, MoreVertical } from 'lucide-react';
+import { X, Send, Paperclip, Image, FileText, User, Trash2, MoreVertical, Minus } from 'lucide-react';
 import { messagesAPI, uploadAPI, getWebSocketUrl } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [minimized, setMinimized] = useState(false);
+  const [unreadWhileMinimized, setUnreadWhileMinimized] = useState(0);
   const [deletingMessage, setDeletingMessage] = useState(null);
   const [wsConnected, setWsConnected] = useState(false);
   const messagesEndRef = useRef(null);
@@ -25,6 +27,7 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
   const connectionRef = useRef(connection);
   const userRef = useRef(user);
   const onMessageReceivedRef = useRef(onMessageReceived);
+  const minimizedRef = useRef(minimized);
   
   // Atualizar refs quando os valores mudarem
   useEffect(() => {
@@ -38,6 +41,11 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
   useEffect(() => {
     onMessageReceivedRef.current = onMessageReceived;
   }, [onMessageReceived]);
+
+  useEffect(() => {
+    minimizedRef.current = minimized;
+    if (!minimized) setUnreadWhileMinimized(0);
+  }, [minimized]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -124,6 +132,9 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
                 }
                 return [...prev, msg];
               });
+              if (minimizedRef.current) {
+                setUnreadWhileMinimized(prev => prev + 1);
+              }
               onMessageReceivedRef.current?.(msg);
             } else {
               console.log('ChatBox WebSocket: ✗ Mensagem filtrada (não é para este chat)');
@@ -337,6 +348,23 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
   }, {});
 
   return (
+    <>
+      {/* Estado minimizado: quadrado com ícone de enviar */}
+      {minimized ? (
+        <div
+          className="fixed bottom-4 right-4 w-12 h-12 bg-blue-600 rounded-lg shadow-2xl flex items-center justify-center cursor-pointer z-50 hover:bg-blue-700 transition-colors"
+          onClick={() => setMinimized(false)}
+          title={`Abrir conversa com ${connection.full_name}`}
+          data-testid="chatbox-minimized"
+        >
+          <Send size={18} className="text-white" />
+          {unreadWhileMinimized > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+              {unreadWhileMinimized > 9 ? '9+' : unreadWhileMinimized}
+            </span>
+          )}
+        </div>
+      ) : (
     <div className="fixed bottom-4 right-4 w-80 h-[450px] bg-white rounded-lg shadow-2xl border flex flex-col z-50">
       {/* Header */}
       <div className="flex items-center gap-3 p-3 border-b bg-blue-600 text-white rounded-t-lg">
@@ -382,8 +410,18 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
         </div>
         
         <button
+          onClick={() => setMinimized(true)}
+          className="p-1 hover:bg-white/20 rounded transition-colors"
+          title="Minimizar"
+          data-testid="chatbox-minimize-btn"
+        >
+          <Minus size={18} />
+        </button>
+
+        <button
           onClick={onClose}
           className="p-1 hover:bg-white/20 rounded transition-colors"
+          title="Fechar"
         >
           <X size={18} />
         </button>
@@ -529,6 +567,8 @@ export const ChatBox = ({ connection, onClose, onMessageReceived }) => {
         </div>
       </div>
     </div>
+      )}
+    </>
   );
 };
 
