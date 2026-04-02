@@ -97,6 +97,11 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - attendance_ext.py: corrigida busca do professor via teacher_assignments com filtro course_id → nome correto no PDF
   - attendance.py: adicionado filtro por bimestre (datas do calendário) ao endpoint /report/class/{id} → "Ver na Tela" mostra dados do bimestre selecionado
   - Frontend: loadClassReport agora envia selectedBimestre para a API
+- Melhorias de robustez no backend (02/04/2026):
+  - students.py: geração de matrícula atômica via find_one_and_update (elimina race condition em 3 locais)
+  - students.py: re.escape() na busca de alunos por nome/CPF (previne regex injection via campo de busca)
+  - attendance.py, hr.py, maintenance.py: substituído except:pass por logger.error para auditoria
+  - students.py: corrigido bug pré-existente student_doc → student na transferência externa
 
 ## Papéis SEMED (Reestruturado em 27/03/2026)
 - **SEMED** (base): Visualização de módulos acadêmicos + Acompanhamento de Diários

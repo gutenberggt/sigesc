@@ -5,9 +5,12 @@ Extraído automaticamente de server.py.
 
 from fastapi import APIRouter, Request
 from datetime import datetime, timezone
+import logging
 
 from models import *
 from auth_middleware import AuthMiddleware
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(tags=["Manutenção"])
@@ -141,7 +144,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     await db.teacher_assignments.delete_one({"id": orphan['id']})
                     deleted['teacher_assignments'] += 1
             except Exception as e:
-                pass
+                logger.error(f"Falha ao remover registro órfão {orphan.get('type')}/{orphan.get('id')}: {e}")
 
         deleted['total'] = deleted['enrollments'] + deleted['school_assignments'] + deleted['teacher_assignments']
 

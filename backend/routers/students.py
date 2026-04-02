@@ -16,6 +16,9 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 from io import BytesIO
 import uuid
+import re
+import logging
+from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from models import Student, StudentCreate, StudentUpdate
@@ -23,6 +26,8 @@ from auth_middleware import AuthMiddleware
 from text_utils import format_data_uppercase
 
 router = APIRouter(prefix="/students", tags=["Alunos"])
+
+logger = logging.getLogger(__name__)
 
 
 def setup_students_router(db, audit_service, sandbox_db=None):
@@ -33,6 +38,35 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if False:  # Sandbox desabilitado
             return sandbox_db
         return db
+
+    async def generate_enrollment_number(current_db, academic_year: int) -> str:
+        """Gera número de matrícula de forma atômica usando find_one_and_update.
+        Na primeira chamada para um ano, inicializa o counter a partir da maior matrícula existente."""
+        counter_id = f"counter_{academic_year}"
+        existing = await current_db.enrollment_counters.find_one({"_id": counter_id})
+        if not existing:
+            # Inicializa counter com base na maior matrícula existente do ano
+            last = await current_db.enrollments.find_one(
+                {"academic_year": academic_year},
+                sort=[("enrollment_number", -1)]
+            )
+            start_seq = 0
+            if last and last.get('enrollment_number'):
+                try:
+                    start_seq = int(str(last['enrollment_number'])[-5:])
+                except (ValueError, TypeError):
+                    start_seq = 0
+            await current_db.enrollment_counters.update_one(
+                {"_id": counter_id},
+                {"$setOnInsert": {"sequence": start_seq}},
+                upsert=True
+            )
+        result = await current_db.enrollment_counters.find_one_and_update(
+            {"_id": counter_id},
+            {"$inc": {"sequence": 1}},
+            return_document=ReturnDocument.AFTER
+        )
+        return f"{academic_year}{str(result['sequence']).zfill(5)}"
 
     @router.post("", response_model=Student, status_code=status.HTTP_201_CREATED)
     async def create_student(student_data: StudentCreate, request: Request):
@@ -67,19 +101,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 {"id": student_obj.class_id}, {"_id": 0, "grade_level": 1}
             )
             
-            # Gera número de matrícula
-            last_enrollment = await current_db.enrollments.find_one(
-                {"academic_year": academic_year},
-                sort=[("enrollment_number", -1)]
-            )
-            if last_enrollment and last_enrollment.get('enrollment_number'):
-                try:
-                    last_num = int(str(last_enrollment['enrollment_number'])[-5:])
-                    new_enrollment_number = f"{academic_year}{str(last_num + 1).zfill(5)}"
-                except:
-                    new_enrollment_number = f"{academic_year}00001"
-            else:
-                new_enrollment_number = f"{academic_year}00001"
+            # Gera número de matrícula (atômico)
+            new_enrollment_number = await generate_enrollment_number(current_db, academic_year)
             
             enrollment_doc = {
                 "id": str(uuid.uuid4()),
@@ -152,10 +175,10 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         
         # Busca por nome ou CPF
         if search and len(search) >= 3:
-            search_upper = search.upper()
-            search_clean = search.replace('.', '').replace('-', '').replace('/', '')
+            search_escaped = re.escape(search.upper())
+            search_clean = re.escape(search.replace('.', '').replace('-', '').replace('/', ''))
             filter_query['$or'] = [
-                {'full_name': {'$regex': search_upper, '$options': 'i'}},
+                {'full_name': {'$regex': search_escaped, '$options': 'i'}},
                 {'cpf': {'$regex': search_clean}}
             ]
         
@@ -691,19 +714,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                     )
                 
                 if not existing_enrollment and new_school_id and new_class_id:
-                    # Gera número de matrícula
-                    last_enrollment = await current_db.enrollments.find_one(
-                        {"academic_year": academic_year},
-                        sort=[("enrollment_number", -1)]
-                    )
-                    if last_enrollment and last_enrollment.get('enrollment_number'):
-                        try:
-                            last_num = int(str(last_enrollment['enrollment_number'])[-5:])
-                            new_enrollment_number = f"{academic_year}{str(last_num + 1).zfill(5)}"
-                        except:
-                            new_enrollment_number = f"{academic_year}00001"
-                    else:
-                        new_enrollment_number = f"{academic_year}00001"
+                    # Gera número de matrícula (atômico)
+                    new_enrollment_number = await generate_enrollment_number(current_db, academic_year)
                     
                     # Cria nova matrícula
                     new_enrollment = {
@@ -870,19 +882,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 detail="Escola ou turma de destino não encontrada"
             )
         
-        # Gera número de matrícula
-        last_enrollment = await current_db.enrollments.find_one(
-            {"academic_year": academic_year},
-            sort=[("enrollment_number", -1)]
-        )
-        if last_enrollment and last_enrollment.get('enrollment_number'):
-            try:
-                last_num = int(str(last_enrollment['enrollment_number'])[-5:])
-                new_enrollment_number = f"{academic_year}{str(last_num + 1).zfill(5)}"
-            except:
-                new_enrollment_number = f"{academic_year}00001"
-        else:
-            new_enrollment_number = f"{academic_year}00001"
+        # Gera número de matrícula (atômico)
+        new_enrollment_number = await generate_enrollment_number(current_db, academic_year)
         
         # Cria nova matrícula
         enrollment_id = str(uuid.uuid4())
@@ -893,7 +894,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "class_id": new_class_id,
             "academic_year": academic_year,
             "enrollment_number": new_enrollment_number,
-            "student_series": student_doc.get('student_series') or (new_class.get('grade_level') if new_class else None),
+            "student_series": student.get('student_series') or (new_class.get('grade_level') if new_class else None),
             "status": "active",
             "created_at": datetime.now(timezone.utc).isoformat()
         }

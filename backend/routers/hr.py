@@ -145,8 +145,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                             'sender_name': announcement['sender_name']
                         }
                     })
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.error(f"Falha ao enviar notificação WebSocket: {e}")
 
         logger.info(f"Notificação de devolução enviada para {len(target_users)} usuários da escola {school_name}")
 

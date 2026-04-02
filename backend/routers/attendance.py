@@ -14,8 +14,11 @@ from typing import Optional, List
 from datetime import datetime, timezone
 from pydantic import BaseModel
 import uuid
+import logging
 
 from auth_middleware import AuthMiddleware
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/attendance", tags=["Frequência"])
 
@@ -393,8 +396,8 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 academic_year=existing.get('academic_year'),
                 old_value={'date': existing.get('date'), 'records_count': len(existing.get('records', []))}
             )
-        except Exception:
-            pass  # Não falhar a resposta por causa do audit log
+        except Exception as e:
+            logger.error(f"Falha ao registrar auditoria de exclusão de frequência: {e}")
         
         return {"message": "Frequência removida com sucesso"}
 
