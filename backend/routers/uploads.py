@@ -20,10 +20,11 @@ logger = logging.getLogger(__name__)
 # Constantes
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
-UPLOADS_DIR = Path("/app/backend/uploads")
-UPLOADS_DIR.mkdir(exist_ok=True)
+ROOT_DIR = Path(__file__).parent.parent  # /app/backend no dev, /app no Docker
+UPLOADS_DIR = ROOT_DIR / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 CERTIFICADOS_DIR = UPLOADS_DIR / "certificados"
-CERTIFICADOS_DIR.mkdir(exist_ok=True)
+CERTIFICADOS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 router = APIRouter(tags=["Uploads"])
