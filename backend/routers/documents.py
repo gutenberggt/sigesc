@@ -161,91 +161,41 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "academic_year": academic_year_int
         }, {"_id": 0}).to_list(100)
 
-        # ===== FILTRAR COMPONENTES CURRICULARES =====
-        # Determinar nível de ensino e série do ALUNO (não da turma)
-        # Para turmas multisseriadas, usar o student_series da matrícula
-        nivel_ensino = class_info.get('nivel_ensino')
-        grade_level = enrollment.get('student_series') or class_info.get('grade_level', '')
-        grade_level_lower = grade_level.lower() if grade_level else ''
+        # ===== FILTRAR COMPONENTES CURRICULARES PELA TURMA =====
+        # Usar teacher_assignments para obter apenas os componentes alocados na turma
+        class_assignments = await db.teacher_assignments.find(
+            {"class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
+            {"_id": 0, "course_id": 1}
+        ).to_list(100)
+        assigned_course_ids = list(set(a['course_id'] for a in class_assignments if a.get('course_id')))
 
-        # Se não tem nivel_ensino definido, inferir pelo grade_level
-        if not nivel_ensino:
-            if any(x in grade_level_lower for x in ['berçário', 'bercario', 'maternal', 'pré', 'pre']):
-                nivel_ensino = 'educacao_infantil'
-            elif any(x in grade_level_lower for x in ['1º ano', '2º ano', '3º ano', '4º ano', '5º ano', '1 ano', '2 ano', '3 ano', '4 ano', '5 ano']):
-                nivel_ensino = 'fundamental_anos_iniciais'
-            elif any(x in grade_level_lower for x in ['6º ano', '7º ano', '8º ano', '9º ano', '6 ano', '7 ano', '8 ano', '9 ano']):
-                nivel_ensino = 'fundamental_anos_finais'
-            elif any(x in grade_level_lower for x in ['eja', 'etapa']):
-                if any(x in grade_level_lower for x in ['3', '4', 'final']):
-                    nivel_ensino = 'eja_final'
-                else:
-                    nivel_ensino = 'eja'
+        if assigned_course_ids:
+            # Buscar apenas os componentes alocados na turma
+            filtered_courses = await db.courses.find(
+                {"id": {"$in": assigned_course_ids}},
+                {"_id": 0}
+            ).to_list(100)
+        else:
+            # Fallback: se não há alocações, buscar por nível de ensino
+            nivel_ensino = class_info.get('nivel_ensino')
+            grade_level = enrollment.get('student_series') or class_info.get('grade_level', '')
+            grade_level_lower = grade_level.lower() if grade_level else ''
+            if not nivel_ensino:
+                if any(x in grade_level_lower for x in ['berçário', 'bercario', 'maternal', 'pré', 'pre']):
+                    nivel_ensino = 'educacao_infantil'
+                elif any(x in grade_level_lower for x in ['1º ano', '2º ano', '3º ano', '4º ano', '5º ano', '1 ano', '2 ano', '3 ano', '4 ano', '5 ano']):
+                    nivel_ensino = 'fundamental_anos_iniciais'
+                elif any(x in grade_level_lower for x in ['6º ano', '7º ano', '8º ano', '9º ano', '6 ano', '7 ano', '8 ano', '9 ano']):
+                    nivel_ensino = 'fundamental_anos_finais'
+                elif any(x in grade_level_lower for x in ['eja', 'etapa']):
+                    if any(x in grade_level_lower for x in ['3', '4', 'final']):
+                        nivel_ensino = 'eja_final'
+                    else:
+                        nivel_ensino = 'eja'
+            courses_query = {"nivel_ensino": nivel_ensino} if nivel_ensino else {}
+            filtered_courses = await db.courses.find(courses_query, {"_id": 0}).to_list(100)
 
-        # Log para debug
-        logger.info(f"Boletim: grade_level={grade_level}, nivel_ensino inferido={nivel_ensino}")
-
-        # Determinar o tipo de atendimento/programa da TURMA (não da escola)
-        # Se a turma tem atendimento_programa definido, usa ele. Senão, é turma regular.
-        turma_atendimento = class_info.get('atendimento_programa', '')
-        turma_integral = turma_atendimento == 'atendimento_integral'
-        logger.info(f"Boletim: turma_atendimento={turma_atendimento}, turma_integral={turma_integral}")
-
-        # Construir query para buscar componentes curriculares
-        courses_query = {}
-
-        # Filtrar por nível de ensino (OBRIGATÓRIO se temos um nível)
-        if nivel_ensino:
-            courses_query['nivel_ensino'] = nivel_ensino
-
-        # Buscar componentes do nível de ensino
-        all_courses = await db.courses.find(courses_query, {"_id": 0}).to_list(100)
-        logger.info(f"Boletim: {len(all_courses)} componentes encontrados para nivel_ensino={nivel_ensino}")
-
-        # Filtrar componentes baseado no atendimento/programa da TURMA
-        filtered_courses = []
-        excluded_courses = []  # Para debug
-        for course in all_courses:
-            atendimento = course.get('atendimento_programa')
-            course_grade_levels = course.get('grade_levels', [])
-            course_name = course.get('name', 'N/A')
-
-            # Componentes Transversais/Formativos aparecem em TODAS as turmas
-            if atendimento == 'transversal_formativa':
-                # Sempre incluir - é transversal a todas as turmas
-                pass
-            # Verificar se o componente é específico de Escola Integral
-            elif atendimento == 'atendimento_integral':
-                # Só incluir se a TURMA é integral (não a escola)
-                if not turma_integral:
-                    excluded_courses.append(f"{course_name} (excluído: atendimento_integral e turma não é integral)")
-                    continue
-            # Verificar se o componente é de outro atendimento (AEE, reforço, etc)
-            elif atendimento and atendimento not in ['atendimento_integral', 'transversal_formativa']:
-                # Verificar se a turma tem esse atendimento específico
-                if turma_atendimento != atendimento:
-                    excluded_courses.append(f"{course_name} (excluído: atendimento={atendimento} diferente do atendimento da turma={turma_atendimento})")
-                    continue
-
-            # Verificar se o componente é específico para certas séries
-            if course_grade_levels:
-                # Se o componente tem séries específicas, verificar se a turma é de uma delas
-                if grade_level and grade_level not in course_grade_levels:
-                    excluded_courses.append(f"{course_name} (excluído: grade_levels={course_grade_levels} não inclui {grade_level})")
-                    continue
-
-            filtered_courses.append(course)
-
-        # Log de debug detalhado
-        logger.info(f"Boletim: {len(filtered_courses)} componentes incluídos após filtragem")
-        if excluded_courses:
-            logger.warning(f"Boletim: {len(excluded_courses)} componentes EXCLUÍDOS:")
-            for exc in excluded_courses:
-                logger.warning(f"  - {exc}")
-
-        # Log dos componentes incluídos
-        included_names = [c.get('name', 'N/A') for c in filtered_courses]
-        logger.info(f"Boletim: Componentes incluídos: {included_names}")
+        logger.info(f"Boletim: {len(filtered_courses)} componentes para turma {class_id} (via {'teacher_assignments' if assigned_course_ids else 'fallback nivel_ensino'})")
 
         # Ordenar por nome
         filtered_courses.sort(key=lambda x: x.get('name', ''))
@@ -969,67 +919,25 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # Log para debug
         logger.info(f"Ficha Individual: grade_level={grade_level}, nivel_ensino inferido={nivel_ensino}")
 
-        # Determinar o tipo de atendimento/programa da TURMA (não da escola)
-        turma_atendimento = class_info.get('atendimento_programa', '')
-        turma_integral = turma_atendimento == 'atendimento_integral'
-        logger.info(f"Ficha Individual: turma_atendimento={turma_atendimento}, turma_integral={turma_integral}")
+        # ===== FILTRAR COMPONENTES CURRICULARES PELA TURMA =====
+        # Usar teacher_assignments para obter apenas os componentes alocados na turma
+        class_assignments = await db.teacher_assignments.find(
+            {"class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
+            {"_id": 0, "course_id": 1}
+        ).to_list(100)
+        assigned_course_ids = list(set(a['course_id'] for a in class_assignments if a.get('course_id')))
 
-        # Buscar componentes: globais (sem school_id) OU específicos da escola
-        courses_filter = {
-            "$and": [
-                {"nivel_ensino": nivel_ensino},
-                {"$or": [
-                    {"school_id": {"$exists": False}},
-                    {"school_id": None},
-                    {"school_id": ""},
-                    {"school_id": school_id}
-                ]}
-            ]
-        }
-        all_courses = await db.courses.find(courses_filter, {"_id": 0}).to_list(100)
-        logger.info(f"Ficha Individual: {len(all_courses)} componentes encontrados para nivel_ensino={nivel_ensino}")
+        if assigned_course_ids:
+            filtered_courses = await db.courses.find(
+                {"id": {"$in": assigned_course_ids}},
+                {"_id": 0}
+            ).to_list(100)
+        else:
+            # Fallback: se não há alocações, buscar por nível de ensino
+            courses_filter = {"nivel_ensino": nivel_ensino} if nivel_ensino else {}
+            filtered_courses = await db.courses.find(courses_filter, {"_id": 0}).to_list(100)
 
-        # Filtrar componentes baseado no atendimento/programa da TURMA
-        filtered_courses = []
-        excluded_courses = []  # Para debug
-        for course in all_courses:
-            atendimento = course.get('atendimento_programa')
-            course_grade_levels = course.get('grade_levels', [])
-            course_name = course.get('name', 'N/A')
-
-            # Componentes Transversais/Formativos aparecem em TODAS as turmas
-            if atendimento == 'transversal_formativa':
-                # Sempre incluir - é transversal a todas as turmas
-                pass
-            # Verificar se o componente é específico de Escola Integral
-            elif atendimento == 'atendimento_integral':
-                if not turma_integral:
-                    excluded_courses.append(f"{course_name} (excluído: atendimento_integral e turma não é integral)")
-                    continue
-            # Verificar se o componente é de outro atendimento (AEE, reforço, etc)
-            elif atendimento and atendimento not in ['atendimento_integral', 'transversal_formativa']:
-                if turma_atendimento != atendimento:
-                    excluded_courses.append(f"{course_name} (excluído: atendimento={atendimento} diferente do atendimento da turma={turma_atendimento})")
-                    continue
-
-            # Verificar se o componente é específico para certas séries
-            if course_grade_levels:
-                if grade_level and grade_level not in course_grade_levels:
-                    excluded_courses.append(f"{course_name} (excluído: grade_levels={course_grade_levels} não inclui {grade_level})")
-                    continue
-
-            filtered_courses.append(course)
-
-        # Log de debug detalhado
-        logger.info(f"Ficha Individual: {len(filtered_courses)} componentes incluídos após filtragem")
-        if excluded_courses:
-            logger.warning(f"Ficha Individual: {len(excluded_courses)} componentes EXCLUÍDOS:")
-            for exc in excluded_courses:
-                logger.warning(f"  - {exc}")
-
-        # Log dos componentes incluídos
-        included_names = [c.get('name', 'N/A') for c in filtered_courses]
-        logger.info(f"Ficha Individual: Componentes incluídos: {included_names}")
+        logger.info(f"Ficha Individual: {len(filtered_courses)} componentes para turma {class_id} (via {'teacher_assignments' if assigned_course_ids else 'fallback nivel_ensino'})")
 
         # Ordenar por nome
         filtered_courses.sort(key=lambda x: x.get('name', ''))

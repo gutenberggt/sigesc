@@ -124,7 +124,11 @@ async def create_indexes():
         await db.students.create_index("cpf", sparse=True)
         await db.students.create_index("school_id")
         await db.students.create_index("class_id")
-        await db.students.create_index([("full_name", 1)])
+        await db.students.create_index([("full_name", 1)],
+            collation={"locale": "pt", "strength": 1},
+            name="full_name_pt_collation"
+        )
+        await db.students.create_index([("status", 1), ("school_id", 1)])
         
         # Índices para grades (notas) - muito consultada
         await db.grades.create_index("id", unique=True)
@@ -158,6 +162,10 @@ async def create_indexes():
         await db.staff.create_index("id", unique=True)
         await db.staff.create_index("email", sparse=True)
         await db.staff.create_index("cpf", sparse=True)
+        await db.staff.create_index([("nome", 1)],
+            collation={"locale": "pt", "strength": 1},
+            name="nome_pt_collation"
+        )
         
         # Índices para school_assignments (lotações)
         await db.school_assignments.create_index("id", unique=True)
@@ -168,6 +176,16 @@ async def create_indexes():
         await db.teacher_assignments.create_index("id", unique=True)
         await db.teacher_assignments.create_index([("staff_id", 1), ("academic_year", 1)])
         await db.teacher_assignments.create_index([("class_id", 1), ("course_id", 1)])
+        await db.teacher_assignments.create_index([("class_id", 1), ("status", 1)])
+        
+        # Índices para attendance (frequência) - compound para queries por componente
+        await db.attendance.create_index([("class_id", 1), ("course_id", 1), ("academic_year", 1)])
+
+        # Índices para connections e messages (mensageiro)
+        await db.connections.create_index("id", unique=True)
+        await db.connections.create_index([("requester_id", 1), ("receiver_id", 1)])
+        await db.messages.create_index([("connection_id", 1), ("created_at", -1)])
+        await db.messages.create_index([("sender_id", 1), ("receiver_id", 1)])
         
         # Índices para courses (componentes)
         await db.courses.create_index("id", unique=True)
