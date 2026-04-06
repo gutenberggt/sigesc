@@ -721,8 +721,8 @@ export function Grades() {
     if (usaConceito) {
       // Educação Infantil ou 1º/2º Ano: média é o MAIOR conceito alcançado
       g.final_average = calcularMaiorConceito(g.b1, g.b2, g.b3, g.b4);
-      // Aprovação automática para avaliação conceitual
-      g.status = 'aprovado';
+      // Se não há nenhum conceito lançado, status é cursando
+      g.status = g.final_average !== null ? 'aprovado' : 'cursando';
     } else {
       // Outros níveis: Recalcula média com recuperações por semestre
       g.final_average = calculateAverage(g.b1, g.b2, g.b3, g.b4, g.rec_s1, g.rec_s2);

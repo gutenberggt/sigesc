@@ -96,9 +96,20 @@ async def calculate_and_update_grade(db, grade_id: str):
         
         grade['final_average'] = round(media, 2)
         grade['status'] = status_nota
-    
-    return grade
+    else:
+        # Todas as notas foram limpas — resetar média e status
+        await db.grades.update_one(
+            {"id": grade_id},
+            {"$set": {
+                "final_average": None,
+                "status": "cursando",
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        grade['final_average'] = None
+        grade['status'] = 'cursando'
 
+    return grade
 
 def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=None, verify_bimestre_edit_deadline_or_raise=None, sandbox_db=None):
     """Configura o router de notas com as dependências necessárias"""
