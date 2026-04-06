@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
@@ -139,6 +140,10 @@ export const LearningObjects = () => {
     number_of_classes: 1
   });
   
+  // Tracking de alterações não salvas
+  const [hasChanges, setHasChanges] = useState(false);
+  useUnsavedChangesWarning(hasChanges, 'Há alterações de conteúdo não salvas. Deseja sair sem salvar?');
+
   // Alert
   const [alert, setAlert] = useState(null);
   
@@ -493,6 +498,7 @@ export const LearningObjects = () => {
       });
     }
     setShowForm(true);
+    setHasChanges(false);
   };
 
   // Função para determinar o bimestre de uma data
@@ -569,6 +575,7 @@ export const LearningObjects = () => {
       }
       
       setShowForm(false);
+      setHasChanges(false);
       loadRecords();
     } catch (error) {
       console.error('Erro ao salvar:', error);
@@ -597,6 +604,7 @@ export const LearningObjects = () => {
       await learningObjectsAPI.delete(editingRecord.id);
       showAlert('success', 'Registro excluído com sucesso!');
       setShowForm(false);
+      setHasChanges(false);
       loadRecords();
     } catch (error) {
       console.error('Erro ao excluir:', error);
@@ -973,7 +981,7 @@ export const LearningObjects = () => {
                       </label>
                       <textarea
                         value={formData.content}
-                        onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                        onChange={(e) => { setFormData({ ...formData, content: e.target.value }); setHasChanges(true); }}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 h-24 resize-none"
                         placeholder="Descreva o conteúdo ministrado..."
                       />
@@ -986,7 +994,7 @@ export const LearningObjects = () => {
                       </label>
                       <select
                         value={formData.number_of_classes}
-                        onChange={(e) => setFormData({ ...formData, number_of_classes: parseInt(e.target.value) || 1 })}
+                        onChange={(e) => { setFormData({ ...formData, number_of_classes: parseInt(e.target.value) || 1 }); setHasChanges(true); }}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                         data-testid="number-of-classes-select"
                       >
@@ -1004,7 +1012,7 @@ export const LearningObjects = () => {
                       <input
                         type="text"
                         value={formData.methodology}
-                        onChange={(e) => setFormData({ ...formData, methodology: e.target.value })}
+                        onChange={(e) => { setFormData({ ...formData, methodology: e.target.value }); setHasChanges(true); }}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                         placeholder="Ex: Aula expositiva, Trabalho em grupo..."
                       />
@@ -1018,7 +1026,7 @@ export const LearningObjects = () => {
                       <input
                         type="text"
                         value={formData.resources}
-                        onChange={(e) => setFormData({ ...formData, resources: e.target.value })}
+                        onChange={(e) => { setFormData({ ...formData, resources: e.target.value }); setHasChanges(true); }}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                         placeholder="Ex: Livro didático, Datashow..."
                       />
@@ -1031,7 +1039,7 @@ export const LearningObjects = () => {
                       </label>
                       <textarea
                         value={formData.observations}
-                        onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
+                        onChange={(e) => { setFormData({ ...formData, observations: e.target.value }); setHasChanges(true); }}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 h-16 resize-none"
                         placeholder="Observações adicionais..."
                       />
@@ -1058,7 +1066,7 @@ export const LearningObjects = () => {
                       )}
                       <Button 
                         variant="outline" 
-                        onClick={() => setShowForm(false)}
+                        onClick={() => { setShowForm(false); setHasChanges(false); }}
                       >
                         Cancelar
                       </Button>

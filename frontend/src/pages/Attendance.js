@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { 
   ClipboardCheck, 
   Calendar,
@@ -147,6 +148,9 @@ export const Attendance = () => {
   const [attendanceData, setAttendanceData] = useState(null);
   const [dateCheck, setDateCheck] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Alerta ao sair com alterações não salvas
+  useUnsavedChangesWarning(hasChanges, 'Há alterações de frequência não salvas. Deseja sair sem salvar?');
   
   // Configurações
   const [settings, setSettings] = useState({ allow_future_dates: false });

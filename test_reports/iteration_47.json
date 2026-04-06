@@ -1,0 +1,60 @@
+{
+  "summary": "Tested useUnsavedChangesWarning hook implementation across Attendance.js, Grades.js, and LearningObjects.js pages. Hook successfully intercepts beforeunload (F5/reload/close tab) and popstate (browser back button) events when there are unsaved changes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "known_limitations": [
+      {
+        "component": "useUnsavedChangesWarning",
+        "issue": "React Router internal navigation (clicking menu links) does NOT trigger the warning - this is a known SPA limitation documented in the implementation",
+        "priority": "INFO"
+      }
+    ]
+  },
+  "test_results": {
+    "attendance_page": {
+      "beforeunload_event": "PASS - Dialog captured successfully",
+      "popstate_event": "PASS - Dialog captured with message 'Há alterações de frequência não salvas. Deseja sair sem salvar?'",
+      "hasChanges_state": "PASS - State correctly set to true when clicking P/F/J buttons"
+    },
+    "grades_page": {
+      "beforeunload_event": "NOT TESTED - No student data available in test classes",
+      "popstate_event": "NOT TESTED - No student data available in test classes",
+      "code_review": "PASS - Hook properly implemented at lines 270, 273, 674, 738, 790"
+    },
+    "learning_objects_page": {
+      "beforeunload_event": "PASS - Dialog captured successfully",
+      "popstate_event": "PASS - Dialog captured with message 'Há alterações de conteúdo não salvas. Deseja sair sem salvar?'",
+      "hasChanges_state": "PASS - State correctly set to true when typing in form fields"
+    }
+  },
+  "hook_implementation_review": {
+    "file": "/app/frontend/src/hooks/useUnsavedChangesWarning.js",
+    "status": "CORRECT",
+    "features": [
+      "Uses useRef to track hasUnsavedChanges state",
+      "Adds beforeunload event listener for F5/reload/close tab",
+      "Adds popstate event listener for browser back button",
+      "Pushes extra history state when hasUnsavedChanges is true to intercept back navigation",
+      "Properly cleans up event listeners on unmount"
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A - Frontend only testing",
+    "frontend": "100% (2/2 pages fully tested, 1 page code-reviewed due to data constraints)"
+  },
+  "test_credentials": "Admin: gutenberg@sigesc.com / @Celta2007",
+  "seed_data_creation": "None required",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The useUnsavedChangesWarning hook is working correctly. Tested on Attendance and LearningObjects pages. Grades page could not be fully tested due to no student data in available classes (PRE-ESCOLA I has no students enrolled). The hook intercepts beforeunload and popstate events but NOT React Router internal navigation (known SPA limitation)."
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { gradesAPI, schoolsAPI, classesAPI, coursesAPI, studentsAPI, professorAPI, teacherAssignmentAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
@@ -268,6 +269,9 @@ export function Grades() {
   const [studentGrades, setStudentGrades] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
   
+  // Alerta ao sair com alterações não salvas
+  useUnsavedChangesWarning(hasChanges, 'Há alterações de notas não salvas. Deseja sair sem salvar?');
+
   // Modal PDF de notas
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [pdfBimestres, setPdfBimestres] = useState([1, 2, 3, 4]);
