@@ -161,7 +161,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - (P2) Envio de e-mail de confirmação na pré-matrícula
 
 ### Refatoração
-- Modularizar pdf_generator.py (+4200 linhas)
+- ~~Modularizar pdf_generator.py (+4200 linhas)~~ CONCLUÍDO (06/04/2026): Dividido em pacote `pdf/` com 11 módulos
 - Centralizar permissões em hook usePermissions
 - Refatorar inferEducationLevel duplicado
 
