@@ -1957,6 +1957,7 @@ class MantenedoraBase(BaseModel):
     natureza_juridica: Optional[str] = None  # Pública Municipal, Pública Estadual, Privada, etc.
     logotipo_url: Optional[str] = None  # URL do logotipo
     brasao_url: Optional[str] = None  # URL do brasão
+    secretaria: Optional[str] = None  # Nome da Secretaria de Educação
     slogan: Optional[str] = None  # Slogan da instituição para cabeçalhos dos documentos
     
     # Condicionais para aprovação
@@ -2004,6 +2005,7 @@ class MantenedoraUpdate(BaseModel):
     natureza_juridica: Optional[str] = None
     logotipo_url: Optional[str] = None
     brasao_url: Optional[str] = None  # URL do brasão
+    secretaria: Optional[str] = None  # Nome da Secretaria de Educação
     slogan: Optional[str] = None  # Slogan da instituição
     
     # Condicionais para aprovação

@@ -28,6 +28,7 @@ export default function Mantenedora() {
     natureza_juridica: 'Pública Municipal',
     brasao_url: '',  // URL do brasão (usado em todos os lugares)
     slogan: '',  // Slogan para cabeçalhos dos documentos
+    secretaria: '',  // Nome da Secretaria de Educação
     
     // Condicionais para aprovação
     media_aprovacao: '6.0',
@@ -83,6 +84,7 @@ export default function Mantenedora() {
         natureza_juridica: data.natureza_juridica || 'Pública Municipal',
         brasao_url: data.brasao_url || data.logotipo_url || '',  // Usa brasao ou fallback para logotipo antigo
         slogan: data.slogan || '',
+        secretaria: data.secretaria || '',
         // Condicionais para aprovação - garantir formato correto para Select
         media_aprovacao: data.media_aprovacao != null ? Number(data.media_aprovacao).toFixed(1) : '6.0',
         frequencia_minima: data.frequencia_minima?.toString() || '75',
@@ -437,6 +439,21 @@ export default function Mantenedora() {
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
                   O brasão será exibido no certificado de conclusão
+                </p>
+              </div>
+
+              {/* Secretaria de Educação */}
+              <div>
+                <Label htmlFor="secretaria">Secretaria</Label>
+                <Input
+                  id="secretaria"
+                  value={formData.secretaria}
+                  onChange={(e) => handleInputChange('secretaria', e.target.value)}
+                  placeholder="Ex: Secretaria Municipal de Educação"
+                  data-testid="mantenedora-secretaria-input"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Nome da Secretaria de Educação vinculada
                 </p>
               </div>
 
