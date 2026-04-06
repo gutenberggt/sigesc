@@ -286,6 +286,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # ===== BUSCAR DADOS DE FREQUÊNCIA (MESMA LÓGICA DA FICHA INDIVIDUAL) =====
         class_id = student.get('class_id')
+        turma_integral = class_info.get('atendimento_programa', '') == 'atendimento_integral'
         attendance_records = await db.attendance.find(
             {"class_id": class_id, "academic_year": int(actual_academic_year)},
             {"_id": 0}
@@ -867,7 +868,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             school = {"name": "Escola Municipal", "city": "Município"}
 
         # Buscar turma
-        class_info = await db.classes.find_one({"id": student.get("class_id")}, {"_id": 0})
+        class_id = student.get("class_id")
+        class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
         if not class_info:
             class_info = {"name": "N/A", "grade_level": "N/A", "shift": "N/A"}
 
@@ -958,7 +960,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # A estrutura de attendance é: {class_id, date, attendance_type, period, course_id, records: [{student_id, status}]}
 
         # Buscar todos os registros de frequência da turma do aluno
-        class_id = student.get('class_id')
+        turma_integral = class_info.get('atendimento_programa', '') == 'atendimento_integral'
         attendance_records = await db.attendance.find(
             {"class_id": class_id, "academic_year": actual_academic_year},
             {"_id": 0}

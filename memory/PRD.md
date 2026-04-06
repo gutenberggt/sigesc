@@ -165,6 +165,10 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Centralizar permissões em hook usePermissions
 - Refatorar inferEducationLevel duplicado
 
+## Bug Fixes Produção (06/04/2026)
+- Fix CORS 503: variáveis `turma_integral` e `class_id` indefinidas nos endpoints boletim e ficha individual (NameError → crash → 503 sem CORS)
+- Fix IndexedDB VersionError: SW v2.1.0 abre DB sem versão fixa + não intercepta requests cross-origin
+
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
 - Coordenador: coordenador@sigesc.com / coordenador123

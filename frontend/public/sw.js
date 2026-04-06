@@ -1,9 +1,8 @@
-// SIGESC Service Worker - Versão 2.0.0
-// Atualizado com Background Sync completo
+// SIGESC Service Worker - Versão 2.1.0
+// Corrigido: IndexedDB VersionError + CORS em requests cross-origin
 const CACHE_NAME = 'sigesc-cache-v2';
 const OFFLINE_URL = '/offline.html';
 const DB_NAME = 'SigescOfflineDB';
-const DB_VERSION = 1;
 
 // Assets estáticos para cache imediato
 const STATIC_ASSETS = [
@@ -24,15 +23,37 @@ const CACHE_PATTERNS = {
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    
+    // Abre SEM versão fixa para compatibilizar com qualquer versão existente
+    const request = indexedDB.open(DB_NAME);
+
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-    
+
+    request.onsuccess = () => {
+      const db = request.result;
+      // Se o store syncQueue já existe, usa normalmente
+      if (db.objectStoreNames.contains('syncQueue')) {
+        resolve(db);
+      } else {
+        // Store não existe — precisa de upgrade para criá-lo
+        const currentVersion = db.version;
+        db.close();
+        const upgradeRequest = indexedDB.open(DB_NAME, currentVersion + 1);
+        upgradeRequest.onerror = () => reject(upgradeRequest.error);
+        upgradeRequest.onsuccess = () => resolve(upgradeRequest.result);
+        upgradeRequest.onupgradeneeded = (event) => {
+          const upgradeDb = event.target.result;
+          if (!upgradeDb.objectStoreNames.contains('syncQueue')) {
+            const syncStore = upgradeDb.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
+            syncStore.createIndex('status', 'status', { unique: false });
+            syncStore.createIndex('collection', 'collection', { unique: false });
+          }
+        };
+      }
+    };
+
+    // Dispara se o banco está sendo criado pela primeira vez
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
-      
-      // Cria stores se não existirem
       if (!db.objectStoreNames.contains('syncQueue')) {
         const syncStore = db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
         syncStore.createIndex('status', 'status', { unique: false });
@@ -55,7 +76,7 @@ async function getPendingSyncItems() {
       request.onerror = () => reject(request.error);
     });
   } catch (error) {
-    console.error('[SW] Erro ao buscar itens pendentes:', error);
+    console.warn('[SW] IndexedDB indisponível para sync:', error.name);
     return [];
   }
 }
@@ -82,7 +103,7 @@ async function updateSyncItem(id, updates) {
       getRequest.onerror = () => reject(getRequest.error);
     });
   } catch (error) {
-    console.error('[SW] Erro ao atualizar item:', error);
+    console.warn('[SW] Erro ao atualizar item:', error.name);
     return false;
   }
 }
@@ -99,14 +120,12 @@ async function removeSyncItem(id) {
       request.onerror = () => reject(request.error);
     });
   } catch (error) {
-    console.error('[SW] Erro ao remover item:', error);
+    console.warn('[SW] Erro ao remover item:', error.name);
     return false;
   }
 }
 
 function getAuthToken() {
-  // Service Worker não tem acesso direto ao localStorage
-  // Usa a API de clients para pedir o token
   return self.clients.matchAll().then(clients => {
     if (clients.length > 0) {
       return new Promise((resolve) => {
@@ -115,8 +134,6 @@ function getAuthToken() {
           resolve(event.data.token);
         };
         clients[0].postMessage({ type: 'GET_AUTH_TOKEN' }, [messageChannel.port2]);
-        
-        // Timeout de 5 segundos
         setTimeout(() => resolve(null), 5000);
       });
     }
@@ -127,7 +144,7 @@ function getAuthToken() {
 // ============= Instalação do Service Worker =============
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando Service Worker v2.0.0...');
+  console.log('[SW] Instalando Service Worker v2.1.0...');
   
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -175,14 +192,23 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
   
+  // Ignora requisições não-GET
   if (request.method !== 'GET') {
     return;
   }
   
+  // Ignora extensões do navegador
   if (url.protocol === 'chrome-extension:' || url.protocol === 'moz-extension:') {
     return;
   }
   
+  // NÃO intercepta requisições cross-origin (ex: API em subdomínio diferente)
+  // Isso evita interferência com CORS e headers de resposta da API
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+  
+  // Apenas requisições same-origin são cacheadas/interceptadas
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirstStrategy(request));
   } else if (CACHE_PATTERNS.static.test(url.pathname)) {
@@ -280,7 +306,6 @@ async function syncAllPendingData() {
     
     console.log(`[SW] Sincronizando ${pendingItems.length} itens...`);
     
-    // Agrupa por coleção
     const operations = pendingItems.map(item => ({
       collection: item.collection,
       operation: item.operation,
@@ -290,16 +315,13 @@ async function syncAllPendingData() {
       localId: item.id
     }));
     
-    // Tenta enviar para o servidor
     const result = await sendToServer(operations);
     
     if (result.success) {
-      // Remove itens sincronizados com sucesso
       for (const item of result.succeeded) {
         await removeSyncItem(item.localId);
       }
       
-      // Marca itens com erro para retry
       for (const item of result.failed) {
         await updateSyncItem(item.localId, {
           status: item.retries >= 3 ? 'failed' : 'pending',
@@ -310,14 +332,12 @@ async function syncAllPendingData() {
       
       console.log(`[SW] Sincronização concluída: ${result.succeeded.length} sucesso, ${result.failed.length} falhas`);
       
-      // Notifica clientes
       await notifyClients('SYNC_COMPLETE', {
         processed: operations.length,
         succeeded: result.succeeded.length,
         failed: result.failed.length
       });
       
-      // Mostra notificação se houver sucesso
       if (result.succeeded.length > 0) {
         await showSyncNotification(result.succeeded.length, result.failed.length);
       }
@@ -335,13 +355,11 @@ async function syncAllPendingData() {
 // Envia dados para o servidor
 async function sendToServer(operations) {
   try {
-    // Obtém a URL do backend do primeiro cliente disponível
     const clients = await self.clients.matchAll();
     let apiUrl = '';
     let token = '';
     
     if (clients.length > 0) {
-      // Pede informações ao cliente
       const clientInfo = await new Promise((resolve) => {
         const messageChannel = new MessageChannel();
         messageChannel.port1.onmessage = (event) => {
@@ -357,7 +375,6 @@ async function sendToServer(operations) {
     }
     
     if (!apiUrl || !token) {
-      // Tenta usar valores do IndexedDB ou fallback
       console.log('[SW] Não foi possível obter apiUrl ou token do cliente');
       return { success: false, error: 'Credenciais não disponíveis', succeeded: [], failed: operations };
     }
@@ -377,7 +394,6 @@ async function sendToServer(operations) {
     
     const serverResult = await response.json();
     
-    // Processa resultado do servidor
     const succeeded = [];
     const failed = [];
     
@@ -468,13 +484,11 @@ self.addEventListener('notificationclick', (event) => {
   if (event.action === 'open' || !event.action) {
     event.waitUntil(
       clients.matchAll({ type: 'window' }).then((clientList) => {
-        // Se já tem uma janela aberta, foca nela
         for (const client of clientList) {
           if (client.url.includes('sigesc') && 'focus' in client) {
             return client.focus();
           }
         }
-        // Senão, abre uma nova
         if (clients.openWindow) {
           return clients.openWindow(event.notification.data || '/');
         }
@@ -486,9 +500,7 @@ self.addEventListener('notificationclick', (event) => {
 // ============= Mensagens do Cliente =============
 
 self.addEventListener('message', (event) => {
-  console.log('[SW] Mensagem recebida:', event.data?.type);
-  
-  const { type, payload } = event.data || {};
+  const { type } = event.data || {};
   
   switch (type) {
     case 'SKIP_WAITING':
@@ -502,18 +514,13 @@ self.addEventListener('message', (event) => {
       break;
       
     case 'TRIGGER_SYNC':
-      // Dispara sincronização manual
       syncAllPendingData();
       break;
       
     case 'GET_AUTH_TOKEN':
-      // Resposta para pedido de token (handled pelo cliente)
-      break;
-      
     case 'GET_SYNC_INFO':
-      // Resposta para pedido de info de sync (handled pelo cliente)
       break;
   }
 });
 
-console.log('[SW] Service Worker v2.0.0 carregado com Background Sync');
+console.log('[SW] Service Worker v2.1.0 carregado com Background Sync');
