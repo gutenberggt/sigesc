@@ -113,10 +113,10 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Backend: get_connection_status retorna "admin_direct" quando admin está envolvido
 - Hook de Alterações Não Salvas - useUnsavedChangesWarning (02/04/2026):
   - Hook global em /app/frontend/src/hooks/useUnsavedChangesWarning.js
-  - Intercepta: fechar aba/F5 (beforeunload) e botão voltar do navegador (popstate)
+  - Intercepta: fechar aba/F5 (beforeunload), botão voltar do navegador (popstate), navegação interna React Router (guardedNavigate)
   - Integrado em Attendance.js (Frequência), Grades.js (Notas) e LearningObjects.js (Objetos de Conhecimento)
   - Rastreia alterações em todos os campos de edição e reseta ao salvar/cancelar
-  - Limitação conhecida: links internos do React Router (menu lateral) não disparam alerta (padrão SPA)
+  - O hook retorna `guardedNavigate` que verifica alterações antes de navegar programaticamente
 
 ## Papéis SEMED (Reestruturado em 27/03/2026)
 - **SEMED** (base): Visualização de módulos acadêmicos + Acompanhamento de Diários

@@ -142,7 +142,7 @@ export const LearningObjects = () => {
   
   // Tracking de alterações não salvas
   const [hasChanges, setHasChanges] = useState(false);
-  useUnsavedChangesWarning(hasChanges, 'Há alterações de conteúdo não salvas. Deseja sair sem salvar?');
+  const { guardedNavigate } = useUnsavedChangesWarning(hasChanges, 'Há alterações de conteúdo não salvas. Deseja sair sem salvar?');
 
   // Alert
   const [alert, setAlert] = useState(null);
@@ -695,7 +695,7 @@ export const LearningObjects = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate(user?.role === 'professor' ? '/professor' : '/dashboard')}
+              onClick={() => guardedNavigate(user?.role === 'professor' ? '/professor' : '/dashboard')}
               className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <Home size={18} />

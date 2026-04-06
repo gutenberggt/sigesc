@@ -270,7 +270,7 @@ export function Grades() {
   const [hasChanges, setHasChanges] = useState(false);
   
   // Alerta ao sair com alterações não salvas
-  useUnsavedChangesWarning(hasChanges, 'Há alterações de notas não salvas. Deseja sair sem salvar?');
+  const { guardedNavigate } = useUnsavedChangesWarning(hasChanges, 'Há alterações de notas não salvas. Deseja sair sem salvar?');
 
   // Modal PDF de notas
   const [showPdfModal, setShowPdfModal] = useState(false);
@@ -872,7 +872,7 @@ export function Grades() {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate(user?.role === 'professor' ? '/professor' : '/dashboard')}
+              onClick={() => guardedNavigate(user?.role === 'professor' ? '/professor' : '/dashboard')}
               className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <Home size={18} />
