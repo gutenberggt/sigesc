@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { inferEducationLevel } from '@/utils/educationLevel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
@@ -28,38 +29,6 @@ import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI, t
 
 
 // Infere o nível de ensino da turma a partir de education_level, nivel_ensino, grade_level ou name
-const inferEducationLevel = (classInfo) => {
-  if (!classInfo) return '';
-  // Tentar campo explícito
-  const explicit = (classInfo.education_level || classInfo.nivel_ensino || classInfo.level || '').toLowerCase();
-  if (explicit && explicit !== '') return explicit;
-  // Inferir do grade_level ou name
-  const ref = (classInfo.grade_level || classInfo.name || '').toUpperCase();
-  if (/PRÉ[- ]?ESCOLA|BERÇÁRIO|MATERNAL|CRECHE|INFANTIL/.test(ref)) return 'educacao_infantil';
-  // EJA
-  if (/\bEJA\b/.test(ref)) {
-    if (/FINAL|ANOS?\s*FINAI|[6-9]/.test(ref)) return 'eja_final';
-    return 'eja_inicial';
-  }
-  // Fundamental: extrair o número do ano
-  const match = ref.match(/(\d+)[ºª°]?\s*(ANO|SÉRIE)/i);
-  if (match) {
-    const num = parseInt(match[1]);
-    if (num >= 1 && num <= 5) return 'fundamental_anos_iniciais';
-    if (num >= 6 && num <= 9) return 'fundamental_anos_finais';
-  }
-  // Multisseriado: verificar séries
-  if (classInfo.series && classInfo.series.length > 0) {
-    const firstSeries = classInfo.series[0] || '';
-    const m = firstSeries.match(/(\d+)/);
-    if (m) {
-      const num = parseInt(m[1]);
-      if (num >= 1 && num <= 5) return 'fundamental_anos_iniciais';
-      if (num >= 6 && num <= 9) return 'fundamental_anos_finais';
-    }
-  }
-  return '';
-};
 
 // Nomes dos meses
 const MONTHS = [

@@ -163,7 +163,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 ### Refatoração
 - ~~Modularizar pdf_generator.py (+4200 linhas)~~ CONCLUÍDO (06/04/2026): Dividido em pacote `pdf/` com 11 módulos
 - Centralizar permissões em hook usePermissions
-- Refatorar inferEducationLevel duplicado
+- ~~Refatorar inferEducationLevel duplicado~~ CONCLUÍDO (06/04/2026): Centralizado em `/app/frontend/src/utils/educationLevel.js`
 
 ## Bug Fixes Produção (06/04/2026)
 - Fix CORS 503: variáveis `turma_integral` e `class_id` indefinidas nos endpoints boletim e ficha individual (NameError → crash → 503 sem CORS)

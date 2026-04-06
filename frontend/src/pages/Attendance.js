@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { inferEducationLevel, EDUCATION_LEVEL_LABELS, getAttendanceType } from '@/utils/educationLevel';
 import { 
   ClipboardCheck, 
   Calendar,
@@ -34,61 +35,6 @@ import { OfflineManagementPanel } from '@/components/OfflineManagementPanel';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
-
-// Labels para níveis de ensino
-const EDUCATION_LEVEL_LABELS = {
-  'fundamental_anos_iniciais': 'Fundamental - Anos Iniciais',
-  'fundamental_anos_finais': 'Fundamental - Anos Finais',
-  'eja': 'EJA - Anos Iniciais',
-  'eja_final': 'EJA - Anos Finais',
-  'educacao_infantil': 'Educação Infantil',
-  'ensino_medio': 'Ensino Médio',
-  'global': 'Global'
-};
-
-// Infere o nível de ensino da turma a partir de education_level, grade_level ou name
-const inferEducationLevel = (classInfo) => {
-  if (!classInfo) return '';
-  const explicit = (classInfo.education_level || classInfo.nivel_ensino || '').toLowerCase();
-  if (explicit && explicit !== '') return explicit;
-  const ref = (classInfo.grade_level || classInfo.name || '').toUpperCase();
-  if (/PRÉ[- ]?ESCOLA|BERÇÁRIO|MATERNAL|CRECHE|INFANTIL/.test(ref)) return 'educacao_infantil';
-  if (/\bEJA\b/.test(ref)) {
-    if (/FINAL|ANOS?\s*FINAI|[6-9]/.test(ref)) return 'eja_final';
-    return 'eja_inicial';
-  }
-  const match = ref.match(/(\d+)[ºª°]?\s*(ANO|SÉRIE)/i);
-  if (match) {
-    const num = parseInt(match[1]);
-    if (num >= 1 && num <= 5) return 'fundamental_anos_iniciais';
-    if (num >= 6 && num <= 9) return 'fundamental_anos_finais';
-  }
-  if (classInfo.series && classInfo.series.length > 0) {
-    const m = (classInfo.series[0] || '').match(/(\d+)/);
-    if (m) {
-      const num = parseInt(m[1]);
-      if (num >= 1 && num <= 5) return 'fundamental_anos_iniciais';
-      if (num >= 6 && num <= 9) return 'fundamental_anos_finais';
-    }
-  }
-  return '';
-};
-
-// Tipos de frequência por nível
-const getAttendanceType = (educationLevel, period) => {
-  // Para Escola Integral e Aulas Complementares, sempre por componente
-  if (period === 'integral' || period === 'complementar') {
-    return 'by_component';
-  }
-  
-  // Anos Iniciais = frequência diária
-  if (['fundamental_anos_iniciais', 'eja', 'eja_inicial', 'educacao_infantil'].includes(educationLevel)) {
-    return 'daily';
-  }
-  
-  // Anos Finais = frequência por componente
-  return 'by_component';
-};
 
 // Formata data para exibição
 const formatDate = (dateStr) => {
