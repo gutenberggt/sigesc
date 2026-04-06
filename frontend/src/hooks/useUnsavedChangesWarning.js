@@ -1,21 +1,27 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUnsavedChangesContext } from '@/contexts/UnsavedChangesContext';
 
 /**
  * Hook para alertar o usuário sobre alterações não salvas ao sair da página.
  * - Intercepta fechar aba / reload (beforeunload)
  * - Intercepta botão voltar do navegador (popstate)
- * - Retorna uma função `guardedNavigate` que verifica alterações antes de navegar
- * @param {boolean} hasUnsavedChanges - Se há alterações não salvas
- * @param {string} message - Mensagem do alerta
- * @returns {{ guardedNavigate: (path: string) => void }}
+ * - Retorna guardedNavigate para proteger navegação programática
+ * - Sincroniza com contexto global para proteger o botão Sair (logout)
  */
 export const useUnsavedChangesWarning = (hasUnsavedChanges, message = 'Você tem alterações não salvas. Deseja sair sem salvar?') => {
   const changesRef = useRef(hasUnsavedChanges);
   changesRef.current = hasUnsavedChanges;
   const navigate = useNavigate();
+  const { setUnsavedState } = useUnsavedChangesContext();
 
-  // Navegação protegida para uso em botões/links internos
+  // Sincroniza com o contexto global (Layout lê isso para o botão Sair)
+  useEffect(() => {
+    setUnsavedState(hasUnsavedChanges, message);
+    return () => setUnsavedState(false, '');
+  }, [hasUnsavedChanges, message, setUnsavedState]);
+
+  // Navegação protegida para botões internos (ex: Início)
   const guardedNavigate = useCallback((path) => {
     if (changesRef.current) {
       const leave = window.confirm(message);
@@ -25,7 +31,6 @@ export const useUnsavedChangesWarning = (hasUnsavedChanges, message = 'Você tem
   }, [navigate, message]);
 
   useEffect(() => {
-    // Intercepta fechar aba / F5
     const handleBeforeUnload = (e) => {
       if (!changesRef.current) return;
       e.preventDefault();
@@ -33,8 +38,7 @@ export const useUnsavedChangesWarning = (hasUnsavedChanges, message = 'Você tem
       return message;
     };
 
-    // Intercepta botão voltar do navegador
-    const handlePopState = (e) => {
+    const handlePopState = () => {
       if (!changesRef.current) return;
       const leave = window.confirm(message);
       if (!leave) {

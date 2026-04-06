@@ -4,6 +4,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { MantenedoraProvider } from '@/contexts/MantenedoraContext';
 import { OfflineProvider } from '@/contexts/OfflineContext';
 import { MessagingProvider } from '@/contexts/MessagingContext';
+import { UnsavedChangesProvider } from '@/contexts/UnsavedChangesContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Login } from '@/pages/Login';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -72,6 +73,7 @@ function App() {
       <MessagingProvider>
       <MantenedoraProvider>
       <BrowserRouter>
+        <UnsavedChangesProvider>
         <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Página inicial = Login */}
@@ -441,6 +443,7 @@ function App() {
           />
         </Routes>
         </Suspense>
+        </UnsavedChangesProvider>
       </BrowserRouter>
       </MantenedoraProvider>
       </MessagingProvider>

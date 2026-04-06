@@ -7,6 +7,7 @@ import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { ConnectionStatusBadge, OfflineBanner, FloatingStatusIndicator } from '@/components/OfflineStatus';
 import { useMessaging } from '@/contexts/MessagingContext';
 import { ChatBox } from '@/components/messaging';
+import { useUnsavedChangesContext } from '@/contexts/UnsavedChangesContext';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
@@ -14,8 +15,14 @@ export const Layout = ({ children }) => {
   const { activeChat, closeChat } = useMessaging();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { getUnsavedState } = useUnsavedChangesContext();
 
   const handleLogout = () => {
+    const { hasChanges, message } = getUnsavedState();
+    if (hasChanges) {
+      const leave = window.confirm(message || 'Você tem alterações não salvas. Deseja sair sem salvar?');
+      if (!leave) return;
+    }
     logout();
     navigate('/login');
   };
