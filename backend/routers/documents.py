@@ -1622,6 +1622,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     ):
         """
         Gera um único PDF consolidado com todos os documentos da turma.
+        Usa a mesma lógica de filtragem de componentes curriculares dos endpoints individuais.
 
         document_type: 'boletim', 'ficha_individual', 'certificado'
         """
@@ -1629,47 +1630,94 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         current_user = await AuthMiddleware.get_current_user(request)
 
-        # Validar tipo de documento
         valid_types = ['boletim', 'ficha_individual', 'certificado']
         if document_type not in valid_types:
             raise HTTPException(status_code=400, detail=f"Tipo de documento inválido. Use: {', '.join(valid_types)}")
 
-        # Buscar turma
         class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
         if not class_info:
             raise HTTPException(status_code=404, detail="Turma não encontrada")
 
-        # Validar elegibilidade para certificado (9º Ano ou EJA 4ª Etapa)
         if document_type == 'certificado':
-            grade_level = str(class_info.get('grade_level', '')).lower()
-            education_level = str(class_info.get('education_level', '')).lower()
-
-            is_9ano = '9' in grade_level and 'ano' in grade_level
-            is_eja_4etapa = ('eja' in education_level or 'eja' in grade_level) and ('4' in grade_level or 'etapa' in grade_level)
-
+            grade_level_cert = str(class_info.get('grade_level', '')).lower()
+            education_level_cert = str(class_info.get('education_level', '')).lower()
+            is_9ano = '9' in grade_level_cert and 'ano' in grade_level_cert
+            is_eja_4etapa = ('eja' in education_level_cert or 'eja' in grade_level_cert) and ('4' in grade_level_cert or 'etapa' in grade_level_cert)
             if not (is_9ano or is_eja_4etapa):
-                raise HTTPException(
-                    status_code=400, 
-                    detail="Certificado disponível apenas para turmas do 9º Ano ou EJA 4ª Etapa"
-                )
+                raise HTTPException(status_code=400, detail="Certificado disponível apenas para turmas do 9º Ano ou EJA 4ª Etapa")
 
-        # Buscar escola da turma
         school = await get_school_cached(db, class_info.get("school_id"))
         if not school:
-            school = {"name": "Escola Municipal"}
+            school = {"name": "Escola Municipal", "cnpj": "N/A", "phone": "N/A", "city": "Município"}
 
-        # Buscar mantenedora
         mantenedora = await get_mantenedora_cached(db)
 
-        # Buscar calendário letivo para data fim do 4º bimestre
-        calendario_letivo = await db.calendar.find_one({
-            "year": academic_year
+        actual_academic_year = class_info.get("academic_year", academic_year)
+        academic_year_int = int(actual_academic_year) if actual_academic_year else int(academic_year)
+
+        # ===== CALENDÁRIO LETIVO (mesma lógica do individual) =====
+        calendario_letivo = await db.calendario_letivo.find_one({
+            "ano_letivo": academic_year_int,
+            "school_id": None
         }, {"_id": 0})
 
-        # Buscar alunos matriculados na turma (ativos e transferidos)
-        academic_year_int_livro = int(academic_year) if academic_year else datetime.now().year
+        dias_letivos_ano = 200
+        if calendario_letivo:
+            eventos = await db.calendar_events.find({
+                "year": academic_year_int
+            }, {"_id": 0}).to_list(500)
+
+            datas_nao_letivas = set()
+            datas_sabados_letivos = set()
+            for evento in eventos:
+                tipo = evento.get('type', '')
+                data_str = evento.get('date', '')
+                if tipo in ['feriado', 'recesso', 'ferias', 'nao_letivo', 'ponto_facultativo', 'conselho']:
+                    try:
+                        data = datetime.strptime(data_str[:10], '%Y-%m-%d').date()
+                        datas_nao_letivas.add(data)
+                    except Exception:
+                        pass
+                elif tipo == 'sabado_letivo':
+                    try:
+                        data = datetime.strptime(data_str[:10], '%Y-%m-%d').date()
+                        datas_sabados_letivos.add(data)
+                    except Exception:
+                        pass
+
+            def _calcular_dias_letivos_periodo(inicio_str, fim_str):
+                if not inicio_str or not fim_str:
+                    return 0
+                try:
+                    inicio = datetime.strptime(str(inicio_str)[:10], '%Y-%m-%d').date()
+                    fim = datetime.strptime(str(fim_str)[:10], '%Y-%m-%d').date()
+                except Exception:
+                    return 0
+                dias = 0
+                current = inicio
+                while current <= fim:
+                    dia_semana = current.weekday()
+                    if dia_semana < 5:
+                        if current not in datas_nao_letivas:
+                            dias += 1
+                    elif dia_semana == 5:
+                        if current in datas_sabados_letivos:
+                            dias += 1
+                    current += timedelta(days=1)
+                return dias
+
+            b1 = _calcular_dias_letivos_periodo(calendario_letivo.get('bimestre_1_inicio'), calendario_letivo.get('bimestre_1_fim'))
+            b2 = _calcular_dias_letivos_periodo(calendario_letivo.get('bimestre_2_inicio'), calendario_letivo.get('bimestre_2_fim'))
+            b3 = _calcular_dias_letivos_periodo(calendario_letivo.get('bimestre_3_inicio'), calendario_letivo.get('bimestre_3_fim'))
+            b4 = _calcular_dias_letivos_periodo(calendario_letivo.get('bimestre_4_inicio'), calendario_letivo.get('bimestre_4_fim'))
+            dias_letivos_ano = b1 + b2 + b3 + b4
+            if dias_letivos_ano == 0:
+                dias_letivos_ano = calendario_letivo.get('dias_letivos_previstos', 200) or 200
+            calendario_letivo['dias_letivos_calculados'] = dias_letivos_ano
+
+        # ===== MATRÍCULAS =====
         enrollments = await db.enrollments.find(
-            {"class_id": class_id, "status": {"$in": ["active", "transferred"]}, "academic_year": academic_year_int_livro},
+            {"class_id": class_id, "status": {"$in": ["active", "transferred"]}, "academic_year": academic_year_int},
             {"_id": 0}
         ).to_list(1000)
 
@@ -1679,7 +1727,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         student_ids = [e['student_id'] for e in enrollments]
         enrollment_map = {e['student_id']: e for e in enrollments}
 
-        # Buscar dados dos alunos
         students = await db.students.find(
             {"id": {"$in": student_ids}},
             {"_id": 0}
@@ -1688,28 +1735,99 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if not students:
             raise HTTPException(status_code=404, detail="Alunos não encontrados")
 
-        # Buscar componentes curriculares para o boletim
+        # ===== FILTRAR COMPONENTES CURRICULARES PELA TURMA (mesma lógica do individual) =====
         courses = []
         if document_type in ['boletim', 'ficha_individual']:
-            courses = await db.courses.find({}, {"_id": 0}).to_list(100)
+            class_assignments = await db.teacher_assignments.find(
+                {"class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
+                {"_id": 0, "course_id": 1}
+            ).to_list(100)
+            assigned_course_ids = list(set(a['course_id'] for a in class_assignments if a.get('course_id')))
 
-        # Criar merger para juntar os PDFs
+            if assigned_course_ids:
+                courses = await db.courses.find(
+                    {"id": {"$in": assigned_course_ids}},
+                    {"_id": 0}
+                ).to_list(100)
+            else:
+                # Fallback: inferir nível de ensino e filtrar
+                nivel_ensino = class_info.get('nivel_ensino')
+                grade_level = class_info.get('grade_level', '')
+                grade_level_lower = grade_level.lower() if grade_level else ''
+                if not nivel_ensino:
+                    if any(x in grade_level_lower for x in ['berçário', 'bercario', 'maternal', 'pré', 'pre']):
+                        nivel_ensino = 'educacao_infantil'
+                    elif any(x in grade_level_lower for x in ['1º ano', '2º ano', '3º ano', '4º ano', '5º ano', '1 ano', '2 ano', '3 ano', '4 ano', '5 ano']):
+                        nivel_ensino = 'fundamental_anos_iniciais'
+                    elif any(x in grade_level_lower for x in ['6º ano', '7º ano', '8º ano', '9º ano', '6 ano', '7 ano', '8 ano', '9 ano']):
+                        nivel_ensino = 'fundamental_anos_finais'
+                    elif any(x in grade_level_lower for x in ['eja', 'etapa']):
+                        nivel_ensino = 'eja_final' if any(x in grade_level_lower for x in ['3', '4', 'final']) else 'eja'
+                courses_query = {"nivel_ensino": nivel_ensino} if nivel_ensino else {}
+                courses = await db.courses.find(courses_query, {"_id": 0}).to_list(100)
+
+            courses.sort(key=lambda x: x.get('name', ''))
+
+            if not courses:
+                courses = await db.courses.find({}, {"_id": 0}).to_list(100)
+
+            logger.info(f"Batch PDF: {len(courses)} componentes filtrados para turma {class_id} (via {'teacher_assignments' if assigned_course_ids else 'fallback'})")
+
+        # ===== FREQUÊNCIA DA TURMA (buscar uma vez para todos os alunos) =====
+        turma_integral = class_info.get('atendimento_programa', '') == 'atendimento_integral'
+        all_attendance_records = []
+        if document_type in ['boletim', 'ficha_individual']:
+            all_attendance_records = await db.attendance.find(
+                {"class_id": class_id, "academic_year": academic_year_int},
+                {"_id": 0}
+            ).to_list(2000)
+
         merger = PdfMerger()
 
         try:
             for student in students:
                 enrollment = enrollment_map.get(student['id'], {})
+                if not enrollment.get('student_series') and student.get('student_series'):
+                    enrollment['student_series'] = student['student_series']
 
-                # Buscar notas do aluno se necessário
                 grades = []
                 if document_type in ['boletim', 'ficha_individual']:
                     grades = await db.grades.find(
-                        {"student_id": student['id'], "academic_year": academic_year},
+                        {"student_id": student['id'], "academic_year": academic_year_int},
                         {"_id": 0}
                     ).to_list(100)
 
-                # Gerar PDF individual
                 if document_type == 'boletim':
+                    # ===== CALCULAR FREQUÊNCIA POR ALUNO (mesma lógica do individual) =====
+                    faltas_regular = 0
+                    faltas_por_componente = {}
+                    for att_record in all_attendance_records:
+                        period = att_record.get('period', 'regular')
+                        course_id = att_record.get('course_id')
+                        attendance_type = att_record.get('attendance_type', 'daily')
+                        for sr in att_record.get('records', []):
+                            if sr.get('student_id') == student['id'] and sr.get('status') == 'F':
+                                if attendance_type == 'daily' and period == 'regular':
+                                    faltas_regular += 1
+                                elif course_id:
+                                    faltas_por_componente[course_id] = faltas_por_componente.get(course_id, 0) + 1
+
+                    attendance_data = {
+                        '_meta': {
+                            'faltas_regular': faltas_regular,
+                            'faltas_por_componente': faltas_por_componente,
+                            'is_escola_integral': turma_integral
+                        }
+                    }
+                    for course in courses:
+                        c_id = course.get('id')
+                        atendimento = course.get('atendimento_programa')
+                        if atendimento == 'atendimento_integral':
+                            faltas = faltas_por_componente.get(c_id, 0)
+                        else:
+                            faltas = 0
+                        attendance_data[c_id] = {'absences': faltas, 'atendimento_programa': atendimento}
+
                     pdf_buffer = generate_boletim_pdf(
                         student=student,
                         school=school,
@@ -1717,28 +1835,43 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                         class_info=class_info,
                         grades=grades,
                         courses=courses,
-                        academic_year=str(academic_year),
+                        academic_year=str(academic_year_int),
                         mantenedora=mantenedora,
-                        calendario_letivo=calendario_letivo
+                        dias_letivos_ano=dias_letivos_ano,
+                        calendario_letivo=calendario_letivo,
+                        attendance_data=attendance_data
                     )
-                elif document_type == 'ficha_individual':
-                    # Buscar frequência do aluno
-                    attendances = await db.attendance.find(
-                        {"class_id": class_id, "academic_year": academic_year, "records.student_id": student['id']},
-                        {"_id": 0}
-                    ).to_list(1000)
 
-                    attendance_data = {"present": 0, "absent": 0, "justified": 0, "total": 0}
-                    for att in attendances:
-                        for record in att.get('records', []):
-                            if record['student_id'] == student['id']:
-                                attendance_data['total'] += 1
-                                if record['status'] == 'P':
-                                    attendance_data['present'] += 1
-                                elif record['status'] == 'F':
-                                    attendance_data['absent'] += 1
-                                elif record['status'] == 'J':
-                                    attendance_data['justified'] += 1
+                elif document_type == 'ficha_individual':
+                    # ===== CALCULAR FREQUÊNCIA POR ALUNO (mesma lógica do individual) =====
+                    faltas_regular = 0
+                    faltas_por_componente = {}
+                    for att_record in all_attendance_records:
+                        period = att_record.get('period', 'regular')
+                        course_id = att_record.get('course_id')
+                        attendance_type = att_record.get('attendance_type', 'daily')
+                        for sr in att_record.get('records', []):
+                            if sr.get('student_id') == student['id'] and sr.get('status') == 'F':
+                                if attendance_type == 'daily' and period == 'regular':
+                                    faltas_regular += 1
+                                elif course_id:
+                                    faltas_por_componente[course_id] = faltas_por_componente.get(course_id, 0) + 1
+
+                    attendance_data = {
+                        '_meta': {
+                            'faltas_regular': faltas_regular,
+                            'faltas_por_componente': faltas_por_componente,
+                            'is_escola_integral': turma_integral
+                        }
+                    }
+                    for course in courses:
+                        c_id = course.get('id')
+                        atendimento = course.get('atendimento_programa')
+                        if atendimento == 'atendimento_integral':
+                            faltas = faltas_por_componente.get(c_id, 0)
+                        else:
+                            faltas = 0
+                        attendance_data[c_id] = {'absences': faltas, 'atendimento_programa': atendimento}
 
                     pdf_buffer = generate_ficha_individual_pdf(
                         student=student,
@@ -1748,37 +1881,35 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                         grades=grades,
                         courses=courses,
                         attendance_data=attendance_data,
-                        academic_year=academic_year,
+                        academic_year=academic_year_int,
                         mantenedora=mantenedora,
                         calendario_letivo=calendario_letivo
                     )
+
                 elif document_type == 'certificado':
                     pdf_buffer = generate_certificado_pdf(
                         student=student,
                         school=school,
                         class_info=class_info,
                         enrollment=enrollment,
-                        academic_year=academic_year,
+                        academic_year=academic_year_int,
                         mantenedora=mantenedora
                     )
 
-                # Adicionar ao merger
                 merger.append(pdf_buffer)
 
-            # Gerar PDF final consolidado
             output_buffer = BytesIO()
             merger.write(output_buffer)
             merger.close()
             output_buffer.seek(0)
 
-            # Nome do arquivo
             class_name = class_info.get('name', 'turma').replace(' ', '_')
             type_names = {
                 'boletim': 'Boletins',
                 'ficha_individual': 'Fichas_Individuais',
                 'certificado': 'Certificados'
             }
-            filename = f"{type_names.get(document_type, document_type)}_{class_name}_{academic_year}.pdf"
+            filename = f"{type_names.get(document_type, document_type)}_{class_name}_{academic_year_int}.pdf"
 
             return StreamingResponse(
                 output_buffer,
@@ -1789,7 +1920,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             )
 
         except Exception as e:
-            logger.error(f"Erro ao gerar documentos em lote: {e}")
+            logger.error(f"Erro ao gerar documentos em lote: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
 

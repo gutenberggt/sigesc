@@ -154,9 +154,18 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Restrição: papéis admin/semed/ass_social só são visíveis e criáveis por administradores
 - Legenda explicativa no rodapé da matriz
 
+## Bug Fixes (07/04/2026)
+- Fix Batch PDF (P0): `get_batch_documents` agora usa mesma lógica de filtragem do individual:
+  - Filtra componentes via `teacher_assignments` (fallback: `nivel_ensino`)
+  - Calcula `attendance_data` com estrutura `_meta` (faltas_regular, faltas_por_componente)
+  - Busca `calendario_letivo` corretamente (era `db.calendar`, agora `db.calendario_letivo`)
+  - Calcula `dias_letivos_ano` por bimestre
+  - Propaga `student_series` do aluno para enrollment
+
 ## Tarefas Pendentes
 
 ### Outras Tarefas
+- (P1) Carga horária zerada na folha de pagamento (aguardando decisão do usuário)
 - (P1) Alterar carga horária de componentes curriculares
 - (P2) Envio de e-mail de confirmação na pré-matrícula
 

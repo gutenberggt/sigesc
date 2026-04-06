@@ -1,134 +1,155 @@
 <analysis>**original_problem_statement**: 
-O usuário solicitou a finalização da Fase 4 do Módulo de RH/Folha de Pagamento (geração de relatórios em PDF) e a implementação de diversas melhorias no sistema:
-1. Painel de Indicadores Visuais (Analytics) no dashboard do RH.
-2. Reestruturação completa dos papéis da Secretaria (SEMED, SEMED 1, SEMED 2, SEMED 3) com permissões granulares de visualização e edição.
-3. Criação de uma matriz visual de permissões na página de Usuários.
-4. Ajustes finos de permissões (Diretor com acesso restrito a visualização na maioria dos módulos, todos podem criar avisos, etc.).
-5. Reestruturação do formulário de Lotações para suportar escolas Sede e Anexas dependendo da função do servidor.
-6. Correção de nomenclatura no RH (Aulas -> Horas).
-7. Mudança da fórmula de cálculo de carga horária mensal (de Carga Semanal x 4.33 para Carga Semanal x 5).
+O usuário solicitou inicialmente melhorias e correções na página de Objetos de Conhecimento e Controle de Frequência para turmas EJA e Fundamental Anos Finais, garantindo o filtro rigoroso por Componente Curricular. Além disso, foram exigidas diversas novas funcionalidades: correções de segurança, refatoração de Objetos de Conhecimento, Mensageiro Global flutuante, resolução de bugs críticos de login e de diretórios na Produção (Coolify), ajustes de permissões, otimização brutal de performance no MongoDB, e um hook global para emitir alertas ao sair de páginas de edição não salvas.
+PRODUCT REQUIREMENTS: 
+1. EJA e Ensino Fundamental Anos Finais têm frequência e conteúdos salvos e gerados em PDF estritamente por componente curricular.
+2. O PDF e a visualização em tela não podem agrupar todos os componentes da turma.
+3. Mensageiro Global onipresente via ChatBox flutuante.
+4. Em edição (Frequência, Notas, Conteúdos), a mudança de rota deve disparar um aviso de Alterações Não Salvas.
+5. Boletins e Fichas Individuais devem buscar componentes curriculares rigorosamente filtrados por turma.
 
-**User's preferred language**: Portuguese (Português). INSTRUCT next agent to respond in Portuguese.
+**User's preferred language**: Portuguese (Português). INSTRUCT next agent to respond in the user's preferred language only.
 
 **what currently exists?**: 
-O SIGESC é um sistema full-stack (React + FastAPI + MongoDB). O módulo de RH/Folha agora está completo (Fases 1 a 4) incluindo relatórios em PDF gerados via  e um Dashboard Analítico construído com . O sistema possui um controle de RBAC (Role-Based Access Control) altamente granular através de um middleware no backend e do hook  no frontend, suportando hierarquias complexas como Múltiplos níveis de SEMED, Diretores, Secretários e Professores. As Lotações () agora diferenciam  entre Sede e Anexa para evitar que servidores de escopo global poluam o quadro local de funcionários.
+Sistema full-stack (React + FastAPI + MongoDB). O hook  foi completamente implementado, capturando F5, fechamento de aba, navegação interna (React Router) e clique no botão de Logout via um novo  global. O monolito  foi modularizado em múltiplos arquivos sob . O hook  foi centralizado e implementado nas principais páginas, substituindo dezenas de checagens inline de roles. Erros críticos de produção (CORS 503 e Service Worker IndexedDB VersionError) foram corrigidos.
 
 **Last working item**: 
-    - **Last item agent was working**: O agente estava escrevendo um script/query MongoDB para atualizar retroativamente a carga horária mensal ( e ) dos itens de folha de pagamento () já existentes. A fórmula foi alterada no código (de x 4.33 para x 5), mas os registros antigos no banco de dados continuaram com os valores antigos (ex: 173.2h em vez de 200h).
-    - **Status**: IN PROGRESS
+    - **Last item agent was working**: Correção da geração de PDFs em Lote (Batch). O usuário reportou que ao gerar o boletim individualmente, os componentes curriculares vêm corretamente filtrados pela turma (respeitando alocações e nível de ensino, como Educação Infantil). No entanto, ao gerar o Boletim da Turma (Batch PDF), os componentes curriculares não estão organizados ou adequados em relação à turma. O agente estava prestes a analisar o PDF enviado pelo usuário antes de ser interrompido.
+    - **Status**: NOT STARTED
     - **Agent Testing Done**: N
-    - **Which testing method agent to use?**: backend manual testing by python -c ou mongosh script seguido de screenshot tool na interface do RH para verificar se os valores foram atualizados.
+    - **Which testing method agent to use?**: backend testing agent / manual testing by curl (gerar o batch e analisar o buffer/JSON retornado).
     - **User Testing Done**: N
 
 **All Pending/In progress Issue list**: 
-  Issue 1: (P0) Atualização Retroativa da Carga Horária Mensal no Banco de Dados
-  
+  Issue 1: (P0) PDFs em Lote (Boletins da Turma / Fichas Individuais) não estão filtrando os Componentes Curriculares corretamente.
+  Issue 2: (P1) Carga horária prevista zerada (0h) na folha de pagamento para servidores cuja carga horária contratual não está preenchida no cadastro, mesmo tendo alocações ativas ().
+
   Issues Detail:
-  - Issue 1: Atualização do MongoDB para 
-     - **Attempted fixes**: O agente atualizou a fórmula na rota de criação de competências no  e fez um  para inspecionar os itens existentes, mas o contexto acabou antes de realizar o update.
-     - **Next debug checklist**: Criar um script (via  com python ou direto em uma rota temporária) para buscar todos os  e  existentes, recalcular o  (e  se for igual ao expected) multiplicando a carga semanal original por 5, e atualizar no banco de dados (MongoDB). Verifique também se precisa atualizar o  global dentro do documento de .
-     - **Why fix this issue and what will be achieved with the fix?**: A interface do RH está exibindo a métrica antiga (173.2h) para competências já abertas, gerando inconsistência visual e de cálculo para os usuários.
-     - **Status**: IN PROGRESS
+  - Issue 1: 
+     - **Attempted fixes**: Nenhuma tentativa de fix ainda. O agente apenas tentou analisar os PDFs via .
+     - **Next debug checklist**: 
+        1. Em , compare a função de geração individual ( e ) com a função de lote ().
+        2. Nas funções individuais, existe uma lógica rigorosa que usa  para filtrar apenas os  vinculados à turma (linha 924+). Verifique se  está aplicando o mesmo filtro rigoroso antes de chamar o gerador de PDF, ou se está passando todos os componentes da escola.
+        3. Corrigir a injeção de  no endpoint de batch para espelhar a fidelidade do endpoint individual.
+     - **Why fix this issue and what will be achieved with the fix?**: O boletim da turma inteiro está sendo gerado com matriz curricular errada, causando falha nos relatórios oficiais entregues aos pais.
+     - **Status**: NOT STARTED
      - **Is recurring issue?**: N
-     - **Should Test frontend/backend/both after fix?**: both
+     - **Should Test frontend/backend/both after fix?**: backend (gerar PDF de turma e checar logs/output).
+     - **Blocked on other issue**: None
+
+  - Issue 2: 
+     - **Attempted fixes**: A espera de aprovação e definição por parte do usuário sobre se calcula a carga ativamente baseada nas aulas alocadas ou se continua avisando do cadastro vazio.
+     - **Next debug checklist**: Retomar pergunta ao usuário.
+     - **Why fix this issue and what will be achieved with the fix?**: Folha de pagamento para professores sendo calculada em 0h indevidamente.
+     - **Status**: USER VERIFICATION PENDING
+     - **Is recurring issue?**: N
+     - **Should Test frontend/backend/both after fix?**: backend
      - **Blocked on other issue**: None
 
 **In progress Task List**: 
-  Nenhuma tarefa adicional em andamento fora a atualização do banco de dados (Issue 1).
+Nenhuma no momento.
 
-**Upcoming and Future Tasks**:
-  Task 1: (P1) Alterar carga horária de componentes curriculares.
-  Task 2: (P2) Implementar envio de e-mail de confirmação na pré-matrícula.
-  Task 3: (P2 Refatoração) Modularizar o restante de  (arquivo muito extenso, mais de 4200 linhas).
-  Task 4: (P2 Refatoração) Centralizar permissões no frontend em um hook .
-  Task 5: (P2 Refatoração) Extrair multi-select para componente reutilizável.
+**Upcoming and Future Tasks**
+    Upcoming Tasks:
+    - (P1) Alterar carga horária de componentes curriculares.
+    - (P2) Implementar envio de e-mail de confirmação na pré-matrícula.
+    
+    Future Tasks:
+    - (P3) Avaliar uso de  do React Router v7 com  (Atualmente o app usa  simples com a solução de ).
 
-**Completed work in this session**:
-- Fase 4 do Módulo RH: Endpoints e botões gerando 4 relatórios em PDF (DONE)
-- Painel Analytics no RH usando  (DONE)
-- Reestruturação completa de papéis SEMED (SEMED 1, 2, 3) no backend e frontend (DONE)
-- Matriz de Permissões UI em  com dropdown de troca rápida (DONE)
-- Ajustes de permissões: Diretor apenas visualiza módulos base; todos podem criar Avisos; Diário AEE com Secretário (edita) e Diretor (viz) (DONE)
-- Correção de bug no envio do Token via  para o download de PDFs do RH (DONE)
-- Reestruturação do modal  suportando campos condicionais (Escola Sede / Escolas Anexas) (DONE)
-- Inclusão do papel Auxiliar de Secretaria nas lotações (DONE)
-- Ocultação de servidores com  do quadro visual e da pré-folha (DONE)
-- Alteração de nomenclatura global no RH de Aulas para Horas (DONE)
-- Botão Início adicionado ao cabeçalho do Módulo RH (DONE)
-- Modificação na fórmula de conversão de horas semanais para mensais (x 5) implementada para **novas** competências (DONE).
+**Completed work in this session**
+- Implementado state  e hook  em  para fields (content, methodology, resources, observations, number_of_classes). (DONE)
+- Interceptação de navegação interna do React Router criando  e inserindo nos botões Início em ,  e . (DONE)
+- Interceptação de Logout global com aviso de alterações não salvas via novo . (DONE)
+- Modularização GIGANTE do  (4293 linhas) em 11 módulos dentro da pasta , mantendo  como bridge. (DONE)
+- Correção de Crash 503 CORS no Backend de Produção causado por  das variáveis  e  nos endpoints de Boletim e Ficha Individual. (DONE)
+- Correção do erro IndexedDB VersionError no Service Worker (). (DONE)
+- Refatoração e centralização da função duplicada  para . (DONE)
+- Refatoração MASSIVA e centralização de permissões usando o hook  nos arquivos , , , , ,  e . (DONE)
 
-**Earlier issues found/mentioned but not fixed**:
-  - Issue 1: Refatoração da função duplicada .
-    - **Debug checklist**: Localizar duplicatas no frontend e criar utilitário em .
-    - **Why to solve this issue and what will be achieved with this?**: Reduzir repetição de código no frontend.
-    - **Should Test frontend/backend/both after fix**: frontend
-    - **Is recurring issue?**: N
+**Earlier issues found/mentioned but not fixed**
+   - O usuário mencionou que os botões de Boletim e Fichas de Turma estavam desabilitados em produção, mas isso foi diagnosticado como sintoma do erro 503 CORS já corrigido na sessão (esperando apenas deploy).
 
-**Known issue recurrence from previous fork**:
-  - Nenhuma recorrência registrada.
+**Known issue recurrence from previous fork**
+  - Recurrence count: 0
+  - Status: RESOLVED
 
-**Code Architecture**:
+**Code Architecture**
 
 
-**Key Technical Concepts**:
-- **RBAC Complexo**: O sistema agora usa grupos de roles granulares. Frontend confia fortemente em  e em checagens ternárias (, ).
-- **Lotações Diferenciadas**:  agora carregam a chave  (sede ou anexa). O Frontend e a lógica da Folha de Pagamento baseiam-se nisso para filtrar exibições.
-- **Gráficos**: Uso da biblioteca  para indicadores visuais.
-- **Downloads Seguros**: Os PDFs agora são baixados usando a API  do JS para passar o  Header nativamente e convertidos em Blob.
+**Key Technical Concepts**
+- FastAPI Backend & React Frontend.
+- **Context API** usada extensivamente (agora incluindo UnsavedChangesContext para bloquear navegação do topo da árvore).
+- Módulo  particionado para manter PDFs otimizados na pasta backend/pdf.
 
-**key DB schema**:
-  - :  (Roles atualizados)
-  - : 
-  - :  (Necessita atualização retroativa via script).
+**key DB schema**
+  - :  Usado para filtrar matriz curricular de turmas ativas.
+  - : .
 
-**changes in tech stack**:
-  - Instalação do pacote frontend .
+**changes in tech stack**
+  - O sistema de navegação e bloqueio Unsaved utiliza wrapper  manual (já que o aplicativo usa  em vez do recomendado  exigido pelo  do react-router-dom v7).
 
-**All files of reference**:
-- : Contém a lógica das competências e a fórmula de cálculo (linha ~1198).
-- : Frontend da folha.
-- : Para referência aos literais de  e .
+**All files of reference** 
+-  (Foco principal para resolver o Bug do Batch PDF)
+- 
+- 
+- 
+- 
+- 
+- 
 
-**Areas that need refactoring**:
--  continua precisando ser quebrado.
-- O componente  cresceu bastante com a inclusão da Matriz de permissões, podendo ser subdividido.
+**Areas that need refactoring**: 
+- O frontend como um todo poderia migrar para  para acessar hooks modernos do React Router v7 (), eliminando a necessidade do  customizado.
 
-**key api endpoints**:
-- : Painel visual do RH.
-- : Geração dos 4 tipos de relatórios em PDF.
-- : Fechamento de competência.
+**key api endpoints**
+- 
+- 
+- 
 
-**Critical Info for New Agent**:
-- **Fórmula do RH Alterada:** A pedido do usuário, a fórmula que calcula as horas mensais de um servidor mudou de  para . Isso já foi alterado em  para competências *futuras*.
-- **SEU PRIMEIRO PASSO**: O usuário mostrou um print de uma competência *já criada* com o valor antigo (173.2h). Você precisa rodar um script no MongoDB (via bash, python, ou script no app) que pegue todos os  existentes, encontre a carga horária semanal da lotação correspondente (ou reverta a matemática: divida o  por 4.33) e aplique a nova matemática (x 5) atualizando o banco de dados.
-- Não altere as rotas do frontend sem verificar as restrições em .
+**Critical Info for New Agent** 
+- **Bug Imediato (P0):** Concentre-se diretamente no arquivo , especificamente na função . O usuário reclamou que os PDFs individuais estão buscando corretamente a matriz curricular da turma (pois eles têm lógica de  ou filtro em ), mas a função  deve estar omitindo esse filtro e mandando todos os componentes para o  modularizado.
+- O ambiente tem scripts pesados rodando em FastAPI; atenção ao reiniciar o supervisor para não ter falsos negativos de erro 503 temporários. 
+- Mantenha sempre o idioma em **Português** ao comunicar-se no .
 
-**documents and test reports created in this job**:
-  -  até 
-  -  (Atualizado com Fases do RH, Ajustes de Permissões e Lotação)
+**documents and test reports created in this job** 
+  - 
+  -  (criado)
 
-**Last 10 User Messages and any pending HUMAN messages**: 
-1. **User**: Porque um professor lotado com 40 horas semanais tem carga horária mensal prevista de 173.2h? Qual a fórmula...?
-2. **Agent**: Explicou que o sistema usa  (média de semanas no mês) e perguntou se o usuário queria alterar.
-3. **User**: Na Educação, a fórmula é 40h × 5 = 200h. Aplique essa fórmula para todos os cálculos...
-4. **Agent**: Alterou o backend  (de 4.33 para 5) e avisou que aplicaria para *novas* competências.
-5. **User**: A nova fórmula não foi aplicada em RH / Folha de Pagamento (Enviou screenshot provando que a UI continua com o valor antigo). *(MENSAGEM PENDENTE A SER RESOLVIDA)*
+**Last 10 User Messages and any pending HUMAN messages** 
+1. **User**: Prossiguir com este plano -> **Agent** inseriu tracking em LearningObjects.js.
+2. **User**: Fiz um teste na frequência, saí da página e não surgiu nenhum aviso! (clique na sidebar). -> **Agent** criou  para interceptar botões de 'Início' no router.
+3. **User**: Se o usuário clicar em Sair deve exibir o mesmo aviso. -> **Agent** inseriu  e injetou no App.js/Layout.js.
+4. **User**: Modularizar pdf_generator.py -> **Agent** separou o arquivo de 4200 linhas em 11 módulos.
+5. **User**: O que significa esses erros? (Posta log de 503 CORS e Service Worker no Coolify). -> **Agent** identificou  severos no  e os corrigiu, além do SW IndexedDB error.
+6. **User**: Investigue e corrija o problema do indexedDB no sw.js e o CROS 503 -> **Agent** aplicou os fixes.
+7. **User**: Refatorar inferEducationLevel duplicado -> **Agent** refatorou para o .
+8. **User**: Centralizar permissões em hook usePermissions -> **Agent** refatorou mais de 7 arquivos cruciais.
+9. **User**: Em Detalhes da Turma, os botões Boletins e Fichas Individuais estão inativos. -> **Agent** provou que eles funcionam, sendo o bug visual um colateral do 503 recém-corrigido.
+10. **User**: (HUMAN PENDING) O boletim e a ficha individual deve buscar os componentes curriculares filtrados por turma... porém o boletim, quando gerado por turma, não mostra a mesma organização, adequação em relação à turma! Isso precisa ser corrigido. -> **Agent** não pôde consertar a tempo.
 
 **Project Health Check:**
-  - **Broken**: Os itens de folha de pagamento () antigos no banco de dados estão defasados matematicamente em relação à nova regra de negócio e precisam de script de migração.
-  - **Mocked**: Nenhum.
+- Broken:  (Lógica de negócios falhando na injeção de componentes).
+- Mocked: Nenhum.
 
-**3rd Party Integrations**
-- MongoDB, ReportLab, Recharts. Não usa APIs externas de IA ou Pagamento no contexto trabalhado.
+**3rd Party Integrations** 
+N/A
 
 **Testing status**
   - Testing agent used after significant changes: YES
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: []
-  - Known regressions: Valores antigos no BD após mudança de regra de negócio.
+  - Known regressions: [none]
 
 **Credentials to test flow:**
-- Administrador:  /  (Este usuário vê o módulo Admin/RH completo e possui acesso a todas as configurações de permissão).
+Verifique  (Criado nesta sessão). Padrão: .
 
-**What agent forgot to execute**:
-- O agente começou a investigar o banco para atualizar as competências 2 e 3 de 2026 com a nova fórmula matemática, mas a janela de contexto foi encerrada antes dele escrever o script de update do MongoDB. A sua primeira ação deve ser construir e rodar esse script.</analysis>
+**What agent forgot to execute**
+O agente parou logo após tentar ler o PDF em anexo e o job acabou sem que ele conseguisse inspecionar ou refatorar o endpoint .
+
+**Debugging checklist for current issue**
+    Issue: Componentes Curriculares errados na emissão de PDF em Lote (Boletim/Ficha da Turma).
+
+    Backend files to check: 
+    - : Vá até .
+    - Observe como a lista  está sendo montada nesse método (ou se está sendo repassada integralmente).
+    - Suba até o método  na linha 924+ e veja como o filtro por  está isolando apenas os  estritamente dados para aquela .
+    - Replique o mecanismo de filtro por  /  no fluxo do batch documents.</analysis>

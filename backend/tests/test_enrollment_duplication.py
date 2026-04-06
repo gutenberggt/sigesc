@@ -15,7 +15,7 @@ import os
 import uuid
 from datetime import datetime
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://curriculum-tracking.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://pdf-lote-componentes.preview.emergentagent.com')
 
 # Test data
 SCHOOL_ID = "220d4022-ec5e-4fb6-86fc-9233112b87b2"
