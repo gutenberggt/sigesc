@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
+import { usePermissions } from '@/hooks/usePermissions';
 import { 
   Calendar,
   Plus,
@@ -81,7 +82,7 @@ export const Events = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   
   // Verifica permissões
-  const canEdit = user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'secretario';
+  const { canEditEvents: canEdit } = usePermissions();
   
   // Carrega eventos
   useEffect(() => {

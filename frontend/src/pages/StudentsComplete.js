@@ -9,6 +9,7 @@ import { formatPhone, formatCEP, formatCPF, formatNIS, formatSUS, isValidEmail, 
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone, FileDown } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
@@ -346,10 +347,7 @@ export function StudentsComplete() {
   // - SEMED: apenas visualização (não pode editar/excluir)
   // - Coordenador: apenas visualização de alunos (não pode editar/excluir)
   
-  const isAdmin = user?.role === 'admin' || user?.role === 'admin_teste';
-  const isSecretario = user?.role === 'secretario';
-  const isSemed = user?.role === 'semed' || user?.role === 'semed3';
-  const isCoordenador = user?.role === 'coordenador' || user?.role === 'apoio_pedagogico' || user?.role === 'auxiliar_secretaria';
+  const { isAdmin, isSecretario, isSemed, isCoordenador, canEditStudents, canDeleteStudents, canRegisterCertificates, canDeleteCertificates } = usePermissions();
   
   // IDs das escolas que o usuário (secretário) tem vínculo
   const userSchoolIdsJson = JSON.stringify(user?.school_ids || user?.school_links?.map(link => link.school_id) || []);
@@ -364,27 +362,14 @@ export function StudentsComplete() {
     if (isSecretario) {
       const isAtivo = student.status === 'active' || student.status === 'Ativo';
       const isFromUserSchool = userSchoolIds.includes(student.school_id);
-      
-      // Secretário pode editar:
-      // 1. Alunos ATIVOS da sua escola
-      // 2. Alunos NÃO ATIVOS de qualquer escola
       if (isAtivo) {
-        return isFromUserSchool; // Só pode editar ativos da sua escola
+        return isFromUserSchool;
       } else {
-        return true; // Pode editar não-ativos de qualquer escola
+        return true;
       }
     }
-    return true; // Outros roles podem editar
+    return true;
   }, [isAdmin, isSecretario, isSemed, isCoordenador, userSchoolIds]);
-  
-  // Permissão geral para mostrar botões de edição (será refinada por aluno)
-  const canEditStudents = !isSemed && !isCoordenador;
-  const canDeleteStudents = isAdmin; // Apenas admin pode excluir alunos
-  
-  // Permissão para registrar atestados (secretário e admin)
-  const canRegisterCertificates = user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'secretario';
-  // Permissão para excluir atestados (admin e secretário)
-  const canDeleteCertificates = user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'secretario';
   
   // Mantém variáveis originais para compatibilidade
   const canEdit = canEditStudents;

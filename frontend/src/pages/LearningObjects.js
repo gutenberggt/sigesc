@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { usePermissions } from '@/hooks/usePermissions';
 import { inferEducationLevel } from '@/utils/educationLevel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -88,7 +89,7 @@ export const LearningObjects = () => {
   
   // Dados do professor (quando logado como professor)
   const [professorTurmas, setProfessorTurmas] = useState([]);
-  const isProfessor = user?.role === 'professor';
+  const { isProfessor, canEditLearningObjects: canEdit } = usePermissions();
   
   // Estados de UI
   const [loading, setLoading] = useState(true);
@@ -120,9 +121,6 @@ export const LearningObjects = () => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 4000);
   };
-
-  // Verifica se usuário pode editar (coordenador agora só visualiza)
-  const canEdit = ['admin', 'secretario', 'diretor', 'professor'].includes(user?.role);
 
   // Verificar se a turma requer seleção de componente para PDF (EJA e Fundamental Anos Finais)
   const selectedClassInfo = classes.find(c => c.id === selectedClass);

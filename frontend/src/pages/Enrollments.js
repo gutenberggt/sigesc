@@ -5,6 +5,7 @@ import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { enrollmentsAPI, studentsAPI, schoolsAPI, classesAPI, coursesAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { Plus, AlertCircle, CheckCircle, Home } from 'lucide-react';
 
@@ -52,8 +53,7 @@ export const Enrollments = () => {
   const [formData, setFormData] = useState(initialFormData);
 
   // SEMED pode visualizar tudo, mas não pode editar/excluir
-  const canEdit = user?.role !== 'semed';
-  const canDelete = user?.role !== 'semed';
+  const { canEditEnrollments: canEdit, canDeleteEnrollments: canDelete } = usePermissions();
 
   useEffect(() => {
     const fetchData = async () => {

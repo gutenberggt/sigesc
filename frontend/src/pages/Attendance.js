@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Layout } from '@/components/Layout';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { usePermissions } from '@/hooks/usePermissions';
 import { inferEducationLevel, EDUCATION_LEVEL_LABELS, getAttendanceType } from '@/utils/educationLevel';
 import { 
   ClipboardCheck, 
@@ -88,7 +89,7 @@ export const Attendance = () => {
   
   // Dados do professor (quando logado como professor)
   const [professorTurmas, setProfessorTurmas] = useState([]);
-  const isProfessor = user?.role === 'professor';
+  const { isProfessor, canEditAttendance: canEdit, canConfigSettings } = usePermissions();
   
   // Dados de frequência
   const [attendanceData, setAttendanceData] = useState(null);
@@ -130,10 +131,6 @@ export const Attendance = () => {
   
   // Resumo de frequência (previstos/registrados/restantes)
   const [attendanceSummary, setAttendanceSummary] = useState(null);
-  
-  // Permissões
-  const canEdit = user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'secretario' || user?.role === 'professor';
-  const canConfigSettings = user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'secretario';
   
   // Função para verificar se um aluno está bloqueado para edição pelo professor
   // Condições de bloqueio:

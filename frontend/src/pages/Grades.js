@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { usePermissions } from '@/hooks/usePermissions';
 import { gradesAPI, schoolsAPI, classesAPI, coursesAPI, studentsAPI, professorAPI, teacherAssignmentAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
@@ -246,7 +247,7 @@ export function Grades() {
   
   // Dados do professor (quando logado como professor)
   const [professorTurmas, setProfessorTurmas] = useState([]);
-  const isProfessor = user?.role === 'professor';
+  const { isProfessor, canEditGrades: canEdit, isAdminOrSecretary } = usePermissions();
   
   // Filtros - Por Turma
   const [selectedSchool, setSelectedSchool] = useState('');
@@ -276,9 +277,6 @@ export function Grades() {
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [pdfBimestres, setPdfBimestres] = useState([1, 2, 3, 4]);
   const [pdfLoading, setPdfLoading] = useState(false);
-  
-  // SEMED e Coordenador podem visualizar, mas não editar
-  const canEdit = !['semed', 'semed3', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria'].includes(user?.role);
   
   const handleGeneratePdf = async () => {
     if (!selectedClass || !selectedCourse || pdfBimestres.length === 0) return;
@@ -374,7 +372,6 @@ export function Grades() {
     }
     // Bloqueio pré-matrícula → bloqueio apenas para professor
     if (student.blocked_before_enrollment && student.blocked_before_enrollment.includes(bimestre)) {
-      const isAdminOrSecretary = ['admin', 'admin_teste', 'secretario'].includes(user?.role);
       if (!isAdminOrSecretary) {
         return false;
       }

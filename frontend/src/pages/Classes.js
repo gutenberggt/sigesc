@@ -6,6 +6,7 @@ import { Modal } from '@/components/Modal';
 import { classesAPI, schoolsAPI, documentsAPI } from '@/services/api';
 import { Plus, AlertCircle, CheckCircle, Home, Eye, Phone, FileText, User, Users, School, Calendar, ExternalLink, Pencil } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { extractErrorMessage } from '@/utils/errorHandler';
 
 // Mapeamento de níveis de ensino para séries/etapas
@@ -65,9 +66,7 @@ export const Classes = () => {
     return JSON.parse(userSchoolIdsJson);
   }, [userSchoolIdsJson]);
   
-  const isAdmin = user?.role === 'admin' || user?.role === 'admin_teste';
-  const isSecretario = user?.role === 'secretario';
-  const isSemed = user?.role === 'semed';
+  const { isAdmin, isSecretario, isSemed, isCoordenador, hasRole } = usePermissions();
   const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
   const [schools, setSchools] = useState([]);
@@ -87,14 +86,9 @@ export const Classes = () => {
     series: []
   });
   
-  // Permissões de edição:
-  // - SEMED: apenas visualização (não pode editar/excluir)
-  // - Coordenador: apenas visualização de turmas (não pode editar/excluir)
-  // - Outros roles com acesso: podem editar/excluir
-  const canEditClasses = user?.role !== 'semed' && user?.role !== 'semed3' && user?.role !== 'coordenador' && user?.role !== 'apoio_pedagogico' && user?.role !== 'auxiliar_secretaria';
-  const canDeleteClasses = user?.role !== 'semed' && user?.role !== 'semed3' && user?.role !== 'coordenador' && user?.role !== 'apoio_pedagogico' && user?.role !== 'auxiliar_secretaria';
-  
-  // Mantém variáveis originais para compatibilidade
+  // Permissões de edição
+  const canEditClasses = !isSemed && !isCoordenador;
+  const canDeleteClasses = !isSemed && !isCoordenador;
   const canEdit = canEditClasses;
   const canDelete = canDeleteClasses;
   const [alert, setAlert] = useState(null);
@@ -137,7 +131,7 @@ export const Classes = () => {
         setSchools(filteredSchools);
         
         // Só define escola padrão no carregamento inicial, NÃO quando modal está aberto
-        if (!initialLoadDone.current && !['admin', 'semed'].includes(user?.role) && filteredSchools.length > 0) {
+        if (!initialLoadDone.current && !isAdmin && !isSemed && filteredSchools.length > 0) {
           setFormData(prev => ({ ...prev, school_id: filteredSchools[0].id }));
         }
         initialLoadDone.current = true;

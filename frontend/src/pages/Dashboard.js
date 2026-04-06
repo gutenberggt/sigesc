@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
@@ -29,15 +30,11 @@ export const Dashboard = () => {
     return JSON.parse(userSchoolIdsJson);
   }, [userSchoolIdsJson]);
   
-  const isSecretario = user?.role === 'secretario';
-  const isDiretor = user?.role === 'diretor';
-  const isCoordenador = user?.role === 'coordenador' || user?.role === 'apoio_pedagogico' || user?.role === 'auxiliar_secretaria';
-  const isSchoolStaff = isSecretario || isDiretor || isCoordenador;
-  const isAdmin = ['admin', 'admin_teste'].includes(user?.role);
+  const { isAdmin, isSecretario, isDiretor, isCoordenador, isProfessor, isSemed, isSchoolStaff, isAdminOrSecretary, isSemedFull, isAssistenteSocial, hasRole } = usePermissions();
 
   useEffect(() => {
     // Não carrega stats se for professor (será redirecionado)
-    if (user?.role === 'professor') return;
+    if (isProfessor) return;
     
     const loadData = async () => {
       try {
@@ -109,12 +106,12 @@ export const Dashboard = () => {
   }, []);
 
   // Redireciona professor para o dashboard específico
-  if (user?.role === 'professor') {
+  if (isProfessor) {
     return <Navigate to="/professor" replace />;
   }
 
   // Redireciona assistente social para o dashboard específico
-  if (user?.role === 'ass_social') {
+  if (isAssistenteSocial) {
     return <Navigate to="/ass-social" replace />;
   }
 
@@ -347,7 +344,7 @@ export const Dashboard = () => {
         </div>
 
         {/* Acesso Rápido - Segunda linha de blocos */}
-        {['admin', 'admin_teste', 'secretario', 'semed', 'semed1', 'semed2', 'semed3'].includes(user?.role) && (
+        {(isAdmin || isAdminOrSecretary || isSemed) && (
           <div>
             <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -405,14 +402,14 @@ export const Dashboard = () => {
         )}
 
         {/* Menu de navegação completo - Admin/Secretário/SEMED */}
-        {['admin', 'admin_teste', 'secretario', 'semed', 'semed1', 'semed2', 'semed3'].includes(user?.role) && (
+        {(isAdmin || isAdminOrSecretary || isSemed) && (
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              {['semed', 'semed1', 'semed2', 'semed3'].includes(user?.role) ? 'Consultar Módulos' : 'Menu de Administração'}
+              {isSemed ? 'Consultar Módulos' : 'Menu de Administração'}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Mantenedora - apenas para admin */}
-              {['admin', 'admin_teste'].includes(user?.role) && (
+              {isAdmin && (
                 <button
                   onClick={() => navigate('/admin/mantenedora')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
@@ -441,7 +438,7 @@ export const Dashboard = () => {
                 <span className="font-medium text-gray-900">Calendário</span>
               </button>
               
-              {['admin', 'admin_teste', 'semed3'].includes(user?.role) && (
+              {(isAdmin || isSemedFull) && (
               <button
                 onClick={() => navigate('/admin/analytics')}
                 className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 transition-all"
@@ -453,7 +450,7 @@ export const Dashboard = () => {
               )}
               
               {/* Dashboard de Acompanhamento de Diários */}
-              {(['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed', 'semed1', 'semed2', 'semed3'].includes(user?.role)) && (
+              {(isAdmin || isSchoolStaff || isSemed) && (
                 <button
                   onClick={() => navigate('/admin/diary-dashboard')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-300 transition-all"
@@ -465,7 +462,7 @@ export const Dashboard = () => {
               )}
               
               {/* Diário AEE - visível para admin, coordenador, professor, semed3 */}
-              {(['admin', 'admin_teste', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'secretario', 'diretor', 'semed1', 'semed2', 'semed3'].includes(user?.role)) && (
+              {(isAdmin || isCoordenador || isProfessor || isSecretario || isDiretor || hasRole('semed1', 'semed2', 'semed3')) && (
                 <button
                   onClick={() => navigate('/admin/diario-aee')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
@@ -477,7 +474,7 @@ export const Dashboard = () => {
               )}
               
               {/* Assistência Social - visível apenas para admin */}
-              {(['admin', 'admin_teste'].includes(user?.role)) && (
+              {isAdmin && (
                 <button
                   onClick={() => navigate('/ass-social')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-pink-50 hover:border-pink-300 transition-all"
@@ -526,7 +523,7 @@ export const Dashboard = () => {
                 <span className="font-medium text-gray-900">Registro de Conteúdos</span>
               </button>
               
-              {!['semed', 'semed1', 'semed2'].includes(user?.role) && (
+              {!hasRole('semed', 'semed1', 'semed2') && (
               <button
                 onClick={() => navigate('/admin/pre-matriculas')}
                 className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-pink-50 hover:border-pink-300 transition-all"
@@ -538,7 +535,7 @@ export const Dashboard = () => {
               )}
               
               {/* Livro de Promoção - admin, secretario, diretor, coordenador, semed, semed3 */}
-              {['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed', 'semed1', 'semed2', 'semed3'].includes(user?.role) && (
+              {(isAdmin || isSchoolStaff || isSemed) && (
                 <button
                   onClick={() => navigate('/admin/promotion')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 transition-all"
@@ -550,7 +547,7 @@ export const Dashboard = () => {
               )}
               
               {/* Log de Conversas - apenas para admin */}
-              {['admin', 'admin_teste'].includes(user?.role) && (
+              {isAdmin && (
                 <button
                   onClick={() => navigate('/admin/logs')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all"
@@ -562,7 +559,7 @@ export const Dashboard = () => {
               )}
               
               {/* Logs de Auditoria - admin e SEMED 3 */}
-              {['admin', 'admin_teste', 'semed3'].includes(user?.role) && (
+              {(isAdmin || isSemedFull) && (
                 <button
                   onClick={() => navigate('/admin/audit-logs')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
@@ -574,7 +571,7 @@ export const Dashboard = () => {
               )}
               
               {/* Usuários Online - admin e semed3 */}
-              {['admin', 'admin_teste', 'semed3'].includes(user?.role) && (
+              {(isAdmin || isSemedFull) && (
                 <button
                   onClick={() => navigate('/admin/online-users')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-all"
@@ -586,7 +583,7 @@ export const Dashboard = () => {
               )}
               
               {/* Ferramentas de Admin - apenas admin */}
-              {['admin', 'admin_teste'].includes(user?.role) && (
+              {isAdmin && (
                 <button
                   onClick={() => navigate('/admin/tools')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 transition-all"
@@ -600,7 +597,7 @@ export const Dashboard = () => {
               )}
               
               {/* RH / Folha - admin, semed2 (analista), semed3 (viz), diretor, secretario */}
-              {['admin', 'admin_teste', 'semed2', 'semed3', 'diretor', 'secretario'].includes(user?.role) && (
+              {(isAdmin || hasRole('semed2', 'semed3', 'diretor', 'secretario')) && (
                 <button
                   onClick={() => navigate('/admin/hr')}
                   className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all"
@@ -615,7 +612,7 @@ export const Dashboard = () => {
         )}
 
         {/* Menu de Acesso Rápido - Coordenador */}
-        {(user?.role === 'coordenador' || user?.role === 'apoio_pedagogico' || user?.role === 'auxiliar_secretaria') && (
+        {isCoordenador && (
           <div>
             <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -701,7 +698,7 @@ export const Dashboard = () => {
         )}
 
         {/* Menu de Navegação Completo - Coordenador */}
-        {(user?.role === 'coordenador' || user?.role === 'apoio_pedagogico' || user?.role === 'auxiliar_secretaria') && (
+        {isCoordenador && (
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Menu de Navegação</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
