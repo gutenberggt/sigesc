@@ -176,8 +176,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 {"_id": 0}
             ).to_list(100)
         else:
-            # Fallback: se não há alocações, buscar por nível de ensino
-            nivel_ensino = class_info.get('nivel_ensino')
+            # Fallback: buscar por nível de ensino + atendimento_programa da turma
+            nivel_ensino = class_info.get('nivel_ensino') or class_info.get('education_level')
             grade_level = enrollment.get('student_series') or class_info.get('grade_level', '')
             grade_level_lower = grade_level.lower() if grade_level else ''
             if not nivel_ensino:
@@ -192,26 +192,49 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                         nivel_ensino = 'eja_final'
                     else:
                         nivel_ensino = 'eja'
-            courses_query = {"nivel_ensino": nivel_ensino} if nivel_ensino else {}
+
+            # Filtrar por atendimento_programa da turma
+            turma_atendimento = (class_info.get('atendimento_programa') or '').strip().lower()
+            courses_query = {}
+            if nivel_ensino:
+                courses_query["nivel_ensino"] = nivel_ensino
+            if turma_atendimento in ('atendimento_integral', 'integral'):
+                # Turma integral: componentes regulares + integrais
+                courses_query["$or"] = [
+                    {"atendimento_programa": None},
+                    {"atendimento_programa": {"$exists": False}},
+                    {"atendimento_programa": ""},
+                    {"atendimento_programa": "atendimento_integral"}
+                ]
+            elif turma_atendimento in ('aee',):
+                # Turma AEE: apenas componentes AEE
+                courses_query["atendimento_programa"] = "aee"
+            else:
+                # Turma regular: apenas componentes sem atendimento especial
+                courses_query["$or"] = [
+                    {"atendimento_programa": None},
+                    {"atendimento_programa": {"$exists": False}},
+                    {"atendimento_programa": ""}
+                ]
             filtered_courses = await db.courses.find(courses_query, {"_id": 0}).to_list(100)
 
-        logger.info(f"Boletim: {len(filtered_courses)} componentes para turma {class_id} (via {'teacher_assignments' if assigned_course_ids else 'fallback nivel_ensino'})")
+        logger.info(f"Boletim: {len(filtered_courses)} componentes para turma {class_id} (via {'teacher_assignments' if assigned_course_ids else 'fallback nivel_ensino+atendimento'})")
 
         # Ordenar por nome
         filtered_courses.sort(key=lambda x: x.get('name', ''))
 
-        # Se não houver componentes após filtragem, buscar todos do nível
+        # Se não houver componentes após filtragem, buscar todos do nível (somente regulares)
         if not filtered_courses:
             if nivel_ensino:
                 filtered_courses = await db.courses.find({
                     "nivel_ensino": nivel_ensino,
                     "$or": [
                         {"atendimento_programa": None},
-                        {"atendimento_programa": {"$exists": False}}
+                        {"atendimento_programa": {"$exists": False}},
+                        {"atendimento_programa": ""}
                     ]
                 }, {"_id": 0}).to_list(50)
             else:
-                # Fallback: buscar todos
                 filtered_courses = await db.courses.find({}, {"_id": 0}).to_list(50)
 
         courses = filtered_courses
@@ -935,11 +958,29 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 {"_id": 0}
             ).to_list(100)
         else:
-            # Fallback: se não há alocações, buscar por nível de ensino
-            courses_filter = {"nivel_ensino": nivel_ensino} if nivel_ensino else {}
+            # Fallback: buscar por nível de ensino + atendimento_programa da turma
+            turma_atendimento_ficha = (class_info.get('atendimento_programa') or '').strip().lower()
+            courses_filter = {}
+            if nivel_ensino:
+                courses_filter["nivel_ensino"] = nivel_ensino
+            if turma_atendimento_ficha in ('atendimento_integral', 'integral'):
+                courses_filter["$or"] = [
+                    {"atendimento_programa": None},
+                    {"atendimento_programa": {"$exists": False}},
+                    {"atendimento_programa": ""},
+                    {"atendimento_programa": "atendimento_integral"}
+                ]
+            elif turma_atendimento_ficha in ('aee',):
+                courses_filter["atendimento_programa"] = "aee"
+            else:
+                courses_filter["$or"] = [
+                    {"atendimento_programa": None},
+                    {"atendimento_programa": {"$exists": False}},
+                    {"atendimento_programa": ""}
+                ]
             filtered_courses = await db.courses.find(courses_filter, {"_id": 0}).to_list(100)
 
-        logger.info(f"Ficha Individual: {len(filtered_courses)} componentes para turma {class_id} (via {'teacher_assignments' if assigned_course_ids else 'fallback nivel_ensino'})")
+        logger.info(f"Ficha Individual: {len(filtered_courses)} componentes para turma {class_id} (via {'teacher_assignments' if assigned_course_ids else 'fallback nivel_ensino+atendimento'})")
 
         # Ordenar por nome
         filtered_courses.sort(key=lambda x: x.get('name', ''))
@@ -950,7 +991,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "nivel_ensino": nivel_ensino,
                 "$or": [
                     {"atendimento_programa": None},
-                    {"atendimento_programa": {"$exists": False}}
+                    {"atendimento_programa": {"$exists": False}},
+                    {"atendimento_programa": ""}
                 ]
             }, {"_id": 0}).to_list(100)
 
@@ -1750,8 +1792,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     {"_id": 0}
                 ).to_list(100)
             else:
-                # Fallback: inferir nível de ensino e filtrar
-                nivel_ensino = class_info.get('nivel_ensino')
+                # Fallback: inferir nível de ensino + filtrar por atendimento_programa da turma
+                nivel_ensino = class_info.get('nivel_ensino') or class_info.get('education_level')
                 grade_level = class_info.get('grade_level', '')
                 grade_level_lower = grade_level.lower() if grade_level else ''
                 if not nivel_ensino:
@@ -1763,15 +1805,41 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                         nivel_ensino = 'fundamental_anos_finais'
                     elif any(x in grade_level_lower for x in ['eja', 'etapa']):
                         nivel_ensino = 'eja_final' if any(x in grade_level_lower for x in ['3', '4', 'final']) else 'eja'
-                courses_query = {"nivel_ensino": nivel_ensino} if nivel_ensino else {}
+
+                turma_atendimento_batch = (class_info.get('atendimento_programa') or '').strip().lower()
+                courses_query = {}
+                if nivel_ensino:
+                    courses_query["nivel_ensino"] = nivel_ensino
+                if turma_atendimento_batch in ('atendimento_integral', 'integral'):
+                    courses_query["$or"] = [
+                        {"atendimento_programa": None},
+                        {"atendimento_programa": {"$exists": False}},
+                        {"atendimento_programa": ""},
+                        {"atendimento_programa": "atendimento_integral"}
+                    ]
+                elif turma_atendimento_batch in ('aee',):
+                    courses_query["atendimento_programa"] = "aee"
+                else:
+                    courses_query["$or"] = [
+                        {"atendimento_programa": None},
+                        {"atendimento_programa": {"$exists": False}},
+                        {"atendimento_programa": ""}
+                    ]
                 courses = await db.courses.find(courses_query, {"_id": 0}).to_list(100)
 
             courses.sort(key=lambda x: x.get('name', ''))
 
             if not courses:
-                courses = await db.courses.find({}, {"_id": 0}).to_list(100)
+                # Último fallback: apenas componentes regulares do nível
+                fallback_q = {"nivel_ensino": nivel_ensino} if nivel_ensino else {}
+                fallback_q["$or"] = [
+                    {"atendimento_programa": None},
+                    {"atendimento_programa": {"$exists": False}},
+                    {"atendimento_programa": ""}
+                ]
+                courses = await db.courses.find(fallback_q, {"_id": 0}).to_list(100)
 
-            logger.info(f"Batch PDF: {len(courses)} componentes filtrados para turma {class_id} (via {'teacher_assignments' if assigned_course_ids else 'fallback'})")
+            logger.info(f"Batch PDF: {len(courses)} componentes filtrados para turma {class_id} (via {'teacher_assignments' if assigned_course_ids else 'fallback+atendimento'})")
 
         # ===== FREQUÊNCIA DA TURMA (buscar uma vez para todos os alunos) =====
         turma_integral = class_info.get('atendimento_programa', '') == 'atendimento_integral'
