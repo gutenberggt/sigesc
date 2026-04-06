@@ -449,8 +449,8 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
             }, {"_id": 0})
             
             if existing:
-                update_fields = {k: v for k, v in grade_data.items() 
-                              if k in ['b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2', 'recovery', 'observations'] and v is not None}
+                grade_keys = ['b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2', 'recovery', 'observations']
+                update_fields = {k: v for k, v in grade_data.items() if k in grade_keys}
                 update_fields['updated_at'] = datetime.now(timezone.utc).isoformat()
                 
                 old_values = {k: existing.get(k) for k in update_fields.keys() if k != 'updated_at'}
