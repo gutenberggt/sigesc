@@ -157,6 +157,8 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 ## Bug Fixes (07/04/2026)
 - Fix Batch PDF (P0): `get_batch_documents` agora usa mesma lógica de filtragem do individual
 - Fix Limpeza de Conceitos: Backend agora aceita `null` em campos de nota (b1-b4, rec_s1, rec_s2) para permitir limpar conceitos selecionados erroneamente (tracinho "-")
+- Fix Conceito Final: Quando todas as notas são limpas, `final_average` reseta para `null` e `status` para `cursando` (backend + frontend)
+- Feature "Ignorar" na Alocação: Checkbox ao lado de cada componente curricular para marcar como voluntário (não contabiliza carga horária na lotação/folha)
   - Filtra componentes via `teacher_assignments` (fallback: `nivel_ensino`)
   - Calcula `attendance_data` com estrutura `_meta` (faltas_regular, faltas_por_componente)
   - Busca `calendario_letivo` corretamente (era `db.calendar`, agora `db.calendario_letivo`)

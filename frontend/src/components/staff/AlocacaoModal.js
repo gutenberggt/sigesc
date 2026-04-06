@@ -41,7 +41,10 @@ export const AlocacaoModal = ({
   editingAlocacao,
   onEditAlocacao,
   onCancelEditAlocacao,
-  onSaveEditAlocacao
+  onSaveEditAlocacao,
+  // Props para ignorar carga horária
+  onToggleIgnoreNew,
+  onToggleIgnoreExisting
 }) => {
   const currentYear = new Date().getFullYear();
   const selectedYear = alocacaoForm.academic_year || currentYear;
@@ -151,12 +154,14 @@ export const AlocacaoModal = ({
               <div className="space-y-3">
                 {alocacoesDoAno.map(turma => {
                   const totalSemanal = turma.componentes.reduce((sum, comp) => {
+                    if (comp.ignore_workload) return sum;
                     const courseData = courses.find(c => c.id === comp.course_id);
                     const workload = courseData?.workload || 0;
                     return sum + (workload / 40);
                   }, 0);
                   
                   const totalMensal = turma.componentes.reduce((sum, comp) => {
+                    if (comp.ignore_workload) return sum;
                     const courseData = courses.find(c => c.id === comp.course_id);
                     const workload = courseData?.workload || 0;
                     return sum + (workload / 8);
@@ -237,12 +242,24 @@ export const AlocacaoModal = ({
                                 /* Modo de visualização */
                                 <div className="flex items-center gap-2">
                                   <BookOpen size={14} className="text-purple-600" />
-                                  <span className="flex-1 text-sm">
+                                  <span className={`flex-1 text-sm ${comp.ignore_workload ? 'line-through text-gray-400' : ''}`}>
                                     {comp.course_name}
-                                    {cargaSemanalCalculada && (
+                                    {cargaSemanalCalculada && !comp.ignore_workload && (
                                       <span className="text-gray-500 ml-1">({cargaSemanalCalculada}h/sem)</span>
                                     )}
+                                    {comp.ignore_workload && (
+                                      <span className="text-amber-600 ml-1 no-underline text-xs">(ignorada)</span>
+                                    )}
                                   </span>
+                                  <label className="flex items-center gap-1 text-xs text-amber-700 cursor-pointer whitespace-nowrap" title="Não contabilizar na carga horária">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!comp.ignore_workload}
+                                      onChange={(e) => onToggleIgnoreExisting && onToggleIgnoreExisting(comp.id, e.target.checked)}
+                                      className="rounded border-amber-400 text-amber-500 focus:ring-amber-500"
+                                    />
+                                    Ignorar
+                                  </label>
                                   {canDelete && (
                                     <>
                                       <button 
@@ -379,14 +396,26 @@ export const AlocacaoModal = ({
                   {alocacaoComponentes.map(comp => (
                     <div key={comp.id} className="flex items-center gap-2 bg-purple-100 px-3 py-2 rounded border border-purple-300">
                       <BookOpen size={16} className="text-purple-600" />
-                      <span className="flex-1 text-sm font-medium">
+                      <span className={`flex-1 text-sm font-medium ${comp.ignore_workload ? 'line-through text-gray-400' : ''}`}>
                         {comp.name}
-                        {comp.workload && (
+                        {comp.workload && !comp.ignore_workload && (
                           <span className="text-gray-500 ml-1">
                             ({comp.workload}h → {comp.workload / 40}h/sem)
                           </span>
                         )}
+                        {comp.ignore_workload && (
+                          <span className="text-amber-600 ml-1 no-underline">(ignorada)</span>
+                        )}
                       </span>
+                      <label className="flex items-center gap-1 text-xs text-amber-700 cursor-pointer whitespace-nowrap" title="Marcar para não contabilizar na carga horária (voluntário)">
+                        <input
+                          type="checkbox"
+                          checked={!!comp.ignore_workload}
+                          onChange={(e) => onToggleIgnoreNew && onToggleIgnoreNew(comp.id, e.target.checked)}
+                          className="rounded border-amber-400 text-amber-500 focus:ring-amber-500"
+                        />
+                        Ignorar
+                      </label>
                       <button 
                         type="button"
                         onClick={() => onRemoveComponente(comp.id)}

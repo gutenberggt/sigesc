@@ -308,6 +308,8 @@ const Staff = () => {
           onRemoveTurma={staff.removeTurmaAlocacao}
           onAddComponente={staff.addComponenteAlocacao}
           onRemoveComponente={staff.removeComponenteAlocacao}
+          onToggleIgnoreNew={staff.toggleIgnoreNew}
+          onToggleIgnoreExisting={staff.toggleIgnoreExisting}
           onDeleteExisting={staff.handleDeleteExistingAlocacao}
           onDeleteTurmaAlocacoes={staff.handleDeleteTurmaAlocacoes}
           onSave={staff.handleSaveAlocacao}

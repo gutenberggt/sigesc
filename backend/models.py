@@ -1912,6 +1912,9 @@ class TeacherAssignmentBase(BaseModel):
     # Carga horária semanal para este componente
     carga_horaria_semanal: Optional[int] = None  # Aulas por semana
     
+    # Ignorar carga horária (para voluntários totais/parciais)
+    ignore_workload: Optional[bool] = False
+    
     # Status
     status: Literal['ativo', 'substituido', 'encerrado'] = 'ativo'
     
@@ -1927,6 +1930,7 @@ class TeacherAssignmentCreate(TeacherAssignmentBase):
 
 class TeacherAssignmentUpdate(BaseModel):
     carga_horaria_semanal: Optional[int] = None
+    ignore_workload: Optional[bool] = None
     status: Optional[Literal['ativo', 'substituido', 'encerrado']] = None
     substituto_staff_id: Optional[str] = None
     data_substituicao: Optional[str] = None

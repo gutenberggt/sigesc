@@ -253,6 +253,7 @@ export const useStaff = () => {
       setExistingAlocacoes(data);
       
       const cargaExistente = data.reduce((sum, aloc) => {
+        if (aloc.ignore_workload) return sum;
         const courseData = courses.find(c => c.id === aloc.course_id);
         const workload = courseData?.workload || 0;
         return sum + (workload / 40);
@@ -751,6 +752,7 @@ export const useStaff = () => {
   // Alocação handlers
   const calcularCargaHoraria = useCallback((componentes) => {
     const total = componentes.reduce((sum, comp) => {
+      if (comp.ignore_workload) return sum;
       const carga = comp.workload || 0;
       return sum + (carga / 40);
     }, 0);
@@ -896,6 +898,23 @@ export const useStaff = () => {
     setAlocacaoComponentes(novosComponentes);
     calcularCargaHoraria(novosComponentes);
   }, [alocacaoComponentes, calcularCargaHoraria]);
+
+  const toggleIgnoreNew = useCallback((courseId, ignore) => {
+    const novos = alocacaoComponentes.map(c => c.id === courseId ? { ...c, ignore_workload: ignore } : c);
+    setAlocacaoComponentes(novos);
+    calcularCargaHoraria(novos);
+  }, [alocacaoComponentes, calcularCargaHoraria]);
+
+  const toggleIgnoreExisting = useCallback(async (assignmentId, ignore) => {
+    try {
+      await teacherAssignmentAPI.update(assignmentId, { ignore_workload: ignore });
+      setExistingAlocacoes(prev => prev.map(a => a.id === assignmentId ? { ...a, ignore_workload: ignore } : a));
+      showAlertMessage('success', ignore ? 'Carga horária ignorada' : 'Carga horária restaurada');
+    } catch (error) {
+      console.error('Erro ao atualizar ignore_workload:', error);
+      showAlertMessage('error', 'Erro ao atualizar alocação');
+    }
+  }, [showAlertMessage]);
   
   const handleSaveAlocacao = useCallback(async () => {
     if (!alocacaoForm.staff_id || !alocacaoForm.school_id || alocacaoTurmas.length === 0 || alocacaoComponentes.length === 0) {
@@ -917,6 +936,7 @@ export const useStaff = () => {
             course_id: componente.id,
             academic_year: alocacaoForm.academic_year,
             carga_horaria_semanal: cargaHoraria,
+            ignore_workload: !!componente.ignore_workload,
             status: 'ativo'
           };
           
@@ -1087,6 +1107,8 @@ export const useStaff = () => {
     removeTurmaAlocacao,
     addComponenteAlocacao,
     removeComponenteAlocacao,
+    toggleIgnoreNew,
+    toggleIgnoreExisting,
     
     // Alert
     alert,
