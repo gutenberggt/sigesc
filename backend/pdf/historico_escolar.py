@@ -200,7 +200,72 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
     elements.append(build_header(uw, mantenedora, logo_url))
     elements.append(Spacer(1, 3 * mm))
 
-    # ===== DADOS DO ALUNO (caixa arredondada) =====
+    p_lbl = lambda t: Paragraph(t, s_label)
+    p_val = lambda t: Paragraph(t, s_value)
+    lbl_w = 2 * cm
+    val_w = uw / 2 - lbl_w
+
+    # ===== DADOS DA ESCOLA =====
+    school = school or {}
+    school_name = (school.get('name') or '').upper()
+    # Endereço da escola
+    sch_end_parts = []
+    if school.get('logradouro'):
+        addr = school['logradouro']
+        if school.get('numero'):
+            addr += f", {school['numero']}"
+        if school.get('complemento'):
+            addr += f" - {school['complemento']}"
+        sch_end_parts.append(addr)
+    if school.get('bairro'):
+        sch_end_parts.append(school['bairro'])
+    sch_city = []
+    if school.get('municipio'):
+        sch_city.append(school['municipio'])
+    if school.get('estado'):
+        sch_city.append(school['estado'])
+    if sch_city:
+        sch_end_parts.append(' - '.join(sch_city))
+    if school.get('cep'):
+        sch_end_parts.append(f"CEP: {school['cep']}")
+    sch_endereco = ', '.join(sch_end_parts) if sch_end_parts else ''
+
+    sch_telefone = ''
+    if school.get('ddd_telefone') and school.get('telefone'):
+        sch_telefone = f"({school['ddd_telefone']}){school['telefone']}"
+    elif school.get('telefone'):
+        sch_telefone = school['telefone']
+    sch_email = school.get('email') or ''
+    sch_regulamentacao = school.get('regulamentacao') or ''
+    sch_inep = school.get('inep_code') or ''
+
+    school_data = [
+        [p_lbl('ESCOLA'), p_val(school_name), p_lbl('CÓD. INEP'), p_val(sch_inep)],
+        [p_lbl('ENDEREÇO'), p_val(sch_endereco), '', ''],
+        [p_lbl('TELEFONE'), p_val(sch_telefone), p_lbl('E-MAIL'), p_val(sch_email)],
+        [p_lbl('AUT./RECONH.'), p_val(sch_regulamentacao), '', ''],
+    ]
+
+    school_table = Table(school_data, colWidths=[lbl_w, val_w, lbl_w, val_w])
+    school_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('BACKGROUND', (0, 0), (0, -1), LABEL_BG),
+        ('BACKGROUND', (2, 0), (2, -1), LABEL_BG),
+        ('LINEBELOW', (0, 0), (-1, -2), 0.3, BORDER_COLOR),
+        ('LINEBELOW', (0, -1), (-1, -1), 0.3, BORDER_COLOR),
+        ('BOX', (0, 0), (-1, -1), 0.5, BORDER_COLOR),
+        ('SPAN', (1, 1), (3, 1)),  # Endereço ocupa toda a linha
+        ('SPAN', (1, 3), (3, 3)),  # Autorização ocupa toda a linha
+        ('ROUNDEDCORNERS', [4, 4, 4, 4]),
+    ]))
+    elements.append(school_table)
+    elements.append(Spacer(1, 2 * mm))
+
+    # ===== DADOS DO ALUNO =====
     nome = (student.get('full_name') or '').upper()
     pai = (student.get('father_name') or '').upper()
     mae = (student.get('mother_name') or '').upper()
@@ -213,21 +278,14 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
     uf_nasc = str(student.get('birth_state') or '')
     inep = str(student.get('inep_code') or '')
     rg = str(student.get('rg') or '')
-    school_name = (school.get('name') or 'Escola Municipal').upper() if school else 'ESCOLA MUNICIPAL'
-
-    p_lbl = lambda t: Paragraph(t, s_label)
-    p_val = lambda t: Paragraph(t, s_value)
 
     student_data = [
         [p_lbl('ALUNO(A)'), p_val(nome), p_lbl('NASCIMENTO'), p_val(nascimento)],
         [p_lbl('FILIAÇÃO'), p_val(f"Pai: {pai}"), p_lbl('CPF'), p_val(cpf)],
         [p_lbl(''), p_val(f"Mãe: {mae}"), p_lbl('RG'), p_val(rg)],
         [p_lbl('NATURALIDADE'), p_val(f"{naturalidade} - {uf_nasc}"), p_lbl('CÓD. INEP'), p_val(inep)],
-        [p_lbl('ESCOLA'), p_val(school_name), '', ''],
     ]
 
-    lbl_w = 2 * cm
-    val_w = uw / 2 - lbl_w
     student_table = Table(student_data, colWidths=[lbl_w, val_w, lbl_w, val_w])
     student_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -240,7 +298,6 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
         ('LINEBELOW', (0, 0), (-1, -2), 0.3, BORDER_COLOR),
         ('LINEBELOW', (0, -1), (-1, -1), 0.3, BORDER_COLOR),
         ('BOX', (0, 0), (-1, -1), 0.5, BORDER_COLOR),
-        ('SPAN', (1, 4), (3, 4)),
         ('ROUNDEDCORNERS', [4, 4, 4, 4]),
     ]))
     elements.append(student_table)
