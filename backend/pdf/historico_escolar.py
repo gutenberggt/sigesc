@@ -389,9 +389,9 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
         ('ALIGN', (0, div_idx), (1, div_idx), 'LEFT'),
 
         # Campos integradores
-        ('SPAN', (0, ci_idx), (1, ci_idx)),
+        ('SPAN', (0, ci_idx), (2, ci_idx)),
         ('BACKGROUND', (0, ci_idx), (-1, ci_idx), SECTION_BG),
-        ('ALIGN', (0, ci_idx), (1, ci_idx), 'LEFT'),
+        ('ALIGN', (0, ci_idx), (2, ci_idx), 'LEFT'),
 
         # Rounded corners
         ('ROUNDEDCORNERS', [4, 4, 4, 4]),
