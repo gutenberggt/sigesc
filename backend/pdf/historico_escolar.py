@@ -6,10 +6,9 @@ from io import BytesIO
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm, mm
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, Flowable
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from reportlab.graphics.shapes import Drawing, String
 import logging
 
 logger = logging.getLogger(__name__)
@@ -43,95 +42,8 @@ COMPONENTES_DIVERSIFICADA = [
 SERIES = ["1º", "2º", "3º", "4º", "5º", "6º", "7º", "8º", "9º"]
 
 
-class RoundedBox(Flowable):
-    """Caixa com cantos arredondados como flowable."""
-    def __init__(self, width, height, radius=6, fill_color=None, stroke_color=None, stroke_width=0.5):
-        Flowable.__init__(self)
-        self.box_width = width
-        self.box_height = height
-        self.width = width
-        self.height = height
-        self.radius = radius
-        self.fill_color = fill_color
-        self.stroke_color = stroke_color
-        self.stroke_width = stroke_width
-
-    def draw(self):
-        c = self.canv
-        if self.fill_color:
-            c.setFillColor(self.fill_color)
-        if self.stroke_color:
-            c.setStrokeColor(self.stroke_color)
-            c.setLineWidth(self.stroke_width)
-        c.roundRect(0, 0, self.box_width, self.box_height, self.radius,
-                    fill=1 if self.fill_color else 0,
-                    stroke=1 if self.stroke_color else 0)
-
-
-class HeaderBanner(Flowable):
-    """Banner do cabeçalho com fundo arredondado e conteúdo."""
-    def __init__(self, width, mant_nome, mant_secretaria, mant_endereco, logo_path=None):
-        Flowable.__init__(self)
-        self.box_width = width
-        self.box_height = 2.6 * cm
-        self.width = width
-        self.height = self.box_height
-        self.mant_nome = mant_nome
-        self.mant_secretaria = mant_secretaria
-        self.mant_endereco = mant_endereco
-        self.logo_path = logo_path
-
-    def draw(self):
-        c = self.canv
-        # Fundo com gradiente simulado (duas faixas)
-        c.setFillColor(PRIMARY)
-        c.roundRect(0, 0, self.box_width, self.box_height, 8, fill=1, stroke=0)
-
-        # Faixa inferior mais clara
-        c.setFillColor(PRIMARY_LIGHT)
-        c.roundRect(0, 0, self.box_width, 0.7 * cm, 8, fill=1, stroke=0)
-        # Retângulo para cobrir cantos arredondados superiores da faixa inferior
-        c.rect(0, 0.4 * cm, self.box_width, 0.3 * cm, fill=1, stroke=0)
-
-        # Logo
-        logo_x = 0.6 * cm
-        logo_size = 1.4 * cm
-        logo_y = self.box_height / 2 - logo_size / 2 + 0.15 * cm
-        if self.logo_path:
-            try:
-                c.drawImage(self.logo_path, logo_x, logo_y, logo_size, logo_size, preserveAspectRatio=True, mask='auto')
-            except Exception:
-                pass
-
-        # Textos
-        text_x = 2.5 * cm if self.logo_path else 0.8 * cm
-        c.setFillColor(colors.white)
-
-        c.setFont('Helvetica-Bold', 11)
-        c.drawString(text_x, self.box_height - 0.7 * cm, self.mant_nome.upper())
-
-        c.setFont('Helvetica', 7.5)
-        c.drawString(text_x, self.box_height - 1.15 * cm, self.mant_secretaria)
-
-        # Título HISTÓRICO ESCOLAR
-        c.setFont('Helvetica-Bold', 13)
-        title = "HISTÓRICO ESCOLAR"
-        title_w = c.stringWidth(title, 'Helvetica-Bold', 13)
-        c.drawString(self.box_width - title_w - 0.8 * cm, self.box_height - 0.75 * cm, title)
-
-        c.setFont('Helvetica', 6.5)
-        subtitle = "Ensino Fundamental"
-        sub_w = c.stringWidth(subtitle, 'Helvetica', 6.5)
-        c.drawString(self.box_width - sub_w - 0.8 * cm, self.box_height - 1.15 * cm, subtitle)
-
-        # Endereço na faixa inferior
-        c.setFillColor(colors.Color(0.85, 0.9, 0.95))
-        c.setFont('Helvetica', 6)
-        c.drawString(0.8 * cm, 0.22 * cm, self.mant_endereco)
-
-
-def get_logo_path(logo_url):
-    """Baixa logo e retorna caminho temporário."""
+def get_logo_image(width=1.5*cm, height=1.5*cm, logo_url=None):
+    """Tenta carregar logo da mantenedora."""
     if not logo_url:
         return None
     try:
@@ -139,9 +51,105 @@ def get_logo_path(logo_url):
         import tempfile
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
         urllib.request.urlretrieve(logo_url, tmp.name)
-        return tmp.name
+        return Image(tmp.name, width=width, height=height)
     except Exception:
         return None
+
+
+def build_header(uw, mantenedora, logo_url):
+    """Constrói o cabeçalho com Table nativa (fundo colorido confiável)."""
+    mant_nome = mantenedora.get('nome', 'Prefeitura Municipal')
+    mant_secretaria = mantenedora.get('secretaria', 'Secretaria Municipal de Educação')
+
+    # Endereço
+    end_parts = []
+    if mantenedora.get('logradouro'):
+        addr = mantenedora['logradouro']
+        if mantenedora.get('numero'):
+            addr += f", {mantenedora['numero']}"
+        if mantenedora.get('complemento'):
+            addr += f" - {mantenedora['complemento']}"
+        end_parts.append(addr)
+    if mantenedora.get('bairro'):
+        end_parts.append(mantenedora['bairro'])
+    city_state = []
+    if mantenedora.get('municipio'):
+        city_state.append(mantenedora['municipio'])
+    if mantenedora.get('estado'):
+        city_state.append(mantenedora['estado'])
+    if city_state:
+        end_parts.append(' - '.join(city_state))
+    if mantenedora.get('cep'):
+        end_parts.append(f"CEP: {mantenedora['cep']}")
+    if mantenedora.get('telefone'):
+        end_parts.append(f"Tel: {mantenedora['telefone']}")
+    mant_endereco = '  |  '.join(end_parts) if end_parts else ''
+
+    s_white_bold_lg = ParagraphStyle('hdr_lg', fontName='Helvetica-Bold', fontSize=11, leading=13, alignment=TA_LEFT, textColor=colors.white)
+    s_white_bold = ParagraphStyle('hdr_sec', fontName='Helvetica-Bold', fontSize=8, leading=10, alignment=TA_LEFT, textColor=colors.white)
+    s_white_bold_title = ParagraphStyle('hdr_title', fontName='Helvetica-Bold', fontSize=13, leading=15, alignment=TA_RIGHT, textColor=colors.white)
+    s_white_sub = ParagraphStyle('hdr_sub', fontName='Helvetica-Bold', fontSize=7, leading=9, alignment=TA_RIGHT, textColor=colors.Color(0.82, 0.88, 0.95))
+    s_addr = ParagraphStyle('hdr_addr', fontName='Helvetica-Bold', fontSize=6, leading=8, alignment=TA_CENTER, textColor=colors.Color(0.8, 0.86, 0.92))
+
+    logo = get_logo_image(width=1.5*cm, height=1.5*cm, logo_url=logo_url)
+
+    # Linha principal: Logo | Nome+Secretaria | Título
+    left_content = [
+        Paragraph(mant_nome.upper(), s_white_bold_lg),
+        Paragraph(mant_secretaria, s_white_bold),
+    ]
+    right_content = [
+        Paragraph('HISTÓRICO ESCOLAR', s_white_bold_title),
+        Paragraph('Ensino Fundamental', s_white_sub),
+    ]
+
+    logo_w = 2 * cm if logo else 0
+    right_w = 6.5 * cm
+    left_w = uw - logo_w - right_w
+
+    if logo:
+        main_row = [[logo, left_content, right_content]]
+        col_widths = [logo_w, left_w, right_w]
+    else:
+        main_row = [[left_content, right_content]]
+        col_widths = [uw - right_w, right_w]
+
+    main_table = Table(main_row, colWidths=col_widths, rowHeights=[1.6 * cm])
+    style_cmds = [
+        ('BACKGROUND', (0, 0), (-1, -1), PRIMARY),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (-1, 0), (-1, 0), 'RIGHT'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (0, 0), 8),
+        ('RIGHTPADDING', (-1, 0), (-1, 0), 8),
+    ]
+    main_table.setStyle(TableStyle(style_cmds))
+
+    # Linha de endereço
+    addr_row = [[Paragraph(mant_endereco, s_addr)]]
+    addr_table = Table(addr_row, colWidths=[uw], rowHeights=[0.55 * cm])
+    addr_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), PRIMARY_LIGHT),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+    ]))
+
+    # Wrapper table para unir as duas linhas com cantos arredondados
+    wrapper_data = [[main_table], [addr_table]]
+    wrapper = Table(wrapper_data, colWidths=[uw])
+    wrapper.setStyle(TableStyle([
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('ROUNDEDCORNERS', [6, 6, 6, 6]),
+        ('BOX', (0, 0), (-1, -1), 0.5, PRIMARY),
+    ]))
+    return wrapper
 
 
 def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwargs):
@@ -185,37 +193,8 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
     elements = []
 
     # ===== CABEÇALHO COM BANNER =====
-    mant_nome = mantenedora.get('nome', 'Prefeitura Municipal')
-    mant_secretaria = mantenedora.get('secretaria', 'Secretaria Municipal de Educação')
-
-    # Endereço da mantenedora
-    end_parts = []
-    if mantenedora.get('logradouro'):
-        addr = mantenedora['logradouro']
-        if mantenedora.get('numero'):
-            addr += f", {mantenedora['numero']}"
-        if mantenedora.get('complemento'):
-            addr += f" - {mantenedora['complemento']}"
-        end_parts.append(addr)
-    if mantenedora.get('bairro'):
-        end_parts.append(mantenedora['bairro'])
-    city_state = []
-    if mantenedora.get('municipio'):
-        city_state.append(mantenedora['municipio'])
-    if mantenedora.get('estado'):
-        city_state.append(mantenedora['estado'])
-    if city_state:
-        end_parts.append(' - '.join(city_state))
-    if mantenedora.get('cep'):
-        end_parts.append(f"CEP: {mantenedora['cep']}")
-    if mantenedora.get('telefone'):
-        end_parts.append(f"Tel: {mantenedora['telefone']}")
-    mant_endereco = '  |  '.join(end_parts) if end_parts else ''
-
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    logo_path = get_logo_path(logo_url)
-
-    elements.append(HeaderBanner(uw, mant_nome, mant_secretaria, mant_endereco, logo_path))
+    elements.append(build_header(uw, mantenedora, logo_url))
     elements.append(Spacer(1, 3 * mm))
 
     # ===== DADOS DO ALUNO (caixa arredondada) =====
