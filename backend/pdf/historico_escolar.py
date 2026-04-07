@@ -85,22 +85,22 @@ def build_header(uw, mantenedora, logo_url):
         end_parts.append(f"Tel: {mantenedora['telefone']}")
     mant_endereco = '  |  '.join(end_parts) if end_parts else ''
 
-    s_white_bold_lg = ParagraphStyle('hdr_lg', fontName='Helvetica-Bold', fontSize=11, leading=13, alignment=TA_LEFT, textColor=colors.white)
-    s_white_bold = ParagraphStyle('hdr_sec', fontName='Helvetica-Bold', fontSize=8, leading=10, alignment=TA_LEFT, textColor=colors.white)
-    s_white_bold_title = ParagraphStyle('hdr_title', fontName='Helvetica-Bold', fontSize=13, leading=15, alignment=TA_RIGHT, textColor=colors.white)
-    s_white_sub = ParagraphStyle('hdr_sub', fontName='Helvetica-Bold', fontSize=7, leading=9, alignment=TA_RIGHT, textColor=colors.Color(0.82, 0.88, 0.95))
-    s_addr = ParagraphStyle('hdr_addr', fontName='Helvetica-Bold', fontSize=6, leading=8, alignment=TA_CENTER, textColor=colors.Color(0.8, 0.86, 0.92))
+    s_black_bold_lg = ParagraphStyle('hdr_lg', fontName='Helvetica-Bold', fontSize=11, leading=13, alignment=TA_LEFT, textColor=TEXT_DARK)
+    s_black_bold = ParagraphStyle('hdr_sec', fontName='Helvetica-Bold', fontSize=8, leading=10, alignment=TA_LEFT, textColor=TEXT_DARK)
+    s_black_bold_title = ParagraphStyle('hdr_title', fontName='Helvetica-Bold', fontSize=13, leading=15, alignment=TA_RIGHT, textColor=TEXT_DARK)
+    s_black_sub = ParagraphStyle('hdr_sub', fontName='Helvetica-Bold', fontSize=7, leading=9, alignment=TA_RIGHT, textColor=TEXT_MED)
+    s_addr = ParagraphStyle('hdr_addr', fontName='Helvetica-Bold', fontSize=6, leading=8, alignment=TA_CENTER, textColor=TEXT_DARK)
 
     logo = get_logo_image(width=1.5*cm, height=1.5*cm, logo_url=logo_url)
 
     # Linha principal: Logo | Nome+Secretaria | Título
     left_content = [
-        Paragraph(mant_nome.upper(), s_white_bold_lg),
-        Paragraph(mant_secretaria, s_white_bold),
+        Paragraph(mant_nome.upper(), s_black_bold_lg),
+        Paragraph(mant_secretaria, s_black_bold),
     ]
     right_content = [
-        Paragraph('HISTÓRICO ESCOLAR', s_white_bold_title),
-        Paragraph('Ensino Fundamental', s_white_sub),
+        Paragraph('HISTÓRICO ESCOLAR', s_black_bold_title),
+        Paragraph('Ensino Fundamental', s_black_sub),
     ]
 
     logo_w = 2 * cm if logo else 0
@@ -116,7 +116,7 @@ def build_header(uw, mantenedora, logo_url):
 
     main_table = Table(main_row, colWidths=col_widths, rowHeights=[1.6 * cm])
     style_cmds = [
-        ('BACKGROUND', (0, 0), (-1, -1), PRIMARY),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (-1, 0), (-1, 0), 'RIGHT'),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
@@ -130,7 +130,7 @@ def build_header(uw, mantenedora, logo_url):
     addr_row = [[Paragraph(mant_endereco, s_addr)]]
     addr_table = Table(addr_row, colWidths=[uw], rowHeights=[0.55 * cm])
     addr_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), PRIMARY_LIGHT),
+        ('BACKGROUND', (0, 0), (-1, -1), LABEL_BG),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
@@ -147,7 +147,7 @@ def build_header(uw, mantenedora, logo_url):
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ('ROUNDEDCORNERS', [6, 6, 6, 6]),
-        ('BOX', (0, 0), (-1, -1), 0.5, PRIMARY),
+        ('BOX', (0, 0), (-1, -1), 0.5, BORDER_COLOR),
     ]))
     return wrapper
 
