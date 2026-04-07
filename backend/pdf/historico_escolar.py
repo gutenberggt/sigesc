@@ -49,6 +49,8 @@ class RoundedBox(Flowable):
         Flowable.__init__(self)
         self.box_width = width
         self.box_height = height
+        self.width = width
+        self.height = height
         self.radius = radius
         self.fill_color = fill_color
         self.stroke_color = stroke_color
@@ -72,6 +74,8 @@ class HeaderBanner(Flowable):
         Flowable.__init__(self)
         self.box_width = width
         self.box_height = 2.6 * cm
+        self.width = width
+        self.height = self.box_height
         self.mant_nome = mant_nome
         self.mant_secretaria = mant_secretaria
         self.mant_endereco = mant_endereco
