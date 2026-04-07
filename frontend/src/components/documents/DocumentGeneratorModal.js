@@ -218,7 +218,7 @@ export const DocumentGeneratorModal = ({
       title="Gerar Documentos"
       size="md"
     >
-      <div className="space-y-4">
+      <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
         {/* Info do Aluno */}
         {student && (
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">

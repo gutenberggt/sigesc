@@ -1648,7 +1648,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         current_user = await AuthMiddleware.get_current_user(request)
 
-        valid_types = ['boletim', 'ficha_individual', 'certificado']
+        valid_types = ['boletim', 'ficha_individual', 'certificado', 'historico_escolar']
         if document_type not in valid_types:
             raise HTTPException(status_code=400, detail=f"Tipo de documento inválido. Use: {', '.join(valid_types)}")
 
@@ -1942,7 +1942,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             type_names = {
                 'boletim': 'Boletins',
                 'ficha_individual': 'Fichas_Individuais',
-                'certificado': 'Certificados'
+                'certificado': 'Certificados',
+                'historico_escolar': 'Historicos_Escolares'
             }
             filename = f"{type_names.get(document_type, document_type)}_{class_name}_{academic_year_int}.pdf"
 

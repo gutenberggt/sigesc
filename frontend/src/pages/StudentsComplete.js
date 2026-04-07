@@ -3846,6 +3846,24 @@ export function StudentsComplete() {
                 </button>
               )}
 
+              {/* Histórico Escolar */}
+              <button
+                onClick={() => handleBatchPrint('historico_escolar')}
+                disabled={batchPrinting}
+                className="w-full flex items-center justify-between p-4 border-2 border-amber-200 rounded-lg hover:bg-amber-50 hover:border-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                data-testid="batch-history-btn"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <GraduationCap className="text-amber-600" size={20} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Histórico Escolar</p>
+                    <p className="text-sm text-gray-500">Histórico escolar de todos os alunos da turma</p>
+                  </div>
+                </div>
+                <ExternalLink size={20} className="text-amber-600" />
+              </button>
             </div>
             
             {batchPrinting && (
