@@ -148,8 +148,23 @@ export default function StudentHistory() {
     }
   };
 
-  const handleGeneratePdf = () => {
-    window.open(`${API}/api/documents/historico-escolar/${studentId}?token=${token}`, '_blank');
+  const handleGeneratePdf = async () => {
+    try {
+      const currentToken = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+      const res = await fetch(`${API}/api/documents/historico-escolar/${studentId}`, {
+        headers: { 'Authorization': `Bearer ${currentToken}` }
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Erro ao gerar PDF');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+    } catch (e) {
+      toast.error(e.message || 'Erro ao gerar PDF do histórico');
+    }
   };
 
   const handleImport = async () => {
