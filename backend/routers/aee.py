@@ -460,7 +460,7 @@ def setup_aee_router(db, audit_service):
             # Dados do aluno
             student = await db.students.find_one(
                 {"id": plano.get('student_id')}, 
-                {"_id": 0, "full_name": 1, "birth_date": 1, "enrollment_number": 1}
+                {"_id": 0, "full_name": 1, "birth_date": 1, "enrollment_number": 1, "class_id": 1, "atendimento_programa_class_id": 1}
             )
             
             # Atendimentos do período
@@ -484,7 +484,9 @@ def setup_aee_router(db, audit_service):
                     "id": plano.get('student_id'),
                     "full_name": student.get('full_name') if student else 'N/A',
                     "birth_date": student.get('birth_date') if student else None,
-                    "enrollment_number": student.get('enrollment_number') if student else None
+                    "enrollment_number": student.get('enrollment_number') if student else None,
+                    "class_id": student.get('class_id') if student else None,
+                    "atendimento_programa_class_id": student.get('atendimento_programa_class_id') if student else None
                 },
                 "atendimentos": atendimentos,
                 "evolucoes": evolucoes,
@@ -725,7 +727,7 @@ def setup_aee_router(db, audit_service):
         for plano in planos:
             student = await db.students.find_one(
                 {"id": plano.get('student_id')},
-                {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "class_id": 1}
+                {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "class_id": 1, "atendimento_programa_class_id": 1}
             )
             if student:
                 turma = await db.classes.find_one({"id": student.get('class_id')}, {"_id": 0, "name": 1})
@@ -733,6 +735,8 @@ def setup_aee_router(db, audit_service):
                     "student_id": student.get('id'),
                     "full_name": student.get('full_name'),
                     "enrollment_number": student.get('enrollment_number'),
+                    "class_id": student.get('class_id'),
+                    "atendimento_programa_class_id": student.get('atendimento_programa_class_id'),
                     "turma_origem": turma.get('name') if turma else 'N/A',
                     "publico_alvo": plano.get('publico_alvo'),
                     "modalidade": plano.get('modalidade'),
@@ -749,7 +753,7 @@ def setup_aee_router(db, audit_service):
                 "status": "active",
                 "id": {"$nin": list(student_ids_added)}
             },
-            {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "class_id": 1, "disabilities": 1}
+            {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "class_id": 1, "disabilities": 1, "atendimento_programa_class_id": 1}
         ).to_list(100)
         
         for student in aee_students:
@@ -758,6 +762,8 @@ def setup_aee_router(db, audit_service):
                 "student_id": student.get('id'),
                 "full_name": student.get('full_name'),
                 "enrollment_number": student.get('enrollment_number'),
+                "class_id": student.get('class_id'),
+                "atendimento_programa_class_id": student.get('atendimento_programa_class_id'),
                 "turma_origem": turma.get('name') if turma else 'N/A',
                 "publico_alvo": None,
                 "modalidade": None,

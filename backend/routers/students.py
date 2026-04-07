@@ -264,7 +264,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         list_projection = {
             "_id": 0, "id": 1, "full_name": 1, "school_id": 1, "class_id": 1,
             "status": 1, "cpf": 1, "birth_date": 1, "sex": 1, "inep_code": 1,
-            "student_series": 1
+            "student_series": 1, "atendimento_programa_class_id": 1
         }
         
         students = await current_db.students.find(

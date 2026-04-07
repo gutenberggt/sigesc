@@ -169,6 +169,13 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Propaga `student_series` do aluno para enrollment
   - (07/04/2026) Funcionalidade "Desvincular Aluno da Turma": novo endpoint `POST /api/enrollments/cancel-enrollment` que cancela matrícula ativa (status = 'cancelled') mantendo histórico com motivo, data e responsável. Botão `UserX` aparece na coluna AÇÕES quando turma está filtrada. Modal com campo de motivo obrigatório. Apenas Admin e Secretário.
 
+## Bug Fixes (07/04/2026 - Sessão 2)
+- Fix Filtro Turma AEE no Diário AEE (P0): Backend não retornava `class_id` e `atendimento_programa_class_id` nas respostas das APIs `/api/aee/estudantes`, `/api/aee/diario` e `/api/students`. Frontend não conseguia filtrar alunos por turma AEE selecionada.
+  - `aee.py` `get_estudantes_aee`: adicionado `atendimento_programa_class_id` na projeção MongoDB e no response dict (ambas seções: alunos com plano e alunos sem plano)
+  - `aee.py` `get_diario_aee`: adicionado `class_id` e `atendimento_programa_class_id` na projeção e no objeto `student` das fichas
+  - `students.py` `list_students`: adicionado `atendimento_programa_class_id` na `list_projection`
+  - `DiarioAEE.js`: filtro melhorado com fallback direto nos dados do `estudantes` (não depende apenas do array `students`)
+
 ## Tarefas Pendentes
 
 ### Outras Tarefas

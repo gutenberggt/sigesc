@@ -441,7 +441,9 @@ const DiarioAEE = () => {
   // === FILTRAGEM POR TURMA AEE ===
   const filteredEstudantes = selectedTurma
     ? estudantes.filter(est => {
-        // Busca alunos que estão na turma AEE selecionada (via class_id ou atendimento_programa_class_id)
+        // Primeiro tenta pelo próprio objeto estudante (dados vindos de /api/aee/estudantes)
+        if (est.class_id === selectedTurma || est.atendimento_programa_class_id === selectedTurma) return true;
+        // Fallback: busca no array geral de students
         const student = students.find(s => s.id === est.student_id);
         return student && (student.class_id === selectedTurma || student.atendimento_programa_class_id === selectedTurma);
       })
@@ -449,6 +451,8 @@ const DiarioAEE = () => {
 
   const filteredPlanos = selectedTurma
     ? planos.filter(p => {
+        const est = estudantes.find(e => e.student_id === p.student_id);
+        if (est && (est.class_id === selectedTurma || est.atendimento_programa_class_id === selectedTurma)) return true;
         const student = students.find(s => s.id === p.student_id);
         return student && (student.class_id === selectedTurma || student.atendimento_programa_class_id === selectedTurma);
       })
@@ -456,6 +460,8 @@ const DiarioAEE = () => {
 
   const filteredAtendimentos = selectedTurma
     ? atendimentos.filter(a => {
+        const est = estudantes.find(e => e.student_id === a.student_id);
+        if (est && (est.class_id === selectedTurma || est.atendimento_programa_class_id === selectedTurma)) return true;
         const student = students.find(s => s.id === a.student_id);
         return student && (student.class_id === selectedTurma || student.atendimento_programa_class_id === selectedTurma);
       })
