@@ -119,7 +119,7 @@ def generate_boletim_pdf(
     
     header_text = f"""
     <font size="11"><b>{mant_nome.upper()}</b></font><br/>
-    <font size="9"><i>Secretaria Municipal de Educação</i></font><br/>
+    <font size="9"><i>{mantenedora.get('secretaria', 'Secretaria Municipal de Educação')}</i></font><br/>
     {slogan_html}
     """
     

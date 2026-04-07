@@ -144,7 +144,7 @@ def generate_livro_promocao_pdf(
         slogan_html = f'<font size="8" color="#666666">"{slogan}"</font>' if slogan else ''
         header_text = f"""
         <b>{mant_nome}</b><br/>
-        <font size="9">Secretaria Municipal de Educação</font><br/>
+        <font size="9">{mantenedora.get('secretaria', 'Secretaria Municipal de Educação')}</font><br/>
         {slogan_html}
         """
         

@@ -94,7 +94,7 @@ def generate_declaracao_matricula_pdf(
     
     # Cabeçalho - usar nome da mantenedora
     elements.append(Paragraph(mant_nome.upper(), styles['CenterText']))
-    elements.append(Paragraph("SECRETARIA MUNICIPAL DE EDUCAÇÃO", styles['CenterText']))
+    elements.append(Paragraph(mantenedora.get('secretaria', 'Secretaria Municipal de Educação').upper(), styles['CenterText']))
     elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
     
     # Endereço e telefone da escola (deixar em branco se não tiver)
@@ -236,7 +236,7 @@ def generate_declaracao_transferencia_pdf(
     
     # Cabeçalho
     elements.append(Paragraph(mant_nome.upper(), styles['CenterText']))
-    elements.append(Paragraph("SECRETARIA MUNICIPAL DE EDUCAÇÃO", styles['CenterText']))
+    elements.append(Paragraph(mantenedora.get('secretaria', 'Secretaria Municipal de Educação').upper(), styles['CenterText']))
     elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
     
     if endereco:
@@ -410,7 +410,7 @@ def generate_declaracao_frequencia_pdf(
     
     # Cabeçalho - usar nome da mantenedora
     elements.append(Paragraph(mant_nome.upper(), styles['CenterText']))
-    elements.append(Paragraph("SECRETARIA MUNICIPAL DE EDUCAÇÃO", styles['CenterText']))
+    elements.append(Paragraph(mantenedora.get('secretaria', 'Secretaria Municipal de Educação').upper(), styles['CenterText']))
     elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
     
     # Endereço e telefone da escola (deixar em branco se não tiver)

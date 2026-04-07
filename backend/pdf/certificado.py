@@ -161,7 +161,7 @@ def generate_certificado_pdf(
     
     y_position -= 14
     c.setFont("Helvetica", 11)
-    c.drawCentredString(center_x, y_position, "SECRETARIA MUNICIPAL DE EDUCAÇÃO")
+    c.drawCentredString(center_x, y_position, (mantenedora.get('secretaria', 'SECRETARIA MUNICIPAL DE EDUCAÇÃO') if mantenedora else 'SECRETARIA MUNICIPAL DE EDUCAÇÃO').upper())
     
     # ========== NOME DA ESCOLA ==========
     y_position -= 34  # +10 (mais 1 espaço)

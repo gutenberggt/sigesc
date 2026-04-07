@@ -88,7 +88,7 @@ def generate_class_details_pdf(
     header_style = ParagraphStyle('HeaderInst', fontSize=9, alignment=TA_CENTER, leading=13, textColor=TEXT_DARK)
 
     header_text = f"""<b>{xml_escape(mantenedora_nome.upper())}</b><br/>
-    SECRETARIA MUNICIPAL DE EDUCAÇÃO<br/>
+    {xml_escape((mantenedora.get('secretaria', 'Secretaria Municipal de Educação') if mantenedora else 'Secretaria Municipal de Educação').upper())}<br/>
     <b>{school_name}</b>"""
 
     if logo:
