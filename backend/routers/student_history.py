@@ -63,6 +63,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         records = body.get('records', [])
         observations = body.get('observations', '')
         media_aprovacao = body.get('media_aprovacao', 6.0)
+        custom_diversificada = body.get('custom_diversificada', [])
 
         # Validar cada registro
         for rec in records:
@@ -78,6 +79,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "records": records,
             "observations": observations,
             "media_aprovacao": media_aprovacao,
+            "custom_diversificada": custom_diversificada,
             "updated_at": now,
             "updated_by": current_user.get('id', '')
         }

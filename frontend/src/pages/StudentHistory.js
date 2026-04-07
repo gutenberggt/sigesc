@@ -19,7 +19,10 @@ const COMPONENTES_BNCC = {
 };
 
 const COMPONENTES_DIVERSIFICADA = [
-  'Ed. Ambiental e Clima', 'Estudos Amazônicos', 'Literatura e Redação',
+  'Ed. Ambiental e Clima', 'Estudos Amazônicos', 'Literatura e Redação'
+];
+
+const CAMPOS_INTEGRADORES = [
   'Acomp. Pedagógico', 'Recreação, Esporte e Lazer', 'Arte e Cultura', 'Tecnologia e Informática'
 ];
 
@@ -57,6 +60,10 @@ export default function StudentHistory() {
   const [saving, setSaving] = useState(false);
   const [activeSerie, setActiveSerie] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [customDiversificada, setCustomDiversificada] = useState([
+    { title: '' },
+    { title: '' }
+  ]);
 
   const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
 
@@ -80,6 +87,9 @@ export default function StudentHistory() {
         setRecords(h.records || []);
         setObservations(h.observations || '');
         setMediaAprovacao(h.media_aprovacao || 6.0);
+        if (h.custom_diversificada && h.custom_diversificada.length > 0) {
+          setCustomDiversificada(h.custom_diversificada);
+        }
       }
     } catch (err) {
       toast.error('Erro ao carregar dados');
@@ -132,7 +142,7 @@ export default function StudentHistory() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ records, observations, media_aprovacao: mediaAprovacao })
+        body: JSON.stringify({ records, observations, media_aprovacao: mediaAprovacao, custom_diversificada: customDiversificada })
       });
 
       if (res.ok) {
@@ -445,6 +455,66 @@ export default function StudentHistory() {
                           onChange={e => updateGrade(activeSerie, comp, e.target.value)}
                           placeholder="-"
                           data-testid={`history-grade-div-${comp.replace(/\s/g, '-')}`}
+                        />
+                      </div>
+                    ))}
+                    {/* Campos personalizados */}
+                    {customDiversificada.map((custom, idx) => (
+                      <div key={`custom-${idx}`}>
+                        <Input
+                          className="h-6 text-xs mb-1 border-dashed"
+                          value={custom.title}
+                          onChange={e => {
+                            const prev = customDiversificada[idx].title;
+                            const next = e.target.value;
+                            setCustomDiversificada(cd => cd.map((c, i) => i === idx ? { ...c, title: next } : c));
+                            // Renomear a chave no grades se título antigo existia
+                            if (prev && prev !== next) {
+                              setRecords(recs => recs.map(r => {
+                                const g = { ...r.grades };
+                                if (g[prev] !== undefined) {
+                                  g[next] = g[prev];
+                                  delete g[prev];
+                                }
+                                return { ...r, grades: g };
+                              }));
+                            }
+                          }}
+                          placeholder="Nome do componente..."
+                          data-testid={`history-custom-title-${idx}`}
+                        />
+                        <Input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="10"
+                          className="h-8 text-sm"
+                          value={custom.title ? (activeRecord.grades[custom.title] ?? '') : ''}
+                          onChange={e => {
+                            if (custom.title) updateGrade(activeSerie, custom.title, e.target.value);
+                          }}
+                          placeholder="-"
+                          disabled={!custom.title}
+                          data-testid={`history-custom-grade-${idx}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Campos Integradores Curricular I */}
+                <div className="mt-3 pt-2 border-t">
+                  <p className="text-xs font-semibold text-teal-600 mb-1 uppercase">Campos Integradores Curricular I</p>
+                  <p className="text-xs text-gray-400 mb-2">Dispensados de notas/conceitos</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {CAMPOS_INTEGRADORES.map(comp => (
+                      <div key={comp}>
+                        <Label className="text-xs text-gray-400">{comp}</Label>
+                        <Input
+                          className="h-8 text-sm bg-gray-50"
+                          value="—"
+                          disabled
+                          data-testid={`history-grade-ci-${comp.replace(/\s/g, '-')}`}
                         />
                       </div>
                     ))}

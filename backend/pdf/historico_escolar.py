@@ -36,7 +36,9 @@ COMPONENTES_BNCC = {
     "Ciências Humanas": ["História", "Geografia", "Ensino Religioso"]
 }
 COMPONENTES_DIVERSIFICADA = [
-    "Ed. Ambiental e Clima", "Estudos Amazônicos", "Literatura e Redação",
+    "Ed. Ambiental e Clima", "Estudos Amazônicos", "Literatura e Redação"
+]
+CAMPOS_INTEGRADORES = [
     "Acomp. Pedagógico", "Recreação, Esporte e Lazer", "Arte e Cultura", "Tecnologia e Informática"
 ]
 SERIES = ["1º", "2º", "3º", "4º", "5º", "6º", "7º", "8º", "9º"]
@@ -307,6 +309,28 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
             notas.append(pc(str(nota) if nota else ''))
         data_rows.append(['', pcomp(comp)] + notas)
 
+    # Campos personalizados da Parte Diversificada (só exibir se preenchidos)
+    custom_diversificada = history.get('custom_diversificada', [])
+    for custom in custom_diversificada:
+        title = (custom.get('title') or '').strip()
+        if not title:
+            continue
+        notas = []
+        for s in SERIES:
+            rec = records_map.get(s, {})
+            grades = rec.get('grades', {})
+            nota = grades.get(title, '')
+            notas.append(pc(str(nota) if nota else ''))
+        data_rows.append(['', pcomp(title)] + notas)
+
+    # Campos Integradores Curricular I (dispensados de notas)
+    ci_row = [pcd('CAMPOS INTEGRADORES CURRICULAR I'), '', '', '', '', '', '', '', '', '', '']
+    data_rows.append(ci_row)
+    ci_idx = len(data_rows) - 1
+
+    for comp in CAMPOS_INTEGRADORES:
+        data_rows.append(['', pcomp(comp)] + [pc('') for _ in SERIES])
+
     # Rodapé da tabela: CH, Resultado, Ano, Escola, Cidade
     footer_rows = [
         ('CARGA HORÁRIA ANUAL', 'carga_horaria'),
@@ -361,16 +385,26 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
         ('SPAN', (0, div_idx), (1, div_idx)),
         ('BACKGROUND', (0, div_idx), (-1, div_idx), SECTION_BG),
 
+        # Campos integradores
+        ('SPAN', (0, ci_idx), (1, ci_idx)),
+        ('BACKGROUND', (0, ci_idx), (-1, ci_idx), SECTION_BG),
+
         # Rounded corners
         ('ROUNDEDCORNERS', [4, 4, 4, 4]),
     ]
 
-    # Alternating row colors for data rows
+    # Alternating row colors for BNCC data rows
     for i in range(2, div_idx):
         bg = ROW_ALT if i % 2 == 0 else ROW_WHITE
         style_cmds.append(('BACKGROUND', (0, i), (-1, i), bg))
 
-    for i in range(div_idx + 1, div_idx + 1 + len(COMPONENTES_DIVERSIFICADA)):
+    # Alternating row colors for diversificada rows (between div_idx and ci_idx)
+    for i in range(div_idx + 1, ci_idx):
+        bg = ROW_ALT if i % 2 == 0 else ROW_WHITE
+        style_cmds.append(('BACKGROUND', (0, i), (-1, i), bg))
+
+    # Alternating row colors for campos integradores rows
+    for i in range(ci_idx + 1, ci_idx + 1 + len(CAMPOS_INTEGRADORES)):
         bg = ROW_ALT if i % 2 == 0 else ROW_WHITE
         style_cmds.append(('BACKGROUND', (0, i), (-1, i), bg))
 
