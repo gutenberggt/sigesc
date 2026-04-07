@@ -23,13 +23,18 @@ class AuthMiddleware:
         auth_header = request.headers.get('Authorization')
         
         if not auth_header or not auth_header.startswith('Bearer '):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Token de autenticação não fornecido',
-                headers={'WWW-Authenticate': 'Bearer'},
-            )
-        
-        token = auth_header.split(' ')[1]
+            # Fallback: aceitar token via query param (para window.open em PDFs)
+            query_token = request.query_params.get('token')
+            if query_token:
+                token = query_token
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail='Token de autenticação não fornecido',
+                    headers={'WWW-Authenticate': 'Bearer'},
+                )
+        else:
+            token = auth_header.split(' ')[1]
         payload = decode_token(token)
         
         if not payload:

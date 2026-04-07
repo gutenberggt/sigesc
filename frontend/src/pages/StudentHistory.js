@@ -58,7 +58,7 @@ export default function StudentHistory() {
   const [activeSerie, setActiveSerie] = useState(null);
   const [importing, setImporting] = useState(false);
 
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
 
   const fetchData = useCallback(async () => {
     try {
