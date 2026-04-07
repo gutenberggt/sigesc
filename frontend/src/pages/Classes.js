@@ -852,8 +852,9 @@ export const Classes = () => {
                 )}
               </div>
 
-              {/* Resumo por Série - apenas para turmas multisseriadas */}
-              {classDetails.class?.is_multi_grade && classDetails.series_count && (
+              {/* Resumo por Série - apenas para turmas multisseriadas que NÃO são de programa especial */}
+              {classDetails.class?.is_multi_grade && classDetails.series_count && 
+               !['aee', 'reforco_escolar', 'aulas_complementares'].includes(viewingClass?.atendimento_programa) && (
                 <div className="bg-indigo-50 rounded-lg p-4">
                   <h3 className="font-semibold text-indigo-900 mb-3 flex items-center gap-2">
                     <Calendar size={18} />
@@ -890,7 +891,7 @@ export const Classes = () => {
                         <tr className="bg-gray-200">
                           <th className="px-3 py-2 text-left font-medium">#</th>
                           <th className="px-3 py-2 text-left font-medium">Aluno</th>
-                          {classDetails.class?.is_multi_grade && (
+                          {classDetails.class?.is_multi_grade && !['aee', 'reforco_escolar', 'aulas_complementares'].includes(viewingClass?.atendimento_programa) && (
                             <th className="px-3 py-2 text-left font-medium">Série</th>
                           )}
                           <th className="px-3 py-2 text-left font-medium">Data Nasc.</th>
@@ -911,7 +912,7 @@ export const Classes = () => {
                                 </span>
                               )}
                             </td>
-                            {classDetails.class?.is_multi_grade && (
+                            {classDetails.class?.is_multi_grade && !['aee', 'reforco_escolar', 'aulas_complementares'].includes(viewingClass?.atendimento_programa) && (
                               <td className="px-3 py-2">
                                 {student.student_series ? (
                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
