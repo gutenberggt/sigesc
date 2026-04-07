@@ -21,6 +21,7 @@ from pdf_generator import (
     generate_ficha_individual_pdf,
     generate_livro_promocao_pdf,
 )
+from pdf.historico_escolar import generate_historico_escolar_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -1955,6 +1956,59 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         except Exception as e:
             logger.error(f"Erro ao gerar documentos em lote: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+
+
+
+    @router.get("/documents/historico-escolar/{student_id}")
+    async def get_historico_escolar_pdf(student_id: str, request: Request):
+        """Gera o PDF do Histórico Escolar do aluno."""
+        current_user = await AuthMiddleware.get_current_user(request)
+
+        student = await db.students.find_one({"id": student_id}, {"_id": 0})
+        if not student:
+            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+
+        # Buscar escola do aluno
+        enrollment = await db.enrollments.find_one(
+            {"student_id": student_id, "status": {"$in": ["active", "transferred"]}},
+            {"_id": 0}
+        )
+        school = None
+        if enrollment:
+            class_info = await db.classes.find_one({"id": enrollment.get("class_id")}, {"_id": 0})
+            if class_info:
+                school = await get_school_cached(db, class_info.get("school_id"))
+        if not school:
+            school = {"name": "Escola Municipal", "city": "", "state": "PA"}
+
+        mantenedora = await get_mantenedora_cached(db)
+
+        # Buscar histórico
+        history = await db.student_history.find_one(
+            {"student_id": student_id}, {"_id": 0}
+        )
+        if not history:
+            history = {"student_id": student_id, "records": [], "observations": "", "media_aprovacao": 6.0}
+
+        try:
+            pdf_buffer = generate_historico_escolar_pdf(
+                student=student,
+                school=school,
+                mantenedora=mantenedora,
+                history=history
+            )
+
+            student_name = (student.get('full_name') or 'aluno').replace(' ', '_')
+            filename = f"Historico_Escolar_{student_name}.pdf"
+
+            return StreamingResponse(
+                pdf_buffer,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'inline; filename="{filename}"'}
+            )
+        except Exception as e:
+            logger.error(f"Erro ao gerar histórico escolar: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
 

@@ -64,6 +64,7 @@ from routers import (
     sandbox as sandbox_mod,
 )
 from routers import hr as hr_mod
+from routers import student_history as student_history_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
@@ -379,6 +380,7 @@ uploads_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 admin_mod.setup_router(db, active_sessions=active_sessions, connection_manager=connection_manager, get_db_for_user=get_db_for_user)
 sandbox_mod.setup_router(sandbox_service=sandbox_service)
 hr_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
+student_history_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 
 # --- Incluir TODOS os roteadores na app ---
 # Fase 1
@@ -423,6 +425,7 @@ app.include_router(uploads_mod.router, prefix="/api")
 app.include_router(admin_mod.router, prefix="/api")
 app.include_router(sandbox_mod.router, prefix="/api")
 app.include_router(hr_mod.router, prefix="/api")
+app.include_router(student_history_mod.router, prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)

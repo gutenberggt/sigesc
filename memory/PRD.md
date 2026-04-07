@@ -161,6 +161,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Feature "Ignorar" na Alocação: Checkbox ao lado de cada componente curricular para marcar como voluntário (não contabiliza carga horária na lotação/folha)
 - Fix Filtro Componentes por Atendimento: Boletim/Ficha Individual/Batch agora filtram componentes por `atendimento_programa` da turma (regular, integral, AEE). Filtro aplicado SEMPRE, inclusive quando há teacher_assignments — turmas regulares/multisseriadas não recebem mais componentes de escola integral
 - Fix status filter: Adicionado 'ativo' (lowercase) ao filtro de status dos teacher_assignments em todos os 3 endpoints de documentos
+- Feature Histórico Escolar: CRUD completo + geração de PDF. Acessível por Admin, Secretário, Diretor, Auxiliar de Secretaria. Backend: `/api/student-history/{id}` (GET/POST) + `/api/documents/historico-escolar/{id}` (PDF). Frontend: `StudentHistory.js` com formulário por série (1º-9º), notas por componente BNCC + parte diversificada
   - Filtra componentes via `teacher_assignments` (fallback: `nivel_ensino`)
   - Calcula `attendance_data` com estrutura `_meta` (faltas_regular, faltas_por_componente)
   - Busca `calendario_letivo` corretamente (era `db.calendar`, agora `db.calendario_letivo`)

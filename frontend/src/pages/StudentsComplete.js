@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone, FileDown } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone, FileDown, GraduationCap } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
 import { CityAutocomplete } from '@/components/CityAutocomplete';
 
@@ -3845,6 +3845,27 @@ export function StudentsComplete() {
                   <ExternalLink size={20} className="text-purple-600" />
                 </button>
               )}
+
+              {/* Histórico Escolar */}
+              <button
+                onClick={() => {
+                  setShowBatchPrintModal(false);
+                  navigate(`/admin/students/${selectedStudent?.id}/historico`);
+                }}
+                className="w-full flex items-center justify-between p-4 border-2 border-amber-200 rounded-lg hover:bg-amber-50 hover:border-amber-400 transition-colors"
+                data-testid="history-link-btn"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <GraduationCap className="text-amber-600" size={20} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Histórico Escolar</p>
+                    <p className="text-sm text-gray-500">Cadastrar e gerar histórico completo do aluno</p>
+                  </div>
+                </div>
+                <ExternalLink size={20} className="text-amber-600" />
+              </button>
             </div>
             
             {batchPrinting && (

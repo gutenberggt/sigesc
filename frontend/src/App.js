@@ -28,6 +28,7 @@ const Calendar = lazy(() => import('@/pages/Calendar').then(m => ({ default: m.C
 const Events = lazy(() => import('@/pages/Events').then(m => ({ default: m.Events })));
 const Attendance = lazy(() => import('@/pages/Attendance').then(m => ({ default: m.Attendance })));
 const Staff = lazy(() => import('@/pages/Staff'));
+const StudentHistory = lazy(() => import('@/pages/StudentHistory'));
 const LearningObjects = lazy(() => import('@/pages/LearningObjects').then(m => ({ default: m.LearningObjects })));
 const UserProfile = lazy(() => import('@/pages/UserProfile').then(m => ({ default: m.UserProfile })));
 const ProfessorDashboard = lazy(() => import('@/pages/ProfessorDashboard'));
@@ -183,6 +184,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed', 'semed1', 'semed2', 'semed3']}>
                 <Students />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/admin/students/:studentId/historico"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'secretario', 'diretor', 'auxiliar_secretaria']}>
+                <StudentHistory />
               </ProtectedRoute>
             }
           />
