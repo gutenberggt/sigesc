@@ -59,6 +59,7 @@ const DiarioAEE = () => {
   const [activeTab, setActiveTab] = useState('estudantes'); // estudantes, planos, atendimentos, diario
   const [schools, setSchools] = useState([]);
   const [selectedSchool, setSelectedSchool] = useState('');
+  const [selectedTurma, setSelectedTurma] = useState('');
   const [academicYear, setAcademicYear] = useState(new Date().getFullYear());
   
   // Dados
@@ -134,6 +135,7 @@ const DiarioAEE = () => {
   const [alert, setAlert] = useState({ show: false, type: '', message: '' });
   const [students, setStudents] = useState([]);
   const [turmas, setTurmas] = useState([]);
+  const [turmasAEE, setTurmasAEE] = useState([]);
 
   // Headers para requisições
   const headers = {
@@ -210,10 +212,8 @@ const DiarioAEE = () => {
       setDiarioData(diarioDataRes);
       
       // Busca alunos da escola para o modal
-      const studentsRes = await fetch(
-        `${API_URL}/api/students?school_id=${selectedSchool}`,
-        { headers: authHeader }
-      );
+      let studentsUrl = `${API_URL}/api/students?school_id=${selectedSchool}&page_size=200`;
+      const studentsRes = await fetch(studentsUrl, { headers: authHeader });
       const studentsData = await studentsRes.json();
       setStudents(studentsData.items || studentsData || []);
       
@@ -223,7 +223,10 @@ const DiarioAEE = () => {
         { headers: authHeader }
       );
       const turmasData = await turmasRes.json();
-      setTurmas(turmasData.items || turmasData || []);
+      const allTurmas = turmasData.items || turmasData || [];
+      setTurmas(allTurmas);
+      const aee = allTurmas.filter(t => (t.atendimento_programa || '').toLowerCase() === 'aee');
+      setTurmasAEE(aee);
       
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
@@ -435,6 +438,29 @@ const DiarioAEE = () => {
     }
   };
 
+  // === FILTRAGEM POR TURMA AEE ===
+  const filteredEstudantes = selectedTurma
+    ? estudantes.filter(est => {
+        // Busca alunos que estão na turma AEE selecionada (via class_id ou atendimento_programa_class_id)
+        const student = students.find(s => s.id === est.student_id);
+        return student && (student.class_id === selectedTurma || student.atendimento_programa_class_id === selectedTurma);
+      })
+    : estudantes;
+
+  const filteredPlanos = selectedTurma
+    ? planos.filter(p => {
+        const student = students.find(s => s.id === p.student_id);
+        return student && (student.class_id === selectedTurma || student.atendimento_programa_class_id === selectedTurma);
+      })
+    : planos;
+
+  const filteredAtendimentos = selectedTurma
+    ? atendimentos.filter(a => {
+        const student = students.find(s => s.id === a.student_id);
+        return student && (student.class_id === selectedTurma || student.atendimento_programa_class_id === selectedTurma);
+      })
+    : atendimentos;
+
   // === COMPONENTES DE TABS ===
   const TabEstudantes = () => (
     <div className="space-y-4">
@@ -451,15 +477,15 @@ const DiarioAEE = () => {
         )}
       </div>
       
-      {estudantes.length === 0 ? (
+      {filteredEstudantes.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <Users size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">Nenhum estudante com Plano de AEE ativo</p>
+          <p className="text-gray-500">{selectedTurma ? 'Nenhum estudante com Plano de AEE nesta turma' : 'Nenhum estudante com Plano de AEE ativo'}</p>
           <p className="text-sm text-gray-400 mt-2">Clique em "Novo Plano de AEE" para cadastrar</p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {estudantes.map((est) => (
+          {filteredEstudantes.map((est) => (
             <div key={est.student_id} className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start">
                 <div>
@@ -519,10 +545,10 @@ const DiarioAEE = () => {
         )}
       </div>
       
-      {planos.length === 0 ? (
+      {filteredPlanos.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <FileText size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">Nenhum plano cadastrado</p>
+          <p className="text-gray-500">{selectedTurma ? 'Nenhum plano cadastrado nesta turma' : 'Nenhum plano cadastrado'}</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -538,7 +564,7 @@ const DiarioAEE = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {planos.map((plano) => (
+              {filteredPlanos.map((plano) => (
                 <tr key={plano.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{plano.student_name}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{PUBLICO_ALVO_LABELS[plano.publico_alvo]}</td>
@@ -602,14 +628,14 @@ const DiarioAEE = () => {
         )}
       </div>
       
-      {atendimentos.length === 0 ? (
+      {filteredAtendimentos.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <ClipboardList size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">Nenhum atendimento registrado</p>
+          <p className="text-gray-500">{selectedTurma ? 'Nenhum atendimento registrado nesta turma' : 'Nenhum atendimento registrado'}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {atendimentos.slice(0, 20).map((atend) => (
+          {filteredAtendimentos.slice(0, 20).map((atend) => (
             <div key={atend.id} className="bg-white border rounded-lg p-4">
               <div className="flex justify-between items-start">
                 <div>
@@ -666,23 +692,23 @@ const DiarioAEE = () => {
           <div className="grid grid-cols-4 gap-4">
             <div className="bg-blue-50 rounded-lg p-4 text-center">
               <Users size={24} className="mx-auto text-blue-600 mb-2" />
-              <p className="text-2xl font-bold text-blue-700">{diarioData.total_estudantes}</p>
+              <p className="text-2xl font-bold text-blue-700">{selectedTurma ? filteredEstudantes.length : diarioData.total_estudantes}</p>
               <p className="text-sm text-blue-600">Estudantes</p>
             </div>
             <div className="bg-green-50 rounded-lg p-4 text-center">
               <ClipboardList size={24} className="mx-auto text-green-600 mb-2" />
-              <p className="text-2xl font-bold text-green-700">{atendimentos.length}</p>
+              <p className="text-2xl font-bold text-green-700">{filteredAtendimentos.length}</p>
               <p className="text-sm text-green-600">Atendimentos</p>
             </div>
             <div className="bg-purple-50 rounded-lg p-4 text-center">
               <FileText size={24} className="mx-auto text-purple-600 mb-2" />
-              <p className="text-2xl font-bold text-purple-700">{planos.length}</p>
+              <p className="text-2xl font-bold text-purple-700">{filteredPlanos.length}</p>
               <p className="text-sm text-purple-600">Planos Ativos</p>
             </div>
             <div className="bg-orange-50 rounded-lg p-4 text-center">
               <Clock size={24} className="mx-auto text-orange-600 mb-2" />
               <p className="text-2xl font-bold text-orange-700">
-                {Math.round(atendimentos.reduce((acc, a) => acc + (a.duracao_minutos || 0), 0) / 60)}h
+                {Math.round(filteredAtendimentos.reduce((acc, a) => acc + (a.duracao_minutos || 0), 0) / 60)}h
               </p>
               <p className="text-sm text-orange-600">Carga Horária</p>
             </div>
@@ -1397,7 +1423,7 @@ const DiarioAEE = () => {
           <label className="block text-sm font-medium text-gray-700 mb-1">Escola/Polo AEE</label>
           <select
             value={selectedSchool}
-            onChange={(e) => { initialLoadDone.current = false; setSelectedSchool(e.target.value); }}
+            onChange={(e) => { initialLoadDone.current = false; setSelectedSchool(e.target.value); setSelectedTurma(''); }}
             className="border rounded-lg px-3 py-2 min-w-[250px]"
           >
             {schools.length === 0 ? (
@@ -1421,6 +1447,22 @@ const DiarioAEE = () => {
             ))}
           </select>
         </div>
+        {turmasAEE.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Turma AEE</label>
+            <select
+              value={selectedTurma}
+              onChange={(e) => setSelectedTurma(e.target.value)}
+              className="border rounded-lg px-3 py-2 min-w-[200px]"
+              data-testid="filter-turma-aee"
+            >
+              <option value="">Todas as turmas</option>
+              {turmasAEE.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
       
       {/* Tabs */}
