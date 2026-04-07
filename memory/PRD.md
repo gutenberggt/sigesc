@@ -167,6 +167,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Busca `calendario_letivo` corretamente (era `db.calendar`, agora `db.calendario_letivo`)
   - Calcula `dias_letivos_ano` por bimestre
   - Propaga `student_series` do aluno para enrollment
+  - (07/04/2026) Botão "Histórico Escolar" reposicionado: removido do modal de impressão em lote e adicionado ao `DocumentGeneratorModal` (modal individual de documentos do aluno), com botão "Acessar" que navega para `/admin/students/:id/historico`
 
 ## Tarefas Pendentes
 

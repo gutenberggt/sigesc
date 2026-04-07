@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { FileText, ExternalLink, X, GraduationCap, ClipboardCheck, Calendar, User, Award, ArrowRightLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FileText, ExternalLink, X, GraduationCap, ClipboardCheck, Calendar, User, Award, ArrowRightLeft, BookOpen } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { documentsAPI, getToken } from '@/services/api';
@@ -22,6 +23,7 @@ export const DocumentGeneratorModal = ({
   academicYear = new Date().getFullYear().toString(),
   classInfo = null  // Informações da turma para verificar elegibilidade do certificado
 }) => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState(null);
 
@@ -153,7 +155,15 @@ export const DocumentGeneratorModal = ({
       description: 'Certificado de conclusão do Ensino Fundamental',
       icon: Award,
       color: 'indigo'
-    }] : [])
+    }] : []),
+    {
+      id: 'historico',
+      title: 'Histórico Escolar',
+      description: 'Cadastrar e gerar histórico completo do aluno',
+      icon: BookOpen,
+      color: 'amber',
+      isNavigation: true
+    }
   ];
 
   const colorClasses = {
@@ -192,6 +202,12 @@ export const DocumentGeneratorModal = ({
       border: 'border-rose-200 hover:border-rose-400',
       icon: 'text-rose-600',
       button: 'bg-rose-600 hover:bg-rose-700'
+    },
+    amber: {
+      bg: 'bg-amber-50 hover:bg-amber-100',
+      border: 'border-amber-200 hover:border-amber-400',
+      icon: 'text-amber-600',
+      button: 'bg-amber-600 hover:bg-amber-700'
     }
   };
 
@@ -250,11 +266,19 @@ export const DocumentGeneratorModal = ({
                     </div>
                   </div>
                   <Button
-                    onClick={() => handleOpenPdf(doc.id)}
-                    disabled={isLoading || !student}
+                    data-testid={`doc-btn-${doc.id}`}
+                    onClick={() => {
+                      if (doc.isNavigation) {
+                        onClose();
+                        navigate(`/admin/students/${student?.id}/historico`);
+                      } else {
+                        handleOpenPdf(doc.id);
+                      }
+                    }}
+                    disabled={doc.isNavigation ? !student : (isLoading || !student)}
                     className={`${colors.button} text-white flex items-center gap-2`}
                   >
-                    {isLoading ? (
+                    {isLoading && !doc.isNavigation ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                         Gerando...
@@ -262,7 +286,7 @@ export const DocumentGeneratorModal = ({
                     ) : (
                       <>
                         <ExternalLink size={16} />
-                        Abrir PDF
+                        {doc.isNavigation ? 'Acessar' : 'Abrir PDF'}
                       </>
                     )}
                   </Button>

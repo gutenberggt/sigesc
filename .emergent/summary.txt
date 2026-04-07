@@ -1,52 +1,46 @@
 <analysis>**original_problem_statement**: 
-O usuário solicitou inicialmente melhorias e correções na página de Objetos de Conhecimento e Controle de Frequência para turmas EJA e Fundamental Anos Finais, garantindo o filtro rigoroso por Componente Curricular. Além disso, foram exigidas diversas novas funcionalidades: correções de segurança, refatoração de Objetos de Conhecimento, Mensageiro Global flutuante, resolução de bugs críticos de login e de diretórios na Produção (Coolify), ajustes de permissões, otimização brutal de performance no MongoDB, e um hook global para emitir alertas ao sair de páginas de edição não salvas.
+O usuário solicitou a correção do filtro de componentes curriculares na emissão de PDFs em lote (Boletins/Fichas), que não estava respeitando as turmas. Em seguida, relatou problemas ao limpar notas (tracinho) na Educação Infantil, onde o sistema não salvava o conceito em branco nem atualizava o status final. O usuário também pediu a inclusão de uma flag Ignorar nas alocações de professores voluntários (para não somar carga horária), a correção no filtro de disciplinas de tempo integral em turmas regulares, a inclusão de um campo dinâmico Secretaria na configuração da Mantenedora com reflexo em todos os PDFs, e a criação completa do recurso de Histórico Escolar (CRUD + PDF + funcionalidade de importar dados do ano).
+
 PRODUCT REQUIREMENTS: 
-1. EJA e Ensino Fundamental Anos Finais têm frequência e conteúdos salvos e gerados em PDF estritamente por componente curricular.
-2. O PDF e a visualização em tela não podem agrupar todos os componentes da turma.
-3. Mensageiro Global onipresente via ChatBox flutuante.
-4. Em edição (Frequência, Notas, Conteúdos), a mudança de rota deve disparar um aviso de Alterações Não Salvas.
-5. Boletins e Fichas Individuais devem buscar componentes curriculares rigorosamente filtrados por turma.
+1. PDFs em lote e individuais devem buscar os componentes curriculares rigorosamente filtrados por alocação e por  da turma (disciplinas integrais não devem aparecer em turmas regulares).
+2. Limpar todas as notas de um aluno na Educação Infantil deve zerar o conceito final e alterar o status para cursando.
+3. Alocações de professores devem ter um checkbox Ignorar que exclui a alocação da soma total de carga horária.
+4. O campo Secretaria da Mantenedora deve substituir os textos hardcoded de Secretaria Municipal de Educação em todos os cabeçalhos de PDFs.
+5. Nova tela e PDF de Histórico Escolar permitindo cadastro série a série, com botão de Importar Dados para puxar histórico automaticamente. O acesso deve ocorrer pelos botões de documentos do aluno.
 
 **User's preferred language**: Portuguese (Português). INSTRUCT next agent to respond in the user's preferred language only.
 
-**what currently exists?**: 
-Sistema full-stack (React + FastAPI + MongoDB). O hook  foi completamente implementado, capturando F5, fechamento de aba, navegação interna (React Router) e clique no botão de Logout via um novo  global. O monolito  foi modularizado em múltiplos arquivos sob . O hook  foi centralizado e implementado nas principais páginas, substituindo dezenas de checagens inline de roles. Erros críticos de produção (CORS 503 e Service Worker IndexedDB VersionError) foram corrigidos.
+**what currently exists?** 
+Sistema full-stack (React + FastAPI + MongoDB). O endpoint de batch documents foi corrigido e agora filtra rigorosamente os componentes por alocações e atendimento. A tela de notas aceita limpar conceitos para valores  corretamente. A flag  foi adicionada na alocação de docentes. O campo  foi adicionado à tabela Mantenedora e injetado em 6 geradores de PDF diferentes. A feature completa de Histórico Escolar (Backend, Frontend e PDF) foi criada, e o botão de Importar Dados está funcional.
 
 **Last working item**: 
-    - **Last item agent was working**: Correção da geração de PDFs em Lote (Batch). O usuário reportou que ao gerar o boletim individualmente, os componentes curriculares vêm corretamente filtrados pela turma (respeitando alocações e nível de ensino, como Educação Infantil). No entanto, ao gerar o Boletim da Turma (Batch PDF), os componentes curriculares não estão organizados ou adequados em relação à turma. O agente estava prestes a analisar o PDF enviado pelo usuário antes de ser interrompido.
-    - **Status**: NOT STARTED
+    - **Last item agent was working**: Correção da localização do botão Histórico Escolar. O agente inseriu o botão na modal de impressão em lote (), mas o usuário indicou através de um screenshot que o botão deve ficar na modal de geração individual de documentos do aluno ( ou nos botões de ação do card do estudante na ). O agente estava mapeando o componente correto no momento em que a sessão terminou.
+    - **Status**: IN PROGRESS
     - **Agent Testing Done**: N
-    - **Which testing method agent to use?**: backend testing agent / manual testing by curl (gerar o batch e analisar o buffer/JSON retornado).
+    - **Which testing method agent to use?**: frontend testing agent / screenshot tool (verificar a renderização visual do botão na modal/painel individual do aluno).
     - **User Testing Done**: N
 
 **All Pending/In progress Issue list**: 
-  Issue 1: (P0) PDFs em Lote (Boletins da Turma / Fichas Individuais) não estão filtrando os Componentes Curriculares corretamente.
-  Issue 2: (P1) Carga horária prevista zerada (0h) na folha de pagamento para servidores cuja carga horária contratual não está preenchida no cadastro, mesmo tendo alocações ativas ().
-
-  Issues Detail:
-  - Issue 1: 
-     - **Attempted fixes**: Nenhuma tentativa de fix ainda. O agente apenas tentou analisar os PDFs via .
-     - **Next debug checklist**: 
-        1. Em , compare a função de geração individual ( e ) com a função de lote ().
-        2. Nas funções individuais, existe uma lógica rigorosa que usa  para filtrar apenas os  vinculados à turma (linha 924+). Verifique se  está aplicando o mesmo filtro rigoroso antes de chamar o gerador de PDF, ou se está passando todos os componentes da escola.
-        3. Corrigir a injeção de  no endpoint de batch para espelhar a fidelidade do endpoint individual.
-     - **Why fix this issue and what will be achieved with the fix?**: O boletim da turma inteiro está sendo gerado com matriz curricular errada, causando falha nos relatórios oficiais entregues aos pais.
-     - **Status**: NOT STARTED
+  Issue 1: (P0) Botão de Histórico Escolar não está visível no painel/modal correto do estudante.
+     - **Attempted fixes**: O agente adicionou o botão no final do arquivo , na área de renderização do , mas o usuário não consegue acessá-lo a partir das ações individuais do aluno.
+     - **Next debug checklist**: Localizar o componente de modal individual (provavelmente  em  ou a função  em ). Inserir o botão Histórico Escolar alinhado com os de Boletim e Ficha Individual, configurado para redirecionar para a nova rota .
+     - **Why fix this issue and what will be achieved with the fix?**: Sem esse botão na visualização principal, os usuários não conseguem acessar a funcionalidade recém-criada de forma intuitiva.
+     - **Status**: IN PROGRESS
      - **Is recurring issue?**: N
-     - **Should Test frontend/backend/both after fix?**: backend (gerar PDF de turma e checar logs/output).
+     - **Should Test frontend/backend/both after fix?**: frontend
      - **Blocked on other issue**: None
 
-  - Issue 2: 
-     - **Attempted fixes**: A espera de aprovação e definição por parte do usuário sobre se calcula a carga ativamente baseada nas aulas alocadas ou se continua avisando do cadastro vazio.
-     - **Next debug checklist**: Retomar pergunta ao usuário.
-     - **Why fix this issue and what will be achieved with the fix?**: Folha de pagamento para professores sendo calculada em 0h indevidamente.
+  Issue 2: (P1) Carga horária prevista zerada (0h) na folha de pagamento para servidores cuja carga horária contratual não está preenchida no cadastro, mesmo tendo alocações ativas.
+     - **Attempted fixes**: Nenhuma nova tentativa. A aguardar decisão do usuário sobre a regra de negócio.
+     - **Next debug checklist**: Retomar pergunta ao usuário se ele quer que o sistema calcule a folha baseada nas aulas efetivamente alocadas ou se continua forçando o cadastro principal.
+     - **Why fix this issue and what will be achieved with the fix?**: Evitar folhas de pagamento zeradas para professores mal cadastrados.
      - **Status**: USER VERIFICATION PENDING
      - **Is recurring issue?**: N
      - **Should Test frontend/backend/both after fix?**: backend
      - **Blocked on other issue**: None
 
 **In progress Task List**: 
-Nenhuma no momento.
+Nenhuma.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
@@ -54,20 +48,18 @@ Nenhuma no momento.
     - (P2) Implementar envio de e-mail de confirmação na pré-matrícula.
     
     Future Tasks:
-    - (P3) Avaliar uso de  do React Router v7 com  (Atualmente o app usa  simples com a solução de ).
+    - (P3) Avaliar uso de  do React Router v7 com  para lidar com navegações de forms não salvos (Atualmente o app usa o workaround ).
 
 **Completed work in this session**
-- Implementado state  e hook  em  para fields (content, methodology, resources, observations, number_of_classes). (DONE)
-- Interceptação de navegação interna do React Router criando  e inserindo nos botões Início em ,  e . (DONE)
-- Interceptação de Logout global com aviso de alterações não salvas via novo . (DONE)
-- Modularização GIGANTE do  (4293 linhas) em 11 módulos dentro da pasta , mantendo  como bridge. (DONE)
-- Correção de Crash 503 CORS no Backend de Produção causado por  das variáveis  e  nos endpoints de Boletim e Ficha Individual. (DONE)
-- Correção do erro IndexedDB VersionError no Service Worker (). (DONE)
-- Refatoração e centralização da função duplicada  para . (DONE)
-- Refatoração MASSIVA e centralização de permissões usando o hook  nos arquivos , , , , ,  e . (DONE)
+- (P0) Correção em  para aplicar  idêntico ao modelo individual. (DONE)
+- (P1) Correção na limpeza de notas (Conceitos). Aceitando valores  na Educação Infantil ( e ). (DONE)
+- (P2) Feature Ignorar (checkbox ) implementada nas alocações de professores, impedindo cômputo da carga horária. (DONE)
+- (P0) Correção Crítica nos PDFs: componentes de escola integral agora são bloqueados universalmente de turmas regulares via verificação restrita de . (DONE)
+- (P2) Novo campo  na configuração de Mantenedora, injetado dinamicamente no cabeçalho de 6 tipos de PDFs diferentes (, , etc.). (DONE)
+- (P1) Feature Histórico Escolar finalizada: novo modelo BD, Router , gerador PDF próprio, frontend em  e endpoint automático Importar Dados para preencher a tabela ano a ano. (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-   - O usuário mencionou que os botões de Boletim e Fichas de Turma estavam desabilitados em produção, mas isso foi diagnosticado como sintoma do erro 503 CORS já corrigido na sessão (esperando apenas deploy).
+Nenhuma não listada na seção Pending.
 
 **Known issue recurrence from previous fork**
   - Recurrence count: 0
@@ -78,78 +70,74 @@ Nenhuma no momento.
 
 **Key Technical Concepts**
 - FastAPI Backend & React Frontend.
-- **Context API** usada extensivamente (agora incluindo UnsavedChangesContext para bloquear navegação do topo da árvore).
-- Módulo  particionado para manter PDFs otimizados na pasta backend/pdf.
+- Geradores de PDFs utilizam  no backend e trafegam o PDF gerado em memória (BytesIO) devolvendo Content-Type .
 
 **key DB schema**
-  - :  Usado para filtrar matriz curricular de turmas ativas.
-  - : .
+  - : adicionado  (boolean).
+  - : adicionado  (string).
+  - **NOVA COLEÇÃO** : .
 
 **changes in tech stack**
-  - O sistema de navegação e bloqueio Unsaved utiliza wrapper  manual (já que o aplicativo usa  em vez do recomendado  exigido pelo  do react-router-dom v7).
+  - Nenhuma mudança estrutural, apenas adições de entidades.
 
 **All files of reference** 
--  (Foco principal para resolver o Bug do Batch PDF)
-- 
-- 
-- 
-- 
-- 
-- 
+-  (Onde o agente estava analisando a localização do botão).
+-  (Provável arquivo correto para renderizar o botão individual do histórico).
+-  (O componente de destino da funcionalidade P0 atual).
 
 **Areas that need refactoring**: 
-- O frontend como um todo poderia migrar para  para acessar hooks modernos do React Router v7 (), eliminando a necessidade do  customizado.
+Nenhuma urgente desta sessão.
 
 **key api endpoints**
 - 
 - 
 - 
+- 
 
 **Critical Info for New Agent** 
-- **Bug Imediato (P0):** Concentre-se diretamente no arquivo , especificamente na função . O usuário reclamou que os PDFs individuais estão buscando corretamente a matriz curricular da turma (pois eles têm lógica de  ou filtro em ), mas a função  deve estar omitindo esse filtro e mandando todos os componentes para o  modularizado.
-- O ambiente tem scripts pesados rodando em FastAPI; atenção ao reiniciar o supervisor para não ter falsos negativos de erro 503 temporários. 
-- Mantenha sempre o idioma em **Português** ao comunicar-se no .
+- **O foco inicial** é puramente de UI (Frontend). O usuário anexou um screenshot na última mensagem mostrando o card flutuante de um aluno com as opções Boletim Escolar, Ficha Individual, etc., e ele quer o botão Histórico Escolar ali, lado a lado.
+- O agente anterior errou ao colocar o botão na modal de impressão em LOTE (BatchPrintModal).
+- Você precisará rastrear em  (provavelmente buscando pelas strings Boletim Escolar que aparecem para um aluno específico) ou no modal importado  para adicionar o novo botão. Este botão apenas fará o .
 
 **documents and test reports created in this job** 
-  - 
-  -  (criado)
+-  (Screenshots)
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. **User**: Prossiguir com este plano -> **Agent** inseriu tracking em LearningObjects.js.
-2. **User**: Fiz um teste na frequência, saí da página e não surgiu nenhum aviso! (clique na sidebar). -> **Agent** criou  para interceptar botões de 'Início' no router.
-3. **User**: Se o usuário clicar em Sair deve exibir o mesmo aviso. -> **Agent** inseriu  e injetou no App.js/Layout.js.
-4. **User**: Modularizar pdf_generator.py -> **Agent** separou o arquivo de 4200 linhas em 11 módulos.
-5. **User**: O que significa esses erros? (Posta log de 503 CORS e Service Worker no Coolify). -> **Agent** identificou  severos no  e os corrigiu, além do SW IndexedDB error.
-6. **User**: Investigue e corrija o problema do indexedDB no sw.js e o CROS 503 -> **Agent** aplicou os fixes.
-7. **User**: Refatorar inferEducationLevel duplicado -> **Agent** refatorou para o .
-8. **User**: Centralizar permissões em hook usePermissions -> **Agent** refatorou mais de 7 arquivos cruciais.
-9. **User**: Em Detalhes da Turma, os botões Boletins e Fichas Individuais estão inativos. -> **Agent** provou que eles funcionam, sendo o bug visual um colateral do 503 recém-corrigido.
-10. **User**: (HUMAN PENDING) O boletim e a ficha individual deve buscar os componentes curriculares filtrados por turma... porém o boletim, quando gerado por turma, não mostra a mesma organização, adequação em relação à turma! Isso precisa ser corrigido. -> **Agent** não pôde consertar a tempo.
+1. **User**: Bug - Limpar notas não atualiza o conceito final. -> **Agent** Corrigido em Grades.js e grades.py (v is not None/null).
+2. **User**: Forneceu print de alocação pedindo checkbox Ignorar. -> **Agent** Adicionado a funcionalidade completa em useStaff, modal e backend.
+3. **User**: PDFs mostrando matérias integrais em turmas regulares. -> **Agent** Corrigido fallback no  baseado no .
+4. **User**: Continua mostrando componentes integrais quando a alocação de fato os possui. -> **Agent** Corrigido para aplicar o filtro universalmente APÓS a busca, independente de vir de fallback ou de assignment.
+5. **User**: Pedido de campo Secretaria no form da Mantenedora. -> **Agent** Inserido input e persistência no banco.
+6. **User**: Atualizar todos os PDFs gerados para usar o valor de Secretaria. -> **Agent** Atualizados os 6 geradores ReportLab.
+7. **User**: Anexou PDF modelo do Histórico Escolar municipal pedindo feature idêntica. -> **Agent** Solicitou permissões via .
+8. **User**: Acessível para Admin, Secretário... Pode prosseguir. -> **Agent** Desenvolveu a feature completa do histórico.
+9. **User**: Pedido para incluir botão Importar Dados na nova tela. -> **Agent** Criou lógica de scrapping de enrollments do banco para puxar dados no histórico.
+10. **User** (HUMAN PENDING): Enviou um screenshot informando que não encontra onde acessar a tela. O botão foi parar em lugar indesejado. -> **Agent** Estava investigando e tentando identificar o local de Documentos Individuais quando o fork ocorreu.
 
 **Project Health Check:**
-- Broken:  (Lógica de negócios falhando na injeção de componentes).
+- Broken: Nenhum erro funcional, apenas erro de UX/UI (Posicionamento de botão).
 - Mocked: Nenhum.
 
 **3rd Party Integrations** 
-N/A
+Nenhuma utilizada / alterada nesta sessão.
 
 **Testing status**
-  - Testing agent used after significant changes: YES
+  - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: []
-  - Known regressions: [none]
+  - Known regressions: []
 
 **Credentials to test flow:**
-Verifique  (Criado nesta sessão). Padrão: .
+Verifique . Padrão: .
 
 **What agent forgot to execute**
-O agente parou logo após tentar ler o PDF em anexo e o job acabou sem que ele conseguisse inspecionar ou refatorar o endpoint .
+O agente consertou e implementou tudo brilhantemente, porém inseriu o botão final de acesso à grande feature na modal errada (Batch Print Modal em vez do Menu individual do aluno / Modal de Documentos).
 
 **Debugging checklist for current issue**
-    Issue: Componentes Curriculares errados na emissão de PDF em Lote (Boletim/Ficha da Turma).
-
-    Backend files to check: 
-    - : Vá até .
-    - Observe como a lista  está sendo montada nesse método (ou se está sendo repassada integralmente).
-    - Suba até o método  na linha 924+ e veja como o filtro por  está isolando apenas os  estritamente dados para aquela .
-    - Replique o mecanismo de filtro por  /  no fluxo do batch documents.</analysis>
+    Issue: Reposicionar o botão Histórico Escolar no menu correto do Aluno.
+    
+    Frontend files to check: 
+    - : Busque a função  ou identifique se a renderização que o usuário enviou no print é de algum popover interno.
+    -  (ou similiar, caso as opções de emissão existam num modal separado).
+    - Objetivo: O botão deve ser um atalho . Remova o botão indevido que foi parar no Batch Print.
+    - Teste visual via  para garantir que aparece onde o usuário pediu.</analysis>
