@@ -3,7 +3,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { ChevronLeft, Save, FileText, Plus, Trash2, GraduationCap } from 'lucide-react';
+import { ChevronLeft, Save, FileText, Plus, Trash2, GraduationCap, Download } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -56,6 +56,7 @@ export default function StudentHistory() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeSerie, setActiveSerie] = useState(null);
+  const [importing, setImporting] = useState(false);
 
   const token = localStorage.getItem('token');
 
@@ -151,6 +152,60 @@ export default function StudentHistory() {
     window.open(`${API}/api/documents/historico-escolar/${studentId}?token=${token}`, '_blank');
   };
 
+  const handleImport = async () => {
+    try {
+      setImporting(true);
+      const res = await fetch(`${API}/api/student-history/${studentId}/import`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.detail || 'Erro ao importar');
+        return;
+      }
+      const data = await res.json();
+      const imported = data.records || [];
+
+      if (imported.length === 0) {
+        toast.info('Nenhum dado encontrado no sistema para importar.');
+        return;
+      }
+
+      // Merge: não sobrescrever registros já preenchidos
+      let merged = [...records];
+      let added = 0;
+      for (const imp of imported) {
+        const existing = merged.find(r => r.serie === imp.serie);
+        if (!existing) {
+          merged.push(imp);
+          added++;
+        } else {
+          // Preencher campos vazios do registro existente
+          if (!existing.ano_letivo && imp.ano_letivo) existing.ano_letivo = imp.ano_letivo;
+          if (!existing.escola && imp.escola) existing.escola = imp.escola;
+          if (!existing.cidade && imp.cidade) existing.cidade = imp.cidade;
+          if (!existing.uf && imp.uf) existing.uf = imp.uf;
+          if (!existing.carga_horaria && imp.carga_horaria) existing.carga_horaria = imp.carga_horaria;
+          if (!existing.resultado && imp.resultado) existing.resultado = imp.resultado;
+          // Merge notas: preencher somente componentes sem nota
+          for (const [comp, nota] of Object.entries(imp.grades || {})) {
+            if (!existing.grades[comp]) existing.grades[comp] = nota;
+          }
+        }
+      }
+
+      setRecords(merged);
+      if (merged.length > 0 && !activeSerie) {
+        setActiveSerie(merged[0].serie);
+      }
+      toast.success(`Importados ${added} registros. ${imported.length - added} já existiam (campos vazios preenchidos).`);
+    } catch {
+      toast.error('Erro ao importar dados');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const activeRecord = records.find(r => r.serie === activeSerie);
   const usedSeries = records.map(r => r.serie);
 
@@ -179,6 +234,9 @@ export default function StudentHistory() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleImport} disabled={importing} data-testid="history-import-btn">
+            <Download size={16} className="mr-1" /> {importing ? 'Importando...' : 'Importar Dados'}
+          </Button>
           <Button variant="outline" size="sm" onClick={handleGeneratePdf} data-testid="history-pdf-btn">
             <FileText size={16} className="mr-1" /> Gerar PDF
           </Button>
