@@ -10,7 +10,7 @@ import os
 from datetime import datetime
 
 # Get backend URL from environment
-BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://escola-historico.preview.emergentagent.com')
+BACKEND_URL = os.getenv('REACT_APP_BACKEND_URL', 'https://aee-diario-filter.preview.emergentagent.com')
 API_BASE = f"{BACKEND_URL}/api"
 
 # Test credentials from review request
