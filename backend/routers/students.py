@@ -158,7 +158,29 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             if school_id:
                 filter_query['school_id'] = school_id
             if class_id:
-                filter_query['class_id'] = class_id
+                # Verifica se é turma de programa especial (AEE, Reforço, etc.)
+                target_class = await current_db.classes.find_one({"id": class_id}, {"_id": 0, "atendimento_programa": 1, "school_id": 1})
+                atend = (target_class.get('atendimento_programa', '') or '').strip().lower() if target_class else ''
+                if atend in ('aee', 'recomposicao_aprendizagem', 'reforco_escolar'):
+                    # Busca alunos vinculados diretamente + via atendimento_programa_class_id
+                    special_ids = set()
+                    # Busca via planos_aee e atendimentos_aee para AEE
+                    if atend == 'aee' and target_class:
+                        tc_school = target_class.get('school_id', '')
+                        planos = await current_db.planos_aee.find({"school_id": tc_school}, {"_id": 0, "student_id": 1}).to_list(1000)
+                        for p in planos:
+                            if p.get('student_id'): special_ids.add(p['student_id'])
+                        atendimentos = await current_db.atendimentos_aee.find({"school_id": tc_school}, {"_id": 0, "student_id": 1}).to_list(1000)
+                        for a in atendimentos:
+                            if a.get('student_id'): special_ids.add(a['student_id'])
+                    filter_query['$or'] = [
+                        {'class_id': class_id},
+                        {'atendimento_programa_class_id': class_id},
+                    ]
+                    if special_ids:
+                        filter_query['$or'].append({'id': {'$in': list(special_ids)}})
+                else:
+                    filter_query['class_id'] = class_id
         else:
             # Outros papéis veem apenas das escolas vinculadas
             if school_id and school_id in current_user.get('school_ids', []):
@@ -167,7 +189,26 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 filter_query['school_id'] = {"$in": current_user.get('school_ids', [])}
             
             if class_id:
-                filter_query['class_id'] = class_id
+                target_class = await current_db.classes.find_one({"id": class_id}, {"_id": 0, "atendimento_programa": 1, "school_id": 1})
+                atend = (target_class.get('atendimento_programa', '') or '').strip().lower() if target_class else ''
+                if atend in ('aee', 'recomposicao_aprendizagem', 'reforco_escolar'):
+                    special_ids = set()
+                    if atend == 'aee' and target_class:
+                        tc_school = target_class.get('school_id', '')
+                        planos = await current_db.planos_aee.find({"school_id": tc_school}, {"_id": 0, "student_id": 1}).to_list(1000)
+                        for p in planos:
+                            if p.get('student_id'): special_ids.add(p['student_id'])
+                        atendimentos = await current_db.atendimentos_aee.find({"school_id": tc_school}, {"_id": 0, "student_id": 1}).to_list(1000)
+                        for a in atendimentos:
+                            if a.get('student_id'): special_ids.add(a['student_id'])
+                    filter_query['$or'] = [
+                        {'class_id': class_id},
+                        {'atendimento_programa_class_id': class_id},
+                    ]
+                    if special_ids:
+                        filter_query['$or'].append({'id': {'$in': list(special_ids)}})
+                else:
+                    filter_query['class_id'] = class_id
         
         # Filtro por status
         if status:
@@ -177,10 +218,19 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if search and len(search) >= 3:
             search_escaped = re.escape(search.upper())
             search_clean = re.escape(search.replace('.', '').replace('-', '').replace('/', ''))
-            filter_query['$or'] = [
+            search_or = [
                 {'full_name': {'$regex': search_escaped, '$options': 'i'}},
                 {'cpf': {'$regex': search_clean}}
             ]
+            # Se já tem $or (turma especial), combina com $and
+            if '$or' in filter_query:
+                existing_or = filter_query.pop('$or')
+                filter_query['$and'] = [
+                    {'$or': existing_or},
+                    {'$or': search_or}
+                ]
+            else:
+                filter_query['$or'] = search_or
         
         # Conta total para paginação
         total = await current_db.students.count_documents(filter_query)
