@@ -167,7 +167,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Busca `calendario_letivo` corretamente (era `db.calendar`, agora `db.calendario_letivo`)
   - Calcula `dias_letivos_ano` por bimestre
   - Propaga `student_series` do aluno para enrollment
-  - (07/04/2026) Botão "Histórico Escolar" adicionado ao `DocumentGeneratorModal` (modal individual) com botão "Acessar" que navega para `/admin/students/:id/historico`, e mantido também no modal de impressão em lote com `handleBatchPrint('historico_escolar')`. Backend atualizado para suportar batch de histórico escolar.
+  - (07/04/2026) Funcionalidade "Desvincular Aluno da Turma": novo endpoint `POST /api/enrollments/cancel-enrollment` que cancela matrícula ativa (status = 'cancelled') mantendo histórico com motivo, data e responsável. Botão `UserX` aparece na coluna AÇÕES quando turma está filtrada. Modal com campo de motivo obrigatório. Apenas Admin e Secretário.
 
 ## Tarefas Pendentes
 

@@ -231,4 +231,79 @@ def setup_router(db, audit_service):
         
         return None
 
+    @router.post("/cancel-enrollment", status_code=status.HTTP_200_OK)
+    async def cancel_enrollment(request: Request):
+        """Cancela um vínculo ativo de aluno com turma específica (mantém histórico)."""
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario'])(request)
+
+        body = await request.json()
+        student_id = body.get('student_id')
+        class_id = body.get('class_id')
+        reason = body.get('reason', '')
+
+        if not student_id or not class_id:
+            raise HTTPException(status_code=400, detail="student_id e class_id são obrigatórios")
+
+        # Busca matrícula ativa do aluno nesta turma
+        enrollment = await db.enrollments.find_one({
+            "student_id": student_id,
+            "class_id": class_id,
+            "status": "active"
+        }, {"_id": 0})
+
+        if not enrollment:
+            raise HTTPException(status_code=404, detail="Nenhuma matrícula ativa encontrada para este aluno nesta turma")
+
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+
+        # Cancela a matrícula (mantém o registro)
+        await db.enrollments.update_one(
+            {"id": enrollment['id']},
+            {"$set": {
+                "status": "cancelled",
+                "cancellation_reason": reason,
+                "cancellation_date": now,
+                "cancelled_by": current_user.get('id', '')
+            }}
+        )
+
+        # Se o class_id do aluno é o mesmo da turma cancelada, limpar
+        student = await db.students.find_one({"id": student_id}, {"_id": 0, "full_name": 1, "class_id": 1})
+        student_name = student.get('full_name', 'N/A') if student else 'N/A'
+
+        if student and student.get('class_id') == class_id:
+            # Verifica se há outra matrícula ativa para atualizar o class_id
+            other_enrollment = await db.enrollments.find_one({
+                "student_id": student_id,
+                "status": "active",
+                "class_id": {"$ne": class_id}
+            }, {"_id": 0, "class_id": 1})
+
+            new_class_id = other_enrollment['class_id'] if other_enrollment else None
+            await db.students.update_one(
+                {"id": student_id},
+                {"$set": {"class_id": new_class_id}}
+            )
+
+        # Busca nome da turma para auditoria
+        class_doc = await db.classes.find_one({"id": class_id}, {"_id": 0, "name": 1})
+        class_name = class_doc.get('name', 'N/A') if class_doc else 'N/A'
+
+        # Auditoria
+        await audit_service.log(
+            action='cancel',
+            collection='enrollments',
+            user=current_user,
+            request=request,
+            document_id=enrollment['id'],
+            description=f"CANCELOU vínculo do aluno {student_name} com a turma {class_name}. Motivo: {reason}",
+            school_id=enrollment.get('school_id'),
+            academic_year=enrollment.get('academic_year'),
+            old_value={'student_id': student_id, 'class_id': class_id, 'status': 'active'},
+            new_value={'status': 'cancelled', 'reason': reason}
+        )
+
+        return {"message": f"Vínculo do aluno {student_name} com a turma {class_name} cancelado com sucesso."}
+
     return router

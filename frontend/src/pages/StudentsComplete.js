@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone, FileDown, GraduationCap } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone, FileDown, GraduationCap, UserX } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
 import { CityAutocomplete } from '@/components/CityAutocomplete';
 
@@ -302,6 +302,11 @@ export function StudentsComplete() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [batchPrinting, setBatchPrinting] = useState(false);
   const searchTimerRef = useRef(null);
+
+  // Cancelar vínculo
+  const [cancelModal, setCancelModal] = useState({ open: false, student: null });
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancellingEnrollment, setCancellingEnrollment] = useState(false);
   
   // Estados para validação de CPF
   const [cpfValidation, setCpfValidation] = useState({
@@ -686,6 +691,37 @@ export function StudentsComplete() {
         showAlert('error', 'Erro ao excluir aluno');
         console.error(error);
       }
+    }
+  };
+
+  // ===== CANCELAR VÍNCULO COM TURMA =====
+  const handleCancelEnrollment = async () => {
+    if (!cancelModal.student || !filterClassId) return;
+    if (!cancelReason.trim()) {
+      showAlert('error', 'Informe o motivo do cancelamento');
+      return;
+    }
+    try {
+      setCancellingEnrollment(true);
+      const response = await fetch(`${API}/api/enrollments/cancel-enrollment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+        body: JSON.stringify({
+          student_id: cancelModal.student.id,
+          class_id: filterClassId,
+          reason: cancelReason.trim()
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Erro ao cancelar vínculo');
+      showAlert('success', data.message || 'Vínculo cancelado com sucesso');
+      setCancelModal({ open: false, student: null });
+      setCancelReason('');
+      reloadData();
+    } catch (error) {
+      showAlert('error', error.message);
+    } finally {
+      setCancellingEnrollment(false);
     }
   };
 
@@ -3670,6 +3706,16 @@ export function StudentsComplete() {
                                 <Trash2 size={16} />
                               </button>
                             )}
+                            {filterClassId && canEdit && (
+                              <button
+                                onClick={() => { setCancelModal({ open: true, student: row }); setCancelReason(''); }}
+                                className="text-orange-500 hover:text-orange-700"
+                                title="Desvincular da turma"
+                                data-testid={`cancel-enrollment-${row.id}`}
+                              >
+                                <UserX size={16} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -3777,6 +3823,49 @@ export function StudentsComplete() {
           classInfo={classes.find(c => c.id === filterClassId) || null}
         />
         
+        {/* Modal de Cancelamento de Vínculo */}
+        <Modal
+          isOpen={cancelModal.open}
+          onClose={() => { setCancelModal({ open: false, student: null }); setCancelReason(''); }}
+          title="Desvincular Aluno da Turma"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+              <p className="text-sm text-orange-800">
+                Você está prestes a <strong>cancelar o vínculo</strong> do aluno <strong>{cancelModal.student?.full_name}</strong> com a turma <strong>{getClassName(filterClassId)}</strong>.
+              </p>
+              <p className="text-xs text-orange-600 mt-1">
+                O registro será mantido no histórico para fins de auditoria, mas o aluno será removido de todas as listas desta turma.
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Motivo do cancelamento *</label>
+              <textarea
+                className="w-full mt-1 border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                rows={3}
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+                placeholder="Ex: Remanejamento indevido para turma errada..."
+                data-testid="cancel-enrollment-reason"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50" onClick={() => { setCancelModal({ open: false, student: null }); setCancelReason(''); }}>
+                Cancelar
+              </button>
+              <button
+                className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded-lg disabled:opacity-50"
+                onClick={handleCancelEnrollment}
+                disabled={cancellingEnrollment || !cancelReason.trim()}
+                data-testid="confirm-cancel-enrollment"
+              >
+                {cancellingEnrollment ? 'Processando...' : 'Confirmar Desvinculação'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+
         {/* Modal de Impressão em Lote */}
         <Modal
           isOpen={showBatchPrintModal}
