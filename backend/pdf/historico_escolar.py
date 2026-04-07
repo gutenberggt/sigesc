@@ -178,6 +178,7 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
     s_center = make_style('ctr', 6, align=TA_CENTER)
     s_center_b = make_style('ctrb', 6, bold=True, align=TA_CENTER, color=colors.white)
     s_center_dark = make_style('ctrd', 6, bold=True, align=TA_CENTER, color=PRIMARY)
+    s_left_dark = make_style('ltrd', 6, bold=True, align=TA_LEFT, color=PRIMARY)
     s_small = make_style('sm', 5.5, align=TA_CENTER)
     s_small_b = make_style('smb', 5.5, bold=True, align=TA_CENTER, color=PRIMARY)
     s_obs = make_style('obs', 6, leading=8.5)
@@ -255,6 +256,7 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
     pc = lambda t: Paragraph(t, s_nota)
     pcb = lambda t: Paragraph(t, s_center_b)
     pcd = lambda t: Paragraph(t, s_center_dark)
+    pld = lambda t: Paragraph(t, s_left_dark)
     pa = lambda t: Paragraph(t, s_area)
     pcomp = lambda t: Paragraph(t, s_comp)
     psm = lambda t: Paragraph(t, s_small)
@@ -290,7 +292,7 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
             data_rows.append([area_cell, pcomp(comp)] + notas)
 
     # Parte diversificada header
-    div_row = [pcd('PARTE DIVERSIFICADA'), '', '', '', '', '', '', '', '', '', '']
+    div_row = [pld('PARTE DIVERSIFICADA'), '', '', '', '', '', '', '', '', '', '']
     data_rows.append(div_row)
     div_idx = len(data_rows) - 1
 
@@ -324,7 +326,7 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
         data_rows.append(['', pcomp(title)] + notas)
 
     # Campos Integradores Curricular I (dispensados de notas)
-    ci_row = [pcd('CAMPOS INTEGRADORES CURRICULAR I'), '', '', '', '', '', '', '', '', '', '']
+    ci_row = [pld('CAMPOS INTEGRADORES CURRICULAR I'), '', '', '', '', '', '', '', '', '', '']
     data_rows.append(ci_row)
     ci_idx = len(data_rows) - 1
 
@@ -384,10 +386,12 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
         # Parte diversificada
         ('SPAN', (0, div_idx), (1, div_idx)),
         ('BACKGROUND', (0, div_idx), (-1, div_idx), SECTION_BG),
+        ('ALIGN', (0, div_idx), (1, div_idx), 'LEFT'),
 
         # Campos integradores
         ('SPAN', (0, ci_idx), (1, ci_idx)),
         ('BACKGROUND', (0, ci_idx), (-1, ci_idx), SECTION_BG),
+        ('ALIGN', (0, ci_idx), (1, ci_idx), 'LEFT'),
 
         # Rounded corners
         ('ROUNDEDCORNERS', [4, 4, 4, 4]),
