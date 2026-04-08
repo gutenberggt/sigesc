@@ -816,14 +816,12 @@ const DiarioAEE = () => {
                   value={planoForm.student_id}
                   onChange={(e) => {
                     const studentId = e.target.value;
-                    const student = students.find(s => s.id === studentId);
                     const est = estudantes.find(est => est.student_id === studentId);
-                    const turma = turmas.find(t => t.id === student?.class_id);
                     setPlanoForm({
                       ...planoForm,
                       student_id: studentId,
-                      turma_origem_id: student?.class_id || '',
-                      turma_origem_nome: turma?.name || est?.turma_origem || '',
+                      turma_origem_id: est?.class_id || '',
+                      turma_origem_nome: est?.turma_origem || '',
                       professor_regente_nome: est?.professor_regente || ''
                     });
                   }}
@@ -831,11 +829,8 @@ const DiarioAEE = () => {
                   disabled={!!editingPlano}
                 >
                   <option value="">Selecione o aluno</option>
-                  {(selectedTurma
-                    ? students.filter(s => s.class_id === selectedTurma || s.atendimento_programa_class_id === selectedTurma)
-                    : students
-                  ).map(s => (
-                    <option key={s.id} value={s.id}>{s.full_name}</option>
+                  {(selectedTurma ? filteredEstudantes : estudantes).map(est => (
+                    <option key={est.student_id} value={est.student_id}>{est.full_name}</option>
                   ))}
                 </select>
               </div>
