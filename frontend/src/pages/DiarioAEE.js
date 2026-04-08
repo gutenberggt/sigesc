@@ -83,6 +83,7 @@ const DiarioAEE = () => {
     criterio_elegibilidade: '',
     turma_origem_id: '',
     turma_origem_nome: '',
+    escola_origem_nome: '',
     professor_regente_id: '',
     professor_regente_nome: '',
     dias_atendimento: [],
@@ -293,6 +294,7 @@ const DiarioAEE = () => {
       criterio_elegibilidade: '',
       turma_origem_id: '',
       turma_origem_nome: '',
+      escola_origem_nome: '',
       professor_regente_id: '',
       professor_regente_nome: '',
       dias_atendimento: [],
@@ -822,6 +824,7 @@ const DiarioAEE = () => {
                       student_id: studentId,
                       turma_origem_id: est?.class_id || '',
                       turma_origem_nome: est?.turma_origem || '',
+                      escola_origem_nome: est?.escola_origem || '',
                       professor_regente_nome: est?.professor_regente || ''
                     });
                   }}
@@ -855,6 +858,16 @@ const DiarioAEE = () => {
                   value={planoForm.turma_origem_nome}
                   className="w-full border rounded-lg px-3 py-2 bg-gray-50"
                   placeholder="Turma do aluno na sala regular"
+                  readOnly
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Escola de Origem</label>
+                <input
+                  type="text"
+                  value={planoForm.escola_origem_nome}
+                  className="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed"
+                  placeholder="Preenchido automaticamente"
                   readOnly
                 />
               </div>
