@@ -496,8 +496,9 @@ const DiarioAEE = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <h4 className="font-semibold text-gray-900">{est.full_name}</h4>
-                  <p className="text-sm text-gray-500">Matrícula: {est.enrollment_number || 'N/D'}</p>
                   <p className="text-sm text-gray-500">Turma Origem: {est.turma_origem || 'N/D'}</p>
+                  <p className="text-sm text-gray-500">Escola Origem: {est.escola_origem || 'N/D'}</p>
+                  <p className="text-sm text-gray-500">Professor Regente: {est.professor_regente || 'N/D'}</p>
                   <div className="flex gap-2 mt-2">
                     <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
                       {PUBLICO_ALVO_LABELS[est.publico_alvo] || est.publico_alvo}

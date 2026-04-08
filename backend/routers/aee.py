@@ -727,17 +727,29 @@ def setup_aee_router(db, audit_service):
         for plano in planos:
             student = await db.students.find_one(
                 {"id": plano.get('student_id')},
-                {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "class_id": 1, "atendimento_programa_class_id": 1}
+                {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "class_id": 1, "school_id": 1, "atendimento_programa_class_id": 1}
             )
             if student:
                 turma = await db.classes.find_one({"id": student.get('class_id')}, {"_id": 0, "name": 1})
+                escola_origem = await db.schools.find_one({"id": student.get('school_id')}, {"_id": 0, "name": 1})
+                # Busca professor regente da turma de origem
+                professor_regente = None
+                if student.get('class_id'):
+                    ta = await db.teacher_assignments.find_one(
+                        {"class_id": student.get('class_id'), "status": {"$in": ["ativo", "active"]}},
+                        {"_id": 0, "staff_id": 1}
+                    )
+                    if ta:
+                        staff = await db.staff.find_one({"id": ta.get('staff_id')}, {"_id": 0, "nome": 1})
+                        professor_regente = staff.get('nome') if staff else None
                 estudantes.append({
                     "student_id": student.get('id'),
                     "full_name": student.get('full_name'),
-                    "enrollment_number": student.get('enrollment_number'),
                     "class_id": student.get('class_id'),
                     "atendimento_programa_class_id": student.get('atendimento_programa_class_id'),
                     "turma_origem": turma.get('name') if turma else 'N/A',
+                    "escola_origem": escola_origem.get('name') if escola_origem else 'N/A',
+                    "professor_regente": professor_regente,
                     "publico_alvo": plano.get('publico_alvo'),
                     "modalidade": plano.get('modalidade'),
                     "dias_atendimento": plano.get('dias_atendimento', [])
@@ -753,18 +765,29 @@ def setup_aee_router(db, audit_service):
                 "status": "active",
                 "id": {"$nin": list(student_ids_added)}
             },
-            {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "class_id": 1, "disabilities": 1, "atendimento_programa_class_id": 1}
+            {"_id": 0, "id": 1, "full_name": 1, "class_id": 1, "school_id": 1, "disabilities": 1, "atendimento_programa_class_id": 1}
         ).to_list(100)
         
         for student in aee_students:
             turma = await db.classes.find_one({"id": student.get('class_id')}, {"_id": 0, "name": 1})
+            escola_origem = await db.schools.find_one({"id": student.get('school_id')}, {"_id": 0, "name": 1})
+            professor_regente = None
+            if student.get('class_id'):
+                ta = await db.teacher_assignments.find_one(
+                    {"class_id": student.get('class_id'), "status": {"$in": ["ativo", "active"]}},
+                    {"_id": 0, "staff_id": 1}
+                )
+                if ta:
+                    staff_doc = await db.staff.find_one({"id": ta.get('staff_id')}, {"_id": 0, "nome": 1})
+                    professor_regente = staff_doc.get('nome') if staff_doc else None
             estudantes.append({
                 "student_id": student.get('id'),
                 "full_name": student.get('full_name'),
-                "enrollment_number": student.get('enrollment_number'),
                 "class_id": student.get('class_id'),
                 "atendimento_programa_class_id": student.get('atendimento_programa_class_id'),
                 "turma_origem": turma.get('name') if turma else 'N/A',
+                "escola_origem": escola_origem.get('name') if escola_origem else 'N/A',
+                "professor_regente": professor_regente,
                 "publico_alvo": None,
                 "modalidade": None,
                 "dias_atendimento": [],
