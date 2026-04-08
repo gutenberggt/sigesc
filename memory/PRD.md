@@ -178,6 +178,8 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Ajuste card de estudante AEE (08/04/2026): Removida matrícula, adicionadas "Escola Origem" e "Professor Regente" no card dos estudantes do Diário AEE
   - Backend: `get_estudantes_aee` agora busca `school_name` e professor regente via `teacher_assignments` + `staff`
   - Frontend: `DiarioAEE.js` card atualizado com novos campos
+- Correção de acentuação no Diário AEE (08/04/2026): Corrigidos todos os labels com ç, ã, õ faltantes (Identificação, Público-Alvo, Educação, Vigência, Elaboração, Situação, Comunicação, Articulação, Orientações, Adequações, Adaptações, Estratégias, Frequência, Critérios, etc.)
+- Modal Novo Plano AEE (08/04/2026): Dropdown de alunos filtrado por turma selecionada; campo Professor Regente auto-preenchido (somente leitura); campo Turma de Origem somente leitura; removido temporizador de alerta auto-dismiss
 
 ## Tarefas Pendentes
 
