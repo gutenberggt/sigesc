@@ -589,7 +589,8 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         # Busca mantenedora
         mantenedora = await current_db.mantenedora.find_one({}, {"_id": 0})
         
-        # Busca alunos matriculados
+        # Busca alunos matriculados - usando múltiplas fontes para maior robustez
+        # Estratégia 1: Busca na coleção enrollments (matrícula formal)
         enrollments = await current_db.enrollments.find(
             {"class_id": class_id, "status": "active"},
             {"_id": 0, "student_id": 1, "enrollment_number": 1, "student_series": 1}
@@ -602,6 +603,20 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 'enrollment_number': e.get('enrollment_number'),
                 'student_series': e.get('student_series', '')
             }
+        
+        # Estratégia 2: Busca alunos diretamente com class_id (fallback para dados antigos/inconsistentes)
+        direct_students = await current_db.students.find(
+            {"class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
+            {"_id": 0, "id": 1, "enrollment_number": 1, "student_series": 1}
+        ).to_list(1000)
+        
+        for s in direct_students:
+            sid = s.get('id')
+            if sid not in enrollment_map:
+                enrollment_map[sid] = {
+                    'enrollment_number': s.get('enrollment_number'),
+                    'student_series': s.get('student_series', '')
+                }
         
         student_ids = list(enrollment_map.keys())
         
