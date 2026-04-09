@@ -180,7 +180,15 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Frontend: `DiarioAEE.js` card atualizado com novos campos
 - Correção de acentuação no Diário AEE (08/04/2026): Corrigidos todos os labels com ç, ã, õ faltantes (Identificação, Público-Alvo, Educação, Vigência, Elaboração, Situação, Comunicação, Articulação, Orientações, Adequações, Adaptações, Estratégias, Frequência, Critérios, etc.)
 - Modal Novo Plano AEE (08/04/2026): Dropdown de alunos filtrado por turma selecionada; campo Professor Regente auto-preenchido (somente leitura); campo Turma de Origem somente leitura; removido temporizador de alerta auto-dismiss
-- Correção Frequência Anos Finais (08/04/2026): Relatórios, PDF e Alertas agora multiplicam contagem por `number_of_classes` para anos finais (6º-9º e EJA). Corrigido aulas_previstas (usa schedule_slots/workload), aulas_ministradas (soma number_of_classes) e presenças/faltas por aluno. Frontend mostra "aulas" em vez de "dias" para anos finais. Alertas também corrigidos para multiplicar por number_of_classes.
+- Correção Frequência Anos Finais (09/04/2026): Padronizado tudo em hora-aula (number_of_classes):
+  - `aulas_previstas` = course.workload (anual) / 4 (bimestre). Sem misturar dias letivos × slots.
+  - `aulas_ministradas` = soma real de number_of_classes registradas no diário.
+  - P/F/J por aluno = multiplicado por number_of_classes de cada lançamento.
+  - attendance-summary (Lançamento): workload como fonte primária, schedule_slots como fallback.
+  - PDF (attendance_ext.py + frequencia.py): mesma lógica padronizada.
+  - Alertas (attendance_ext.py): P/F/J × number_of_classes.
+  - Relatórios (attendance.py): report_type="aulas" para anos finais.
+  - Frontend (Attendance.js): exibe "X aulas" em vez de "X dias" para anos finais.
 
 ## Tarefas Pendentes
 

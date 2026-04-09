@@ -793,10 +793,16 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             for att in attendances:
                 aulas_registradas += att.get('number_of_classes', 1)
 
-            # Calcular aulas previstas: dias_letivos * aulas por semana do componente / 5
-            # Se existe horário, contar aulas semanais do componente
+            # Calcular aulas previstas: usar carga horária do componente (workload)
+            # Fonte primária: workload do curso (total anual de hora-aula)
             aulas_previstas = 0
             if course_id:
+                course = await current_db.courses.find_one({"id": course_id}, {"_id": 0})
+                if course:
+                    aulas_previstas = course.get('workload', 0) or 0
+
+            # Fallback: usar schedule_slots se workload não definido
+            if aulas_previstas == 0 and course_id:
                 schedule = await current_db.class_schedules.find_one(
                     {"class_id": class_id}, {"_id": 0}
                 )
@@ -805,14 +811,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                         1 for s in schedule['schedule_slots']
                         if s.get('course_id') == course_id
                     )
-                    # dias_letivos / 5 (semanas) * aulas_semana
                     aulas_previstas = int((dias_letivos_previstos / 5) * aulas_semana) if aulas_semana > 0 else 0
-
-            # Se não tem horário cadastrado, usar carga horária do curso
-            if aulas_previstas == 0 and course_id:
-                course = await current_db.courses.find_one({"id": course_id}, {"_id": 0})
-                if course:
-                    aulas_previstas = course.get('workload', 0) or 0
 
             return {
                 "type": "aulas",

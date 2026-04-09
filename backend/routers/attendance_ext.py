@@ -382,7 +382,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if course_id:
             course_info = await db.courses.find_one({"id": course_id}, {"_id": 0})
 
-        # Detectar nível de ensino para saber se conta por aulas ou dias
+        # Para anos finais: tudo baseado em hora-aula (number_of_classes)
+        # Detectar nível de ensino
         education_level = turma.get('education_level') or turma.get('nivel_ensino') or ''
         if not education_level:
             import re
@@ -399,33 +400,35 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         is_anos_finais = education_level in ['fundamental_anos_finais', 'eja_final']
 
-        # Para anos finais: calcular aulas ministradas pela soma de number_of_classes
-        # e aulas previstas multiplicando dias letivos pelas aulas semanais do componente
         if is_anos_finais and course_id:
+            # Aulas ministradas = soma real de hora-aula registradas no diário
             aulas_ministradas_total = sum(att.get('number_of_classes', 1) for att in attendances)
 
-            # Calcular aulas previstas com base no horário escolar
-            aulas_previstas_calc = 0
-            schedule = await db.class_schedules.find_one(
-                {"class_id": class_id}, {"_id": 0}
-            )
-            if schedule and schedule.get('schedule_slots'):
-                aulas_semana = sum(
-                    1 for s in schedule['schedule_slots']
-                    if s.get('course_id') == course_id
+            # Aulas previstas = carga horária anual do componente / 4 bimestres
+            aulas_previstas_bimestre_calc = 0
+            if course_info:
+                workload_anual = course_info.get('workload', 0) or 0
+                if workload_anual > 0:
+                    aulas_previstas_bimestre_calc = round(workload_anual / 4)
+
+            # Fallback: usar schedule_slots se workload não disponível
+            if aulas_previstas_bimestre_calc == 0:
+                schedule = await db.class_schedules.find_one(
+                    {"class_id": class_id}, {"_id": 0}
                 )
-                if aulas_semana > 0:
-                    aulas_previstas_calc = int((aulas_previstas_bimestre / 5) * aulas_semana)
+                if schedule and schedule.get('schedule_slots'):
+                    aulas_semana = sum(
+                        1 for s in schedule['schedule_slots']
+                        if s.get('course_id') == course_id
+                    )
+                    if aulas_semana > 0:
+                        # semanas no bimestre × aulas por semana
+                        aulas_previstas_bimestre_calc = round((aulas_previstas_bimestre / 5) * aulas_semana)
 
-            if aulas_previstas_calc == 0:
-                course_data = await db.courses.find_one({"id": course_id}, {"_id": 0})
-                if course_data:
-                    workload = course_data.get('workload', 0) or 0
-                    aulas_previstas_calc = workload
-
-            if aulas_previstas_calc > 0:
-                aulas_previstas_bimestre = aulas_previstas_calc
+            if aulas_previstas_bimestre_calc > 0:
+                aulas_previstas_bimestre = aulas_previstas_bimestre_calc
         else:
+            # Anos iniciais / Infantil: conta por dias letivos
             aulas_ministradas_total = len(attendance_days)
 
         # Gerar PDF
