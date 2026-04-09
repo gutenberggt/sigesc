@@ -180,6 +180,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Frontend: `DiarioAEE.js` card atualizado com novos campos
 - Correção de acentuação no Diário AEE (08/04/2026): Corrigidos todos os labels com ç, ã, õ faltantes (Identificação, Público-Alvo, Educação, Vigência, Elaboração, Situação, Comunicação, Articulação, Orientações, Adequações, Adaptações, Estratégias, Frequência, Critérios, etc.)
 - Modal Novo Plano AEE (08/04/2026): Dropdown de alunos filtrado por turma selecionada; campo Professor Regente auto-preenchido (somente leitura); campo Turma de Origem somente leitura; removido temporizador de alerta auto-dismiss
+- Correção Frequência Anos Finais (08/04/2026): Relatórios e PDF agora multiplicam contagem por `number_of_classes` para anos finais (6º-9º). Corrigido aulas_previstas (usa schedule_slots), aulas_ministradas (soma number_of_classes) e presenças/faltas por aluno no PDF e no relatório
 
 ## Tarefas Pendentes
 

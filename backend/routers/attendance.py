@@ -560,23 +560,26 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         
         # Coleta datas de aula para calcular atestados
         attendance_dates = set()
+        total_aulas_registradas = 0
         for att in attendances:
             att_date = att.get('date', '')[:10]
+            num_classes = att.get('number_of_classes', 1)
+            total_aulas_registradas += num_classes
             if att_date:
                 attendance_dates.add(att_date)
             for record in att.get('records', []):
                 sid = record.get('student_id')
                 if sid in student_stats:
-                    student_stats[sid]['total'] += 1
+                    student_stats[sid]['total'] += num_classes
                     status = record.get('status', '')
                     if status in ['present', 'P']:
-                        student_stats[sid]['present'] += 1
+                        student_stats[sid]['present'] += num_classes
                     elif status in ['absent', 'F', 'A']:
-                        student_stats[sid]['absent'] += 1
+                        student_stats[sid]['absent'] += num_classes
                     elif status in ['justified', 'J']:
-                        student_stats[sid]['justified'] += 1
+                        student_stats[sid]['justified'] += num_classes
                     elif status in ['late', 'L']:
-                        student_stats[sid]['late'] += 1
+                        student_stats[sid]['late'] += num_classes
         
         # Busca atestados médicos para os alunos da turma
         medical_days = {}
@@ -635,8 +638,8 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             "class": turma,
             "academic_year": academic_year,
             "course_id": course_id,
-            "total_records": len(attendances),
-            "total_school_days_recorded": len(attendances),
+            "total_records": total_aulas_registradas,
+            "total_school_days_recorded": total_aulas_registradas,
             "total_students": len(students),
             "students": report
         }

@@ -240,20 +240,22 @@ def generate_relatorio_frequencia_bimestre_pdf(
         ]
         
         attendance_by_date = student.get('attendance_by_date', {})
+        attendance_classes_by_date = student.get('attendance_classes_by_date', {})
         faltas = 0
         presencas = 0
         
         for day_str in attendance_days:
             status = attendance_by_date.get(day_str, '')
+            num_classes = attendance_classes_by_date.get(day_str, 1)
             if status == 'present':
                 row.append('P')
-                presencas += 1
+                presencas += num_classes
             elif status == 'absent':
                 row.append('F')
-                faltas += 1
+                faltas += num_classes
             elif status == 'justified':
                 row.append('J')
-                presencas += 1
+                presencas += num_classes
             else:
                 row.append('')
         

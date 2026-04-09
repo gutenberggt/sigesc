@@ -343,17 +343,21 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         students_attendance = []
         for student in students:
             attendance_by_date = {}
+            attendance_classes_by_date = {}
 
             for att in attendances:
+                num_classes = att.get('number_of_classes', 1)
                 for record in att.get('records', []):
                     if record['student_id'] == student['id']:
                         status_map = {'P': 'present', 'F': 'absent', 'J': 'justified'}
                         attendance_by_date[att['date']] = status_map.get(record['status'], '')
+                        attendance_classes_by_date[att['date']] = num_classes
 
             students_attendance.append({
                 'name': student['full_name'],
                 'enrollment_number': enrollment_numbers.get(student['id']) or student.get('enrollment_number'),
-                'attendance_by_date': attendance_by_date
+                'attendance_by_date': attendance_by_date,
+                'attendance_classes_by_date': attendance_classes_by_date
             })
 
         # Buscar professor responsável pelo componente (ou turma, se não houver componente)
@@ -378,6 +382,52 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if course_id:
             course_info = await db.courses.find_one({"id": course_id}, {"_id": 0})
 
+        # Detectar nível de ensino para saber se conta por aulas ou dias
+        education_level = turma.get('education_level') or turma.get('nivel_ensino') or ''
+        if not education_level:
+            import re
+            ref = (turma.get('grade_level') or turma.get('name') or '').upper()
+            if re.search(r'PRÉ|BERÇÁRIO|MATERNAL|CRECHE|INFANTIL', ref):
+                education_level = 'educacao_infantil'
+            elif re.search(r'\bEJA\b', ref):
+                education_level = 'eja_final' if re.search(r'FINAL|[6-9]', ref) else 'eja_inicial'
+            else:
+                m = re.match(r'(\d+)', ref)
+                if m:
+                    num = int(m.group(1))
+                    education_level = 'fundamental_anos_iniciais' if num <= 5 else 'fundamental_anos_finais'
+
+        is_anos_finais = education_level in ['fundamental_anos_finais', 'eja_final']
+
+        # Para anos finais: calcular aulas ministradas pela soma de number_of_classes
+        # e aulas previstas multiplicando dias letivos pelas aulas semanais do componente
+        if is_anos_finais and course_id:
+            aulas_ministradas_total = sum(att.get('number_of_classes', 1) for att in attendances)
+
+            # Calcular aulas previstas com base no horário escolar
+            aulas_previstas_calc = 0
+            schedule = await db.class_schedules.find_one(
+                {"class_id": class_id}, {"_id": 0}
+            )
+            if schedule and schedule.get('schedule_slots'):
+                aulas_semana = sum(
+                    1 for s in schedule['schedule_slots']
+                    if s.get('course_id') == course_id
+                )
+                if aulas_semana > 0:
+                    aulas_previstas_calc = int((aulas_previstas_bimestre / 5) * aulas_semana)
+
+            if aulas_previstas_calc == 0:
+                course_data = await db.courses.find_one({"id": course_id}, {"_id": 0})
+                if course_data:
+                    workload = course_data.get('workload', 0) or 0
+                    aulas_previstas_calc = workload
+
+            if aulas_previstas_calc > 0:
+                aulas_previstas_bimestre = aulas_previstas_calc
+        else:
+            aulas_ministradas_total = len(attendance_days)
+
         # Gerar PDF
         try:
             pdf_buffer = generate_relatorio_frequencia_bimestre_pdf(
@@ -391,7 +441,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 period_end=period_end,
                 attendance_days=attendance_days,
                 aulas_previstas=aulas_previstas_bimestre,
-                aulas_ministradas=len(attendance_days),
+                aulas_ministradas=aulas_ministradas_total,
                 teacher_name=teacher_name,
                 mantenedora=mantenedora
             )
