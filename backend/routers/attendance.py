@@ -634,6 +634,23 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 "status": status
             })
         
+        # Detectar se é Anos Finais para ajustar label
+        education_level = turma.get('education_level') or turma.get('nivel_ensino') or ''
+        if not education_level:
+            import re
+            ref = (turma.get('grade_level') or turma.get('name') or '').upper()
+            if re.search(r'PRÉ|BERÇÁRIO|MATERNAL|CRECHE|INFANTIL', ref):
+                education_level = 'educacao_infantil'
+            elif re.search(r'\bEJA\b', ref):
+                education_level = 'eja_final' if re.search(r'FINAL|[6-9]', ref) else 'eja_inicial'
+            else:
+                m = re.match(r'(\d+)', ref)
+                if m:
+                    num = int(m.group(1))
+                    education_level = 'fundamental_anos_iniciais' if num <= 5 else 'fundamental_anos_finais'
+        
+        is_anos_finais = education_level in ['fundamental_anos_finais', 'eja_final']
+        
         return {
             "class": turma,
             "academic_year": academic_year,
@@ -641,6 +658,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             "total_records": total_aulas_registradas,
             "total_school_days_recorded": total_aulas_registradas,
             "total_students": len(students),
+            "report_type": "aulas" if is_anos_finais else "dias",
             "students": report
         }
 

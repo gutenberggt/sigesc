@@ -1347,7 +1347,7 @@ export const Attendance = () => {
                             {courses.find(c => c.id === reportCourseId)?.name || 'Componente'} • 
                           </span>
                         )}
-                        {classReport.total_school_days_recorded} dias com frequência registrada • 
+                        {classReport.total_school_days_recorded} {classReport.report_type === 'aulas' ? 'aulas' : 'dias'} com frequência registrada • 
                         {classReport.total_students} alunos
                       </p>
                     </div>

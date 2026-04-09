@@ -522,14 +522,15 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 justified = 0
 
                 for att in attendances:
+                    num_classes = att.get('number_of_classes', 1)
                     for record in att.get('records', []):
                         if record['student_id'] == student['id']:
                             if record['status'] == 'P':
-                                present += 1
+                                present += num_classes
                             elif record['status'] == 'F':
-                                absent += 1
+                                absent += num_classes
                             elif record['status'] == 'J':
-                                justified += 1
+                                justified += num_classes
 
                 total = present + absent + justified
                 if total > 0:
