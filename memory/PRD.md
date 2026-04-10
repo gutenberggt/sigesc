@@ -192,6 +192,15 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Alertas (attendance_ext.py): P/F/J × number_of_classes.
   - Relatórios (attendance.py): report_type="aulas" para anos finais.
   - Frontend (Attendance.js): exibe "X aulas" em vez de "X dias" para anos finais.
+- Refatoração UI Frequência Anos Finais - Abas de Sessão (10/04/2026):
+  - Frontend (Attendance.js): Substituída lógica legada de pipe `P|F|J` e múltiplas colunas por sistema de abas (Aula 1, Aula 2, + Nova Aula)
+  - Cada aba representa uma sessão independente (aula_numero), tabela sempre com coluna única "Frequência"
+  - Troca de aba carrega status corretos da sessão selecionada do backend (via sessions[].records)
+  - `updateStudentStatus` e `markAll` simplificados: sem pipe, sem aulaIndex, operam na sessão ativa
+  - `saveAttendance` envia `aula_numero` = sessão ativa para turmas de anos finais
+  - Removido estado legado `numberOfClasses` — substituído pelo array `sessions` + `activeSession`
+  - Retrocompatibilidade: turmas de Anos Iniciais funcionam normalmente (sem abas, frequência diária)
+  - Testado: 17/17 cenários passaram (testing agent iteration_48)
 
 ## Tarefas Pendentes
 
