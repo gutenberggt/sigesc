@@ -607,8 +607,6 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         total_aulas_registradas = 0
         for att in attendances:
             att_date = att.get('date', '')[:10]
-            # Cada registro = 1 aula (para anos finais, cada sessão é um registro separado)
-            # Para anos iniciais com number_of_classes > 1, mantém a multiplicação
             has_aula_numero = att.get('aula_numero') is not None
             num_classes = 1 if has_aula_numero else att.get('number_of_classes', 1)
             total_aulas_registradas += num_classes
@@ -617,16 +615,30 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             for record in att.get('records', []):
                 sid = record.get('student_id')
                 if sid in student_stats:
-                    student_stats[sid]['total'] += num_classes
-                    status = record.get('status', '')
-                    if status in ['present', 'P']:
-                        student_stats[sid]['present'] += num_classes
-                    elif status in ['absent', 'F', 'A']:
-                        student_stats[sid]['absent'] += num_classes
-                    elif status in ['justified', 'J']:
-                        student_stats[sid]['justified'] += num_classes
-                    elif status in ['late', 'L']:
-                        student_stats[sid]['late'] += num_classes
+                    raw_status = record.get('status', '')
+                    
+                    if '|' in raw_status:
+                        # Pipe-separated statuses (legado multi-aula)
+                        statuses = raw_status.split('|')
+                        student_stats[sid]['total'] += len(statuses)
+                        for s in statuses:
+                            s = s.strip()
+                            if s in ['present', 'P']:
+                                student_stats[sid]['present'] += 1
+                            elif s in ['absent', 'F', 'A']:
+                                student_stats[sid]['absent'] += 1
+                            elif s in ['justified', 'J']:
+                                student_stats[sid]['justified'] += 1
+                    else:
+                        student_stats[sid]['total'] += num_classes
+                        if raw_status in ['present', 'P']:
+                            student_stats[sid]['present'] += num_classes
+                        elif raw_status in ['absent', 'F', 'A']:
+                            student_stats[sid]['absent'] += num_classes
+                        elif raw_status in ['justified', 'J']:
+                            student_stats[sid]['justified'] += num_classes
+                        elif raw_status in ['late', 'L']:
+                            student_stats[sid]['late'] += num_classes
         
         # Busca atestados médicos para os alunos da turma
         medical_days = {}
@@ -665,7 +677,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             attendance_percentage = round((present + justified) / total * 100, 1) if total > 0 else 0
             
             # Define status baseado na frequência mínima (75%)
-            status = 'regular' if attendance_percentage >= 75 else 'infrequente'
+            freq_status = 'regular' if attendance_percentage >= 75 else 'infrequente'
             
             report.append({
                 "student_id": student['id'],
@@ -678,7 +690,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 "late": stats.get('late', 0),
                 "total": total,
                 "attendance_percentage": attendance_percentage,
-                "status": status
+                "status": freq_status
             })
         
         # Detectar se é Anos Finais para ajustar label

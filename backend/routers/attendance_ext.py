@@ -379,19 +379,50 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             # Substituir attendance_days por chaves expandidas
             attendance_days = [f"{d[0]}#{d[1]}" for d in attendance_days_expanded]
         else:
-            # Modelo legado: usar number_of_classes para expandir
+            # Modelo legado: expandir number_of_classes em colunas separadas
+            # Cada aula ocupa uma célula própria, repetindo a data se necessário
+            sorted_attendances = sorted(attendances, key=lambda a: a.get('date', ''))
+            attendance_days_expanded = []
+            for att in sorted_attendances:
+                num_classes = att.get('number_of_classes', 1)
+                if num_classes > 1:
+                    for i in range(1, num_classes + 1):
+                        key = f"{att['date']}#{i}"
+                        if key not in attendance_days_expanded:
+                            attendance_days_expanded.append(key)
+                else:
+                    if att['date'] not in attendance_days_expanded:
+                        attendance_days_expanded.append(att['date'])
+
             students_attendance = []
             for student in students:
                 attendance_by_date = {}
                 attendance_classes_by_date = {}
 
-                for att in attendances:
+                for att in sorted_attendances:
                     num_classes = att.get('number_of_classes', 1)
                     for record in att.get('records', []):
                         if record['student_id'] == student['id']:
                             status_map = {'P': 'present', 'F': 'absent', 'J': 'justified'}
-                            attendance_by_date[att['date']] = status_map.get(record['status'], '')
-                            attendance_classes_by_date[att['date']] = num_classes
+                            raw_status = record.get('status', '')
+
+                            if '|' in raw_status:
+                                # Pipe-separated statuses (legado multi-aula)
+                                statuses = raw_status.split('|')
+                                for i, s in enumerate(statuses):
+                                    key = f"{att['date']}#{i+1}" if num_classes > 1 else att['date']
+                                    attendance_by_date[key] = status_map.get(s.strip(), '')
+                                    attendance_classes_by_date[key] = 1
+                            else:
+                                # Status único: replicar para todas as aulas do dia
+                                if num_classes > 1:
+                                    for i in range(1, num_classes + 1):
+                                        key = f"{att['date']}#{i}"
+                                        attendance_by_date[key] = status_map.get(raw_status, '')
+                                        attendance_classes_by_date[key] = 1
+                                else:
+                                    attendance_by_date[att['date']] = status_map.get(raw_status, '')
+                                    attendance_classes_by_date[att['date']] = num_classes
 
                 students_attendance.append({
                     'name': student['full_name'],
@@ -399,6 +430,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     'attendance_by_date': attendance_by_date,
                     'attendance_classes_by_date': attendance_classes_by_date
                 })
+
+            attendance_days = attendance_days_expanded
 
         # Buscar professor responsável pelo componente (ou turma, se não houver componente)
         teacher_name = ""
@@ -574,12 +607,24 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     num_classes = 1 if has_aula_num else att.get('number_of_classes', 1)
                     for record in att.get('records', []):
                         if record['student_id'] == student['id']:
-                            if record['status'] == 'P':
-                                present += num_classes
-                            elif record['status'] == 'F':
-                                absent += num_classes
-                            elif record['status'] == 'J':
-                                justified += num_classes
+                            raw_status = record.get('status', '')
+                            if '|' in raw_status:
+                                # Pipe-separated statuses (legado)
+                                for s in raw_status.split('|'):
+                                    s = s.strip()
+                                    if s == 'P':
+                                        present += 1
+                                    elif s == 'F':
+                                        absent += 1
+                                    elif s == 'J':
+                                        justified += 1
+                            else:
+                                if raw_status == 'P':
+                                    present += num_classes
+                                elif raw_status == 'F':
+                                    absent += num_classes
+                                elif raw_status == 'J':
+                                    justified += num_classes
 
                 total = present + absent + justified
                 if total > 0:

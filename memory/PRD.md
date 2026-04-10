@@ -210,6 +210,12 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Ao carregar: popula `aulaStatuses` e `numberOfAulas` a partir das `sessions` retornadas pela API
   - Retrocompatibilidade: turmas Anos Iniciais = coluna única "Frequência" sem dropdown
   - Testado: 12/12 cenários passaram (testing agent iteration_49)
+- Fix Relatório e PDF Frequência Anos Finais (10/04/2026):
+  - **Relatório (Ver na Tela)**: Adicionado suporte a pipe-separated statuses (legado "P|F") no cálculo de P/F/J/total
+  - **PDF**: Path legado agora expande `number_of_classes > 1` em colunas separadas (repete data para múltiplas aulas no mesmo dia)
+  - **PDF**: Suporte a pipe-separated statuses (cada status do pipe vira uma coluna distinta)
+  - **Alertas**: Mesmo fix de pipe-separated aplicado no endpoint de alertas
+  - Dados mistos (novo aula_numero + legado number_of_classes + pipe) tratados corretamente
 
 ## Tarefas Pendentes
 
