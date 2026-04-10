@@ -13,7 +13,8 @@ import {
   CheckSquare,
   User,
   School,
-  Clock
+  Clock,
+  FileText
 } from 'lucide-react';
 import { professorAPI } from '../services/api';
 import { mantenedoraAPI } from '../services/api';
@@ -37,7 +38,6 @@ export default function ProfessorDashboard() {
       setLoading(true);
       setError(null);
       
-      // Carregar perfil do professor e mantenedora em paralelo
       const [profileData, turmasData, mantenedoraData] = await Promise.all([
         professorAPI.getProfile(),
         professorAPI.getTurmas(),
@@ -58,6 +58,12 @@ export default function ProfessorDashboard() {
       setLoading(false);
     }
   };
+
+  // Separar turmas regulares e AEE
+  const turmasAEE = turmas.filter(t => t.atendimento_programa === 'aee');
+  const turmasRegulares = turmas.filter(t => !t.atendimento_programa || (t.atendimento_programa !== 'aee' && t.atendimento_programa !== 'reforco' && t.atendimento_programa !== 'recomposicao'));
+  const hasRegularTurmas = turmasRegulares.length > 0;
+  const hasAeeTurmas = turmasAEE.length > 0;
 
   // Calcular estatísticas
   const totalTurmas = turmas.length;
@@ -164,43 +170,64 @@ export default function ProfessorDashboard() {
           </Card>
         </div>
 
-        {/* Menu de Acesso Rápido - Segunda linha de blocos */}
+        {/* Menu de Acesso Rápido */}
         <div>
           <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <Card 
-              className="cursor-pointer hover:bg-blue-50 transition-colors"
-              onClick={() => navigate('/professor/notas')}
-            >
-              <CardContent className="p-4 text-center">
-                <ClipboardList className="mx-auto mb-2 text-blue-600" size={32} />
-                <p className="font-medium">Lançar Notas</p>
-              </CardContent>
-            </Card>
+            {hasRegularTurmas && (
+              <>
+                <Card 
+                  className="cursor-pointer hover:bg-blue-50 transition-colors"
+                  onClick={() => navigate('/professor/notas')}
+                  data-testid="menu-lancar-notas"
+                >
+                  <CardContent className="p-4 text-center">
+                    <ClipboardList className="mx-auto mb-2 text-blue-600" size={32} />
+                    <p className="font-medium">Lançar Notas</p>
+                  </CardContent>
+                </Card>
 
-            <Card 
-              className="cursor-pointer hover:bg-green-50 transition-colors"
-              onClick={() => navigate('/professor/frequencia')}
-            >
-              <CardContent className="p-4 text-center">
-                <CheckSquare className="mx-auto mb-2 text-green-600" size={32} />
-                <p className="font-medium">Frequência</p>
-              </CardContent>
-            </Card>
+                <Card 
+                  className="cursor-pointer hover:bg-green-50 transition-colors"
+                  onClick={() => navigate('/professor/frequencia')}
+                  data-testid="menu-frequencia"
+                >
+                  <CardContent className="p-4 text-center">
+                    <CheckSquare className="mx-auto mb-2 text-green-600" size={32} />
+                    <p className="font-medium">Frequência</p>
+                  </CardContent>
+                </Card>
 
-            <Card 
-              className="cursor-pointer hover:bg-purple-50 transition-colors"
-              onClick={() => navigate('/professor/objetos-conhecimento')}
-            >
-              <CardContent className="p-4 text-center">
-                <BookOpen className="mx-auto mb-2 text-purple-600" size={32} />
-                <p className="font-medium">Objetos de Conhecimento</p>
-              </CardContent>
-            </Card>
+                <Card 
+                  className="cursor-pointer hover:bg-purple-50 transition-colors"
+                  onClick={() => navigate('/professor/objetos-conhecimento')}
+                  data-testid="menu-objetos-conhecimento"
+                >
+                  <CardContent className="p-4 text-center">
+                    <BookOpen className="mx-auto mb-2 text-purple-600" size={32} />
+                    <p className="font-medium">Objetos de Conhecimento</p>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {hasAeeTurmas && (
+              <Card 
+                className="cursor-pointer hover:bg-teal-50 transition-colors"
+                onClick={() => navigate('/admin/diario-aee')}
+                data-testid="menu-diario-aee"
+              >
+                <CardContent className="p-4 text-center">
+                  <FileText className="mx-auto mb-2 text-teal-600" size={32} />
+                  <p className="font-medium">Diário AEE</p>
+                </CardContent>
+              </Card>
+            )}
 
             <Card 
               className="cursor-pointer hover:bg-indigo-50 transition-colors"
               onClick={() => navigate('/professor/calendario')}
+              data-testid="menu-calendario"
             >
               <CardContent className="p-4 text-center">
                 <Calendar className="mx-auto mb-2 text-indigo-600" size={32} />
@@ -211,6 +238,7 @@ export default function ProfessorDashboard() {
             <Card 
               className="cursor-pointer hover:bg-orange-50 transition-colors"
               onClick={() => navigate('/professor/perfil')}
+              data-testid="menu-perfil"
             >
               <CardContent className="p-4 text-center">
                 <User className="mx-auto mb-2 text-orange-600" size={32} />
@@ -253,59 +281,107 @@ export default function ProfessorDashboard() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {turmas.map((turma) => (
-                <Card key={turma.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <GraduationCap className="text-blue-600" size={20} />
-                      {turma.name}
-                    </CardTitle>
-                    <CardDescription className="flex items-center gap-1">
-                      <School size={14} />
-                      {turma.school_name}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {/* Componentes */}
-                    <div className="space-y-2 mb-4">
-                      <p className="text-sm font-medium text-gray-700">Componentes:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {turma.componentes?.map((comp) => (
-                          <span 
-                            key={comp.id}
-                            className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full"
+            <div className="space-y-6">
+              {/* Turmas AEE */}
+              {hasAeeTurmas && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-teal-700">
+                    <FileText size={18} />
+                    Turmas AEE
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {turmasAEE.map((turma) => (
+                      <Card key={turma.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-teal-500">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <FileText className="text-teal-600" size={20} />
+                            {turma.name}
+                          </CardTitle>
+                          <CardDescription className="flex items-center gap-1">
+                            <School size={14} />
+                            {turma.school_name}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate('/admin/diario-aee')}
+                            className="w-full flex items-center gap-1 border-teal-300 text-teal-700 hover:bg-teal-50"
+                            data-testid={`diario-aee-${turma.id}`}
                           >
-                            {comp.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                            <FileText size={14} />
+                            Abrir Diário AEE
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-                    {/* Ações */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => navigate(`/professor/turma/${turma.id}/diario`)}
-                        className="flex items-center gap-1"
-                      >
-                        <ClipboardList size={14} />
-                        Diário
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => navigate(`/professor/turma/${turma.id}/alunos`)}
-                        className="flex items-center gap-1"
-                      >
-                        <Users size={14} />
-                        Alunos
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {/* Turmas Regulares */}
+              {turmasRegulares.length > 0 && (
+                <div>
+                  {hasAeeTurmas && (
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-blue-700">
+                      <GraduationCap size={18} />
+                      Turmas Regulares
+                    </h3>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {turmasRegulares.map((turma) => (
+                      <Card key={turma.id} className="hover:shadow-lg transition-shadow">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <GraduationCap className="text-blue-600" size={20} />
+                            {turma.name}
+                          </CardTitle>
+                          <CardDescription className="flex items-center gap-1">
+                            <School size={14} />
+                            {turma.school_name}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2 mb-4">
+                            <p className="text-sm font-medium text-gray-700">Componentes:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {turma.componentes?.map((comp) => (
+                                <span 
+                                  key={comp.id}
+                                  className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full"
+                                >
+                                  {comp.name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => navigate(`/professor/turma/${turma.id}/diario`)}
+                              className="flex items-center gap-1"
+                            >
+                              <ClipboardList size={14} />
+                              Diário
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => navigate(`/professor/turma/${turma.id}/alunos`)}
+                              className="flex items-center gap-1"
+                            >
+                              <Users size={14} />
+                              Alunos
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
