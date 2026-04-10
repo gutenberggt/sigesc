@@ -1,6 +1,6 @@
-// SIGESC Service Worker - Versão 2.1.0
-// Corrigido: IndexedDB VersionError + CORS em requests cross-origin
-const CACHE_NAME = 'sigesc-cache-v2';
+// SIGESC Service Worker - Versão 2.2.0
+// Corrigido: Cache busting em deploys + NetworkFirst para bundles JS/CSS
+const CACHE_NAME = 'sigesc-cache-v3';
 const OFFLINE_URL = '/offline.html';
 const DB_NAME = 'SigescOfflineDB';
 
@@ -144,7 +144,7 @@ function getAuthToken() {
 // ============= Instalação do Service Worker =============
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando Service Worker v2.1.0...');
+  console.log('[SW] Instalando Service Worker v2.2.0...');
   
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -211,7 +211,11 @@ self.addEventListener('fetch', (event) => {
   // Apenas requisições same-origin são cacheadas/interceptadas
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirstStrategy(request));
+  } else if (/\.(js|css)$/.test(url.pathname)) {
+    // JS e CSS bundles: sempre buscar da rede primeiro (garante código atualizado após deploy)
+    event.respondWith(networkFirstStrategy(request));
   } else if (CACHE_PATTERNS.static.test(url.pathname)) {
+    // Imagens, fontes, ícones: cache first (raramente mudam)
     event.respondWith(cacheFirstStrategy(request));
   } else {
     event.respondWith(networkFirstStrategy(request));
@@ -523,4 +527,4 @@ self.addEventListener('message', (event) => {
   }
 });
 
-console.log('[SW] Service Worker v2.1.0 carregado com Background Sync');
+console.log('[SW] Service Worker v2.2.0 carregado com Background Sync');
