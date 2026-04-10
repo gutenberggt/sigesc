@@ -340,25 +340,65 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         attendance_days = sorted(list(set([att['date'] for att in attendances])))
 
         # Montar dados de frequência por aluno
-        students_attendance = []
-        for student in students:
-            attendance_by_date = {}
-            attendance_classes_by_date = {}
+        # Para anos finais: cada registro de attendance é 1 aula separada (coluna no PDF)
+        # Detectar se estamos no modelo novo (com aula_numero) ou legado
+        has_aula_numero = any(att.get('aula_numero') is not None for att in attendances)
+        
+        if has_aula_numero:
+            # Modelo novo: cada registro = 1 aula = 1 coluna no PDF
+            # Ordenar por data + aula_numero
+            sorted_attendances = sorted(attendances, key=lambda a: (a.get('date', ''), a.get('aula_numero', 1)))
+            # attendance_days_expanded: lista de tuplas (date, aula_numero) - cada entrada = 1 coluna
+            attendance_days_expanded = [(att['date'], att.get('aula_numero', 1)) for att in sorted_attendances]
+            
+            students_attendance = []
+            for student in students:
+                attendance_by_session = {}
+                for att in sorted_attendances:
+                    key = (att['date'], att.get('aula_numero', 1))
+                    for record in att.get('records', []):
+                        if record['student_id'] == student['id']:
+                            status_map = {'P': 'present', 'F': 'absent', 'J': 'justified'}
+                            attendance_by_session[key] = status_map.get(record['status'], '')
+                
+                # Converter para formato compatível com o PDF (attendance_by_date usa string key)
+                attendance_by_date = {}
+                attendance_classes_by_date = {}
+                for i, key in enumerate(attendance_days_expanded):
+                    str_key = f"{key[0]}#{key[1]}"
+                    attendance_by_date[str_key] = attendance_by_session.get(key, '')
+                    attendance_classes_by_date[str_key] = 1
+                
+                students_attendance.append({
+                    'name': student['full_name'],
+                    'enrollment_number': enrollment_numbers.get(student['id']) or student.get('enrollment_number'),
+                    'attendance_by_date': attendance_by_date,
+                    'attendance_classes_by_date': attendance_classes_by_date
+                })
+            
+            # Substituir attendance_days por chaves expandidas
+            attendance_days = [f"{d[0]}#{d[1]}" for d in attendance_days_expanded]
+        else:
+            # Modelo legado: usar number_of_classes para expandir
+            students_attendance = []
+            for student in students:
+                attendance_by_date = {}
+                attendance_classes_by_date = {}
 
-            for att in attendances:
-                num_classes = att.get('number_of_classes', 1)
-                for record in att.get('records', []):
-                    if record['student_id'] == student['id']:
-                        status_map = {'P': 'present', 'F': 'absent', 'J': 'justified'}
-                        attendance_by_date[att['date']] = status_map.get(record['status'], '')
-                        attendance_classes_by_date[att['date']] = num_classes
+                for att in attendances:
+                    num_classes = att.get('number_of_classes', 1)
+                    for record in att.get('records', []):
+                        if record['student_id'] == student['id']:
+                            status_map = {'P': 'present', 'F': 'absent', 'J': 'justified'}
+                            attendance_by_date[att['date']] = status_map.get(record['status'], '')
+                            attendance_classes_by_date[att['date']] = num_classes
 
-            students_attendance.append({
-                'name': student['full_name'],
-                'enrollment_number': enrollment_numbers.get(student['id']) or student.get('enrollment_number'),
-                'attendance_by_date': attendance_by_date,
-                'attendance_classes_by_date': attendance_classes_by_date
-            })
+                students_attendance.append({
+                    'name': student['full_name'],
+                    'enrollment_number': enrollment_numbers.get(student['id']) or student.get('enrollment_number'),
+                    'attendance_by_date': attendance_by_date,
+                    'attendance_classes_by_date': attendance_classes_by_date
+                })
 
         # Buscar professor responsável pelo componente (ou turma, se não houver componente)
         teacher_name = ""
@@ -401,8 +441,13 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         is_anos_finais = education_level in ['fundamental_anos_finais', 'eja_final']
 
         if is_anos_finais and course_id:
-            # Aulas ministradas = soma real de hora-aula registradas no diário
-            aulas_ministradas_total = sum(att.get('number_of_classes', 1) for att in attendances)
+            # Aulas ministradas: cada registro com aula_numero = 1 aula
+            if has_aula_numero:
+                aulas_ministradas_total = len([a for a in attendances if a.get('aula_numero') is not None])
+                # Incluir registros legados (sem aula_numero) usando number_of_classes
+                aulas_ministradas_total += sum(a.get('number_of_classes', 1) for a in attendances if a.get('aula_numero') is None)
+            else:
+                aulas_ministradas_total = sum(att.get('number_of_classes', 1) for att in attendances)
 
             # Aulas previstas = carga horária anual do componente / 4 bimestres
             aulas_previstas_bimestre_calc = 0
@@ -525,7 +570,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 justified = 0
 
                 for att in attendances:
-                    num_classes = att.get('number_of_classes', 1)
+                    has_aula_num = att.get('aula_numero') is not None
+                    num_classes = 1 if has_aula_num else att.get('number_of_classes', 1)
                     for record in att.get('records', []):
                         if record['student_id'] == student['id']:
                             if record['status'] == 'P':

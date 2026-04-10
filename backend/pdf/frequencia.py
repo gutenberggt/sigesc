@@ -223,7 +223,9 @@ def generate_relatorio_frequencia_bimestre_pdf(
     
     for day_str in attendance_days:
         try:
-            d = datetime.strptime(day_str, '%Y-%m-%d')
+            # Suporta formato "2026-03-10#1" (data#aula_numero) e formato simples
+            date_part = day_str.split('#')[0] if '#' in day_str else day_str
+            d = datetime.strptime(date_part, '%Y-%m-%d')
             day_text = f"{d.day:02d}<br/>{d.month:02d}"
         except:
             day_text = day_str

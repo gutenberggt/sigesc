@@ -36,6 +36,7 @@ class AttendanceCreate(BaseModel):
     period: str = "regular"
     observations: Optional[str] = None
     number_of_classes: int = 1
+    aula_numero: Optional[int] = None  # Para anos finais: identifica a aula (1, 2, 3...)
 
 
 def setup_attendance_router(db, audit_service, sandbox_db=None):
@@ -261,11 +262,27 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         if period != "regular":
             query["period"] = period
         
-        attendance = await current_db.attendance.find_one(query, {"_id": 0})
+        # Buscar TODAS as sessões para esta data (anos finais podem ter múltiplas)
+        all_sessions = await current_db.attendance.find(query, {"_id": 0}).sort("aula_numero", 1).to_list(100)
+        
+        # Para compatibilidade: pegar a primeira sessão como "attendance" principal
+        attendance = all_sessions[0] if all_sessions else None
         
         records_map = {}
         if attendance and attendance.get('records'):
             records_map = {r['student_id']: r['status'] for r in attendance['records']}
+        
+        # Montar sessões para anos finais
+        sessions = []
+        for sess in all_sessions:
+            sess_records = {r['student_id']: r['status'] for r in sess.get('records', [])}
+            sessions.append({
+                "id": sess.get('id'),
+                "aula_numero": sess.get('aula_numero', 1),
+                "number_of_classes": sess.get('number_of_classes', 1),
+                "observations": sess.get('observations'),
+                "records": sess_records
+            })
         
         return {
             "class_id": class_id,
@@ -277,6 +294,8 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             "attendance_id": attendance.get('id') if attendance else None,
             "observations": attendance.get('observations') if attendance else None,
             "number_of_classes": attendance.get('number_of_classes', 1) if attendance else 1,
+            "total_sessions": len(all_sessions),
+            "sessions": sessions,
             "students": [
                 {
                     "id": s['id'],
@@ -300,26 +319,39 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor', 'coordenador', 'auxiliar_secretaria'])(request)
         current_db = get_db_for_user(current_user)
         
+        # Detectar se é anos finais para usar aula_numero
+        turma = await current_db.classes.find_one({"id": attendance.class_id}, {"_id": 0})
+        education_level = turma.get('education_level', '') if turma else ''
+        is_anos_finais = education_level in ['fundamental_anos_finais', 'eja_final']
+        
         query = {"class_id": attendance.class_id, "date": attendance.date}
         if attendance.course_id:
             query["course_id"] = attendance.course_id
         if attendance.period != "regular":
             query["period"] = attendance.period
         
+        # Para anos finais: cada aula é um registro separado (usa aula_numero na query)
+        if is_anos_finais and attendance.aula_numero is not None:
+            query["aula_numero"] = attendance.aula_numero
+        
         existing = await current_db.attendance.find_one(query)
         
         records_data = [{"student_id": r.student_id, "status": r.status} for r in attendance.records]
         
         if existing:
+            update_data = {
+                "records": records_data,
+                "observations": attendance.observations,
+                "number_of_classes": 1 if is_anos_finais else attendance.number_of_classes,
+                "updated_by": current_user['id'],
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+            if is_anos_finais and attendance.aula_numero is not None:
+                update_data["aula_numero"] = attendance.aula_numero
+            
             await current_db.attendance.update_one(
                 {"id": existing['id']},
-                {"$set": {
-                    "records": records_data,
-                    "observations": attendance.observations,
-                    "number_of_classes": attendance.number_of_classes,
-                    "updated_by": current_user['id'],
-                    "updated_at": datetime.now(timezone.utc).isoformat()
-                }}
+                {"$set": update_data}
             )
             
             class_info = await current_db.classes.find_one({"id": attendance.class_id}, {"_id": 0, "name": 1, "school_id": 1})
@@ -350,11 +382,23 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 "attendance_type": attendance_type,
                 "records": records_data,
                 "observations": attendance.observations,
-                "number_of_classes": attendance.number_of_classes,
+                "number_of_classes": 1 if is_anos_finais else attendance.number_of_classes,
                 "academic_year": turma.get('academic_year', datetime.now().year) if turma else datetime.now().year,
                 "created_by": current_user['id'],
                 "created_at": datetime.now(timezone.utc).isoformat()
             }
+            
+            # Para anos finais: definir aula_numero automaticamente
+            if is_anos_finais:
+                if attendance.aula_numero is not None:
+                    new_attendance["aula_numero"] = attendance.aula_numero
+                else:
+                    # Auto-incrementar: contar quantas aulas já existem nesse dia/componente
+                    count_query = {"class_id": attendance.class_id, "date": attendance.date}
+                    if attendance.course_id:
+                        count_query["course_id"] = attendance.course_id
+                    existing_count = await current_db.attendance.count_documents(count_query)
+                    new_attendance["aula_numero"] = existing_count + 1
             
             await current_db.attendance.insert_one(new_attendance)
             
@@ -563,7 +607,10 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         total_aulas_registradas = 0
         for att in attendances:
             att_date = att.get('date', '')[:10]
-            num_classes = att.get('number_of_classes', 1)
+            # Cada registro = 1 aula (para anos finais, cada sessão é um registro separado)
+            # Para anos iniciais com number_of_classes > 1, mantém a multiplicação
+            has_aula_numero = att.get('aula_numero') is not None
+            num_classes = 1 if has_aula_numero else att.get('number_of_classes', 1)
             total_aulas_registradas += num_classes
             if att_date:
                 attendance_dates.add(att_date)
@@ -788,10 +835,14 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         attendances = await current_db.attendance.find(att_query, {"_id": 0}).to_list(5000)
 
         if is_anos_finais:
-            # Para anos finais: contar AULAS (soma de number_of_classes)
+            # Para anos finais: cada registro com aula_numero conta como 1 aula
+            # Registros legados sem aula_numero usam number_of_classes
             aulas_registradas = 0
             for att in attendances:
-                aulas_registradas += att.get('number_of_classes', 1)
+                if att.get('aula_numero') is not None:
+                    aulas_registradas += 1  # Cada registro = 1 aula
+                else:
+                    aulas_registradas += att.get('number_of_classes', 1)  # Compatibilidade legado
 
             # Calcular aulas previstas: usar carga horária do componente (workload)
             # Fonte primária: workload do curso (total anual de hora-aula)

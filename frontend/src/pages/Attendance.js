@@ -126,8 +126,12 @@ export const Attendance = () => {
     return false;
   })();
   
-  // Número de aulas (para anos finais e EJA)
+  // Número de aulas (para anos finais e EJA) - modelo legado
   const [numberOfClasses, setNumberOfClasses] = useState(1);
+  
+  // Sessões de aula (modelo novo - anos finais)
+  const [sessions, setSessions] = useState([]);
+  const [activeSession, setActiveSession] = useState(1); // aula_numero ativo
   
   // Resumo de frequência (previstos/registrados/restantes)
   const [attendanceSummary, setAttendanceSummary] = useState(null);
@@ -370,7 +374,27 @@ export const Attendance = () => {
         
         setAttendanceData(data);
         
-        // Restaura número de aulas do registro existente
+        // Carregar sessões (modelo novo - anos finais)
+        if (data?.sessions && data.sessions.length > 0) {
+          setSessions(data.sessions);
+          // Se não há sessão ativa, ir para a primeira
+          if (!data.sessions.find(s => s.aula_numero === activeSession)) {
+            setActiveSession(data.sessions[0].aula_numero);
+          }
+          // Aplicar status da sessão ativa nos students
+          const currentSession = data.sessions.find(s => s.aula_numero === activeSession) || data.sessions[0];
+          if (currentSession && data.students) {
+            const updatedStudents = data.students.map(s => ({
+              ...s,
+              status: currentSession.records[s.id] || ''
+            }));
+            setAttendanceData(prev => ({ ...prev, students: updatedStudents }));
+          }
+        } else {
+          setSessions([]);
+        }
+        
+        // Restaura número de aulas do registro existente (modelo legado)
         if (data?.number_of_classes && data.number_of_classes > 1) {
           setNumberOfClasses(data.number_of_classes);
         }
@@ -547,6 +571,12 @@ export const Attendance = () => {
         number_of_classes: isMultiAula ? numberOfClasses : 1,
         records
       };
+      
+      // Para anos finais com modelo de sessões: incluir aula_numero
+      if (isMultiAula && sessions.length > 0) {
+        attendancePayload.aula_numero = activeSession;
+        attendancePayload.number_of_classes = 1; // Cada sessão = 1 aula
+      }
       
       if (isOnline) {
         // Online: salva diretamente na API
@@ -991,20 +1021,81 @@ export const Attendance = () => {
                     </>
                   )}
                   
-                  {/* Seletor de Número de Aulas (apenas para Anos Finais e EJA Final) */}
-                  {isMultiAula && (
+                  {/* Tabs de Sessão (Anos Finais - cada aula separada) */}
+                  {isMultiAula && attendanceData && (
                     <div className="flex items-center gap-2 ml-auto bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
-                      <label className="text-sm font-medium text-blue-700 whitespace-nowrap">N° de Aulas:</label>
-                      <select
-                        value={numberOfClasses}
-                        onChange={(e) => setNumberOfClasses(parseInt(e.target.value))}
-                        className="px-2 py-1 border border-blue-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white"
-                        data-testid="numero-aulas-select"
-                      >
-                        {[1,2,3,4,5,6].map(n => (
-                          <option key={n} value={n}>{n} aula{n > 1 ? 's' : ''}</option>
-                        ))}
-                      </select>
+                      {sessions.length > 0 ? (
+                        <>
+                          {sessions.map(s => (
+                            <button
+                              key={s.aula_numero}
+                              onClick={() => {
+                                setActiveSession(s.aula_numero);
+                                // Aplicar status da sessão selecionada
+                                const updatedStudents = attendanceData.students.map(st => ({
+                                  ...st,
+                                  status: s.records[st.id] || ''
+                                }));
+                                setAttendanceData(prev => ({ ...prev, students: updatedStudents }));
+                                setHasChanges(false);
+                              }}
+                              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                                activeSession === s.aula_numero
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white text-blue-700 hover:bg-blue-100'
+                              }`}
+                              data-testid={`session-tab-${s.aula_numero}`}
+                            >
+                              Aula {s.aula_numero}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => {
+                              const newNum = sessions.length > 0 
+                                ? Math.max(...sessions.map(s => s.aula_numero)) + 1 
+                                : 1;
+                              setActiveSession(newNum);
+                              setSessions(prev => [...prev, { aula_numero: newNum, records: {} }]);
+                              // Limpar status dos alunos para nova sessão
+                              const cleanStudents = attendanceData.students.map(st => ({
+                                ...st, status: ''
+                              }));
+                              setAttendanceData(prev => ({ ...prev, students: cleanStudents }));
+                              setHasChanges(false);
+                            }}
+                            className="px-3 py-1 rounded text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                            data-testid="add-session-btn"
+                          >
+                            + Nova Aula
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-sm font-medium text-blue-700">Aula 1</span>
+                          <button
+                            onClick={async () => {
+                              // Salvar aula 1 primeiro, depois criar aula 2
+                              if (hasChanges) {
+                                showAlertMessage('error', 'Salve a Aula 1 antes de adicionar outra');
+                                return;
+                              }
+                              setActiveSession(2);
+                              setSessions([
+                                { aula_numero: 1, records: Object.fromEntries(attendanceData.students.map(s => [s.id, s.status])) },
+                                { aula_numero: 2, records: {} }
+                              ]);
+                              const cleanStudents = attendanceData.students.map(st => ({
+                                ...st, status: ''
+                              }));
+                              setAttendanceData(prev => ({ ...prev, students: cleanStudents }));
+                            }}
+                            className="px-3 py-1 rounded text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                            data-testid="add-session-btn-first"
+                          >
+                            + Nova Aula
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1021,6 +1112,11 @@ export const Attendance = () => {
                         <span className="font-medium">{attendanceData.class_name}</span>
                         <span className="text-gray-500 ml-2">• {formatDate(attendanceData.date)}</span>
                         <span className="text-gray-500 ml-2">• {attendanceData.students.length} alunos</span>
+                        {isMultiAula && sessions.length > 0 && (
+                          <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                            Aula {activeSession}
+                          </span>
+                        )}
                       </div>
                       <div className="flex gap-4 text-sm">
                         <span className="flex items-center gap-1">
