@@ -126,9 +126,9 @@ export const Attendance = () => {
     return false;
   })();
   
-  // Sessões de aula (modelo novo - anos finais)
-  const [sessions, setSessions] = useState([]);
-  const [activeSession, setActiveSession] = useState(1); // aula_numero ativo
+  // Número de aulas e status por aula (anos finais)
+  const [numberOfAulas, setNumberOfAulas] = useState(1);
+  const [aulaStatuses, setAulaStatuses] = useState({}); // { studentId: { 1: 'P', 2: 'F', ... } }
   
   // Resumo de frequência (previstos/registrados/restantes)
   const [attendanceSummary, setAttendanceSummary] = useState(null);
@@ -371,24 +371,24 @@ export const Attendance = () => {
         
         setAttendanceData(data);
         
-        // Carregar sessões (modelo novo - anos finais)
+        // Popular aulaStatuses a partir das sessões retornadas pela API
         if (data?.sessions && data.sessions.length > 0) {
-          setSessions(data.sessions);
-          // Se não há sessão ativa, ir para a primeira
-          if (!data.sessions.find(s => s.aula_numero === activeSession)) {
-            setActiveSession(data.sessions[0].aula_numero);
+          const maxAula = Math.max(...data.sessions.map(s => s.aula_numero));
+          setNumberOfAulas(maxAula);
+          // Montar mapa: { studentId: { 1: 'P', 2: 'F', ... } }
+          const statusMap = {};
+          if (data.students) {
+            data.students.forEach(st => { statusMap[st.id] = {}; });
           }
-          // Aplicar status da sessão ativa nos students
-          const currentSession = data.sessions.find(s => s.aula_numero === activeSession) || data.sessions[0];
-          if (currentSession && data.students) {
-            const updatedStudents = data.students.map(s => ({
-              ...s,
-              status: currentSession.records[s.id] || ''
-            }));
-            setAttendanceData(prev => ({ ...prev, students: updatedStudents }));
-          }
+          data.sessions.forEach(sess => {
+            Object.entries(sess.records || {}).forEach(([sid, st]) => {
+              if (!statusMap[sid]) statusMap[sid] = {};
+              statusMap[sid][sess.aula_numero] = st;
+            });
+          });
+          setAulaStatuses(statusMap);
         } else {
-          setSessions([]);
+          setAulaStatuses({});
         }
         // Atualiza cache local
         if (data) {
@@ -483,8 +483,8 @@ export const Attendance = () => {
     return medicalCertificates[studentId];
   };
   
-  // Atualiza status de um aluno na sessão ativa
-  const updateStudentStatus = (studentId, status) => {
+  // Atualiza status de um aluno (aulaNum para multi-aula, null para diário)
+  const updateStudentStatus = (studentId, status, aulaNum = null) => {
     if (!attendanceData) return;
     
     // Bloqueia se aluno tem atestado médico
@@ -493,24 +493,45 @@ export const Attendance = () => {
       return;
     }
     
-    const newStudents = attendanceData.students.map(s => {
-      if (s.id !== studentId) return s;
-      return { ...s, status };
-    });
-    
-    setAttendanceData({ ...attendanceData, students: newStudents });
+    if (aulaNum !== null) {
+      // Multi-aula: atualizar aulaStatuses
+      setAulaStatuses(prev => ({
+        ...prev,
+        [studentId]: { ...(prev[studentId] || {}), [aulaNum]: status }
+      }));
+    } else {
+      // Diário: atualizar student.status
+      const newStudents = attendanceData.students.map(s => {
+        if (s.id !== studentId) return s;
+        return { ...s, status };
+      });
+      setAttendanceData({ ...attendanceData, students: newStudents });
+    }
     setHasChanges(true);
   };
   
-  // Marca todos com o mesmo status na sessão ativa (exceto alunos com atestado)
+  // Marca todos com o mesmo status (exceto alunos com atestado)
   const markAll = (status) => {
     if (!attendanceData) return;
     
-    const newStudents = attendanceData.students.map(s => {
-      if (hasActiveCertificate(s.id)) return s;
-      return { ...s, status };
-    });
-    setAttendanceData({ ...attendanceData, students: newStudents });
+    if (isMultiAula) {
+      // Multi-aula: marcar todas as aulas de todos os alunos
+      const newStatuses = { ...aulaStatuses };
+      attendanceData.students.forEach(s => {
+        if (hasActiveCertificate(s.id)) return;
+        if (!newStatuses[s.id]) newStatuses[s.id] = {};
+        for (let a = 1; a <= numberOfAulas; a++) {
+          newStatuses[s.id][a] = status;
+        }
+      });
+      setAulaStatuses(newStatuses);
+    } else {
+      const newStudents = attendanceData.students.map(s => {
+        if (hasActiveCertificate(s.id)) return s;
+        return { ...s, status };
+      });
+      setAttendanceData({ ...attendanceData, students: newStudents });
+    }
     setHasChanges(true);
   };
   
@@ -523,70 +544,108 @@ export const Attendance = () => {
       const turma = classes.find(c => c.id === selectedClass);
       const attendanceType = getAttendanceType(turma?.education_level, selectedPeriod);
       
-      const records = attendanceData.students
-        .filter(s => s.status)
-        .map(s => ({
-          student_id: s.id,
-          status: s.status
-        }));
-      
-      if (records.length === 0) {
-        showAlertMessage('error', 'Registre a frequência de pelo menos um aluno');
-        setSaving(false);
-        return;
-      }
-      
-      const attendancePayload = {
-        class_id: selectedClass,
-        date: selectedDate,
-        academic_year: academicYear,
-        attendance_type: attendanceType,
-        course_id: attendanceType === 'by_component' ? selectedCourse : null,
-        period: selectedPeriod,
-        number_of_classes: 1,
-        records
-      };
-      
-      // Para anos finais: incluir aula_numero da sessão ativa
       if (isMultiAula) {
-        attendancePayload.aula_numero = activeSession;
-      }
-      
-      if (isOnline) {
-        // Online: salva diretamente na API
-        await attendanceAPI.save(attendancePayload);
-        showAlertMessage('success', 'Frequência salva com sucesso!');
-        // Atualizar resumo após salvar
+        // Multi-aula: salvar cada aula separadamente
+        let savedCount = 0;
+        for (let aulaNum = 1; aulaNum <= numberOfAulas; aulaNum++) {
+          const records = attendanceData.students
+            .filter(s => aulaStatuses[s.id]?.[aulaNum])
+            .map(s => ({
+              student_id: s.id,
+              status: aulaStatuses[s.id][aulaNum]
+            }));
+          
+          if (records.length === 0) continue;
+          
+          const payload = {
+            class_id: selectedClass,
+            date: selectedDate,
+            academic_year: academicYear,
+            attendance_type: attendanceType,
+            course_id: attendanceType === 'by_component' ? selectedCourse : null,
+            period: selectedPeriod,
+            number_of_classes: 1,
+            aula_numero: aulaNum,
+            records
+          };
+          
+          if (isOnline) {
+            await attendanceAPI.save(payload);
+            savedCount++;
+          }
+        }
+        
+        if (savedCount === 0) {
+          showAlertMessage('error', 'Registre a frequência de pelo menos um aluno em pelo menos uma aula');
+          setSaving(false);
+          return;
+        }
+        
+        showAlertMessage('success', `Frequência salva com sucesso! (${savedCount} aula${savedCount > 1 ? 's' : ''})`);
+        // Atualizar resumo
         try {
-          const courseForSummary = isMultiAula ? selectedCourse : null;
-          const summary = await attendanceAPI.getAttendanceSummary(selectedClass, academicYear, courseForSummary);
+          const summary = await attendanceAPI.getAttendanceSummary(selectedClass, academicYear, selectedCourse);
           setAttendanceSummary(summary);
         } catch {}
       } else {
-        // Offline: salva no IndexedDB e adiciona à fila de sincronização
-        const now = new Date().toISOString();
-        const dataWithMeta = {
-          ...attendancePayload,
-          updated_at: now,
-          syncStatus: SYNC_STATUS.PENDING
-        };
+        // Diário: salvar uma vez
+        const records = attendanceData.students
+          .filter(s => s.status)
+          .map(s => ({
+            student_id: s.id,
+            status: s.status
+          }));
         
-        // Verifica se já existe registro para esta turma/data
-        const existingLocal = await db.attendance
-          .where('[class_id+date]')
-          .equals([selectedClass, selectedDate])
-          .first();
-        
-        if (existingLocal) {
-          await db.attendance.update(existingLocal.localId, dataWithMeta);
-          await addToSyncQueue('attendance', SYNC_OPERATIONS.UPDATE, existingLocal.id || `temp_${Date.now()}`, dataWithMeta);
-        } else {
-          const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          await db.attendance.add({ ...dataWithMeta, id: tempId });
-          await addToSyncQueue('attendance', SYNC_OPERATIONS.CREATE, tempId, dataWithMeta);
+        if (records.length === 0) {
+          showAlertMessage('error', 'Registre a frequência de pelo menos um aluno');
+          setSaving(false);
+          return;
         }
         
-        showAlertMessage('success', 'Frequência salva localmente! Será sincronizada quando houver conexão.');
+        const attendancePayload = {
+          class_id: selectedClass,
+          date: selectedDate,
+          academic_year: academicYear,
+          attendance_type: attendanceType,
+          course_id: attendanceType === 'by_component' ? selectedCourse : null,
+          period: selectedPeriod,
+          number_of_classes: 1,
+          records
+        };
+        
+        if (isOnline) {
+          await attendanceAPI.save(attendancePayload);
+          showAlertMessage('success', 'Frequência salva com sucesso!');
+          try {
+            const courseForSummary = isMultiAula ? selectedCourse : null;
+            const summary = await attendanceAPI.getAttendanceSummary(selectedClass, academicYear, courseForSummary);
+            setAttendanceSummary(summary);
+          } catch {}
+        } else {
+          // Offline
+          const now = new Date().toISOString();
+          const dataWithMeta = {
+            ...attendancePayload,
+            updated_at: now,
+            syncStatus: SYNC_STATUS.PENDING
+          };
+          
+          const existingLocal = await db.attendance
+            .where('[class_id+date]')
+            .equals([selectedClass, selectedDate])
+            .first();
+          
+          if (existingLocal) {
+            await db.attendance.update(existingLocal.localId, dataWithMeta);
+            await addToSyncQueue('attendance', SYNC_OPERATIONS.UPDATE, existingLocal.id || `temp_${Date.now()}`, dataWithMeta);
+          } else {
+            const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            await db.attendance.add({ ...dataWithMeta, id: tempId });
+            await addToSyncQueue('attendance', SYNC_OPERATIONS.CREATE, tempId, dataWithMeta);
+          }
+          
+          showAlertMessage('success', 'Frequência salva localmente! Será sincronizada quando houver conexão.');
+        }
       }
       
       setHasChanges(false);
@@ -995,81 +1054,24 @@ export const Attendance = () => {
                     </>
                   )}
                   
-                  {/* Tabs de Sessão (Anos Finais - cada aula separada) */}
+                  {/* Seletor Nº de Aulas (Anos Finais - múltiplas aulas por dia) */}
                   {isMultiAula && attendanceData && (
                     <div className="flex items-center gap-2 ml-auto bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
-                      {sessions.length > 0 ? (
-                        <>
-                          {sessions.map(s => (
-                            <button
-                              key={s.aula_numero}
-                              onClick={() => {
-                                setActiveSession(s.aula_numero);
-                                // Aplicar status da sessão selecionada
-                                const updatedStudents = attendanceData.students.map(st => ({
-                                  ...st,
-                                  status: s.records[st.id] || ''
-                                }));
-                                setAttendanceData(prev => ({ ...prev, students: updatedStudents }));
-                                setHasChanges(false);
-                              }}
-                              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                                activeSession === s.aula_numero
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-white text-blue-700 hover:bg-blue-100'
-                              }`}
-                              data-testid={`session-tab-${s.aula_numero}`}
-                            >
-                              Aula {s.aula_numero}
-                            </button>
-                          ))}
-                          <button
-                            onClick={() => {
-                              const newNum = sessions.length > 0 
-                                ? Math.max(...sessions.map(s => s.aula_numero)) + 1 
-                                : 1;
-                              setActiveSession(newNum);
-                              setSessions(prev => [...prev, { aula_numero: newNum, records: {} }]);
-                              // Limpar status dos alunos para nova sessão
-                              const cleanStudents = attendanceData.students.map(st => ({
-                                ...st, status: ''
-                              }));
-                              setAttendanceData(prev => ({ ...prev, students: cleanStudents }));
-                              setHasChanges(false);
-                            }}
-                            className="px-3 py-1 rounded text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
-                            data-testid="add-session-btn"
-                          >
-                            + Nova Aula
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-sm font-medium text-blue-700">Aula 1</span>
-                          <button
-                            onClick={async () => {
-                              // Salvar aula 1 primeiro, depois criar aula 2
-                              if (hasChanges) {
-                                showAlertMessage('error', 'Salve a Aula 1 antes de adicionar outra');
-                                return;
-                              }
-                              setActiveSession(2);
-                              setSessions([
-                                { aula_numero: 1, records: Object.fromEntries(attendanceData.students.map(s => [s.id, s.status])) },
-                                { aula_numero: 2, records: {} }
-                              ]);
-                              const cleanStudents = attendanceData.students.map(st => ({
-                                ...st, status: ''
-                              }));
-                              setAttendanceData(prev => ({ ...prev, students: cleanStudents }));
-                            }}
-                            className="px-3 py-1 rounded text-sm font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
-                            data-testid="add-session-btn-first"
-                          >
-                            + Nova Aula
-                          </button>
-                        </>
-                      )}
+                      <label className="text-sm font-medium text-blue-700 whitespace-nowrap">Nº de Aulas:</label>
+                      <select
+                        value={numberOfAulas}
+                        onChange={(e) => {
+                          const newNum = parseInt(e.target.value);
+                          setNumberOfAulas(newNum);
+                          setHasChanges(true);
+                        }}
+                        className="px-2 py-1 border border-blue-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500"
+                        data-testid="num-aulas-select"
+                      >
+                        {[1,2,3,4,5,6].map(n => (
+                          <option key={n} value={n}>{n} {n === 1 ? 'aula' : 'aulas'}</option>
+                        ))}
+                      </select>
                     </div>
                   )}
                 </div>
@@ -1086,11 +1088,6 @@ export const Attendance = () => {
                         <span className="font-medium">{attendanceData.class_name}</span>
                         <span className="text-gray-500 ml-2">• {formatDate(attendanceData.date)}</span>
                         <span className="text-gray-500 ml-2">• {attendanceData.students.length} alunos</span>
-                        {isMultiAula && sessions.length > 0 && (
-                          <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                            Aula {activeSession}
-                          </span>
-                        )}
                       </div>
                       <div className="flex gap-4 text-sm">
                         <span className="flex items-center gap-1">
@@ -1112,7 +1109,15 @@ export const Attendance = () => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Frequência</th>
+                          {isMultiAula && numberOfAulas > 1 ? (
+                            Array.from({ length: numberOfAulas }, (_, i) => (
+                              <th key={i} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                                {i + 1}ª Aula
+                              </th>
+                            ))
+                          ) : (
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Frequência</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -1160,55 +1165,102 @@ export const Attendance = () => {
                                   )}
                                 </div>
                               </td>
-                              <td className="px-4 py-3">
-                                {hasCertificate ? (
-                                  <div className="flex justify-center">
-                                    <div className="px-4 py-2 bg-red-100 text-red-700 rounded-lg font-bold text-center" title={`${certInfo?.reason}: ${certInfo?.period}`}>
-                                      <div className="flex items-center gap-1">
-                                        <Stethoscope size={16} />
-                                        <span>AM</span>
-                                      </div>
-                                      <span className="text-xs font-normal">Atestado Médico</span>
-                                    </div>
-                                  </div>
-                                ) : isAnyBlock ? (
-                                  <div className="flex justify-center">
-                                    <div className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-center">
-                                      {isBeforeEnrollment ? (
-                                        <>
-                                          <span className="text-xs block">A partir de</span>
-                                          <span className="text-sm font-medium">{enrollDateDisplay}</span>
-                                        </>
-                                      ) : isBlockedByAction ? (
-                                        <span className="text-sm">{student.action_label}</span>
+                              {isMultiAula && numberOfAulas > 1 ? (
+                                Array.from({ length: numberOfAulas }, (_, aulaIdx) => {
+                                  const aulaNum = aulaIdx + 1;
+                                  const aulaStatus = aulaStatuses[student.id]?.[aulaNum] || '';
+                                  return (
+                                    <td key={aulaIdx} className="px-2 py-3">
+                                      {hasCertificate ? (
+                                        <div className="flex justify-center">
+                                          <div className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">AM</div>
+                                        </div>
+                                      ) : isAnyBlock ? (
+                                        <div className="flex justify-center">
+                                          <div className="px-2 py-1 bg-gray-200 text-gray-500 rounded text-xs text-center leading-tight">
+                                            {isBeforeEnrollment ? (
+                                              <><div>A partir de</div><div>{enrollDateDisplay}</div></>
+                                            ) : isBlockedByAction ? (
+                                              student.action_label
+                                            ) : '-'}
+                                          </div>
+                                        </div>
                                       ) : (
-                                        <span className="text-sm">Edição bloqueada</span>
+                                        <div className="flex justify-center gap-1">
+                                          {['P', 'F', 'J'].map(status => (
+                                            <button
+                                              key={status}
+                                              onClick={() => canEdit && dateCheck?.can_record && updateStudentStatus(student.id, status, aulaNum)}
+                                              disabled={!canEdit || !dateCheck?.can_record}
+                                              className={`w-8 h-8 rounded-lg font-bold text-xs transition-all
+                                                ${aulaStatus === status 
+                                                  ? status === 'P' ? 'bg-green-500 text-white ring-2 ring-green-300' 
+                                                    : status === 'F' ? 'bg-red-500 text-white ring-2 ring-red-300'
+                                                    : 'bg-yellow-500 text-white ring-2 ring-yellow-300'
+                                                  : 'bg-gray-300 text-gray-500 hover:bg-gray-400'
+                                                }
+                                                ${(!canEdit || !dateCheck?.can_record) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
+                                              `}
+                                            >
+                                              {status}
+                                            </button>
+                                          ))}
+                                        </div>
                                       )}
+                                    </td>
+                                  );
+                                })
+                              ) : (
+                                <td className="px-4 py-3">
+                                  {hasCertificate ? (
+                                    <div className="flex justify-center">
+                                      <div className="px-4 py-2 bg-red-100 text-red-700 rounded-lg font-bold text-center" title={`${certInfo?.reason}: ${certInfo?.period}`}>
+                                        <div className="flex items-center gap-1">
+                                          <Stethoscope size={16} />
+                                          <span>AM</span>
+                                        </div>
+                                        <span className="text-xs font-normal">Atestado Médico</span>
+                                      </div>
                                     </div>
-                                  </div>
-                                ) : (
-                                  <div className="flex justify-center gap-2">
-                                    {['P', 'F', 'J'].map(status => (
-                                      <button
-                                        key={status}
-                                        onClick={() => canEdit && dateCheck?.can_record && updateStudentStatus(student.id, status)}
-                                        disabled={!canEdit || !dateCheck?.can_record}
-                                        className={`w-10 h-10 rounded-lg font-bold transition-all
-                                          ${student.status === status 
-                                            ? status === 'P' ? 'bg-green-500 text-white ring-2 ring-green-300' 
-                                              : status === 'F' ? 'bg-red-500 text-white ring-2 ring-red-300'
-                                              : 'bg-yellow-500 text-white ring-2 ring-yellow-300'
-                                            : 'bg-gray-300 text-gray-500 hover:bg-gray-400'
-                                          }
-                                          ${(!canEdit || !dateCheck?.can_record) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-                                        `}
-                                      >
-                                        {status}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                              </td>
+                                  ) : isAnyBlock ? (
+                                    <div className="flex justify-center">
+                                      <div className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-center">
+                                        {isBeforeEnrollment ? (
+                                          <>
+                                            <span className="text-xs block">A partir de</span>
+                                            <span className="text-sm font-medium">{enrollDateDisplay}</span>
+                                          </>
+                                        ) : isBlockedByAction ? (
+                                          <span className="text-sm">{student.action_label}</span>
+                                        ) : (
+                                          <span className="text-sm">Edição bloqueada</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex justify-center gap-2">
+                                      {['P', 'F', 'J'].map(status => (
+                                        <button
+                                          key={status}
+                                          onClick={() => canEdit && dateCheck?.can_record && updateStudentStatus(student.id, status)}
+                                          disabled={!canEdit || !dateCheck?.can_record}
+                                          className={`w-10 h-10 rounded-lg font-bold transition-all
+                                            ${student.status === status 
+                                              ? status === 'P' ? 'bg-green-500 text-white ring-2 ring-green-300' 
+                                                : status === 'F' ? 'bg-red-500 text-white ring-2 ring-red-300'
+                                                : 'bg-yellow-500 text-white ring-2 ring-yellow-300'
+                                              : 'bg-gray-300 text-gray-500 hover:bg-gray-400'
+                                            }
+                                            ${(!canEdit || !dateCheck?.can_record) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
+                                          `}
+                                        >
+                                          {status}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </td>
+                              )}
                             </tr>
                           );
                         })}
