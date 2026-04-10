@@ -201,6 +201,15 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Removido estado legado `numberOfClasses` — substituído pelo array `sessions` + `activeSession`
   - Retrocompatibilidade: turmas de Anos Iniciais funcionam normalmente (sem abas, frequência diária)
   - Testado: 17/17 cenários passaram (testing agent iteration_48)
+- UI Frequência Anos Finais - Colunas Múltiplas (10/04/2026):
+  - Substituídas abas de sessão por dropdown "Nº de Aulas:" (1 a 6)
+  - Número selecionado gera colunas na tabela (1ª AULA, 2ª AULA, 3ª AULA...) com P/F/J por aluno
+  - Cada aula é salva como registro independente com `aula_numero` no backend
+  - "Todos Presentes" / "Todos Ausentes" marca TODAS as colunas de todos os alunos
+  - Estado `aulaStatuses` gerencia status por aluno por aula: `{ studentId: { 1: 'P', 2: 'F' } }`
+  - Ao carregar: popula `aulaStatuses` e `numberOfAulas` a partir das `sessions` retornadas pela API
+  - Retrocompatibilidade: turmas Anos Iniciais = coluna única "Frequência" sem dropdown
+  - Testado: 12/12 cenários passaram (testing agent iteration_49)
 
 ## Tarefas Pendentes
 
