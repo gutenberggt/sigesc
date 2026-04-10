@@ -248,6 +248,11 @@ const DiarioAEE = () => {
       }
       setTurmasAEE(aee);
       
+      // Para professor: selecionar primeira turma automaticamente
+      if (isProfessor && aee.length > 0 && !selectedTurma) {
+        setSelectedTurma(aee[0].id);
+      }
+      
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
       showAlert('error', 'Erro ao carregar dados do AEE');
@@ -1496,7 +1501,7 @@ const DiarioAEE = () => {
               className="border rounded-lg px-3 py-2 min-w-[200px]"
               data-testid="filter-turma-aee"
             >
-              <option value="">Todas as turmas</option>
+              {!isProfessor && <option value="">Todas as turmas</option>}
               {turmasAEE.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
