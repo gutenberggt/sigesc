@@ -126,9 +126,6 @@ export const Attendance = () => {
     return false;
   })();
   
-  // Número de aulas (para anos finais e EJA) - modelo legado
-  const [numberOfClasses, setNumberOfClasses] = useState(1);
-  
   // Sessões de aula (modelo novo - anos finais)
   const [sessions, setSessions] = useState([]);
   const [activeSession, setActiveSession] = useState(1); // aula_numero ativo
@@ -393,11 +390,6 @@ export const Attendance = () => {
         } else {
           setSessions([]);
         }
-        
-        // Restaura número de aulas do registro existente (modelo legado)
-        if (data?.number_of_classes && data.number_of_classes > 1) {
-          setNumberOfClasses(data.number_of_classes);
-        }
         // Atualiza cache local
         if (data) {
           const existingLocal = await db.attendance
@@ -491,8 +483,8 @@ export const Attendance = () => {
     return medicalCertificates[studentId];
   };
   
-  // Atualiza status de um aluno (aulaIndex é opcional, usado em multi-aula)
-  const updateStudentStatus = (studentId, status, aulaIndex = null) => {
+  // Atualiza status de um aluno na sessão ativa
+  const updateStudentStatus = (studentId, status) => {
     if (!attendanceData) return;
     
     // Bloqueia se aluno tem atestado médico
@@ -503,15 +495,6 @@ export const Attendance = () => {
     
     const newStudents = attendanceData.students.map(s => {
       if (s.id !== studentId) return s;
-      
-      if (aulaIndex !== null && numberOfClasses > 1) {
-        // Multi-aula: atualizar status na posição específica
-        const currentStatuses = (s.status || '').split('|');
-        // Preencher posições vazias
-        while (currentStatuses.length < numberOfClasses) currentStatuses.push('');
-        currentStatuses[aulaIndex] = status;
-        return { ...s, status: currentStatuses.join('|') };
-      }
       return { ...s, status };
     });
     
@@ -519,20 +502,12 @@ export const Attendance = () => {
     setHasChanges(true);
   };
   
-  // Marca todos com o mesmo status (exceto alunos com atestado)
+  // Marca todos com o mesmo status na sessão ativa (exceto alunos com atestado)
   const markAll = (status) => {
     if (!attendanceData) return;
     
     const newStudents = attendanceData.students.map(s => {
-      // Não altera alunos com atestado médico
-      if (hasActiveCertificate(s.id)) {
-        return s;
-      }
-      if (numberOfClasses > 1) {
-        // Multi-aula: marcar todas as aulas com o mesmo status
-        const allStatuses = Array(numberOfClasses).fill(status).join('|');
-        return { ...s, status: allStatuses };
-      }
+      if (hasActiveCertificate(s.id)) return s;
       return { ...s, status };
     });
     setAttendanceData({ ...attendanceData, students: newStudents });
@@ -568,14 +543,13 @@ export const Attendance = () => {
         attendance_type: attendanceType,
         course_id: attendanceType === 'by_component' ? selectedCourse : null,
         period: selectedPeriod,
-        number_of_classes: isMultiAula ? numberOfClasses : 1,
+        number_of_classes: 1,
         records
       };
       
-      // Para anos finais com modelo de sessões: incluir aula_numero
-      if (isMultiAula && sessions.length > 0) {
+      // Para anos finais: incluir aula_numero da sessão ativa
+      if (isMultiAula) {
         attendancePayload.aula_numero = activeSession;
-        attendancePayload.number_of_classes = 1; // Cada sessão = 1 aula
       }
       
       if (isOnline) {
@@ -1138,15 +1112,7 @@ export const Attendance = () => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
-                          {isMultiAula && numberOfClasses > 1 ? (
-                            Array.from({ length: numberOfClasses }, (_, i) => (
-                              <th key={i} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                                {i + 1}ª Aula
-                              </th>
-                            ))
-                          ) : (
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Frequência</th>
-                          )}
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Frequência</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -1155,9 +1121,6 @@ export const Attendance = () => {
                           const certInfo = getCertificateInfo(student.id);
                           const isBlocked = isStudentBlockedForProfessor(student);
                           const blockedMessage = getBlockedMessage(student);
-                          const statusArray = isMultiAula && numberOfClasses > 1
-                            ? (student.status || '').split('|')
-                            : [];
                           
                           // Bloqueio por ação (transferido, desistente, etc.) - após a data da ação
                           const hasActionLabel = !!student.action_label;
@@ -1197,103 +1160,55 @@ export const Attendance = () => {
                                   )}
                                 </div>
                               </td>
-                              {isMultiAula && numberOfClasses > 1 ? (
-                                // Multi-aula: uma coluna por aula
-                                Array.from({ length: numberOfClasses }, (_, aulaIdx) => {
-                                  const aulaStatus = statusArray[aulaIdx] || '';
-                                  return (
-                                    <td key={aulaIdx} className="px-2 py-3">
-                                      {hasCertificate ? (
-                                        <div className="flex justify-center">
-                                          <div className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">AM</div>
-                                        </div>
-                                      ) : isAnyBlock ? (
-                                        <div className="flex justify-center">
-                                          <div className="px-2 py-1 bg-gray-200 text-gray-500 rounded text-xs text-center leading-tight">
-                                            {isBeforeEnrollment ? (
-                                              <><div>A partir de</div><div>{enrollDateDisplay}</div></>
-                                            ) : isBlockedByAction ? (
-                                              student.action_label
-                                            ) : '-'}
-                                          </div>
-                                        </div>
+                              <td className="px-4 py-3">
+                                {hasCertificate ? (
+                                  <div className="flex justify-center">
+                                    <div className="px-4 py-2 bg-red-100 text-red-700 rounded-lg font-bold text-center" title={`${certInfo?.reason}: ${certInfo?.period}`}>
+                                      <div className="flex items-center gap-1">
+                                        <Stethoscope size={16} />
+                                        <span>AM</span>
+                                      </div>
+                                      <span className="text-xs font-normal">Atestado Médico</span>
+                                    </div>
+                                  </div>
+                                ) : isAnyBlock ? (
+                                  <div className="flex justify-center">
+                                    <div className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-center">
+                                      {isBeforeEnrollment ? (
+                                        <>
+                                          <span className="text-xs block">A partir de</span>
+                                          <span className="text-sm font-medium">{enrollDateDisplay}</span>
+                                        </>
+                                      ) : isBlockedByAction ? (
+                                        <span className="text-sm">{student.action_label}</span>
                                       ) : (
-                                        <div className="flex justify-center gap-1">
-                                          {['P', 'F', 'J'].map(status => (
-                                            <button
-                                              key={status}
-                                              onClick={() => canEdit && dateCheck?.can_record && updateStudentStatus(student.id, status, aulaIdx)}
-                                              disabled={!canEdit || !dateCheck?.can_record}
-                                              className={`w-8 h-8 rounded-lg font-bold text-xs transition-all
-                                                ${aulaStatus === status 
-                                                  ? status === 'P' ? 'bg-green-500 text-white ring-2 ring-green-300' 
-                                                    : status === 'F' ? 'bg-red-500 text-white ring-2 ring-red-300'
-                                                    : 'bg-yellow-500 text-white ring-2 ring-yellow-300'
-                                                  : 'bg-gray-300 text-gray-500 hover:bg-gray-400'
-                                                }
-                                                ${(!canEdit || !dateCheck?.can_record) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-                                              `}
-                                            >
-                                              {status}
-                                            </button>
-                                          ))}
-                                        </div>
+                                        <span className="text-sm">Edição bloqueada</span>
                                       )}
-                                    </td>
-                                  );
-                                })
-                              ) : (
-                                // Modo padrão: uma coluna
-                                <td className="px-4 py-3">
-                                  {hasCertificate ? (
-                                    <div className="flex justify-center">
-                                      <div className="px-4 py-2 bg-red-100 text-red-700 rounded-lg font-bold text-center" title={`${certInfo?.reason}: ${certInfo?.period}`}>
-                                        <div className="flex items-center gap-1">
-                                          <Stethoscope size={16} />
-                                          <span>AM</span>
-                                        </div>
-                                        <span className="text-xs font-normal">Atestado Médico</span>
-                                      </div>
                                     </div>
-                                  ) : isAnyBlock ? (
-                                    <div className="flex justify-center">
-                                      <div className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-center">
-                                        {isBeforeEnrollment ? (
-                                          <>
-                                            <span className="text-xs block">A partir de</span>
-                                            <span className="text-sm font-medium">{enrollDateDisplay}</span>
-                                          </>
-                                        ) : isBlockedByAction ? (
-                                          <span className="text-sm">{student.action_label}</span>
-                                        ) : (
-                                          <span className="text-sm">Edição bloqueada</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="flex justify-center gap-2">
-                                      {['P', 'F', 'J'].map(status => (
-                                        <button
-                                          key={status}
-                                          onClick={() => canEdit && dateCheck?.can_record && updateStudentStatus(student.id, status)}
-                                          disabled={!canEdit || !dateCheck?.can_record}
-                                          className={`w-10 h-10 rounded-lg font-bold transition-all
-                                            ${student.status === status 
-                                              ? status === 'P' ? 'bg-green-500 text-white ring-2 ring-green-300' 
-                                                : status === 'F' ? 'bg-red-500 text-white ring-2 ring-red-300'
-                                                : 'bg-yellow-500 text-white ring-2 ring-yellow-300'
-                                              : 'bg-gray-300 text-gray-500 hover:bg-gray-400'
-                                            }
-                                            ${(!canEdit || !dateCheck?.can_record) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-                                          `}
-                                        >
-                                          {status}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </td>
-                              )}
+                                  </div>
+                                ) : (
+                                  <div className="flex justify-center gap-2">
+                                    {['P', 'F', 'J'].map(status => (
+                                      <button
+                                        key={status}
+                                        onClick={() => canEdit && dateCheck?.can_record && updateStudentStatus(student.id, status)}
+                                        disabled={!canEdit || !dateCheck?.can_record}
+                                        className={`w-10 h-10 rounded-lg font-bold transition-all
+                                          ${student.status === status 
+                                            ? status === 'P' ? 'bg-green-500 text-white ring-2 ring-green-300' 
+                                              : status === 'F' ? 'bg-red-500 text-white ring-2 ring-red-300'
+                                              : 'bg-yellow-500 text-white ring-2 ring-yellow-300'
+                                            : 'bg-gray-300 text-gray-500 hover:bg-gray-400'
+                                          }
+                                          ${(!canEdit || !dateCheck?.can_record) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
+                                        `}
+                                      >
+                                        {status}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
                             </tr>
                           );
                         })}
