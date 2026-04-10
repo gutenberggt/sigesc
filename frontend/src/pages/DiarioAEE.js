@@ -50,6 +50,8 @@ const DiarioAEE = () => {
   tokenRef.current = token;
   const navigate = useNavigate();
   
+  const isProfessor = user?.role === 'professor';
+
   // Permissão de edição - semed3 é somente leitura
   const canEdit = user?.role !== 'semed3';
   
@@ -61,6 +63,7 @@ const DiarioAEE = () => {
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedTurma, setSelectedTurma] = useState('');
   const [academicYear, setAcademicYear] = useState(new Date().getFullYear());
+  const [professorTurmaIds, setProfessorTurmaIds] = useState(null);
   
   // Dados
   const [estudantes, setEstudantes] = useState([]);
@@ -226,7 +229,23 @@ const DiarioAEE = () => {
       const turmasData = await turmasRes.json();
       const allTurmas = turmasData.items || turmasData || [];
       setTurmas(allTurmas);
-      const aee = allTurmas.filter(t => (t.atendimento_programa || '').toLowerCase() === 'aee');
+
+      // Para professor: buscar suas alocações e filtrar turmas AEE
+      let aee = allTurmas.filter(t => (t.atendimento_programa || '').toLowerCase() === 'aee');
+      if (isProfessor) {
+        try {
+          const profTurmasRes = await fetch(
+            `${API_URL}/api/professor/turmas`,
+            { headers: authHeader }
+          );
+          const profTurmas = await profTurmasRes.json();
+          const profIds = new Set((profTurmas || []).map(t => t.id));
+          setProfessorTurmaIds(profIds);
+          aee = aee.filter(t => profIds.has(t.id));
+        } catch (e) {
+          console.error('Erro ao buscar turmas do professor:', e);
+        }
+      }
       setTurmasAEE(aee);
       
     } catch (error) {
