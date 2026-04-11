@@ -268,9 +268,9 @@ def generate_learning_objects_pdf(
         table_data.append(empty_row)
     
     # Larguras das colunas
+    is_anos_iniciais = education_level == 'fundamental_anos_iniciais'
     if is_dias:
         # Anos Iniciais / Ed. Infantil: 4 colunas (sem AULAS)
-        # CONTEÚDO e PRÁTICAS reduzidas a 2/3; espaço liberado vai para COMPONENTE
         conteudo_original = page_width - 9.5*cm
         conteudo_w_full = conteudo_original * 0.75
         metodologia_w_full = 3*cm + conteudo_original * 0.25
@@ -280,6 +280,12 @@ def generate_learning_objects_pdf(
         # Espaço extra: 1/3 de cada coluna + coluna AULAS (1.5cm)
         extra = (conteudo_w_full - conteudo_w) + (metodologia_w_full - metodologia_w) + 1.5*cm
         componente_w = 3.5*cm + extra
+        
+        if is_anos_iniciais:
+            # Anos Iniciais: COMPONENTE reduzida a 2/3, o 1/3 vai para CONTEÚDO
+            reducao = componente_w * (1/3)
+            componente_w = componente_w * (2/3)
+            conteudo_w = conteudo_w + reducao
         
         col_widths = [1.5*cm, componente_w, conteudo_w, metodologia_w]
     else:
