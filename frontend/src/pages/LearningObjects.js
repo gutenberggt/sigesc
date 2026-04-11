@@ -258,9 +258,10 @@ export const LearningObjects = () => {
 
   // Curso(s) efetivamente selecionado(s) para carregamento
   const hasValidSelection = useMemo(() => {
+    if (isDiasLevel) return true; // Ed. Infantil / Anos Iniciais: turma basta
     if (isMultiSelectMode) return selectedCourses.length > 0;
     return !!selectedCourse;
-  }, [isMultiSelectMode, selectedCourses, selectedCourse]);
+  }, [isDiasLevel, isMultiSelectMode, selectedCourses, selectedCourse]);
 
   // Carrega registros quando filtros mudam
   useEffect(() => {
@@ -271,8 +272,16 @@ export const LearningObjects = () => {
 
   const loadRecords = async () => {
     try {
-      if (isMultiSelectMode && selectedCourses.length > 0) {
-        // Para infantil: buscar registros de todos os cursos selecionados
+      if (isDiasLevel && selectedCourses.length === 0) {
+        // Ed. Infantil / Anos Iniciais sem curso selecionado: buscar TODOS os registros da turma
+        const data = await learningObjectsAPI.list({
+          class_id: selectedClass,
+          academic_year: academicYear,
+          month: currentMonth + 1
+        });
+        setRecords(data);
+      } else if (isMultiSelectMode && selectedCourses.length > 0) {
+        // Multi-select com cursos selecionados
         const promises = selectedCourses.map(courseId =>
           learningObjectsAPI.list({
             class_id: selectedClass,
@@ -438,7 +447,7 @@ export const LearningObjects = () => {
 
   // Handler de clique no dia
   const handleDayClick = (dayInfo) => {
-    if (!dayInfo.date || !selectedClass || !hasValidSelection) return;
+    if (!dayInfo.date || !selectedClass) return;
     
     setSelectedDate(dayInfo.date);
     
@@ -900,7 +909,10 @@ export const LearningObjects = () => {
           <Card>
             <CardContent className="p-8 text-center text-gray-500">
               <BookOpen size={48} className="mx-auto mb-2 text-gray-300" />
-              <p>Selecione a turma e {isInfantilLevel ? 'o campo de experiência' : 'o componente curricular'} para visualizar o calendário de registros.</p>
+              <p>{!selectedClass 
+                ? 'Selecione a turma para visualizar o calendário de registros.'
+                : `Selecione ${isInfantilLevel ? 'o campo de experiência' : 'o componente curricular'} para visualizar o calendário de registros.`
+              }</p>
             </CardContent>
           </Card>
         ) : (
