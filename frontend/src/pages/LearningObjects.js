@@ -235,15 +235,15 @@ export const LearningObjects = () => {
     if (!selectedClass) return false;
     const classInfo = classes.find(c => c.id === selectedClass);
     const level = inferEducationLevel(classInfo);
-    return ['educacao_infantil', 'fundamental_anos_iniciais', 'eja_inicial'].includes(level);
+    return ['educacao_infantil', 'fundamental_anos_iniciais', 'eja_inicial', 'eja'].includes(level);
   }, [selectedClass, classes]);
 
-  // Ed. Infantil e Anos Iniciais: ocultar campos extras (Nº Aulas, Recursos, Observações)
+  // Ed. Infantil, Anos Iniciais e EJA Iniciais: ocultar campos extras (Nº Aulas, Recursos, Observações)
   const isDiasLevel = useMemo(() => {
     if (!selectedClass) return false;
     const classInfo = classes.find(c => c.id === selectedClass);
     const level = inferEducationLevel(classInfo);
-    return ['educacao_infantil', 'fundamental_anos_iniciais', 'eja_inicial'].includes(level);
+    return ['educacao_infantil', 'fundamental_anos_iniciais', 'eja_inicial', 'eja'].includes(level);
   }, [selectedClass, classes]);
 
   // Determina o número padrão de aulas baseado no nível de ensino da turma
