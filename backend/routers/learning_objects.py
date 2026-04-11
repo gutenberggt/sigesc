@@ -306,6 +306,34 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             if teacher:
                 teacher_name = teacher.get('nome', '')
 
+        # Calcular dias previstos no bimestre (para Anos Iniciais / Ed. Infantil)
+        dias_previstos = 0
+        if calendario and period_start and period_end:
+            from datetime import datetime as dt_calc, timedelta
+            eventos_nao_letivos = ['feriado_nacional', 'feriado_estadual', 'feriado_municipal', 'recesso_escolar']
+            non_school_dates = set()
+            for ev in calendario.get('eventos', []):
+                if ev.get('tipo') in eventos_nao_letivos:
+                    ev_start = str(ev.get('data_inicio', ''))[:10]
+                    ev_end = str(ev.get('data_fim', ev_start))[:10]
+                    try:
+                        d = dt_calc.strptime(ev_start, '%Y-%m-%d')
+                        end = dt_calc.strptime(ev_end, '%Y-%m-%d')
+                        while d <= end:
+                            non_school_dates.add(d.strftime('%Y-%m-%d'))
+                            d += timedelta(days=1)
+                    except:
+                        pass
+            try:
+                d = dt_calc.strptime(period_start, '%Y-%m-%d')
+                end = dt_calc.strptime(period_end, '%Y-%m-%d')
+                while d <= end:
+                    if d.weekday() < 5 and d.strftime('%Y-%m-%d') not in non_school_dates:
+                        dias_previstos += 1
+                    d += timedelta(days=1)
+            except:
+                pass
+
         try:
             pdf_buffer = generate_learning_objects_pdf(
                 school=school,
@@ -316,7 +344,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 period_start=period_start,
                 period_end=period_end,
                 teacher_name=teacher_name,
-                mantenedora=mantenedora
+                mantenedora=mantenedora,
+                dias_previstos=dias_previstos
             )
 
             course_name_part = ""

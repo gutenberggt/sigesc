@@ -216,6 +216,13 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - **PDF**: Suporte a pipe-separated statuses (cada status do pipe vira uma coluna distinta)
   - **Alertas**: Mesmo fix de pipe-separated aplicado no endpoint de alertas
   - Dados mistos (novo aula_numero + legado number_of_classes + pipe) tratados corretamente
+- Ajuste PDF Objetos de Conhecimento para Anos Iniciais e Ed. Infantil (11/04/2026):
+  - "Total de Registros" → "Dias Previstos:" com cálculo real do calendário letivo (dias úteis no bimestre)
+  - "Total de Aulas" → "Dias Registrados:" com contagem de datas únicas
+  - Removida coluna "AULAS" da tabela
+  - Colunas "CONTEÚDO" e "PRÁTICAS PEDAGÓGICAS" reduzidas a 2/3
+  - Espaço liberado (1/3 de cada + coluna AULAS) acrescido à coluna "COMPONENTE CURRICULAR"
+  - Anos Finais e EJA: mantido layout original (5 colunas com AULAS)
 
 ## Tarefas Pendentes
 

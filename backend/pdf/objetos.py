@@ -21,7 +21,8 @@ def generate_learning_objects_pdf(
     period_start: str,
     period_end: str,
     teacher_name: str = "",
-    mantenedora: Dict[str, Any] = None
+    mantenedora: Dict[str, Any] = None,
+    dias_previstos: int = 0
 ) -> BytesIO:
     """Gera PDF do relatório de Objetos de Conhecimento por bimestre"""
     from reportlab.pdfgen import canvas as canvas_module
@@ -93,9 +94,10 @@ def generate_learning_objects_pdf(
     turno = turnos.get(class_info.get('shift', ''), class_info.get('shift', ''))
     serie = class_info.get('grade', class_info.get('grade_level', class_info.get('name', '')))
     is_infantil = education_level == 'educacao_infantil'
+    is_dias = education_level in ('educacao_infantil', 'fundamental_anos_iniciais', 'eja')
     label_componente = 'Campo de Experiência' if is_infantil else 'Componente Curricular'
     
-    # Totais para o cabeçalho (aulas agrupadas por data, não por registro)
+    # Totais para o cabeçalho
     total_registros = len(records)
     dates_aulas = {}
     for r in sorted(records, key=lambda x: safe(x.get('date'))):
@@ -103,6 +105,7 @@ def generate_learning_objects_pdf(
         if dt not in dates_aulas:
             dates_aulas[dt] = r.get('number_of_classes', 1) or 1
     total_aulas = sum(dates_aulas.values())
+    dias_registrados = len(dates_aulas)  # Cada data única = 1 dia registrado
     
     # === CABEÇALHO INSTITUCIONAL (Ajuste #1: Brasão maior, posicionado à esquerda) ===
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
@@ -139,24 +142,40 @@ def generate_learning_objects_pdf(
     elements.append(header_table)
     elements.append(Spacer(1, 10))
     
-    # === INFORMAÇÕES DA TURMA (Ajustes #2-5) ===
-    # Linha 1: Turma | Série/Ano | Turno | Nível
-    # Linha 2: Professor(a) [mesclado cols 0-1] | Total de Registros [abaixo Turno] | Total de Aulas [abaixo Nível]
+    # === INFORMAÇÕES DA TURMA ===
     col_w = page_width / 4
-    info_data = [
-        [
-            Paragraph(f"<b>Turma:</b> {safe(class_info.get('name'))}", info_style),
-            Paragraph(f"<b>Série/Ano:</b> {safe(serie)}", info_style),
-            Paragraph(f"<b>Turno:</b> {safe(turno)}", info_style),
-            Paragraph(f"<b>Nível:</b> {safe(nivel)}", info_style),
-        ],
-        [
-            Paragraph(f"<b>Professor(a):</b> {safe(teacher_name)}", info_style),
-            '',
-            Paragraph(f"<b>Total de Registros:</b> {total_registros}", info_style),
-            Paragraph(f"<b>Total de Aulas:</b> {total_aulas}", info_style),
+    if is_dias:
+        # Anos Iniciais / Ed. Infantil: "Dias Previstos" e "Dias Registrados"
+        info_data = [
+            [
+                Paragraph(f"<b>Turma:</b> {safe(class_info.get('name'))}", info_style),
+                Paragraph(f"<b>Série/Ano:</b> {safe(serie)}", info_style),
+                Paragraph(f"<b>Turno:</b> {safe(turno)}", info_style),
+                Paragraph(f"<b>Nível:</b> {safe(nivel)}", info_style),
+            ],
+            [
+                Paragraph(f"<b>Professor(a):</b> {safe(teacher_name)}", info_style),
+                '',
+                Paragraph(f"<b>Dias Previstos:</b> {dias_previstos}", info_style),
+                Paragraph(f"<b>Dias Registrados:</b> {dias_registrados}", info_style),
+            ]
         ]
-    ]
+    else:
+        # Anos Finais / EJA: manter original
+        info_data = [
+            [
+                Paragraph(f"<b>Turma:</b> {safe(class_info.get('name'))}", info_style),
+                Paragraph(f"<b>Série/Ano:</b> {safe(serie)}", info_style),
+                Paragraph(f"<b>Turno:</b> {safe(turno)}", info_style),
+                Paragraph(f"<b>Nível:</b> {safe(nivel)}", info_style),
+            ],
+            [
+                Paragraph(f"<b>Professor(a):</b> {safe(teacher_name)}", info_style),
+                '',
+                Paragraph(f"<b>Total de Registros:</b> {total_registros}", info_style),
+                Paragraph(f"<b>Total de Aulas:</b> {total_aulas}", info_style),
+            ]
+        ]
     info_table = Table(info_data, colWidths=[col_w]*4)
     info_table.setStyle(TableStyle([
         ('GRID', (0, 0), (-1, -1), 0.3, colors.Color(0.7, 0.7, 0.7)),
@@ -172,14 +191,23 @@ def generate_learning_objects_pdf(
     elements.append(Spacer(1, 12))
     
     # === TABELA DE CONTEÚDOS (agrupado por data) ===
-    # 5 colunas: DATA | COMPONENTE | CONTEÚDO | METODOLOGIA | AULAS
-    table_header = [
-        Paragraph('<b>DATA</b>', small_center),
-        Paragraph(f'<b>{label_componente.upper()}</b>', content_bold),
-        Paragraph('<b>CONTEÚDO / OBJETO DE CONHECIMENTO</b>', content_bold),
-        Paragraph('<b>PRÁTICAS PEDAGÓGICAS</b>', content_bold),
-        Paragraph('<b>AULAS</b>', small_center),
-    ]
+    if is_dias:
+        # Anos Iniciais / Ed. Infantil: 4 colunas (sem AULAS), COMPONENTE mais larga
+        table_header = [
+            Paragraph('<b>DATA</b>', small_center),
+            Paragraph(f'<b>{label_componente.upper()}</b>', content_bold),
+            Paragraph('<b>CONTEÚDO / OBJETO DE CONHECIMENTO</b>', content_bold),
+            Paragraph('<b>PRÁTICAS PEDAGÓGICAS</b>', content_bold),
+        ]
+    else:
+        # Anos Finais / EJA: 5 colunas (com AULAS)
+        table_header = [
+            Paragraph('<b>DATA</b>', small_center),
+            Paragraph(f'<b>{label_componente.upper()}</b>', content_bold),
+            Paragraph('<b>CONTEÚDO / OBJETO DE CONHECIMENTO</b>', content_bold),
+            Paragraph('<b>PRÁTICAS PEDAGÓGICAS</b>', content_bold),
+            Paragraph('<b>AULAS</b>', small_center),
+        ]
     
     table_data = [table_header]
     
@@ -215,25 +243,51 @@ def generate_learning_objects_pdf(
         # 4. Aulas: valor registrado (não soma dos componentes)
         aulas_dia = day_records[0].get('number_of_classes', 1) or 1
         
-        row = [
-            Paragraph(fmt_date_short(dt), small_center),
-            Paragraph('<br/>'.join(componentes), content_style),
-            Paragraph('<br/>'.join(seen_conteudos) if seen_conteudos else '-', content_style),
-            Paragraph('<br/>'.join(seen_metodologias) if seen_metodologias else '-', content_style),
-            Paragraph(str(aulas_dia), small_center),
-        ]
+        if is_dias:
+            # Sem coluna AULAS
+            row = [
+                Paragraph(fmt_date_short(dt), small_center),
+                Paragraph('<br/>'.join(componentes), content_style),
+                Paragraph('<br/>'.join(seen_conteudos) if seen_conteudos else '-', content_style),
+                Paragraph('<br/>'.join(seen_metodologias) if seen_metodologias else '-', content_style),
+            ]
+        else:
+            row = [
+                Paragraph(fmt_date_short(dt), small_center),
+                Paragraph('<br/>'.join(componentes), content_style),
+                Paragraph('<br/>'.join(seen_conteudos) if seen_conteudos else '-', content_style),
+                Paragraph('<br/>'.join(seen_metodologias) if seen_metodologias else '-', content_style),
+                Paragraph(str(aulas_dia), small_center),
+            ]
         table_data.append(row)
     
     if len(table_data) == 1:
-        table_data.append([
-            '', '', Paragraph('Nenhum registro encontrado para este bimestre.', content_style), '', ''
-        ])
+        empty_cols = 4 if is_dias else 5
+        empty_row = [''] * empty_cols
+        empty_row[2] = Paragraph('Nenhum registro encontrado para este bimestre.', content_style)
+        table_data.append(empty_row)
     
-    # Larguras: DATA | COMPONENTE | CONTEÚDO | METODOLOGIA | AULAS
-    conteudo_original = page_width - 9.5*cm
-    conteudo_w = conteudo_original * 0.75
-    metodologia_w = 3*cm + conteudo_original * 0.25
-    col_widths = [1.5*cm, 3.5*cm, conteudo_w, metodologia_w, 1.5*cm]
+    # Larguras das colunas
+    if is_dias:
+        # Anos Iniciais / Ed. Infantil: 4 colunas (sem AULAS)
+        # CONTEÚDO e PRÁTICAS reduzidas a 2/3; espaço liberado vai para COMPONENTE
+        conteudo_original = page_width - 9.5*cm
+        conteudo_w_full = conteudo_original * 0.75
+        metodologia_w_full = 3*cm + conteudo_original * 0.25
+        
+        conteudo_w = conteudo_w_full * (2/3)
+        metodologia_w = metodologia_w_full * (2/3)
+        # Espaço extra: 1/3 de cada coluna + coluna AULAS (1.5cm)
+        extra = (conteudo_w_full - conteudo_w) + (metodologia_w_full - metodologia_w) + 1.5*cm
+        componente_w = 3.5*cm + extra
+        
+        col_widths = [1.5*cm, componente_w, conteudo_w, metodologia_w]
+    else:
+        # Anos Finais / EJA: 5 colunas (com AULAS) - layout original
+        conteudo_original = page_width - 9.5*cm
+        conteudo_w = conteudo_original * 0.75
+        metodologia_w = 3*cm + conteudo_original * 0.25
+        col_widths = [1.5*cm, 3.5*cm, conteudo_w, metodologia_w, 1.5*cm]
     
     content_table = Table(table_data, colWidths=col_widths, repeatRows=1)
     content_table.setStyle(TableStyle([
