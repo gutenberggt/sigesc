@@ -223,6 +223,12 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Colunas "CONTEÚDO" e "PRÁTICAS PEDAGÓGICAS" reduzidas a 2/3
   - Espaço liberado (1/3 de cada + coluna AULAS) acrescido à coluna "COMPONENTE CURRICULAR"
   - Anos Finais e EJA: mantido layout original (5 colunas com AULAS)
+- Ajuste formulário Objetos de Conhecimento para Ed. Infantil e Anos Iniciais (11/04/2026):
+  - Ocultados campos "Número de Aulas", "Recursos Utilizados" e "Observações" no formulário
+  - "Metodologia" renomeado para "Práticas Pedagógicas" (label e placeholder)
+  - Card de registro: oculto "X aula(s)" para esses níveis
+  - Estatísticas: oculto card "Aulas" (mantém apenas "Registros")
+  - Anos Finais / EJA: formulário completo mantido (5 campos)
 
 ## Tarefas Pendentes
 

@@ -238,6 +238,14 @@ export const LearningObjects = () => {
     return ['educacao_infantil', 'fundamental_anos_iniciais', 'eja_inicial'].includes(level);
   }, [selectedClass, classes]);
 
+  // Ed. Infantil e Anos Iniciais: ocultar campos extras (Nº Aulas, Recursos, Observações)
+  const isDiasLevel = useMemo(() => {
+    if (!selectedClass) return false;
+    const classInfo = classes.find(c => c.id === selectedClass);
+    const level = inferEducationLevel(classInfo);
+    return ['educacao_infantil', 'fundamental_anos_iniciais'].includes(level);
+  }, [selectedClass, classes]);
+
   // Determina o número padrão de aulas baseado no nível de ensino da turma
   const defaultNumberOfClasses = useMemo(() => {
     if (!selectedClass) return 1;
@@ -904,10 +912,12 @@ export const LearningObjects = () => {
                       <p className="text-lg font-bold text-purple-700">{monthStats.totalRecords}</p>
                       <p className="text-[8px] text-purple-600">Registros</p>
                     </div>
+                    {!isDiasLevel && (
                     <div className="bg-blue-50 p-2 rounded text-center">
                       <p className="text-lg font-bold text-blue-700">{monthStats.totalClasses}</p>
                       <p className="text-[8px] text-blue-600">Aulas</p>
                     </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -954,7 +964,8 @@ export const LearningObjects = () => {
                       />
                     </div>
 
-                    {/* Número de aulas */}
+                    {/* Número de aulas — oculto para Ed. Infantil e Anos Iniciais */}
+                    {!isDiasLevel && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Número de Aulas
@@ -970,22 +981,24 @@ export const LearningObjects = () => {
                         ))}
                       </select>
                     </div>
+                    )}
 
-                    {/* Metodologia */}
+                    {/* Metodologia / Práticas Pedagógicas */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Metodologia
+                        {isDiasLevel ? 'Práticas Pedagógicas' : 'Metodologia'}
                       </label>
                       <input
                         type="text"
                         value={formData.methodology}
                         onChange={(e) => { setFormData({ ...formData, methodology: e.target.value }); setHasChanges(true); }}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-                        placeholder="Ex: Aula expositiva, Trabalho em grupo..."
+                        placeholder={isDiasLevel ? 'Ex: Roda de conversa, Brincadeira dirigida...' : 'Ex: Aula expositiva, Trabalho em grupo...'}
                       />
                     </div>
 
-                    {/* Recursos */}
+                    {/* Recursos — oculto para Ed. Infantil e Anos Iniciais */}
+                    {!isDiasLevel && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Recursos Utilizados
@@ -998,8 +1011,10 @@ export const LearningObjects = () => {
                         placeholder="Ex: Livro didático, Datashow..."
                       />
                     </div>
+                    )}
 
-                    {/* Observações */}
+                    {/* Observações — oculto para Ed. Infantil e Anos Iniciais */}
+                    {!isDiasLevel && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Observações
@@ -1011,6 +1026,7 @@ export const LearningObjects = () => {
                         placeholder="Observações adicionais..."
                       />
                     </div>
+                    )}
 
                     {/* Botões */}
                     <div className="flex gap-2 pt-2">
@@ -1066,9 +1082,11 @@ export const LearningObjects = () => {
                                   {record.course_name || courses.find(c => c.id === record.course_id)?.name || ''}
                                 </span>
                               )}
+                              {!isDiasLevel && (
                               <span className="text-xs text-gray-500">
                                 {record.number_of_classes} aula(s)
                               </span>
+                              )}
                             </div>
                           </div>
                           <p className="text-xs text-gray-600 line-clamp-2">
