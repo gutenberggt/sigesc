@@ -515,7 +515,12 @@ export const LearningObjects = () => {
       setSaving(true);
       
       if (editingRecord) {
-        await learningObjectsAPI.update(editingRecord.id, formData);
+        const updatePayload = { ...formData };
+        // Se o componente foi alterado, incluir no payload
+        if (formCourseId && formCourseId !== editingRecord.course_id) {
+          updatePayload.course_id = formCourseId;
+        }
+        await learningObjectsAPI.update(editingRecord.id, updatePayload);
         showAlert('success', 'Registro atualizado com sucesso!');
       } else if (isMultiSelectMode && selectedCourses.length > 0) {
         // Infantil: criar um registro para cada campo de experiência selecionado
@@ -944,10 +949,22 @@ export const LearningObjects = () => {
                         {courses.filter(c => selectedCourses.includes(c.id)).map(c => c.name).join(' - ')}
                       </div>
                     )}
-                    {/* Mostrar nome do campo ao editar em modo multi-select */}
+                    {/* Mostrar/editar componente ao editar em modo multi-select */}
                     {isMultiSelectMode && editingRecord && (
-                      <div className="text-sm text-purple-600 bg-purple-50 px-3 py-2 rounded-lg">
-                        {isInfantilLevel ? 'Campo' : 'Componente'}: {courses.find(c => c.id === editingRecord.course_id)?.name || editingRecord.course_name || 'N/A'}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {isInfantilLevel ? 'Campo de Experiência' : 'Componente Curricular'}
+                        </label>
+                        <select
+                          value={formCourseId}
+                          onChange={(e) => { setFormCourseId(e.target.value); setHasChanges(true); }}
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                          data-testid="edit-course-select"
+                        >
+                          {courses.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
                       </div>
                     )}
 

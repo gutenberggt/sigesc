@@ -1717,6 +1717,7 @@ class LearningObjectUpdate(BaseModel):
     methodology: Optional[str] = None
     resources: Optional[str] = None
     number_of_classes: Optional[int] = None
+    course_id: Optional[str] = None
 
 class LearningObject(BaseModel):
     """Modelo completo do registro de objetos de conhecimento"""
