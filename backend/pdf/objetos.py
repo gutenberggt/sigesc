@@ -94,7 +94,7 @@ def generate_learning_objects_pdf(
     turno = turnos.get(class_info.get('shift', ''), class_info.get('shift', ''))
     serie = class_info.get('grade', class_info.get('grade_level', class_info.get('name', '')))
     is_infantil = education_level == 'educacao_infantil'
-    is_dias = education_level in ('educacao_infantil', 'fundamental_anos_iniciais', 'eja')
+    is_dias = education_level in ('educacao_infantil', 'fundamental_anos_iniciais', 'eja', 'eja_inicial')
     label_componente = 'Campo de Experiência' if is_infantil else 'Componente Curricular'
     
     # Totais para o cabeçalho
@@ -268,7 +268,7 @@ def generate_learning_objects_pdf(
         table_data.append(empty_row)
     
     # Larguras das colunas
-    is_anos_iniciais = education_level == 'fundamental_anos_iniciais'
+    is_anos_iniciais = education_level in ('fundamental_anos_iniciais', 'eja', 'eja_inicial')
     if is_dias:
         # Anos Iniciais / Ed. Infantil: 4 colunas (sem AULAS)
         conteudo_original = page_width - 9.5*cm

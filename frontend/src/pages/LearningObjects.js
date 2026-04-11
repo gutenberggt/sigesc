@@ -243,7 +243,7 @@ export const LearningObjects = () => {
     if (!selectedClass) return false;
     const classInfo = classes.find(c => c.id === selectedClass);
     const level = inferEducationLevel(classInfo);
-    return ['educacao_infantil', 'fundamental_anos_iniciais'].includes(level);
+    return ['educacao_infantil', 'fundamental_anos_iniciais', 'eja_inicial'].includes(level);
   }, [selectedClass, classes]);
 
   // Determina o número padrão de aulas baseado no nível de ensino da turma
