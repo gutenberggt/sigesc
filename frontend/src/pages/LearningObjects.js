@@ -268,12 +268,20 @@ export const LearningObjects = () => {
     if (selectedClass && hasValidSelection) {
       loadRecords();
     }
-  }, [selectedClass, selectedCourse, selectedCourses, academicYear, currentMonth, isMultiSelectMode]);
+  }, [selectedClass, selectedCourse, academicYear, currentMonth, isMultiSelectMode, isDiasLevel]);
+
+  // Para isDiasLevel: recarregar quando selectedCourses muda APENAS se NÃO estiver com form aberto
+  // (evita re-fetch ao sincronizar cursos ao clicar numa data)
+  useEffect(() => {
+    if (selectedClass && isMultiSelectMode && !isDiasLevel && selectedCourses.length > 0) {
+      loadRecords();
+    }
+  }, [selectedCourses]);
 
   const loadRecords = async () => {
     try {
-      if (isDiasLevel && selectedCourses.length === 0) {
-        // Ed. Infantil / Anos Iniciais sem curso selecionado: buscar TODOS os registros da turma
+      if (isDiasLevel) {
+        // Ed. Infantil / Anos Iniciais: SEMPRE buscar TODOS os registros da turma
         const data = await learningObjectsAPI.list({
           class_id: selectedClass,
           academic_year: academicYear,
@@ -281,7 +289,6 @@ export const LearningObjects = () => {
         });
         setRecords(data);
       } else if (isMultiSelectMode && selectedCourses.length > 0) {
-        // Multi-select com cursos selecionados
         const promises = selectedCourses.map(courseId =>
           learningObjectsAPI.list({
             class_id: selectedClass,
