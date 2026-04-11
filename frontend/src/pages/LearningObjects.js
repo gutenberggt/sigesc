@@ -442,35 +442,58 @@ export const LearningObjects = () => {
     
     setSelectedDate(dayInfo.date);
     
-    if (dayInfo.record) {
-      // Editar registro existente
-      setEditingRecord(dayInfo.record);
-      setFormCourseId(dayInfo.record.course_id || '');
-      setFormData({
-        content: dayInfo.record.content || '',
-        observations: dayInfo.record.observations || '',
-        methodology: dayInfo.record.methodology || '',
-        resources: dayInfo.record.resources || '',
-        number_of_classes: dayInfo.record.number_of_classes || 1
-      });
-    } else {
-      // Novo registro
-      setEditingRecord(null);
-      // Para infantil com multi-seleção, pré-selecionar se só tem 1 curso selecionado
-      if (isMultiSelectMode && selectedCourses.length === 1) {
-        setFormCourseId(selectedCourses[0]);
-      } else if (!isMultiSelectMode) {
-        setFormCourseId(selectedCourse);
+    if (isMultiSelectMode) {
+      // Ed. Infantil / Anos Iniciais: buscar TODOS os registros do dia
+      const dayRecords = records.filter(r => r.date === dayInfo.date);
+      
+      if (dayRecords.length > 0) {
+        // Sincronizar selectedCourses com os cursos salvos no dia
+        const savedCourseIds = dayRecords.map(r => r.course_id);
+        setSelectedCourses(savedCourseIds);
+        
+        // Editar: carregar conteúdo do primeiro registro como base
+        setEditingRecord(dayRecords[0]);
+        setFormData({
+          content: dayRecords[0].content || '',
+          observations: dayRecords[0].observations || '',
+          methodology: dayRecords[0].methodology || '',
+          resources: dayRecords[0].resources || '',
+          number_of_classes: dayRecords[0].number_of_classes || 1
+        });
       } else {
-        setFormCourseId('');
+        // Novo registro: manter seleção atual
+        setEditingRecord(null);
+        setFormData({
+          content: '',
+          observations: '',
+          methodology: '',
+          resources: '',
+          number_of_classes: defaultNumberOfClasses
+        });
       }
-      setFormData({
-        content: '',
-        observations: '',
-        methodology: '',
-        resources: '',
-        number_of_classes: defaultNumberOfClasses
-      });
+    } else {
+      // Anos Finais / EJA: fluxo original (1 registro por vez)
+      if (dayInfo.record) {
+        setEditingRecord(dayInfo.record);
+        setFormCourseId(dayInfo.record.course_id || '');
+        setFormData({
+          content: dayInfo.record.content || '',
+          observations: dayInfo.record.observations || '',
+          methodology: dayInfo.record.methodology || '',
+          resources: dayInfo.record.resources || '',
+          number_of_classes: dayInfo.record.number_of_classes || 1
+        });
+      } else {
+        setEditingRecord(null);
+        setFormCourseId(selectedCourse);
+        setFormData({
+          content: '',
+          observations: '',
+          methodology: '',
+          resources: '',
+          number_of_classes: defaultNumberOfClasses
+        });
+      }
     }
     setShowForm(true);
     setHasChanges(false);
@@ -494,11 +517,11 @@ export const LearningObjects = () => {
     }
 
     // Verificar seleção de curso
-    if (!editingRecord && !isMultiSelectMode && !selectedCourse) {
+    if (!isMultiSelectMode && !selectedCourse) {
       showAlert('error', 'Selecione o componente curricular');
       return;
     }
-    if (!editingRecord && isMultiSelectMode && selectedCourses.length === 0) {
+    if (isMultiSelectMode && selectedCourses.length === 0) {
       showAlert('error', isInfantilLevel ? 'Selecione ao menos um campo de experiência' : 'Selecione ao menos um componente curricular');
       return;
     }
@@ -514,36 +537,54 @@ export const LearningObjects = () => {
     try {
       setSaving(true);
       
-      if (editingRecord) {
-        const updatePayload = { ...formData };
-        // Se o componente foi alterado, incluir no payload
-        if (formCourseId && formCourseId !== editingRecord.course_id) {
-          updatePayload.course_id = formCourseId;
-        }
-        await learningObjectsAPI.update(editingRecord.id, updatePayload);
-        showAlert('success', 'Registro atualizado com sucesso!');
-      } else if (isMultiSelectMode && selectedCourses.length > 0) {
-        // Infantil: criar um registro para cada campo de experiência selecionado
-        const promises = selectedCourses.map(courseId =>
-          learningObjectsAPI.create({
+      if (isMultiSelectMode) {
+        // Ed. Infantil / Anos Iniciais: sincronizar registros com a seleção de cursos
+        const dayRecords = records.filter(r => r.date === selectedDate);
+        const existingCourseIds = dayRecords.map(r => r.course_id);
+        
+        // Cursos a CRIAR (selecionados mas sem registro)
+        const toCreate = selectedCourses.filter(id => !existingCourseIds.includes(id));
+        // Cursos a EXCLUIR (tinham registro mas foram desmarcados)
+        const toDelete = dayRecords.filter(r => !selectedCourses.includes(r.course_id));
+        // Cursos a ATUALIZAR (já existem e continuam selecionados)
+        const toUpdate = dayRecords.filter(r => selectedCourses.includes(r.course_id));
+        
+        // Criar novos
+        for (const courseId of toCreate) {
+          await learningObjectsAPI.create({
             class_id: selectedClass,
             course_id: courseId,
             date: selectedDate,
             academic_year: academicYear,
             ...formData
-          }).catch(() => null) // ignora duplicatas (já existe registro nessa data/campo)
-        );
-        const results = await Promise.all(promises);
-        const created = results.filter(r => r !== null).length;
-        const skipped = results.length - created;
-        if (created > 0 && skipped > 0) {
-          showAlert('success', `${created} registro(s) criado(s). ${skipped} já existia(m) nesta data.`);
-        } else if (created > 0) {
-          showAlert('success', `${created} registro(s) criado(s) com sucesso!`);
-        } else {
-          showAlert('error', 'Já existem registros para todos os campos nesta data.');
+          }).catch(() => null);
         }
+        
+        // Atualizar existentes
+        for (const rec of toUpdate) {
+          await learningObjectsAPI.update(rec.id, formData).catch(() => null);
+        }
+        
+        // Excluir removidos
+        for (const rec of toDelete) {
+          await learningObjectsAPI.delete(rec.id).catch(() => null);
+        }
+        
+        const actions = [];
+        if (toCreate.length > 0) actions.push(`${toCreate.length} criado(s)`);
+        if (toUpdate.length > 0) actions.push(`${toUpdate.length} atualizado(s)`);
+        if (toDelete.length > 0) actions.push(`${toDelete.length} excluído(s)`);
+        showAlert('success', `Registros: ${actions.join(', ')}`);
+      } else if (editingRecord) {
+        // Anos Finais / EJA: atualizar registro individual
+        const updatePayload = { ...formData };
+        if (formCourseId && formCourseId !== editingRecord.course_id) {
+          updatePayload.course_id = formCourseId;
+        }
+        await learningObjectsAPI.update(editingRecord.id, updatePayload);
+        showAlert('success', 'Registro atualizado com sucesso!');
       } else {
+        // Anos Finais / EJA: criar registro individual
         await learningObjectsAPI.create({
           class_id: selectedClass,
           course_id: selectedCourse,
@@ -567,30 +608,52 @@ export const LearningObjects = () => {
 
   // Excluir registro
   const handleDelete = async () => {
-    if (!editingRecord) return;
-    
     // Verificar se o bimestre está bloqueado
-    const bimestre = getBimestreFromDate(editingRecord.date);
+    const dateForBimestre = editingRecord?.date || selectedDate;
+    const bimestre = getBimestreFromDate(dateForBimestre);
     if (bimestre && !canEditBimestre(bimestre)) {
-      const info = getBimestreInfo(bimestre);
       showAlert('error', `O ${bimestre}º Bimestre está bloqueado para edição. Não é possível excluir.`);
       return;
     }
     
-    if (!window.confirm('Deseja realmente excluir este registro?')) return;
-    
-    try {
-      setSaving(true);
-      await learningObjectsAPI.delete(editingRecord.id);
-      showAlert('success', 'Registro excluído com sucesso!');
-      setShowForm(false);
-      setHasChanges(false);
-      loadRecords();
-    } catch (error) {
-      console.error('Erro ao excluir:', error);
-      showAlert('error', error.response?.data?.detail || 'Erro ao excluir registro');
-    } finally {
-      setSaving(false);
+    if (isMultiSelectMode && selectedDate) {
+      // Ed. Infantil / Anos Iniciais: excluir TODOS os registros do dia
+      const dayRecords = records.filter(r => r.date === selectedDate);
+      if (dayRecords.length === 0) return;
+      if (!window.confirm(`Deseja realmente excluir ${dayRecords.length} registro(s) desta data?`)) return;
+      
+      try {
+        setSaving(true);
+        for (const rec of dayRecords) {
+          await learningObjectsAPI.delete(rec.id).catch(() => null);
+        }
+        showAlert('success', `${dayRecords.length} registro(s) excluído(s)!`);
+        setShowForm(false);
+        setHasChanges(false);
+        loadRecords();
+      } catch (error) {
+        showAlert('error', 'Erro ao excluir registros');
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      // Anos Finais / EJA: excluir registro individual
+      if (!editingRecord) return;
+      if (!window.confirm('Deseja realmente excluir este registro?')) return;
+      
+      try {
+        setSaving(true);
+        await learningObjectsAPI.delete(editingRecord.id);
+        showAlert('success', 'Registro excluído com sucesso!');
+        setShowForm(false);
+        setHasChanges(false);
+        loadRecords();
+      } catch (error) {
+        console.error('Erro ao excluir:', error);
+        showAlert('error', error.response?.data?.detail || 'Erro ao excluir registro');
+      } finally {
+        setSaving(false);
+      }
     }
   };
 
@@ -935,36 +998,22 @@ export const LearningObjects = () => {
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center justify-between">
-                      <span>{editingRecord ? 'Editar Registro' : 'Novo Registro'}</span>
+                      <span>{isMultiSelectMode && editingRecord ? 'Editar Registro' : isMultiSelectMode ? 'Novo Registro' : editingRecord ? 'Editar Registro' : 'Novo Registro'}</span>
                       <span className="text-purple-600 font-normal">
                         {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR')}
                       </span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Campos de Experiência selecionados - exibição fixa */}
-                    {isMultiSelectMode && !editingRecord && selectedCourses.length > 0 && (
-                      <div className="text-sm text-purple-700 bg-purple-50 px-3 py-2 rounded-lg" data-testid="form-campos-experiencia-display">
-                        <span className="font-medium">{isInfantilLevel ? 'Campo de Experiência' : 'Componente Curricular'}: </span>
-                        {courses.filter(c => selectedCourses.includes(c.id)).map(c => c.name).join(' - ')}
-                      </div>
-                    )}
-                    {/* Mostrar/editar componente ao editar em modo multi-select */}
-                    {isMultiSelectMode && editingRecord && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {isInfantilLevel ? 'Campo de Experiência' : 'Componente Curricular'}
-                        </label>
-                        <select
-                          value={formCourseId}
-                          onChange={(e) => { setFormCourseId(e.target.value); setHasChanges(true); }}
-                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-                          data-testid="edit-course-select"
-                        >
-                          {courses.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
+                    {/* Multi-select: exibir cursos selecionados para o dia */}
+                    {isMultiSelectMode && (
+                      <div className="text-sm bg-purple-50 px-3 py-2 rounded-lg" data-testid="form-campos-experiencia-display">
+                        <span className="font-medium text-purple-700">{isInfantilLevel ? 'Campos de Experiência' : 'Componentes Curriculares'}: </span>
+                        <span className="text-purple-600">
+                          {selectedCourses.length > 0
+                            ? courses.filter(c => selectedCourses.includes(c.id)).map(c => c.name).join(' • ')
+                            : 'Nenhum selecionado'}
+                        </span>
                       </div>
                     )}
 
@@ -1055,7 +1104,7 @@ export const LearningObjects = () => {
                         <Save size={16} className="mr-1" />
                         {saving ? 'Salvando...' : 'Salvar'}
                       </Button>
-                      {editingRecord && (
+                      {(editingRecord || (isMultiSelectMode && records.some(r => r.date === selectedDate))) && (
                         <Button 
                           variant="destructive" 
                           onClick={handleDelete}
