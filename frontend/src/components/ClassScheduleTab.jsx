@@ -492,9 +492,7 @@ export function ClassScheduleTab({ academicYear }) {
     if (!courseId) return null;
     const allocation = teacherAllocations.find(a => a.course_id === courseId);
     if (!allocation) return null;
-    // Retorna apenas o primeiro nome
-    const fullName = allocation.staff_name || '';
-    return fullName.split(' ')[0];
+    return allocation.staff_name || '';
   };
   
   // Atualizar horário de um slot
