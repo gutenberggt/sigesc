@@ -524,24 +524,24 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
             # Aulas previstas = carga horária anual do componente / 4 bimestres
             aulas_previstas_bimestre_calc = 0
-            if course_info:
+            
+            # Método principal: dias_letivos × aulas_semana / 5 (mesmo critério do calendário de registros)
+            schedule = await db.class_schedules.find_one(
+                {"class_id": class_id, "academic_year": academic_year}, {"_id": 0, "schedule_slots": 1}
+            )
+            if schedule and schedule.get('schedule_slots'):
+                aulas_semana = sum(
+                    1 for s in schedule['schedule_slots']
+                    if s.get('course_id') == course_id
+                )
+                if aulas_semana > 0:
+                    aulas_previstas_bimestre_calc = round(aulas_previstas_bimestre * aulas_semana / 5)
+            
+            # Fallback: workload anual / 4
+            if aulas_previstas_bimestre_calc == 0 and course_info:
                 workload_anual = course_info.get('workload', 0) or 0
                 if workload_anual > 0:
                     aulas_previstas_bimestre_calc = round(workload_anual / 4)
-
-            # Fallback: usar schedule_slots se workload não disponível
-            if aulas_previstas_bimestre_calc == 0:
-                schedule = await db.class_schedules.find_one(
-                    {"class_id": class_id}, {"_id": 0}
-                )
-                if schedule and schedule.get('schedule_slots'):
-                    aulas_semana = sum(
-                        1 for s in schedule['schedule_slots']
-                        if s.get('course_id') == course_id
-                    )
-                    if aulas_semana > 0:
-                        # semanas no bimestre × aulas por semana
-                        aulas_previstas_bimestre_calc = round((aulas_previstas_bimestre / 5) * aulas_semana)
 
             if aulas_previstas_bimestre_calc > 0:
                 aulas_previstas_bimestre = aulas_previstas_bimestre_calc

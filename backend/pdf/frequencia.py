@@ -131,16 +131,15 @@ def generate_relatorio_frequencia_bimestre_pdf(
     # Níveis que usam "DIAS" ao invés de "AULAS"
     is_dias = education_level in ('educacao_infantil', 'fundamental_anos_iniciais', 'eja')
     label_previstas = "DIAS PREVISTOS" if is_dias else "AULAS PREVISTAS"
-    label_ministradas = "DIAS REGISTRADOS" if is_dias else "AULAS MINISTRADAS"
+    label_ministradas = "DIAS REGISTRADOS" if is_dias else "AULAS REGISTRADAS"
     
     serie = class_info.get('grade', class_info.get('grade_level', class_info.get('name', '')))
     
-    # Título: se Anos Finais e tem componente, usa nome do componente
+    # Título: sempre "FREQUÊNCIA - Xº BIMESTRE DE XXXX" para anos finais
     componente_nome = ''
     titulo_frequencia = f"FREQUÊNCIA - {bimestre}º BIMESTRE DE {academic_year}"
     if is_anos_finais and course_info:
         componente_nome = course_info.get('name', '')
-        titulo_frequencia = f"{componente_nome.upper()} - {bimestre}º BIMESTRE DE {academic_year}"
     
     # === CABEÇALHO ===
     header_data = []
