@@ -373,8 +373,6 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             'date': {'$regex': f'^{academic_year}'}
         }
         
-        if student_id:
-            match_filter['student_id'] = student_id
         if class_id:
             match_filter['class_id'] = class_id
         if school_id:
@@ -384,6 +382,13 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         pipeline = [
             {'$match': match_filter},
+            {'$unwind': '$records'},
+        ]
+        
+        if student_id:
+            pipeline.append({'$match': {'records.student_id': student_id}})
+        
+        pipeline.extend([
             {'$addFields': {
                 'month': {'$substr': ['$date', 5, 2]}
             }},
@@ -391,17 +396,17 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 '_id': '$month',
                 'total': {'$sum': 1},
                 'present': {
-                    '$sum': {'$cond': [{'$eq': ['$status', 'present']}, 1, 0]}
+                    '$sum': {'$cond': [{'$in': ['$records.status', ['P', 'present']]}, 1, 0]}
                 },
                 'absent': {
-                    '$sum': {'$cond': [{'$eq': ['$status', 'absent']}, 1, 0]}
+                    '$sum': {'$cond': [{'$in': ['$records.status', ['F', 'A', 'absent']]}, 1, 0]}
                 },
                 'justified': {
-                    '$sum': {'$cond': [{'$eq': ['$status', 'justified']}, 1, 0]}
+                    '$sum': {'$cond': [{'$in': ['$records.status', ['J', 'justified']]}, 1, 0]}
                 }
             }},
             {'$sort': {'_id': 1}}
-        ]
+        ])
         
         months_map = {
             '01': 'Jan', '02': 'Fev', '03': 'Mar', '04': 'Abr',
@@ -1205,17 +1210,27 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 students[doc['_id']]['avg_grade'] = round(doc['avg_grade'] or 0, 1)
                 students[doc['_id']]['total_grades'] = doc['total']
         
-        # Frequência por aluno
+        # Frequência por aluno (records é um array dentro do doc de attendance)
+        att_match = {'academic_year': year_filter(academic_year)}
+        if class_id:
+            att_match['class_id'] = class_id
+        elif is_professor and user_class_ids:
+            att_match['class_id'] = {'$in': user_class_ids}
+        elif school_id:
+            # Buscar class_ids da escola
+            school_class_ids = [e.get('class_id') for e in enrollments]
+            if school_class_ids:
+                att_match['class_id'] = {'$in': list(set(school_class_ids))}
+        
         attendance_pipeline = [
-            {'$match': {
-                'student_id': {'$in': student_ids},
-                'date': {'$regex': f'^{academic_year}'}
-            }},
+            {'$match': att_match},
+            {'$unwind': '$records'},
+            {'$match': {'records.student_id': {'$in': student_ids}}},
             {'$group': {
-                '_id': '$student_id',
+                '_id': '$records.student_id',
                 'total': {'$sum': 1},
                 'present': {
-                    '$sum': {'$cond': [{'$in': ['$status', ['present', 'justified']]}, 1, 0]}
+                    '$sum': {'$cond': [{'$in': ['$records.status', ['P', 'present', 'J', 'justified']]}, 1, 0]}
                 }
             }}
         ]
@@ -1256,6 +1271,124 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             }
         }
     
+    @router.get("/teachers/performance")
+    async def get_teachers_performance(
+        request: Request,
+        academic_year: int = Query(..., description="Ano letivo"),
+        school_id: Optional[str] = Query(None),
+        limit: int = Query(10)
+    ):
+        """Top 10 professores por desempenho: preenchimento de diários, aprovação e faltas"""
+        current_db = get_current_db(request)
+        user = await AuthMiddleware.get_current_user(request)
+        is_global = user.get('role') in ['admin', 'admin_teste', 'semed', 'semed3']
+        
+        # Buscar alocações de professores
+        alloc_filter = {'academic_year': year_filter(academic_year)}
+        if school_id:
+            alloc_filter['school_id'] = school_id
+        elif not is_global:
+            user_school_ids = user.get('school_ids', []) or []
+            if user.get('school_links'):
+                user_school_ids = [l.get('school_id') for l in user.get('school_links', [])]
+            if user_school_ids:
+                alloc_filter['school_id'] = {'$in': user_school_ids}
+        
+        allocations = await current_db.teacher_assignments.find(
+            alloc_filter, {'_id': 0, 'staff_id': 1, 'staff_name': 1, 'class_id': 1, 'course_id': 1, 'school_id': 1}
+        ).to_list(5000)
+        
+        if not allocations:
+            return {"data": []}
+        
+        # Agrupar por professor
+        teachers = {}
+        for a in allocations:
+            sid = a.get('staff_id')
+            if not sid:
+                continue
+            if sid not in teachers:
+                teachers[sid] = {
+                    'name': a.get('staff_name', 'N/A'),
+                    'class_ids': set(),
+                    'course_ids': set(),
+                    'school_id': a.get('school_id'),
+                    'total_allocations': 0,
+                    'diario_preenchido': 0,
+                    'diario_total': 0,
+                    'aprovados': 0,
+                    'total_alunos': 0,
+                    'faltas_professor': 0
+                }
+            teachers[sid]['class_ids'].add(a.get('class_id'))
+            teachers[sid]['course_ids'].add(a.get('course_id'))
+            teachers[sid]['total_allocations'] += 1
+        
+        # Para cada professor: calcular métricas
+        for tid, tdata in teachers.items():
+            class_ids = list(tdata['class_ids'])
+            course_ids = list(tdata['course_ids'])
+            
+            # 1. Preenchimento de diários (learning_objects registrados / total esperado)
+            lo_count = await current_db.learning_objects.count_documents({
+                'class_id': {'$in': class_ids},
+                'academic_year': year_filter(academic_year)
+            })
+            # Estimativa: ~40 dias letivos por bimestre × 4 = ~160 registros esperados por turma
+            expected = tdata['total_allocations'] * 40
+            tdata['diario_preenchido'] = lo_count
+            tdata['diario_total'] = expected
+            
+            # 2. Índice de aprovação (notas >= 6 / total)
+            grades_pipeline = [
+                {'$match': {
+                    'class_id': {'$in': class_ids},
+                    'course_id': {'$in': course_ids},
+                    'academic_year': year_filter(academic_year)
+                }},
+                {'$group': {
+                    '_id': None,
+                    'total': {'$sum': 1},
+                    'approved': {'$sum': {'$cond': [{'$gte': ['$grade', 6]}, 1, 0]}}
+                }}
+            ]
+            async for doc in current_db.grades.aggregate(grades_pipeline):
+                tdata['aprovados'] = doc.get('approved', 0)
+                tdata['total_alunos'] = doc.get('total', 0)
+            
+            # 3. Faltas do professor (attendance records without records = professor absent day)
+            att_count = await current_db.attendance.count_documents({
+                'class_id': {'$in': class_ids},
+                'academic_year': year_filter(academic_year)
+            })
+            # Estimativa de dias letivos esperados (160 por alocação)
+            expected_days = tdata['total_allocations'] * 40
+            tdata['faltas_professor'] = max(0, expected_days - att_count) if expected_days > 0 else 0
+        
+        # Calcular score e rankear
+        result = []
+        for tid, tdata in teachers.items():
+            diario_pct = round(tdata['diario_preenchido'] / tdata['diario_total'] * 100, 1) if tdata['diario_total'] > 0 else 0
+            aprovacao_pct = round(tdata['aprovados'] / tdata['total_alunos'] * 100, 1) if tdata['total_alunos'] > 0 else 0
+            # Score: 40% diários + 40% aprovação + 20% assiduidade (inverso faltas)
+            assiduidade = max(0, 100 - (tdata['faltas_professor'] * 2))  # -2% por falta
+            score = round(diario_pct * 0.4 + aprovacao_pct * 0.4 + assiduidade * 0.2, 1)
+            
+            result.append({
+                'teacher_id': tid,
+                'teacher_name': tdata['name'],
+                'diario_pct': min(diario_pct, 100),
+                'aprovacao_pct': aprovacao_pct,
+                'faltas': tdata['faltas_professor'],
+                'assiduidade_pct': round(assiduidade, 1),
+                'score': score,
+                'registros_diario': tdata['diario_preenchido'],
+                'total_allocations': tdata['total_allocations']
+            })
+        
+        result.sort(key=lambda x: x['score'], reverse=True)
+        return {"data": result[:limit]}
+
     @router.post("/semed/accept-terms")
     async def accept_semed_terms(
         request: Request

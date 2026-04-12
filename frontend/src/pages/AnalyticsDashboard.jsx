@@ -381,6 +381,7 @@ export function AnalyticsDashboard() {
   const [gradesByPeriod, setGradesByPeriod] = useState([]);
   const [schoolsRanking, setSchoolsRanking] = useState([]);
   const [studentsPerformance, setStudentsPerformance] = useState([]);
+  const [teachersPerformance, setTeachersPerformance] = useState([]);
   const [gradesDistribution, setGradesDistribution] = useState([]);
   const [selectedSchoolDetail, setSelectedSchoolDetail] = useState(null); // Para o modal de drill-down
   const [showSemedTerms, setShowSemedTerms] = useState(false); // Modal do termo SEMED
@@ -540,7 +541,7 @@ export function AnalyticsDashboard() {
           }
         };
         
-        const [ovRes, trendRes, monthlyRes, subjectRes, periodRes, rankingRes, perfRes, distRes] = await Promise.all([
+        const [ovRes, trendRes, monthlyRes, subjectRes, periodRes, rankingRes, perfRes, distRes, teacherRes] = await Promise.all([
           safeFetch(`${API_URL}/api/analytics/overview?${params}`),
           safeFetch(`${API_URL}/api/analytics/enrollments/trend?${params}`),
           safeFetch(`${API_URL}/api/analytics/attendance/monthly?${params}`),
@@ -548,7 +549,8 @@ export function AnalyticsDashboard() {
           safeFetch(`${API_URL}/api/analytics/grades/by-period?${params}`),
           (isAdmin || isSemed) ? safeFetch(`${API_URL}/api/analytics/schools/ranking?academic_year=${selectedYear}`) : null,
           canViewStudentData ? safeFetch(`${API_URL}/api/analytics/students/performance?${params}`) : null,
-          safeFetch(`${API_URL}/api/analytics/distribution/grades?${params}`)
+          safeFetch(`${API_URL}/api/analytics/distribution/grades?${params}`),
+          (isAdmin || isSemed) ? safeFetch(`${API_URL}/api/analytics/teachers/performance?academic_year=${selectedYear}${selectedSchool ? '&school_id=' + selectedSchool : ''}`) : null
         ]);
         
         if (ovRes) setOverview(ovRes);
@@ -582,6 +584,7 @@ export function AnalyticsDashboard() {
         }
         
         if (distRes) setGradesDistribution(distRes);
+        if (teacherRes) setTeachersPerformance(teacherRes.data || []);
       } catch (error) {
         console.error('Erro ao carregar analytics:', error);
       } finally {
@@ -1791,6 +1794,68 @@ export function AnalyticsDashboard() {
                   <p>Nenhum dado de desempenho disponível para os filtros selecionados.</p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Desempenho dos Professores - Top 10 */}
+        {(isAdmin || isSemed) && teachersPerformance.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Award className="h-5 w-5 text-purple-600" />
+                Desempenho dos Professores - Top 10
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm" data-testid="teachers-performance-table">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="text-left py-2 px-3 font-medium text-gray-600">#</th>
+                      <th className="text-left py-2 px-3 font-medium text-gray-600">Professor</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600">Diários (%)</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600">Aprovação (%)</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600">Faltas</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600">Assiduidade (%)</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600">Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teachersPerformance.map((teacher, index) => (
+                      <tr key={teacher.teacher_id} className="border-b hover:bg-gray-50">
+                        <td className="py-2 px-3 font-medium text-gray-500">{index + 1}</td>
+                        <td className="py-2 px-3 font-medium text-gray-800">{teacher.teacher_name}</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className={`font-medium ${teacher.diario_pct >= 70 ? 'text-green-600' : teacher.diario_pct >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
+                            {teacher.diario_pct}%
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <span className={`font-medium ${teacher.aprovacao_pct >= 70 ? 'text-green-600' : teacher.aprovacao_pct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                            {teacher.aprovacao_pct}%
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <span className={`font-medium ${teacher.faltas <= 3 ? 'text-green-600' : teacher.faltas <= 10 ? 'text-yellow-600' : 'text-red-600'}`}>
+                            {teacher.faltas}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <span className={`font-medium ${teacher.assiduidade_pct >= 90 ? 'text-green-600' : teacher.assiduidade_pct >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
+                            {teacher.assiduidade_pct}%
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
+                            {teacher.score}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         )}
