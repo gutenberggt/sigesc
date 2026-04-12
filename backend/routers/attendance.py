@@ -933,4 +933,26 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         
         return {"count": count, "has_schedule": True}
 
+    @router.get("/dates-with-records")
+    async def get_dates_with_records(
+        request: Request,
+        class_id: str,
+        academic_year: int,
+        course_id: Optional[str] = None
+    ):
+        """Retorna lista de datas que possuem registros de frequência"""
+        user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(user)
+        
+        query = {"class_id": class_id, "academic_year": academic_year}
+        if course_id:
+            query["course_id"] = course_id
+        
+        attendances = await current_db.attendance.find(
+            query, {"_id": 0, "date": 1}
+        ).to_list(5000)
+        
+        dates = sorted(list(set(att.get('date', '')[:10] for att in attendances if att.get('date'))))
+        return {"dates": dates}
+
     return router

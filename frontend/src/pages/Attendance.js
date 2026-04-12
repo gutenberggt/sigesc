@@ -114,6 +114,12 @@ export const Attendance = () => {
   const [classReport, setClassReport] = useState(null);
   const [alertsData, setAlertsData] = useState(null);
 
+  // Registros (calendário anual)
+  const [registrosBlockedDates, setRegistrosBlockedDates] = useState(new Set());
+  const [registrosSabLetivos, setRegistrosSabLetivos] = useState(new Set());
+  const [registrosAttDates, setRegistrosAttDates] = useState(new Set());
+  const [registrosLoading, setRegistrosLoading] = useState(false);
+
   // Detectar se turma é Anos Finais ou EJA (requer componente no relatório)
   const selectedClassInfo = classes.find(c => c.id === selectedClass) || professorTurmas.find(t => t.id === selectedClass);
   const isAnosFinaisOrEja = (() => {
@@ -820,7 +826,78 @@ export const Attendance = () => {
     };
     fetchSummary();
   }, [selectedClass, selectedCourse, academicYear, isMultiAula]);
-  
+
+  // Carregar dados da aba Registros (calendário anual + datas com frequência)
+  const loadRegistrosData = useCallback(async () => {
+    if (!selectedClass) return;
+    setRegistrosLoading(true);
+    try {
+      // 1. Carregar eventos do calendário (feriados, sábados letivos)
+      const events = await calendarAPI.getEvents({ academic_year: academicYear });
+      const blocked = new Set();
+      const sabLet = new Set();
+      if (events && Array.isArray(events)) {
+        for (const ev of events) {
+          const evType = ev.event_type || '';
+          const start = (ev.start_date || '')?.substring(0, 10);
+          const end = (ev.end_date || start)?.substring(0, 10);
+          if (evType === 'sabado_letivo' || (ev.is_school_day && start)) {
+            let d = new Date(start + 'T12:00:00');
+            const endD = new Date((end || start) + 'T12:00:00');
+            while (d <= endD) {
+              if (d.getDay() === 6) sabLet.add(d.toISOString().split('T')[0]);
+              d.setDate(d.getDate() + 1);
+            }
+          }
+          if (evType.includes('feriado') || evType === 'recesso_escolar' || ev.is_school_day === false) {
+            if (start) {
+              let d = new Date(start + 'T12:00:00');
+              const endD = new Date((end || start) + 'T12:00:00');
+              while (d <= endD) {
+                blocked.add(d.toISOString().split('T')[0]);
+                d.setDate(d.getDate() + 1);
+              }
+            }
+          }
+        }
+      }
+      setRegistrosBlockedDates(blocked);
+      setRegistrosSabLetivos(sabLet);
+
+      // 2. Carregar datas com frequência registrada
+      const turma = classes.find(c => c.id === selectedClass) || professorTurmas.find(t => t.id === selectedClass);
+      const attendanceType = turma ? getAttendanceType(turma.education_level, selectedPeriod) : 'daily';
+      const courseId = attendanceType === 'by_component' ? selectedCourse : null;
+      
+      let url = `${process.env.REACT_APP_BACKEND_URL}/api/attendance/dates-with-records?class_id=${selectedClass}&academic_year=${academicYear}`;
+      if (courseId) url += `&course_id=${courseId}`;
+      
+      try {
+        const resp = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          setRegistrosAttDates(new Set(data.dates || []));
+        } else {
+          setRegistrosAttDates(new Set());
+        }
+      } catch {
+        setRegistrosAttDates(new Set());
+      }
+    } catch {
+      // fallback
+    } finally {
+      setRegistrosLoading(false);
+    }
+  }, [selectedClass, selectedCourse, selectedPeriod, academicYear, classes, professorTurmas]);
+
+  useEffect(() => {
+    if (activeTab === 'registros' && selectedClass) {
+      loadRegistrosData();
+    }
+  }, [activeTab, selectedClass, selectedCourse, academicYear, loadRegistrosData]);
+
   return (
     <Layout>
       <div className="space-y-4">
@@ -876,6 +953,7 @@ export const Attendance = () => {
           <div className="flex border-b">
             {[
               { id: 'lancamento', label: 'Lançamento', icon: ClipboardCheck },
+              { id: 'registros', label: 'Registros', icon: Calendar },
               { id: 'relatorios', label: 'Relatórios', icon: FileText },
               { id: 'alertas', label: 'Alertas', icon: AlertTriangle }
             ].map(tab => (
@@ -1327,6 +1405,104 @@ export const Attendance = () => {
                   <div className="text-center py-12 text-gray-500">
                     <Users size={48} className="mx-auto mb-4 opacity-30" />
                     <p>Selecione os filtros e clique em "Carregar Frequência"</p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Tab: Registros (Calendário Anual) */}
+            {activeTab === 'registros' && (
+              <div className="space-y-4">
+                {!selectedClass ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <Calendar size={48} className="mx-auto mb-4 opacity-30" />
+                    <p>Selecione a turma{isMultiAula ? ' e o componente curricular' : ''} para visualizar o calendário de registros</p>
+                  </div>
+                ) : registrosLoading ? (
+                  <div className="text-center py-12 text-gray-500">Carregando...</div>
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-medium text-gray-700">
+                        Calendário de Registros — {academicYear}
+                      </h3>
+                      <div className="flex items-center gap-4 text-xs">
+                        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-200 border border-green-400"></span> Com registro</span>
+                        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-100 border border-red-300"></span> Não letivo</span>
+                        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-300"></span> Sem registro</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {Array.from({ length: 12 }, (_, monthIdx) => {
+                        const year = academicYear;
+                        const firstDay = new Date(year, monthIdx, 1);
+                        const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+                        const startingDay = firstDay.getDay();
+                        const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                        const weekDays = ['D','S','T','Q','Q','S','S'];
+                        
+                        // Contar dias letivos do mês
+                        let diasLetivos = 0;
+                        for (let d = 1; d <= daysInMonth; d++) {
+                          const dateStr = `${year}-${String(monthIdx+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                          const dow = new Date(year, monthIdx, d).getDay();
+                          const isSunday = dow === 0;
+                          const isSaturday = dow === 6;
+                          const isHoliday = registrosBlockedDates.has(dateStr);
+                          const isSabLetivo = registrosSabLetivos.has(dateStr);
+                          if (!isSunday && !isHoliday && (!isSaturday || isSabLetivo)) diasLetivos++;
+                        }
+                        
+                        return (
+                          <div key={monthIdx} className="border rounded-lg p-3 bg-white">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-semibold text-sm text-gray-800">{monthNames[monthIdx]}</span>
+                              <span className="text-xs text-green-600 font-medium">{diasLetivos} dias letivos</span>
+                            </div>
+                            <div className="grid grid-cols-7 gap-px text-center">
+                              {weekDays.map((wd, i) => (
+                                <div key={i} className="text-[10px] font-medium text-gray-500 py-0.5">{wd}</div>
+                              ))}
+                              {Array.from({ length: startingDay }, (_, i) => (
+                                <div key={`empty-${i}`} />
+                              ))}
+                              {Array.from({ length: daysInMonth }, (_, i) => {
+                                const d = i + 1;
+                                const dateStr = `${year}-${String(monthIdx+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                                const dow = new Date(year, monthIdx, d).getDay();
+                                const isSunday = dow === 0;
+                                const isSaturday = dow === 6;
+                                const isHoliday = registrosBlockedDates.has(dateStr);
+                                const isSabLetivo = registrosSabLetivos.has(dateStr);
+                                const isBlocked = isSunday || isHoliday || (isSaturday && !isSabLetivo);
+                                const hasRecord = registrosAttDates.has(dateStr);
+                                const isToday = dateStr === new Date().toISOString().split('T')[0];
+                                
+                                let bgClass = 'bg-white';
+                                let textClass = 'text-gray-700';
+                                if (isBlocked) {
+                                  bgClass = 'bg-red-100';
+                                  textClass = 'text-red-500 font-medium';
+                                } else if (hasRecord) {
+                                  bgClass = 'bg-green-200';
+                                  textClass = 'text-green-800 font-medium';
+                                }
+                                
+                                return (
+                                  <div
+                                    key={d}
+                                    className={`text-[11px] py-0.5 rounded ${bgClass} ${textClass} ${isToday ? 'ring-1 ring-blue-500' : ''}`}
+                                    title={isBlocked ? (isHoliday ? 'Feriado / Recesso' : 'Dia não letivo') : hasRecord ? 'Frequência registrada' : ''}
+                                  >
+                                    {d}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
