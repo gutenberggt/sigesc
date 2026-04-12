@@ -1471,9 +1471,15 @@ export const Attendance = () => {
                       </div>
                     )}
                       {(() => {
-                        // Limites do ano letivo (do calendário)
-                        const anoLetivoInicio = registrosBimSummary.length > 0 ? registrosBimSummary[0].period_start : `${academicYear}-02-01`;
-                        const anoLetivoFim = registrosBimSummary.length > 0 ? registrosBimSummary[registrosBimSummary.length - 1].period_end : `${academicYear}-12-20`;
+                        // Períodos bimestrais: dias fora de QUALQUER bimestre = não letivo
+                        const bimPeriods = registrosBimSummary.map(b => ({
+                          start: b.period_start,
+                          end: b.period_end
+                        }));
+                        const isWithinBimestre = (dateStr) => {
+                          if (bimPeriods.length === 0) return true; // sem dados, não bloquear
+                          return bimPeriods.some(p => dateStr >= p.start && dateStr <= p.end);
+                        };
                         
                         return (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 12 }, (_, monthIdx) => {
                         const year = academicYear;
@@ -1492,7 +1498,7 @@ export const Attendance = () => {
                           const isSaturday = dow === 6;
                           const isHoliday = registrosBlockedDates.has(dateStr);
                           const isSabLetivo = registrosSabLetivos.has(dateStr);
-                          const isOutOfYear = dateStr < anoLetivoInicio || dateStr > anoLetivoFim;
+                          const isOutOfYear = !isWithinBimestre(dateStr);
                           if (!isSunday && !isHoliday && !isOutOfYear && (!isSaturday || isSabLetivo)) diasLetivos++;
                         }
                         
@@ -1517,7 +1523,7 @@ export const Attendance = () => {
                                 const isSaturday = dow === 6;
                                 const isHoliday = registrosBlockedDates.has(dateStr);
                                 const isSabLetivo = registrosSabLetivos.has(dateStr);
-                                const isOutOfYear = dateStr < anoLetivoInicio || dateStr > anoLetivoFim;
+                                const isOutOfYear = !isWithinBimestre(dateStr);
                                 const isBlocked = isSunday || isHoliday || isOutOfYear || (isSaturday && !isSabLetivo);
                                 const hasRecord = registrosAttDates.has(dateStr);
                                 const isToday = dateStr === new Date().toISOString().split('T')[0];
