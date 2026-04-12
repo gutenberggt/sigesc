@@ -26,7 +26,7 @@ import {
   Lock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI, teacherAssignmentAPI } from '@/services/api';
+import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI, teacherAssignmentAPI, attendanceAPI } from '@/services/api';
 
 
 // Infere o nível de ensino da turma a partir de education_level, nivel_ensino, grade_level ou name
@@ -246,6 +246,14 @@ export const LearningObjects = () => {
     return ['educacao_infantil', 'fundamental_anos_iniciais', 'eja_inicial', 'eja'].includes(level);
   }, [selectedClass, classes]);
 
+  // Anos Finais: ocultar Recursos/Observações, renomear Metodologia, buscar Nº Aulas do horário
+  const isAnosFinais = useMemo(() => {
+    if (!selectedClass) return false;
+    const classInfo = classes.find(c => c.id === selectedClass);
+    const level = inferEducationLevel(classInfo);
+    return ['fundamental_anos_finais', 'eja_final'].includes(level);
+  }, [selectedClass, classes]);
+
   // Determina o número padrão de aulas baseado no nível de ensino da turma
   const defaultNumberOfClasses = useMemo(() => {
     if (!selectedClass) return 1;
@@ -453,7 +461,7 @@ export const LearningObjects = () => {
   };
 
   // Handler de clique no dia
-  const handleDayClick = (dayInfo) => {
+  const handleDayClick = async (dayInfo) => {
     if (!dayInfo.date || !selectedClass) return;
     
     setSelectedDate(dayInfo.date);
@@ -502,12 +510,26 @@ export const LearningObjects = () => {
       } else {
         setEditingRecord(null);
         setFormCourseId(selectedCourse);
+        
+        // Anos Finais: buscar nº de aulas do Horário de Aulas
+        let numClasses = defaultNumberOfClasses;
+        if (isAnosFinais && selectedCourse) {
+          try {
+            const scheduleData = await attendanceAPI.getScheduleClassesCount(
+              selectedClass, selectedCourse, dayInfo.date, academicYear
+            );
+            numClasses = scheduleData.has_schedule ? scheduleData.count : 1;
+          } catch {
+            numClasses = 1;
+          }
+        }
+        
         setFormData({
           content: '',
           observations: '',
           methodology: '',
           resources: '',
-          number_of_classes: defaultNumberOfClasses
+          number_of_classes: numClasses
         });
       }
     }
@@ -529,6 +551,12 @@ export const LearningObjects = () => {
   const handleSave = async () => {
     if (!formData.content.trim()) {
       showAlert('error', 'O conteúdo é obrigatório');
+      return;
+    }
+    
+    // Práticas Pedagógicas obrigatório para isDiasLevel e isAnosFinais
+    if ((isDiasLevel || isAnosFinais) && !formData.methodology.trim()) {
+      showAlert('error', 'Práticas Pedagógicas é obrigatório');
       return;
     }
 
@@ -1057,33 +1085,33 @@ export const LearningObjects = () => {
                       </label>
                       <select
                         value={formData.number_of_classes}
-                        onChange={(e) => { setFormData({ ...formData, number_of_classes: parseInt(e.target.value) || 1 }); setHasChanges(true); }}
+                        onChange={(e) => { setFormData({ ...formData, number_of_classes: parseInt(e.target.value) || 0 }); setHasChanges(true); }}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                         data-testid="number-of-classes-select"
                       >
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                           <option key={n} value={n}>{n}</option>
                         ))}
                       </select>
                     </div>
                     )}
 
-                    {/* Metodologia / Práticas Pedagógicas */}
+                    {/* Práticas Pedagógicas (todos os níveis) */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {isDiasLevel ? 'Práticas Pedagógicas' : 'Metodologia'}
+                        Práticas Pedagógicas {(isDiasLevel || isAnosFinais) ? '*' : ''}
                       </label>
                       <input
                         type="text"
                         value={formData.methodology}
                         onChange={(e) => { setFormData({ ...formData, methodology: e.target.value }); setHasChanges(true); }}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-                        placeholder={isDiasLevel ? 'Ex: Roda de conversa, Brincadeira dirigida...' : 'Ex: Aula expositiva, Trabalho em grupo...'}
+                        placeholder="Ex: Aula expositiva, Trabalho em grupo, Roda de conversa..."
                       />
                     </div>
 
-                    {/* Recursos — oculto para Ed. Infantil e Anos Iniciais */}
-                    {!isDiasLevel && (
+                    {/* Recursos — oculto para Ed. Infantil, Anos Iniciais e Anos Finais */}
+                    {!isDiasLevel && !isAnosFinais && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Recursos Utilizados
@@ -1098,8 +1126,8 @@ export const LearningObjects = () => {
                     </div>
                     )}
 
-                    {/* Observações — oculto para Ed. Infantil e Anos Iniciais */}
-                    {!isDiasLevel && (
+                    {/* Observações — oculto para Ed. Infantil, Anos Iniciais e Anos Finais */}
+                    {!isDiasLevel && !isAnosFinais && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Observações
