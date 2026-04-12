@@ -1470,8 +1470,12 @@ export const Attendance = () => {
                         ))}
                       </div>
                     )}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {Array.from({ length: 12 }, (_, monthIdx) => {
+                      {(() => {
+                        // Limites do ano letivo (do calendário)
+                        const anoLetivoInicio = registrosBimSummary.length > 0 ? registrosBimSummary[0].period_start : `${academicYear}-02-01`;
+                        const anoLetivoFim = registrosBimSummary.length > 0 ? registrosBimSummary[registrosBimSummary.length - 1].period_end : `${academicYear}-12-20`;
+                        
+                        return (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 12 }, (_, monthIdx) => {
                         const year = academicYear;
                         const firstDay = new Date(year, monthIdx, 1);
                         const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
@@ -1488,7 +1492,8 @@ export const Attendance = () => {
                           const isSaturday = dow === 6;
                           const isHoliday = registrosBlockedDates.has(dateStr);
                           const isSabLetivo = registrosSabLetivos.has(dateStr);
-                          if (!isSunday && !isHoliday && (!isSaturday || isSabLetivo)) diasLetivos++;
+                          const isOutOfYear = dateStr < anoLetivoInicio || dateStr > anoLetivoFim;
+                          if (!isSunday && !isHoliday && !isOutOfYear && (!isSaturday || isSabLetivo)) diasLetivos++;
                         }
                         
                         return (
@@ -1512,7 +1517,8 @@ export const Attendance = () => {
                                 const isSaturday = dow === 6;
                                 const isHoliday = registrosBlockedDates.has(dateStr);
                                 const isSabLetivo = registrosSabLetivos.has(dateStr);
-                                const isBlocked = isSunday || isHoliday || (isSaturday && !isSabLetivo);
+                                const isOutOfYear = dateStr < anoLetivoInicio || dateStr > anoLetivoFim;
+                                const isBlocked = isSunday || isHoliday || isOutOfYear || (isSaturday && !isSabLetivo);
                                 const hasRecord = registrosAttDates.has(dateStr);
                                 const isToday = dateStr === new Date().toISOString().split('T')[0];
                                 
@@ -1540,7 +1546,8 @@ export const Attendance = () => {
                           </div>
                         );
                       })}
-                    </div>
+                    </div>);
+                      })()}
                   </div>
                 )}
               </div>
