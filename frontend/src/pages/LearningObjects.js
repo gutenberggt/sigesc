@@ -1093,6 +1093,11 @@ export const LearningObjects = () => {
                           <option key={n} value={n}>{n}</option>
                         ))}
                       </select>
+                      {formData.number_of_classes === 0 && (
+                        <p className="mt-1 text-sm font-bold text-orange-500">
+                          Conforme o horário de aulas, não há aulas previstas para esta data.
+                        </p>
+                      )}
                     </div>
                     )}
 
