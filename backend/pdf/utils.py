@@ -27,6 +27,7 @@ LOGO_URL = "https://aprenderdigital.top/imagens/logotipo/logoprefeitura.jpg"
 # Cache de logos em disco para evitar downloads repetidos
 _logo_cache_dir = os.path.join(tempfile.gettempdir(), 'sigesc_logo_cache')
 os.makedirs(_logo_cache_dir, exist_ok=True)
+_logo_memory_cache = {}  # {(url_hash, width, height): Image}
 
 # Tentar configurar locale para português
 try:
@@ -156,18 +157,22 @@ def get_logo_image(width=2*cm, height=2*cm, logo_url=None):
         return None
     try:
         url_hash = hashlib.md5(url.encode()).hexdigest()
+        cache_key = (url_hash, width, height)
+        
+        # Cache em memória (mais rápido)
+        if cache_key in _logo_memory_cache:
+            return _logo_memory_cache[cache_key]
+        
         suffix = '.jpg' if '.jpg' in url.lower() or '.jpeg' in url.lower() else '.png'
         cache_path = os.path.join(_logo_cache_dir, f'{url_hash}{suffix}')
         if os.path.exists(cache_path):
             with open(cache_path, 'rb') as f:
                 header = f.read(4)
-            is_png = header[:4] == b'\x89PNG'
-            is_jpeg = header[:2] == b'\xff\xd8'
-            if not (is_png or is_jpeg):
+            if not (header[:4] == b'\x89PNG' or header[:2] == b'\xff\xd8'):
                 os.remove(cache_path)
         if not os.path.exists(cache_path):
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=10) as response:
+            with urllib.request.urlopen(req, timeout=3) as response:
                 content_type = response.headers.get('Content-Type', '')
                 if 'image' not in content_type and 'octet-stream' not in content_type:
                     return None
@@ -176,9 +181,11 @@ def get_logo_image(width=2*cm, height=2*cm, logo_url=None):
                     return None
             with open(cache_path, 'wb') as f:
                 f.write(image_data)
-        return Image(cache_path, width=width, height=height)
+        img = Image(cache_path, width=width, height=height)
+        _logo_memory_cache[cache_key] = img
+        return img
     except Exception as e:
-        print(f"Erro ao carregar logotipo de {url}: {e}")
+        logger.warning(f"Erro ao carregar logotipo de {url}: {e}")
         return None
 
 
@@ -189,8 +196,14 @@ def format_date_pt(d: date) -> str:
     return f"{d.day} de {months[d.month - 1]} de {d.year}"
 
 
+# Cache de estilos (evita recriar ParagraphStyles a cada PDF)
+_styles_cache = None
+
 def get_styles():
-    """Retorna estilos personalizados para os documentos"""
+    """Retorna estilos personalizados para os documentos (com cache)"""
+    global _styles_cache
+    if _styles_cache is not None:
+        return _styles_cache
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(
         name='MainTitle', parent=styles['Heading1'],
@@ -214,6 +227,7 @@ def get_styles():
         name='SignatureText', parent=styles['Normal'],
         fontSize=10, alignment=TA_CENTER, spaceBefore=40
     ))
+    _styles_cache = styles
     return styles
 
 

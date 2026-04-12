@@ -232,23 +232,25 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if not academic_year:
             academic_year = datetime.now().year
 
-        # Buscar turma
-        turma = await db.classes.find_one({"id": class_id}, {"_id": 0})
+        # Buscar dados em paralelo para acelerar
+        import asyncio
+        turma_task = db.classes.find_one({"id": class_id}, {"_id": 0})
+        mantenedora_task = db.mantenedora.find_one({}, {"_id": 0})
+        calendario_task = db.calendario_letivo.find_one(
+            {"ano_letivo": academic_year, "school_id": None}, {"_id": 0}
+        )
+        
+        turma, mantenedora, calendario = await asyncio.gather(
+            turma_task, mantenedora_task, calendario_task
+        )
+        
         if not turma:
             raise HTTPException(status_code=404, detail="Turma não encontrada")
 
-        # Buscar escola
         school = await db.schools.find_one({"id": turma.get('school_id')}, {"_id": 0})
         if not school:
             raise HTTPException(status_code=404, detail="Escola não encontrada")
 
-        # Buscar mantenedora
-        mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
-
-        # Buscar calendário para datas do bimestre
-        calendario = await db.calendario_letivo.find_one(
-            {"ano_letivo": academic_year, "school_id": None}, {"_id": 0}
-        )
         if not calendario:
             calendario = await db.calendario_letivo.find_one(
                 {"ano_letivo": academic_year}, {"_id": 0}

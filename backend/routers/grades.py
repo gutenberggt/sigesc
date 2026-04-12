@@ -571,30 +571,39 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         
         bimestres_list = [int(b.strip()) for b in bimestres.split(',') if b.strip().isdigit()]
         
-        # Busca dados da turma
-        class_info = await current_db.classes.find_one({"id": class_id}, {"_id": 0})
+        # Busca dados em paralelo para acelerar
+        import asyncio
+        class_task = current_db.classes.find_one({"id": class_id}, {"_id": 0})
+        course_task = current_db.courses.find_one({"id": course_id}, {"_id": 0})
+        mantenedora_task = current_db.mantenedora.find_one({}, {"_id": 0})
+        
+        class_info, course, mantenedora = await asyncio.gather(
+            class_task, course_task, mantenedora_task
+        )
+        
         if not class_info:
             raise HTTPException(status_code=404, detail="Turma não encontrada")
+        if not course:
+            raise HTTPException(status_code=404, detail="Componente não encontrado")
         
-        # Busca dados da escola
         school = await current_db.schools.find_one({"id": class_info.get('school_id')}, {"_id": 0})
         if not school:
             school = {"name": ""}
         
-        # Busca componente curricular
-        course = await current_db.courses.find_one({"id": course_id}, {"_id": 0})
-        if not course:
-            raise HTTPException(status_code=404, detail="Componente não encontrado")
-        
-        # Busca mantenedora
-        mantenedora = await current_db.mantenedora.find_one({}, {"_id": 0})
-        
-        # Busca alunos matriculados - usando múltiplas fontes para maior robustez
-        # Estratégia 1: Busca na coleção enrollments (matrícula formal)
-        enrollments = await current_db.enrollments.find(
+        # Busca alunos e notas em paralelo
+        enrollments_task = current_db.enrollments.find(
             {"class_id": class_id, "status": "active"},
             {"_id": 0, "student_id": 1, "enrollment_number": 1, "student_series": 1}
         ).to_list(1000)
+        
+        direct_students_task = current_db.students.find(
+            {"class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
+            {"_id": 0, "id": 1, "enrollment_number": 1, "student_series": 1}
+        ).to_list(1000)
+        
+        enrollments, direct_students = await asyncio.gather(
+            enrollments_task, direct_students_task
+        )
         
         enrollment_map = {}
         for e in enrollments:
@@ -603,12 +612,6 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 'enrollment_number': e.get('enrollment_number'),
                 'student_series': e.get('student_series', '')
             }
-        
-        # Estratégia 2: Busca alunos diretamente com class_id (fallback para dados antigos/inconsistentes)
-        direct_students = await current_db.students.find(
-            {"class_id": class_id, "status": {"$in": ["active", "Ativo"]}},
-            {"_id": 0, "id": 1, "enrollment_number": 1, "student_series": 1}
-        ).to_list(1000)
         
         for s in direct_students:
             sid = s.get('id')
