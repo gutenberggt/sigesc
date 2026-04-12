@@ -389,6 +389,21 @@ export const Attendance = () => {
           setAulaStatuses(statusMap);
         } else {
           setAulaStatuses({});
+          // Anos Finais: buscar nº de aulas do Horário de Aulas para pré-definir
+          if (isMultiAula && selectedCourse) {
+            try {
+              const scheduleData = await attendanceAPI.getScheduleClassesCount(
+                selectedClass, selectedCourse, selectedDate, academicYear
+              );
+              if (scheduleData.has_schedule) {
+                setNumberOfAulas(scheduleData.count);
+              } else {
+                setNumberOfAulas(1);
+              }
+            } catch {
+              setNumberOfAulas(1);
+            }
+          }
         }
         // Atualiza cache local
         if (data) {
@@ -1068,7 +1083,7 @@ export const Attendance = () => {
                         className="px-2 py-1 border border-blue-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500"
                         data-testid="num-aulas-select"
                       >
-                        {[1,2,3,4,5,6].map(n => (
+                        {[0,1,2,3,4,5,6].map(n => (
                           <option key={n} value={n}>{n} {n === 1 ? 'aula' : 'aulas'}</option>
                         ))}
                       </select>
@@ -1105,6 +1120,12 @@ export const Attendance = () => {
                       </div>
                     </div>
                     
+                    {isMultiAula && numberOfAulas === 0 ? (
+                      <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border">
+                        <p className="font-medium">Nenhuma aula deste componente neste dia da semana</p>
+                        <p className="text-sm mt-1">Conforme o horário de aulas, não há aulas previstas para esta data.</p>
+                      </div>
+                    ) : (
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
@@ -1266,6 +1287,7 @@ export const Attendance = () => {
                         })}
                       </tbody>
                     </table>
+                    )}
                     
                     {/* Legenda de status */}
                     {Object.keys(medicalCertificates).length > 0 && (

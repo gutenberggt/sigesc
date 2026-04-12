@@ -502,6 +502,11 @@ export const attendanceAPI = {
     if (courseId) url += `&course_id=${courseId}`;
     const response = await axios.get(url);
     return response.data;
+  },
+
+  getScheduleClassesCount: async (classId, courseId, date, academicYear) => {
+    const response = await axios.get(`${API}/attendance/schedule-classes-count?class_id=${classId}&course_id=${courseId}&date=${date}&academic_year=${academicYear}`);
+    return response.data;
   }
 };
 

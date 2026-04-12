@@ -894,4 +894,40 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             }
 
 
+    @router.get("/schedule-classes-count")
+    async def get_schedule_classes_count(
+        request: Request,
+        class_id: str,
+        course_id: str,
+        date: str,
+        academic_year: int
+    ):
+        """Retorna o número de aulas de um componente para o dia da semana da data informada"""
+        user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(user)
+        
+        # Calcular dia da semana
+        from datetime import datetime as dt
+        try:
+            d = dt.strptime(date, '%Y-%m-%d')
+            py_dow = d.weekday()  # 0=Mon...6=Sun
+            js_dow = (py_dow + 1) % 7  # 0=Sun, 1=Mon...6=Sat
+        except:
+            return {"count": 1, "has_schedule": False}
+        
+        schedule = await current_db.class_schedules.find_one(
+            {"class_id": class_id, "academic_year": academic_year},
+            {"_id": 0, "schedule_slots": 1}
+        )
+        
+        if not schedule or not schedule.get('schedule_slots'):
+            return {"count": 1, "has_schedule": False}
+        
+        count = sum(
+            1 for s in schedule['schedule_slots']
+            if s.get('course_id') == course_id and s.get('day_of_week') == js_dow
+        )
+        
+        return {"count": count, "has_schedule": True}
+
     return router
