@@ -906,14 +906,17 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         user = await AuthMiddleware.get_current_user(request)
         current_db = get_db_for_user(user)
         
-        # Calcular dia da semana
+        # Mapear dia da semana Python para o ID usado no schedule
         from datetime import datetime as dt
+        day_map = {0: 'segunda', 1: 'terca', 2: 'quarta', 3: 'quinta', 4: 'sexta', 5: 'sabado', 6: 'domingo'}
         try:
             d = dt.strptime(date, '%Y-%m-%d')
-            py_dow = d.weekday()  # 0=Mon...6=Sun
-            js_dow = (py_dow + 1) % 7  # 0=Sun, 1=Mon...6=Sat
+            day_id = day_map.get(d.weekday(), '')
         except:
             return {"count": 1, "has_schedule": False}
+        
+        if not day_id or day_id in ('sabado', 'domingo'):
+            return {"count": 0, "has_schedule": True}
         
         schedule = await current_db.class_schedules.find_one(
             {"class_id": class_id, "academic_year": academic_year},
@@ -925,7 +928,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         
         count = sum(
             1 for s in schedule['schedule_slots']
-            if s.get('course_id') == course_id and s.get('day_of_week') == js_dow
+            if s.get('course_id') == course_id and s.get('day') == day_id
         )
         
         return {"count": count, "has_schedule": True}
