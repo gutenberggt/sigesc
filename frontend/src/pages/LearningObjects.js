@@ -98,9 +98,10 @@ export const LearningObjects = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   
-  // Calendário letivo (feriados, sábados letivos)
+  // Calendário letivo (feriados, sábados letivos, períodos bimestrais)
   const [blockedDates, setBlockedDates] = useState(new Set());
   const [saturdayLetivoDates, setSaturdayLetivoDates] = useState(new Set());
+  const [bimestrePeriods, setBimestrePeriods] = useState([]);
   
   // Curso selecionado no formulário (para infantil com multi-seleção)
   const [formCourseId, setFormCourseId] = useState('');
@@ -243,6 +244,22 @@ export const LearningObjects = () => {
         
         setBlockedDates(blocked);
         setSaturdayLetivoDates(sabLetivos);
+        
+        // Carregar períodos bimestrais do calendário letivo
+        try {
+          const cal = await calendarAPI.getCalendarioLetivo(academicYear);
+          if (cal) {
+            const periods = [];
+            for (let b = 1; b <= 4; b++) {
+              const start = (cal[`bimestre_${b}_inicio`] || '')?.substring?.(0, 10) || String(cal[`bimestre_${b}_inicio`] || '').substring(0, 10);
+              const end = (cal[`bimestre_${b}_fim`] || '')?.substring?.(0, 10) || String(cal[`bimestre_${b}_fim`] || '').substring(0, 10);
+              if (start && end) periods.push({ start, end });
+            }
+            setBimestrePeriods(periods);
+          }
+        } catch {
+          setBimestrePeriods([]);
+        }
       } catch {
         setBlockedDates(new Set());
         setSaturdayLetivoDates(new Set());
@@ -483,8 +500,10 @@ export const LearningObjects = () => {
       const isToday = dateStr === new Date().toISOString().split('T')[0];
       const isHoliday = blockedDates.has(dateStr);
       const isSabadoLetivo = saturdayLetivoDates.has(dateStr);
-      // Bloqueado: domingos, feriados, sábados não letivos
-      const isBlocked = isSunday || isHoliday || (isSaturday && !isSabadoLetivo);
+      // Fora dos períodos bimestrais = não letivo
+      const isOutOfBimestre = bimestrePeriods.length > 0 && !bimestrePeriods.some(p => dateStr >= p.start && dateStr <= p.end);
+      // Bloqueado: domingos, feriados, sábados não letivos, ou fora dos bimestres
+      const isBlocked = isSunday || isHoliday || isOutOfBimestre || (isSaturday && !isSabadoLetivo);
       
       days.push({
         day,
@@ -499,7 +518,7 @@ export const LearningObjects = () => {
     }
     
     return days;
-  }, [academicYear, currentMonth, records, blockedDates, saturdayLetivoDates]);
+  }, [academicYear, currentMonth, records, blockedDates, saturdayLetivoDates, bimestrePeriods]);
 
   // Handlers de navegação do calendário
   const previousMonth = () => {
