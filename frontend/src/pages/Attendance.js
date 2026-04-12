@@ -119,6 +119,7 @@ export const Attendance = () => {
   const [registrosSabLetivos, setRegistrosSabLetivos] = useState(new Set());
   const [registrosAttDates, setRegistrosAttDates] = useState(new Set());
   const [registrosLoading, setRegistrosLoading] = useState(false);
+  const [registrosBimSummary, setRegistrosBimSummary] = useState([]);
 
   // Detectar se turma é Anos Finais ou EJA (requer componente no relatório)
   const selectedClassInfo = classes.find(c => c.id === selectedClass) || professorTurmas.find(t => t.id === selectedClass);
@@ -885,6 +886,20 @@ export const Attendance = () => {
       } catch {
         setRegistrosAttDates(new Set());
       }
+      
+      // 3. Carregar resumo por bimestre
+      try {
+        let bimUrl = `${process.env.REACT_APP_BACKEND_URL}/api/attendance/bimestre-summary?class_id=${selectedClass}&academic_year=${academicYear}`;
+        if (courseId) bimUrl += `&course_id=${courseId}`;
+        const bimResp = await fetch(bimUrl, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
+        });
+        if (bimResp.ok) {
+          setRegistrosBimSummary(await bimResp.json());
+        }
+      } catch {
+        setRegistrosBimSummary([]);
+      }
     } catch {
       // fallback
     } finally {
@@ -1432,6 +1447,29 @@ export const Attendance = () => {
                         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-300"></span> Sem registro</span>
                       </div>
                     </div>
+                    
+                    {/* Resumo por Bimestre */}
+                    {registrosBimSummary.length > 0 && (
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                        {registrosBimSummary.map(bim => (
+                          <div key={bim.bimestre} className="border rounded-lg p-3 bg-white">
+                            <div className="text-center font-semibold text-sm text-gray-700 mb-2 border-b pb-1">
+                              {bim.bimestre}º Bimestre
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-xs">
+                                <span className="text-gray-500">{bim.label_prev}:</span>
+                                <span className="font-bold text-blue-600">{bim.previstos}</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-gray-500">{bim.label_reg}:</span>
+                                <span className="font-bold text-green-600">{bim.registrados}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       {Array.from({ length: 12 }, (_, monthIdx) => {
                         const year = academicYear;

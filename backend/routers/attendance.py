@@ -955,4 +955,152 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         dates = sorted(list(set(att.get('date', '')[:10] for att in attendances if att.get('date'))))
         return {"dates": dates}
 
+    @router.get("/bimestre-summary")
+    async def get_bimestre_summary(
+        request: Request,
+        class_id: str,
+        academic_year: int,
+        course_id: Optional[str] = None
+    ):
+        """Retorna resumo de previstos/registrados por bimestre"""
+        user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(user)
+        
+        from datetime import datetime as dt, timedelta
+        
+        # Buscar calendário letivo
+        calendario = await current_db.calendario_letivo.find_one(
+            {"ano_letivo": academic_year, "school_id": None}, {"_id": 0}
+        )
+        if not calendario:
+            calendario = await current_db.calendario_letivo.find_one(
+                {"ano_letivo": academic_year}, {"_id": 0}
+            )
+        
+        # Buscar eventos do calendário
+        events = await current_db.calendar_events.find(
+            {"academic_year": academic_year}, {"_id": 0}
+        ).to_list(1000)
+        
+        datas_nao_letivas = set()
+        datas_sabados_letivos = set()
+        for event in events:
+            event_type = event.get('event_type', '')
+            start_str = (event.get('start_date') or '')[:10]
+            end_str = (event.get('end_date') or start_str)[:10]
+            if not start_str:
+                continue
+            if event_type == 'sabado_letivo' or (event.get('is_school_day') and start_str):
+                try:
+                    d = dt.strptime(start_str, '%Y-%m-%d')
+                    end_d = dt.strptime(end_str, '%Y-%m-%d')
+                    while d <= end_d:
+                        if d.weekday() == 5:
+                            datas_sabados_letivos.add(d.strftime('%Y-%m-%d'))
+                        d += timedelta(days=1)
+                except:
+                    pass
+            if event_type.endswith('feriado') or 'feriado' in event_type or event_type == 'recesso_escolar' or event.get('is_school_day') is False:
+                try:
+                    d = dt.strptime(start_str, '%Y-%m-%d')
+                    end_d = dt.strptime(end_str, '%Y-%m-%d')
+                    while d <= end_d:
+                        datas_nao_letivas.add(d.strftime('%Y-%m-%d'))
+                        d += timedelta(days=1)
+                except:
+                    pass
+        
+        # Detectar nível de ensino
+        turma = await current_db.classes.find_one({"id": class_id}, {"_id": 0, "education_level": 1})
+        education_level = turma.get('education_level', '') if turma else ''
+        is_anos_finais = education_level in ('fundamental_anos_finais', 'eja_final')
+        
+        # Para anos finais: buscar horário de aulas do componente
+        aulas_semana = 0
+        if is_anos_finais and course_id:
+            schedule = await current_db.class_schedules.find_one(
+                {"class_id": class_id, "academic_year": academic_year},
+                {"_id": 0, "schedule_slots": 1}
+            )
+            if schedule and schedule.get('schedule_slots'):
+                aulas_semana = sum(
+                    1 for s in schedule['schedule_slots']
+                    if s.get('course_id') == course_id
+                )
+        
+        # Buscar todos os registros de frequência
+        att_query = {"class_id": class_id, "academic_year": academic_year}
+        if course_id:
+            att_query["course_id"] = course_id
+        attendances = await current_db.attendance.find(
+            att_query, {"_id": 0, "date": 1, "aula_numero": 1, "number_of_classes": 1}
+        ).to_list(5000)
+        
+        result = []
+        for bim in range(1, 5):
+            bim_key_inicio = f"bimestre_{bim}_inicio"
+            bim_key_fim = f"bimestre_{bim}_fim"
+            
+            if calendario and calendario.get(bim_key_inicio) and calendario.get(bim_key_fim):
+                p_start = str(calendario[bim_key_inicio])[:10]
+                p_end = str(calendario[bim_key_fim])[:10]
+            else:
+                fallback = {
+                    1: (f"{academic_year}-02-01", f"{academic_year}-04-30"),
+                    2: (f"{academic_year}-05-01", f"{academic_year}-07-15"),
+                    3: (f"{academic_year}-07-16", f"{academic_year}-09-30"),
+                    4: (f"{academic_year}-10-01", f"{academic_year}-12-20"),
+                }
+                p_start, p_end = fallback[bim]
+            
+            # Contar dias letivos no período
+            dias_letivos = 0
+            try:
+                d = dt.strptime(p_start, '%Y-%m-%d')
+                end_d = dt.strptime(p_end, '%Y-%m-%d')
+                while d <= end_d:
+                    ds = d.strftime('%Y-%m-%d')
+                    dow = d.weekday()
+                    is_sunday = dow == 6
+                    is_saturday = dow == 5
+                    is_blocked = is_sunday or ds in datas_nao_letivas or (is_saturday and ds not in datas_sabados_letivos)
+                    if not is_blocked:
+                        dias_letivos += 1
+                    d += timedelta(days=1)
+            except:
+                pass
+            
+            # Registrados no bimestre
+            bim_atts = [a for a in attendances if p_start <= a.get('date', '')[:10] <= p_end]
+            
+            if is_anos_finais:
+                # Aulas previstas = dias_letivos * aulas_por_semana / 5
+                previstos = round(dias_letivos * aulas_semana / 5) if aulas_semana > 0 else 0
+                # Aulas registradas
+                registrados = 0
+                for att in bim_atts:
+                    if att.get('aula_numero') is not None:
+                        registrados += 1
+                    else:
+                        registrados += att.get('number_of_classes', 1)
+                label_prev = "AULAS PREVISTAS"
+                label_reg = "AULAS REGISTRADAS"
+            else:
+                previstos = dias_letivos
+                registrados = len(set(a.get('date', '')[:10] for a in bim_atts))
+                label_prev = "DIAS PREVISTOS"
+                label_reg = "DIAS REGISTRADOS"
+            
+            result.append({
+                "bimestre": bim,
+                "previstos": previstos,
+                "registrados": registrados,
+                "label_prev": label_prev,
+                "label_reg": label_reg,
+                "period_start": p_start,
+                "period_end": p_end
+            })
+        
+        return result
+
     return router
