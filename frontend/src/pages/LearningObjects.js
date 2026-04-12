@@ -26,7 +26,7 @@ import {
   Lock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI, teacherAssignmentAPI, attendanceAPI } from '@/services/api';
+import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI, teacherAssignmentAPI, attendanceAPI, calendarAPI } from '@/services/api';
 
 
 // Infere o nível de ensino da turma a partir de education_level, nivel_ensino, grade_level ou name
@@ -97,6 +97,10 @@ export const LearningObjects = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
+  
+  // Calendário letivo (feriados, sábados letivos)
+  const [blockedDates, setBlockedDates] = useState(new Set());
+  const [saturdayLetivoDates, setSaturdayLetivoDates] = useState(new Set());
   
   // Curso selecionado no formulário (para infantil com multi-seleção)
   const [formCourseId, setFormCourseId] = useState('');
@@ -198,6 +202,45 @@ export const LearningObjects = () => {
       }
     }
   }, [isProfessor, selectedSchool, professorTurmas]);
+
+  // Carrega calendário letivo (feriados, sábados letivos)
+  useEffect(() => {
+    const loadCalendar = async () => {
+      try {
+        const cal = await calendarAPI.getCalendarioLetivo(academicYear);
+        if (!cal) return;
+        
+        const blocked = new Set();
+        const sabLetivos = new Set();
+        const tiposNaoLetivos = ['feriado_nacional', 'feriado_estadual', 'feriado_municipal', 'recesso_escolar'];
+        
+        for (const ev of (cal.eventos || [])) {
+          if (tiposNaoLetivos.includes(ev.tipo)) {
+            const start = ev.data_inicio?.substring(0, 10);
+            const end = (ev.data_fim || ev.data_inicio)?.substring(0, 10);
+            if (start) {
+              let d = new Date(start + 'T12:00:00');
+              const endDate = new Date((end || start) + 'T12:00:00');
+              while (d <= endDate) {
+                blocked.add(d.toISOString().split('T')[0]);
+                d.setDate(d.getDate() + 1);
+              }
+            }
+          }
+          if (ev.tipo === 'sabado_letivo' && ev.data_inicio) {
+            sabLetivos.add(ev.data_inicio.substring(0, 10));
+          }
+        }
+        
+        setBlockedDates(blocked);
+        setSaturdayLetivoDates(sabLetivos);
+      } catch {
+        setBlockedDates(new Set());
+        setSaturdayLetivoDates(new Set());
+      }
+    };
+    loadCalendar();
+  }, [academicYear]);
 
   // Atualiza componentes quando turma muda (para professor)
   useEffect(() => {
@@ -425,8 +468,14 @@ export const LearningObjects = () => {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const record = records.find(r => r.date === dateStr);
       const dayOfWeek = new Date(year, month, day).getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isSunday = dayOfWeek === 0;
+      const isSaturday = dayOfWeek === 6;
+      const isWeekend = isSunday || isSaturday;
       const isToday = dateStr === new Date().toISOString().split('T')[0];
+      const isHoliday = blockedDates.has(dateStr);
+      const isSabadoLetivo = saturdayLetivoDates.has(dateStr);
+      // Bloqueado: domingos, feriados, sábados não letivos
+      const isBlocked = isSunday || isHoliday || (isSaturday && !isSabadoLetivo);
       
       days.push({
         day,
@@ -434,12 +483,14 @@ export const LearningObjects = () => {
         record,
         isWeekend,
         isToday,
-        hasRecord: !!record
+        hasRecord: !!record,
+        isBlocked,
+        isHoliday
       });
     }
     
     return days;
-  }, [academicYear, currentMonth, records]);
+  }, [academicYear, currentMonth, records, blockedDates, saturdayLetivoDates]);
 
   // Handlers de navegação do calendário
   const previousMonth = () => {
@@ -983,23 +1034,23 @@ export const LearningObjects = () => {
                     {calendarDays.map((dayInfo, index) => (
                       <div
                         key={index}
-                        onClick={() => canEdit && dayInfo.date && handleDayClick(dayInfo)}
+                        onClick={() => canEdit && dayInfo.date && !dayInfo.isBlocked && handleDayClick(dayInfo)}
                         className={`
                           aspect-square p-0.5 rounded text-center relative flex items-center justify-center
                           ${!dayInfo.date ? 'bg-transparent' : ''}
-                          ${dayInfo.isWeekend && dayInfo.date ? 'bg-gray-50' : ''}
-                          ${dayInfo.isToday ? 'ring-1 ring-purple-500' : ''}
-                          ${dayInfo.date && canEdit ? 'cursor-pointer hover:bg-purple-50' : ''}
-                          ${dayInfo.hasRecord ? 'bg-green-100 hover:bg-green-200' : ''}
+                          ${dayInfo.isBlocked && dayInfo.date ? 'bg-gray-200 opacity-50 cursor-not-allowed' : ''}
+                          ${!dayInfo.isBlocked && dayInfo.isWeekend && dayInfo.date ? 'bg-gray-50' : ''}
+                          ${dayInfo.isToday && !dayInfo.isBlocked ? 'ring-1 ring-purple-500' : ''}
+                          ${dayInfo.date && canEdit && !dayInfo.isBlocked ? 'cursor-pointer hover:bg-purple-50' : ''}
+                          ${dayInfo.hasRecord && !dayInfo.isBlocked ? 'bg-green-100 hover:bg-green-200' : ''}
                           ${selectedDate === dayInfo.date ? 'ring-1 ring-purple-600 bg-purple-100' : ''}
                         `}
+                        title={dayInfo.isBlocked ? (dayInfo.isHoliday ? 'Feriado / Recesso' : 'Dia não letivo') : ''}
                       >
                         {dayInfo.date && (
-                          <>
-                            <span className={`text-[9px] ${dayInfo.isWeekend ? 'text-gray-400' : 'text-gray-700'} ${dayInfo.hasRecord ? 'font-medium' : ''}`}>
-                              {dayInfo.day}
-                            </span>
-                          </>
+                          <span className={`text-[9px] ${dayInfo.isBlocked ? 'text-gray-400 line-through' : dayInfo.isWeekend ? 'text-gray-400' : 'text-gray-700'} ${dayInfo.hasRecord ? 'font-medium' : ''}`}>
+                            {dayInfo.day}
+                          </span>
                         )}
                       </div>
                     ))}
