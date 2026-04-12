@@ -207,17 +207,29 @@ export const LearningObjects = () => {
   useEffect(() => {
     const loadCalendar = async () => {
       try {
-        const cal = await calendarAPI.getCalendarioLetivo(academicYear);
-        if (!cal) return;
+        const events = await calendarAPI.getEvents({ academic_year: academicYear });
+        if (!events || !Array.isArray(events)) return;
         
         const blocked = new Set();
         const sabLetivos = new Set();
-        const tiposNaoLetivos = ['feriado_nacional', 'feriado_estadual', 'feriado_municipal', 'recesso_escolar'];
         
-        for (const ev of (cal.eventos || [])) {
-          if (tiposNaoLetivos.includes(ev.tipo)) {
-            const start = ev.data_inicio?.substring(0, 10);
-            const end = (ev.data_fim || ev.data_inicio)?.substring(0, 10);
+        for (const ev of events) {
+          const evType = ev.event_type || '';
+          const start = (ev.start_date || ev.data_inicio || '')?.substring(0, 10);
+          const end = (ev.end_date || ev.data_fim || start)?.substring(0, 10);
+          
+          // Sábados letivos
+          if (evType === 'sabado_letivo' || (ev.is_school_day && start)) {
+            let d = new Date(start + 'T12:00:00');
+            const endDate = new Date((end || start) + 'T12:00:00');
+            while (d <= endDate) {
+              if (d.getDay() === 6) sabLetivos.add(d.toISOString().split('T')[0]);
+              d.setDate(d.getDate() + 1);
+            }
+          }
+          
+          // Feriados e recessos (dias não letivos)
+          if (evType.includes('feriado') || evType === 'recesso_escolar' || (ev.is_school_day === false)) {
             if (start) {
               let d = new Date(start + 'T12:00:00');
               const endDate = new Date((end || start) + 'T12:00:00');
@@ -226,9 +238,6 @@ export const LearningObjects = () => {
                 d.setDate(d.getDate() + 1);
               }
             }
-          }
-          if (ev.tipo === 'sabado_letivo' && ev.data_inicio) {
-            sabLetivos.add(ev.data_inicio.substring(0, 10));
           }
         }
         
