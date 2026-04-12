@@ -345,26 +345,66 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         has_aula_numero = any(att.get('aula_numero') is not None for att in attendances)
         
         if has_aula_numero:
-            # Modelo novo: cada registro = 1 aula = 1 coluna no PDF
-            # Ordenar por data + aula_numero
+            # Modelo novo (pode ter dados mistos: com e sem aula_numero)
+            # Expandir cada registro: se tem aula_numero, 1 coluna; se não tem, number_of_classes colunas
             sorted_attendances = sorted(attendances, key=lambda a: (a.get('date', ''), a.get('aula_numero', 1)))
-            # attendance_days_expanded: lista de tuplas (date, aula_numero) - cada entrada = 1 coluna
-            attendance_days_expanded = [(att['date'], att.get('aula_numero', 1)) for att in sorted_attendances]
+            
+            # Construir lista expandida: cada entrada = 1 coluna no PDF
+            attendance_days_expanded = []
+            expanded_records = []  # Lista paralela: (attendance_record, aula_key)
+            
+            for att in sorted_attendances:
+                if att.get('aula_numero') is not None:
+                    # Registro novo: 1 coluna
+                    key = (att['date'], att['aula_numero'])
+                    if key not in attendance_days_expanded:
+                        attendance_days_expanded.append(key)
+                        expanded_records.append(att)
+                else:
+                    # Registro legado: expandir number_of_classes em colunas
+                    num_classes = att.get('number_of_classes', 1)
+                    for i in range(1, num_classes + 1):
+                        key = (att['date'], i)
+                        if key not in attendance_days_expanded:
+                            attendance_days_expanded.append(key)
+                            expanded_records.append(att)
+            
+            # Ordenar por data + aula
+            attendance_days_expanded.sort(key=lambda x: (x[0], x[1]))
             
             students_attendance = []
             for student in students:
                 attendance_by_session = {}
-                for att in sorted_attendances:
-                    key = (att['date'], att.get('aula_numero', 1))
-                    for record in att.get('records', []):
-                        if record['student_id'] == student['id']:
-                            status_map = {'P': 'present', 'F': 'absent', 'J': 'justified'}
-                            attendance_by_session[key] = status_map.get(record['status'], '')
                 
-                # Converter para formato compatível com o PDF (attendance_by_date usa string key)
+                for att in sorted_attendances:
+                    if att.get('aula_numero') is not None:
+                        # Registro novo: status direto
+                        key = (att['date'], att['aula_numero'])
+                        for record in att.get('records', []):
+                            if record['student_id'] == student['id']:
+                                status_map = {'P': 'present', 'F': 'absent', 'J': 'justified'}
+                                attendance_by_session[key] = status_map.get(record['status'], '')
+                    else:
+                        # Registro legado: replicar status para cada aula
+                        num_classes = att.get('number_of_classes', 1)
+                        for record in att.get('records', []):
+                            if record['student_id'] == student['id']:
+                                status_map = {'P': 'present', 'F': 'absent', 'J': 'justified'}
+                                raw_status = record.get('status', '')
+                                if '|' in raw_status:
+                                    statuses = raw_status.split('|')
+                                    for i, s in enumerate(statuses):
+                                        key = (att['date'], i + 1)
+                                        attendance_by_session[key] = status_map.get(s.strip(), '')
+                                else:
+                                    for i in range(1, num_classes + 1):
+                                        key = (att['date'], i)
+                                        attendance_by_session[key] = status_map.get(raw_status, '')
+                
+                # Converter para formato compatível com o PDF
                 attendance_by_date = {}
                 attendance_classes_by_date = {}
-                for i, key in enumerate(attendance_days_expanded):
+                for key in attendance_days_expanded:
                     str_key = f"{key[0]}#{key[1]}"
                     attendance_by_date[str_key] = attendance_by_session.get(key, '')
                     attendance_classes_by_date[str_key] = 1
