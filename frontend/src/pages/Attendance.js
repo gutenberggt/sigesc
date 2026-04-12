@@ -1109,10 +1109,10 @@ export const Attendance = () => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
-                          {isMultiAula && numberOfAulas > 1 ? (
+                          {isMultiAula ? (
                             Array.from({ length: numberOfAulas }, (_, i) => (
                               <th key={i} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                                {i + 1}ª Aula
+                                {numberOfAulas > 1 ? `${i + 1}ª Aula` : 'Frequência'}
                               </th>
                             ))
                           ) : (
@@ -1165,7 +1165,7 @@ export const Attendance = () => {
                                   )}
                                 </div>
                               </td>
-                              {isMultiAula && numberOfAulas > 1 ? (
+                              {isMultiAula ? (
                                 Array.from({ length: numberOfAulas }, (_, aulaIdx) => {
                                   const aulaNum = aulaIdx + 1;
                                   const aulaStatus = aulaStatuses[student.id]?.[aulaNum] || '';
