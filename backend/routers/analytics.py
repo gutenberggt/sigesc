@@ -1141,15 +1141,42 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         # ============================================
         # FILTRO DE MATRÍCULAS
         # ============================================
+        # Excluir Ed. Infantil, 1º e 2º Ano — considerar apenas 3º ao 9º e EJA
+        # ============================================
+        excluded_grades = ['educacao_infantil']
+        excluded_grade_levels = ['1º ANO', '1 ANO', '2º ANO', '2 ANO', 'PRÉ I', 'PRÉ II', 'PRE I', 'PRE II',
+                                 'MATERNAL', 'BERÇÁRIO', 'BERCARIO', 'CRECHE', 'INFANTIL I', 'INFANTIL II',
+                                 'INFANTIL III', 'INFANTIL IV', 'INFANTIL V']
+        
+        # Buscar turmas elegíveis (excluindo as não desejadas)
+        class_filter = {'academic_year': year_filter(academic_year)}
+        if class_id:
+            class_filter['id'] = class_id
+        elif is_professor and user_class_ids:
+            class_filter['id'] = {'$in': user_class_ids}
+        if school_id:
+            class_filter['school_id'] = school_id
+        elif not is_global and user_school_ids:
+            class_filter['school_id'] = {'$in': user_school_ids}
+        
+        eligible_classes = []
+        async for cls in current_db.classes.find(class_filter, {'_id': 0, 'id': 1, 'education_level': 1, 'grade_level': 1, 'name': 1}):
+            ed_level = cls.get('education_level', '')
+            grade = (cls.get('grade_level') or cls.get('name') or '').upper()
+            if ed_level in excluded_grades:
+                continue
+            if any(eg in grade for eg in excluded_grade_levels):
+                continue
+            eligible_classes.append(cls['id'])
+        
+        if not eligible_classes:
+            return {"data": [], "restricted": False, "user_role": user_role}
+        
         enrollment_filter = {
             'academic_year': year_filter(academic_year),
-            'status': {'$in': ['active', 'ativo', 'Ativo', None]}
+            'status': {'$in': ['active', 'ativo', 'Ativo', None]},
+            'class_id': {'$in': eligible_classes}
         }
-        
-        if class_id:
-            enrollment_filter['class_id'] = class_id
-        elif is_professor and user_class_ids:
-            enrollment_filter['class_id'] = {'$in': user_class_ids}
         
         if school_id:
             enrollment_filter['school_id'] = school_id
