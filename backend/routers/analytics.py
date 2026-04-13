@@ -1295,11 +1295,31 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 alloc_filter['school_id'] = {'$in': user_school_ids}
         
         allocations = await current_db.teacher_assignments.find(
-            alloc_filter, {'_id': 0, 'staff_id': 1, 'staff_name': 1, 'class_id': 1, 'course_id': 1, 'school_id': 1}
+            alloc_filter, {'_id': 0, 'staff_id': 1, 'staff_name': 1, 'class_id': 1, 'course_id': 1}
         ).to_list(5000)
         
         if not allocations:
             return {"data": []}
+        
+        # Buscar nomes dos professores (staff.nome ou users.full_name)
+        staff_ids = list(set(a.get('staff_id') for a in allocations if a.get('staff_id')))
+        staff_names = {}
+        
+        # Primeiro: buscar em staff (campo 'nome')
+        staff_docs = await current_db.staff.find(
+            {'id': {'$in': staff_ids}}, {'_id': 0, 'id': 1, 'nome': 1, 'full_name': 1}
+        ).to_list(500)
+        for s in staff_docs:
+            staff_names[s['id']] = s.get('nome') or s.get('full_name') or ''
+        
+        # Fallback: buscar em users (campo 'full_name')
+        missing = [sid for sid in staff_ids if not staff_names.get(sid)]
+        if missing:
+            user_docs = await current_db.users.find(
+                {'id': {'$in': missing}}, {'_id': 0, 'id': 1, 'full_name': 1, 'name': 1}
+            ).to_list(500)
+            for u in user_docs:
+                staff_names[u['id']] = u.get('full_name') or u.get('name') or ''
         
         # Agrupar por professor
         teachers = {}
@@ -1308,42 +1328,94 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             if not sid:
                 continue
             if sid not in teachers:
+                name = staff_names.get(sid) or a.get('staff_name') or 'N/A'
                 teachers[sid] = {
-                    'name': a.get('staff_name', 'N/A'),
-                    'class_ids': set(),
-                    'course_ids': set(),
-                    'school_id': a.get('school_id'),
-                    'total_allocations': 0,
-                    'diario_preenchido': 0,
-                    'diario_total': 0,
-                    'aprovados': 0,
-                    'total_alunos': 0,
-                    'faltas_professor': 0
+                    'name': name,
+                    'class_course_pairs': [],
+                    'class_ids': set()
                 }
+            teachers[sid]['class_course_pairs'].append({
+                'class_id': a.get('class_id'),
+                'course_id': a.get('course_id')
+            })
             teachers[sid]['class_ids'].add(a.get('class_id'))
-            teachers[sid]['course_ids'].add(a.get('course_id'))
-            teachers[sid]['total_allocations'] += 1
+        
+        # Buscar calendário letivo para contar dias letivos
+        calendario = await current_db.calendario_letivo.find_one(
+            {"ano_letivo": academic_year}, {"_id": 0}
+        )
+        
+        # Calcular total de dias letivos no ano
+        total_dias_letivos = 0
+        if calendario:
+            from datetime import datetime as dt, timedelta
+            events = await current_db.calendar_events.find(
+                {"academic_year": academic_year}, {"_id": 0, "event_type": 1, "start_date": 1, "end_date": 1, "is_school_day": 1}
+            ).to_list(1000)
+            blocked = set()
+            sab_letivos = set()
+            for ev in events:
+                et = ev.get('event_type', '')
+                s = (ev.get('start_date') or '')[:10]
+                e = (ev.get('end_date') or s)[:10]
+                if not s: continue
+                if et == 'sabado_letivo' or ev.get('is_school_day'):
+                    try:
+                        d = dt.strptime(s, '%Y-%m-%d')
+                        ed = dt.strptime(e, '%Y-%m-%d')
+                        while d <= ed:
+                            if d.weekday() == 5: sab_letivos.add(d.strftime('%Y-%m-%d'))
+                            d += timedelta(days=1)
+                    except: pass
+                if 'feriado' in et or et == 'recesso_escolar' or ev.get('is_school_day') is False:
+                    try:
+                        d = dt.strptime(s, '%Y-%m-%d')
+                        ed = dt.strptime(e, '%Y-%m-%d')
+                        while d <= ed:
+                            blocked.add(d.strftime('%Y-%m-%d'))
+                            d += timedelta(days=1)
+                    except: pass
+            
+            # Contar dias letivos dentro dos bimestres
+            for bim in range(1, 5):
+                ps = str(calendario.get(f'bimestre_{bim}_inicio', ''))[:10]
+                pe = str(calendario.get(f'bimestre_{bim}_fim', ''))[:10]
+                if ps and pe:
+                    try:
+                        d = dt.strptime(ps, '%Y-%m-%d')
+                        ed = dt.strptime(pe, '%Y-%m-%d')
+                        while d <= ed:
+                            ds = d.strftime('%Y-%m-%d')
+                            dow = d.weekday()
+                            if dow != 6 and ds not in blocked and (dow != 5 or ds in sab_letivos):
+                                total_dias_letivos += 1
+                            d += timedelta(days=1)
+                    except: pass
+        
+        if total_dias_letivos == 0:
+            total_dias_letivos = 200  # fallback
         
         # Para cada professor: calcular métricas
+        result = []
         for tid, tdata in teachers.items():
             class_ids = list(tdata['class_ids'])
-            course_ids = list(tdata['course_ids'])
+            n_turmas = len(class_ids)
             
-            # 1. Preenchimento de diários (learning_objects registrados / total esperado)
+            # 1. Preenchimento de diários
             lo_count = await current_db.learning_objects.count_documents({
                 'class_id': {'$in': class_ids},
                 'academic_year': year_filter(academic_year)
             })
-            # Estimativa: ~40 dias letivos por bimestre × 4 = ~160 registros esperados por turma
-            expected = tdata['total_allocations'] * 40
-            tdata['diario_preenchido'] = lo_count
-            tdata['diario_total'] = expected
+            # Esperado: dias letivos por turma (cada turma precisa registros diários)
+            expected_lo = n_turmas * total_dias_letivos
+            diario_pct = round(lo_count / expected_lo * 100, 1) if expected_lo > 0 else 0
+            diario_pct = min(diario_pct, 100)
             
-            # 2. Índice de aprovação (notas >= 6 / total)
+            # 2. Índice de aprovação
+            aprovacao_pct = 0
             grades_pipeline = [
                 {'$match': {
                     'class_id': {'$in': class_ids},
-                    'course_id': {'$in': course_ids},
                     'academic_year': year_filter(academic_year)
                 }},
                 {'$group': {
@@ -1353,37 +1425,33 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 }}
             ]
             async for doc in current_db.grades.aggregate(grades_pipeline):
-                tdata['aprovados'] = doc.get('approved', 0)
-                tdata['total_alunos'] = doc.get('total', 0)
+                if doc.get('total', 0) > 0:
+                    aprovacao_pct = round(doc['approved'] / doc['total'] * 100, 1)
             
-            # 3. Faltas do professor (attendance records without records = professor absent day)
-            att_count = await current_db.attendance.count_documents({
-                'class_id': {'$in': class_ids},
-                'academic_year': year_filter(academic_year)
-            })
-            # Estimativa de dias letivos esperados (160 por alocação)
-            expected_days = tdata['total_allocations'] * 40
-            tdata['faltas_professor'] = max(0, expected_days - att_count) if expected_days > 0 else 0
-        
-        # Calcular score e rankear
-        result = []
-        for tid, tdata in teachers.items():
-            diario_pct = round(tdata['diario_preenchido'] / tdata['diario_total'] * 100, 1) if tdata['diario_total'] > 0 else 0
-            aprovacao_pct = round(tdata['aprovados'] / tdata['total_alunos'] * 100, 1) if tdata['total_alunos'] > 0 else 0
-            # Score: 40% diários + 40% aprovação + 20% assiduidade (inverso faltas)
-            assiduidade = max(0, 100 - (tdata['faltas_professor'] * 2))  # -2% por falta
-            score = round(diario_pct * 0.4 + aprovacao_pct * 0.4 + assiduidade * 0.2, 1)
+            # 3. Faltas (dias letivos sem registro de frequência em NENHUMA das turmas)
+            att_dates = await current_db.attendance.distinct(
+                'date',
+                {'class_id': {'$in': class_ids}, 'academic_year': year_filter(academic_year)}
+            )
+            dias_com_registro = len(set(d[:10] for d in att_dates if d))
+            faltas = max(0, total_dias_letivos - dias_com_registro)
+            
+            # Assiduidade: % de dias com registro
+            assiduidade_pct = round(dias_com_registro / total_dias_letivos * 100, 1) if total_dias_letivos > 0 else 100
+            assiduidade_pct = min(assiduidade_pct, 100)
+            
+            # Score: 40% diários + 40% aprovação + 20% assiduidade
+            score = round(diario_pct * 0.4 + aprovacao_pct * 0.4 + assiduidade_pct * 0.2, 1)
             
             result.append({
                 'teacher_id': tid,
                 'teacher_name': tdata['name'],
-                'diario_pct': min(diario_pct, 100),
+                'diario_pct': diario_pct,
                 'aprovacao_pct': aprovacao_pct,
-                'faltas': tdata['faltas_professor'],
-                'assiduidade_pct': round(assiduidade, 1),
+                'faltas': faltas,
+                'assiduidade_pct': assiduidade_pct,
                 'score': score,
-                'registros_diario': tdata['diario_preenchido'],
-                'total_allocations': tdata['total_allocations']
+                'turmas': n_turmas
             })
         
         result.sort(key=lambda x: x['score'], reverse=True)
