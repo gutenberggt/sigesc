@@ -1247,18 +1247,24 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         
         result = []
         for student_id, data in students.items():
+            avg = data['avg_grade']
+            freq = data['attendance_rate']
+            # Score: 60% média (nota/10 * 100) + 40% frequência
+            indice_media = round(avg * 10, 1) if avg > 0 else 0
+            score = round(indice_media * 0.6 + freq * 0.4, 1)
             result.append({
                 'student_id': student_id,
                 'student_name': data['name'],
                 'class_name': classes.get(data['class_id'], 'N/A'),
-                'avg_grade': data['avg_grade'],
-                'attendance_rate': data['attendance_rate'],
+                'avg_grade': avg,
+                'attendance_rate': freq,
+                'score': score,
                 'total_grades': data['total_grades'],
                 'total_attendance': data['total_attendance']
             })
         
-        # Ordenar por média de nota (decrescente)
-        result.sort(key=lambda x: x['avg_grade'], reverse=True)
+        # Ordenar por score (decrescente)
+        result.sort(key=lambda x: x['score'], reverse=True)
         
         return {
             "data": result[:limit],
@@ -1401,18 +1407,18 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             class_ids = list(tdata['class_ids'])
             n_turmas = len(class_ids)
             
-            # 1. Preenchimento de diários
+            # 1. Preenchimento de diários (60%)
             lo_count = await current_db.learning_objects.count_documents({
                 'class_id': {'$in': class_ids},
                 'academic_year': year_filter(academic_year)
             })
-            # Esperado: dias letivos por turma (cada turma precisa registros diários)
             expected_lo = n_turmas * total_dias_letivos
             diario_pct = round(lo_count / expected_lo * 100, 1) if expected_lo > 0 else 0
             diario_pct = min(diario_pct, 100)
             
-            # 2. Índice de aprovação
-            aprovacao_pct = 0
+            # 2. Média de notas dos alunos (40%)
+            # Soma todas as notas lançadas pelo professor e divide pelo número de notas
+            media_notas = 0
             grades_pipeline = [
                 {'$match': {
                     'class_id': {'$in': class_ids},
@@ -1420,36 +1426,24 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 }},
                 {'$group': {
                     '_id': None,
-                    'total': {'$sum': 1},
-                    'approved': {'$sum': {'$cond': [{'$gte': ['$grade', 6]}, 1, 0]}}
+                    'soma': {'$sum': '$grade'},
+                    'total': {'$sum': 1}
                 }}
             ]
             async for doc in current_db.grades.aggregate(grades_pipeline):
                 if doc.get('total', 0) > 0:
-                    aprovacao_pct = round(doc['approved'] / doc['total'] * 100, 1)
+                    media_notas = round(doc['soma'] / doc['total'], 1)
             
-            # 3. Faltas (dias letivos sem registro de frequência em NENHUMA das turmas)
-            att_dates = await current_db.attendance.distinct(
-                'date',
-                {'class_id': {'$in': class_ids}, 'academic_year': year_filter(academic_year)}
-            )
-            dias_com_registro = len(set(d[:10] for d in att_dates if d))
-            faltas = max(0, total_dias_letivos - dias_com_registro)
-            
-            # Assiduidade: % de dias com registro
-            assiduidade_pct = round(dias_com_registro / total_dias_letivos * 100, 1) if total_dias_letivos > 0 else 100
-            assiduidade_pct = min(assiduidade_pct, 100)
-            
-            # Score: 40% diários + 40% aprovação + 20% assiduidade
-            score = round(diario_pct * 0.4 + aprovacao_pct * 0.4 + assiduidade_pct * 0.2, 1)
+            # Score: 60% diários + 40% índice da média (média/10 * 100)
+            indice_media = round(media_notas * 10, 1)  # Nota 10 = 100%
+            score = round(diario_pct * 0.6 + indice_media * 0.4, 1)
             
             result.append({
                 'teacher_id': tid,
                 'teacher_name': tdata['name'],
                 'diario_pct': diario_pct,
-                'aprovacao_pct': aprovacao_pct,
-                'faltas': faltas,
-                'assiduidade_pct': assiduidade_pct,
+                'media_notas': media_notas,
+                'indice_media': min(indice_media, 100),
                 'score': score,
                 'turmas': n_turmas
             })

@@ -1759,8 +1759,9 @@ export function AnalyticsDashboard() {
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">#</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Aluno</th>
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Turma</th>
-                        <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Média</th>
-                        <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Frequência</th>
+                        <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Média (60%)</th>
+                        <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Frequência (40%)</th>
+                        <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Score</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1781,6 +1782,11 @@ export function AnalyticsDashboard() {
                               student.attendance_rate >= 75 ? 'bg-green-100 text-green-700' :
                               student.attendance_rate >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
                               {student.attendance_rate}%
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
+                              {student.score}
                             </span>
                           </td>
                         </tr>
@@ -1814,10 +1820,8 @@ export function AnalyticsDashboard() {
                     <tr className="border-b bg-gray-50">
                       <th className="text-left py-2 px-3 font-medium text-gray-600">#</th>
                       <th className="text-left py-2 px-3 font-medium text-gray-600">Professor</th>
-                      <th className="text-center py-2 px-3 font-medium text-gray-600">Diários (%)</th>
-                      <th className="text-center py-2 px-3 font-medium text-gray-600">Aprovação (%)</th>
-                      <th className="text-center py-2 px-3 font-medium text-gray-600">Faltas</th>
-                      <th className="text-center py-2 px-3 font-medium text-gray-600">Assiduidade (%)</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600">Diários (60%)</th>
+                      <th className="text-center py-2 px-3 font-medium text-gray-600">Média Notas (40%)</th>
                       <th className="text-center py-2 px-3 font-medium text-gray-600">Score</th>
                     </tr>
                   </thead>
@@ -1832,18 +1836,8 @@ export function AnalyticsDashboard() {
                           </span>
                         </td>
                         <td className="py-2 px-3 text-center">
-                          <span className={`font-medium ${teacher.aprovacao_pct >= 70 ? 'text-green-600' : teacher.aprovacao_pct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
-                            {teacher.aprovacao_pct}%
-                          </span>
-                        </td>
-                        <td className="py-2 px-3 text-center">
-                          <span className={`font-medium ${teacher.faltas <= 3 ? 'text-green-600' : teacher.faltas <= 10 ? 'text-yellow-600' : 'text-red-600'}`}>
-                            {teacher.faltas}
-                          </span>
-                        </td>
-                        <td className="py-2 px-3 text-center">
-                          <span className={`font-medium ${teacher.assiduidade_pct >= 90 ? 'text-green-600' : teacher.assiduidade_pct >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
-                            {teacher.assiduidade_pct}%
+                          <span className={`font-medium ${teacher.media_notas >= 7 ? 'text-green-600' : teacher.media_notas >= 5 ? 'text-yellow-600' : 'text-red-600'}`}>
+                            {teacher.media_notas}
                           </span>
                         </td>
                         <td className="py-2 px-3 text-center">
