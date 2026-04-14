@@ -308,16 +308,28 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             if teacher:
                 teacher_name = teacher.get('nome', '')
 
-        # Calcular dias previstos no bimestre (para Anos Iniciais / Ed. Infantil)
+        # Calcular dias previstos no bimestre usando calendar_events (mesma fonte do calendário de Registros)
         dias_previstos = 0
-        if calendario and period_start and period_end:
+        if period_start and period_end:
             from datetime import datetime as dt_calc, timedelta
-            eventos_nao_letivos = ['feriado_nacional', 'feriado_estadual', 'feriado_municipal', 'recesso_escolar']
+            
+            # Buscar eventos do calendário
+            events = await db.calendar_events.find(
+                {"academic_year": {"$in": [academic_year, str(academic_year)]}},
+                {"_id": 0, "event_type": 1, "start_date": 1, "end_date": 1, "is_school_day": 1}
+            ).to_list(1000)
+            
             non_school_dates = set()
-            for ev in calendario.get('eventos', []):
-                if ev.get('tipo') in eventos_nao_letivos:
-                    ev_start = str(ev.get('data_inicio', ''))[:10]
-                    ev_end = str(ev.get('data_fim', ev_start))[:10]
+            saturday_letivo_dates = set()
+            
+            for ev in events:
+                event_type = ev.get('event_type', '')
+                ev_start = (ev.get('start_date') or '')[:10]
+                ev_end = (ev.get('end_date') or ev_start)[:10]
+                if not ev_start:
+                    continue
+                
+                if 'feriado' in event_type or event_type == 'recesso_escolar' or ev.get('is_school_day') is False:
                     try:
                         d = dt_calc.strptime(ev_start, '%Y-%m-%d')
                         end = dt_calc.strptime(ev_end, '%Y-%m-%d')
@@ -326,11 +338,28 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                             d += timedelta(days=1)
                     except:
                         pass
+                
+                if event_type == 'sabado_letivo' or ev.get('is_school_day') is True:
+                    try:
+                        d = dt_calc.strptime(ev_start, '%Y-%m-%d')
+                        end = dt_calc.strptime(ev_end, '%Y-%m-%d')
+                        while d <= end:
+                            if d.weekday() == 5:
+                                saturday_letivo_dates.add(d.strftime('%Y-%m-%d'))
+                            d += timedelta(days=1)
+                    except:
+                        pass
+            
             try:
                 d = dt_calc.strptime(period_start, '%Y-%m-%d')
                 end = dt_calc.strptime(period_end, '%Y-%m-%d')
                 while d <= end:
-                    if d.weekday() < 5 and d.strftime('%Y-%m-%d') not in non_school_dates:
+                    ds = d.strftime('%Y-%m-%d')
+                    dow = d.weekday()
+                    is_sunday = dow == 6
+                    is_saturday = dow == 5
+                    is_blocked = is_sunday or ds in non_school_dates or (is_saturday and ds not in saturday_letivo_dates)
+                    if not is_blocked:
                         dias_previstos += 1
                     d += timedelta(days=1)
             except:
