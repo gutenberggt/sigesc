@@ -240,26 +240,36 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if calendario_letivo:
             # Buscar eventos do calendário para o ano
             eventos = await db.calendar_events.find({
-                "year": int(actual_academic_year)
+                "academic_year": int(actual_academic_year)
             }, {"_id": 0}).to_list(500)
 
             datas_nao_letivas = set()
             datas_sabados_letivos = set()
 
             for evento in eventos:
-                tipo = evento.get('type', '')
-                data_str = evento.get('date', '')
+                event_type = evento.get('event_type', '')
+                start_str = (evento.get('start_date') or '')[:10]
+                end_str = (evento.get('end_date') or start_str)[:10]
+                if not start_str:
+                    continue
 
-                if tipo in ['feriado', 'recesso', 'ferias', 'nao_letivo', 'ponto_facultativo', 'conselho']:
+                if 'feriado' in event_type or event_type == 'recesso_escolar' or evento.get('is_school_day') is False:
                     try:
-                        data = datetime.strptime(data_str[:10], '%Y-%m-%d').date()
-                        datas_nao_letivas.add(data)
+                        d = datetime.strptime(start_str, '%Y-%m-%d').date()
+                        end_d = datetime.strptime(end_str, '%Y-%m-%d').date()
+                        while d <= end_d:
+                            datas_nao_letivas.add(d)
+                            d += timedelta(days=1)
                     except:
                         pass
-                elif tipo == 'sabado_letivo':
+                if event_type == 'sabado_letivo' or evento.get('is_school_day') is True:
                     try:
-                        data = datetime.strptime(data_str[:10], '%Y-%m-%d').date()
-                        datas_sabados_letivos.add(data)
+                        d = datetime.strptime(start_str, '%Y-%m-%d').date()
+                        end_d = datetime.strptime(end_str, '%Y-%m-%d').date()
+                        while d <= end_d:
+                            if d.weekday() == 5:
+                                datas_sabados_letivos.add(d)
+                            d += timedelta(days=1)
                     except:
                         pass
 
@@ -718,46 +728,47 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
                 current_ev = start_date_ev
                 while current_ev <= end_date_ev:
-                    if event_type in eventos_nao_letivos:
+                    if event_type in eventos_nao_letivos or event.get('is_school_day') is False:
                         datas_nao_letivas.add(current_ev)
-                    elif event_type == 'sabado_letivo':
-                        datas_sabados_letivos.add(current_ev)
-                    elif event.get('is_school_day', False) and current_ev.weekday() == 5:
+                    elif event_type == 'sabado_letivo' or (event.get('is_school_day') is True and current_ev.weekday() == 5):
                         datas_sabados_letivos.add(current_ev)
                     current_ev += timedelta(days=1)
             except (ValueError, TypeError):
                 continue
 
-        # Calcular dias letivos até hoje
+        # Calcular dias letivos respeitando períodos bimestrais
         def calcular_dias_letivos_ate_data(calendario, data_limite):
-            """Calcula dias letivos desde o início do ano até a data limite"""
+            """Calcula dias letivos dentro dos períodos bimestrais até a data limite"""
             if not calendario:
                 return 0
 
-            inicio_str = calendario.get('bimestre_1_inicio')
-            if not inicio_str:
-                return 0
-
-            try:
-                from datetime import timedelta
-                inicio = datetime.strptime(inicio_str[:10], '%Y-%m-%d').date()
-                fim = data_limite
-            except (ValueError, TypeError):
-                return 0
-
+            from datetime import timedelta
             dias_letivos = 0
-            current = inicio
-
-            while current <= fim:
-                dia_semana = current.weekday()
-
-                if current in datas_sabados_letivos:
-                    dias_letivos += 1
-                elif dia_semana < 5:  # Seg-Sex
-                    if current not in datas_nao_letivas:
+            
+            for bim in range(1, 5):
+                inicio_str = calendario.get(f'bimestre_{bim}_inicio')
+                fim_str = calendario.get(f'bimestre_{bim}_fim')
+                if not inicio_str or not fim_str:
+                    continue
+                try:
+                    inicio = datetime.strptime(str(inicio_str)[:10], '%Y-%m-%d').date()
+                    fim = datetime.strptime(str(fim_str)[:10], '%Y-%m-%d').date()
+                    fim = min(fim, data_limite)
+                    if inicio > data_limite:
+                        break
+                except:
+                    continue
+                
+                current = inicio
+                while current <= fim:
+                    dia_semana = current.weekday()
+                    if current in datas_sabados_letivos:
                         dias_letivos += 1
-
-                current += timedelta(days=1)
+                    elif dia_semana < 5 and current not in datas_nao_letivas:
+                        dias_letivos += 1
+                    current += timedelta(days=1)
+            
+            return dias_letivos
 
             return dias_letivos
 
