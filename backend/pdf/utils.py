@@ -354,6 +354,43 @@ def ordenar_componentes_por_nivel(courses: List[Dict[str, Any]], nivel_ensino: s
         return sorted(courses, key=lambda x: x.get('name', ''))
 
 
+def format_serie_multigrade(class_info):
+    """Formata o campo Série/Ano para turmas multisseriadas.
+    Ex: ['1º ANO', '2º ANO', '3º ANO'] → '1º, 2º e 3º Ano'
+    Fallback: retorna o grade_level simples.
+    """
+    import re
+    is_multi = class_info.get('is_multi_grade', False)
+    series = class_info.get('series', [])
+
+    if not is_multi or not series or len(series) <= 1:
+        return class_info.get('grade', class_info.get('grade_level', class_info.get('name', '')))
+
+    def sort_key(s):
+        m = re.match(r'(\d+)', s)
+        return int(m.group(1)) if m else s
+
+    series_sorted = sorted(series, key=sort_key)
+
+    pattern = re.compile(r'^(\d+[ºª°]?)\s+(.+)$', re.IGNORECASE)
+    matches = [pattern.match(s.strip()) for s in series_sorted]
+
+    if all(matches):
+        prefixes = [m.group(1) for m in matches]
+        suffixes = [m.group(2).strip() for m in matches]
+        if len(set(s.upper() for s in suffixes)) == 1:
+            common_suffix = suffixes[0].title()
+            if len(prefixes) == 1:
+                return f"{prefixes[0]} {common_suffix}"
+            if len(prefixes) == 2:
+                return f"{prefixes[0]} e {prefixes[1]} {common_suffix}"
+            return f"{', '.join(prefixes[:-1])} e {prefixes[-1]} {common_suffix}"
+
+    if len(series_sorted) == 2:
+        return f"{series_sorted[0]} e {series_sorted[1]}"
+    return f"{', '.join(series_sorted[:-1])} e {series_sorted[-1]}"
+
+
 def inferir_nivel_ensino(class_info, enrollment=None):
     """Infere o nível de ensino a partir dos dados da turma e matrícula."""
     nivel_ensino = class_info.get('nivel_ensino') or class_info.get('education_level')

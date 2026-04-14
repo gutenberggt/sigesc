@@ -10,7 +10,7 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfgen import canvas as canvas_module
-from pdf.utils import get_logo_image, format_date_pt, get_styles
+from pdf.utils import get_logo_image, format_date_pt, get_styles, format_serie_multigrade
 
 def generate_learning_objects_pdf(
     school: Dict[str, Any],
@@ -92,7 +92,7 @@ def generate_learning_objects_pdf(
     education_level = class_info.get('education_level', '')
     nivel = niveis.get(education_level, education_level)
     turno = turnos.get(class_info.get('shift', ''), class_info.get('shift', ''))
-    serie = class_info.get('grade', class_info.get('grade_level', class_info.get('name', '')))
+    serie = format_serie_multigrade(class_info) or class_info.get('grade', class_info.get('grade_level', class_info.get('name', '')))
     is_infantil = education_level == 'educacao_infantil'
     is_dias = education_level in ('educacao_infantil', 'fundamental_anos_iniciais', 'eja', 'eja_inicial')
     label_componente = 'Campo de Experiência' if is_infantil else 'Componente Curricular'

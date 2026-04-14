@@ -242,6 +242,12 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - ~~Centralizar permissões em hook usePermissions~~ CONCLUÍDO (06/04/2026): Hook em `/app/frontend/src/hooks/usePermissions.js`, integrado em 8 páginas (Dashboard, Attendance, Grades, LearningObjects, Events, Enrollments, StudentsComplete, Classes)
 - ~~Refatorar inferEducationLevel duplicado~~ CONCLUÍDO (06/04/2026): Centralizado em `/app/frontend/src/utils/educationLevel.js`
 
+## Turmas Multisseriadas nos PDFs (13/02/2026)
+- Campo "Série/Ano" nos PDFs de Frequência e Objetos de Conhecimento agora exibe todas as séries combinadas para turmas multisseriadas
+- Formato: "1º, 2º e 3º Ano" (usando vírgulas e "e" antes da última série)
+- Função utilitária `format_serie_multigrade()` em `pdf/utils.py`
+- Turmas normais (não multisseriadas) continuam exibindo o grade_level padrão
+
 ## Bug Fixes Produção (06/04/2026)
 - Fix CORS 503: variáveis `turma_integral` e `class_id` indefinidas nos endpoints boletim e ficha individual (NameError → crash → 503 sem CORS)
 - Fix IndexedDB VersionError: SW v2.1.0 abre DB sem versão fixa + não intercepta requests cross-origin

@@ -8,7 +8,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from pdf.utils import get_logo_image, format_date_pt, get_styles
+from pdf.utils import get_logo_image, format_date_pt, get_styles, format_serie_multigrade
 
 def generate_relatorio_frequencia_bimestre_pdf(
     school: Dict[str, Any],
@@ -133,7 +133,7 @@ def generate_relatorio_frequencia_bimestre_pdf(
     label_previstas = "DIAS PREVISTOS" if is_dias else "AULAS PREVISTAS"
     label_ministradas = "DIAS REGISTRADOS" if is_dias else "AULAS REGISTRADAS"
     
-    serie = class_info.get('grade', class_info.get('grade_level', class_info.get('name', '')))
+    serie = format_serie_multigrade(class_info) or class_info.get('grade', class_info.get('grade_level', class_info.get('name', '')))
     
     # Título: sempre "FREQUÊNCIA - Xº BIMESTRE DE XXXX" para anos finais
     componente_nome = ''

@@ -1,67 +1,64 @@
 <analysis>**original_problem_statement**: 
-O usuário solicitou a correção do filtro de componentes curriculares na emissão de PDFs em lote (Boletins/Fichas), que não estava respeitando as turmas. Em seguida, relatou problemas ao limpar notas (tracinho) na Educação Infantil, onde o sistema não salvava o conceito em branco nem atualizava o status final. O usuário também pediu a inclusão de uma flag Ignorar nas alocações de professores voluntários (para não somar carga horária), a correção no filtro de disciplinas de tempo integral em turmas regulares, a inclusão de um campo dinâmico Secretaria na configuração da Mantenedora com reflexo em todos os PDFs, e a criação completa do recurso de Histórico Escolar (CRUD + PDF + funcionalidade de importar dados do ano).
+O usuário solicitou diversas melhorias na UI de Frequência (mudança de abas para colunas múltiplas baseadas em um dropdown de Nº de Aulas), sincronização de calendários em Objetos de Conhecimento, tratamento de datas não letivas e feriados, adição de uma aba Registros na Frequência, otimização da geração de PDFs, correção no Dashboard Analítico (Desempenho de alunos e professores), e correção profunda nos cálculos de Dias Letivos e Aulas Previstas. No final da sessão, introduziu um novo requisito para a exibição do campo Série/Ano nos relatórios PDF (Frequência e Objetos de Conhecimento) visando contemplar turmas multisseriadas.
 
-PRODUCT REQUIREMENTS: 
-1. PDFs em lote e individuais devem buscar os componentes curriculares rigorosamente filtrados por alocação e por  da turma (disciplinas integrais não devem aparecer em turmas regulares).
-2. Limpar todas as notas de um aluno na Educação Infantil deve zerar o conceito final e alterar o status para cursando.
-3. Alocações de professores devem ter um checkbox Ignorar que exclui a alocação da soma total de carga horária.
-4. O campo Secretaria da Mantenedora deve substituir os textos hardcoded de Secretaria Municipal de Educação em todos os cabeçalhos de PDFs.
-5. Nova tela e PDF de Histórico Escolar permitindo cadastro série a série, com botão de Importar Dados para puxar histórico automaticamente. O acesso deve ocorrer pelos botões de documentos do aluno.
+PRODUCT REQUIREMENTS:
+- PDFs de Relatório de Frequência e Registro de Objetos de Conhecimento: Quando a turma for multisseriada (ex: 1º, 2º e 3º ano juntos), o campo Série/Ano no cabeçalho do PDF deve exibir todas as séries combinadas (ex: 1º, 2º e 3º Ano ou 1º/2º/3º Ano).
 
 **User's preferred language**: Portuguese (Português). INSTRUCT next agent to respond in the user's preferred language only.
 
 **what currently exists?** 
-Sistema full-stack (React + FastAPI + MongoDB). O endpoint de batch documents foi corrigido e agora filtra rigorosamente os componentes por alocações e atendimento. A tela de notas aceita limpar conceitos para valores  corretamente. A flag  foi adicionada na alocação de docentes. O campo  foi adicionado à tabela Mantenedora e injetado em 6 geradores de PDF diferentes. A feature completa de Histórico Escolar (Backend, Frontend e PDF) foi criada, e o botão de Importar Dados está funcional.
+O lançamento de Frequência foi completamente refatorado para usar múltiplas colunas em vez de abas, sincronizando o total de aulas previstas com o Horário de Aulas da turma. A UI e os cálculos do Registro de Objetos de Conhecimento foram adaptados com regras rigorosas por nível de ensino. O calendário bloqueia corretamente feriados, domingos e períodos fora dos bimestres letivos. O Dashboard Analítico está operacional com o Desempenho dos Professores adicionado. O backend para a geração de PDFs foi paralelizado (asyncio) e refatorado, e a contagem duplicada de Dias Letivos (201 vs 200) foi finalmente unificada.
 
 **Last working item**: 
-    - **Last item agent was working**: Correção da localização do botão Histórico Escolar. O agente inseriu o botão na modal de impressão em lote (), mas o usuário indicou através de um screenshot que o botão deve ficar na modal de geração individual de documentos do aluno ( ou nos botões de ação do card do estudante na ). O agente estava mapeando o componente correto no momento em que a sessão terminou.
-    - **Status**: IN PROGRESS
-    - **Agent Testing Done**: N
-    - **Which testing method agent to use?**: frontend testing agent / screenshot tool (verificar a renderização visual do botão na modal/painel individual do aluno).
-    - **User Testing Done**: N
+    - Last item agent was working: Adaptação do campo Série/Ano nos cabeçalhos dos PDFs gerados por  e  para suportar exibição formatada de turmas multisseriadas.
+    - Status: NOT STARTED
+    - Agent Testing Done: N
+    - Which testing method agent to use? backend testing agent / manual testing by curl generating the PDFs.
+    - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  Issue 1: (P0) Botão de Histórico Escolar não está visível no painel/modal correto do estudante.
-     - **Attempted fixes**: O agente adicionou o botão no final do arquivo , na área de renderização do , mas o usuário não consegue acessá-lo a partir das ações individuais do aluno.
-     - **Next debug checklist**: Localizar o componente de modal individual (provavelmente  em  ou a função  em ). Inserir o botão Histórico Escolar alinhado com os de Boletim e Ficha Individual, configurado para redirecionar para a nova rota .
-     - **Why fix this issue and what will be achieved with the fix?**: Sem esse botão na visualização principal, os usuários não conseguem acessar a funcionalidade recém-criada de forma intuitiva.
-     - **Status**: IN PROGRESS
-     - **Is recurring issue?**: N
-     - **Should Test frontend/backend/both after fix?**: frontend
-     - **Blocked on other issue**: None
-
-  Issue 2: (P1) Carga horária prevista zerada (0h) na folha de pagamento para servidores cuja carga horária contratual não está preenchida no cadastro, mesmo tendo alocações ativas.
-     - **Attempted fixes**: Nenhuma nova tentativa. A aguardar decisão do usuário sobre a regra de negócio.
-     - **Next debug checklist**: Retomar pergunta ao usuário se ele quer que o sistema calcule a folha baseada nas aulas efetivamente alocadas ou se continua forçando o cadastro principal.
-     - **Why fix this issue and what will be achieved with the fix?**: Evitar folhas de pagamento zeradas para professores mal cadastrados.
-     - **Status**: USER VERIFICATION PENDING
-     - **Is recurring issue?**: N
-     - **Should Test frontend/backend/both after fix?**: backend
-     - **Blocked on other issue**: None
+  Issue 1: (P1) Carga horária prevista zerada na folha de pagamento
+     - Attempted fixes: Nenhum nesta iteração.
+     - Next debug checklist: Solicitar regras de negócio ao usuário para o cálculo.
+     - Why fix this issue and what will be achieved with the fix?: Evita falhas no relatório financeiro de pagamentos.
+     - Status: USER VERIFICATION PENDING
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix?: backend
+     - Blocked on other issue: None
 
 **In progress Task List**: 
-Nenhuma.
+  Task 1: Ajuste de nomenclatura para Turmas Multisseriadas nos PDFs (Frequência e Objetos de Conhecimento)
+     - Where to resume: Arquivos  e . Verificar a propriedade  ou  da turma ou iterar pelas matrículas ativas na turma para agregar os nomes (ex: 1º, 2º e 3º Ano) caso a collection da turma já não tenha uma array de séries designadas.
+     - What will be achieved with this?: Atendimento exato do escopo solicitado no último prompt, onde o cabeçalho não refletirá apenas uma série caso a turma mescle múltiplos anos.
+     - Status: NOT STARTED
+     - Should Test frontend/backend/both after fix?: backend (geração de PDF via curl/endpoint)
+     - Blocked on something: None
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
     - (P1) Alterar carga horária de componentes curriculares.
     - (P2) Implementar envio de e-mail de confirmação na pré-matrícula.
-    
+
     Future Tasks:
-    - (P3) Avaliar uso de  do React Router v7 com  para lidar com navegações de forms não salvos (Atualmente o app usa o workaround ).
+    - (P3) Avaliar uso de  do React Router v7 com  para lidar com navegações de forms não salvos.
 
 **Completed work in this session**
-- (P0) Correção em  para aplicar  idêntico ao modelo individual. (DONE)
-- (P1) Correção na limpeza de notas (Conceitos). Aceitando valores  na Educação Infantil ( e ). (DONE)
-- (P2) Feature Ignorar (checkbox ) implementada nas alocações de professores, impedindo cômputo da carga horária. (DONE)
-- (P0) Correção Crítica nos PDFs: componentes de escola integral agora são bloqueados universalmente de turmas regulares via verificação restrita de . (DONE)
-- (P2) Novo campo  na configuração de Mantenedora, injetado dinamicamente no cabeçalho de 6 tipos de PDFs diferentes (, , etc.). (DONE)
-- (P1) Feature Histórico Escolar finalizada: novo modelo BD, Router , gerador PDF próprio, frontend em  e endpoint automático Importar Dados para preencher a tabela ano a ano. (DONE)
+- UI Frequência Anos Finais: Dropdown Nº de Aulas substituindo as abas, gerando colunas dinamicamente. (DONE)
+- Fix de cache em Produção: Atualização do  (PWA) para  e bump de versão. (DONE)
+- Otimização do PDF de Frequência: Resolvido gargalo que impedia a visualização lado a lado de dados legados com dados multi-aula. (DONE)
+- Customizações UI Objetos de Conhecimento: Troca de Metodologia para Práticas Pedagógicas, ocultação de campos para níveis Iniciais/Infantis. (DONE)
+- Calendário Integrado (Objetos de Conhecimento e Aba Registros): Buscando feriados via  e bloqueando seleções fora de dias letivos ou fora de bimestres. (DONE)
+- Sincronização Automática Nº de Aulas: Busca no Horário de Aulas a quantidade de sessões do componente naquele dia da semana. (DONE)
+- Aba Registros (Frequência): Visão anual dos dias com/sem lançamento de frequência, incluindo summary em cards no topo. (DONE)
+- Otimização Global de PDF: Paralelização via  e memoization (cache) de Estilos ParagraphStyle e Imagem de Logo. (DONE)
+- Dashboard Analítico: Resolvidos bugs nos aggregations  do MongoDB, permitindo cálculo do desempenho de alunos; nova feature de Desempenho dos Professores adicionada. (DONE)
+- Correção Dias Letivos: Resolvida inconsistência crônica de 200 vs 201 dias unificando chamadas nas rotas de PDFs e calculando em tempo real com os feriados salvos. (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-Nenhuma não listada na seção Pending.
+   Nenhum.
 
 **Known issue recurrence from previous fork**
+  - Issue recurrence in previous fork: None
   - Recurrence count: 0
   - Status: RESOLVED
 
@@ -69,75 +66,66 @@ Nenhuma não listada na seção Pending.
 
 
 **Key Technical Concepts**
-- FastAPI Backend & React Frontend.
-- Geradores de PDFs utilizam  no backend e trafegam o PDF gerado em memória (BytesIO) devolvendo Content-Type .
+- **Sincronia Níveis de Ensino**: Lógica altamente ramificada onde ,  tem comportamento diferente de ,  e . 
+- **Otimização Assíncrona de PDF**: A geração de reportes usa corrotinas  antes de repassar a compilação do Canvas ao ReportLab (síncrono).
 
 **key DB schema**
-  - : adicionado  (boolean).
-  - : adicionado  (string).
-  - **NOVA COLEÇÃO** : .
+  - : Tabela base de verdade para feriados, recessos e sábados letivos (usar sempre campo  e ).
+  - : Define a base  que preenche a frequência automaticamente.
 
 **changes in tech stack**
-  - Nenhuma mudança estrutural, apenas adições de entidades.
+  - Service worker strategy alterada para previnir deploy blocking no frontend.
 
 **All files of reference** 
--  (Onde o agente estava analisando a localização do botão).
--  (Provável arquivo correto para renderizar o botão individual do histórico).
--  (O componente de destino da funcionalidade P0 atual).
+-  (Alvo da nova feature)
+-  (Alvo da nova feature)
+-  (Onde fetch da turma p/ pdf de frequência acontece)
+-  (Onde fetch da turma p/ pdf de objetos acontece)
 
 **Areas that need refactoring**: 
-Nenhuma urgente desta sessão.
+Nenhuma área crítica detectada.
 
 **key api endpoints**
 - 
 - 
-- 
-- 
 
 **Critical Info for New Agent** 
-- **O foco inicial** é puramente de UI (Frontend). O usuário anexou um screenshot na última mensagem mostrando o card flutuante de um aluno com as opções Boletim Escolar, Ficha Individual, etc., e ele quer o botão Histórico Escolar ali, lado a lado.
-- O agente anterior errou ao colocar o botão na modal de impressão em LOTE (BatchPrintModal).
-- Você precisará rastrear em  (provavelmente buscando pelas strings Boletim Escolar que aparecem para um aluno específico) ou no modal importado  para adicionar o novo botão. Este botão apenas fará o .
+- O próximo e imediato passo (P0) é tratar a string do campo Série/Ano no cabeçalho dos dois PDFs listados para exibir nomes concatenados caso a turma seja multisseriada. Verifique o que vem no dicionário  em  (se existe uma lista  ou se você deve puxar as séries pelas matrículas ativas daquela turma e processar a string).
+- INSTRUCT: Sempre se comunique com o usuário em **Português**. 
 
 **documents and test reports created in this job** 
--  (Screenshots)
+- N/A
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. **User**: Bug - Limpar notas não atualiza o conceito final. -> **Agent** Corrigido em Grades.js e grades.py (v is not None/null).
-2. **User**: Forneceu print de alocação pedindo checkbox Ignorar. -> **Agent** Adicionado a funcionalidade completa em useStaff, modal e backend.
-3. **User**: PDFs mostrando matérias integrais em turmas regulares. -> **Agent** Corrigido fallback no  baseado no .
-4. **User**: Continua mostrando componentes integrais quando a alocação de fato os possui. -> **Agent** Corrigido para aplicar o filtro universalmente APÓS a busca, independente de vir de fallback ou de assignment.
-5. **User**: Pedido de campo Secretaria no form da Mantenedora. -> **Agent** Inserido input e persistência no banco.
-6. **User**: Atualizar todos os PDFs gerados para usar o valor de Secretaria. -> **Agent** Atualizados os 6 geradores ReportLab.
-7. **User**: Anexou PDF modelo do Histórico Escolar municipal pedindo feature idêntica. -> **Agent** Solicitou permissões via .
-8. **User**: Acessível para Admin, Secretário... Pode prosseguir. -> **Agent** Desenvolveu a feature completa do histórico.
-9. **User**: Pedido para incluir botão Importar Dados na nova tela. -> **Agent** Criou lógica de scrapping de enrollments do banco para puxar dados no histórico.
-10. **User** (HUMAN PENDING): Enviou um screenshot informando que não encontra onde acessar a tela. O botão foi parar em lugar indesejado. -> **Agent** Estava investigando e tentando identificar o local de Documentos Individuais quando o fork ocorreu.
+1. **User**: Mostrou screenshot de nome divergente no Horário de Aula (Professora). -> **Agent**: Fez fallback pelo nome do componente para resolver divergência de IDs.
+2. **User**: Aulas previstas para esse componente também sumiram. -> **Agent**: Usou o mesmo Helper de fallback na rota .
+3. **User**: Ficha individual ainda está mostrando 201 dias em vez de 200. -> **Agent**: Encontrou a query defeituosa de  e a lógica duplicada de .
+4. **User**: Ainda gera 201. -> **Agent**: Encontrou a terceira cópia defeituosa nos endpoints de  e corrigiu.
+5. **User**: O cálculo corrigido de Dias letivos (que usa 200) conflita com Dias Previstos no PDF de Objetos (45, 57..). -> **Agent**: Refatorou  para usar  da mesma forma unificada.
+6. **User**: (HUMAN PENDING - NOVO REQUISITO) Nos PDFs de relatório de FREQUÊNCIA - Xº BIMESTRE DE AAAA e REGISTRO DE OBJETOS DE CONHECIMENTO, no campo Série/Ano, para turmas multisseriadas, faz-se necessário a exibição de todas as séries/anos que compões a turma. Exemplos: Se for multisseriada e fizerem parte da turma o 1º ano, 2º ano e 3º ano, exibir 1º, 2º e 3º Ano ou 1º/2º/3º Ano e assim sucessivamente. -> **Agent**: (O limite de contexto impediu de concluir. Retome daqui).
 
 **Project Health Check:**
-- Broken: Nenhum erro funcional, apenas erro de UX/UI (Posicionamento de botão).
+- Broken: Nenhum. O último pedido ainda precisa ser implementado.
 - Mocked: Nenhum.
 
 **3rd Party Integrations** 
-Nenhuma utilizada / alterada nesta sessão.
+Nenhuma ativamente configurada em andamento neste bloco.
 
 **Testing status**
-  - Testing agent used after significant changes: NO
+  - Testing agent used after significant changes: YES
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: []
-  - Known regressions: []
+  - Known regressions: Nenhuma conhecida, mas a lógica de verificação de 'Dias Letivos' precisa ser tratada com cuidado extra por ter causado problemas de caching/dados passados repetidas vezes.
 
 **Credentials to test flow:**
-Verifique . Padrão: .
+(Verifique o arquivo  presente no diretório )
 
 **What agent forgot to execute**
-O agente consertou e implementou tudo brilhantemente, porém inseriu o botão final de acesso à grande feature na modal errada (Batch Print Modal em vez do Menu individual do aluno / Modal de Documentos).
+O agente não iniciou as edições nos geradores de PDF ( e ) para contemplar o suporte ao label das turmas multisseriadas. 
 
 **Debugging checklist for current issue**
-    Issue: Reposicionar o botão Histórico Escolar no menu correto do Aluno.
-    
-    Frontend files to check: 
-    - : Busque a função  ou identifique se a renderização que o usuário enviou no print é de algum popover interno.
-    -  (ou similiar, caso as opções de emissão existam num modal separado).
-    - Objetivo: O botão deve ser um atalho . Remova o botão indevido que foi parar no Batch Print.
-    - Teste visual via  para garantir que aparece onde o usuário pediu.</analysis>
+    Issue: Adequação da Label da Série/Ano para Turmas Multisseriadas (PDF)
+    Backend files to check: 
+    -  (Localize a célula que imprime SÉRIE/ANO no topo)
+    -  (Localize a célula análoga)
+    - Entenda de onde os scripts puxam os dados (da collection ). Avalie se basta modificar  para verificar arrays ou concatenar dados. Pode ser necessário buscar os  dos  ativos se o campo da turma for omisso.</analysis>
