@@ -516,15 +516,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         is_anos_finais = education_level in ['fundamental_anos_finais', 'eja_final']
 
         if is_anos_finais and course_id:
-            # Aulas ministradas: cada registro com aula_numero = 1 aula
-            if has_aula_numero:
-                aulas_ministradas_total = len([a for a in attendances if a.get('aula_numero') is not None])
-                # Incluir registros legados (sem aula_numero) usando number_of_classes
-                aulas_ministradas_total += sum(a.get('number_of_classes', 1) for a in attendances if a.get('aula_numero') is None)
-            else:
-                aulas_ministradas_total = sum(att.get('number_of_classes', 1) for att in attendances)
+            # Aulas registradas: usar contagem deduplicada de attendance_days (já expandido)
+            aulas_ministradas_total = len(attendance_days)
 
-            # Aulas previstas = carga horária anual do componente / 4 bimestres
+            # Aulas previstas = dias_letivos × aulas_semana / 5
             aulas_previstas_bimestre_calc = 0
             
             # Método principal: dias_letivos × aulas_semana / 5 (mesmo critério do calendário de registros)

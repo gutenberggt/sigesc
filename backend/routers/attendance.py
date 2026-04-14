@@ -604,12 +604,19 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         
         # Coleta datas de aula para calcular atestados
         attendance_dates = set()
-        total_aulas_registradas = 0
+        aula_keys_set = set()  # Deduplicação (date, aula)
         for att in attendances:
             att_date = att.get('date', '')[:10]
             has_aula_numero = att.get('aula_numero') is not None
             num_classes = 1 if has_aula_numero else att.get('number_of_classes', 1)
-            total_aulas_registradas += num_classes
+            
+            # Deduplicar para contagem total
+            if has_aula_numero:
+                aula_keys_set.add((att_date, att['aula_numero']))
+            else:
+                for i in range(1, num_classes + 1):
+                    aula_keys_set.add((att_date, i))
+            
             if att_date:
                 attendance_dates.add(att_date)
             for record in att.get('records', []):
@@ -714,8 +721,8 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             "class": turma,
             "academic_year": academic_year,
             "course_id": course_id,
-            "total_records": total_aulas_registradas,
-            "total_school_days_recorded": total_aulas_registradas,
+            "total_records": len(aula_keys_set),
+            "total_school_days_recorded": len(aula_keys_set),
             "total_students": len(students),
             "report_type": "aulas" if is_anos_finais else "dias",
             "students": report
@@ -847,14 +854,16 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         attendances = await current_db.attendance.find(att_query, {"_id": 0}).to_list(5000)
 
         if is_anos_finais:
-            # Para anos finais: cada registro com aula_numero conta como 1 aula
-            # Registros legados sem aula_numero usam number_of_classes
-            aulas_registradas = 0
+            # Deduplicar: expandir todos os registros em tuplas (date, aula) únicas
+            aula_keys = set()
             for att in attendances:
                 if att.get('aula_numero') is not None:
-                    aulas_registradas += 1  # Cada registro = 1 aula
+                    aula_keys.add((att.get('date', '')[:10], att['aula_numero']))
                 else:
-                    aulas_registradas += att.get('number_of_classes', 1)  # Compatibilidade legado
+                    nc = att.get('number_of_classes', 1)
+                    for i in range(1, nc + 1):
+                        aula_keys.add((att.get('date', '')[:10], i))
+            aulas_registradas = len(aula_keys)
 
             # Calcular aulas previstas: usar carga horária do componente (workload)
             # Fonte primária: workload do curso (total anual de hora-aula)
@@ -1076,13 +1085,16 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             if is_anos_finais:
                 # Aulas previstas = dias_letivos * aulas_por_semana / 5
                 previstos = round(dias_letivos * aulas_semana / 5) if aulas_semana > 0 else 0
-                # Aulas registradas
-                registrados = 0
+                # Aulas registradas: deduplicar (date, aula) para evitar contagem dupla
+                aula_keys = set()
                 for att in bim_atts:
                     if att.get('aula_numero') is not None:
-                        registrados += 1
+                        aula_keys.add((att.get('date', '')[:10], att['aula_numero']))
                     else:
-                        registrados += att.get('number_of_classes', 1)
+                        nc = att.get('number_of_classes', 1)
+                        for i in range(1, nc + 1):
+                            aula_keys.add((att.get('date', '')[:10], i))
+                registrados = len(aula_keys)
                 label_prev = "AULAS PREVISTAS"
                 label_reg = "AULAS REGISTRADAS"
             else:
