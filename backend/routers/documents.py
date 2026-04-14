@@ -1060,7 +1060,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if calendario_letivo:
             # Buscar eventos do calendário para o ano
             eventos = await db.calendar_events.find({
-                "year": actual_academic_year
+                "academic_year": {"$in": [int(actual_academic_year), str(actual_academic_year)]}
             }, {"_id": 0}).to_list(500)
 
             # Identificar datas não letivas (feriados, recessos, etc.)
@@ -1068,21 +1068,29 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             datas_sabados_letivos = set()
 
             for evento in eventos:
-                tipo = evento.get('type', '')
-                data_str = evento.get('date', '')
+                event_type = evento.get('event_type', '')
+                start_str = (evento.get('start_date') or '')[:10]
+                end_str = (evento.get('end_date') or start_str)[:10]
+                if not start_str:
+                    continue
 
-                # Tipos que removem dias letivos
-                if tipo in ['feriado', 'recesso', 'ferias', 'nao_letivo', 'ponto_facultativo', 'conselho']:
+                if 'feriado' in event_type or event_type == 'recesso_escolar' or evento.get('is_school_day') is False:
                     try:
-                        data = datetime.strptime(data_str[:10], '%Y-%m-%d').date()
-                        datas_nao_letivas.add(data)
+                        d = datetime.strptime(start_str, '%Y-%m-%d').date()
+                        end_d = datetime.strptime(end_str, '%Y-%m-%d').date()
+                        while d <= end_d:
+                            datas_nao_letivas.add(d)
+                            d += timedelta(days=1)
                     except:
                         pass
-                # Sábados letivos
-                elif tipo == 'sabado_letivo':
+                if event_type == 'sabado_letivo' or evento.get('is_school_day') is True:
                     try:
-                        data = datetime.strptime(data_str[:10], '%Y-%m-%d').date()
-                        datas_sabados_letivos.add(data)
+                        d = datetime.strptime(start_str, '%Y-%m-%d').date()
+                        end_d = datetime.strptime(end_str, '%Y-%m-%d').date()
+                        while d <= end_d:
+                            if d.weekday() == 5:
+                                datas_sabados_letivos.add(d)
+                            d += timedelta(days=1)
                     except:
                         pass
 
