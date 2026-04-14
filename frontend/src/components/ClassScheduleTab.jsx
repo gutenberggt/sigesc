@@ -490,9 +490,20 @@ export function ClassScheduleTab({ academicYear }) {
   // Obter professor do componente
   const getTeacherForCourse = (courseId) => {
     if (!courseId) return null;
+    // Match direto por course_id
     const allocation = teacherAllocations.find(a => a.course_id === courseId);
-    if (!allocation) return null;
-    return allocation.staff_name || '';
+    if (allocation) return allocation.staff_name || '';
+    
+    // Fallback: match por nome do componente (caso course_ids divergam)
+    const course = courses.find(c => c.id === courseId);
+    if (course) {
+      const byName = teacherAllocations.find(a => 
+        a.course_name && course.name && 
+        a.course_name.toUpperCase().trim() === course.name.toUpperCase().trim()
+      );
+      if (byName) return byName.staff_name || '';
+    }
+    return null;
   };
   
   // Atualizar horário de um slot
