@@ -207,8 +207,13 @@ def generate_ficha_individual_pdf(
     # Buscar dias letivos do calendário (calculados a partir dos períodos bimestrais)
     dias_letivos = 200  # Valor padrão
     if calendario_letivo:
-        # Priorizar dias_letivos_calculados (soma dos bimestres), senão usar dias_letivos_previstos
-        dias_letivos = calendario_letivo.get('dias_letivos_calculados') or calendario_letivo.get('dias_letivos_previstos', 200)
+        # Usar dias_letivos_calculados que foi recalculado pelo router (correto)
+        calc = calendario_letivo.get('dias_letivos_calculados')
+        if calc and isinstance(calc, (int, float)) and calc > 0:
+            dias_letivos = int(calc)
+        else:
+            # Fallback: dias_letivos_previstos do banco
+            dias_letivos = calendario_letivo.get('dias_letivos_previstos', 200) or 200
     
     # ===== CÁLCULO DE FREQUÊNCIA PARA ANOS INICIAIS =====
     # Obter metadados de frequência

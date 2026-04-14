@@ -240,7 +240,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if calendario_letivo:
             # Buscar eventos do calendário para o ano
             eventos = await db.calendar_events.find({
-                "academic_year": int(actual_academic_year)
+                "academic_year": {"$in": [int(actual_academic_year), str(actual_academic_year)]}
             }, {"_id": 0}).to_list(500)
 
             datas_nao_letivas = set()
@@ -705,7 +705,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # Buscar eventos do calendário (feriados, sábados letivos, etc.)
         events = await db.calendar_events.find({
-            "academic_year": academic_year_int
+            "academic_year": {"$in": [academic_year_int, str(academic_year_int)]}
         }, {"_id": 0}).to_list(1000)
 
         eventos_nao_letivos = ['feriado_nacional', 'feriado_estadual', 'feriado_municipal', 'recesso_escolar']
@@ -1693,7 +1693,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         dias_letivos_ano = 200
         if calendario_letivo:
             eventos = await db.calendar_events.find({
-                "academic_year": academic_year_int
+                "academic_year": {"$in": [academic_year_int, str(academic_year_int)]}
             }, {"_id": 0}).to_list(500)
 
             datas_nao_letivas = set()
