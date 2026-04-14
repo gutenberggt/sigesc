@@ -242,6 +242,12 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - ~~Centralizar permissões em hook usePermissions~~ CONCLUÍDO (06/04/2026): Hook em `/app/frontend/src/hooks/usePermissions.js`, integrado em 8 páginas (Dashboard, Attendance, Grades, LearningObjects, Events, Enrollments, StudentsComplete, Classes)
 - ~~Refatorar inferEducationLevel duplicado~~ CONCLUÍDO (06/04/2026): Centralizado em `/app/frontend/src/utils/educationLevel.js`
 
+## Declarações PDF - Melhorias (13/02/2026)
+- Todas as declarações: condição "Tipo de Unidade" — se Anexa, exibe "Anexa a: NOME DA ESCOLA SEDE" abaixo do nome da escola
+- Declaração de Transferência: espaçamentos reduzidos pela metade; caixa "OBSERVAÇÃO" com checkboxes (☐ Sim/Não, ☐ Todas/Parcial) para provas do bimestre
+- Declaração de Frequência: espaçamentos reduzidos; filiação (mãe e pai) adicionada ao corpo do texto
+- Declaração de Matrícula: filiação (mãe e pai) adicionada ao corpo do texto
+
 ## Turmas Multisseriadas nos PDFs (13/02/2026)
 - Campo "Série/Ano" nos PDFs de Frequência e Objetos de Conhecimento agora exibe todas as séries combinadas para turmas multisseriadas
 - Formato: "1º, 2º e 3º Ano" (usando vírgulas e "e" antes da última série)
