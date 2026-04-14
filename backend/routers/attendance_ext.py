@@ -527,10 +527,21 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 {"class_id": class_id, "academic_year": academic_year}, {"_id": 0, "schedule_slots": 1}
             )
             if schedule and schedule.get('schedule_slots'):
+                # Match direto por course_id
                 aulas_semana = sum(
                     1 for s in schedule['schedule_slots']
                     if s.get('course_id') == course_id
                 )
+                # Fallback por nome do componente
+                if aulas_semana == 0 and course_info:
+                    course_name_upper = (course_info.get('name') or '').upper().strip()
+                    if course_name_upper:
+                        slot_cids = set(s.get('course_id') for s in schedule['schedule_slots'] if s.get('course_id'))
+                        for scid in slot_cids:
+                            sc = await db.courses.find_one({"id": scid}, {"_id": 0, "name": 1})
+                            if sc and (sc.get('name') or '').upper().strip() == course_name_upper:
+                                aulas_semana = sum(1 for s in schedule['schedule_slots'] if s.get('course_id') == scid)
+                                break
                 if aulas_semana > 0:
                     aulas_previstas_bimestre_calc = round(aulas_previstas_bimestre * aulas_semana / 5)
             

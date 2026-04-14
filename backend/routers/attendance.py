@@ -876,12 +876,11 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             # Fallback: usar schedule_slots se workload não definido
             if aulas_previstas == 0 and course_id:
                 schedule = await current_db.class_schedules.find_one(
-                    {"class_id": class_id}, {"_id": 0}
+                    {"class_id": class_id}, {"_id": 0, "schedule_slots": 1}
                 )
                 if schedule and schedule.get('schedule_slots'):
-                    aulas_semana = sum(
-                        1 for s in schedule['schedule_slots']
-                        if s.get('course_id') == course_id
+                    aulas_semana = await count_schedule_slots_for_course(
+                        current_db, schedule['schedule_slots'], course_id
                     )
                     aulas_previstas = int((dias_letivos_previstos / 5) * aulas_semana) if aulas_semana > 0 else 0
 
@@ -902,6 +901,34 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 "restantes": max(0, dias_letivos_previstos - dias_registrados)
             }
 
+
+    # Helper: contar slots do horário com fallback por nome do componente
+    async def count_schedule_slots_for_course(current_db, schedule_slots, course_id, day_filter=None):
+        """Conta slots do horário para um componente, com fallback por nome se course_id não bater"""
+        # Match direto por course_id
+        count = sum(
+            1 for s in schedule_slots
+            if s.get('course_id') == course_id and (day_filter is None or s.get('day') == day_filter)
+        )
+        if count > 0:
+            return count
+        
+        # Fallback: match por nome do componente
+        course = await current_db.courses.find_one({"id": course_id}, {"_id": 0, "name": 1})
+        if course and course.get('name'):
+            course_name = course['name'].upper().strip()
+            # Buscar course_ids no horário que tenham o mesmo nome
+            slot_course_ids = set(s.get('course_id') for s in schedule_slots if s.get('course_id'))
+            for scid in slot_course_ids:
+                sc = await current_db.courses.find_one({"id": scid}, {"_id": 0, "name": 1})
+                if sc and sc.get('name', '').upper().strip() == course_name:
+                    count = sum(
+                        1 for s in schedule_slots
+                        if s.get('course_id') == scid and (day_filter is None or s.get('day') == day_filter)
+                    )
+                    if count > 0:
+                        return count
+        return 0
 
     @router.get("/schedule-classes-count")
     async def get_schedule_classes_count(
@@ -935,10 +962,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         if not schedule or not schedule.get('schedule_slots'):
             return {"count": 1, "has_schedule": False}
         
-        count = sum(
-            1 for s in schedule['schedule_slots']
-            if s.get('course_id') == course_id and s.get('day') == day_id
-        )
+        count = await count_schedule_slots_for_course(current_db, schedule['schedule_slots'], course_id, day_filter=day_id)
         
         return {"count": count, "has_schedule": True}
 
@@ -1024,7 +1048,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         education_level = turma.get('education_level', '') if turma else ''
         is_anos_finais = education_level in ('fundamental_anos_finais', 'eja_final')
         
-        # Para anos finais: buscar horário de aulas do componente
+        # Para anos finais: buscar horário de aulas do componente (com fallback por nome)
         aulas_semana = 0
         if is_anos_finais and course_id:
             schedule = await current_db.class_schedules.find_one(
@@ -1032,9 +1056,8 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 {"_id": 0, "schedule_slots": 1}
             )
             if schedule and schedule.get('schedule_slots'):
-                aulas_semana = sum(
-                    1 for s in schedule['schedule_slots']
-                    if s.get('course_id') == course_id
+                aulas_semana = await count_schedule_slots_for_course(
+                    current_db, schedule['schedule_slots'], course_id
                 )
         
         # Buscar todos os registros de frequência
