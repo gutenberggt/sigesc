@@ -398,7 +398,7 @@ export default function AssocialDashboard() {
                                   </div>
                                 </div>
                               ) : (
-                                <p className="text-gray-500">Sem registro de frequencia</p>
+                                <p className="text-gray-500">Sem registro de frequência</p>
                               )}
                             </div>
                           </div>
@@ -430,7 +430,7 @@ export default function AssocialDashboard() {
             <h3 className="text-lg font-medium text-gray-900 mb-2">Busque um aluno</h3>
             <p className="text-gray-500 max-w-md mx-auto">
               Digite o nome ou CPF do aluno no campo de busca acima para visualizar suas informações 
-              e acompanhamento de frequencia.
+              e acompanhamento de frequência.
             </p>
           </div>
         )}
