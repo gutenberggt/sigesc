@@ -36,6 +36,9 @@ import { OfflineManagementPanel } from '@/components/OfflineManagementPanel';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
+import axios from 'axios';
+
+const VACCINE_API = process.env.REACT_APP_BACKEND_URL;
 
 // Formata data para exibição
 const formatDate = (dateStr) => {
@@ -95,6 +98,22 @@ export const Attendance = () => {
   const [attendanceData, setAttendanceData] = useState(null);
   const [dateCheck, setDateCheck] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // Status vacinal dos alunos (para indicador visual)
+  const [vaccineStatuses, setVaccineStatuses] = useState({});
+  
+  // Buscar status vacinal quando attendanceData muda
+  useEffect(() => {
+    if (!attendanceData?.students?.length) return;
+    const ids = attendanceData.students.map(s => s.id).filter(Boolean);
+    if (!ids.length) return;
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+    axios.get(`${VACCINE_API}/api/vaccines/status/batch?student_ids=${ids.join(',')}&academic_year=${academicYear}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(res => setVaccineStatuses(prev => ({ ...prev, ...res.data })))
+      .catch(() => {});
+  }, [attendanceData?.students?.length, academicYear]);
 
   // Alerta ao sair com alterações não salvas
   const { guardedNavigate } = useUnsavedChangesWarning(hasChanges, 'Há alterações de frequência não salvas. Deseja sair sem salvar?');
@@ -1260,6 +1279,12 @@ export const Attendance = () => {
                             <tr key={student.id} className={`hover:bg-gray-50 ${hasCertificate ? 'bg-red-50' : ''} ${isAnyBlock ? 'bg-gray-100' : ''}`}>
                               <td className="px-4 py-3 font-medium text-gray-900">
                                 <div className="flex items-center gap-2">
+                                  {(() => {
+                                    const vSt = vaccineStatuses[student.id];
+                                    const dotColor = vSt === 'up_to_date' ? 'bg-green-500' : vSt === 'not_up_to_date' ? 'bg-yellow-400' : 'bg-gray-300';
+                                    const dotTitle = vSt === 'up_to_date' ? 'Vacina em dia' : vSt === 'not_up_to_date' ? 'Vacina pendente' : 'Vacina não verificada';
+                                    return <span className={`inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColor}`} title={dotTitle} data-testid={`vaccine-dot-${student.id}`} />;
+                                  })()}
                                   {student.full_name}
                                   {hasActionLabel && (
                                     <span className="inline-flex items-center px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">

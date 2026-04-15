@@ -55,7 +55,7 @@ const ROLE_MATRIX = {
   }
 };
 
-const ADMIN_ONLY_ROLES = ['admin', 'admin_teste', 'semed', 'semed1', 'semed2', 'semed3', 'ass_social'];
+const ADMIN_ONLY_ROLES = ['admin', 'admin_teste', 'semed', 'semed1', 'semed2', 'semed3', 'ass_social', 'agente_vacinas'];
 const SEMED_ROLES_LIST = ['semed', 'semed1', 'semed2', 'semed3'];
 
 export const Users = () => {
@@ -206,6 +206,7 @@ export const Users = () => {
   const roleLabels = {
     admin: 'Administrador',
     ass_social: 'Ass. Social',
+    agente_vacinas: 'Agente de Vacinas',
     secretario: 'Secretário(a)',
     diretor: 'Diretor(a)',
     coordenador: 'Coordenador(a)',

@@ -115,6 +115,11 @@ export const Dashboard = () => {
     return <Navigate to="/ass-social" replace />;
   }
 
+  // Redireciona agente de vacinas para o dashboard específico
+  if (user?.role === 'agente_vacinas') {
+    return <Navigate to="/vacinas" replace />;
+  }
+
   const roleLabels = {
     admin: 'Administrador',
     ass_social: 'Ass. Social',

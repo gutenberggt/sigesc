@@ -11,3 +11,7 @@
 ## Secretario
 - Email: secretario@sigesc.com
 - Senha: secretario123
+
+## Agente de Vacinas
+- Email: vacinas@sigesc.com
+- Senha: @Celta2007

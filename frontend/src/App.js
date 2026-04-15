@@ -42,6 +42,7 @@ const AnalyticsDashboard = lazy(() => import('@/pages/AnalyticsDashboard').then(
 const DiaryDashboard = lazy(() => import('@/pages/DiaryDashboard'));
 const DiarioAEE = lazy(() => import('@/pages/DiarioAEE'));
 const AssocialDashboard = lazy(() => import('@/pages/AssocialDashboard'));
+const VaccineDashboard = lazy(() => import('@/pages/VaccineDashboard'));
 const OnlineUsers = lazy(() => import('@/pages/OnlineUsers'));
 const HRPayroll = lazy(() => import('@/pages/HRPayroll'));
 
@@ -138,6 +139,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'ass_social']}>
                 <AssocialDashboard />
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* Dashboard Agente de Vacinas */}
+          <Route
+            path="/vacinas"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'agente_vacinas']}>
+                <VaccineDashboard />
               </ProtectedRoute>
             }
           />
