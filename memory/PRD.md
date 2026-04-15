@@ -242,6 +242,13 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - ~~Centralizar permissões em hook usePermissions~~ CONCLUÍDO (06/04/2026): Hook em `/app/frontend/src/hooks/usePermissions.js`, integrado em 8 páginas (Dashboard, Attendance, Grades, LearningObjects, Events, Enrollments, StudentsComplete, Classes)
 - ~~Refatorar inferEducationLevel duplicado~~ CONCLUÍDO (06/04/2026): Centralizado em `/app/frontend/src/utils/educationLevel.js`
 
+## Controle de Vacinas - Listagem por Turma (15/04/2026)
+- Adicionada seção "Listagem por Turma" com filtros Ano/Escola/Turma
+- Tabela de alunos com bolinha de status vacinal (cinza/amarelo/verde) e botões Em dia/Pendente
+- Alunos com status Falecido, Transferido, Desistente, Remanejado, Reclassificado e Progredido são excluídos da listagem
+- Novos status de aluno adicionados: `reclassified` e `progressed`
+- Endpoint: GET /api/vaccines/class/{class_id}/students
+
 ## Controle de Vacinas (15/04/2026)
 - Novo papel: `agente_vacinas` com dashboard exclusivo em `/vacinas`
 - Dashboard com 4 cards de resumo (Total, Em Dia, Não em Dia, Não Verificado)

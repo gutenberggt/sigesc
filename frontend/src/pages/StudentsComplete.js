@@ -774,7 +774,9 @@ export function StudentsComplete() {
         'dropout': 'Desistente', 'desistente': 'Desistente',
         'inactive': 'Inativo',
         'cancelled': 'Cancelado', 'cancelado': 'Cancelado',
-        'deceased': 'Falecido'
+        'deceased': 'Falecido',
+        'reclassified': 'Reclassificado', 'reclassificado': 'Reclassificado',
+        'progressed': 'Progredido', 'progredido': 'Progredido'
       };
       const currentStatus = statusLabels[editingStudent.status?.toLowerCase()] || editingStudent.status;
       
@@ -1479,7 +1481,11 @@ export function StudentsComplete() {
           'cancelled': { label: 'Cancelado', class: 'bg-red-100 text-red-800' },
           'Cancelado': { label: 'Cancelado', class: 'bg-red-100 text-red-800' },
           'deceased': { label: 'Falecido', class: 'bg-gray-100 text-gray-800' },
-          'Falecido': { label: 'Falecido', class: 'bg-gray-100 text-gray-800' }
+          'Falecido': { label: 'Falecido', class: 'bg-gray-100 text-gray-800' },
+          'reclassified': { label: 'Reclassificado', class: 'bg-indigo-100 text-indigo-800' },
+          'Reclassificado': { label: 'Reclassificado', class: 'bg-indigo-100 text-indigo-800' },
+          'progressed': { label: 'Progredido', class: 'bg-teal-100 text-teal-800' },
+          'Progredido': { label: 'Progredido', class: 'bg-teal-100 text-teal-800' }
         };
         const config = statusConfig[row.status] || statusConfig['active'];
         return (

@@ -962,7 +962,7 @@ class StudentBase(BaseModel):
     observations: Optional[str] = None
     
     # Status
-    status: Literal['active', 'inactive', 'dropout', 'transferred', 'deceased', 'cancelled'] = 'active'
+    status: Literal['active', 'inactive', 'dropout', 'transferred', 'deceased', 'cancelled', 'reclassified', 'progressed'] = 'active'
     
     # Data da matrícula (informada pelo usuário no cadastro)
     enrollment_date: Optional[str] = None
@@ -1065,7 +1065,7 @@ class StudentUpdate(BaseModel):
     
     # Observações
     observations: Optional[str] = None
-    status: Optional[Literal['active', 'inactive', 'dropout', 'transferred', 'deceased', 'cancelled']] = None
+    status: Optional[Literal['active', 'inactive', 'dropout', 'transferred', 'deceased', 'cancelled', 'reclassified', 'progressed']] = None
     
     # Data da matrícula
     enrollment_date: Optional[str] = None

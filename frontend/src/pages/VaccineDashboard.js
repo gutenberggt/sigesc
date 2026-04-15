@@ -27,6 +27,16 @@ export default function VaccineDashboard() {
   const academicYear = new Date().getFullYear();
   const token = localStorage.getItem('accessToken');
 
+  // Estado para listagem por turma
+  const [listYear, setListYear] = useState(new Date().getFullYear());
+  const [listSchoolId, setListSchoolId] = useState('');
+  const [listClassId, setListClassId] = useState('');
+  const [schoolsList, setSchoolsList] = useState([]);
+  const [classesList, setClassesList] = useState([]);
+  const [classStudents, setClassStudents] = useState([]);
+  const [classInfo, setClassInfo] = useState(null);
+  const [loadingClass, setLoadingClass] = useState(false);
+
   const loadSummary = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/vaccines/summary?academic_year=${academicYear}`, {
@@ -48,6 +58,7 @@ export default function VaccineDashboard() {
         const schoolsMap = {};
         schoolsData.forEach(s => { schoolsMap[s.id] = s; });
         setSchools(schoolsMap);
+        setSchoolsList(schoolsData.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
         const classesMap = {};
         classesData.forEach(c => { classesMap[c.id] = c; });
         setClasses(classesMap);
@@ -156,6 +167,64 @@ export default function VaccineDashboard() {
     if (!details) return false;
     return details.school_name !== 'Não matriculado' && details.school_id;
   };
+
+  // Filtrar turmas pela escola selecionada
+  useEffect(() => {
+    if (!listSchoolId) {
+      setClassesList([]);
+      setListClassId('');
+      return;
+    }
+    const filtered = Object.values(classes)
+      .filter(c => c.school_id === listSchoolId && (c.academic_year === listYear || !c.academic_year))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    setClassesList(filtered);
+    setListClassId('');
+    setClassStudents([]);
+    setClassInfo(null);
+  }, [listSchoolId, listYear, classes]);
+
+  // Carregar alunos da turma selecionada
+  useEffect(() => {
+    if (!listClassId) {
+      setClassStudents([]);
+      setClassInfo(null);
+      return;
+    }
+    const load = async () => {
+      setLoadingClass(true);
+      try {
+        const res = await axios.get(`${API}/vaccines/class/${listClassId}/students?academic_year=${listYear}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setClassStudents(res.data.students || []);
+        setClassInfo({ name: res.data.class_name, total: res.data.total });
+      } catch (e) {
+        console.error(e);
+        setClassStudents([]);
+      }
+      setLoadingClass(false);
+    };
+    load();
+  }, [listClassId, listYear, token]);
+
+  const handleClassStudentStatus = async (studentId, newStatus) => {
+    setSavingStatus(true);
+    try {
+      await axios.put(`${API}/vaccines/status/${studentId}`, {
+        status: newStatus,
+        academic_year: listYear
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      setClassStudents(prev => prev.map(s =>
+        s.id === studentId ? { ...s, vaccine_status: newStatus } : s
+      ));
+      loadSummary();
+    } catch (e) { console.error(e); }
+    setSavingStatus(false);
+  };
+
+  const yearOptions = [];
+  for (let y = new Date().getFullYear(); y >= new Date().getFullYear() - 2; y--) yearOptions.push(y);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12" data-testid="vaccine-dashboard">
@@ -429,7 +498,7 @@ export default function VaccineDashboard() {
         )}
 
         {/* Empty state */}
-        {!selectedStudent && searchResults.length === 0 && (
+        {!selectedStudent && searchResults.length === 0 && !listClassId && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Search className="h-8 w-8 text-blue-600" />
@@ -440,6 +509,136 @@ export default function VaccineDashboard() {
             </p>
           </div>
         )}
+
+        {/* ===== SEÇÃO: Listagem por Turma ===== */}
+        <div className="mt-10">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Listagem por Turma</h2>
+            <p className="text-gray-600 mt-1">Visualize o status vacinal de todos os alunos da turma</p>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ano</label>
+                <select value={listYear} onChange={e => setListYear(Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  data-testid="list-year-filter">
+                  {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
+                <select value={listSchoolId} onChange={e => setListSchoolId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  data-testid="list-school-filter">
+                  <option value="">Selecione uma escola</option>
+                  {schoolsList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
+                <select value={listClassId} onChange={e => setListClassId(e.target.value)}
+                  disabled={!listSchoolId}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                  data-testid="list-class-filter">
+                  <option value="">Selecione uma turma</option>
+                  {classesList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {loadingClass && (
+            <div className="bg-white rounded-xl shadow-sm border p-8 flex items-center justify-center">
+              <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
+              <span className="ml-3 text-gray-500">Carregando alunos...</span>
+            </div>
+          )}
+
+          {!loadingClass && listClassId && classStudents.length === 0 && (
+            <div className="bg-white rounded-xl shadow-sm border p-8 text-center text-gray-500">
+              Nenhum aluno encontrado nesta turma.
+            </div>
+          )}
+
+          {!loadingClass && classStudents.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-white font-bold">{classInfo?.name || ''}</h3>
+                  <span className="bg-white/20 text-white text-sm px-3 py-1 rounded-full">
+                    {classInfo?.total || 0} alunos
+                  </span>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 border-b">
+                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider w-8">Nº</th>
+                      <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Aluno(a)</th>
+                      <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {classStudents.map((student, idx) => {
+                      const vSt = student.vaccine_status;
+                      const dotColor = vSt === 'up_to_date' ? 'bg-green-500' : vSt === 'not_up_to_date' ? 'bg-yellow-400' : 'bg-gray-300';
+                      const dotTitle = vSt === 'up_to_date' ? 'Em dia' : vSt === 'not_up_to_date' ? 'Pendente' : 'Não verificado';
+                      return (
+                        <tr key={student.id} className="hover:bg-gray-50 transition-colors" data-testid={`class-student-${student.id}`}>
+                          <td className="px-6 py-3 text-sm text-gray-500">{idx + 1}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <span className={`inline-block w-3 h-3 rounded-full flex-shrink-0 ${dotColor}`} title={dotTitle} />
+                              <span className="font-medium text-gray-900 text-sm">{student.full_name}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => handleClassStudentStatus(student.id, 'up_to_date')}
+                                disabled={savingStatus}
+                                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                                  vSt === 'up_to_date'
+                                    ? 'bg-green-500 text-white shadow-sm'
+                                    : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                                }`}
+                                data-testid={`class-btn-uptodate-${student.id}`}
+                              >
+                                Em dia
+                              </button>
+                              <button
+                                onClick={() => handleClassStudentStatus(student.id, 'not_up_to_date')}
+                                disabled={savingStatus}
+                                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                                  vSt === 'not_up_to_date'
+                                    ? 'bg-yellow-500 text-white shadow-sm'
+                                    : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                                }`}
+                                data-testid={`class-btn-notuptodate-${student.id}`}
+                              >
+                                Pendente
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {!listClassId && !loadingClass && (
+            <div className="bg-white rounded-xl shadow-sm border p-8 text-center text-gray-400">
+              Selecione uma escola e turma para visualizar a listagem.
+            </div>
+          )}
+        </div>
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 py-3 px-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white z-30">
