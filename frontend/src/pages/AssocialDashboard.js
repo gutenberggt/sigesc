@@ -181,7 +181,7 @@ export default function AssocialDashboard() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900">Consulta de Alunos</h2>
-          <p className="text-gray-600 mt-1">Busque alunos por nome ou CPF para visualizar informacoes</p>
+          <p className="text-gray-600 mt-1">Busque alunos por nome ou CPF para visualizar informações</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
@@ -310,7 +310,7 @@ export default function AssocialDashboard() {
             {loadingDetails ? (
               <div className="p-8 flex items-center justify-center">
                 <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
-                <span className="ml-3 text-gray-500">Carregando informacoes...</span>
+                <span className="ml-3 text-gray-500">Carregando informações...</span>
               </div>
             ) : studentDetails ? (
               <div className="p-6">
@@ -429,7 +429,7 @@ export default function AssocialDashboard() {
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Busque um aluno</h3>
             <p className="text-gray-500 max-w-md mx-auto">
-              Digite o nome ou CPF do aluno no campo de busca acima para visualizar suas informacoes 
+              Digite o nome ou CPF do aluno no campo de busca acima para visualizar suas informações 
               e acompanhamento de frequencia.
             </p>
           </div>
