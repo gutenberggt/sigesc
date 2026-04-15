@@ -331,7 +331,7 @@ def generate_declaracao_transferencia_pdf(
     obs_title_style = ParagraphStyle('ObsTitle', fontSize=9, fontName='Helvetica-Bold', leading=11, alignment=TA_LEFT)
     obs_line_style = ParagraphStyle('ObsLine', fontSize=9, leading=12, alignment=TA_LEFT)
     
-    checkbox = '\u2610'  # ☐ Unicode checkbox
+    checkbox = '(   )'
     
     obs_inner = [
         [Paragraph('<b>OBSERVAÇÃO</b>', obs_title_style)],
