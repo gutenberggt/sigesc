@@ -242,6 +242,16 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - ~~Centralizar permissões em hook usePermissions~~ CONCLUÍDO (06/04/2026): Hook em `/app/frontend/src/hooks/usePermissions.js`, integrado em 8 páginas (Dashboard, Attendance, Grades, LearningObjects, Events, Enrollments, StudentsComplete, Classes)
 - ~~Refatorar inferEducationLevel duplicado~~ CONCLUÍDO (06/04/2026): Centralizado em `/app/frontend/src/utils/educationLevel.js`
 
+## Controle de Vacinas (15/04/2026)
+- Novo papel: `agente_vacinas` com dashboard exclusivo em `/vacinas`
+- Dashboard com 4 cards de resumo (Total, Em Dia, Não em Dia, Não Verificado)
+- Busca por nome, filtro por escola e filtro por status vacinal
+- Botões "Em dia" e "Pendente" para cada aluno com salvamento automático
+- 3 estados: Cinza (não verificado), Verde (em dia), Amarelo (não está em dia)
+- Indicador visual (bolinha colorida) antes do nome do aluno na tela de Controle de Frequência
+- Backend: collection `vaccine_status` com endpoints CRUD em `/api/vaccines/`
+- Credencial teste: vacinas@sigesc.com / @Celta2007
+
 ## Declarações PDF - Melhorias (13/02/2026)
 - Todas as declarações: condição "Tipo de Unidade" — se Anexa, exibe "Anexa a: NOME DA ESCOLA SEDE" abaixo do nome da escola
 - Declaração de Transferência: espaçamentos reduzidos pela metade; caixa "OBSERVAÇÃO" com checkboxes (☐ Sim/Não, ☐ Todas/Parcial) para provas do bimestre
