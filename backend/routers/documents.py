@@ -44,6 +44,18 @@ async def get_mantenedora_cached(db_ref):
 async def get_school_cached(db_ref, school_id):
     return await _get_cached(db_ref, 'schools', {"id": school_id}, f'school_{school_id}')
 
+async def resolve_anexa_name(db_ref, school):
+    """Se a escola for anexa e anexa_a for um ID, resolve para o nome da escola sede."""
+    if not school or school.get('tipo_unidade') != 'anexa' or not school.get('anexa_a'):
+        return
+    anexa_val = school['anexa_a']
+    # Se já é um nome (não parece UUID), não resolver
+    if len(anexa_val) != 36 or anexa_val.count('-') != 4:
+        return
+    sede = await get_school_cached(db_ref, anexa_val)
+    if sede:
+        school['anexa_a'] = sede.get('name', anexa_val)
+
 
 router = APIRouter(tags=["Documentos"])
 
@@ -492,6 +504,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # Gerar PDF
         try:
+            await resolve_anexa_name(db, school)
             pdf_buffer = generate_declaracao_matricula_pdf(
                 student=student,
                 school=school,
@@ -576,6 +589,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         mantenedora = await get_mantenedora_cached(db)
 
         try:
+            await resolve_anexa_name(db, school)
             pdf_buffer = generate_declaracao_transferencia_pdf(
                 student=student,
                 school=school,
@@ -822,6 +836,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # Gerar PDF
         try:
+            await resolve_anexa_name(db, school)
             pdf_buffer = generate_declaracao_frequencia_pdf(
                 student=student,
                 school=school,

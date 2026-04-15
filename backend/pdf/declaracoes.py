@@ -95,12 +95,15 @@ def generate_declaracao_matricula_pdf(
     # Cabeçalho - usar nome da mantenedora
     elements.append(Paragraph(mant_nome.upper(), styles['CenterText']))
     elements.append(Paragraph(mantenedora.get('secretaria', 'Secretaria Municipal de Educação').upper(), styles['CenterText']))
-    elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
     
-    # Tipo de Unidade: se Anexa, exibir "Anexa a: NOME DA ESCOLA SEDE"
+    # Tipo de Unidade: se Anexa, exibir nome da escola + "Anexa a:" colados
     if school.get('tipo_unidade') == 'anexa' and school.get('anexa_a'):
-        anexa_style = ParagraphStyle('AnexaText', parent=styles['CenterText'], fontSize=10, leading=12, textColor=colors.HexColor('#374151'))
+        school_title_style = ParagraphStyle('SchoolTitleNoGap', parent=styles['MainTitle'], spaceAfter=0)
+        anexa_style = ParagraphStyle('AnexaText', parent=styles['CenterText'], fontSize=10, leading=12, textColor=colors.HexColor('#374151'), spaceBefore=0)
+        elements.append(Paragraph(school.get('name', 'Escola Municipal'), school_title_style))
         elements.append(Paragraph(f"Anexa a: {school.get('anexa_a')}", anexa_style))
+    else:
+        elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
     
     # Endereço e telefone da escola (deixar em branco se não tiver)
     if endereco:
@@ -245,12 +248,15 @@ def generate_declaracao_transferencia_pdf(
     # Cabeçalho
     elements.append(Paragraph(mant_nome.upper(), styles['CenterText']))
     elements.append(Paragraph(mantenedora.get('secretaria', 'Secretaria Municipal de Educação').upper(), styles['CenterText']))
-    elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
     
-    # Tipo de Unidade: se Anexa, exibir "Anexa a: NOME DA ESCOLA SEDE"
+    # Tipo de Unidade: se Anexa, exibir nome da escola + "Anexa a:" colados
     if school.get('tipo_unidade') == 'anexa' and school.get('anexa_a'):
-        anexa_style = ParagraphStyle('AnexaTextTransf', parent=styles['CenterText'], fontSize=10, leading=12, textColor=colors.HexColor('#374151'))
+        school_title_style = ParagraphStyle('SchoolTitleNoGapT', parent=styles['MainTitle'], spaceAfter=0)
+        anexa_style = ParagraphStyle('AnexaTextTransf', parent=styles['CenterText'], fontSize=10, leading=12, textColor=colors.HexColor('#374151'), spaceBefore=0)
+        elements.append(Paragraph(school.get('name', 'Escola Municipal'), school_title_style))
         elements.append(Paragraph(f"Anexa a: {school.get('anexa_a')}", anexa_style))
+    else:
+        elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
     
     if endereco:
         elements.append(Paragraph(f"Endereço: {endereco}", styles['CenterText']))
@@ -260,7 +266,7 @@ def generate_declaracao_transferencia_pdf(
     
     # Título
     elements.append(Paragraph("DECLARAÇÃO DE TRANSFERÊNCIA", styles['MainTitle']))
-    elements.append(Spacer(1, 15))
+    elements.append(Spacer(1, 8))
     
     # Dados do aluno
     student_name = student.get('full_name', 'N/A')
@@ -321,41 +327,26 @@ def generate_declaracao_transferencia_pdf(
     elements.append(Paragraph(text4, styles['JustifyText']))
     elements.append(Spacer(1, 12))
     
-    # === OBSERVAÇÃO: Provas do Bimestre ===
+    # === OBSERVAÇÃO: Provas do Bimestre (2 linhas) ===
     obs_title_style = ParagraphStyle('ObsTitle', fontSize=9, fontName='Helvetica-Bold', leading=11, alignment=TA_LEFT)
-    obs_label_style = ParagraphStyle('ObsLabel', fontSize=9, leading=11, alignment=TA_LEFT)
-    obs_option_style = ParagraphStyle('ObsOption', fontSize=9, leading=11, alignment=TA_LEFT, fontName='Helvetica')
+    obs_line_style = ParagraphStyle('ObsLine', fontSize=9, leading=12, alignment=TA_LEFT)
     
     checkbox = '\u2610'  # ☐ Unicode checkbox
     
-    obs_inner = []
-    obs_inner.append([Paragraph('<b>OBSERVAÇÃO</b>', obs_title_style), '', '', ''])
-    obs_inner.append([Paragraph('Realizou as avaliações do bimestre:', obs_label_style), '', '', ''])
-    obs_inner.append([
-        '',
-        Paragraph(f'{checkbox}  Sim', obs_option_style),
-        Paragraph(f'{checkbox}  Não', obs_option_style),
-        ''
-    ])
-    obs_inner.append([Paragraph('Abrangência:', obs_label_style), '', '', ''])
-    obs_inner.append([
-        '',
-        Paragraph(f'{checkbox}  Todas', obs_option_style),
-        Paragraph(f'{checkbox}  Parcial', obs_option_style),
-        ''
-    ])
+    obs_inner = [
+        [Paragraph('<b>OBSERVAÇÃO</b>', obs_title_style)],
+        [Paragraph(f'Realizou as avaliações do bimestre: &nbsp;&nbsp; {checkbox} Sim &nbsp;&nbsp;&nbsp; {checkbox} Não', obs_line_style)],
+        [Paragraph(f'Abrangência: &nbsp;&nbsp; {checkbox} Todas &nbsp;&nbsp;&nbsp; {checkbox} Parcial', obs_line_style)],
+    ]
     
-    obs_table = Table(obs_inner, colWidths=[1*cm, 4*cm, 4*cm, 4*cm])
+    page_w = A4[0] - 5*cm
+    obs_table = Table(obs_inner, colWidths=[page_w])
     obs_table.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 0.5, colors.Color(0.7, 0.7, 0.7)),
         ('BACKGROUND', (0, 0), (-1, -1), colors.Color(0.98, 0.98, 0.98)),
-        ('SPAN', (0, 0), (-1, 0)),
-        ('SPAN', (0, 1), (-1, 1)),
-        ('SPAN', (0, 3), (-1, 3)),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
         ('TOPPADDING', (0, 0), (-1, 0), 6),
         ('BOTTOMPADDING', (0, -1), (-1, -1), 6),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -466,12 +457,15 @@ def generate_declaracao_frequencia_pdf(
     # Cabeçalho - usar nome da mantenedora
     elements.append(Paragraph(mant_nome.upper(), styles['CenterText']))
     elements.append(Paragraph(mantenedora.get('secretaria', 'Secretaria Municipal de Educação').upper(), styles['CenterText']))
-    elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
     
-    # Tipo de Unidade: se Anexa, exibir "Anexa a: NOME DA ESCOLA SEDE"
+    # Tipo de Unidade: se Anexa, exibir nome da escola + "Anexa a:" colados
     if school.get('tipo_unidade') == 'anexa' and school.get('anexa_a'):
-        anexa_style = ParagraphStyle('AnexaTextFreq', parent=styles['CenterText'], fontSize=10, leading=12, textColor=colors.HexColor('#374151'))
+        school_title_style = ParagraphStyle('SchoolTitleNoGapF', parent=styles['MainTitle'], spaceAfter=0)
+        anexa_style = ParagraphStyle('AnexaTextFreq', parent=styles['CenterText'], fontSize=10, leading=12, textColor=colors.HexColor('#374151'), spaceBefore=0)
+        elements.append(Paragraph(school.get('name', 'Escola Municipal'), school_title_style))
         elements.append(Paragraph(f"Anexa a: {school.get('anexa_a')}", anexa_style))
+    else:
+        elements.append(Paragraph(school.get('name', 'Escola Municipal'), styles['MainTitle']))
     
     # Endereço e telefone da escola (deixar em branco se não tiver)
     if endereco:
