@@ -144,8 +144,8 @@ export default function AssocialDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-600 text-white shadow-lg">
+    <div className="min-h-screen bg-gray-50 pb-12">
+      <header className="bg-blue-600 text-white shadow-lg sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
@@ -435,6 +435,15 @@ export default function AssocialDashboard() {
           </div>
         )}
       </main>
+
+      <footer className="fixed bottom-0 left-0 right-0 py-3 px-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white z-30">
+        <span>
+          © 2026 Desenvolvido por{' '}
+          <a href="https://www.facebook.com/prof.gutenbergbarroso" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 hover:underline">
+            Gutenberg Barroso
+          </a>
+        </span>
+      </footer>
     </div>
   );
 }
