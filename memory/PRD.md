@@ -272,7 +272,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Admin: gutenberg@sigesc.com / @Celta2007
 - Coordenador: coordenador@sigesc.com / coordenador123
 - Secretário: secretario@sigesc.com / secretario123
-- Agente de Vacinas: vacinas@sigesc.com / @Celta2007
+- Agente de Vacinas: vacinas@sigesc.com / vacinas123
 
 ## Notas Técnicas
 - Token frontend: `localStorage.getItem('accessToken')` (NÃO 'token')

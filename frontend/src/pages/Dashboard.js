@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi } from 'lucide-react';
+import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI, analyticsAPI } from '@/services/api';
@@ -487,6 +487,18 @@ export const Dashboard = () => {
                 >
                   <HeartHandshake className="text-pink-600" size={24} />
                   <span className="font-medium text-gray-900">Assistência Social</span>
+                </button>
+              )}
+              
+              {/* Controle de Vacinas - visível apenas para admin */}
+              {isAdmin && (
+                <button
+                  onClick={() => navigate('/vacinas')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all"
+                  data-testid="nav-vacinas-button"
+                >
+                  <Syringe className="text-teal-600" size={24} />
+                  <span className="font-medium text-gray-900">Controle de Vacinas</span>
                 </button>
               )}
               
