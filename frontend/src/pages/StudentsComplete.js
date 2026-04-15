@@ -279,6 +279,7 @@ export function StudentsComplete() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportColumns, setReportColumns] = useState({
     full_name: true, birth_date: true, sex: true, color_race: false,
+    inep_code: false, naturalidade: false,
     cpf: false, nis: false, sus_number: false,
     father_name: false, mother_name: true,
     father_phone: false, mother_phone: true,
@@ -3991,6 +3992,8 @@ export function StudentsComplete() {
                 { key: 'birth_date', label: 'Data de Nascimento' },
                 { key: 'sex', label: 'Sexo' },
                 { key: 'color_race', label: 'Cor/Raça' },
+                { key: 'inep_code', label: 'Código INEP' },
+                { key: 'naturalidade', label: 'Naturalidade' },
                 { key: 'cpf', label: 'CPF' },
                 { key: 'nis', label: 'NIS' },
                 { key: 'sus_number', label: 'SUS' },

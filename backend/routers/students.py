@@ -239,22 +239,21 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         active_filter = {**filter_query, 'status': 'active'}
         active_count = await current_db.students.count_documents(active_filter) if not status else (total if status == 'active' else 0)
         
-        # Contagem por cor/raça - só calcula se tem filtro de escola/turma (evita aggregate global pesado)
+        # Contagem por cor/raça
         race_counts = {}
-        if school_id or class_id:
-            race_pipeline = [
-                {"$match": active_filter},
-                {"$group": {
-                    "_id": {"$ifNull": ["$color_race", "nao_informada"]},
-                    "count": {"$sum": 1}
-                }}
-            ]
-            race_cursor = current_db.students.aggregate(race_pipeline)
-            async for doc in race_cursor:
-                race_key = doc["_id"] if doc["_id"] else "nao_informada"
-                if race_key == "":
-                    race_key = "nao_informada"
-                race_counts[race_key] = doc["count"]
+        race_pipeline = [
+            {"$match": active_filter},
+            {"$group": {
+                "_id": {"$ifNull": ["$color_race", "nao_informada"]},
+                "count": {"$sum": 1}
+            }}
+        ]
+        race_cursor = current_db.students.aggregate(race_pipeline)
+        async for doc in race_cursor:
+            race_key = doc["_id"] if doc["_id"] else "nao_informada"
+            if race_key == "":
+                race_key = "nao_informada"
+            race_counts[race_key] = doc["count"]
         
         # Calcula skip com base na página
         effective_skip = (page - 1) * page_size if page > 0 else skip
@@ -332,6 +331,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "birth_date": {"label": "Data Nasc.", "width": 22*mm},
             "sex": {"label": "Sexo", "width": 14*mm},
             "color_race": {"label": "Cor/Raça", "width": 18*mm},
+            "inep_code": {"label": "Cód. INEP", "width": 22*mm},
+            "naturalidade": {"label": "Naturalidade", "width": 35*mm},
             "cpf": {"label": "CPF", "width": 28*mm},
             "nis": {"label": "NIS", "width": 25*mm},
             "sus_number": {"label": "SUS", "width": 25*mm},
@@ -365,6 +366,9 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 projection["benefits"] = 1
             elif col == "has_laudo":
                 projection["medical_report_url"] = 1
+            elif col == "naturalidade":
+                projection["birth_city"] = 1
+                projection["birth_state"] = 1
             elif col not in ("bolsa_familia", "has_laudo"):
                 projection[col] = 1
 
@@ -423,6 +427,17 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                         val = "M" if sex_val == "masculino" else "F" if sex_val == "feminino" else ""
                     elif col == "color_race":
                         val = race_labels.get(s.get("color_race", ""), "")
+                    elif col == "inep_code":
+                        val = s.get("inep_code", "") or ""
+                    elif col == "naturalidade":
+                        city = s.get("birth_city", "") or ""
+                        state = s.get("birth_state", "") or ""
+                        if city and state:
+                            val = f"{city}/{state}"
+                        elif city:
+                            val = city
+                        elif state:
+                            val = state
                     elif col == "cpf":
                         val = s.get("cpf", "") or ""
                     elif col == "nis":
