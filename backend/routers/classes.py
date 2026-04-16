@@ -74,6 +74,18 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         classes = await current_db.classes.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         
+        # Ordenar: números primeiro, depois letras, ambos em ordem natural
+        import re
+        def class_sort_key(c):
+            name = (c.get('name') or '').strip()
+            starts_with_digit = bool(name and name[0].isdigit())
+            # Extrair número inicial para ordenação natural
+            m = re.match(r'^(\d+)', name)
+            num = int(m.group(1)) if m else float('inf')
+            return (0 if starts_with_digit else 1, num, name.lower())
+        
+        classes.sort(key=class_sort_key)
+        
         # Adicionar contagem de alunos matriculados por turma
         if classes:
             class_ids = [c['id'] for c in classes]
