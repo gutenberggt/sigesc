@@ -372,6 +372,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # Gerar PDF
         try:
+            await resolve_anexa_name(db, school)
             pdf_buffer = generate_boletim_pdf(
                 student=student,
                 school=school,
@@ -1211,6 +1212,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 combined_attendance_data[cid] = {'absences': f, 'atendimento_programa': atendimento_c}
 
             # Gerar ficha DESTINO
+            await resolve_anexa_name(db, school)
             pdf_destino = generate_ficha_individual_pdf(
                 student=student,
                 school=school,
@@ -1330,6 +1332,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     origin_attendance_data[cid] = {'absences': f, 'atendimento_programa': oc_atendimento}
 
                 # Gerar ficha ORIGEM
+                await resolve_anexa_name(db, origin_school)
                 pdf_origem = generate_ficha_individual_pdf(
                     student=student,
                     school=origin_school,
@@ -1360,6 +1363,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # ===== CASO NORMAL (sem remanejamento) =====
         # Gerar PDF
         try:
+            await resolve_anexa_name(db, school)
             pdf_buffer = generate_ficha_individual_pdf(
                 student=student,
                 school=school,
@@ -1907,6 +1911,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                             faltas = 0
                         attendance_data[c_id] = {'absences': faltas, 'atendimento_programa': atendimento}
 
+                    await resolve_anexa_name(db, school)
                     pdf_buffer = generate_boletim_pdf(
                         student=student,
                         school=school,
@@ -1952,6 +1957,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                             faltas = 0
                         attendance_data[c_id] = {'absences': faltas, 'atendimento_programa': atendimento}
 
+                    await resolve_anexa_name(db, school)
                     pdf_buffer = generate_ficha_individual_pdf(
                         student=student,
                         school=school,
@@ -2037,6 +2043,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             history = {"student_id": student_id, "records": [], "observations": "", "media_aprovacao": 6.0}
 
         try:
+            await resolve_anexa_name(db, school)
             pdf_buffer = generate_historico_escolar_pdf(
                 student=student,
                 school=school,

@@ -149,6 +149,8 @@ def generate_ficha_individual_pdf(
     
     # ===== INFORMAÇÕES DO ALUNO E ESCOLA =====
     school_name = school.get('name', 'Escola Municipal')
+    if school.get('tipo_unidade') == 'anexa' and school.get('anexa_a'):
+        school_name = f"{school_name} - ANEXA A {school.get('anexa_a')}"
     grade_level = enrollment.get('student_series') or class_info.get('grade_level', 'N/A')
     class_name = class_info.get('name', 'N/A')
     

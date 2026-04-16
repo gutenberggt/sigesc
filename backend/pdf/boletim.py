@@ -152,6 +152,8 @@ def generate_boletim_pdf(
     
     # ===== INFORMAÇÕES DA ESCOLA E ALUNO =====
     school_name = school.get('name', 'Escola Municipal')
+    if school.get('tipo_unidade') == 'anexa' and school.get('anexa_a'):
+        school_name = f"{school_name} - ANEXA A {school.get('anexa_a')}"
     grade_level = enrollment.get('student_series') or class_info.get('grade_level', 'N/A')
     class_name = class_info.get('name', 'N/A')
     student_number = enrollment.get('registration_number', student.get('enrollment_number', '1'))

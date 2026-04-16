@@ -208,6 +208,8 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
     # ===== DADOS DA ESCOLA =====
     school = school or {}
     school_name = (school.get('name') or '').upper()
+    if school.get('tipo_unidade') == 'anexa' and school.get('anexa_a'):
+        school_name = f"{school_name} - ANEXA A {(school.get('anexa_a') or '').upper()}"
     # Endereço da escola
     sch_end_parts = []
     if school.get('logradouro'):
