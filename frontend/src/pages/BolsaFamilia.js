@@ -23,6 +23,7 @@ export default function BolsaFamilia() {
   const [schools, setSchools] = useState([]);
   const [selectedSchool, setSelectedSchool] = useState('');
   const [students, setStudents] = useState([]);
+  const [municipioUf, setMunicipioUf] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState({});
   const [saved, setSaved] = useState({});
@@ -42,20 +43,21 @@ export default function BolsaFamilia() {
     try {
       const res = await axios.get(`${API}/bolsa-familia/students?school_id=${selectedSchool}&academic_year=${academicYear}`, { headers });
       setStudents(res.data.students || []);
+      setMunicipioUf(res.data.municipio_uf || '');
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [selectedSchool, academicYear]);
 
   useEffect(() => { loadStudents(); }, [loadStudents]);
 
-  const handleMotiveChange = (studentId, month, field, value) => {
+  const handleMotiveChange = (studentId, month, value) => {
     setStudents(prev => prev.map(s => {
       if (s.id !== studentId) return s;
       return {
         ...s,
         months: {
           ...s.months,
-          [month]: { ...s.months[month], [field]: value }
+          [month]: { ...s.months[month], motive: value }
         }
       };
     }));
@@ -73,9 +75,7 @@ export default function BolsaFamilia() {
         school_id: selectedSchool,
         month: parseInt(month),
         academic_year: academicYear,
-        motive: data.motive || '',
-        frequency: data.frequency || '',
-        not_found: data.not_found || false
+        motive: data.motive || ''
       }, { headers });
       setSaved(prev => ({ ...prev, [key]: true }));
       setTimeout(() => setSaved(prev => ({ ...prev, [key]: false })), 1500);
@@ -111,7 +111,6 @@ export default function BolsaFamilia() {
   return (
     <Layout>
       <div className="space-y-6" data-testid="bolsa-familia-page">
-        {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-4">
             <button onClick={() => navigate('/dashboard')} className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors" data-testid="bf-home-btn">
@@ -131,7 +130,6 @@ export default function BolsaFamilia() {
           )}
         </div>
 
-        {/* Filtros */}
         <div className="bg-white rounded-xl border p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -162,7 +160,6 @@ export default function BolsaFamilia() {
           </div>
         </div>
 
-        {/* Loading */}
         {loading && (
           <div className="bg-white rounded-xl border p-12 flex items-center justify-center">
             <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
@@ -170,7 +167,6 @@ export default function BolsaFamilia() {
           </div>
         )}
 
-        {/* Empty state */}
         {!loading && selectedSchool && students.length === 0 && (
           <div className="bg-white rounded-xl border p-12 text-center">
             <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
@@ -186,16 +182,12 @@ export default function BolsaFamilia() {
           </div>
         )}
 
-        {/* Lista de alunos */}
         {!loading && students.length > 0 && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-600"><strong>{students.length}</strong> aluno(s) com Bolsa Família</p>
-            </div>
+            <p className="text-sm text-gray-600"><strong>{students.length}</strong> aluno(s) com Bolsa Família</p>
 
-            {students.map((student, idx) => (
+            {students.map((student) => (
               <div key={student.id} className="bg-white rounded-xl border overflow-hidden" data-testid={`bf-student-${student.id}`}>
-                {/* Student header */}
                 <div className="bg-gray-50 px-4 py-3 border-b">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
                     <div><span className="text-gray-500">Nome:</span> <strong>{student.full_name}</strong></div>
@@ -203,13 +195,12 @@ export default function BolsaFamilia() {
                     <div><span className="text-gray-500">NIS:</span> {student.nis || 'Não informado'}</div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm mt-1">
-                    <div><span className="text-gray-500">Responsável:</span> {student.responsible || 'Não informado'}</div>
-                    <div><span className="text-gray-500">Contato:</span> {student.contact || 'Não informado'}</div>
+                    <div><span className="text-gray-500">Responsável familiar:</span> {student.responsible || 'Não informado'}</div>
+                    <div><span className="text-gray-500">Código INEP:</span> {student.inep_code || 'Não informado'}</div>
                     <div><span className="text-gray-500">Série:</span> {student.series || 'Não informada'}</div>
                   </div>
                 </div>
 
-                {/* Monthly tracking */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -217,7 +208,6 @@ export default function BolsaFamilia() {
                         <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase w-28">Mês</th>
                         <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-24">Frequência</th>
                         <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">Motivo</th>
-                        <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-28">Não localiz.</th>
                         <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-20">Salvar</th>
                       </tr>
                     </thead>
@@ -228,23 +218,14 @@ export default function BolsaFamilia() {
                         return (
                           <tr key={m} className="hover:bg-gray-50">
                             <td className="px-4 py-2 font-medium text-gray-700">{MESES[m]}</td>
-                            <td className="px-3 py-2">
-                              <input type="text" value={data.frequency || ''} placeholder="%"
-                                onChange={e => handleMotiveChange(student.id, String(m), 'frequency', e.target.value)}
-                                className="w-full border rounded px-2 py-1 text-center text-sm"
-                                data-testid={`bf-freq-${student.id}-${m}`} />
+                            <td className="px-3 py-2 text-center font-medium text-gray-900">
+                              {data.frequency || <span className="text-gray-300">-</span>}
                             </td>
                             <td className="px-3 py-2">
                               <input type="text" value={data.motive || ''} placeholder="Informe o motivo..."
-                                onChange={e => handleMotiveChange(student.id, String(m), 'motive', e.target.value)}
+                                onChange={e => handleMotiveChange(student.id, String(m), e.target.value)}
                                 className="w-full border rounded px-2 py-1 text-sm"
                                 data-testid={`bf-motive-${student.id}-${m}`} />
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              <input type="checkbox" checked={!!data.not_found}
-                                onChange={e => handleMotiveChange(student.id, String(m), 'not_found', e.target.checked)}
-                                className="h-4 w-4 rounded border-gray-300 text-blue-600"
-                                data-testid={`bf-notfound-${student.id}-${m}`} />
                             </td>
                             <td className="px-3 py-2 text-center">
                               <button onClick={() => handleSave(student.id, String(m))} disabled={saving[key]}
