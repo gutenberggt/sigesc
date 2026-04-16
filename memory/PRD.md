@@ -242,6 +242,15 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - ~~Centralizar permissões em hook usePermissions~~ CONCLUÍDO (06/04/2026): Hook em `/app/frontend/src/hooks/usePermissions.js`, integrado em 8 páginas (Dashboard, Attendance, Grades, LearningObjects, Events, Enrollments, StudentsComplete, Classes)
 - ~~Refatorar inferEducationLevel duplicado~~ CONCLUÍDO (06/04/2026): Centralizado em `/app/frontend/src/utils/educationLevel.js`
 
+## Integração MEC Gestão Presente (16/04/2026)
+- Módulo de integração com a API do MEC para envio e consulta de dados educacionais
+- Tela administrativa em `/admin/mec` com configuração de chaves PGP, ambiente (homologação/produção) e dados do responsável
+- Cards de status: alunos com CPF/NIS, escolas com INEP
+- Guia passo a passo para solicitar acesso ao MEC
+- Endpoints: GET /api/mec/config, PUT /api/mec/config, GET /api/mec/sync/status, GET /api/mec/students/mapping, GET /api/mec/elegibilidades
+- Mapeamento de dados SIGESC → MEC para verificar alunos prontos para envio
+- Status: INFRAESTRUTURA PRONTA — aguarda chaves PGP e aprovação do MEC para ativação
+
 ## Controle de Vacinas - Listagem por Turma (15/04/2026)
 - Adicionada seção "Listagem por Turma" com filtros Ano/Escola/Turma
 - Tabela de alunos com bolinha de status vacinal (cinza/amarelo/verde) e botões Em dia/Pendente

@@ -502,6 +502,18 @@ export const Dashboard = () => {
                 </button>
               )}
               
+              {/* Integração MEC - visível apenas para admin */}
+              {isAdmin && (
+                <button
+                  onClick={() => navigate('/admin/mec')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                  data-testid="nav-mec-button"
+                >
+                  <GraduationCap className="text-emerald-600" size={24} />
+                  <span className="font-medium text-gray-900">Integração MEC</span>
+                </button>
+              )}
+              
               {isAdmin && (
                 <button
                   onClick={() => navigate('/admin/courses')}

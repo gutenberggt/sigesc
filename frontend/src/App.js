@@ -45,6 +45,7 @@ const AssocialDashboard = lazy(() => import('@/pages/AssocialDashboard'));
 const VaccineDashboard = lazy(() => import('@/pages/VaccineDashboard'));
 const OnlineUsers = lazy(() => import('@/pages/OnlineUsers'));
 const HRPayroll = lazy(() => import('@/pages/HRPayroll'));
+const MECIntegration = lazy(() => import('@/pages/MECIntegration'));
 
 // Loading fallback
 function PageLoader() {
@@ -440,6 +441,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'semed2', 'semed3', 'diretor', 'secretario']}>
                 <HRPayroll />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/admin/mec"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste']}>
+                <MECIntegration />
               </ProtectedRoute>
             }
           />
