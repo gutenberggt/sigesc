@@ -278,8 +278,22 @@ const DiarioAEE = () => {
     }
     
     try {
+      // Converter campos de texto que devem ser arrays
+      const barreirasArray = typeof planoForm.barreiras === 'string'
+        ? planoForm.barreiras.split('\n').filter(b => b.trim())
+        : (planoForm.barreiras || []);
+      const objetivosArray = typeof planoForm.objetivos === 'string'
+        ? planoForm.objetivos.split('\n').filter(o => o.trim())
+        : (planoForm.objetivos || []);
+      const recursosArray = typeof planoForm.recursos_acessibilidade === 'string'
+        ? planoForm.recursos_acessibilidade.split('\n').filter(r => r.trim())
+        : (planoForm.recursos_acessibilidade || []);
+
       const payload = {
         ...planoForm,
+        barreiras: barreirasArray,
+        objetivos: objetivosArray,
+        recursos_acessibilidade: recursosArray,
         school_id: selectedSchool,
         academic_year: academicYear,
         professor_aee_id: user.id,
@@ -843,14 +857,14 @@ const DiarioAEE = () => {
                   onChange={(e) => {
                     const studentId = e.target.value;
                     const est = estudantes.find(est => est.student_id === studentId);
-                    setPlanoForm({
-                      ...planoForm,
+                    setPlanoForm(prev => ({
+                      ...prev,
                       student_id: studentId,
                       turma_origem_id: est?.class_id || '',
                       turma_origem_nome: est?.turma_origem || '',
                       escola_origem_nome: est?.escola_origem || '',
                       professor_regente_nome: est?.professor_regente || ''
-                    });
+                    }));
                   }}
                   className="w-full border rounded-lg px-3 py-2"
                   disabled={!!editingPlano}
@@ -865,7 +879,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Público-Alvo da Educação Especial (PAEE) *</label>
                 <select
                   value={planoForm.publico_alvo}
-                  onChange={(e) => setPlanoForm({ ...planoForm, publico_alvo: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, publico_alvo: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                 >
                   <option value="">Selecione</option>
@@ -910,7 +924,7 @@ const DiarioAEE = () => {
                 <input
                   type="text"
                   value={planoForm.criterio_elegibilidade}
-                  onChange={(e) => setPlanoForm({ ...planoForm, criterio_elegibilidade: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, criterio_elegibilidade: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   placeholder="Descreva as barreiras e necessidades de apoio (sem mencionar CID ou laudo)"
                 />
@@ -931,7 +945,7 @@ const DiarioAEE = () => {
                 <input
                   type="date"
                   value={planoForm.data_elaboracao}
-                  onChange={(e) => setPlanoForm({ ...planoForm, data_elaboracao: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, data_elaboracao: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                 />
               </div>
@@ -939,7 +953,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Período de Vigência</label>
                 <select
                   value={planoForm.periodo_vigencia}
-                  onChange={(e) => setPlanoForm({ ...planoForm, periodo_vigencia: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, periodo_vigencia: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                 >
                   <option value="">Selecione</option>
@@ -957,7 +971,7 @@ const DiarioAEE = () => {
                 <input
                   type="date"
                   value={planoForm.data_revisao}
-                  onChange={(e) => setPlanoForm({ ...planoForm, data_revisao: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, data_revisao: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                 />
               </div>
@@ -975,7 +989,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Situação Atual</label>
                 <textarea
                   value={planoForm.linha_base_situacao_atual}
-                  onChange={(e) => setPlanoForm({ ...planoForm, linha_base_situacao_atual: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, linha_base_situacao_atual: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   rows={2}
                   placeholder="Como o estudante está hoje em relação à aprendizagem e participação..."
@@ -985,7 +999,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Potencialidades</label>
                 <textarea
                   value={planoForm.linha_base_potencialidades}
-                  onChange={(e) => setPlanoForm({ ...planoForm, linha_base_potencialidades: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, linha_base_potencialidades: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   rows={2}
                   placeholder="Pontos fortes, habilidades e interesses do estudante..."
@@ -995,7 +1009,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Dificuldades Observadas</label>
                 <textarea
                   value={planoForm.linha_base_dificuldades}
-                  onChange={(e) => setPlanoForm({ ...planoForm, linha_base_dificuldades: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, linha_base_dificuldades: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   rows={2}
                   placeholder="Principais dificuldades e barreiras enfrentadas..."
@@ -1005,7 +1019,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Formas de Comunicação e Participação</label>
                 <textarea
                   value={planoForm.linha_base_comunicacao}
-                  onChange={(e) => setPlanoForm({ ...planoForm, linha_base_comunicacao: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, linha_base_comunicacao: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   rows={2}
                   placeholder="Como o estudante se comunica e participa das atividades..."
@@ -1033,7 +1047,7 @@ const DiarioAEE = () => {
                           const dias = e.target.checked
                             ? [...planoForm.dias_atendimento, key]
                             : planoForm.dias_atendimento.filter(d => d !== key);
-                          setPlanoForm({ ...planoForm, dias_atendimento: dias });
+                          setPlanoForm(prev => ({ ...prev, dias_atendimento: dias }));
                         }}
                         className="rounded"
                       />
@@ -1046,7 +1060,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Modalidade</label>
                 <select
                   value={planoForm.modalidade}
-                  onChange={(e) => setPlanoForm({ ...planoForm, modalidade: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, modalidade: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                 >
                   {Object.entries(MODALIDADE_LABELS).map(([k, v]) => (
@@ -1059,7 +1073,7 @@ const DiarioAEE = () => {
                 <input
                   type="time"
                   value={planoForm.horario_inicio}
-                  onChange={(e) => setPlanoForm({ ...planoForm, horario_inicio: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, horario_inicio: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                 />
               </div>
@@ -1068,7 +1082,7 @@ const DiarioAEE = () => {
                 <input
                   type="time"
                   value={planoForm.horario_fim}
-                  onChange={(e) => setPlanoForm({ ...planoForm, horario_fim: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, horario_fim: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                 />
               </div>
@@ -1077,7 +1091,7 @@ const DiarioAEE = () => {
                 <input
                   type="text"
                   value={planoForm.carga_horaria_semanal}
-                  onChange={(e) => setPlanoForm({ ...planoForm, carga_horaria_semanal: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, carga_horaria_semanal: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   placeholder="Ex: 4 horas"
                 />
@@ -1087,7 +1101,7 @@ const DiarioAEE = () => {
                 <input
                   type="text"
                   value={planoForm.local_atendimento}
-                  onChange={(e) => setPlanoForm({ ...planoForm, local_atendimento: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, local_atendimento: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                 />
               </div>
@@ -1105,7 +1119,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Barreiras Identificadas</label>
                 <textarea
                   value={Array.isArray(planoForm.barreiras) ? planoForm.barreiras.join('\n') : planoForm.barreiras}
-                  onChange={(e) => setPlanoForm({ ...planoForm, barreiras: e.target.value.split('\n').filter(b => b.trim()) })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, barreiras: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   rows={3}
                   placeholder="Uma barreira por linha (ex: Comunicação, Mobilidade, Aprendizagem...)"
@@ -1115,7 +1129,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Objetivos do Atendimento</label>
                 <textarea
                   value={Array.isArray(planoForm.objetivos) ? planoForm.objetivos.join('\n') : planoForm.objetivos}
-                  onChange={(e) => setPlanoForm({ ...planoForm, objetivos: e.target.value.split('\n').filter(o => o.trim()) })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, objetivos: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   rows={3}
                   placeholder="Um objetivo por linha"
@@ -1125,7 +1139,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Recursos de Acessibilidade</label>
                 <textarea
                   value={Array.isArray(planoForm.recursos_acessibilidade) ? planoForm.recursos_acessibilidade.join('\n') : planoForm.recursos_acessibilidade}
-                  onChange={(e) => setPlanoForm({ ...planoForm, recursos_acessibilidade: e.target.value.split('\n').filter(r => r.trim()) })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, recursos_acessibilidade: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   rows={3}
                   placeholder="Um recurso por linha (ex: Software de leitura, Prancha de comunicação...)"
@@ -1145,7 +1159,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Indicadores de Progresso</label>
                 <textarea
                   value={planoForm.indicadores_progresso}
-                  onChange={(e) => setPlanoForm({ ...planoForm, indicadores_progresso: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, indicadores_progresso: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   rows={2}
                   placeholder="Como será avaliado o progresso do estudante (indicadores simples e observáveis)..."
@@ -1156,7 +1170,7 @@ const DiarioAEE = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Frequência de Revisão</label>
                   <select
                     value={planoForm.frequencia_revisao}
-                    onChange={(e) => setPlanoForm({ ...planoForm, frequencia_revisao: e.target.value })}
+                    onChange={(e) => setPlanoForm(prev => ({ ...prev, frequencia_revisao: e.target.value }))}
                     className="w-full border rounded-lg px-3 py-2"
                   >
                     <option value="mensal">Mensal</option>
@@ -1170,7 +1184,7 @@ const DiarioAEE = () => {
                   <input
                     type="text"
                     value={planoForm.criterios_ajuste}
-                    onChange={(e) => setPlanoForm({ ...planoForm, criterios_ajuste: e.target.value })}
+                    onChange={(e) => setPlanoForm(prev => ({ ...prev, criterios_ajuste: e.target.value }))}
                     className="w-full border rounded-lg px-3 py-2"
                     placeholder="Quando e como as estratégias serão revisadas..."
                   />
@@ -1190,7 +1204,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Orientações para Sala Comum</label>
                 <textarea
                   value={planoForm.orientacoes_sala_comum}
-                  onChange={(e) => setPlanoForm({ ...planoForm, orientacoes_sala_comum: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, orientacoes_sala_comum: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   rows={2}
                   placeholder="Orientações gerais para o professor regente..."
@@ -1200,7 +1214,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Combinados com Professor Regente</label>
                 <textarea
                   value={planoForm.combinados_professor_regente}
-                  onChange={(e) => setPlanoForm({ ...planoForm, combinados_professor_regente: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, combinados_professor_regente: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   rows={2}
                   placeholder="Acordos específicos entre AEE e professor da sala regular..."
@@ -1210,7 +1224,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Adaptações por Componente Curricular</label>
                 <textarea
                   value={planoForm.adaptacoes_por_componente}
-                  onChange={(e) => setPlanoForm({ ...planoForm, adaptacoes_por_componente: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, adaptacoes_por_componente: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   rows={2}
                   placeholder="Ex: Português - ampliação de fonte; Matemática - uso de material concreto..."
@@ -1220,7 +1234,7 @@ const DiarioAEE = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Adequações Curriculares</label>
                 <textarea
                   value={planoForm.adequacoes_curriculares}
-                  onChange={(e) => setPlanoForm({ ...planoForm, adequacoes_curriculares: e.target.value })}
+                  onChange={(e) => setPlanoForm(prev => ({ ...prev, adequacoes_curriculares: e.target.value }))}
                   className="w-full border rounded-lg px-3 py-2"
                   rows={2}
                   placeholder="Adequações de acesso ao currículo..."
@@ -1234,7 +1248,7 @@ const DiarioAEE = () => {
             <label className="block text-sm font-medium text-gray-700">Status do Plano:</label>
             <select
               value={planoForm.status}
-              onChange={(e) => setPlanoForm({ ...planoForm, status: e.target.value })}
+              onChange={(e) => setPlanoForm(prev => ({ ...prev, status: e.target.value }))}
               className="border rounded-lg px-3 py-2"
             >
               <option value="rascunho">Rascunho</option>
