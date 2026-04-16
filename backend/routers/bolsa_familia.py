@@ -187,7 +187,7 @@ def setup_router(db, **kwargs):
         student_ids = [s["id"] for s in students]
         all_attendance = await db.attendance.find(
             {"academic_year": academic_year},
-            {"_id": 0, "date": 1, "students": 1}
+            {"_id": 0, "date": 1, "records": 1}
         ).to_list(50000)
 
         # Mapear presença por aluno/mês
@@ -204,21 +204,19 @@ def setup_router(db, **kwargs):
             except:
                 continue
 
-            for st_rec in att.get("students", []):
-                sid = st_rec.get("student_id", "")
+            for rec in att.get("records", []):
+                sid = rec.get("student_id", "")
                 if sid not in student_ids:
                     continue
-                records = st_rec.get("records", [])
-                for r in records:
-                    status = r.get("status", "")
-                    if status:
-                        if sid not in student_total_days:
-                            student_total_days[sid] = {}
-                        student_total_days[sid][m] = student_total_days[sid].get(m, 0) + 1
-                        if status in ("present", "presente", "P"):
-                            if sid not in student_presence:
-                                student_presence[sid] = {}
-                            student_presence[sid][m] = student_presence[sid].get(m, 0) + 1
+                status = rec.get("status", "")
+                if status:
+                    if sid not in student_total_days:
+                        student_total_days[sid] = {}
+                    student_total_days[sid][m] = student_total_days[sid].get(m, 0) + 1
+                    if status in ("P", "present", "presente"):
+                        if sid not in student_presence:
+                            student_presence[sid] = {}
+                        student_presence[sid][m] = student_presence[sid].get(m, 0) + 1
 
         result = []
         for s in students:
@@ -354,7 +352,7 @@ def setup_router(db, **kwargs):
         student_ids = [s["id"] for s in students]
         all_attendance = await db.attendance.find(
             {"academic_year": academic_year},
-            {"_id": 0, "date": 1, "students": 1}
+            {"_id": 0, "date": 1, "records": 1}
         ).to_list(50000)
 
         student_presence = {}
@@ -367,15 +365,14 @@ def setup_router(db, **kwargs):
                 m = dt.month
             except:
                 continue
-            for st_rec in att.get("students", []):
-                sid = st_rec.get("student_id", "")
+            for rec in att.get("records", []):
+                sid = rec.get("student_id", "")
                 if sid not in student_ids:
                     continue
-                for r in st_rec.get("records", []):
-                    if r.get("status") in ("present", "presente", "P"):
-                        if sid not in student_presence:
-                            student_presence[sid] = {}
-                        student_presence[sid][m] = student_presence[sid].get(m, 0) + 1
+                if rec.get("status") in ("P", "present", "presente"):
+                    if sid not in student_presence:
+                        student_presence[sid] = {}
+                    student_presence[sid][m] = student_presence[sid].get(m, 0) + 1
 
         secretario = school.get("secretario_escolar") or ""
         months_range = list(range(month_start, month_end + 1))
