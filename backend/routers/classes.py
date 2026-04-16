@@ -62,7 +62,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         filter_query = {}
         
         # Admin, admin_teste, SEMED, SEMED3, Secretário, Assistente Social e Agente de Vacinas podem ver todas as turmas
-        if current_user['role'] in ['admin', 'admin_teste', 'semed', 'semed3', 'secretario', 'ass_social', 'agente_vacinas']:
+        if current_user['role'] in ['admin', 'admin_teste', 'semed', 'semed3', 'secretario', 'ass_social', 'ass_social_2', 'agente_vacinas']:
             if school_id:
                 filter_query['school_id'] = school_id
         else:

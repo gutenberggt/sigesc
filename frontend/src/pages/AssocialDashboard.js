@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { studentsAPI, attendanceAPI, schoolsAPI, classesAPI } from '@/services/api';
 import { formatCPF } from '@/utils/formatters';
-import { Search, User, Calendar, School, BookOpen, Percent, LogOut, X, Loader2 } from 'lucide-react';
+import { Search, User, Calendar, School, BookOpen, Percent, LogOut, X, Loader2, FileText } from 'lucide-react';
 
 export default function AssocialDashboard() {
   const navigate = useNavigate();
@@ -161,6 +161,16 @@ export default function AssocialDashboard() {
             </div>
             
             <div className="flex items-center space-x-4">
+              {(user?.role === 'ass_social_2' || user?.role === 'admin' || user?.role === 'admin_teste') && (
+                <button
+                  onClick={() => window.open('/admin/bolsa-familia', '_blank')}
+                  className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-sm font-medium"
+                  data-testid="bolsa-familia-btn"
+                >
+                  <FileText size={16} />
+                  Bolsa Família
+                </button>
+              )}
               <div className="text-right">
                 <p className="font-medium">{user?.full_name || 'Usuario'}</p>
                 <p className="text-blue-100 text-sm">Ass. Social</p>

@@ -115,6 +115,11 @@ export const Dashboard = () => {
     return <Navigate to="/ass-social" replace />;
   }
 
+  // Redireciona assistente social 2 para o dashboard específico
+  if (user?.role === 'ass_social_2') {
+    return <Navigate to="/ass-social" replace />;
+  }
+
   // Redireciona agente de vacinas para o dashboard específico
   if (user?.role === 'agente_vacinas') {
     return <Navigate to="/vacinas" replace />;

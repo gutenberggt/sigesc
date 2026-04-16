@@ -139,7 +139,7 @@ function App() {
           <Route
             path="/ass-social"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'ass_social']}>
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'ass_social', 'ass_social_2']}>
                 <AssocialDashboard />
               </ProtectedRoute>
             }
@@ -458,7 +458,7 @@ function App() {
           <Route
             path="/admin/bolsa-familia"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador']}>
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'secretario', 'diretor', 'semed3', 'ass_social_2']}>
                 <BolsaFamilia />
               </ProtectedRoute>
             }

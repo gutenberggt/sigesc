@@ -15,3 +15,7 @@
 ## Agente de Vacinas
 - Email: vacinas@sigesc.com
 - Senha: vacinas123
+
+## Assistência Social 2
+- Email: assistencia2@sigesc.com
+- Senha: assistencia2123

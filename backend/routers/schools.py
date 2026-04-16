@@ -62,7 +62,7 @@ def setup_router(db, audit_service, sandbox_db=None):
             return cached
         
         # Admin, admin_teste, SEMED, SEMED3, Assistente Social e Agente de Vacinas veem todas as escolas
-        if current_user['role'] in ['admin', 'admin_teste', 'semed', 'semed3', 'ass_social', 'agente_vacinas']:
+        if current_user['role'] in ['admin', 'admin_teste', 'semed', 'semed3', 'ass_social', 'ass_social_2', 'agente_vacinas']:
             schools = await current_db.schools.find({}, {"_id": 0}).sort("name", 1).collation({"locale": "pt", "strength": 1}).skip(skip).limit(limit).to_list(limit)
         else:
             # Outros papéis veem apenas escolas vinculadas

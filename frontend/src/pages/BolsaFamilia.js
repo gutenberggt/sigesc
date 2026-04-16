@@ -24,6 +24,7 @@ export default function BolsaFamilia() {
   const [selectedSchool, setSelectedSchool] = useState('');
   const [students, setStudents] = useState([]);
   const [municipioUf, setMunicipioUf] = useState('');
+  const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState({});
   const [saved, setSaved] = useState({});
@@ -44,6 +45,7 @@ export default function BolsaFamilia() {
       const res = await axios.get(`${API}/bolsa-familia/students?school_id=${selectedSchool}&academic_year=${academicYear}`, { headers });
       setStudents(res.data.students || []);
       setMunicipioUf(res.data.municipio_uf || '');
+      setCanEdit(res.data.can_edit !== false);
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [selectedSchool, academicYear]);
@@ -208,7 +210,7 @@ export default function BolsaFamilia() {
                         <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase w-28">Mês</th>
                         <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-24">Frequência</th>
                         <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">Motivo</th>
-                        <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-20">Salvar</th>
+                        {canEdit && <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-20">Salvar</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -222,11 +224,13 @@ export default function BolsaFamilia() {
                               {data.frequency || <span className="text-gray-300">-</span>}
                             </td>
                             <td className="px-3 py-2">
-                              <input type="text" value={data.motive || ''} placeholder="Informe o motivo..."
+                              <input type="text" value={data.motive || ''} placeholder={canEdit ? "Informe o motivo..." : ""}
                                 onChange={e => handleMotiveChange(student.id, String(m), e.target.value)}
-                                className="w-full border rounded px-2 py-1 text-sm"
+                                disabled={!canEdit}
+                                className="w-full border rounded px-2 py-1 text-sm disabled:bg-gray-50 disabled:text-gray-500"
                                 data-testid={`bf-motive-${student.id}-${m}`} />
                             </td>
+                            {canEdit && (
                             <td className="px-3 py-2 text-center">
                               <button onClick={() => handleSave(student.id, String(m))} disabled={saving[key]}
                                 className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -236,6 +240,7 @@ export default function BolsaFamilia() {
                                  <Save size={14} />}
                               </button>
                             </td>
+                            )}
                           </tr>
                         );
                       })}

@@ -130,6 +130,9 @@ def setup_router(db, **kwargs):
 
         return monthly_presence, monthly_total
 
+    EDIT_ROLES = ['admin', 'admin_teste', 'secretario']
+    VIEW_ROLES = ['admin', 'admin_teste', 'secretario', 'semed3', 'diretor', 'ass_social_2']
+
     @router.get("/bolsa-familia/students")
     async def list_bolsa_familia_students(
         request: Request,
@@ -137,7 +140,7 @@ def setup_router(db, **kwargs):
         academic_year: Optional[int] = None
     ):
         """Lista alunos com Bolsa Família de uma escola."""
-        await AuthMiddleware.get_current_user(request)
+        current_user = await AuthMiddleware.require_roles(VIEW_ROLES)(request)
 
         if not academic_year:
             academic_year = datetime.now().year
@@ -257,13 +260,14 @@ def setup_router(db, **kwargs):
             "students": result,
             "total": len(result),
             "municipio_uf": municipio_uf,
-            "monthly_school_days": monthly_school_days
+            "monthly_school_days": monthly_school_days,
+            "can_edit": current_user['role'] in EDIT_ROLES
         }
 
     @router.put("/bolsa-familia/tracking")
     async def save_tracking(request: Request):
-        """Salva dados de acompanhamento (motivo)."""
-        await AuthMiddleware.get_current_user(request)
+        """Salva dados de acompanhamento (motivo). Apenas secretários e admins."""
+        await AuthMiddleware.require_roles(EDIT_ROLES)(request)
 
         body = await request.json()
         student_id = body.get("student_id")
@@ -301,7 +305,7 @@ def setup_router(db, **kwargs):
         month_end: int = Query(3, description="Mês final")
     ):
         """Gera PDF de Acompanhamento de Frequência - Bolsa Família."""
-        await AuthMiddleware.get_current_user(request)
+        await AuthMiddleware.require_roles(VIEW_ROLES)(request)
 
         if not academic_year:
             academic_year = datetime.now().year
