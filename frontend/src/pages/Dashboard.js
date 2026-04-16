@@ -514,6 +514,18 @@ export const Dashboard = () => {
                 </button>
               )}
               
+              {/* Bolsa Família */}
+              {isAdmin && (
+                <button
+                  onClick={() => navigate('/admin/bolsa-familia')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 transition-all"
+                  data-testid="nav-bolsa-familia-button"
+                >
+                  <Users className="text-amber-600" size={24} />
+                  <span className="font-medium text-gray-900">Bolsa Família</span>
+                </button>
+              )}
+              
               {isAdmin && (
                 <button
                   onClick={() => navigate('/admin/courses')}

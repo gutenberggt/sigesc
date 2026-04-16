@@ -1,0 +1,271 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { Layout } from '@/components/Layout';
+import { schoolsAPI } from '@/services/api';
+import { Home, FileText, Save, Loader2, Download, Users, Search, CheckCircle2 } from 'lucide-react';
+import axios from 'axios';
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+const MESES = {
+  1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
+  7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+};
+
+export default function BolsaFamilia() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const token = localStorage.getItem('accessToken');
+  const headers = { Authorization: `Bearer ${token}` };
+  const academicYear = new Date().getFullYear();
+
+  const [schools, setSchools] = useState([]);
+  const [selectedSchool, setSelectedSchool] = useState('');
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState({});
+  const [saved, setSaved] = useState({});
+  const [monthStart, setMonthStart] = useState(2);
+  const [monthEnd, setMonthEnd] = useState(new Date().getMonth() + 1 || 12);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  useEffect(() => {
+    schoolsAPI.getAll().then(data => {
+      setSchools(data.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+    }).catch(console.error);
+  }, []);
+
+  const loadStudents = useCallback(async () => {
+    if (!selectedSchool) { setStudents([]); return; }
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/bolsa-familia/students?school_id=${selectedSchool}&academic_year=${academicYear}`, { headers });
+      setStudents(res.data.students || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  }, [selectedSchool, academicYear]);
+
+  useEffect(() => { loadStudents(); }, [loadStudents]);
+
+  const handleMotiveChange = (studentId, month, field, value) => {
+    setStudents(prev => prev.map(s => {
+      if (s.id !== studentId) return s;
+      return {
+        ...s,
+        months: {
+          ...s.months,
+          [month]: { ...s.months[month], [field]: value }
+        }
+      };
+    }));
+  };
+
+  const handleSave = async (studentId, month) => {
+    const key = `${studentId}_${month}`;
+    setSaving(prev => ({ ...prev, [key]: true }));
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    const data = student.months[month] || {};
+    try {
+      await axios.put(`${API}/bolsa-familia/tracking`, {
+        student_id: studentId,
+        school_id: selectedSchool,
+        month: parseInt(month),
+        academic_year: academicYear,
+        motive: data.motive || '',
+        frequency: data.frequency || '',
+        not_found: data.not_found || false
+      }, { headers });
+      setSaved(prev => ({ ...prev, [key]: true }));
+      setTimeout(() => setSaved(prev => ({ ...prev, [key]: false })), 1500);
+    } catch (e) { console.error(e); }
+    setSaving(prev => ({ ...prev, [key]: false }));
+  };
+
+  const handleGeneratePdf = async () => {
+    if (!selectedSchool) return;
+    setGeneratingPdf(true);
+    try {
+      const res = await axios.get(
+        `${API}/bolsa-familia/pdf/${selectedSchool}?academic_year=${academicYear}&month_start=${monthStart}&month_end=${monthEnd}`,
+        { headers, responseType: 'blob' }
+      );
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+    } catch (e) { console.error(e); }
+    setGeneratingPdf(false);
+  };
+
+  const monthsRange = [];
+  for (let m = monthStart; m <= monthEnd; m++) monthsRange.push(m);
+
+  const formatDate = (d) => {
+    if (!d) return '';
+    try {
+      const dt = new Date(d + 'T00:00:00');
+      return dt.toLocaleDateString('pt-BR');
+    } catch { return d; }
+  };
+
+  return (
+    <Layout>
+      <div className="space-y-6" data-testid="bolsa-familia-page">
+        {/* Header */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-4">
+            <button onClick={() => navigate('/dashboard')} className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors" data-testid="bf-home-btn">
+              <Home size={18} /><span>Início</span>
+            </button>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <FileText size={24} /> Acompanhamento Bolsa Família
+            </h1>
+          </div>
+          {students.length > 0 && (
+            <button onClick={handleGeneratePdf} disabled={generatingPdf}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
+              data-testid="generate-pdf-btn">
+              {generatingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Gerar PDF
+            </button>
+          )}
+        </div>
+
+        {/* Filtros */}
+        <div className="bg-white rounded-xl border p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
+              <select value={selectedSchool} onChange={e => setSelectedSchool(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                data-testid="bf-school-filter">
+                <option value="">Selecione uma escola</option>
+                {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mês Inicial</label>
+              <select value={monthStart} onChange={e => setMonthStart(Number(e.target.value))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                data-testid="bf-month-start">
+                {Object.entries(MESES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mês Final</label>
+              <select value={monthEnd} onChange={e => setMonthEnd(Number(e.target.value))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                data-testid="bf-month-end">
+                {Object.entries(MESES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Loading */}
+        {loading && (
+          <div className="bg-white rounded-xl border p-12 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+            <span className="ml-3 text-gray-500">Carregando alunos...</span>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && selectedSchool && students.length === 0 && (
+          <div className="bg-white rounded-xl border p-12 text-center">
+            <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">Nenhum aluno com Bolsa Família encontrado nesta escola.</p>
+            <p className="text-gray-400 text-sm mt-1">Verifique se o campo "Bolsa Família" está marcado nos dados complementares dos alunos.</p>
+          </div>
+        )}
+
+        {!loading && !selectedSchool && (
+          <div className="bg-white rounded-xl border p-12 text-center">
+            <Search className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">Selecione uma escola para visualizar os alunos beneficiários do Bolsa Família.</p>
+          </div>
+        )}
+
+        {/* Lista de alunos */}
+        {!loading && students.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-600"><strong>{students.length}</strong> aluno(s) com Bolsa Família</p>
+            </div>
+
+            {students.map((student, idx) => (
+              <div key={student.id} className="bg-white rounded-xl border overflow-hidden" data-testid={`bf-student-${student.id}`}>
+                {/* Student header */}
+                <div className="bg-gray-50 px-4 py-3 border-b">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                    <div><span className="text-gray-500">Nome:</span> <strong>{student.full_name}</strong></div>
+                    <div><span className="text-gray-500">Dt. Nasc.:</span> {formatDate(student.birth_date)}</div>
+                    <div><span className="text-gray-500">NIS:</span> {student.nis || 'Não informado'}</div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm mt-1">
+                    <div><span className="text-gray-500">Responsável:</span> {student.responsible || 'Não informado'}</div>
+                    <div><span className="text-gray-500">Contato:</span> {student.contact || 'Não informado'}</div>
+                    <div><span className="text-gray-500">Série:</span> {student.series || 'Não informada'}</div>
+                  </div>
+                </div>
+
+                {/* Monthly tracking */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase w-28">Mês</th>
+                        <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-24">Frequência</th>
+                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">Motivo</th>
+                        <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-28">Não localiz.</th>
+                        <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-20">Salvar</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {monthsRange.map(m => {
+                        const data = student.months[String(m)] || {};
+                        const key = `${student.id}_${m}`;
+                        return (
+                          <tr key={m} className="hover:bg-gray-50">
+                            <td className="px-4 py-2 font-medium text-gray-700">{MESES[m]}</td>
+                            <td className="px-3 py-2">
+                              <input type="text" value={data.frequency || ''} placeholder="%"
+                                onChange={e => handleMotiveChange(student.id, String(m), 'frequency', e.target.value)}
+                                className="w-full border rounded px-2 py-1 text-center text-sm"
+                                data-testid={`bf-freq-${student.id}-${m}`} />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input type="text" value={data.motive || ''} placeholder="Informe o motivo..."
+                                onChange={e => handleMotiveChange(student.id, String(m), 'motive', e.target.value)}
+                                className="w-full border rounded px-2 py-1 text-sm"
+                                data-testid={`bf-motive-${student.id}-${m}`} />
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <input type="checkbox" checked={!!data.not_found}
+                                onChange={e => handleMotiveChange(student.id, String(m), 'not_found', e.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300 text-blue-600"
+                                data-testid={`bf-notfound-${student.id}-${m}`} />
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <button onClick={() => handleSave(student.id, String(m))} disabled={saving[key]}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                data-testid={`bf-save-${student.id}-${m}`}>
+                                {saving[key] ? <Loader2 size={14} className="animate-spin" /> :
+                                 saved[key] ? <CheckCircle2 size={14} className="text-green-500" /> :
+                                 <Save size={14} />}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Layout>
+  );
+}

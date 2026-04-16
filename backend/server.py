@@ -67,6 +67,7 @@ from routers import hr as hr_mod
 from routers import student_history as student_history_mod
 from routers import vaccines as vaccines_mod
 from routers import mec_integration as mec_mod
+from routers import bolsa_familia as bolsa_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
@@ -385,6 +386,7 @@ hr_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 student_history_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 vaccines_mod.setup_router(db)
 mec_mod.setup_router(db)
+bolsa_mod.setup_router(db)
 
 # --- Incluir TODOS os roteadores na app ---
 # Fase 1
@@ -432,6 +434,7 @@ app.include_router(hr_mod.router, prefix="/api")
 app.include_router(student_history_mod.router, prefix="/api")
 app.include_router(vaccines_mod.router, prefix="/api")
 app.include_router(mec_mod.router, prefix="/api")
+app.include_router(bolsa_mod.router, prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)

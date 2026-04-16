@@ -46,6 +46,7 @@ const VaccineDashboard = lazy(() => import('@/pages/VaccineDashboard'));
 const OnlineUsers = lazy(() => import('@/pages/OnlineUsers'));
 const HRPayroll = lazy(() => import('@/pages/HRPayroll'));
 const MECIntegration = lazy(() => import('@/pages/MECIntegration'));
+const BolsaFamilia = lazy(() => import('@/pages/BolsaFamilia'));
 
 // Loading fallback
 function PageLoader() {
@@ -450,6 +451,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'admin_teste']}>
                 <MECIntegration />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/admin/bolsa-familia"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador']}>
+                <BolsaFamilia />
               </ProtectedRoute>
             }
           />

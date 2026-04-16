@@ -242,6 +242,15 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - ~~Centralizar permissões em hook usePermissions~~ CONCLUÍDO (06/04/2026): Hook em `/app/frontend/src/hooks/usePermissions.js`, integrado em 8 páginas (Dashboard, Attendance, Grades, LearningObjects, Events, Enrollments, StudentsComplete, Classes)
 - ~~Refatorar inferEducationLevel duplicado~~ CONCLUÍDO (06/04/2026): Centralizado em `/app/frontend/src/utils/educationLevel.js`
 
+## Acompanhamento de Frequência - Bolsa Família (16/04/2026)
+- Página `/admin/bolsa-familia` para acompanhar frequência de alunos beneficiários do Bolsa Família
+- Filtra alunos com `Bolsa Família` marcado em Benefícios/Informações Complementares
+- Filtros: Escola, Mês Inicial, Mês Final
+- Campos editáveis: Frequência (%), Motivo, Não localizado
+- Geração de PDF similar ao formulário oficial com assinatura digital do secretário da escola
+- Collection: `bolsa_familia_tracking` para persistir dados de acompanhamento
+- Endpoints: GET /api/bolsa-familia/students, PUT /api/bolsa-familia/tracking, GET /api/bolsa-familia/pdf/{school_id}
+
 ## Integração MEC Gestão Presente (16/04/2026)
 - Módulo de integração com a API do MEC para envio e consulta de dados educacionais
 - Tela administrativa em `/admin/mec` com configuração de chaves PGP, ambiente (homologação/produção) e dados do responsável
