@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
-import { Settings, Key, Server, User, Mail, Phone, Briefcase, CheckCircle2, AlertCircle, XCircle, Loader2, ExternalLink, RefreshCw, School, Users, FileText, Shield, Copy, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Settings, Key, Server, User, Mail, Phone, Briefcase, CheckCircle2, AlertCircle, XCircle, Loader2, ExternalLink, RefreshCw, School, Users, FileText, Shield, Copy, ChevronDown, ChevronUp, Info, Home } from 'lucide-react';
 import axios from 'axios';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -19,6 +20,7 @@ const STATUS_MAP = {
 
 export default function MECIntegration() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const token = localStorage.getItem('accessToken');
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -92,9 +94,14 @@ export default function MECIntegration() {
     <div className="space-y-6" data-testid="mec-integration-page">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Integração MEC Gestão Presente</h2>
-          <p className="text-gray-600 mt-1">Configure o envio e consulta de dados educacionais via API do MEC</p>
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate('/dashboard')} className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors" data-testid="mec-home-btn">
+            <Home size={18} /><span>Início</span>
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Integração MEC Gestão Presente</h2>
+            <p className="text-gray-600 mt-1">Configure o envio e consulta de dados educacionais via API do MEC</p>
+          </div>
         </div>
         <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${statusInfo.bg}`}>
           <StatusIcon className={`h-5 w-5 ${statusInfo.color}`} />
