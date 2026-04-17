@@ -140,12 +140,13 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
                 <select
                   value={form.student_id}
                   onChange={(e) => handleStudentChange(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-gray-900"
+                  className="w-full border rounded-lg px-3 py-2"
+                  style={{ color: '#111827', backgroundColor: '#ffffff' }}
                   disabled={!!editingPlano}
                 >
-                  <option value="">Selecione o aluno</option>
+                  <option value="" style={{ color: '#111827', backgroundColor: '#ffffff' }}>Selecione o aluno</option>
                   {estudantes.map(est => (
-                    <option key={est.student_id} value={est.student_id}>{est.student_name}</option>
+                    <option key={est.student_id} value={est.student_id} style={{ color: '#111827', backgroundColor: '#ffffff' }}>{est.student_name}</option>
                   ))}
                 </select>
               </div>
