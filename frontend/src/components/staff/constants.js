@@ -1,18 +1,19 @@
 // Constantes para o módulo de Gestão de Servidores(as)
 
 export const CARGOS = {
+  apoio: 'Apoio',
   apoio_pedagogico: 'Apoio Pedagógico',
-  auxiliar: 'Auxiliar Administrativo(a)',
-  auxiliar_secretaria: 'Auxiliar de Secretaria',
-  auxiliar_servicos_gerais: 'Auxiliar de Serviços Gerais',
-  coordenador: 'Coordenador(a)',
-  diretor: 'Diretor(a)',
-  mediador: 'Mediador(a)',
-  merendeira: 'Merendeira(o)',
   professor: 'Professor(a)',
+  diretor: 'Diretor(a)',
+  vice_diretor: 'Vice-Diretor(a)',
+  coordenador: 'Coordenador(a)',
   secretario: 'Secretário(a)',
-  vigia: 'Vigia',
+  auxiliar_secretaria: 'Auxiliar de Secretaria',
+  auxiliar: 'Auxiliar Administrativo(a)',
+  merendeira: 'Merendeira(o)',
   zelador: 'Zelador(a)',
+  vigia: 'Vigia',
+  mediador: 'Mediador(a)',
   outro: 'Outro'
 };
 
@@ -48,13 +49,20 @@ export const COR_RACA = {
 };
 
 export const FUNCOES = {
+  apoio: 'Apoio',
+  apoio_pedagogico: 'Apoio Pedagógico',
   professor: 'Professor(a)',
   diretor: 'Diretor(a)',
   vice_diretor: 'Vice-Diretor(a)',
   coordenador: 'Coordenador(a)',
   secretario: 'Secretário(a)',
   auxiliar_secretaria: 'Auxiliar de Secretaria',
-  apoio: 'Apoio'
+  auxiliar: 'Auxiliar Administrativo(a)',
+  merendeira: 'Merendeira(o)',
+  zelador: 'Zelador(a)',
+  vigia: 'Vigia',
+  mediador: 'Mediador(a)',
+  outro: 'Outro'
 };
 
 export const TURNOS = {

@@ -235,6 +235,12 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Fix Turmas não carregavam na aba Informações: useEffect agora faz fetch independente de turmas via `classesAPI.getAll()` ao selecionar escola (não depende mais do `selectedSchool` da aba Lançamento)
 - Fix Fórmula Frequência Bolsa Família: Alterada de `(presenças / dias_letivos) × 100` para `((dias_letivos − faltas) × 100) / dias_letivos`. Aplicado em listagem (endpoint GET /api/bolsa-familia/students) e gerador de PDF
 
+## Padronização Cargo/Função (17/04/2026)
+- Lista única de 14 funções/cargos centralizada em `constants.js` (CARGOS e FUNCOES idênticos)
+- Ordem: Apoio, Apoio Pedagógico, Professor(a), Diretor(a), Vice-Diretor(a), Coordenador(a), Secretário(a), Auxiliar de Secretaria, Auxiliar Administrativo(a), Merendeira(o), Zelador(a), Vigia, Mediador(a), Outro
+- Aplicado em: Novo/Editar Servidor (Cargo), Gerenciar Lotações (Função) e filtro de Cargos
+- Backend (models.py): Literal types atualizados para aceitar `apoio` e `vice_diretor` em Cargo e Função
+
 ## Tarefas Pendentes
 
 ### Outras Tarefas

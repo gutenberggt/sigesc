@@ -1751,7 +1751,7 @@ class StaffBase(BaseModel):
     email: Optional[str] = None
     
     # Dados Funcionais (matrícula será gerada automaticamente)
-    cargo: Literal['apoio_pedagogico', 'auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
+    cargo: Literal['apoio', 'apoio_pedagogico', 'auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'vice_diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
     cargo_especifico: Optional[str] = None  # Descrição específica do cargo
     
     # Vínculo Empregatício
@@ -1785,7 +1785,7 @@ class StaffCreate(BaseModel):
     cor_raca: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarado']] = None
     celular: Optional[str] = None
     email: Optional[str] = None
-    cargo: Literal['apoio_pedagogico', 'auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
+    cargo: Literal['apoio', 'apoio_pedagogico', 'auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'vice_diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
     cargo_especifico: Optional[str] = None
     tipo_vinculo: Literal['efetivo', 'contratado', 'temporario', 'comissionado'] = 'efetivo'
     data_admissao: Optional[str] = None
@@ -1807,7 +1807,7 @@ class StaffUpdate(BaseModel):
     cor_raca: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarado']] = None
     celular: Optional[str] = None
     email: Optional[str] = None
-    cargo: Optional[Literal['apoio_pedagogico', 'auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']] = None
+    cargo: Optional[Literal['apoio', 'apoio_pedagogico', 'auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'vice_diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']] = None
     cargo_especifico: Optional[str] = None
     tipo_vinculo: Optional[Literal['efetivo', 'contratado', 'temporario', 'comissionado']] = None
     data_admissao: Optional[str] = None
@@ -1834,7 +1834,7 @@ class Staff(BaseModel):
     cor_raca: Optional[Literal['branca', 'preta', 'parda', 'amarela', 'indigena', 'nao_declarado']] = None
     celular: Optional[str] = None
     email: Optional[str] = None
-    cargo: Literal['apoio_pedagogico', 'auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
+    cargo: Literal['apoio', 'apoio_pedagogico', 'auxiliar', 'auxiliar_secretaria', 'auxiliar_servicos_gerais', 'coordenador', 'diretor', 'vice_diretor', 'mediador', 'merendeira', 'professor', 'secretario', 'vigia', 'zelador', 'outro']
     cargo_especifico: Optional[str] = None
     tipo_vinculo: Literal['efetivo', 'contratado', 'temporario', 'comissionado'] = 'efetivo'
     data_admissao: Optional[str] = None
@@ -1858,7 +1858,7 @@ class SchoolAssignmentBase(BaseModel):
     school_id: str  # ID da escola
     
     # Função na escola
-    funcao: Literal['professor', 'diretor', 'vice_diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'apoio'] = 'professor'
+    funcao: Literal['apoio', 'apoio_pedagogico', 'professor', 'diretor', 'vice_diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'auxiliar', 'merendeira', 'zelador', 'vigia', 'mediador', 'outro'] = 'professor'
     
     # Tipo de lotação: sede (aparece no quadro), anexa (não aparece, só tem acesso), regular
     tipo_lotacao: Literal['sede', 'anexa', 'regular'] = 'regular'
@@ -1884,7 +1884,7 @@ class SchoolAssignmentCreate(SchoolAssignmentBase):
     pass
 
 class SchoolAssignmentUpdate(BaseModel):
-    funcao: Optional[Literal['professor', 'diretor', 'vice_diretor', 'coordenador', 'secretario', 'apoio']] = None
+    funcao: Optional[Literal['apoio', 'apoio_pedagogico', 'professor', 'diretor', 'vice_diretor', 'coordenador', 'secretario', 'auxiliar_secretaria', 'auxiliar', 'merendeira', 'zelador', 'vigia', 'mediador', 'outro']] = None
     data_fim: Optional[str] = None
     carga_horaria: Optional[int] = None
     turno: Optional[Literal['matutino', 'vespertino', 'noturno', 'integral']] = None
