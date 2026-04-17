@@ -1138,4 +1138,30 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         
         return result
 
+    @router.get("/class-students-info/{class_id}")
+    async def get_class_students_info(
+        class_id: str,
+        request: Request,
+        academic_year: int = None
+    ):
+        """Retorna informações dos alunos de uma turma (nome, nascimento, mãe, telefone)."""
+        await AuthMiddleware.get_current_user(request)
+
+        if not academic_year:
+            from datetime import datetime
+            academic_year = datetime.now().year
+
+        # Buscar alunos ativos na turma
+        excluded = ["deceased", "transferred", "dropout", "relocated", "reclassified", "progressed",
+                     "Falecido", "Transferido", "Desistente", "Remanejado", "Reclassificado", "Progredido"]
+
+        students_cursor = db.students.find(
+            {"class_id": class_id, "status": {"$nin": excluded + ["inactive"]}},
+            {"_id": 0, "id": 1, "full_name": 1, "birth_date": 1, "mother_name": 1, "mother_phone": 1}
+        ).sort("full_name", 1).collation({"locale": "pt", "strength": 1})
+
+        students = await students_cursor.to_list(1000)
+
+        return {"students": students, "total": len(students)}
+
     return router
