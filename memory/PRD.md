@@ -234,6 +234,8 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Fix Aba Informações da Frequência: `Loader2 is not defined` corrigido com import do lucide-react
 - Fix Turmas não carregavam na aba Informações: useEffect agora faz fetch independente de turmas via `classesAPI.getAll()` ao selecionar escola (não depende mais do `selectedSchool` da aba Lançamento)
 - Fix Fórmula Frequência Bolsa Família: Alterada de `(presenças / dias_letivos) × 100` para `((dias_letivos − faltas) × 100) / dias_letivos`. Aplicado em listagem (endpoint GET /api/bolsa-familia/students) e gerador de PDF
+- Fix crítico Dias Letivos Bolsa Família: `_calc_monthly_school_days` não encontrava o calendário letivo (campo `academic_year` → `ano_letivo`, nomes bimestre `bimestre1_inicio` → `bimestre_1_inicio`, tipos de feriado errados)
+- Fix Data de Nascimento vazia em Editar/Visualizar Aluno: Adicionada normalização de datas (`normalizeDateToISO`) para converter `dd/mm/yyyy` → `yyyy-mm-dd` antes de popular o formulário. Aplicado em `handleView`, `handleEdit` e URL params
 
 ## Padronização Cargo/Função (17/04/2026)
 - Lista única de 14 funções/cargos centralizada em `constants.js` (CARGOS e FUNCOES idênticos)

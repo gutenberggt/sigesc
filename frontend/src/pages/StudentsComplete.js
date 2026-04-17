@@ -139,6 +139,37 @@ const initialFormData = {
 };
 
 // Função para calcular a idade a partir da data de nascimento
+const normalizeDateToISO = (dateStr) => {
+  if (!dateStr) return '';
+  const s = String(dateStr).trim();
+  // Já está em YYYY-MM-DD (pode ter T ou espaço com horário)
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+  // Formato dd/mm/yyyy
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(s)) {
+    const [d, m, y] = s.split('/');
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  // Formato dd-mm-yyyy
+  if (/^\d{2}-\d{2}-\d{4}/.test(s)) {
+    const [d, m, y] = s.split('-');
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return s;
+};
+
+const DATE_FIELDS = [
+  'birth_date', 'rg_issue_date', 'civil_certificate_date', 'passport_expiry',
+  'enrollment_date'
+];
+
+const normalizeStudentDates = (student) => {
+  const normalized = { ...student };
+  DATE_FIELDS.forEach(field => {
+    if (normalized[field]) normalized[field] = normalizeDateToISO(normalized[field]);
+  });
+  return normalized;
+};
+
 const calculateAge = (birthDate) => {
   if (!birthDate) return null;
   const today = new Date();
@@ -547,6 +578,7 @@ export function StudentsComplete() {
     } catch (e) {
       console.warn('Usando dados em cache:', e.message);
     }
+    freshStudent = normalizeStudentDates(freshStudent);
     setEditingStudent(freshStudent);
     setViewMode(false);
     // Garantir que campos null não sobrescrevam defaults do initialFormData
