@@ -230,6 +230,10 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
   - Estatísticas: oculto card "Aulas" (mantém apenas "Registros")
   - Anos Finais / EJA: formulário completo mantido (5 campos)
 
+## Bug Fixes (17/04/2026)
+- Fix Aba Informações da Frequência: `Loader2 is not defined` corrigido com import do lucide-react
+- Fix Turmas não carregavam na aba Informações: useEffect agora faz fetch independente de turmas via `classesAPI.getAll()` ao selecionar escola (não depende mais do `selectedSchool` da aba Lançamento)
+
 ## Tarefas Pendentes
 
 ### Outras Tarefas

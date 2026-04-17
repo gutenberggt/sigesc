@@ -23,7 +23,8 @@ import {
   Stethoscope,
   FileDown,
   Info,
-  Phone
+  Phone,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -944,13 +945,22 @@ export const Attendance = () => {
   // === Aba Informações ===
   useEffect(() => {
     if (infoSchool) {
-      const filtered = classes.filter(c => c.school_id === infoSchool && (c.academic_year === academicYear || !c.academic_year));
-      const sorted = [...filtered].sort((a, b) => {
-        const aNum = parseInt(a.name) || Infinity;
-        const bNum = parseInt(b.name) || Infinity;
-        return aNum === bNum ? (a.name || '').localeCompare(b.name || '') : aNum - bNum;
-      });
-      setInfoClasses(sorted);
+      const fetchInfoClasses = async () => {
+        try {
+          const data = await classesAPI.getAll();
+          const filtered = data.filter(c => c.school_id === infoSchool && c.academic_year === academicYear);
+          const sorted = [...filtered].sort((a, b) => {
+            const aNum = parseInt(a.name) || Infinity;
+            const bNum = parseInt(b.name) || Infinity;
+            return aNum === bNum ? (a.name || '').localeCompare(b.name || '') : aNum - bNum;
+          });
+          setInfoClasses(sorted);
+        } catch (e) {
+          console.error('Erro ao carregar turmas da aba Informações:', e);
+          setInfoClasses([]);
+        }
+      };
+      fetchInfoClasses();
       setInfoClass('');
       setInfoStudents([]);
     } else {
@@ -958,7 +968,7 @@ export const Attendance = () => {
       setInfoClass('');
       setInfoStudents([]);
     }
-  }, [infoSchool, classes, academicYear]);
+  }, [infoSchool, academicYear]);
 
   const loadInfoStudents = useCallback(async () => {
     if (!infoClass) { setInfoStudents([]); return; }
