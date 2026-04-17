@@ -75,35 +75,26 @@ function StudentDropdown({ value, onChange, estudantes, disabled }) {
 
   const selected = estudantes.find(e => e.student_id === value);
 
-  const itemStyle = { color: '#374151', backgroundColor: '#ffffff' };
-
   return (
     <div ref={ref} className="relative">
       <button
         type="button"
         onClick={() => !disabled && setOpen(!open)}
-        style={itemStyle}
-        className={`w-full border rounded-lg px-3 py-2 text-left flex items-center justify-between ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-gray-400'}`}
+        className={`force-visible-text w-full border rounded-lg px-3 py-2 text-left flex items-center justify-between ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-gray-400'}`}
       >
-        <span style={{ color: selected ? '#111827' : '#9ca3af' }}>{selected ? selected.student_name : 'Selecione o aluno'}</span>
-        <ChevronDown size={16} style={{ color: '#9ca3af' }} />
+        <span className={selected ? 'force-visible-text' : 'force-visible-text-muted'}>{selected ? selected.student_name : 'Selecione o aluno'}</span>
+        <ChevronDown size={16} className="force-visible-text-muted" />
       </button>
       {open && (
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #d1d5db' }} className="absolute z-50 mt-1 w-full rounded-lg shadow-lg max-h-60 overflow-y-auto">
+        <div className="force-visible-text absolute z-50 mt-1 w-full rounded-lg shadow-lg max-h-60 overflow-y-auto" style={{ border: '1px solid #d1d5db' }}>
           <div
-            style={{ color: '#9ca3af', backgroundColor: '#ffffff' }}
-            className="px-3 py-2 cursor-pointer"
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+            className="force-visible-text-muted px-3 py-2 cursor-pointer hover:bg-gray-100"
             onClick={() => { onChange(''); setOpen(false); }}
           >Selecione o aluno</div>
           {estudantes.map(est => (
             <div
               key={est.student_id}
-              style={{ color: '#111827', backgroundColor: est.student_id === value ? '#dbeafe' : '#ffffff' }}
-              className="px-3 py-2 cursor-pointer"
-              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#eff6ff'}
-              onMouseLeave={e => e.currentTarget.style.backgroundColor = est.student_id === value ? '#dbeafe' : '#ffffff'}
+              className={`force-visible-text px-3 py-2 cursor-pointer hover:bg-blue-50 ${est.student_id === value ? 'bg-blue-100 font-medium' : ''}`}
               onClick={() => { onChange(est.student_id); setOpen(false); }}
             >{est.student_name}</div>
           ))}

@@ -87,6 +87,15 @@ code {
     }
 }
 
+.force-visible-text {
+    color: #111827 !important;
+    background-color: #ffffff !important;
+}
+.force-visible-text-muted {
+    color: #9ca3af !important;
+    background-color: #ffffff !important;
+}
+
 
 @layer base {
     [data-debug-wrapper="true"] {
