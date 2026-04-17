@@ -82,6 +82,13 @@ code {
     }
 }
 
+select,
+select option {
+    color: #374151 !important;
+    background-color: #ffffff !important;
+}
+
+
 @layer base {
     [data-debug-wrapper="true"] {
         display: contents !important;
