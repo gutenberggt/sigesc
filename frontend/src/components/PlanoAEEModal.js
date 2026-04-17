@@ -140,7 +140,7 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
                 <select
                   value={form.student_id}
                   onChange={(e) => handleStudentChange(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border rounded-lg px-3 py-2 text-gray-900"
                   disabled={!!editingPlano}
                 >
                   <option value="">Selecione o aluno</option>
