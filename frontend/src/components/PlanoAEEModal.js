@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Target, Activity, BookOpen, Clock, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Users, Target, Activity, BookOpen, Clock, Calendar, ChevronDown } from 'lucide-react';
 
 const PUBLICO_ALVO_LABELS = {
   'deficiencia_fisica': 'Deficiência Física',
@@ -62,6 +62,48 @@ const INITIAL_FORM = {
   combinados_professor_regente: '',
   adaptacoes_por_componente: ''
 };
+
+function StudentDropdown({ value, onChange, estudantes, disabled }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const selected = estudantes.find(e => e.student_id === value);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => !disabled && setOpen(!open)}
+        className={`w-full border rounded-lg px-3 py-2 text-left flex items-center justify-between ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white cursor-pointer hover:border-gray-400'}`}
+      >
+        <span className="text-gray-700 truncate">{selected ? selected.student_name : 'Selecione o aluno'}</span>
+        <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          <div
+            className="px-3 py-2 text-gray-500 hover:bg-gray-100 cursor-pointer"
+            onClick={() => { onChange(''); setOpen(false); }}
+          >Selecione o aluno</div>
+          {estudantes.map(est => (
+            <div
+              key={est.student_id}
+              className={`px-3 py-2 cursor-pointer hover:bg-blue-50 ${est.student_id === value ? 'bg-blue-100 font-medium' : ''}`}
+              style={{ color: '#374151' }}
+              onClick={() => { onChange(est.student_id); setOpen(false); }}
+            >{est.student_name}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, estudantes, canEdit }) {
   const [form, setForm] = useState({ ...INITIAL_FORM });
@@ -137,18 +179,12 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Aluno *</label>
-                <select
+                <StudentDropdown
                   value={form.student_id}
-                  onChange={(e) => handleStudentChange(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2"
-                  style={{ color: '#374151', backgroundColor: '#ffffff' }}
+                  onChange={handleStudentChange}
+                  estudantes={estudantes}
                   disabled={!!editingPlano}
-                >
-                  <option value="" style={{ color: '#374151', backgroundColor: '#ffffff' }}>Selecione o aluno</option>
-                  {estudantes.map(est => (
-                    <option key={est.student_id} value={est.student_id} style={{ color: '#374151', backgroundColor: '#ffffff' }}>{est.student_name}</option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Público-alvo *</label>
