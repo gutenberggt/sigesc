@@ -190,9 +190,8 @@ def setup_router(db, **kwargs):
             {"_id": 0, "date": 1, "records": 1}
         ).to_list(50000)
 
-        # Mapear presença por aluno/mês
-        student_presence = {}  # {student_id: {month: present_count}}
-        student_total_days = {}  # {student_id: {month: total_registered}}
+        # Mapear faltas por aluno/mês
+        student_absences = {}  # {student_id: {month: absence_count}}
 
         for att in all_attendance:
             att_date = att.get("date", "")
@@ -209,14 +208,10 @@ def setup_router(db, **kwargs):
                 if sid not in student_ids:
                     continue
                 status = rec.get("status", "")
-                if status:
-                    if sid not in student_total_days:
-                        student_total_days[sid] = {}
-                    student_total_days[sid][m] = student_total_days[sid].get(m, 0) + 1
-                    if status in ("P", "present", "presente"):
-                        if sid not in student_presence:
-                            student_presence[sid] = {}
-                        student_presence[sid][m] = student_presence[sid].get(m, 0) + 1
+                if status in ("F", "absent", "ausente", "falta"):
+                    if sid not in student_absences:
+                        student_absences[sid] = {}
+                    student_absences[sid][m] = student_absences[sid].get(m, 0) + 1
 
         result = []
         for s in students:
@@ -238,18 +233,18 @@ def setup_router(db, **kwargs):
                 key = f"{s['id']}_{m}"
                 rec = record_map.get(key, {})
 
-                # Calcular frequência com base no calendário letivo
+                # Calcular frequência: ((dias_letivos - faltas) * 100) / dias_letivos
                 school_days = monthly_school_days.get(m, 0)
-                presences = (student_presence.get(s["id"]) or {}).get(m, 0)
+                absences = (student_absences.get(s["id"]) or {}).get(m, 0)
                 freq_pct = ""
                 if school_days > 0:
-                    freq_pct = f"{round((presences / school_days) * 100, 1)}%"
+                    freq_pct = f"{round(((school_days - absences) * 100) / school_days, 1)}%"
 
                 student_data["months"][str(m)] = {
                     "frequency": freq_pct,
                     "motive": rec.get("motive", ""),
                     "school_days": school_days,
-                    "presences": presences
+                    "absences": absences
                 }
 
             result.append(student_data)
@@ -355,7 +350,7 @@ def setup_router(db, **kwargs):
             {"_id": 0, "date": 1, "records": 1}
         ).to_list(50000)
 
-        student_presence = {}
+        student_absences = {}
         for att in all_attendance:
             att_date = att.get("date", "")
             if not att_date:
@@ -369,10 +364,10 @@ def setup_router(db, **kwargs):
                 sid = rec.get("student_id", "")
                 if sid not in student_ids:
                     continue
-                if rec.get("status") in ("P", "present", "presente"):
-                    if sid not in student_presence:
-                        student_presence[sid] = {}
-                    student_presence[sid][m] = student_presence[sid].get(m, 0) + 1
+                if rec.get("status") in ("F", "absent", "ausente", "falta"):
+                    if sid not in student_absences:
+                        student_absences[sid] = {}
+                    student_absences[sid][m] = student_absences[sid].get(m, 0) + 1
 
         secretario = school.get("secretario_escolar") or ""
         months_range = list(range(month_start, month_end + 1))
@@ -383,7 +378,7 @@ def setup_router(db, **kwargs):
                 record_map=record_map, months_range=months_range,
                 academic_year=academic_year, secretario=secretario,
                 municipio_uf=municipio_uf, monthly_school_days=monthly_school_days,
-                student_presence=student_presence
+                student_absences=student_absences
             )
         except Exception as e:
             logger.error(f"Erro ao gerar PDF Bolsa Família: {e}")
@@ -396,7 +391,7 @@ def setup_router(db, **kwargs):
             headers={"Content-Disposition": f"inline; filename={filename}"}
         )
 
-    def _generate_bf_pdf(school, students, class_map, record_map, months_range, academic_year, secretario, municipio_uf, monthly_school_days, student_presence):
+    def _generate_bf_pdf(school, students, class_map, record_map, months_range, academic_year, secretario, municipio_uf, monthly_school_days, student_absences):
         from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
         from reportlab.lib.units import mm, cm
@@ -482,10 +477,10 @@ def setup_router(db, **kwargs):
                 motive_val = rec.get("motive", "")
 
                 school_days = monthly_school_days.get(m, 0)
-                presences = (student_presence.get(student["id"]) or {}).get(m, 0)
+                absences = (student_absences.get(student["id"]) or {}).get(m, 0)
                 freq_pct = ""
                 if school_days > 0:
-                    freq_pct = f"{round((presences / school_days) * 100, 1)}%"
+                    freq_pct = f"{round(((school_days - absences) * 100) / school_days, 1)}%"
 
                 freq_data.append([
                     Paragraph(MESES_PT.get(m, str(m)), cell_center),

@@ -233,6 +233,7 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 ## Bug Fixes (17/04/2026)
 - Fix Aba Informações da Frequência: `Loader2 is not defined` corrigido com import do lucide-react
 - Fix Turmas não carregavam na aba Informações: useEffect agora faz fetch independente de turmas via `classesAPI.getAll()` ao selecionar escola (não depende mais do `selectedSchool` da aba Lançamento)
+- Fix Fórmula Frequência Bolsa Família: Alterada de `(presenças / dias_letivos) × 100` para `((dias_letivos − faltas) × 100) / dias_letivos`. Aplicado em listagem (endpoint GET /api/bolsa-familia/students) e gerador de PDF
 
 ## Tarefas Pendentes
 
