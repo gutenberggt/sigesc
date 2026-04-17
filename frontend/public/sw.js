@@ -1,6 +1,6 @@
-// SIGESC Service Worker - Versão 2.5.0
-// Corrigido: Cache busting em deploys + NetworkFirst para bundles JS/CSS
-const CACHE_NAME = 'sigesc-cache-v6';
+// SIGESC Service Worker - Versão 2.6.0
+// Corrigido: Removido tema dark, forçado light mode
+const CACHE_NAME = 'sigesc-cache-v7';
 const OFFLINE_URL = '/offline.html';
 const DB_NAME = 'SigescOfflineDB';
 

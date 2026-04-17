@@ -73,6 +73,7 @@ function StudentDropdown({ value, onChange, estudantes, disabled }) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  const getName = (est) => est.student_name || est.full_name || '';
   const selected = estudantes.find(e => e.student_id === value);
 
   return (
@@ -82,7 +83,7 @@ function StudentDropdown({ value, onChange, estudantes, disabled }) {
         onClick={() => !disabled && setOpen(!open)}
         className={`force-visible-text w-full border rounded-lg px-3 py-2 text-left flex items-center justify-between ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-gray-400'}`}
       >
-        <span className={selected ? 'force-visible-text' : 'force-visible-text-muted'}>{selected ? selected.student_name : 'Selecione o aluno'}</span>
+        <span className={selected ? 'force-visible-text' : 'force-visible-text-muted'}>{selected ? getName(selected) : 'Selecione o aluno'}</span>
         <ChevronDown size={16} className="force-visible-text-muted" />
       </button>
       {open && (
@@ -96,7 +97,7 @@ function StudentDropdown({ value, onChange, estudantes, disabled }) {
               key={est.student_id}
               className={`force-visible-text px-3 py-2 cursor-pointer hover:bg-blue-50 ${est.student_id === value ? 'bg-blue-100 font-medium' : ''}`}
               onClick={() => { onChange(est.student_id); setOpen(false); }}
-            >{est.student_name}</div>
+            >{getName(est)}</div>
           ))}
         </div>
       )}
@@ -137,6 +138,8 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
       professor_regente_nome: est?.professor_regente || ''
     }));
   };
+
+  const getStudentName = (est) => est.student_name || est.full_name || '';
 
   const handleDiaToggle = (dia) => {
     setForm(prev => {
