@@ -1,6 +1,6 @@
-// SIGESC Service Worker - Versão 2.2.0
+// SIGESC Service Worker - Versão 2.3.0
 // Corrigido: Cache busting em deploys + NetworkFirst para bundles JS/CSS
-const CACHE_NAME = 'sigesc-cache-v3';
+const CACHE_NAME = 'sigesc-cache-v4';
 const OFFLINE_URL = '/offline.html';
 const DB_NAME = 'SigescOfflineDB';
 

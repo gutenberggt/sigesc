@@ -79,6 +79,11 @@ code {
     }
     body {
         @apply bg-background text-foreground;
+        color-scheme: light;
+    }
+    select, select option {
+        color: #374151;
+        background-color: #ffffff;
     }
 }
 
