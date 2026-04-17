@@ -27,66 +27,103 @@ MESES_PT = {
 def setup_router(db, **kwargs):
 
     async def _calc_monthly_school_days(academic_year):
-        """Calcula dias letivos por mês com base no calendário (seg-sex excl. feriados + sábados letivos)."""
+        """Calcula dias letivos por mês usando a mesma lógica do módulo de frequência (attendance.py)."""
+        # Buscar calendário letivo (campo correto: ano_letivo, global: school_id=None)
+        calendario = await db.calendario_letivo.find_one(
+            {"ano_letivo": academic_year, "school_id": None}, {"_id": 0}
+        )
+        if not calendario:
+            calendario = await db.calendario_letivo.find_one(
+                {"ano_letivo": academic_year}, {"_id": 0}
+            )
+
+        if not calendario:
+            # Sem calendário, retorna zeros
+            return {m: 0 for m in range(1, 13)}
+
+        # Buscar eventos do calendário
+        eventos_nao_letivos = ['feriado_nacional', 'feriado_estadual', 'feriado_municipal', 'recesso_escolar']
         events = await db.calendar_events.find(
-            {"academic_year": academic_year},
-            {"_id": 0, "start_date": 1, "end_date": 1, "event_type": 1, "is_school_day": 1}
+            {"academic_year": academic_year}, {"_id": 0}
         ).to_list(1000)
 
-        holidays = set()
-        extra_days = set()
-        for ev in events:
-            sd = ev.get("start_date", "")
-            ed = ev.get("end_date", sd)
-            if not sd:
+        datas_nao_letivas = set()
+        datas_sabados_letivos = set()
+        for event in events:
+            event_type = event.get('event_type', '')
+            start_date_str = event.get('start_date')
+            end_date_str = event.get('end_date') or start_date_str
+            if not start_date_str:
                 continue
             try:
-                start = datetime.strptime(sd[:10], "%Y-%m-%d").date()
-                end = datetime.strptime(ed[:10], "%Y-%m-%d").date()
-            except:
+                start_d = datetime.strptime(start_date_str[:10], '%Y-%m-%d').date()
+                end_d = datetime.strptime(end_date_str[:10], '%Y-%m-%d').date()
+                current = start_d
+                while current <= end_d:
+                    if event_type in eventos_nao_letivos:
+                        datas_nao_letivas.add(current)
+                    elif event_type == 'sabado_letivo':
+                        datas_sabados_letivos.add(current)
+                    elif event.get('is_school_day', False) and current.weekday() == 5:
+                        datas_sabados_letivos.add(current)
+                    current += timedelta(days=1)
+            except (ValueError, TypeError):
                 continue
 
-            if ev.get("is_school_day"):
-                d = start
-                while d <= end:
-                    extra_days.add(d)
-                    d += timedelta(days=1)
-            elif ev.get("event_type") in ("feriado", "recesso", "ferias"):
-                d = start
-                while d <= end:
-                    holidays.add(d)
-                    d += timedelta(days=1)
-
-        # Buscar calendário letivo para saber datas dos bimestres
-        cal = await db.calendario_letivo.find_one({"academic_year": academic_year}, {"_id": 0})
-        year_start = date(academic_year, 2, 1)
-        year_end = date(academic_year, 12, 20)
-        if cal:
+        def _contar_dias_periodo(inicio_str, fim_str):
+            if not inicio_str or not fim_str:
+                return 0
             try:
-                b1s = cal.get("bimestre1_inicio", "")
-                b4e = cal.get("bimestre4_fim", "")
-                if b1s:
-                    year_start = datetime.strptime(b1s[:10], "%Y-%m-%d").date()
-                if b4e:
-                    year_end = datetime.strptime(b4e[:10], "%Y-%m-%d").date()
-            except:
-                pass
+                inicio = datetime.strptime(str(inicio_str)[:10], '%Y-%m-%d').date()
+                fim = datetime.strptime(str(fim_str)[:10], '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                return 0
+            dias = 0
+            current = inicio
+            while current <= fim:
+                if current in datas_sabados_letivos:
+                    dias += 1
+                elif current.weekday() < 5:
+                    if current not in datas_nao_letivas:
+                        dias += 1
+                current += timedelta(days=1)
+            return dias
 
-        monthly = {}
-        for m in range(1, 13):
-            days_in_month = calendar.monthrange(academic_year, m)[1]
-            count = 0
-            for d in range(1, days_in_month + 1):
-                dt = date(academic_year, m, d)
-                if dt < year_start or dt > year_end:
-                    continue
-                if dt in holidays:
-                    continue
-                if dt in extra_days:
-                    count += 1
-                elif dt.weekday() < 5:  # seg-sex
-                    count += 1
-            monthly[m] = count
+        # Coletar todas as datas letivas dos 4 bimestres
+        def _coletar_datas_periodo(inicio_str, fim_str):
+            datas = []
+            if not inicio_str or not fim_str:
+                return datas
+            try:
+                inicio = datetime.strptime(str(inicio_str)[:10], '%Y-%m-%d').date()
+                fim = datetime.strptime(str(fim_str)[:10], '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                return datas
+            current = inicio
+            while current <= fim:
+                is_school = False
+                if current in datas_sabados_letivos:
+                    is_school = True
+                elif current.weekday() < 5 and current not in datas_nao_letivas:
+                    is_school = True
+                if is_school:
+                    datas.append(current)
+                current += timedelta(days=1)
+            return datas
+
+        # Agregar dias letivos por mês a partir das datas dos bimestres
+        monthly = {m: 0 for m in range(1, 13)}
+        bimestres = [
+            (calendario.get('bimestre_1_inicio'), calendario.get('bimestre_1_fim')),
+            (calendario.get('bimestre_2_inicio'), calendario.get('bimestre_2_fim')),
+            (calendario.get('bimestre_3_inicio'), calendario.get('bimestre_3_fim')),
+            (calendario.get('bimestre_4_inicio'), calendario.get('bimestre_4_fim')),
+        ]
+        for b_inicio, b_fim in bimestres:
+            datas = _coletar_datas_periodo(b_inicio, b_fim)
+            for dt in datas:
+                monthly[dt.month] += 1
+
         return monthly
 
     async def _calc_student_monthly_attendance(student_id, academic_year, months_range):
