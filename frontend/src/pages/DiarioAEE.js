@@ -6,6 +6,7 @@ import {
   BookOpen, Target, Activity, UserCheck, ClipboardList, MessageSquare, Home
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import PlanoAEEModal from '@/components/PlanoAEEModal';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -80,43 +81,6 @@ const DiarioAEE = () => {
   const [selectedPlano, setSelectedPlano] = useState(null);
   
   // Formulários
-  const [planoForm, setPlanoForm] = useState({
-    student_id: '',
-    publico_alvo: '',
-    criterio_elegibilidade: '',
-    turma_origem_id: '',
-    turma_origem_nome: '',
-    escola_origem_nome: '',
-    professor_regente_id: '',
-    professor_regente_nome: '',
-    dias_atendimento: [],
-    horario_inicio: '',
-    horario_fim: '',
-    modalidade: 'individual',
-    carga_horaria_semanal: '',
-    local_atendimento: 'Sala de Recursos Multifuncionais',
-    barreiras: [],
-    objetivos: [],
-    recursos_acessibilidade: [],
-    orientacoes_sala_comum: '',
-    adequacoes_curriculares: '',
-    data_inicio: '',
-    data_revisao: '',
-    status: 'rascunho',
-    // Novos campos
-    data_elaboracao: '',
-    periodo_vigencia: '',
-    linha_base_situacao_atual: '',
-    linha_base_potencialidades: '',
-    linha_base_dificuldades: '',
-    linha_base_comunicacao: '',
-    indicadores_progresso: '',
-    frequencia_revisao: 'bimestral',
-    criterios_ajuste: '',
-    combinados_professor_regente: '',
-    adaptacoes_por_componente: ''
-  });
-  
   const [atendimentoForm, setAtendimentoForm] = useState({
     plano_aee_id: '',
     student_id: '',
@@ -271,29 +235,15 @@ const DiarioAEE = () => {
   };
 
   // === HANDLERS DE PLANO ===
-  const handleSavePlano = async () => {
-    if (!planoForm.student_id || !planoForm.publico_alvo) {
+  const handleSavePlano = async (formData) => {
+    if (!formData.student_id || !formData.publico_alvo) {
       showAlert('error', 'Selecione o aluno e o público-alvo');
       return;
     }
     
     try {
-      // Converter campos de texto que devem ser arrays
-      const barreirasArray = typeof planoForm.barreiras === 'string'
-        ? planoForm.barreiras.split('\n').filter(b => b.trim())
-        : (planoForm.barreiras || []);
-      const objetivosArray = typeof planoForm.objetivos === 'string'
-        ? planoForm.objetivos.split('\n').filter(o => o.trim())
-        : (planoForm.objetivos || []);
-      const recursosArray = typeof planoForm.recursos_acessibilidade === 'string'
-        ? planoForm.recursos_acessibilidade.split('\n').filter(r => r.trim())
-        : (planoForm.recursos_acessibilidade || []);
-
       const payload = {
-        ...planoForm,
-        barreiras: barreirasArray,
-        objetivos: objetivosArray,
-        recursos_acessibilidade: recursosArray,
+        ...formData,
         school_id: selectedSchool,
         academic_year: academicYear,
         professor_aee_id: user.id,
@@ -318,60 +268,14 @@ const DiarioAEE = () => {
       showAlert('success', editingPlano ? 'Plano atualizado com sucesso!' : 'Plano criado com sucesso!');
       setShowPlanoModal(false);
       setEditingPlano(null);
-      resetPlanoForm();
       fetchData();
     } catch (error) {
       showAlert('error', error.message);
     }
   };
 
-  const resetPlanoForm = () => {
-    setPlanoForm({
-      student_id: '',
-      publico_alvo: '',
-      criterio_elegibilidade: '',
-      turma_origem_id: '',
-      turma_origem_nome: '',
-      escola_origem_nome: '',
-      professor_regente_id: '',
-      professor_regente_nome: '',
-      dias_atendimento: [],
-      horario_inicio: '',
-      horario_fim: '',
-      modalidade: 'individual',
-      carga_horaria_semanal: '',
-      local_atendimento: 'Sala de Recursos Multifuncionais',
-      barreiras: [],
-      objetivos: [],
-      recursos_acessibilidade: [],
-      orientacoes_sala_comum: '',
-      adequacoes_curriculares: '',
-      data_inicio: '',
-      data_revisao: '',
-      status: 'rascunho',
-      data_elaboracao: '',
-      periodo_vigencia: '',
-      linha_base_situacao_atual: '',
-      linha_base_potencialidades: '',
-      linha_base_dificuldades: '',
-      linha_base_comunicacao: '',
-      indicadores_progresso: '',
-      frequencia_revisao: 'bimestral',
-      criterios_ajuste: '',
-      combinados_professor_regente: '',
-      adaptacoes_por_componente: ''
-    });
-  };
-
   const handleEditPlano = (plano) => {
     setEditingPlano(plano);
-    setPlanoForm({
-      ...plano,
-      dias_atendimento: plano.dias_atendimento || [],
-      barreiras: plano.barreiras || [],
-      objetivos: plano.objetivos || [],
-      recursos_acessibilidade: plano.recursos_acessibilidade || []
-    });
     setShowPlanoModal(true);
   };
 
@@ -513,7 +417,7 @@ const DiarioAEE = () => {
         <h3 className="text-lg font-semibold text-gray-800">Estudantes Atendidos no AEE</h3>
         {canEdit && (
         <button
-          onClick={() => { resetPlanoForm(); setShowPlanoModal(true); }}
+          onClick={() => { setEditingPlano(null); setShowPlanoModal(true); }}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
           <Plus size={18} />
@@ -582,7 +486,7 @@ const DiarioAEE = () => {
         <h3 className="text-lg font-semibold text-gray-800">Planos de AEE</h3>
         {canEdit && (
         <button
-          onClick={() => { resetPlanoForm(); setShowPlanoModal(true); }}
+          onClick={() => { setEditingPlano(null); setShowPlanoModal(true); }}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
           <Plus size={18} />
@@ -829,456 +733,7 @@ const DiarioAEE = () => {
     </div>
   );
 
-  // === MODAL DE PLANO (inline JSX, não como componente) ===
-  const planoModalContent = (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {editingPlano ? 'Editar Plano de AEE' : 'Novo Plano de AEE'}
-          </h2>
-          <button onClick={() => { setShowPlanoModal(false); setEditingPlano(null); }} className="text-gray-400 hover:text-gray-600">
-            ✕
-          </button>
-        </div>
-        
-        <div className="p-6 space-y-6">
-          {/* Identificação do Estudante */}
-          <div className="border rounded-lg p-4">
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Users size={18} />
-              Identificação do Estudante
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Aluno *</label>
-                <select
-                  value={planoForm.student_id}
-                  onChange={(e) => {
-                    const studentId = e.target.value;
-                    const est = estudantes.find(est => est.student_id === studentId);
-                    setPlanoForm(prev => ({
-                      ...prev,
-                      student_id: studentId,
-                      turma_origem_id: est?.class_id || '',
-                      turma_origem_nome: est?.turma_origem || '',
-                      escola_origem_nome: est?.escola_origem || '',
-                      professor_regente_nome: est?.professor_regente || ''
-                    }));
-                  }}
-                  className="w-full border rounded-lg px-3 py-2"
-                  disabled={!!editingPlano}
-                >
-                  <option value="">Selecione o aluno</option>
-                  {(selectedTurma ? filteredEstudantes : estudantes).map(est => (
-                    <option key={est.student_id} value={est.student_id}>{est.full_name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Público-Alvo da Educação Especial (PAEE) *</label>
-                <select
-                  value={planoForm.publico_alvo}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, publico_alvo: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                >
-                  <option value="">Selecione</option>
-                  {Object.entries(PUBLICO_ALVO_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">Caracterização das necessidades educacionais específicas</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Turma de Origem</label>
-                <input
-                  type="text"
-                  value={planoForm.turma_origem_nome}
-                  className="w-full border rounded-lg px-3 py-2 bg-gray-50"
-                  placeholder="Turma do aluno na sala regular"
-                  readOnly
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Escola de Origem</label>
-                <input
-                  type="text"
-                  value={planoForm.escola_origem_nome}
-                  className="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed"
-                  placeholder="Preenchido automaticamente"
-                  readOnly
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Professor Regente</label>
-                <input
-                  type="text"
-                  value={planoForm.professor_regente_nome}
-                  className="w-full border rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed"
-                  placeholder="Preenchido automaticamente"
-                  readOnly
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Justificativa Pedagógica para o AEE</label>
-                <input
-                  type="text"
-                  value={planoForm.criterio_elegibilidade}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, criterio_elegibilidade: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  placeholder="Descreva as barreiras e necessidades de apoio (sem mencionar CID ou laudo)"
-                />
-                <p className="text-xs text-gray-500 mt-1">Foco nas barreiras identificadas e nos apoios necessários, não no diagnóstico</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Vigência do Plano */}
-          <div className="border rounded-lg p-4">
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Calendar size={18} />
-              Vigência do Plano
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data de Elaboração</label>
-                <input
-                  type="date"
-                  value={planoForm.data_elaboracao}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, data_elaboracao: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Período de Vigência</label>
-                <select
-                  value={planoForm.periodo_vigencia}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, periodo_vigencia: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                >
-                  <option value="">Selecione</option>
-                  <option value="1_bimestre">1o Bimestre</option>
-                  <option value="2_bimestre">2o Bimestre</option>
-                  <option value="3_bimestre">3o Bimestre</option>
-                  <option value="4_bimestre">4o Bimestre</option>
-                  <option value="1_semestre">1o Semestre</option>
-                  <option value="2_semestre">2o Semestre</option>
-                  <option value="ano_letivo">Ano Letivo Completo</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Próxima Revisão</label>
-                <input
-                  type="date"
-                  value={planoForm.data_revisao}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, data_revisao: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Linha de Base - Situação Inicial */}
-          <div className="border rounded-lg p-4">
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <ClipboardList size={18} />
-              Linha de Base (Situação Inicial do Estudante)
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Situação Atual</label>
-                <textarea
-                  value={planoForm.linha_base_situacao_atual}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, linha_base_situacao_atual: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={2}
-                  placeholder="Como o estudante está hoje em relação à aprendizagem e participação..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Potencialidades</label>
-                <textarea
-                  value={planoForm.linha_base_potencialidades}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, linha_base_potencialidades: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={2}
-                  placeholder="Pontos fortes, habilidades e interesses do estudante..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Dificuldades Observadas</label>
-                <textarea
-                  value={planoForm.linha_base_dificuldades}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, linha_base_dificuldades: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={2}
-                  placeholder="Principais dificuldades e barreiras enfrentadas..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Formas de Comunicação e Participação</label>
-                <textarea
-                  value={planoForm.linha_base_comunicacao}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, linha_base_comunicacao: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={2}
-                  placeholder="Como o estudante se comunica e participa das atividades..."
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Cronograma */}
-          <div className="border rounded-lg p-4">
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Calendar size={18} />
-              Cronograma de Atendimento
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Dias de Atendimento</label>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(DIAS_SEMANA).map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-1">
-                      <input
-                        type="checkbox"
-                        checked={planoForm.dias_atendimento.includes(key)}
-                        onChange={(e) => {
-                          const dias = e.target.checked
-                            ? [...planoForm.dias_atendimento, key]
-                            : planoForm.dias_atendimento.filter(d => d !== key);
-                          setPlanoForm(prev => ({ ...prev, dias_atendimento: dias }));
-                        }}
-                        className="rounded"
-                      />
-                      <span className="text-sm">{label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Modalidade</label>
-                <select
-                  value={planoForm.modalidade}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, modalidade: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                >
-                  {Object.entries(MODALIDADE_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Horário Início</label>
-                <input
-                  type="time"
-                  value={planoForm.horario_inicio}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, horario_inicio: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Horário Fim</label>
-                <input
-                  type="time"
-                  value={planoForm.horario_fim}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, horario_fim: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Carga Horária Semanal</label>
-                <input
-                  type="text"
-                  value={planoForm.carga_horaria_semanal}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, carga_horaria_semanal: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  placeholder="Ex: 4 horas"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Local de Atendimento</label>
-                <input
-                  type="text"
-                  value={planoForm.local_atendimento}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, local_atendimento: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Objetivos e Barreiras */}
-          <div className="border rounded-lg p-4">
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Target size={18} />
-              Objetivos e Barreiras
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Barreiras Identificadas</label>
-                <textarea
-                  value={Array.isArray(planoForm.barreiras) ? planoForm.barreiras.join('\n') : planoForm.barreiras}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, barreiras: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={3}
-                  placeholder="Uma barreira por linha (ex: Comunicação, Mobilidade, Aprendizagem...)"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Objetivos do Atendimento</label>
-                <textarea
-                  value={Array.isArray(planoForm.objetivos) ? planoForm.objetivos.join('\n') : planoForm.objetivos}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, objetivos: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={3}
-                  placeholder="Um objetivo por linha"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Recursos de Acessibilidade</label>
-                <textarea
-                  value={Array.isArray(planoForm.recursos_acessibilidade) ? planoForm.recursos_acessibilidade.join('\n') : planoForm.recursos_acessibilidade}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, recursos_acessibilidade: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={3}
-                  placeholder="Um recurso por linha (ex: Software de leitura, Prancha de comunicação...)"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Estratégias de Acompanhamento */}
-          <div className="border rounded-lg p-4">
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Activity size={18} />
-              Estratégias de Acompanhamento
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Indicadores de Progresso</label>
-                <textarea
-                  value={planoForm.indicadores_progresso}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, indicadores_progresso: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={2}
-                  placeholder="Como será avaliado o progresso do estudante (indicadores simples e observáveis)..."
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Frequência de Revisão</label>
-                  <select
-                    value={planoForm.frequencia_revisao}
-                    onChange={(e) => setPlanoForm(prev => ({ ...prev, frequencia_revisao: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2"
-                  >
-                    <option value="mensal">Mensal</option>
-                    <option value="bimestral">Bimestral</option>
-                    <option value="trimestral">Trimestral</option>
-                    <option value="semestral">Semestral</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Critérios para Ajustar Estratégias</label>
-                  <input
-                    type="text"
-                    value={planoForm.criterios_ajuste}
-                    onChange={(e) => setPlanoForm(prev => ({ ...prev, criterios_ajuste: e.target.value }))}
-                    className="w-full border rounded-lg px-3 py-2"
-                    placeholder="Quando e como as estratégias serão revisadas..."
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Articulação com Sala Comum */}
-          <div className="border rounded-lg p-4">
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <MessageSquare size={18} />
-              Articulação com Sala Comum
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Orientações para Sala Comum</label>
-                <textarea
-                  value={planoForm.orientacoes_sala_comum}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, orientacoes_sala_comum: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={2}
-                  placeholder="Orientações gerais para o professor regente..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Combinados com Professor Regente</label>
-                <textarea
-                  value={planoForm.combinados_professor_regente}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, combinados_professor_regente: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={2}
-                  placeholder="Acordos específicos entre AEE e professor da sala regular..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Adaptações por Componente Curricular</label>
-                <textarea
-                  value={planoForm.adaptacoes_por_componente}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, adaptacoes_por_componente: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={2}
-                  placeholder="Ex: Português - ampliação de fonte; Matemática - uso de material concreto..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Adequações Curriculares</label>
-                <textarea
-                  value={planoForm.adequacoes_curriculares}
-                  onChange={(e) => setPlanoForm(prev => ({ ...prev, adequacoes_curriculares: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={2}
-                  placeholder="Adequações de acesso ao currículo..."
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Status */}
-          <div className="flex items-center gap-4">
-            <label className="block text-sm font-medium text-gray-700">Status do Plano:</label>
-            <select
-              value={planoForm.status}
-              onChange={(e) => setPlanoForm(prev => ({ ...prev, status: e.target.value }))}
-              className="border rounded-lg px-3 py-2"
-            >
-              <option value="rascunho">Rascunho</option>
-              <option value="ativo">Ativo</option>
-              <option value="revisao">Em Revisão</option>
-              <option value="encerrado">Encerrado</option>
-            </select>
-          </div>
-        </div>
-        
-        <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex justify-end gap-3">
-          <button
-            onClick={() => { setShowPlanoModal(false); setEditingPlano(null); }}
-            className="px-4 py-2 border rounded-lg hover:bg-gray-100"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSavePlano}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            {editingPlano ? 'Atualizar' : 'Salvar'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   // === MODAL DE ATENDIMENTO ===
-  // === MODAL DE ATENDIMENTO (inline JSX) ===
   const atendimentoModalContent = (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -1578,7 +1033,14 @@ const DiarioAEE = () => {
       </div>
       
       {/* Modais */}
-      {showPlanoModal && planoModalContent}
+      <PlanoAEEModal
+        show={showPlanoModal}
+        onClose={() => { setShowPlanoModal(false); setEditingPlano(null); }}
+        onSave={handleSavePlano}
+        editingPlano={editingPlano}
+        estudantes={estudantes}
+        canEdit={canEdit}
+      />
       {showAtendimentoModal && atendimentoModalContent}
     </div>
   );
