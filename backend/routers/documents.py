@@ -1640,16 +1640,34 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 elif status in ["transferencia", "transferido"]:
                     result = "TRANSFERIDO"
                 else:
-                    # Verificar médias
-                    averages = [g.get("finalAverage") for g in grades_by_component.values() if g.get("finalAverage") is not None]
-                    if averages:
-                        all_approved = all(avg >= 6 for avg in averages)
+                    # Só componentes REGULARES contam para aprovação/reprovação
+                    # (componentes formativos: integral, AEE são excluídos)
+                    reg_averages = []
+                    has_all_b4 = True
+                    for cid, g in grades_by_component.items():
+                        course = courses_map.get(cid, {})
+                        ap = (course.get('atendimento_programa') or '').lower()
+                        if 'integral' in ap or 'aee' in ap:
+                            continue  # formativo, não conta
+                        if g.get("b4") is None:
+                            has_all_b4 = False
+                        fa = g.get("finalAverage")
+                        if fa is not None:
+                            reg_averages.append(fa)
+                    
+                    if reg_averages:
+                        all_approved = all(avg >= 6 for avg in reg_averages)
                         if all_approved:
                             result = "APROVADO"
+                        elif not has_all_b4:
+                            # B4 não registrado: não pode reprovar ainda
+                            result = "CURSANDO"
                         else:
-                            failed_count = sum(1 for avg in averages if avg < 6)
+                            failed_count = sum(1 for avg in reg_averages if avg < 6)
                             if failed_count >= 3:
                                 result = "REPROVADO"
+                            elif failed_count > 0:
+                                result = "APROVADO COM DEPENDÊNCIA"
 
                 # Adicionar dados do aluno
                 students_data.append({
