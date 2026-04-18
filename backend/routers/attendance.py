@@ -126,7 +126,15 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         date_obj = datetime.strptime(date, "%Y-%m-%d")
         is_weekend = date_obj.weekday() in [5, 6]
         
-        can_record = is_school_day and not is_weekend
+        # Verificar se é sábado letivo
+        is_sabado_letivo = False
+        for event in events:
+            et = event.get('event_type', '')
+            if et == 'sabado_letivo' or (event.get('is_school_day') and date_obj.weekday() == 5):
+                is_sabado_letivo = True
+                break
+        
+        can_record = is_school_day and (not is_weekend or is_sabado_letivo)
         if is_future and not can_use_future:
             can_record = False
         
@@ -134,12 +142,14 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             "date": date,
             "is_school_day": is_school_day,
             "is_weekend": is_weekend,
+            "is_sabado_letivo": is_sabado_letivo,
             "is_future": is_future,
             "allow_future_dates": allow_future,
             "can_record": can_record,
             "blocking_events": blocking_events,
             "message": (
                 "Data futura não permitida" if is_future and not can_use_future
+                else "Sábado Letivo" if is_sabado_letivo
                 else "Final de semana" if is_weekend
                 else "Dia não letivo" if not is_school_day
                 else "Liberado para lançamento"
