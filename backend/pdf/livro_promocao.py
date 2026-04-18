@@ -1,4 +1,5 @@
 """Módulo PDF - Livro de Promoção"""
+import copy
 from io import BytesIO
 from datetime import datetime
 from typing import List, Dict, Any
@@ -522,11 +523,11 @@ def generate_livro_promocao_pdf(
     elements.append(table_p2)
     
     # === Build em 2 passagens: 1ª conta páginas, 2ª gera com total correto ===
-    # 1ª passagem: contar páginas
+    # 1ª passagem: contar páginas (usa deep copy para não mutar os elementos originais)
     count_buffer = BytesIO()
     count_doc = SimpleDocTemplate(count_buffer, pagesize=landscape(A4),
         leftMargin=0.8*cm, rightMargin=0.8*cm, topMargin=3.0*cm, bottomMargin=4.2*cm)
-    count_doc.build(list(elements), onFirstPage=draw_header_footer, onLaterPages=draw_header_footer)
+    count_doc.build(copy.deepcopy(elements), onFirstPage=draw_header_footer, onLaterPages=draw_header_footer)
     page_total[0] = count_doc.page
     
     # 2ª passagem: gerar PDF final com total de páginas correto
