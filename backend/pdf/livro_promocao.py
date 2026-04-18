@@ -1,45 +1,25 @@
 """Módulo PDF - Livro de Promoção
-Paginação automática horizontal: divide componentes em blocos que cabem na página.
+Estrutura vertical: cada aluno é um bloco com tabela de disciplinas em linhas.
+Largura fixa, altura variável. Nunca estoura a página.
 """
 from io import BytesIO
 from datetime import datetime
 from typing import List, Dict, Any
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak, Flowable
+from reportlab.platypus import (
+    SimpleDocTemplate, Table, TableStyle, Paragraph,
+    Spacer, PageBreak, KeepTogether
+)
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from pdf.utils import ordenar_componentes_por_nivel
 
 PAGE_W, PAGE_H = landscape(A4)
 MX = 0.8 * cm
 USABLE_W = PAGE_W - 2 * MX
-COL_NUM_W = 0.6 * cm
-COL_SEXO_W = 0.5 * cm
-COL_NOME_W = 3.8 * cm
-FIXED_W = COL_NUM_W + COL_NOME_W + COL_SEXO_W
-MIN_NOTE_W = 0.48 * cm  # largura mínima aceitável por coluna de nota
-
-
-class VerticalText(Flowable):
-    def __init__(self, text, font='Helvetica-Bold', size=6, text_color=colors.white):
-        Flowable.__init__(self)
-        self.text = text or ''
-        self.font = font
-        self.size = size
-        self.text_color = text_color
-        self.width = size + 4
-        self.height = stringWidth(self.text, font, size) + 6
-
-    def draw(self):
-        c = self.canv
-        c.saveState()
-        c.setFont(self.font, self.size)
-        c.setFillColor(self.text_color)
-        c.rotate(90)
-        c.drawString(3, -self.size - 1, self.text)
-        c.restoreState()
-
 
 # ── Abreviações ──────────────────────────────────────────────
 ABREV = {
@@ -67,45 +47,23 @@ def _abrev(nome):
     for k, v in ABREV.items():
         if nl.startswith(k) or k.startswith(nl):
             return v
-    return (nome[:12] + '.').upper() if len(nome) > 12 else nome.upper()
-
+    return nome.upper()
 
 def _fmt(v):
     if v is None:
-        return ''
+        return '-'
     try:
         if isinstance(v, (int, float)):
             return f"{v:.1f}".replace('.', ',')
     except (ValueError, TypeError):
-        return ''
-    return str(v) if v else ''
+        return '-'
+    return str(v) if v else '-'
 
-
-def _safe(v, mx=30):
+def _safe(v, mx=40):
     if v is None:
         return ''
     return str(v)[:mx]
 
-
-def _max_components_per_section():
-    """Quantos componentes cabem em uma seção de bimestre (3 seções por página lógica)."""
-    available = USABLE_W - FIXED_W
-    # 3 seções (bim, bim, rec) por página lógica
-    per_section = available / 3
-    return max(1, int(per_section / MIN_NOTE_W))
-
-
-def _chunk_courses(courses, max_per_section):
-    """Divide componentes em blocos que cabem em uma página."""
-    if len(courses) <= max_per_section:
-        return [courses]
-    chunks = []
-    for i in range(0, len(courses), max_per_section):
-        chunks.append(courses[i:i + max_per_section])
-    return chunks
-
-
-# ── Geração do PDF ───────────────────────────────────────────
 
 def generate_livro_promocao_pdf(
     school: Dict[str, Any],
@@ -119,18 +77,17 @@ def generate_livro_promocao_pdf(
     buffer = BytesIO()
     mantenedora = mantenedora or {}
 
-    # Dados do cabeçalho / rodapé
+    # Dados do cabeçalho/rodapé
     today = datetime.now()
-    meses_pt = ['janeiro','fevereiro','março','abril','maio','junho',
-                'julho','agosto','setembro','outubro','novembro','dezembro']
+    meses = ['janeiro','fevereiro','março','abril','maio','junho',
+             'julho','agosto','setembro','outubro','novembro','dezembro']
     mun = mantenedora.get('municipio', 'Floresta do Araguaia')
     uf = mantenedora.get('estado', 'PA')
     mant_nome = mantenedora.get('nome', f'Prefeitura Municipal de {mun}')
     secretaria = mantenedora.get('secretaria', 'Secretaria Municipal de Educação')
     slogan = mantenedora.get('slogan', '')
-    data_extenso = f"{mun} - {uf}, {today.day} de {meses_pt[today.month-1]} de {today.year}"
+    data_extenso = f"{mun} - {uf}, {today.day} de {meses[today.month-1]} de {today.year}"
     rodape_info = f"Documento gerado em {today.strftime('%d/%m/%Y às %H:%M')} | Total de alunos: {len(students_data)}"
-
     escola_nome = school.get('name', '')
     turma_nome = class_info.get('name', '')
     grade_level = class_info.get('grade_level', '')
@@ -141,25 +98,18 @@ def generate_livro_promocao_pdf(
     nivel = class_info.get('education_level', '')
     courses_ord = ordenar_componentes_por_nivel(courses, nivel)
     if not courses_ord:
-        courses_ord = courses or [{'id': 'x', 'name': 'Componente'}]
-    comp_names = [_abrev(c.get('name', '')) for c in courses_ord]
+        courses_ord = courses or []
 
-    # ── Paginação automática ─────────────────────────────────
-    max_per = _max_components_per_section()
-    chunks = _chunk_courses(list(range(len(courses_ord))), max_per)
-
-    # Contagem total de páginas: cada chunk gera 2 páginas (sem1 + sem2)
-    total_logical_pages = len(chunks) * 2
-    # variável mutável para total real (preenchida após build)
-    page_info = {'total': total_logical_pages}
+    # Variável para total de páginas
+    page_info = {'total': 0}
 
     def _header_footer(canvas_obj, doc_obj):
         canvas_obj.saveState()
         pn = doc_obj.page
-        tp = page_info['total']
+        tp = page_info['total'] if page_info['total'] > 0 else pn
 
         # ── CABEÇALHO ──
-        y = PAGE_H - 0.6*cm
+        y = PAGE_H - 0.6 * cm
         canvas_obj.setFont('Helvetica-Bold', 10)
         canvas_obj.drawString(MX, y, mant_nome.upper())
         y -= 12
@@ -174,310 +124,231 @@ def generate_livro_promocao_pdf(
 
         canvas_obj.setFont('Helvetica-Bold', 14)
         canvas_obj.setFillColor(colors.HexColor('#1e40af'))
-        canvas_obj.drawRightString(PAGE_W - MX, PAGE_H - 0.7*cm, 'LIVRO DE PROMOÇÃO')
+        canvas_obj.drawRightString(PAGE_W - MX, PAGE_H - 0.7 * cm, 'LIVRO DE PROMOÇÃO')
         canvas_obj.setFillColor(colors.black)
         canvas_obj.setFont('Helvetica', 10)
-        canvas_obj.drawRightString(PAGE_W - MX, PAGE_H - 1.2*cm, f'ANO LETIVO: {academic_year}')
+        canvas_obj.drawRightString(PAGE_W - MX, PAGE_H - 1.2 * cm, f'ANO LETIVO: {academic_year}')
 
-        bh = 0.4*cm
-        by1 = PAGE_H - 2.2*cm
+        bh = 0.4 * cm
+        by1 = PAGE_H - 2.2 * cm
         canvas_obj.setLineWidth(0.5)
         canvas_obj.rect(MX, by1, USABLE_W, bh, stroke=1, fill=0)
         canvas_obj.setFont('Helvetica-Bold', 7)
-        canvas_obj.drawString(MX+3, by1+3, 'ESCOLA:')
+        canvas_obj.drawString(MX + 3, by1 + 3, 'ESCOLA:')
         canvas_obj.setFont('Helvetica', 7)
-        canvas_obj.drawString(MX+3+stringWidth('ESCOLA: ','Helvetica-Bold',7), by1+3, escola_nome)
+        canvas_obj.drawString(MX + 3 + stringWidth('ESCOLA: ', 'Helvetica-Bold', 7), by1 + 3, escola_nome)
         canvas_obj.setFont('Helvetica-Bold', 7)
-        canvas_obj.drawRightString(PAGE_W-MX-3, by1+3, f'PÁGINA: {pn:02d}/{tp:02d}')
+        pag_str = f'PÁGINA: {pn:02d}'
+        canvas_obj.drawRightString(PAGE_W - MX - 3, by1 + 3, pag_str)
 
         by2 = by1 - bh
         canvas_obj.rect(MX, by2, USABLE_W, bh, stroke=1, fill=0)
         tw = USABLE_W / 3
-        canvas_obj.line(MX+tw, by2, MX+tw, by2+bh)
-        canvas_obj.line(MX+2*tw, by2, MX+2*tw, by2+bh)
-        for lbl, val, off in [('TURMA:', turma_nome, 0), ('ANO/ETAPA:', grade_level, tw), ('TURNO:', turno, 2*tw)]:
+        canvas_obj.line(MX + tw, by2, MX + tw, by2 + bh)
+        canvas_obj.line(MX + 2 * tw, by2, MX + 2 * tw, by2 + bh)
+        for lbl, val, off in [('TURMA:', turma_nome, 0), ('ANO/ETAPA:', grade_level, tw), ('TURNO:', turno, 2 * tw)]:
             canvas_obj.setFont('Helvetica-Bold', 7)
-            canvas_obj.drawString(MX+off+3, by2+3, lbl)
+            canvas_obj.drawString(MX + off + 3, by2 + 3, lbl)
             canvas_obj.setFont('Helvetica', 7)
-            canvas_obj.drawString(MX+off+3+stringWidth(lbl+' ','Helvetica-Bold',7), by2+3, val)
+            canvas_obj.drawString(MX + off + 3 + stringWidth(lbl + ' ', 'Helvetica-Bold', 7), by2 + 3, val)
 
-        # ── RODAPÉ (só na última página) ──
-        if pn == tp:
-            canvas_obj.setFont('Helvetica', 9)
-            canvas_obj.drawCentredString(PAGE_W/2, 3.8*cm, data_extenso)
-            ly = 2.6*cm
-            cl, cr, hl = PAGE_W/2-5*cm, PAGE_W/2+5*cm, 4*cm
-            canvas_obj.setLineWidth(0.5)
-            canvas_obj.line(cl-hl, ly, cl+hl, ly)
-            canvas_obj.line(cr-hl, ly, cr+hl, ly)
-            canvas_obj.setFont('Helvetica', 9)
-            canvas_obj.drawCentredString(cl, ly-12, 'Secretário(a)')
-            canvas_obj.drawCentredString(cr, ly-12, 'Diretor(a)')
-            canvas_obj.setFont('Helvetica', 7)
-            canvas_obj.setFillColor(colors.HexColor('#666666'))
-            canvas_obj.drawString(MX, 0.6*cm, rodape_info)
+        # ── RODAPÉ desenhado por pós-processamento ──
 
         canvas_obj.restoreState()
+        # Nota: rodapé é desenhado na última página pelo pós-processamento
 
-    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
-        leftMargin=MX, rightMargin=MX, topMargin=3.0*cm, bottomMargin=4.2*cm)
+    # ── Estilos ──────────────────────────────────────────────
+    st_aluno_nome = ParagraphStyle('AlunoNome', fontSize=9, fontName='Helvetica-Bold', leading=12)
+    st_aluno_info = ParagraphStyle('AlunoInfo', fontSize=7, fontName='Helvetica', leading=9, textColor=colors.HexColor('#444444'))
+    st_resultado_ok = ParagraphStyle('ResOk', fontSize=9, fontName='Helvetica-Bold', textColor=colors.HexColor('#1b5e20'), alignment=TA_CENTER)
+    st_resultado_rep = ParagraphStyle('ResRep', fontSize=9, fontName='Helvetica-Bold', textColor=colors.HexColor('#b71c1c'), alignment=TA_CENTER)
+    st_resultado_cur = ParagraphStyle('ResCur', fontSize=9, fontName='Helvetica-Bold', textColor=colors.HexColor('#1565c0'), alignment=TA_CENTER)
+    st_resultado_out = ParagraphStyle('ResOut', fontSize=9, fontName='Helvetica', textColor=colors.HexColor('#666666'), alignment=TA_CENTER)
 
+    # ── Larguras das colunas da tabela vertical ──────────────
+    # COMPONENTE | B1 | B2 | REC1 | B3 | B4 | REC2 | TOTAL | MÉDIA
+    col_comp = 5.5 * cm
+    col_nota = 1.5 * cm
+    col_total = 1.7 * cm
+    col_media = 1.7 * cm
+    col_widths = [col_comp] + [col_nota] * 6 + [col_total, col_media]
+
+    # ── Montar blocos por aluno ──────────────────────────────
     elements = []
 
-    # ── Para cada bloco de componentes ───────────────────────
-    for chunk_idx, col_indices in enumerate(chunks):
-        n_comp = len(col_indices)
-        chunk_courses = [courses_ord[i] for i in col_indices]
-        chunk_names = [comp_names[i] for i in col_indices]
+    for idx, student in enumerate(students_data):
+        if idx > 0:
+            elements.append(Spacer(1, 10))
 
-        # Largura por nota
-        note_area = USABLE_W - FIXED_W
-        note_w = note_area / (n_comp * 3)
+        nome = _safe(student.get('studentName', ''), 60)
+        sexo = 'Masculino' if _safe(student.get('sex', ''), 1).upper() == 'M' else 'Feminino'
+        resultado = _safe(student.get('result', 'CURSANDO'), 30)
+        grades = student.get('grades') or {}
 
-        # ── SEMESTRE 1 (Bim 1, Bim 2, Rec 1) ───────────────
-        if chunk_idx > 0:
-            elements.append(PageBreak())
+        # Cabeçalho do aluno
+        bloco = []
+        bloco.append(Paragraph(f"{idx + 1}. {nome}", st_aluno_nome))
+        bloco.append(Paragraph(f"Sexo: {sexo} | Resultado: <b>{resultado}</b>", st_aluno_info))
+        bloco.append(Spacer(1, 4))
 
-        h1 = ['N°', 'NOME DO ALUNO', 'S']
-        h1 += ['NOTAS 1º BIMESTRE'] + ['']*(n_comp-1)
-        h1 += ['NOTAS 2º BIMESTRE'] + ['']*(n_comp-1)
-        h1 += ['RECUPERAÇÃO 1º SEMESTRE'] + ['']*(n_comp-1)
+        # Tabela de notas
+        header = ['COMPONENTE', '1º BIM', '2º BIM', 'REC 1ºS', '3º BIM', '4º BIM', 'REC 2ºS', 'TOTAL', 'MÉDIA']
+        data = [header]
 
-        h2 = ['', '', '']
-        for _ in range(3):
-            h2 += [VerticalText(n) for n in chunk_names]
+        total_pontos = 0
+        medias_validas = []
 
-        data = [h1, h2]
-        for idx, st in enumerate(students_data, 1):
-            row = [str(idx), _safe(st.get('studentName',''),30), _safe(st.get('sex','-'),1)]
-            gr = st.get('grades') or {}
-            for bim_key in ('b1', 'b2', 'rec1'):
-                for c in chunk_courses:
-                    gi = gr.get(c.get('id',''), {})
-                    row.append(_fmt(gi.get(bim_key) if isinstance(gi, dict) else None))
-            data.append(row)
+        for course in courses_ord:
+            cid = course.get('id', '')
+            cname = _abrev(course.get('name', ''))
+            gi = grades.get(cid, {})
+            if not isinstance(gi, dict):
+                gi = {}
 
-        cw = [COL_NUM_W, COL_NOME_W, COL_SEXO_W] + [note_w]*(n_comp*3)
-        tbl = Table(data, colWidths=cw, repeatRows=2)
+            b1 = gi.get('b1')
+            b2 = gi.get('b2')
+            b3 = gi.get('b3')
+            b4 = gi.get('b4')
+            rec1 = gi.get('rec1')
+            rec2 = gi.get('rec2')
+            tp = gi.get('totalPoints')
+            fa = gi.get('finalAverage')
+
+            if isinstance(fa, (int, float)):
+                total_pontos += fa
+                medias_validas.append(fa)
+
+            data.append([
+                cname,
+                _fmt(b1), _fmt(b2), _fmt(rec1),
+                _fmt(b3), _fmt(b4), _fmt(rec2),
+                _fmt(tp), _fmt(fa)
+            ])
+
+        # Linha de totais
+        mg = total_pontos / len(medias_validas) if medias_validas else 0
+        data.append([
+            'TOTAL GERAL', '', '', '', '', '', '',
+            _fmt(total_pontos) if total_pontos > 0 else '-',
+            _fmt(mg) if mg > 0 else '-'
+        ])
+
+        tbl = Table(data, colWidths=col_widths, repeatRows=1)
 
         style = [
-            ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#1e3a5f')),
-            ('TEXTCOLOR',(0,0),(-1,0),colors.white),
-            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-            ('FONTSIZE',(0,0),(-1,0),7),
-            ('ALIGN',(0,0),(-1,0),'CENTER'),
-            ('BACKGROUND',(0,1),(-1,1),colors.HexColor('#3b5998')),
-            ('TEXTCOLOR',(0,1),(-1,1),colors.white),
-            ('FONTNAME',(0,1),(-1,1),'Helvetica-Bold'),
-            ('FONTSIZE',(0,1),(-1,1),6),
-            ('ALIGN',(0,1),(-1,1),'CENTER'),
-            ('FONTSIZE',(0,2),(-1,-1),6),
-            ('FONTNAME',(0,2),(-1,-1),'Helvetica'),
-            ('ALIGN',(0,2),(-1,-1),'CENTER'),
-            ('ALIGN',(1,2),(1,-1),'LEFT'),
-            ('BOX',(0,0),(-1,-1),0.5,colors.black),
-            ('INNERGRID',(0,0),(-1,-1),0.3,colors.grey),
-            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
-            ('LINEAFTER',(2,0),(2,-1),1.5,colors.black),
-            ('LINEAFTER',(2+n_comp,0),(2+n_comp,-1),1.5,colors.black),
-            ('LINEAFTER',(2+n_comp*2,0),(2+n_comp*2,-1),1.5,colors.black),
-            ('TOPPADDING',(0,0),(-1,-1),2),
-            ('BOTTOMPADDING',(0,0),(-1,-1),2),
-            ('LEFTPADDING',(0,0),(-1,-1),2),
-            ('RIGHTPADDING',(0,0),(-1,-1),2),
-            ('SPAN',(3,0),(3+n_comp-1,0)),
-            ('SPAN',(3+n_comp,0),(3+n_comp*2-1,0)),
-            ('SPAN',(3+n_comp*2,0),(3+n_comp*3-1,0)),
-            ('ROWBACKGROUNDS',(0,2),(-1,-1),[colors.white,colors.HexColor('#f5f5f5')]),
+            # Header
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 7),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            # Corpo
+            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 1), (-1, -1), 'Helvetica'),
+            ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+            # Grid
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
+            ('INNERGRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#cccccc')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            # Padding
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+            # Zebra
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f5f5f5')]),
+            # Linha de total
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8eaf6')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('LINEABOVE', (0, -1), (-1, -1), 1, colors.black),
         ]
+
+        # Colorir médias abaixo de 6
+        for row_idx in range(1, len(data) - 1):
+            fa_val = None
+            try:
+                gi = grades.get(courses_ord[row_idx - 1].get('id', ''), {})
+                if isinstance(gi, dict):
+                    fa_val = gi.get('finalAverage')
+            except (IndexError, AttributeError):
+                pass
+            if isinstance(fa_val, (int, float)) and fa_val < 6:
+                style.append(('TEXTCOLOR', (-1, row_idx), (-1, row_idx), colors.HexColor('#c62828')))
+                style.append(('FONTNAME', (-1, row_idx), (-1, row_idx), 'Helvetica-Bold'))
+
         tbl.setStyle(TableStyle(style))
-        elements.append(tbl)
+        bloco.append(tbl)
 
-        # ── SEMESTRE 2 (Bim 3, Bim 4, Rec 2) + Resultado ───
-        elements.append(PageBreak())
-
-        # Só a última chunk inclui TOTAL/MÉDIA/RESULTADO
-        is_last_chunk = (chunk_idx == len(chunks) - 1)
-        extra_cols = 3 if is_last_chunk else 0
-
-        h1b = ['N°', 'NOME DO ALUNO', 'S']
-        h1b += ['NOTAS 3º BIMESTRE'] + ['']*(n_comp-1)
-        h1b += ['NOTAS 4º BIMESTRE'] + ['']*(n_comp-1)
-        h1b += ['RECUPERAÇÃO 2º SEMESTRE'] + ['']*(n_comp-1)
-        if is_last_chunk:
-            h1b += ['TOTAL', 'MÉDIA', 'RESULTADO']
-
-        h2b = ['', '', '']
-        for _ in range(3):
-            h2b += [VerticalText(n) for n in chunk_names]
-        if is_last_chunk:
-            h2b += ['PTS', 'FINAL', '']
-
-        data2 = [h1b, h2b]
-        for idx, st in enumerate(students_data, 1):
-            row = [str(idx), _safe(st.get('studentName',''),30), _safe(st.get('sex','-'),1)]
-            gr = st.get('grades') or {}
-            for bim_key in ('b3', 'b4', 'rec2'):
-                for c in chunk_courses:
-                    gi = gr.get(c.get('id',''), {})
-                    row.append(_fmt(gi.get(bim_key) if isinstance(gi, dict) else None))
-
-            if is_last_chunk:
-                # Total e média usando TODOS os componentes (não só o chunk)
-                tp_val = 0
-                medias = []
-                for c in courses_ord:
-                    gi = (gr.get(c.get('id',''), {}) or {})
-                    m = gi.get('finalAverage') if isinstance(gi, dict) else None
-                    if isinstance(m, (int, float)):
-                        tp_val += m
-                        medias.append(m)
-                mg = tp_val / len(medias) if medias else 0
-                row.append(f"{tp_val:.1f}".replace('.',',') if tp_val > 0 else '-')
-                row.append(f"{mg:.1f}".replace('.',',') if mg > 0 else '-')
-                resultado = _safe(st.get('result','CURSANDO'), 12)
-                row.append(resultado)
-
-            data2.append(row)
-
-        if is_last_chunk:
-            extra_w = 0.9*cm + 0.9*cm + 1.5*cm
-            nw2 = (USABLE_W - FIXED_W - extra_w) / (n_comp * 3)
-            cw2 = [COL_NUM_W, COL_NOME_W, COL_SEXO_W] + [nw2]*(n_comp*3) + [0.9*cm, 0.9*cm, 1.5*cm]
+        # Resultado com cor
+        bloco.append(Spacer(1, 3))
+        if 'APROVADO' in resultado or 'PROMOVIDO' in resultado:
+            bloco.append(Paragraph(f"RESULTADO FINAL: {resultado}", st_resultado_ok))
+        elif 'REPROVADO' in resultado:
+            bloco.append(Paragraph(f"RESULTADO FINAL: {resultado}", st_resultado_rep))
+        elif 'CURSANDO' in resultado:
+            bloco.append(Paragraph(f"RESULTADO FINAL: {resultado}", st_resultado_cur))
         else:
-            nw2 = note_w
-            cw2 = [COL_NUM_W, COL_NOME_W, COL_SEXO_W] + [nw2]*(n_comp*3)
+            bloco.append(Paragraph(f"RESULTADO FINAL: {resultado}", st_resultado_out))
 
-        tbl2 = Table(data2, colWidths=cw2, repeatRows=2)
+        # Manter bloco junto se possível, senão quebra naturalmente
+        elements.append(KeepTogether(bloco) if len(courses_ord) <= 12 else bloco[0])
+        if len(courses_ord) > 12:
+            for item in bloco[1:]:
+                elements.append(item)
 
-        style2 = [
-            ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#1e3a5f')),
-            ('TEXTCOLOR',(0,0),(-1,0),colors.white),
-            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-            ('FONTSIZE',(0,0),(-1,0),7),
-            ('ALIGN',(0,0),(-1,0),'CENTER'),
-            ('BACKGROUND',(0,1),(-1,1),colors.HexColor('#3b5998')),
-            ('TEXTCOLOR',(0,1),(-1,1),colors.white),
-            ('FONTNAME',(0,1),(-1,1),'Helvetica-Bold'),
-            ('FONTSIZE',(0,1),(-1,1),6),
-            ('ALIGN',(0,1),(-1,1),'CENTER'),
-            ('FONTSIZE',(0,2),(-1,-1),6),
-            ('FONTNAME',(0,2),(-1,-1),'Helvetica'),
-            ('ALIGN',(0,2),(-1,-1),'CENTER'),
-            ('ALIGN',(1,2),(1,-1),'LEFT'),
-            ('BOX',(0,0),(-1,-1),0.5,colors.black),
-            ('INNERGRID',(0,0),(-1,-1),0.3,colors.grey),
-            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
-            ('LINEAFTER',(2,0),(2,-1),1.5,colors.black),
-            ('LINEAFTER',(2+n_comp,0),(2+n_comp,-1),1.5,colors.black),
-            ('LINEAFTER',(2+n_comp*2,0),(2+n_comp*2,-1),1.5,colors.black),
-            ('TOPPADDING',(0,0),(-1,-1),2),
-            ('BOTTOMPADDING',(0,0),(-1,-1),2),
-            ('LEFTPADDING',(0,0),(-1,-1),2),
-            ('RIGHTPADDING',(0,0),(-1,-1),2),
-            ('SPAN',(3,0),(3+n_comp-1,0)),
-            ('SPAN',(3+n_comp,0),(3+n_comp*2-1,0)),
-            ('SPAN',(3+n_comp*2,0),(3+n_comp*3-1,0)),
-            ('ROWBACKGROUNDS',(0,2),(-1,-1),[colors.white,colors.HexColor('#f5f5f5')]),
-        ]
-
-        if is_last_chunk:
-            col_res = len(cw2) - 1
-            for ri, st in enumerate(students_data, 2):
-                r = _safe(st.get('result',''), 12)
-                if 'APROVADO' in r or 'PROMOVIDO' in r:
-                    style2.append(('BACKGROUND',(col_res,ri),(col_res,ri),colors.HexColor('#c8e6c9')))
-                    style2.append(('TEXTCOLOR',(col_res,ri),(col_res,ri),colors.HexColor('#1b5e20')))
-                    style2.append(('FONTNAME',(col_res,ri),(col_res,ri),'Helvetica-Bold'))
-                elif 'REPROVADO' in r:
-                    style2.append(('BACKGROUND',(col_res,ri),(col_res,ri),colors.HexColor('#ffcdd2')))
-                    style2.append(('TEXTCOLOR',(col_res,ri),(col_res,ri),colors.HexColor('#b71c1c')))
-                    style2.append(('FONTNAME',(col_res,ri),(col_res,ri),'Helvetica-Bold'))
-                elif 'DESISTENTE' in r:
-                    style2.append(('BACKGROUND',(col_res,ri),(col_res,ri),colors.HexColor('#e0e0e0')))
-                elif 'TRANSFERIDO' in r:
-                    style2.append(('BACKGROUND',(col_res,ri),(col_res,ri),colors.HexColor('#fff9c4')))
-
-        tbl2.setStyle(TableStyle(style2))
-        elements.append(tbl2)
-
-    # ── Build ────────────────────────────────────────────────
-    # 1ª passagem: contar páginas reais
-    from io import BytesIO as _B
-    tmp = _B()
-    tmp_doc = SimpleDocTemplate(tmp, pagesize=landscape(A4),
-        leftMargin=MX, rightMargin=MX, topMargin=3.0*cm, bottomMargin=4.2*cm)
-
-    # Criar elementos frescos para 1ª passagem (sem compartilhar Flowables)
-    def _clone_elements():
-        """Reconstrói a lista de elements com objetos novos."""
-        elems = []
-        for chunk_idx, col_indices in enumerate(chunks):
-            n_comp = len(col_indices)
-            chunk_courses_c = [courses_ord[i] for i in col_indices]
-            chunk_names_c = [comp_names[i] for i in col_indices]
-            note_area = USABLE_W - FIXED_W
-            note_w = note_area / (n_comp * 3)
-
-            if chunk_idx > 0:
-                elems.append(PageBreak())
-
-            # Sem1
-            h1 = ['N°','NOME DO ALUNO','S'] + ['NOTAS 1º BIMESTRE']+['']*(n_comp-1) + ['NOTAS 2º BIMESTRE']+['']*(n_comp-1) + ['RECUPERAÇÃO 1º SEMESTRE']+['']*(n_comp-1)
-            h2 = ['','',''] + [VerticalText(n) for n in chunk_names_c]*3
-            d = [h1, h2]
-            for idx, st in enumerate(students_data, 1):
-                row = [str(idx), _safe(st.get('studentName',''),30), _safe(st.get('sex','-'),1)]
-                gr = st.get('grades') or {}
-                for bk in ('b1','b2','rec1'):
-                    for cc in chunk_courses_c:
-                        gi = gr.get(cc.get('id',''), {})
-                        row.append(_fmt(gi.get(bk) if isinstance(gi, dict) else None))
-                d.append(row)
-            cw = [COL_NUM_W, COL_NOME_W, COL_SEXO_W] + [note_w]*(n_comp*3)
-            t = Table(d, colWidths=cw, repeatRows=2)
-            t.setStyle(TableStyle([
-                ('FONTSIZE',(0,0),(-1,-1),6),
-                ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
-            ]))
-            elems.append(t)
-
-            elems.append(PageBreak())
-
-            # Sem2
-            is_last = chunk_idx == len(chunks)-1
-            h1b = ['N°','NOME DO ALUNO','S'] + ['NOTAS 3º BIMESTRE']+['']*(n_comp-1) + ['NOTAS 4º BIMESTRE']+['']*(n_comp-1) + ['RECUPERAÇÃO 2º SEMESTRE']+['']*(n_comp-1)
-            if is_last: h1b += ['T','M','R']
-            h2b = ['','',''] + [VerticalText(n) for n in chunk_names_c]*3
-            if is_last: h2b += ['','','']
-            d2 = [h1b, h2b]
-            for idx, st in enumerate(students_data, 1):
-                row = [str(idx), _safe(st.get('studentName',''),30), _safe(st.get('sex','-'),1)]
-                gr = st.get('grades') or {}
-                for bk in ('b3','b4','rec2'):
-                    for cc in chunk_courses_c:
-                        gi = gr.get(cc.get('id',''), {})
-                        row.append(_fmt(gi.get(bk) if isinstance(gi, dict) else None))
-                if is_last: row += ['-','-','-']
-                d2.append(row)
-            if is_last:
-                ew = 0.9*cm+0.9*cm+1.5*cm
-                nw2 = (USABLE_W-FIXED_W-ew)/(n_comp*3)
-                cw2 = [COL_NUM_W,COL_NOME_W,COL_SEXO_W]+[nw2]*(n_comp*3)+[0.9*cm,0.9*cm,1.5*cm]
-            else:
-                cw2 = [COL_NUM_W,COL_NOME_W,COL_SEXO_W]+[note_w]*(n_comp*3)
-            t2 = Table(d2, colWidths=cw2, repeatRows=2)
-            t2.setStyle(TableStyle([('FONTSIZE',(0,0),(-1,-1),6),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
-            elems.append(t2)
-        return elems
-
-    try:
-        tmp_doc.build(_clone_elements(), onFirstPage=_header_footer, onLaterPages=_header_footer)
-        page_info['total'] = tmp_doc.page
-    except Exception:
-        pass  # usa contagem estimada
-
-    # 2ª passagem com total correto
+    # ── Build único (robusto, sem 2-pass) ──────────────────────
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
+        leftMargin=MX, rightMargin=MX, topMargin=3.0 * cm, bottomMargin=4.2 * cm)
     doc.build(elements, onFirstPage=_header_footer, onLaterPages=_header_footer)
-    buffer.seek(0)
-    return buffer
+
+    # Pós-processamento com fitz: adicionar total de páginas e rodapé na última
+    try:
+        import fitz as pymupdf
+        pdf_doc = pymupdf.open(stream=buffer.getvalue(), filetype='pdf')
+        total_pages = len(pdf_doc)
+        
+        for pg_idx, page in enumerate(pdf_doc):
+            # Adicionar "/TOTAL" após "PÁGINA: XX"
+            quads = page.search_for("PÁGINA:")
+            if quads:
+                # Encontrar o final do texto "PÁGINA: XX" para inserir "/TOTAL"
+                full_quads = page.search_for(f"PÁGINA: {pg_idx+1:02d}")
+                if full_quads:
+                    r = full_quads[0]
+                    page.insert_text(
+                        (r.x1 + 1, r.y1 - 2),
+                        f"/{total_pages:02d}",
+                        fontsize=7, fontname="helv", color=(0, 0, 0)
+                    )
+            
+            # Rodapé só na última página
+            if pg_idx == total_pages - 1:
+                pw, ph = page.rect.width, page.rect.height
+                mid = pw / 2
+                # Data/local
+                tw_de = pymupdf.get_text_length(data_extenso, fontname="helv", fontsize=9)
+                page.insert_text((mid - tw_de/2, ph - 3.8*28.35 + 9), data_extenso, fontsize=9, fontname="helv", color=(0,0,0))
+                # Linhas de assinatura
+                ly = ph - 2.6*28.35
+                cl_x, cr_x = mid - 5*28.35, mid + 5*28.35
+                hl = 4*28.35
+                page.draw_line((cl_x-hl, ly), (cl_x+hl, ly))
+                page.draw_line((cr_x-hl, ly), (cr_x+hl, ly))
+                # Rótulos
+                tw_s = pymupdf.get_text_length("Secretário(a)", fontname="helv", fontsize=9)
+                tw_d = pymupdf.get_text_length("Diretor(a)", fontname="helv", fontsize=9)
+                page.insert_text((cl_x - tw_s/2, ly + 12), "Secretário(a)", fontsize=9, fontname="helv", color=(0,0,0))
+                page.insert_text((cr_x - tw_d/2, ly + 12), "Diretor(a)", fontsize=9, fontname="helv", color=(0,0,0))
+                # Info de geração
+                page.insert_text((MX/28.35*72, ph - 0.6*28.35 + 7), rodape_info, fontsize=7, fontname="helv", color=(0.4,0.4,0.4))
+        
+        result_buf = BytesIO()
+        pdf_doc.save(result_buf)
+        pdf_doc.close()
+        result_buf.seek(0)
+        return result_buf
+    except Exception:
+        buffer.seek(0)
+        return buffer
