@@ -251,9 +251,19 @@ def generate_livro_promocao_pdf(
     def fmt_grade(v):
         if v is None:
             return ''
-        if isinstance(v, (int, float)):
-            return f"{v:.1f}".replace('.', ',')
+        try:
+            if isinstance(v, (int, float)):
+                return f"{v:.1f}".replace('.', ',')
+        except (ValueError, TypeError):
+            return ''
         return str(v) if v else ''
+    
+    def safe_str(v, max_len=30):
+        """Converte qualquer valor para string segura."""
+        if v is None:
+            return ''
+        s = str(v)
+        return s[:max_len] if max_len else s
     
     # ===== PÁGINA 1: 1º SEMESTRE (1º Bim, 2º Bim, Rec 1º Sem) =====
     
@@ -275,11 +285,11 @@ def generate_livro_promocao_pdf(
     for idx, student in enumerate(students_data, 1):
         row = [
             str(idx),
-            student.get('studentName', '')[:30],
-            student.get('sex', '-')
+            safe_str(student.get('studentName', ''), 30),
+            safe_str(student.get('sex', '-'), 1)
         ]
         
-        grades = student.get('grades', {})
+        grades = student.get('grades', {}) or {}
         
         # 1º Bimestre
         for course in courses_ordenados:
@@ -393,11 +403,11 @@ def generate_livro_promocao_pdf(
     for idx, student in enumerate(students_data, 1):
         row = [
             str(idx),
-            student.get('studentName', '')[:30],
-            student.get('sex', '-')
+            safe_str(student.get('studentName', ''), 30),
+            safe_str(student.get('sex', '-'), 1)
         ]
         
-        grades = student.get('grades', {})
+        grades = student.get('grades', {}) or {}
         
         # 3º Bimestre
         for course in courses_ordenados:
@@ -528,32 +538,35 @@ def generate_livro_promocao_pdf(
     doc.build(elements, onFirstPage=draw_header_footer, onLaterPages=draw_header_footer)
     
     # Pós-processamento: substituir "/?" pelo total real em cada página
-    import fitz as pymupdf
-    pdf_doc = pymupdf.open(stream=buffer.getvalue(), filetype='pdf')
-    total_pages = len(pdf_doc)
-    
-    for page in pdf_doc:
-        quads = page.search_for("/??")
-        positions = [(rect.x0, rect.y0, rect.y1) for rect in quads]
-        # Redação para remover o texto antigo
-        for rect in quads:
-            page.add_redact_annot(rect, fill=(1, 1, 1), cross_out=False)
-        page.apply_redactions()
-        # Inserir texto novo nas mesmas posições
-        for x0, y0, y1 in positions:
-            page.insert_text(
-                (x0 + 0.5, y1 - 2),
-                f"/{total_pages:02d}",
-                fontsize=7,
-                fontname="helv",
-                color=(0, 0, 0)
-            )
-    
-    final_buffer = BytesIO()
-    pdf_doc.save(final_buffer)
-    pdf_doc.close()
-    final_buffer.seek(0)
-    return final_buffer
+    try:
+        import fitz as pymupdf
+        pdf_doc = pymupdf.open(stream=buffer.getvalue(), filetype='pdf')
+        total_pages = len(pdf_doc)
+        
+        for page in pdf_doc:
+            quads = page.search_for("/??")
+            positions = [(rect.x0, rect.y0, rect.y1) for rect in quads]
+            for rect in quads:
+                page.add_redact_annot(rect, fill=(1, 1, 1), cross_out=False)
+            page.apply_redactions()
+            for x0, y0, y1 in positions:
+                page.insert_text(
+                    (x0 + 0.5, y1 - 2),
+                    f"/{total_pages:02d}",
+                    fontsize=7,
+                    fontname="helv",
+                    color=(0, 0, 0)
+                )
+        
+        final_buffer = BytesIO()
+        pdf_doc.save(final_buffer)
+        pdf_doc.close()
+        final_buffer.seek(0)
+        return final_buffer
+    except Exception:
+        # Se fitz não disponível ou falhar, retorna PDF sem total (com /?)
+        buffer.seek(0)
+        return buffer
     buffer.seek(0)
     return buffer
 

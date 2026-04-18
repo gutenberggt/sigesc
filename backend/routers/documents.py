@@ -1688,10 +1688,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Erro ao gerar Livro de Promoção: {e}")
             import traceback
-            traceback.print_exc()
-            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+            tb = traceback.format_exc()
+            logger.error(f"Erro ao gerar Livro de Promoção: {e}\n{tb}")
+            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}\n{tb}")
 
 
     @router.get("/documents/batch/{class_id}/{document_type}")
