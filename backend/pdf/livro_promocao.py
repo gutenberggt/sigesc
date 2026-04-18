@@ -85,7 +85,7 @@ def _chunk(lst, size):
 
 def _is_integral_course(course):
     ap = (course.get('atendimento_programa') or '').lower().strip()
-    return ap in ('atendimento_integral', 'integral')
+    return 'integral' in ap
 
 def _base_style():
     return [

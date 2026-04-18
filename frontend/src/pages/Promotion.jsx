@@ -202,17 +202,13 @@ export function Promotion() {
   const [courses, setCourses] = useState([]);
   const [gradesData, setGradesData] = useState([]);
   
-  // Separar regulares e integrais
-  const regCourses = useMemo(() => 
-    courses.filter(c => {
-      const ap = (c.atendimento_programa || c.atendimento || '').toLowerCase();
-      return !ap || (ap !== 'atendimento_integral' && ap !== 'integral');
-    }), [courses]);
-  const intCourses = useMemo(() => 
-    courses.filter(c => {
-      const ap = (c.atendimento_programa || c.atendimento || '').toLowerCase();
-      return ap === 'atendimento_integral' || ap === 'integral';
-    }), [courses]);
+  // Separar regulares e integrais por atendimento_programa
+  const isIntegralCourse = (c) => {
+    const ap = (c.atendimento_programa || c.atendimento || '').toLowerCase().trim();
+    return ap.includes('integral');
+  };
+  const regCourses = useMemo(() => courses.filter(c => !isIntegralCourse(c)), [courses]);
+  const intCourses = useMemo(() => courses.filter(c => isIntegralCourse(c)), [courses]);
   const hasIntegral = intCourses.length > 0;
   
   // Filters
