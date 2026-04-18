@@ -304,15 +304,19 @@ def generate_livro_promocao_pdf(
     
     # Calcular larguras - Página 1
     largura_disponivel = 27 * cm
-    largura_num = 0.7 * cm
-    largura_nome = 4.5 * cm
-    largura_sexo = 0.7 * cm
+    total_nota_cols = num_components * 3
+    largura_num = 0.6 * cm
+    largura_sexo = 0.5 * cm
+    # Adaptar largura do nome e notas conforme a quantidade de componentes
+    if num_components > 10:
+        largura_nome = 3.5 * cm
+    else:
+        largura_nome = 4.5 * cm
     largura_restante = largura_disponivel - largura_num - largura_nome - largura_sexo
-    largura_por_nota = largura_restante / (num_components * 3)
-    largura_por_nota = max(largura_por_nota, 0.6 * cm)
+    largura_por_nota = largura_restante / total_nota_cols
     
     col_widths_p1 = [largura_num, largura_nome, largura_sexo]
-    col_widths_p1.extend([largura_por_nota] * (num_components * 3))
+    col_widths_p1.extend([largura_por_nota] * total_nota_cols)
     
     # Criar tabela Página 1
     table_p1 = Table(table_data_p1, colWidths=col_widths_p1, repeatRows=2)
@@ -438,12 +442,11 @@ def generate_livro_promocao_pdf(
         table_data_p2.append(row)
     
     # Calcular larguras - Página 2 (3 colunas extras: Total, Média, Resultado)
-    largura_total = 1.0 * cm
-    largura_media = 1.0 * cm
-    largura_resultado = 1.8 * cm
+    largura_total = 0.9 * cm
+    largura_media = 0.9 * cm
+    largura_resultado = 1.5 * cm
     largura_restante_p2 = largura_disponivel - largura_num - largura_nome - largura_sexo - largura_total - largura_media - largura_resultado
     largura_por_nota_p2 = largura_restante_p2 / (num_components * 3)
-    largura_por_nota_p2 = max(largura_por_nota_p2, 0.55 * cm)
     
     col_widths_p2 = [largura_num, largura_nome, largura_sexo]
     col_widths_p2.extend([largura_por_nota_p2] * (num_components * 3))
