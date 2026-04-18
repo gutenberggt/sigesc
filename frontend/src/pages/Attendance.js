@@ -302,14 +302,16 @@ export const Attendance = () => {
         // Para professor, filtra suas turmas pela escola selecionada e ano letivo
         const filtered = professorTurmas.filter(t => 
           t.school_id === selectedSchool && 
-          t.academic_year === academicYear
+          t.academic_year === academicYear &&
+          !(t.atendimento_programa || '').toLowerCase().includes('aee')
         );
         setClasses(filtered);
       } else {
         const data = await classesAPI.getAll();
         const filtered = data.filter(c => 
           c.school_id === selectedSchool && 
-          c.academic_year === academicYear
+          c.academic_year === academicYear &&
+          !(c.atendimento_programa || '').toLowerCase().includes('aee')
         );
         setClasses(filtered);
       }
