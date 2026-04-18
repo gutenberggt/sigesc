@@ -117,22 +117,25 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         
         is_school_day = True
         blocking_events = []
-        
-        for event in events:
-            if not event.get('is_school_day', True):
-                is_school_day = False
-                blocking_events.append(event)
-        
+        has_sabado_letivo = False
         date_obj = datetime.strptime(date, "%Y-%m-%d")
-        is_weekend = date_obj.weekday() in [5, 6]
         
-        # Verificar se é sábado letivo
-        is_sabado_letivo = False
         for event in events:
             et = event.get('event_type', '')
             if et == 'sabado_letivo' or (event.get('is_school_day') and date_obj.weekday() == 5):
-                is_sabado_letivo = True
-                break
+                has_sabado_letivo = True
+            if not event.get('is_school_day', True):
+                blocking_events.append(event)
+        
+        # Sábado letivo tem prioridade sobre outros eventos de bloqueio
+        if has_sabado_letivo:
+            is_school_day = True
+            blocking_events = []
+        elif blocking_events:
+            is_school_day = False
+        
+        is_weekend = date_obj.weekday() in [5, 6]
+        is_sabado_letivo = has_sabado_letivo
         
         can_record = is_school_day and (not is_weekend or is_sabado_letivo)
         if is_future and not can_use_future:
