@@ -6,9 +6,31 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm, mm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Flowable
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from pdf.utils import get_logo_image, ordenar_componentes_por_nivel
+
+
+class VerticalText(Flowable):
+    """Flowable que desenha texto rotacionado 90° (vertical, de baixo para cima)."""
+    def __init__(self, text, font='Helvetica-Bold', size=6, text_color=colors.white):
+        Flowable.__init__(self)
+        self.text = text
+        self.font = font
+        self.size = size
+        self.text_color = text_color
+        self.width = size + 4
+        self.height = stringWidth(text, font, size) + 6
+
+    def draw(self):
+        canvas = self.canv
+        canvas.saveState()
+        canvas.setFont(self.font, self.size)
+        canvas.setFillColor(self.text_color)
+        canvas.rotate(90)
+        canvas.drawString(3, -self.size - 1, self.text)
+        canvas.restoreState()
 
 def generate_livro_promocao_pdf(
     school: Dict[str, Any],
@@ -101,40 +123,45 @@ def generate_livro_promocao_pdf(
     # Abreviações dos componentes
     def abreviar_componente(nome):
         abreviacoes = {
-            'Língua Portuguesa': 'Lin. Port.',
-            'Arte': 'Arte',
-            'Educação Física': 'Ed. Fís.',
-            'Língua Inglesa': 'Lin. Ingl.',
-            'Inglês': 'Lin. Ingl.',
-            'Matemática': 'Mat.',
-            'Ciências': 'Ciênc.',
-            'História': 'Hist.',
-            'Geografia': 'Geo.',
-            'Ensino Religioso': 'Ed. Rel.',
-            'Educação Ambiental e Clima': 'Ed. A. Cl.',
-            'Estudos Amazônicos': 'Est. Amaz.',
-            'Literatura e Redação': 'Lit. e red.',
-            'Recreação e Lazer': 'R. E. Laz.',
-            'Recreação, Esporte e Lazer': 'R. E. Laz.',
-            'Linguagem Recreativa com Práticas de Esporte e Lazer': 'R. E. Laz.',
-            'Arte e Cultura': 'Art. e Cul.',
-            'Tecnologia da Informação': 'Tec. Inf.',
-            'Tecnologia e Informática': 'Tec. Inf.',
-            'Acompanhamento Pedagógico de Língua Portuguesa': 'APL Port.',
-            'Acompanhamento Pedagógico de Matemática': 'AP Mat.',
-            'Acomp. Ped. de Língua Portuguesa': 'APL Port.',
-            'Acomp. Ped. de Matemática': 'AP Mat.',
-            'Contação de Histórias e Iniciação Musical': 'Cont. Hist.',
-            'Corpo, gestos e movimentos': 'Corp. Gest.',
-            'Escuta, fala, pensamento e imaginação': 'Esc. Fala',
-            'Espaços, tempos, quantidades, relações e transformações': 'Esp. Temp.',
-            'Higiene e Saúde': 'Hig. Saúde',
-            'O eu, o outro e nós': 'Eu Out. Nós',
-            'Traço, sons, cores e formas': 'Traç. Sons'
+            'língua portuguesa': 'L. PORT.',
+            'arte': 'ARTE',
+            'educação física': 'ED. FÍS.',
+            'língua inglesa': 'L. ING.',
+            'inglês': 'L. ING.',
+            'matemática': 'MAT.',
+            'ciências': 'CIÊN.',
+            'história': 'HIST.',
+            'geografia': 'GEOG.',
+            'ensino religioso': 'ENS. REL.',
+            'educação ambiental e clima': 'ED. AMB. CLI.',
+            'estudos amazônicos': 'EST. AMAZ.',
+            'literatura e redação': 'LIT. E RED.',
+            'recreação e lazer': 'REC. ESP. LAZ.',
+            'recreação, esporte e lazer': 'REC. ESP. LAZ.',
+            'linguagem recreativa com práticas de esporte e lazer': 'REC. ESP. LAZ.',
+            'arte e cultura': 'ART. E CULT.',
+            'tecnologia da informação': 'TEC. E INFO.',
+            'tecnologia e informática': 'TEC. E INFO.',
+            'acompanhamento pedagógico de língua portuguesa': 'AC. PED. L. PORT.',
+            'acompanhamento pedagógico de matemática': 'AC. PED. MAT.',
+            'acomp. ped. de língua portuguesa': 'AC. PED. L. PORT.',
+            'acomp. ped. de matemática': 'AC. PED. MAT.',
         }
-        return abreviacoes.get(nome, nome[:10] + '.' if len(nome) > 10 else nome)
+        nome_lower = (nome or '').lower().strip()
+        # Match exato
+        if nome_lower in abreviacoes:
+            return abreviacoes[nome_lower]
+        # Match parcial
+        for key, abbr in abreviacoes.items():
+            if nome_lower.startswith(key) or key.startswith(nome_lower):
+                return abbr
+        return (nome[:12] + '.').upper() if len(nome) > 12 else nome.upper()
     
     comp_names = [abreviar_componente(c.get('name', '')) for c in courses_ordenados]
+    
+    # Criar VerticalText para cada componente (para uso nos headers da tabela)
+    def make_vertical_comp(name):
+        return VerticalText(name, font='Helvetica-Bold', size=6, text_color=colors.white)
     
     # ===== FUNÇÃO PARA CRIAR CABEÇALHO =====
     def criar_cabecalho(pagina_num, total_paginas):
@@ -227,9 +254,9 @@ def generate_livro_promocao_pdf(
     header_row1_p1.extend(['RECUPERAÇÃO 1º SEMESTRE'] + [''] * (num_components - 1))
     
     header_row2_p1 = ['', '', '']
-    header_row2_p1.extend(comp_names)  # 1º Bim
-    header_row2_p1.extend(comp_names)  # 2º Bim
-    header_row2_p1.extend(comp_names)  # Rec 1º Sem
+    header_row2_p1.extend([make_vertical_comp(n) for n in comp_names])  # 1º Bim
+    header_row2_p1.extend([make_vertical_comp(n) for n in comp_names])  # 2º Bim
+    header_row2_p1.extend([make_vertical_comp(n) for n in comp_names])  # Rec 1º Sem
     
     table_data_p1 = [header_row1_p1, header_row2_p1]
     
@@ -341,9 +368,9 @@ def generate_livro_promocao_pdf(
     header_row1_p2.extend(['TOTAL', 'MÉDIA', 'RESULTADO'])
     
     header_row2_p2 = ['', '', '']
-    header_row2_p2.extend(comp_names)  # 3º Bim
-    header_row2_p2.extend(comp_names)  # 4º Bim
-    header_row2_p2.extend(comp_names)  # Rec 2º Sem
+    header_row2_p2.extend([make_vertical_comp(n) for n in comp_names])  # 3º Bim
+    header_row2_p2.extend([make_vertical_comp(n) for n in comp_names])  # 4º Bim
+    header_row2_p2.extend([make_vertical_comp(n) for n in comp_names])  # Rec 2º Sem
     header_row2_p2.extend(['PTS', 'FINAL', ''])
     
     table_data_p2 = [header_row1_p2, header_row2_p2]
