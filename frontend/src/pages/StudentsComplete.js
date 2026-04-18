@@ -552,21 +552,36 @@ export function StudentsComplete() {
   };
 
   const handleView = async (student) => {
-    setEditingStudent(student);
+    // Busca dados frescos do servidor para garantir todos os campos
+    let freshStudent = student;
+    try {
+      const fetched = await studentsAPI.getById(student.id);
+      if (fetched) freshStudent = fetched;
+    } catch (e) {
+      console.warn('Usando dados em cache:', e.message);
+    }
+    freshStudent = normalizeStudentDates(freshStudent);
+    setEditingStudent(freshStudent);
     setViewMode(true);
-    setFormData({ ...initialFormData, ...student });
+    const mergedData = { ...initialFormData };
+    Object.entries(freshStudent).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        mergedData[key] = value;
+      }
+    });
+    setFormData(mergedData);
     setIsModalOpen(true);
     
     // Define o ano letivo com base na turma atual do aluno
-    if (student.class_id) {
-      const studentClass = classes.find(c => c.id === student.class_id);
+    if (freshStudent.class_id) {
+      const studentClass = classes.find(c => c.id === freshStudent.class_id);
       if (studentClass?.academic_year) {
         setVinculoAnoLetivo(studentClass.academic_year);
       }
     }
     
     // Carrega histórico do aluno
-    loadStudentHistory(student.id);
+    loadStudentHistory(freshStudent.id);
   };
 
   const handleEdit = async (student) => {
