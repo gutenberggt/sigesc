@@ -153,7 +153,19 @@ const ordenarComponentes = (courses, gradeLevel) => {
 
 // Função para abreviar nome do componente
 const abbreviateComponent = (name) => {
-  return COMPONENT_ABBREVIATIONS[name] || (name.substring(0, 10) + '.').toUpperCase();
+  if (!name) return '';
+  // Match exato primeiro
+  if (COMPONENT_ABBREVIATIONS[name]) return COMPONENT_ABBREVIATIONS[name];
+  // Match case-insensitive
+  const nameLower = name.toLowerCase().trim();
+  for (const [key, abbr] of Object.entries(COMPONENT_ABBREVIATIONS)) {
+    if (key.toLowerCase().trim() === nameLower) return abbr;
+  }
+  // Match parcial (início do nome)
+  for (const [key, abbr] of Object.entries(COMPONENT_ABBREVIATIONS)) {
+    if (nameLower.startsWith(key.toLowerCase().trim()) || key.toLowerCase().trim().startsWith(nameLower)) return abbr;
+  }
+  return (name.substring(0, 10) + '.').toUpperCase();
 };
 
 // Cores do resultado
