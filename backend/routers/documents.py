@@ -1534,22 +1534,22 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             assigned_course_ids = list(set(a.get("course_id") for a in assignments if a.get("course_id")))
             
             if assigned_course_ids:
+                # Componentes vêm direto das alocações — já são os corretos para a turma
                 courses = await db.courses.find({
                     "id": {"$in": assigned_course_ids}
                 }, {"_id": 0}).to_list(100)
             else:
-                # Fallback: buscar por nível de ensino
+                # Fallback: buscar por nível de ensino + filtrar por atendimento_programa
                 courses_query = {"nivel_ensino": nivel_ensino} if nivel_ensino else {}
                 courses = await db.courses.find(courses_query, {"_id": 0}).to_list(100)
-
-            # Filtro final por atendimento_programa (SEMPRE aplicado, igual ao Boletim)
-            turma_atendimento = (class_info.get('atendimento_programa') or '').strip().lower()
-            if turma_atendimento in ('atendimento_integral', 'integral'):
-                courses = [c for c in courses if (c.get('atendimento_programa') or '') in ('', 'atendimento_integral') or c.get('atendimento_programa') is None]
-            elif turma_atendimento == 'aee':
-                courses = [c for c in courses if (c.get('atendimento_programa') or '').lower() == 'aee']
-            else:
-                courses = [c for c in courses if not c.get('atendimento_programa') or c.get('atendimento_programa') == '']
+                
+                turma_atendimento = (class_info.get('atendimento_programa') or '').strip().lower()
+                if turma_atendimento in ('atendimento_integral', 'integral'):
+                    courses = [c for c in courses if not (c.get('atendimento_programa') or '').strip().lower() or (c.get('atendimento_programa') or '').strip().lower() in ('atendimento_integral', 'integral')]
+                elif turma_atendimento == 'aee':
+                    courses = [c for c in courses if (c.get('atendimento_programa') or '').strip().lower() == 'aee']
+                else:
+                    courses = [c for c in courses if not (c.get('atendimento_programa') or '').strip()]
 
             # Se não encontrar nenhum, buscar regulares do nível como último recurso
             if not courses and nivel_ensino:
