@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Download, FileText, School, Users, BookOpen, Filter, RefreshCw, CheckCircle, XCircle, AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Home } from 'lucide-react';
-import { schoolsAPI, classesAPI, gradesAPI, coursesAPI, studentsAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, gradesAPI, coursesAPI, studentsAPI, teacherAssignmentAPI } from '@/services/api';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -306,9 +306,40 @@ export function Promotion() {
       const filteredStudents = studentsData.filter(s => studentIds.includes(s.id));
       setStudents(filteredStudents);
       
-      // Buscar componentes curriculares e ordenar conforme o nível de ensino
+      // Buscar componentes curriculares filtrados pelas alocações de professores da turma
       const coursesData = await coursesAPI.getAll(classInfo.education_level);
-      const orderedCourses = ordenarComponentes(coursesData || [], classInfo.grade_level);
+      let filteredCourses = coursesData || [];
+      
+      // Filtrar por teacher_assignments (componentes efetivamente alocados na turma)
+      try {
+        const assignments = await teacherAssignmentAPI.list({
+          class_id: selectedClass,
+          academic_year: selectedYear
+        });
+        if (assignments && assignments.length > 0) {
+          const assignedCourseIds = [...new Set(assignments.map(a => a.course_id).filter(Boolean))];
+          filteredCourses = filteredCourses.filter(c => assignedCourseIds.includes(c.id));
+        } else {
+          // Fallback: filtrar por atendimento_programa da turma
+          const turmaAtendimento = (classInfo.atendimento_programa || '').toLowerCase();
+          filteredCourses = filteredCourses.filter(course => {
+            const courseAtendimento = (course.atendimento_programa || course.atendimento || '').toLowerCase();
+            if (turmaAtendimento === 'atendimento_integral') {
+              if (courseAtendimento && courseAtendimento !== 'atendimento_integral') return false;
+            } else if (turmaAtendimento) {
+              if (courseAtendimento !== turmaAtendimento) return false;
+            } else {
+              if (courseAtendimento) return false;
+            }
+            if (!course.grade_levels || course.grade_levels.length === 0) return true;
+            return course.grade_levels.includes(classInfo.grade_level);
+          });
+        }
+      } catch (e) {
+        console.warn('Erro ao buscar alocações, usando todos os componentes:', e.message);
+      }
+      
+      const orderedCourses = ordenarComponentes(filteredCourses, classInfo.grade_level);
       setCourses(orderedCourses);
       
       // Buscar notas de todos os alunos da turma

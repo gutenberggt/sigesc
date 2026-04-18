@@ -243,6 +243,8 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Aplicado em: Novo/Editar Servidor (Cargo), Gerenciar Lotações (Função) e filtro de Cargos
 - Backend (models.py): Literal types atualizados para aceitar `apoio` e `vice_diretor` em Cargo e Função
 
+- Fix Livro de Promoção: colunas de componentes curriculares agora filtradas via `teacher_assignments` da turma (frontend + PDF backend). Não exibe mais componentes de escola integral em turmas regulares
+
 ## Tarefas Pendentes
 
 ### Outras Tarefas
