@@ -69,88 +69,129 @@ def generate_livro_promocao_pdf(
     buffer = BytesIO()
     mantenedora = mantenedora or {}
     
-    # Dados para o rodapé (calculados antes do build)
+    # Dados pré-calculados para cabeçalho e rodapé
     today = datetime.now()
     meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
              'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
-    mant_municipio_footer = mantenedora.get('municipio', 'Floresta do Araguaia')
-    mant_estado_footer = mantenedora.get('estado', 'PA')
-    data_extenso = f"{mant_municipio_footer} - {mant_estado_footer}, {today.day} de {meses[today.month - 1]} de {today.year}"
+    mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
+    mant_estado = mantenedora.get('estado', 'PA')
+    mant_nome = mantenedora.get('nome', f'Prefeitura Municipal de {mant_municipio}')
+    secretaria = mantenedora.get('secretaria', 'Secretaria Municipal de Educação')
+    slogan = mantenedora.get('slogan', '')
+    data_extenso = f"{mant_municipio} - {mant_estado}, {today.day} de {meses[today.month - 1]} de {today.year}"
     rodape_info = f"Documento gerado em {today.strftime('%d/%m/%Y às %H:%M')} | Total de alunos: {len(students_data)}"
+    escola_nome = school.get('name', 'Escola Municipal')
+    turma_nome = class_info.get('name', 'Turma')
+    grade_level = class_info.get('grade_level', '')
+    shift_raw = class_info.get('shift', '')
+    TURNOS_PT = {
+        'morning': 'MATUTINO', 'afternoon': 'VESPERTINO',
+        'evening': 'NOTURNO', 'full_time': 'INTEGRAL', 'night': 'NOTURNO'
+    }
+    turno = TURNOS_PT.get(shift_raw, shift_raw.upper() if shift_raw else 'N/A')
     
-    def footer_on_page(canvas_obj, doc_obj):
-        """Desenha rodapé com local/data, assinaturas e info em TODAS as páginas."""
+    # Variável mutável para total de páginas (preenchida após 1ª passagem)
+    page_total = [0]
+    
+    def draw_header_footer(canvas_obj, doc_obj):
+        """Desenha cabeçalho e rodapé em TODAS as páginas."""
         canvas_obj.saveState()
+        page_num = doc_obj.page
+        total = page_total[0] if page_total[0] > 0 else '??'
         page_w, page_h = landscape(A4)
-        margin_x = 0.8 * cm
+        mx = 0.8 * cm
         
-        # Data e local
+        # ===== CABEÇALHO =====
+        y = page_h - 0.6 * cm
+        canvas_obj.setFont('Helvetica-Bold', 10)
+        canvas_obj.drawString(mx, y, mant_nome.upper())
+        y -= 12
         canvas_obj.setFont('Helvetica', 9)
+        canvas_obj.drawString(mx, y, secretaria)
+        if slogan:
+            y -= 10
+            canvas_obj.setFont('Helvetica-Oblique', 7)
+            canvas_obj.setFillColor(colors.HexColor('#666666'))
+            canvas_obj.drawString(mx, y, f'"{slogan}"')
+            canvas_obj.setFillColor(colors.black)
+        
+        # Título à direita
+        canvas_obj.setFont('Helvetica-Bold', 14)
+        canvas_obj.setFillColor(colors.HexColor('#1e40af'))
+        canvas_obj.drawRightString(page_w - mx, page_h - 0.7 * cm, 'LIVRO DE PROMOÇÃO')
+        canvas_obj.setFillColor(colors.black)
+        canvas_obj.setFont('Helvetica', 10)
+        canvas_obj.drawRightString(page_w - mx, page_h - 1.2 * cm, f'ANO LETIVO: {academic_year}')
+        
+        # Caixa: ESCOLA | PÁGINA
+        box_y = page_h - 2.2 * cm
+        box_h = 0.4 * cm
+        canvas_obj.setStrokeColor(colors.black)
+        canvas_obj.setLineWidth(0.5)
+        canvas_obj.rect(mx, box_y, page_w - 2 * mx, box_h, stroke=1, fill=0)
+        canvas_obj.setFont('Helvetica-Bold', 7)
+        canvas_obj.drawString(mx + 3, box_y + 3, 'ESCOLA:')
+        canvas_obj.setFont('Helvetica', 7)
+        canvas_obj.drawString(mx + 3 + stringWidth('ESCOLA: ', 'Helvetica-Bold', 7), box_y + 3, escola_nome)
+        pag_text = f'PÁGINA: {page_num:02d}/{total:02d}' if isinstance(total, int) else f'PÁGINA: {page_num:02d}/{total}'
+        canvas_obj.setFont('Helvetica-Bold', 7)
+        canvas_obj.drawRightString(page_w - mx - 3, box_y + 3, pag_text)
+        
+        # Caixa: TURMA | ANO/ETAPA | TURNO
+        box_y2 = box_y - box_h
+        canvas_obj.rect(mx, box_y2, page_w - 2 * mx, box_h, stroke=1, fill=0)
+        third = (page_w - 2 * mx) / 3
+        canvas_obj.line(mx + third, box_y2, mx + third, box_y2 + box_h)
+        canvas_obj.line(mx + 2 * third, box_y2, mx + 2 * third, box_y2 + box_h)
+        canvas_obj.setFont('Helvetica-Bold', 7)
+        canvas_obj.drawString(mx + 3, box_y2 + 3, 'TURMA:')
+        canvas_obj.setFont('Helvetica', 7)
+        canvas_obj.drawString(mx + 3 + stringWidth('TURMA: ', 'Helvetica-Bold', 7), box_y2 + 3, turma_nome)
+        canvas_obj.setFont('Helvetica-Bold', 7)
+        canvas_obj.drawString(mx + third + 3, box_y2 + 3, 'ANO/ETAPA:')
+        canvas_obj.setFont('Helvetica', 7)
+        canvas_obj.drawString(mx + third + 3 + stringWidth('ANO/ETAPA: ', 'Helvetica-Bold', 7), box_y2 + 3, grade_level)
+        canvas_obj.setFont('Helvetica-Bold', 7)
+        canvas_obj.drawString(mx + 2 * third + 3, box_y2 + 3, 'TURNO:')
+        canvas_obj.setFont('Helvetica', 7)
+        canvas_obj.drawString(mx + 2 * third + 3 + stringWidth('TURNO: ', 'Helvetica-Bold', 7), box_y2 + 3, turno)
+        
+        # ===== RODAPÉ =====
+        canvas_obj.setFont('Helvetica', 9)
+        canvas_obj.setFillColor(colors.black)
         canvas_obj.drawCentredString(page_w / 2, 3.8 * cm, data_extenso)
         
-        # Linhas de assinatura
         line_y = 2.6 * cm
         center_left = page_w / 2 - 5 * cm
         center_right = page_w / 2 + 5 * cm
         half_line = 4 * cm
-        
         canvas_obj.setLineWidth(0.5)
         canvas_obj.line(center_left - half_line, line_y, center_left + half_line, line_y)
         canvas_obj.line(center_right - half_line, line_y, center_right + half_line, line_y)
-        
-        # Rótulos das assinaturas
         canvas_obj.setFont('Helvetica', 9)
         canvas_obj.drawCentredString(center_left, line_y - 12, 'Secretário(a)')
         canvas_obj.drawCentredString(center_right, line_y - 12, 'Diretor(a)')
         
-        # Info de geração
         canvas_obj.setFont('Helvetica', 7)
         canvas_obj.setFillColor(colors.HexColor('#666666'))
-        canvas_obj.drawString(margin_x, 0.6 * cm, rodape_info)
+        canvas_obj.drawString(mx, 0.6 * cm, rodape_info)
         
         canvas_obj.restoreState()
     
-    # Criar documento em paisagem com margem inferior maior para o rodapé
+    # Criar documento em paisagem
     doc = SimpleDocTemplate(
         buffer,
         pagesize=landscape(A4),
         leftMargin=0.8*cm,
         rightMargin=0.8*cm,
-        topMargin=0.8*cm,
+        topMargin=3.0*cm,
         bottomMargin=4.2*cm
     )
     
     elements = []
     
     # ===== ESTILOS =====
-    info_style = ParagraphStyle('InfoStyle', fontSize=7, leading=9)
-    header_style_text = ParagraphStyle('HeaderText', fontSize=10, alignment=TA_LEFT, leading=14)
-    header_style_right = ParagraphStyle('HeaderRight', fontSize=10, alignment=TA_RIGHT, leading=16)
     small_text = ParagraphStyle('SmallText', fontSize=7, alignment=TA_LEFT)
-    
-    # ===== DADOS DA MANTENEDORA =====
-    mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
-    mant_estado = mantenedora.get('estado', 'PA')
-    mant_nome = mantenedora.get('nome', f'Prefeitura Municipal de {mant_municipio}')
-    slogan = mantenedora.get('slogan', '')
-    logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    # Tamanho reduzido em 40% (2.4cm -> 1.44cm, 1.6cm -> 0.96cm)
-    logo = get_logo_image(width=1.44*cm, height=0.96*cm, logo_url=logo_url)
-    
-    # ===== DADOS DA TURMA =====
-    escola_nome = school.get('name', 'Escola Municipal')
-    turma_nome = class_info.get('name', 'Turma')
-    grade_level = class_info.get('grade_level', '')
-    shift_raw = class_info.get('shift', '')
-    
-    TURNOS_PT = {
-        'morning': 'MATUTINO',
-        'afternoon': 'VESPERTINO', 
-        'evening': 'NOTURNO',
-        'full_time': 'INTEGRAL',
-        'night': 'NOTURNO'
-    }
-    turno = TURNOS_PT.get(shift_raw, shift_raw.upper() if shift_raw else 'N/A')
     
     # Ordenar componentes
     nivel_ensino = class_info.get('education_level', '')
@@ -204,78 +245,6 @@ def generate_livro_promocao_pdf(
     def make_vertical_comp(name):
         return VerticalText(name, font='Helvetica-Bold', size=6, text_color=colors.white)
     
-    # ===== FUNÇÃO PARA CRIAR CABEÇALHO =====
-    def criar_cabecalho(pagina_num, total_paginas):
-        header_elements = []
-        
-        # Linha 1: Logo + Nome da Mantenedora + Título
-        slogan_html = f'<font size="8" color="#666666">"{slogan}"</font>' if slogan else ''
-        header_text = f"""
-        <b>{mant_nome}</b><br/>
-        <font size="9">{mantenedora.get('secretaria', 'Secretaria Municipal de Educação')}</font><br/>
-        {slogan_html}
-        """
-        
-        header_right = f"""
-        <font size="14" color="#1e40af"><b>LIVRO DE PROMOÇÃO</b></font><br/>
-        <font size="10">ANO LETIVO: {academic_year}</font>
-        """
-        
-        if logo:
-            header_table = Table([
-                [logo, Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
-            ], colWidths=[3*cm, 14*cm, 10*cm])
-        else:
-            header_table = Table([
-                [Paragraph(header_text, header_style_text), Paragraph(header_right, header_style_right)]
-            ], colWidths=[15*cm, 12*cm])
-        
-        header_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('LEFTPADDING', (1, 0), (1, 0), 10),
-        ]))
-        header_elements.append(header_table)
-        header_elements.append(Spacer(1, 5))
-        
-        # Linha 2: Escola + Ano Letivo
-        info_row1 = Table([
-            [
-                Paragraph(f"<b>ESCOLA:</b> {escola_nome}", info_style),
-                Paragraph(f"<b>PÁGINA:</b> {pagina_num:02d}/{total_paginas:02d}", info_style),
-            ]
-        ], colWidths=[23*cm, 4*cm])
-        info_row1.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
-            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-            ('LEFTPADDING', (0, 0), (-1, -1), 3),
-        ]))
-        header_elements.append(info_row1)
-        
-        # Linha 3: Turma, Série, Turno
-        info_row2 = Table([
-            [
-                Paragraph(f"<b>TURMA:</b> {turma_nome}", info_style),
-                Paragraph(f"<b>ANO/ETAPA:</b> {grade_level}", info_style),
-                Paragraph(f"<b>TURNO:</b> {turno}", info_style),
-            ]
-        ], colWidths=[12*cm, 8*cm, 7*cm])
-        info_row2.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
-            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-            ('LEFTPADDING', (0, 0), (-1, -1), 3),
-        ]))
-        header_elements.append(info_row2)
-        header_elements.append(Spacer(1, 8))
-        
-        return header_elements
-    
     # ===== FUNÇÃO PARA FORMATAR NOTA =====
     def fmt_grade(v):
         if v is None:
@@ -285,7 +254,6 @@ def generate_livro_promocao_pdf(
         return str(v) if v else ''
     
     # ===== PÁGINA 1: 1º SEMESTRE (1º Bim, 2º Bim, Rec 1º Sem) =====
-    elements.extend(criar_cabecalho(1, 2))
     
     # Cabeçalho da tabela - Página 1
     # Estrutura: N° | Nome | Sexo | [1º BIM: componentes] | [2º BIM: componentes] | [REC 1º SEM: componentes]
@@ -399,7 +367,6 @@ def generate_livro_promocao_pdf(
     
     # ===== PÁGINA 2: 2º SEMESTRE + RESULTADO =====
     elements.append(PageBreak())
-    elements.extend(criar_cabecalho(2, 2))
     
     # Cabeçalho da tabela - Página 2
     header_row1_p2 = ['N°', 'NOME DO ALUNO', 'S']
@@ -552,8 +519,16 @@ def generate_livro_promocao_pdf(
     table_p2.setStyle(TableStyle(style_p2))
     elements.append(table_p2)
     
-    # Gerar PDF com rodapé em todas as páginas
-    doc.build(elements, onFirstPage=footer_on_page, onLaterPages=footer_on_page)
+    # === Build em 2 passagens: 1ª conta páginas, 2ª gera com total correto ===
+    # 1ª passagem: contar páginas
+    count_buffer = BytesIO()
+    count_doc = SimpleDocTemplate(count_buffer, pagesize=landscape(A4),
+        leftMargin=0.8*cm, rightMargin=0.8*cm, topMargin=3.0*cm, bottomMargin=4.2*cm)
+    count_doc.build(list(elements), onFirstPage=draw_header_footer, onLaterPages=draw_header_footer)
+    page_total[0] = count_doc.page
+    
+    # 2ª passagem: gerar PDF final com total de páginas correto
+    doc.build(elements, onFirstPage=draw_header_footer, onLaterPages=draw_header_footer)
     buffer.seek(0)
     return buffer
 
