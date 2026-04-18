@@ -531,36 +531,33 @@ export function Grades() {
 
   // Filtra componentes curriculares (só quando turma selecionada)
   const filteredCourses = isProfessor
-    ? (selectedClassData?.componentes || [])
+    ? (selectedClassData?.componentes || []).filter(c => {
+        const ap = (c.atendimento_programa || c.atendimento || '').toLowerCase();
+        return !ap.includes('integral') && !ap.includes('aee');
+      })
     : !selectedClassData ? [] : (() => {
         // Se há alocações de professor, usar apenas os componentes alocados
         if (classCourseIds && classCourseIds.length > 0) {
           return courses
             .filter(c => classCourseIds.includes(c.id))
+            .filter(c => {
+              const ap = (c.atendimento_programa || c.atendimento || '').toLowerCase();
+              return !ap.includes('integral') && !ap.includes('aee');
+            })
             .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         }
         // Fallback: filtrar por nível/atendimento (comportamento anterior)
         return courses.filter(course => {
-        // Se o componente é global (sem school_id) ou é da mesma escola
         const matchesSchool = !course.school_id || course.school_id === selectedSchool;
         if (!matchesSchool) return false;
-        
-        // Deve ser do mesmo nível de ensino (se o componente tiver nível definido)
         if (course.nivel_ensino && course.nivel_ensino !== selectedClassData.education_level) return false;
         
-        // Filtrar por atendimento_programa (regular, integral, AEE)
-        const turmaAtendimento = (selectedClassData.atendimento_programa || '').toLowerCase();
+        // Excluir componentes formativos (integral, AEE) do lançamento de notas
         const courseAtendimento = (course.atendimento_programa || course.atendimento || '').toLowerCase();
-        if (turmaAtendimento === 'atendimento_integral') {
-          // Turma integral: aceita regulares + integrais (exclui AEE e outros)
-          if (courseAtendimento && courseAtendimento !== 'atendimento_integral') return false;
-        } else if (turmaAtendimento) {
-          // Turma com outro programa (AEE etc): só componentes do mesmo programa
-          if (courseAtendimento !== turmaAtendimento) return false;
-        } else {
-          // Turma regular: só componentes regulares (sem programa)
-          if (courseAtendimento) return false;
-        }
+        if (courseAtendimento.includes('integral') || courseAtendimento.includes('aee')) return false;
+        
+        // Turma regular: só componentes regulares
+        if (courseAtendimento) return false;
         
         // Para multisseriada com série selecionada, filtra pelo ano/série
         if (isMultiGrade && selectedSeries) {
@@ -575,16 +572,7 @@ export function Grades() {
         
         // Verifica se a série da turma está nas séries do componente
         return course.grade_levels.includes(selectedClassData.grade_level);
-      }).sort((a, b) => {
-        // Turma integral: regulares primeiro, depois integrais
-        if ((selectedClassData.atendimento_programa || '').toLowerCase() === 'atendimento_integral') {
-          const aAtend = (a.atendimento_programa || a.atendimento || '').toLowerCase();
-          const bAtend = (b.atendimento_programa || b.atendimento || '').toLowerCase();
-          if (!aAtend && bAtend) return -1;
-          if (aAtend && !bAtend) return 1;
-        }
-        return (a.name || '').localeCompare(b.name || '');
-      });
+      }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       })();
   
   // Sugestões de busca
