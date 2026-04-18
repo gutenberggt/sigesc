@@ -330,7 +330,9 @@ export function Promotion() {
         });
         if (assignments && assignments.length > 0) {
           const assignedCourseIds = [...new Set(assignments.map(a => a.course_id).filter(Boolean))];
-          filteredCourses = filteredCourses.filter(c => assignedCourseIds.includes(c.id));
+          // Buscar TODOS os cursos para pegar também os de integral/AEE
+          const allCourses = await coursesAPI.getAll();
+          filteredCourses = (allCourses || []).filter(c => assignedCourseIds.includes(c.id));
           usedTeacherAssignments = true;
         }
       } catch (e) {
