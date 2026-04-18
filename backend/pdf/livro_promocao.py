@@ -69,14 +69,55 @@ def generate_livro_promocao_pdf(
     buffer = BytesIO()
     mantenedora = mantenedora or {}
     
-    # Criar documento em paisagem
+    # Dados para o rodapé (calculados antes do build)
+    today = datetime.now()
+    meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+             'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+    mant_municipio_footer = mantenedora.get('municipio', 'Floresta do Araguaia')
+    mant_estado_footer = mantenedora.get('estado', 'PA')
+    data_extenso = f"{mant_municipio_footer} - {mant_estado_footer}, {today.day} de {meses[today.month - 1]} de {today.year}"
+    rodape_info = f"Documento gerado em {today.strftime('%d/%m/%Y às %H:%M')} | Total de alunos: {len(students_data)}"
+    
+    def footer_on_page(canvas_obj, doc_obj):
+        """Desenha rodapé com local/data, assinaturas e info em TODAS as páginas."""
+        canvas_obj.saveState()
+        page_w, page_h = landscape(A4)
+        margin_x = 0.8 * cm
+        
+        # Data e local
+        canvas_obj.setFont('Helvetica', 9)
+        canvas_obj.drawCentredString(page_w / 2, 3.8 * cm, data_extenso)
+        
+        # Linhas de assinatura
+        line_y = 2.6 * cm
+        center_left = page_w / 2 - 5 * cm
+        center_right = page_w / 2 + 5 * cm
+        half_line = 4 * cm
+        
+        canvas_obj.setLineWidth(0.5)
+        canvas_obj.line(center_left - half_line, line_y, center_left + half_line, line_y)
+        canvas_obj.line(center_right - half_line, line_y, center_right + half_line, line_y)
+        
+        # Rótulos das assinaturas
+        canvas_obj.setFont('Helvetica', 9)
+        canvas_obj.drawCentredString(center_left, line_y - 12, 'Secretário(a)')
+        canvas_obj.drawCentredString(center_right, line_y - 12, 'Diretor(a)')
+        
+        # Info de geração
+        canvas_obj.setFont('Helvetica', 7)
+        canvas_obj.setFillColor(colors.HexColor('#666666'))
+        canvas_obj.drawString(margin_x, 0.6 * cm, rodape_info)
+        
+        canvas_obj.restoreState()
+    
+    # Criar documento em paisagem com margem inferior maior para o rodapé
     doc = SimpleDocTemplate(
         buffer,
         pagesize=landscape(A4),
         leftMargin=0.8*cm,
         rightMargin=0.8*cm,
         topMargin=0.8*cm,
-        bottomMargin=0.8*cm
+        bottomMargin=4.2*cm
     )
     
     elements = []
@@ -511,37 +552,8 @@ def generate_livro_promocao_pdf(
     table_p2.setStyle(TableStyle(style_p2))
     elements.append(table_p2)
     
-    # ===== RODAPÉ COM ASSINATURAS =====
-    elements.append(Spacer(1, 20))
-    
-    # Data e local
-    today = datetime.now()
-    data_extenso = f"{mant_municipio} - {mant_estado}, {today.day} de {['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][today.month - 1]} de {today.year}"
-    
-    footer_style = ParagraphStyle('FooterStyle', fontSize=9, alignment=TA_CENTER)
-    elements.append(Paragraph(data_extenso, footer_style))
-    elements.append(Spacer(1, 30))
-    
-    # Assinaturas
-    assinatura_data = [
-        ['_' * 40, '_' * 40],
-        ['Secretário(a)', 'Diretor(a)']
-    ]
-    assinatura_table = Table(assinatura_data, colWidths=[10*cm, 10*cm])
-    assinatura_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('TOPPADDING', (0, 1), (-1, 1), 5),
-    ]))
-    elements.append(assinatura_table)
-    
-    # Rodapé com informações de geração
-    elements.append(Spacer(1, 15))
-    rodape_info = f"Documento gerado em {today.strftime('%d/%m/%Y às %H:%M')} | Total de alunos: {len(students_data)}"
-    elements.append(Paragraph(rodape_info, small_text))
-    
-    # Gerar PDF
-    doc.build(elements)
+    # Gerar PDF com rodapé em todas as páginas
+    doc.build(elements, onFirstPage=footer_on_page, onLaterPages=footer_on_page)
     buffer.seek(0)
     return buffer
 
