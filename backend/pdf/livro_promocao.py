@@ -156,25 +156,27 @@ def generate_livro_promocao_pdf(
         canvas_obj.setFont('Helvetica', 7)
         canvas_obj.drawString(mx + 2 * third + 3 + stringWidth('TURNO: ', 'Helvetica-Bold', 7), box_y2 + 3, turno)
         
-        # ===== RODAPÉ =====
-        canvas_obj.setFont('Helvetica', 9)
-        canvas_obj.setFillColor(colors.black)
-        canvas_obj.drawCentredString(page_w / 2, 3.8 * cm, data_extenso)
-        
-        line_y = 2.6 * cm
-        center_left = page_w / 2 - 5 * cm
-        center_right = page_w / 2 + 5 * cm
-        half_line = 4 * cm
-        canvas_obj.setLineWidth(0.5)
-        canvas_obj.line(center_left - half_line, line_y, center_left + half_line, line_y)
-        canvas_obj.line(center_right - half_line, line_y, center_right + half_line, line_y)
-        canvas_obj.setFont('Helvetica', 9)
-        canvas_obj.drawCentredString(center_left, line_y - 12, 'Secretário(a)')
-        canvas_obj.drawCentredString(center_right, line_y - 12, 'Diretor(a)')
-        
-        canvas_obj.setFont('Helvetica', 7)
-        canvas_obj.setFillColor(colors.HexColor('#666666'))
-        canvas_obj.drawString(mx, 0.6 * cm, rodape_info)
+        # ===== RODAPÉ (somente na última página) =====
+        is_last_page = isinstance(total, int) and page_num == total
+        if is_last_page:
+            canvas_obj.setFont('Helvetica', 9)
+            canvas_obj.setFillColor(colors.black)
+            canvas_obj.drawCentredString(page_w / 2, 3.8 * cm, data_extenso)
+            
+            line_y = 2.6 * cm
+            center_left = page_w / 2 - 5 * cm
+            center_right = page_w / 2 + 5 * cm
+            half_line = 4 * cm
+            canvas_obj.setLineWidth(0.5)
+            canvas_obj.line(center_left - half_line, line_y, center_left + half_line, line_y)
+            canvas_obj.line(center_right - half_line, line_y, center_right + half_line, line_y)
+            canvas_obj.setFont('Helvetica', 9)
+            canvas_obj.drawCentredString(center_left, line_y - 12, 'Secretário(a)')
+            canvas_obj.drawCentredString(center_right, line_y - 12, 'Diretor(a)')
+            
+            canvas_obj.setFont('Helvetica', 7)
+            canvas_obj.setFillColor(colors.HexColor('#666666'))
+            canvas_obj.drawString(mx, 0.6 * cm, rodape_info)
         
         canvas_obj.restoreState()
     
