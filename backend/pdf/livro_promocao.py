@@ -1,5 +1,4 @@
 """Módulo PDF - Livro de Promoção"""
-import copy
 from io import BytesIO
 from datetime import datetime
 from typing import List, Dict, Any
@@ -134,7 +133,7 @@ def generate_livro_promocao_pdf(
         canvas_obj.drawString(mx + 3, box_y + 3, 'ESCOLA:')
         canvas_obj.setFont('Helvetica', 7)
         canvas_obj.drawString(mx + 3 + stringWidth('ESCOLA: ', 'Helvetica-Bold', 7), box_y + 3, escola_nome)
-        pag_text = f'PÁGINA: {page_num:02d}/{total:02d}' if isinstance(total, int) else f'PÁGINA: {page_num:02d}/{total}'
+        pag_text = f'PÁGINA: {page_num:02d}/??'
         canvas_obj.setFont('Helvetica-Bold', 7)
         canvas_obj.drawRightString(page_w - mx - 3, box_y + 3, pag_text)
         
@@ -525,16 +524,36 @@ def generate_livro_promocao_pdf(
     table_p2.setStyle(TableStyle(style_p2))
     elements.append(table_p2)
     
-    # === Build em 2 passagens: 1ª conta páginas, 2ª gera com total correto ===
-    # 1ª passagem: contar páginas (usa deep copy para não mutar os elementos originais)
-    count_buffer = BytesIO()
-    count_doc = SimpleDocTemplate(count_buffer, pagesize=landscape(A4),
-        leftMargin=0.8*cm, rightMargin=0.8*cm, topMargin=3.0*cm, bottomMargin=4.2*cm)
-    count_doc.build(copy.deepcopy(elements), onFirstPage=draw_header_footer, onLaterPages=draw_header_footer)
-    page_total[0] = count_doc.page
-    
-    # 2ª passagem: gerar PDF final com total de páginas correto
+    # === Build único + pós-processamento com fitz para paginação ===
     doc.build(elements, onFirstPage=draw_header_footer, onLaterPages=draw_header_footer)
+    
+    # Pós-processamento: substituir "/?" pelo total real em cada página
+    import fitz as pymupdf
+    pdf_doc = pymupdf.open(stream=buffer.getvalue(), filetype='pdf')
+    total_pages = len(pdf_doc)
+    
+    for page in pdf_doc:
+        quads = page.search_for("/??")
+        positions = [(rect.x0, rect.y0, rect.y1) for rect in quads]
+        # Redação para remover o texto antigo
+        for rect in quads:
+            page.add_redact_annot(rect, fill=(1, 1, 1), cross_out=False)
+        page.apply_redactions()
+        # Inserir texto novo nas mesmas posições
+        for x0, y0, y1 in positions:
+            page.insert_text(
+                (x0 + 0.5, y1 - 2),
+                f"/{total_pages:02d}",
+                fontsize=7,
+                fontname="helv",
+                color=(0, 0, 0)
+            )
+    
+    final_buffer = BytesIO()
+    pdf_doc.save(final_buffer)
+    pdf_doc.close()
+    final_buffer.seek(0)
+    return final_buffer
     buffer.seek(0)
     return buffer
 
