@@ -413,10 +413,17 @@ def calcular_resultado_final_aluno(
         reprovado_por_frequencia = True
     
     # Filtrar componentes válidos (não optativos sem notas)
+    # Componentes com atendimento_programa diferente de regular são FORMATIVOS
+    # (caráter formativo, não avaliativo/reprovatório - não contam para aprovação/reprovação)
     componentes_validos = []
     for comp in medias_por_componente:
         is_optativo = comp.get('optativo', False)
         media = comp.get('media')
+        atend = (comp.get('atendimento_programa') or '').lower().strip()
+        
+        # Componentes formativos (integral, AEE, etc.) não contam para aprovação/reprovação
+        if atend and atend != 'regular' and atend != '':
+            continue
         
         # Se for optativo e não tem média, ignora
         if is_optativo and media is None:
@@ -809,6 +816,11 @@ def _calcular_resultado_com_avaliacao(
         is_optativo = comp.get('optativo', False)
         media = comp.get('media')
         nome = comp.get('nome', 'N/A')
+        atend = (comp.get('atendimento_programa') or '').lower().strip()
+        
+        # Componentes formativos (integral, AEE) não contam para aprovação/reprovação
+        if atend and atend != 'regular':
+            continue
         
         # Ignorar APENAS optativos sem nota
         if is_optativo and media is None:

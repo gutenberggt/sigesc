@@ -534,7 +534,8 @@ def generate_boletim_pdf(
         medias_por_componente.append({
             'nome': course.get('name', 'N/A'),
             'media': media,
-            'optativo': is_optativo
+            'optativo': is_optativo,
+            'atendimento_programa': course.get('atendimento_programa') or ''
         })
     
     # Extrair regras de aprovação da mantenedora

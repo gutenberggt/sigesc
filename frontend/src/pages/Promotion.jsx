@@ -459,14 +459,23 @@ export function Promotion() {
           result = 'TRANSFERIDO';
         } else {
           // Verificar se todas as médias são >= média de aprovação configurada na mantenedora
-          const averages = Object.values(gradesByComponent).map(c => c.finalAverage).filter(a => a !== null);
-          if (averages.length > 0) {
-            const allApproved = averages.every(avg => avg >= mediaAprovacao);
+          // Só considerar componentes REGULARES (atendimento_programa diferente de regular é formativo)
+          const regAverages = Object.entries(gradesByComponent)
+            .filter(([courseId]) => {
+              const course = courses.find(c => c.id === courseId);
+              if (!course) return true; // se não achar, considera regular
+              const ap = (course.atendimento_programa || course.atendimento || '').toLowerCase();
+              return !ap.includes('integral') && !ap.includes('aee');
+            })
+            .map(([, c]) => c.finalAverage)
+            .filter(a => a !== null);
+          if (regAverages.length > 0) {
+            const allApproved = regAverages.every(avg => avg >= mediaAprovacao);
             if (allApproved) {
               result = 'APROVADO';
             } else {
               // Verificar quantos componentes reprovados (abaixo da média de aprovação)
-              const failedCount = averages.filter(avg => avg < mediaAprovacao).length;
+              const failedCount = regAverages.filter(avg => avg < mediaAprovacao).length;
               
               // Aplicar regras de aprovação com dependência
               if (aprovacaoComDependencia && failedCount <= maxComponentesDependencia) {
