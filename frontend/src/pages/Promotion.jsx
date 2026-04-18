@@ -29,36 +29,36 @@ const fetchEnrollments = async (filters = {}) => {
 
 // Componentes Curriculares abreviados (como no documento)
 const COMPONENT_ABBREVIATIONS = {
-  'Língua Portuguesa': 'Lin. Port.',
-  'Arte': 'Arte',
-  'Educação Física': 'Ed. Fís.',
-  'Língua Inglesa': 'Lin. Ingl.',
-  'Inglês': 'Lin. Ingl.',
-  'Matemática': 'Mat.',
-  'Ciências': 'Ciênc.',
-  'História': 'Hist.',
-  'Geografia': 'Geo.',
-  'Ensino Religioso': 'Ed. Rel.',
-  'Educação Ambiental e Clima': 'Ed. A. Cl.',
-  'Estudos Amazônicos': 'Est. Amaz.',
-  'Literatura e Redação': 'Lit. e red.',
-  'Recreação e Lazer': 'R. E. Laz.',
-  'Recreação, Esporte e Lazer': 'R. E. Laz.',
-  'Linguagem Recreativa com Práticas de Esporte e Lazer': 'R. E. Laz.',
-  'Arte e Cultura': 'Art. e Cul.',
-  'Tecnologia da Informação': 'Tec. Inf.',
-  'Tecnologia e Informática': 'Tec. Inf.',
-  'Acompanhamento Pedagógico de Língua Portuguesa': 'APL Port.',
-  'Acompanhamento Pedagógico de Matemática': 'AP Mat.',
-  'Acomp. Ped. de Língua Portuguesa': 'APL Port.',
-  'Acomp. Ped. de Matemática': 'AP Mat.',
-  'Contação de Histórias e Iniciação Musical': 'Cont. Hist.',
-  'Corpo, gestos e movimentos': 'Corp. Gest.',
-  'Escuta, fala, pensamento e imaginação': 'Esc. Fala',
-  'Espaços, tempos, quantidades, relações e transformações': 'Esp. Temp.',
-  'Higiene e Saúde': 'Hig. Saúde',
-  'O eu, o outro e nós': 'Eu Out. Nós',
-  'Traço, sons, cores e formas': 'Traç. Sons'
+  'Língua Portuguesa': 'L. PORT.',
+  'Arte': 'ARTE',
+  'Educação Física': 'ED. FÍS.',
+  'Língua Inglesa': 'L. ING.',
+  'Inglês': 'L. ING.',
+  'Matemática': 'MAT.',
+  'Ciências': 'CIÊN.',
+  'História': 'HIST.',
+  'Geografia': 'GEOG.',
+  'Ensino Religioso': 'ENS. REL.',
+  'Educação Ambiental e Clima': 'ED. AMB. CLI.',
+  'Estudos Amazônicos': 'EST. AMAZ.',
+  'Literatura e Redação': 'LIT. E RED.',
+  'Arte e Cultura': 'ART. E CULT.',
+  'Recreação e Lazer': 'REC. ESP. LAZ.',
+  'Recreação, Esporte e Lazer': 'REC. ESP. LAZ.',
+  'Linguagem Recreativa com Práticas de Esporte e Lazer': 'REC. ESP. LAZ.',
+  'Tecnologia da Informação': 'TEC. E INFO.',
+  'Tecnologia e Informática': 'TEC. E INFO.',
+  'Acompanhamento Pedagógico de Língua Portuguesa': 'AC. PED. L. PORT.',
+  'Acompanhamento Pedagógico de Matemática': 'AC. PED. MAT.',
+  'Acomp. Ped. de Língua Portuguesa': 'AC. PED. L. PORT.',
+  'Acomp. Ped. de Matemática': 'AC. PED. MAT.',
+  'Contação de Histórias e Iniciação Musical': 'CONT. HIST.',
+  'Corpo, gestos e movimentos': 'CORP. GEST.',
+  'Escuta, fala, pensamento e imaginação': 'ESC. FALA',
+  'Espaços, tempos, quantidades, relações e transformações': 'ESP. TEMP.',
+  'Higiene e Saúde': 'HIG. SAÚDE',
+  'O eu, o outro e nós': 'EU OUT. NÓS',
+  'Traço, sons, cores e formas': 'TRAÇ. SONS'
 };
 
 // Ordem dos componentes - Anos Iniciais (1º ao 5º Ano) - Igual ao Boletim
@@ -153,7 +153,7 @@ const ordenarComponentes = (courses, gradeLevel) => {
 
 // Função para abreviar nome do componente
 const abbreviateComponent = (name) => {
-  return COMPONENT_ABBREVIATIONS[name] || name.substring(0, 10) + '.';
+  return COMPONENT_ABBREVIATIONS[name] || (name.substring(0, 10) + '.').toUpperCase();
 };
 
 // Cores do resultado
