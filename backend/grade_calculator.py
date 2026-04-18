@@ -446,17 +446,18 @@ def calcular_resultado_final_aluno(
     medias = []
     componentes_reprovados = []
     
+    # Verificar se B4 foi registrado para todos os componentes regulares
+    todos_tem_b4 = all(comp.get('has_b4', True) for comp in componentes_validos)
+    
     for comp in componentes_validos:
         media = comp.get('media')
         nome = comp.get('nome', 'N/A')
         
         if media is not None:
             medias.append(media)
-            # Componente com média abaixo do mínimo (inclui média 0.0)
             if media < media_minima:
                 componentes_reprovados.append(nome)
         else:
-            # Componente OBRIGATÓRIO sem nota = reprovado (não tem como aprovar sem nota)
             componentes_reprovados.append(nome)
     
     if not medias:
@@ -472,8 +473,8 @@ def calcular_resultado_final_aluno(
     media_geral = sum(medias) / len(medias)
     qtd_reprovados = len(componentes_reprovados)
     
-    # VERIFICAÇÃO PRIORITÁRIA: Reprovação por frequência
-    if reprovado_por_frequencia:
+    # VERIFICAÇÃO PRIORITÁRIA: Reprovação por frequência (só após B4)
+    if reprovado_por_frequencia and todos_tem_b4:
         freq_str = f'{frequencia_aluno:.1f}%' if frequencia_aluno else 'N/A'
         detalhes = f'Reprovado por frequência insuficiente ({freq_str} < {frequencia_minima:.0f}% mínimo)'
         if qtd_reprovados > 0:
@@ -500,7 +501,33 @@ def calcular_resultado_final_aluno(
             'reprovado_por_frequencia': False
         }
     
-    # Tem componentes reprovados - verificar regras de dependência
+    # B4 NÃO registrado para todos: não pode reprovar/dependência ainda
+    if not todos_tem_b4:
+        # Verificar se já pode ser aprovado antecipadamente
+        # (se os pontos acumulados nos bimestres registrados já garantem aprovação)
+        comps_com_media = [c for c in componentes_validos if c.get('media') is not None]
+        aprovado_antecipado = len(comps_com_media) > 0 and all(
+            c.get('media', 0) >= media_minima for c in comps_com_media if c.get('media') is not None
+        )
+        if aprovado_antecipado and qtd_reprovados == 0:
+            return {
+                'resultado': 'APROVADO',
+                'cor': '#16a34a',
+                'componentes_reprovados': [],
+                'media_geral': media_geral,
+                'detalhes': f'Aprovado antecipadamente - Média geral: {media_geral:.1f}',
+                'reprovado_por_frequencia': False
+            }
+        return {
+            'resultado': 'CURSANDO',
+            'cor': '#2563eb',
+            'componentes_reprovados': [],
+            'media_geral': media_geral,
+            'detalhes': f'Aguardando registro de notas do 4º Bimestre',
+            'reprovado_por_frequencia': False
+        }
+    
+    # B4 registrado - pode aplicar lógica completa de resultado
     
     # 1. Verificar se pode ficar EM DEPENDÊNCIA (cursar apenas os componentes reprovados)
     if permite_cursar_dep and qtd_reprovados >= qtd_cursar_dep and qtd_cursar_dep > 0:
@@ -802,8 +829,11 @@ def _calcular_resultado_com_avaliacao(
     cursar_dependencia = regras_aprovacao.get('cursar_apenas_dependencia', False) and permite_dependencia
     qtd_cursar_dep = regras_aprovacao.get('qtd_componentes_apenas_dependencia', 0) or 0
     
-    # Verificar frequência mínima
-    if frequencia_aluno is not None and frequencia_aluno < frequencia_minima:
+    # Verificar frequência mínima (só reprova por frequência se B4 registrado)
+    todos_tem_b4 = all(comp.get('has_b4', True) for comp in medias_por_componente 
+                       if (comp.get('atendimento_programa') or '').lower().strip() in ('', 'regular'))
+    
+    if frequencia_aluno is not None and frequencia_aluno < frequencia_minima and todos_tem_b4:
         return {
             'resultado': 'REPROVADO',
             'cor': '#dc2626',
@@ -845,7 +875,15 @@ def _calcular_resultado_com_avaliacao(
             'detalhes': 'Aprovado em todos os componentes'
         }
     
-    # Com reprovações - verificar dependência (apenas se permitido)
+    # B4 NÃO registrado: não pode reprovar/dependência ainda → CURSANDO
+    if not todos_tem_b4:
+        return {
+            'resultado': 'CURSANDO',
+            'cor': '#2563eb',
+            'detalhes': 'Aguardando registro de notas do 4º Bimestre'
+        }
+    
+    # B4 registrado - pode aplicar lógica completa
     if permite_dependencia:
         # 1. Verificar "EM DEPENDÊNCIA" (cursar apenas os componentes reprovados)
         if cursar_dependencia and qtd_cursar_dep > 0 and qtd_reprovados >= qtd_cursar_dep:

@@ -458,32 +458,37 @@ export function Promotion() {
         } else if (status === 'transferencia' || status === 'transferido') {
           result = 'TRANSFERIDO';
         } else {
-          // Verificar se todas as médias são >= média de aprovação configurada na mantenedora
           // Só considerar componentes REGULARES (atendimento_programa diferente de regular é formativo)
-          const regAverages = Object.entries(gradesByComponent)
+          const regEntries = Object.entries(gradesByComponent)
             .filter(([courseId]) => {
               const course = courses.find(c => c.id === courseId);
-              if (!course) return true; // se não achar, considera regular
+              if (!course) return true;
               const ap = (course.atendimento_programa || course.atendimento || '').toLowerCase();
               return !ap.includes('integral') && !ap.includes('aee');
-            })
-            .map(([, c]) => c.finalAverage)
-            .filter(a => a !== null);
+            });
+          
+          const regAverages = regEntries.map(([, c]) => c.finalAverage).filter(a => a !== null);
+          
+          // Verificar se B4 foi registrado para todos os componentes regulares
+          const allB4Registered = regEntries.every(([, c]) => c.b4 !== null && c.b4 !== undefined);
+          
           if (regAverages.length > 0) {
             const allApproved = regAverages.every(avg => avg >= mediaAprovacao);
             if (allApproved) {
               result = 'APROVADO';
+            } else if (!allB4Registered) {
+              // B4 não registrado: não pode reprovar ainda
+              result = 'CURSANDO';
             } else {
-              // Verificar quantos componentes reprovados (abaixo da média de aprovação)
+              // B4 registrado: pode aplicar lógica completa
               const failedCount = regAverages.filter(avg => avg < mediaAprovacao).length;
               
-              // Aplicar regras de aprovação com dependência
               if (aprovacaoComDependencia && failedCount <= maxComponentesDependencia) {
                 result = 'APROVADO COM DEPENDÊNCIA';
               } else if (failedCount > maxComponentesDependencia) {
                 result = 'REPROVADO';
               } else {
-                result = 'CURSANDO'; // Aguardando recuperação ou análise
+                result = 'CURSANDO';
               }
             }
           }

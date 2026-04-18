@@ -750,11 +750,14 @@ def generate_ficha_individual_pdf(
         else:
             media = None
         
+        has_b4 = b4 is not None
+        
         medias_por_componente.append({
             'nome': course.get('name', 'N/A'),
             'media': media,
             'optativo': is_optativo,
-            'atendimento_programa': course.get('atendimento_programa') or ''
+            'atendimento_programa': course.get('atendimento_programa') or '',
+            'has_b4': has_b4
         })
     
     # Extrair regras de aprovação da mantenedora
