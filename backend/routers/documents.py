@@ -1525,7 +1525,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             nivel_ensino = class_info.get('education_level', '')
             grade_level = class_info.get('grade_level', '')
 
-            # Primeiro: buscar teacher_assignments da turma para filtrar componentes
+            # Buscar teacher_assignments da turma (sem filtro de academic_year, igual ao Boletim)
             assignments = await db.teacher_assignments.find({
                 "class_id": class_id,
                 "status": {"$in": ["ativo", "Ativo", "active"]}
@@ -1534,40 +1534,33 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             assigned_course_ids = list(set(a.get("course_id") for a in assignments if a.get("course_id")))
             
             if assigned_course_ids:
-                # Buscar apenas os componentes alocados na turma
                 courses = await db.courses.find({
                     "id": {"$in": assigned_course_ids}
                 }, {"_id": 0}).to_list(100)
             else:
-                # Fallback: buscar por grade_level e filtrar por atendimento_programa
+                # Fallback: buscar por nível de ensino
+                courses_query = {"nivel_ensino": nivel_ensino} if nivel_ensino else {}
+                courses = await db.courses.find(courses_query, {"_id": 0}).to_list(100)
+
+            # Filtro final por atendimento_programa (SEMPRE aplicado, igual ao Boletim)
+            turma_atendimento = (class_info.get('atendimento_programa') or '').strip().lower()
+            if turma_atendimento in ('atendimento_integral', 'integral'):
+                courses = [c for c in courses if (c.get('atendimento_programa') or '') in ('', 'atendimento_integral') or c.get('atendimento_programa') is None]
+            elif turma_atendimento == 'aee':
+                courses = [c for c in courses if (c.get('atendimento_programa') or '').lower() == 'aee']
+            else:
+                courses = [c for c in courses if not c.get('atendimento_programa') or c.get('atendimento_programa') == '']
+
+            # Se não encontrar nenhum, buscar regulares do nível como último recurso
+            if not courses and nivel_ensino:
                 courses = await db.courses.find({
+                    "nivel_ensino": nivel_ensino,
                     "$or": [
-                        {"grade_levels": grade_level},
-                        {"grade_levels": {"$size": 0}},
-                        {"grade_levels": {"$exists": False}}
+                        {"atendimento_programa": None},
+                        {"atendimento_programa": {"$exists": False}},
+                        {"atendimento_programa": ""}
                     ]
                 }, {"_id": 0}).to_list(100)
-                
-                # Filtrar por atendimento_programa da turma
-                turma_atendimento = (class_info.get('atendimento_programa') or '').lower()
-                if turma_atendimento:
-                    filtered = []
-                    for c in courses:
-                        c_atend = (c.get('atendimento_programa') or c.get('atendimento') or '').lower()
-                        if turma_atendimento == 'atendimento_integral':
-                            if not c_atend or c_atend == 'atendimento_integral':
-                                filtered.append(c)
-                        else:
-                            if c_atend == turma_atendimento:
-                                filtered.append(c)
-                    courses = filtered
-                else:
-                    # Turma regular: excluir componentes de programas especiais
-                    courses = [c for c in courses if not (c.get('atendimento_programa') or c.get('atendimento') or '')]
-
-            # Se não encontrar nenhum, buscar todos como último recurso
-            if not courses:
-                courses = await db.courses.find({}, {"_id": 0}).to_list(100)
 
             # Criar mapa de componentes
             courses_map = {c.get("id"): c for c in courses}

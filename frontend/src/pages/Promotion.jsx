@@ -313,31 +313,28 @@ export function Promotion() {
       // Filtrar por teacher_assignments (componentes efetivamente alocados na turma)
       try {
         const assignments = await teacherAssignmentAPI.list({
-          class_id: selectedClass,
-          academic_year: selectedYear
+          class_id: selectedClass
         });
         if (assignments && assignments.length > 0) {
           const assignedCourseIds = [...new Set(assignments.map(a => a.course_id).filter(Boolean))];
           filteredCourses = filteredCourses.filter(c => assignedCourseIds.includes(c.id));
-        } else {
-          // Fallback: filtrar por atendimento_programa da turma
-          const turmaAtendimento = (classInfo.atendimento_programa || '').toLowerCase();
-          filteredCourses = filteredCourses.filter(course => {
-            const courseAtendimento = (course.atendimento_programa || course.atendimento || '').toLowerCase();
-            if (turmaAtendimento === 'atendimento_integral') {
-              if (courseAtendimento && courseAtendimento !== 'atendimento_integral') return false;
-            } else if (turmaAtendimento) {
-              if (courseAtendimento !== turmaAtendimento) return false;
-            } else {
-              if (courseAtendimento) return false;
-            }
-            if (!course.grade_levels || course.grade_levels.length === 0) return true;
-            return course.grade_levels.includes(classInfo.grade_level);
-          });
         }
       } catch (e) {
-        console.warn('Erro ao buscar alocações, usando todos os componentes:', e.message);
+        console.warn('Erro ao buscar alocações:', e.message);
       }
+      
+      // Filtro final por atendimento_programa (sempre aplicado, igual ao Boletim)
+      const turmaAtendimento = (classInfo.atendimento_programa || '').toLowerCase();
+      filteredCourses = filteredCourses.filter(course => {
+        const courseAtendimento = (course.atendimento_programa || course.atendimento || '').toLowerCase();
+        if (turmaAtendimento === 'atendimento_integral' || turmaAtendimento === 'integral') {
+          return !courseAtendimento || courseAtendimento === 'atendimento_integral' || courseAtendimento === 'integral';
+        } else if (turmaAtendimento === 'aee') {
+          return courseAtendimento === 'aee';
+        } else {
+          return !courseAtendimento;
+        }
+      });
       
       const orderedCourses = ordenarComponentes(filteredCourses, classInfo.grade_level);
       setCourses(orderedCourses);
