@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -201,6 +201,19 @@ export function Promotion() {
   const [students, setStudents] = useState([]);
   const [courses, setCourses] = useState([]);
   const [gradesData, setGradesData] = useState([]);
+  
+  // Separar regulares e integrais
+  const regCourses = useMemo(() => 
+    courses.filter(c => {
+      const ap = (c.atendimento_programa || c.atendimento || '').toLowerCase();
+      return !ap || (ap !== 'atendimento_integral' && ap !== 'integral');
+    }), [courses]);
+  const intCourses = useMemo(() => 
+    courses.filter(c => {
+      const ap = (c.atendimento_programa || c.atendimento || '').toLowerCase();
+      return ap === 'atendimento_integral' || ap === 'integral';
+    }), [courses]);
+  const hasIntegral = intCourses.length > 0;
   
   // Filters
   const [selectedSchool, setSelectedSchool] = useState('');
@@ -807,67 +820,70 @@ export function Promotion() {
                       <th rowSpan={2} className="px-2 py-2 text-left font-semibold border-r min-w-[200px] sticky left-8 bg-slate-100 z-10">LISTA DE ALUNOS</th>
                       <th rowSpan={2} className="px-2 py-2 text-center font-semibold border-r-2 border-slate-400 w-10">SEXO</th>
                       
-                      {/* 1º Bimestre */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-blue-50">
-                        NOTAS 1º BIMESTRE
-                      </th>
+                      {/* Bimestres 1-4 com NOTAS + PARTICIPAÇÃO */}
+                      {['1º', '2º', '3º', '4º'].map((bim, bi) => (
+                        <React.Fragment key={`bim-${bi}`}>
+                          <th colSpan={regCourses.length} className={`px-2 py-1 text-center font-semibold border-r-2 border-slate-400 ${bi % 2 === 0 ? 'bg-blue-50' : 'bg-green-50'}`}>
+                            NOTAS {bim} BIMESTRE
+                          </th>
+                          {hasIntegral && (
+                            <th colSpan={intCourses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-purple-50 text-purple-800">
+                              PARTICIPAÇÃO {bim} BIM
+                            </th>
+                          )}
+                          {/* Recuperação após 2º e 4º bimestre */}
+                          {(bi === 1) && (
+                            <th colSpan={regCourses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-yellow-50">
+                              RECUPERAÇÃO 1º SEM
+                            </th>
+                          )}
+                          {(bi === 3) && (
+                            <th colSpan={regCourses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-yellow-50">
+                              RECUPERAÇÃO 2º SEM
+                            </th>
+                          )}
+                        </React.Fragment>
+                      ))}
                       
-                      {/* 2º Bimestre */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-green-50">
-                        NOTAS 2º BIMESTRE
-                      </th>
-                      
-                      {/* Recuperação 1º Semestre */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-yellow-50">
-                        RECUPERAÇÃO 1º SEM
-                      </th>
-                      
-                      {/* 3º Bimestre */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-blue-50">
-                        NOTAS 3º BIMESTRE
-                      </th>
-                      
-                      {/* 4º Bimestre */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-green-50">
-                        NOTAS 4º BIMESTRE
-                      </th>
-                      
-                      {/* Recuperação 2º Semestre */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-yellow-50">
-                        RECUPERAÇÃO 2º SEM
-                      </th>
-                      
-                      {/* Total Pontos Anuais */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-purple-50">
+                      {/* Total */}
+                      <th colSpan={courses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-purple-50">
                         TOTAL PONTOS ANUAIS
                       </th>
-                      
-                      {/* Média Final */}
-                      <th colSpan={courses.length || 11} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-orange-50">
+                      {/* Média */}
+                      <th colSpan={courses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-orange-50">
                         MÉDIA FINAL
                       </th>
-                      
                       {/* Resultado */}
                       <th rowSpan={2} className="px-2 py-2 text-center font-semibold min-w-[100px] bg-slate-200">
                         RESULTADO FINAL
                       </th>
                     </tr>
                     
-                    {/* Sub-cabeçalho com componentes */}
+                    {/* Sub-cabeçalho com nomes dos componentes */}
                     <tr className="bg-slate-50 border-b">
-                      {/* Repetir componentes para cada seção */}
-                      {[...Array(8)].map((_, sectionIdx) => (
-                        courses.map((course, idx) => (
-                          <th 
-                            key={`${sectionIdx}-${idx}`} 
-                            className={`px-1 py-1 text-center font-normal text-[10px] whitespace-nowrap ${
-                              idx === courses.length - 1 ? 'border-r-2 border-slate-400' : 'border-r'
-                            }`}
-                          >
-                            {abbreviateComponent(course.name)}
-                          </th>
-                        ))
-                      ))}
+                      {/* Para cada seção repetir os nomes dos componentes */}
+                      {['b1', 'b2', 'rec1', 'b3', 'b4', 'rec2', 'totalPoints', 'finalAverage'].map((section) => {
+                        const isRec = section === 'rec1' || section === 'rec2';
+                        const isBim = ['b1', 'b2', 'b3', 'b4'].includes(section);
+                        const isTotal = section === 'totalPoints' || section === 'finalAverage';
+                        // Rec e Total/Média: todos os componentes (mas Rec só regulares)
+                        const sectionCourses = isRec ? regCourses : (isTotal ? courses : (isBim ? regCourses : courses));
+                        return (
+                          <React.Fragment key={`sub-${section}`}>
+                            {sectionCourses.map((course, idx) => (
+                              <th key={`${section}-${course.id}`} className={`px-1 py-1 text-center font-normal text-[10px] whitespace-nowrap ${idx === sectionCourses.length - 1 ? 'border-r-2 border-slate-400' : 'border-r'}`}>
+                                {abbreviateComponent(course.name)}
+                              </th>
+                            ))}
+                            {/* Integrais após regulares nos bimestres */}
+                            {isBim && hasIntegral && intCourses.map((course, idx) => (
+                              <th key={`${section}-int-${course.id}`} className={`px-1 py-1 text-center font-normal text-[10px] whitespace-nowrap bg-purple-50 ${idx === intCourses.length - 1 ? 'border-r-2 border-slate-400' : 'border-r'}`}>
+                                {abbreviateComponent(course.name)}
+                              </th>
+                            ))}
+                          </React.Fragment>
+                        );
+                      })}
                     </tr>
                   </thead>
                   
@@ -881,41 +897,51 @@ export function Promotion() {
                         <td className="px-2 py-2 border-r-2 border-slate-400 text-center">{student.sex}</td>
                         
                         {/* Notas por seção */}
-                        {['b1', 'b2', 'rec1', 'b3', 'b4', 'rec2', 'totalPoints', 'finalAverage'].map((period, periodIdx) => (
-                          courses.map((course, idx) => {
-                            const gradeData = student.grades[course.id];
-                            let value = '-';
-                            
-                            if (gradeData) {
-                              if (period === 'totalPoints') {
-                                value = gradeData.totalPoints ? gradeData.totalPoints.toFixed(1) : '-';
-                              } else if (period === 'finalAverage') {
-                                value = gradeData.finalAverage ? gradeData.finalAverage.toFixed(1) : '-';
-                              } else {
-                                value = gradeData[period] !== null && gradeData[period] !== undefined 
-                                  ? gradeData[period].toFixed(1) 
-                                  : '-';
-                              }
-                            }
-                            
-                            // Destacar médias abaixo de 6
-                            const isLowGrade = period === 'finalAverage' && gradeData?.finalAverage !== null && gradeData?.finalAverage < 6;
-                            
-                            // Última coluna de cada bloco tem borda mais grossa
-                            const isLastInSection = idx === courses.length - 1;
-                            
-                            return (
-                              <td 
-                                key={`${period}-${idx}`} 
-                                className={`px-1 py-2 text-center text-[10px] ${
-                                  isLastInSection ? 'border-r-2 border-slate-400' : 'border-r'
-                                } ${isLowGrade ? 'bg-red-100 text-red-700 font-bold' : ''}`}
-                              >
-                                {value}
-                              </td>
-                            );
-                          })
-                        ))}
+                        {['b1', 'b2', 'rec1', 'b3', 'b4', 'rec2', 'totalPoints', 'finalAverage'].map((period) => {
+                          const isRec = period === 'rec1' || period === 'rec2';
+                          const isBim = ['b1', 'b2', 'b3', 'b4'].includes(period);
+                          const isTotal = period === 'totalPoints' || period === 'finalAverage';
+                          const sectionCourses = isRec ? regCourses : (isTotal ? courses : (isBim ? regCourses : courses));
+                          
+                          return (
+                            <React.Fragment key={`data-${period}`}>
+                              {sectionCourses.map((course, idx) => {
+                                const gradeData = student.grades[course.id];
+                                let value = '-';
+                                if (gradeData) {
+                                  if (period === 'totalPoints') {
+                                    value = gradeData.totalPoints ? gradeData.totalPoints.toFixed(1) : '-';
+                                  } else if (period === 'finalAverage') {
+                                    value = gradeData.finalAverage ? gradeData.finalAverage.toFixed(1) : '-';
+                                  } else {
+                                    value = gradeData[period] !== null && gradeData[period] !== undefined ? gradeData[period].toFixed(1) : '-';
+                                  }
+                                }
+                                const isLowGrade = period === 'finalAverage' && gradeData?.finalAverage !== null && gradeData?.finalAverage < 6;
+                                const isLast = idx === sectionCourses.length - 1;
+                                return (
+                                  <td key={`${period}-${course.id}`} className={`px-1 py-2 text-center text-[10px] ${isLast ? 'border-r-2 border-slate-400' : 'border-r'} ${isLowGrade ? 'bg-red-100 text-red-700 font-bold' : ''}`}>
+                                    {value}
+                                  </td>
+                                );
+                              })}
+                              {/* Integrais nos bimestres */}
+                              {isBim && hasIntegral && intCourses.map((course, idx) => {
+                                const gradeData = student.grades[course.id];
+                                let value = '-';
+                                if (gradeData) {
+                                  value = gradeData[period] !== null && gradeData[period] !== undefined ? gradeData[period].toFixed(1) : '-';
+                                }
+                                const isLast = idx === intCourses.length - 1;
+                                return (
+                                  <td key={`${period}-int-${course.id}`} className={`px-1 py-2 text-center text-[10px] bg-purple-50/30 ${isLast ? 'border-r-2 border-slate-400' : 'border-r'}`}>
+                                    {value}
+                                  </td>
+                                );
+                              })}
+                            </React.Fragment>
+                          );
+                        })}
                         
                         {/* Resultado Final */}
                         <td className="px-2 py-2 text-center">
