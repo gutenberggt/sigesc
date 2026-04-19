@@ -146,7 +146,7 @@ def generate_class_details_pdf(
         'evening': 'Noite', 'full_time': 'Integral'
     }
     atendimentos = {
-        'regular': 'Regular', 'atendimento_integral': 'Escola Integral',
+        'regular': 'Regular', 'atendimento_integral': 'Tempo Integral',
         'aee': 'AEE', '': '-'
     }
 

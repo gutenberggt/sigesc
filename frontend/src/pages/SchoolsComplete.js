@@ -1303,7 +1303,7 @@ export function SchoolsComplete() {
       // Atendimentos ativos
       const atendimentosAtivos = [];
       if (formData.aee) atendimentosAtivos.push('Atendimento Educacional Especializado - AEE');
-      if (formData.atendimento_integral) atendimentosAtivos.push('Escola Integral');
+      if (formData.atendimento_integral) atendimentosAtivos.push('Tempo Integral');
       if (formData.reforco_escolar) atendimentosAtivos.push('Reforço Escolar');
       if (formData.aulas_complementares) atendimentosAtivos.push('Aulas Complementares');
       if (formData.recomposicao_aprendizagem) atendimentosAtivos.push('Recomposição da Aprendizagem');
@@ -1689,7 +1689,7 @@ export function SchoolsComplete() {
               disabled={viewMode}
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <span className="text-sm text-gray-700">Escola Integral</span>
+            <span className="text-sm text-gray-700">Tempo Integral</span>
           </label>
           
           <label className="flex items-center space-x-2">

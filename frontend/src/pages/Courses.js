@@ -40,7 +40,7 @@ export const Courses = () => {
 
   const ATENDIMENTO_OPTIONS = [
     { value: '', label: 'Regular (Base Comum)' },
-    { value: 'atendimento_integral', label: 'Escola Integral' },
+    { value: 'atendimento_integral', label: 'Tempo Integral' },
     { value: 'aee', label: 'AEE - Atendimento Educacional Especializado' },
     { value: 'reforco_escolar', label: 'Reforço Escolar' },
     { value: 'aulas_complementares', label: 'Aulas Complementares' }

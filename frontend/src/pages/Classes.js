@@ -186,7 +186,7 @@ export const Classes = () => {
     const programas = [];
     
     if (selectedSchool.atendimento_integral) {
-      programas.push({ value: 'atendimento_integral', label: 'Escola Integral' });
+      programas.push({ value: 'atendimento_integral', label: 'Tempo Integral' });
     }
     if (selectedSchool.reforco_escolar) {
       programas.push({ value: 'reforco_escolar', label: 'Reforço Escolar' });
@@ -508,7 +508,7 @@ export const Classes = () => {
     const getAtendimentoLabel = (value) => {
       if (!value) return 'Turma Regular';
       const labels = {
-        'atendimento_integral': 'Escola Integral',
+        'atendimento_integral': 'Tempo Integral',
         'reforco_escolar': 'Reforço Escolar',
         'aulas_complementares': 'Recomposição da Aprendizagem',
         'aee': 'AEE - Atendimento Educacional Especializado'
@@ -805,7 +805,7 @@ export const Classes = () => {
                           classDetails.class.atendimento_programa === 'aee' ? 'bg-blue-100 text-blue-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
-                          {classDetails.class.atendimento_programa === 'atendimento_integral' ? 'Escola Integral' :
+                          {classDetails.class.atendimento_programa === 'atendimento_integral' ? 'Tempo Integral' :
                            classDetails.class.atendimento_programa === 'reforco_escolar' ? 'Reforço Escolar' :
                            classDetails.class.atendimento_programa === 'aulas_complementares' ? 'Recomposição da Aprendizagem' :
                            classDetails.class.atendimento_programa === 'aee' ? 'AEE' :
