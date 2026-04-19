@@ -626,30 +626,6 @@ export function Grades() {
     }
   };
   
-  // Renderiza status com cor
-  const renderStatus = (status, average) => {
-    const config = {
-      'cursando': { label: 'Cursando', class: 'bg-gray-100 text-gray-800' },
-      'aprovado': { label: 'Aprovado', class: 'bg-green-100 text-green-800' },
-      'reprovado_nota': { label: 'Reprovado', class: 'bg-red-100 text-red-800' },
-      'reprovado_frequencia': { label: 'Rep. Freq.', class: 'bg-orange-100 text-orange-800' }
-    };
-    const c = config[status] || config['cursando'];
-    
-    return (
-      <div className="flex items-center gap-2">
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${c.class}`}>
-          {c.label}
-        </span>
-        {average !== null && (
-          <span className={`font-bold ${average >= 5 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatGrade(average)}
-          </span>
-        )}
-      </div>
-    );
-  };
-  
   const gradesContextValue = useMemo(() => ({
     // Base lists
     schools, filteredClasses, filteredCourses, availableSeries,
@@ -669,7 +645,6 @@ export function Grades() {
     loadGradesByClass, updateLocalGrade, saveGrades,
     canEditField, canEditStudentGrade,
     isStudentBlockedForProfessor, getBlockedMessage,
-    renderStatus,
     setShowPdfModal,
     user,
     // Por Aluno

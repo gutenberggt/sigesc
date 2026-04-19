@@ -1,5 +1,5 @@
 import { Search, X, BookOpen, User } from 'lucide-react';
-import { GradeInput, formatGrade } from './gradeHelpers';
+import { GradeInput, StatusBadge, formatGrade } from './gradeHelpers';
 import { useGrades } from '@/contexts/GradesContext';
 
 export const AlunoTab = () => {
@@ -13,7 +13,7 @@ export const AlunoTab = () => {
     handleSelectStudent, handleClearSearch,
     studentGrades,
     canEdit, updateStudentGrade,
-    loading, renderStatus,
+    loading,
   } = useGrades();
 
   return (
@@ -202,7 +202,7 @@ export const AlunoTab = () => {
                               </span>
                             </td>
                             <td className="px-4 py-3 text-center">
-                              {renderStatus(grade.status, null)}
+                              {<StatusBadge status={grade.status} average={null} />}
                             </td>
                           </tr>
                         ))}

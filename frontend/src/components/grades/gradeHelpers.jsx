@@ -170,8 +170,7 @@ export const GradeInput = ({ value, onChange, disabled, placeholder = '0,0' }) =
 };
 
 // Componente de seleção de conceito (para Educação Infantil e 1º/2º Ano)
-export const ConceitoSelect = ({ value, onChange, disabled, gradeLevel }) => {
-  const isAnosIniciais = gradeLevel && isAnosIniciaisConceitual(gradeLevel);
+export const ConceitoSelect = ({ value, onChange, disabled, gradeLevel }) => {  const isAnosIniciais = gradeLevel && isAnosIniciaisConceitual(gradeLevel);
   const conceitosDisponiveis = isAnosIniciais ? CONCEITOS_ANOS_INICIAIS : CONCEITOS_EDUCACAO_INFANTIL;
 
   const conceito = valorParaConceito(value, gradeLevel);
@@ -193,5 +192,29 @@ export const ConceitoSelect = ({ value, onChange, disabled, gradeLevel }) => {
         <option key={key} value={key} title={descricao}>{key}</option>
       ))}
     </select>
+  );
+};
+
+// Badge de status do aluno (com nota final colorida)
+const STATUS_CONFIG = {
+  cursando: { label: 'Cursando', class: 'bg-gray-100 text-gray-800' },
+  aprovado: { label: 'Aprovado', class: 'bg-green-100 text-green-800' },
+  reprovado_nota: { label: 'Reprovado', class: 'bg-red-100 text-red-800' },
+  reprovado_frequencia: { label: 'Rep. Freq.', class: 'bg-orange-100 text-orange-800' },
+};
+
+export const StatusBadge = ({ status, average }) => {
+  const c = STATUS_CONFIG[status] || STATUS_CONFIG.cursando;
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${c.class}`}>
+        {c.label}
+      </span>
+      {average !== null && (
+        <span className={`font-bold ${average >= 5 ? 'text-green-600' : 'text-red-600'}`}>
+          {formatGrade(average)}
+        </span>
+      )}
+    </div>
   );
 };
