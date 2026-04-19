@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Layout } from '@/components/Layout';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -953,6 +953,49 @@ export const Attendance = () => {
     if (activeTab === 'informacoes' && infoClass) loadInfoStudents();
   }, [activeTab, infoClass, loadInfoStudents]);
 
+  const attendanceContextValue = useMemo(() => ({
+    academicYear, setAcademicYear, availableYears,
+    schools, selectedSchool, setSelectedSchool,
+    classes, selectedClass, setSelectedClass,
+    courses, selectedCourse, setSelectedCourse,
+    attendanceType, attendanceSummary, selectedClassData,
+    selectedDate, setSelectedDate, dateCheck, navigateDate,
+    loading, saving, attendanceData, hasChanges, canEdit,
+    loadAttendance, markAll, saveAttendance,
+    isMultiAula, numberOfAulas, setNumberOfAulas, setHasChanges,
+    aulaStatuses, updateStudentStatus,
+    vaccineStatuses, hasActiveCertificate, getCertificateInfo,
+    isStudentBlockedForProfessor, getBlockedMessage,
+    medicalCertificates, setShowDeleteModal,
+    registrosLoading, registrosBimSummary, registrosBlockedDates,
+    registrosSabLetivos, registrosAttDates,
+    selectedBimestre, setSelectedBimestre, isAnosFinaisOrEja,
+    reportCourseId, setReportCourseId, setClassReport,
+    classReport, loadClassReport, generateBimestrePdf,
+    infoSchool, setInfoSchool, infoClass, setInfoClass,
+    infoClasses, infoLoading, infoStudents,
+    loadAlerts, alertsData,
+  }), [
+    academicYear, availableYears,
+    schools, selectedSchool, classes, selectedClass,
+    courses, selectedCourse,
+    attendanceType, attendanceSummary, selectedClassData,
+    selectedDate, dateCheck, navigateDate,
+    loading, saving, attendanceData, hasChanges, canEdit,
+    loadAttendance, markAll, saveAttendance,
+    isMultiAula, numberOfAulas,
+    aulaStatuses, updateStudentStatus,
+    vaccineStatuses, hasActiveCertificate, getCertificateInfo,
+    isStudentBlockedForProfessor, getBlockedMessage,
+    medicalCertificates,
+    registrosLoading, registrosBimSummary, registrosBlockedDates,
+    registrosSabLetivos, registrosAttDates,
+    selectedBimestre, isAnosFinaisOrEja,
+    reportCourseId, classReport, loadClassReport, generateBimestrePdf,
+    infoSchool, infoClass, infoClasses, infoLoading, infoStudents,
+    loadAlerts, alertsData,
+  ]);
+
   return (
     <Layout>
       <div className="space-y-4">
@@ -1029,29 +1072,7 @@ export const Attendance = () => {
           </div>
           
           <div className="p-4">
-            <AttendanceContext.Provider value={{
-              academicYear, setAcademicYear, availableYears,
-              schools, selectedSchool, setSelectedSchool,
-              classes, selectedClass, setSelectedClass,
-              courses, selectedCourse, setSelectedCourse,
-              attendanceType, attendanceSummary, selectedClassData,
-              selectedDate, setSelectedDate, dateCheck, navigateDate,
-              loading, saving, attendanceData, hasChanges, canEdit,
-              loadAttendance, markAll, saveAttendance,
-              isMultiAula, numberOfAulas, setNumberOfAulas, setHasChanges,
-              aulaStatuses, updateStudentStatus,
-              vaccineStatuses, hasActiveCertificate, getCertificateInfo,
-              isStudentBlockedForProfessor, getBlockedMessage,
-              medicalCertificates, setShowDeleteModal,
-              registrosLoading, registrosBimSummary, registrosBlockedDates,
-              registrosSabLetivos, registrosAttDates,
-              selectedBimestre, setSelectedBimestre, isAnosFinaisOrEja,
-              reportCourseId, setReportCourseId, setClassReport,
-              classReport, loadClassReport, generateBimestrePdf,
-              infoSchool, setInfoSchool, infoClass, setInfoClass,
-              infoClasses, infoLoading, infoStudents,
-              loadAlerts, alertsData,
-            }}>
+            <AttendanceContext.Provider value={attendanceContextValue}>
               <Suspense fallback={
                 <div className="flex justify-center items-center py-16" data-testid="tab-loading">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>

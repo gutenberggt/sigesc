@@ -313,15 +313,17 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Values/enums do banco (`atendimento_integral`) mantidos intactos para não quebrar filtros e lógicas existentes
 
 ## Refatoração Attendance.js (Feb/2026)
-- `Attendance.js` reduzido de 2071 → ~1262 linhas via pattern container/presentational
+- `Attendance.js` reduzido de 2071 → ~1146 linhas via pattern container/presentational
 - Cada aba extraída em componente isolado em `/app/frontend/src/components/attendance/`:
   - `LancamentoTab.jsx` - filtros, data picker, tabela de frequência, botões P/F/J, salvar/excluir
   - `RegistrosTab.jsx` - calendário anual dos 12 meses + resumo por bimestre
   - `InformacoesTab.jsx` - lista de alunos com telefone WhatsApp clicável
   - `RelatoriosTab.jsx` - relatório de frequência + geração de PDF bimestral
   - `AlertasTab.jsx` - alertas de frequência < 75%
-- Container mantém todo estado/handlers e passa props via drilling
-- Testado 100% pelo testing agent (iteration_51.json) - zero regressões
+- Container + `AttendanceContext` (Provider com value `useMemo`-izado) elimina props drilling
+- Lazy loading com `React.lazy` + `<Suspense>` - cada tab carrega sob demanda
+- API service layer: constantes duplicadas `VACCINE_API`/`API_URL` removidas; fetches inline migrados para `attendanceAPI.{getDatesWithRecords,getBimestreSummary,getClassStudentsInfo,getBimestrePdfBlob}` e novo `vaccinesAPI.getStatusBatch`
+- Validado 100% pelo testing agent (iteration_51.json + iteration_52.json) - zero regressões
 
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
