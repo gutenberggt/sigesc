@@ -325,6 +325,17 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - API service layer: constantes duplicadas `VACCINE_API`/`API_URL` removidas; fetches inline migrados para `attendanceAPI.{getDatesWithRecords,getBimestreSummary,getClassStudentsInfo,getBimestrePdfBlob}` e novo `vaccinesAPI.getStatusBatch`
 - Validado 100% pelo testing agent (iteration_51.json + iteration_52.json) - zero regressões
 
+## Refatoração Grades.js (Feb/2026)
+- `Grades.js` reduzido de 1604 → ~835 linhas, mesmo padrão do Attendance
+- Novos arquivos em `/app/frontend/src/components/grades/`:
+  - `gradeHelpers.jsx` - constantes (CONCEITOS_*), helpers (formatGrade, parseGrade, calculateAverage, valorParaConceito, etc.) + componentes `GradeInput` e `ConceitoSelect`
+  - `TurmaTab.jsx` - aba "Por Turma" (tabela de notas, edição, salvar)
+  - `AlunoTab.jsx` - aba "Por Aluno" (busca + notas de todos os componentes)
+- `GradesContext` + `useGrades()` hook elimina props drilling entre as 2 abas
+- Lazy loading com `React.lazy` + `<Suspense>`
+- `gradesAPI.getPdfBlob` adicionado em `api.js` (migrado do fetch inline)
+- Validado 100% pelo testing agent (iteration_53.json) - 1 bug de import faltante (CONCEITOS_*) corrigido pelo testing agent
+
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
 - Coordenador: coordenador@sigesc.com / coordenador123
