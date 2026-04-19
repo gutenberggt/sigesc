@@ -1472,6 +1472,52 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
 
+    async def _get_or_create_book_number(class_id: str, academic_year: int) -> str:
+        """
+        Retorna o Nº do Livro de Promoção existente para (class_id, academic_year)
+        ou cria um novo no formato AAAA0001 (AAAA = ano de criação, 0001 = seq global por ano).
+        """
+        existing = await db.promotion_books.find_one(
+            {"class_id": class_id, "academic_year": academic_year},
+            {"_id": 0}
+        )
+        if existing:
+            return existing["book_number"]
+
+        from datetime import datetime as _dt
+        creation_year = _dt.now().year
+
+        # Contador atômico por ano de criação
+        counter = await db.promotion_book_counters.find_one_and_update(
+            {"year": creation_year},
+            {"$inc": {"seq": 1}},
+            upsert=True,
+            return_document=True
+        )
+        seq = counter.get("seq", 1)
+        book_number = f"{creation_year}{seq:04d}"
+
+        await db.promotion_books.insert_one({
+            "class_id": class_id,
+            "academic_year": academic_year,
+            "book_number": book_number,
+            "created_at": _dt.now(),
+        })
+        return book_number
+
+
+    @router.get("/documents/promotion/{class_id}/book-number")
+    async def get_promotion_book_number(
+        class_id: str,
+        academic_year: int = 2026,
+        request: Request = None
+    ):
+        """Retorna (ou cria) o Nº do Livro de Promoção da turma no formato AAAA0001."""
+        await AuthMiddleware.get_current_user(request)
+        book_number = await _get_or_create_book_number(class_id, academic_year)
+        return {"book_number": book_number}
+
+
     @router.get("/documents/promotion/{class_id}")
     async def get_livro_promocao_pdf(
         class_id: str,
@@ -1681,6 +1727,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             # Ordenar por nome
             students_data.sort(key=lambda x: unicodedata.normalize('NFD', x.get("studentName", "")).encode('ascii', 'ignore').decode('ascii'))
 
+            # Obter Nº do Livro (cria se não existir)
+            book_number = await _get_or_create_book_number(class_id, academic_year)
+
             # Gerar PDF
             pdf_buffer = generate_livro_promocao_pdf(
                 school=school,
@@ -1688,7 +1737,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 students_data=students_data,
                 courses=courses,
                 academic_year=academic_year,
-                mantenedora=mantenedora
+                mantenedora=mantenedora,
+                book_number=book_number
             )
 
             # Gerar nome do arquivo

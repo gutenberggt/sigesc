@@ -221,6 +221,9 @@ export function Promotion() {
   
   // Processed data
   const [promotionData, setPromotionData] = useState([]);
+
+  // Nº do Livro (gerado automaticamente ao selecionar turma+ano)
+  const [bookNumber, setBookNumber] = useState('');
   
   // Anos disponíveis
   const years = [2025, 2026, 2027, 2028, 2029, 2030];
@@ -533,6 +536,21 @@ export function Promotion() {
     setCurrentPage(1);
   }, [selectedClass]);
 
+  // Carregar (ou criar) Nº do Livro ao selecionar turma + ano
+  useEffect(() => {
+    if (!selectedClass) {
+      setBookNumber('');
+      return;
+    }
+    const token = localStorage.getItem('accessToken');
+    fetch(`${API_URL}/api/documents/promotion/${selectedClass}/book-number?academic_year=${selectedYear}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setBookNumber(data?.book_number || ''))
+      .catch(() => setBookNumber(''));
+  }, [selectedClass, selectedYear]);
+
   // Calcular dados paginados
   const totalPages = Math.ceil(promotionData.length / STUDENTS_PER_PAGE);
   const startIndex = (currentPage - 1) * STUDENTS_PER_PAGE;
@@ -652,7 +670,7 @@ export function Promotion() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">
                   Ano Letivo
@@ -715,6 +733,21 @@ export function Promotion() {
                     )}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  Nº do Livro
+                </label>
+                <input
+                  type="text"
+                  value={bookNumber || (selectedClass ? '...' : '')}
+                  readOnly
+                  disabled
+                  placeholder="Selecione uma turma"
+                  data-testid="book-number-input"
+                  className="w-full h-10 px-3 rounded-md border border-gray-300 bg-gray-50 text-gray-700 font-mono text-sm cursor-not-allowed"
+                />
               </div>
             </div>
           </CardContent>

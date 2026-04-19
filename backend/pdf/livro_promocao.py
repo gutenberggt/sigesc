@@ -89,7 +89,7 @@ def is_integral(course):
 
 
 # ── Geração ──────────────────────────────────────────────────
-def generate_livro_promocao_pdf(school, class_info, students_data, courses, academic_year, mantenedora=None):
+def generate_livro_promocao_pdf(school, class_info, students_data, courses, academic_year, mantenedora=None, book_number=None):
     buffer = BytesIO()
     mantenedora = mantenedora or {}
 
@@ -111,16 +111,20 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
     turno = {'morning':'MATUTINO','afternoon':'VESPERTINO','evening':'NOTURNO',
              'full_time':'INTEGRAL','night':'NOTURNO'}.get(shift_raw, str(shift_raw).upper())
 
-    # Separar componentes
-    reg = [c for c in (courses or []) if not is_integral(c)]
-    intg = [c for c in (courses or []) if is_integral(c)]
-    has_integral = len(intg) > 0
+    # Tipo de Atendimento da turma
+    atendimento_raw = (class_info.get('atendimento_programa') or '').lower()
+    is_tempo_integral = 'integral' in atendimento_raw
+    tipo_atendimento = 'Tempo Integral' if is_tempo_integral else 'Regular'
+    book_number_str = str(book_number or '----')
 
-    # Se não tem componentes regulares, usar todos como regulares
+    # Tabela sempre usa apenas componentes regulares
+    reg = [c for c in (courses or []) if not is_integral(c)]
+    # Flag apenas para decidir se exibe a citação na última página
+    has_integral_components = any(is_integral(c) for c in (courses or []))
+
+    # Se não há nenhum regular (fallback), usar tudo como regular
     if not reg:
         reg = courses or []
-        intg = []
-        has_integral = False
 
     # Estimar total de páginas
     # Bimestres 1-4 (cada um = 1 página) + Rec1 + Rec2 + Resultado = 7 páginas base
@@ -178,6 +182,17 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
             canvas_obj.setFont('Helvetica', 7)
             canvas_obj.drawString(MX + off + 3 + stringWidth(lbl + ' ', 'Helvetica-Bold', 7), by2 + 3, val)
 
+        # Linha 3: Nº do Livro + Tipo de Atendimento
+        by3 = by2 - bh
+        canvas_obj.rect(MX, by3, USABLE_W, bh, stroke=1, fill=0)
+        canvas_obj.line(MX + USABLE_W / 2, by3, MX + USABLE_W / 2, by3 + bh)
+        for lbl, val, off in [('Nº DO LIVRO:', book_number_str, 0),
+                              ('TIPO DE ATENDIMENTO:', tipo_atendimento, USABLE_W / 2)]:
+            canvas_obj.setFont('Helvetica-Bold', 7)
+            canvas_obj.drawString(MX + off + 3, by3 + 3, lbl)
+            canvas_obj.setFont('Helvetica', 7)
+            canvas_obj.drawString(MX + off + 3 + stringWidth(lbl + ' ', 'Helvetica-Bold', 7), by3 + 3, val)
+
         # Rodapé só na última
         if pn == tp:
             canvas_obj.setFont('Helvetica', 9)
@@ -197,23 +212,20 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
 
     # ── Helper: montar tabela de um bimestre ─────────────────
     def build_bim_table(bim_key, title, include_integral=True):
-        """Cria tabela para um bimestre. Colunas: N° | Nome | S | [reg comps] | [int comps]"""
-        show_int = include_integral and has_integral
-        all_comps = reg + (intg if show_int else [])
+        """Cria tabela para um bimestre. Colunas: N° | Nome | S | [reg comps]
+        Componentes de atendimento diferente de 'regular' são ignorados.
+        """
+        all_comps = reg
         n = len(all_comps)
-        nr = len(reg)
+        nr = n
 
         # Header 1: título com span
         h1 = ['N°', 'NOME DO ALUNO', 'S']
         h1 += [f'NOTAS {title}'] + [''] * (nr - 1)
-        if show_int:
-            h1 += [f'PARTICIPAÇÃO {title}'] + [''] * (len(intg) - 1)
 
         # Header 2: nomes dos componentes
         h2 = ['', '', '']
         h2 += [VerticalText(abrev(c.get('name', ''))) for c in reg]
-        if show_int:
-            h2 += [VerticalText(abrev(c.get('name', ''))) for c in intg]
 
         # Dados
         rows = [h1, h2]
@@ -259,13 +271,6 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
             ('SPAN', (3, 0), (3 + nr - 1, 0)),
             ('LINEAFTER', (3 + nr - 1, 0), (3 + nr - 1, -1), 1.5, colors.black),
         ]
-
-        if show_int:
-            col_int_start = 3 + nr
-            col_int_end = col_int_start + len(intg) - 1
-            style.append(('SPAN', (col_int_start, 0), (col_int_end, 0)))
-            style.append(('BACKGROUND', (col_int_start, 0), (col_int_end, 0), colors.HexColor('#4a148c')))
-            style.append(('BACKGROUND', (col_int_start, 1), (col_int_end, 1), colors.HexColor('#7b1fa2')))
 
         tbl.setStyle(TableStyle(style))
         return tbl
@@ -367,9 +372,27 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
     elements.append(PageBreak())
     elements.append(build_result_table())
 
+    # Citação ao final (última página) quando a turma é de Tempo Integral
+    if is_tempo_integral and has_integral_components:
+        cit_style = ParagraphStyle(
+            name='CitacaoIntegral',
+            fontName='Helvetica-Oblique',
+            fontSize=7,
+            leading=9,
+            alignment=TA_CENTER,
+            textColor=colors.HexColor('#333333'),
+        )
+        elements.append(Spacer(1, 0.4 * cm))
+        elements.append(Paragraph(
+            'As atividades curriculares complementares de caráter formativo, '
+            'referentes ao atendimento em tempo integral, encontram-se registradas '
+            'em documento complementar (Adendo), parte integrante deste registro.',
+            cit_style
+        ))
+
     # ── Build ────────────────────────────────────────────────
     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
-        leftMargin=MX, rightMargin=MX, topMargin=3.0 * cm, bottomMargin=4.2 * cm)
+        leftMargin=MX, rightMargin=MX, topMargin=3.5 * cm, bottomMargin=4.2 * cm)
     doc.build(elements, onFirstPage=header_footer, onLaterPages=header_footer)
 
     # Atualizar total de páginas se diferente do estimado
