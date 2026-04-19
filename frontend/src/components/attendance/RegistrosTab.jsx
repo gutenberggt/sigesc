@@ -1,15 +1,12 @@
 import { Calendar } from 'lucide-react';
+import { useAttendance } from '@/contexts/AttendanceContext';
 
-export const RegistrosTab = ({
-  selectedClass,
-  isMultiAula,
-  registrosLoading,
-  academicYear,
-  registrosBimSummary,
-  registrosBlockedDates,
-  registrosSabLetivos,
-  registrosAttDates,
-}) => {
+export const RegistrosTab = () => {
+  const {
+    selectedClass, isMultiAula, registrosLoading, academicYear,
+    registrosBimSummary, registrosBlockedDates, registrosSabLetivos, registrosAttDates,
+  } = useAttendance();
+
   if (!selectedClass) {
     return (
       <div className="space-y-4" data-testid="attendance-registros-tab">

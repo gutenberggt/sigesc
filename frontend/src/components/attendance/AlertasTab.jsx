@@ -1,14 +1,10 @@
 import { AlertTriangle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAttendance } from '@/contexts/AttendanceContext';
 
-export const AlertasTab = ({
-  schools,
-  selectedSchool,
-  setSelectedSchool,
-  loadAlerts,
-  loading,
-  alertsData,
-}) => {
+export const AlertasTab = () => {
+  const { schools, selectedSchool, setSelectedSchool, loadAlerts, loading, alertsData } = useAttendance();
+
   return (
     <div className="space-y-4" data-testid="attendance-alertas-tab">
       <div className="flex gap-4">

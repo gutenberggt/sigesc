@@ -28,7 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert } from '@/components/ui/alert';
 import { Modal } from '@/components/Modal';
-import { schoolsAPI, classesAPI, coursesAPI, attendanceAPI, professorAPI, calendarAPI, medicalCertificatesAPI, teacherAssignmentAPI } from '@/services/api';
+import { schoolsAPI, classesAPI, coursesAPI, attendanceAPI, professorAPI, calendarAPI, medicalCertificatesAPI, teacherAssignmentAPI, vaccinesAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
@@ -37,14 +37,12 @@ import { OfflineManagementPanel } from '@/components/OfflineManagementPanel';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
-import axios from 'axios';
+import { AttendanceContext } from '@/contexts/AttendanceContext';
 const LancamentoTab = lazy(() => import('@/components/attendance/LancamentoTab').then(m => ({ default: m.LancamentoTab })));
 const RegistrosTab = lazy(() => import('@/components/attendance/RegistrosTab').then(m => ({ default: m.RegistrosTab })));
 const InformacoesTab = lazy(() => import('@/components/attendance/InformacoesTab').then(m => ({ default: m.InformacoesTab })));
 const RelatoriosTab = lazy(() => import('@/components/attendance/RelatoriosTab').then(m => ({ default: m.RelatoriosTab })));
 const AlertasTab = lazy(() => import('@/components/attendance/AlertasTab').then(m => ({ default: m.AlertasTab })));
-const VACCINE_API = process.env.REACT_APP_BACKEND_URL;
-
 // Formata data para exibição
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
@@ -54,9 +52,6 @@ const formatDate = (dateStr) => {
 
 // Dias da semana
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-
-// URL da API
-const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export const Attendance = () => {
   const { user } = useAuth();
@@ -112,11 +107,8 @@ export const Attendance = () => {
     if (!attendanceData?.students?.length) return;
     const ids = attendanceData.students.map(s => s.id).filter(Boolean);
     if (!ids.length) return;
-    const token = localStorage.getItem('accessToken');
-    if (!token) return;
-    axios.get(`${VACCINE_API}/api/vaccines/status/batch?student_ids=${ids.join(',')}&academic_year=${academicYear}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(res => setVaccineStatuses(prev => ({ ...prev, ...res.data })))
+    vaccinesAPI.getStatusBatch(ids, academicYear)
+      .then(data => setVaccineStatuses(prev => ({ ...prev, ...data })))
       .catch(() => {});
   }, [attendanceData?.students?.length, academicYear]);
 
@@ -752,26 +744,12 @@ export const Attendance = () => {
     
     setLoading(true);
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch(
-        `${API_URL}/api/attendance/pdf/bimestre/${selectedClass}?bimestre=${selectedBimestre}&academic_year=${academicYear}${courseForPdf ? `&course_id=${courseForPdf}` : ''}`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error('Erro ao gerar PDF');
-      }
-      
+      const blob = await attendanceAPI.getBimestrePdfBlob(selectedClass, selectedBimestre, academicYear, courseForPdf);
+
       // Criar blob e abrir em nova aba
-      const blob = await response.blob();
       const pdfUrl = window.URL.createObjectURL(blob);
       window.open(pdfUrl, '_blank');
-      
+
       // Limpar URL após um tempo
       setTimeout(() => window.URL.revokeObjectURL(pdfUrl), 30000);
     } catch (error) {
@@ -902,34 +880,18 @@ export const Attendance = () => {
       const turma = classes.find(c => c.id === selectedClass) || professorTurmas.find(t => t.id === selectedClass);
       const attendanceType = turma ? getAttendanceType(turma.education_level, selectedPeriod) : 'daily';
       const courseId = attendanceType === 'by_component' ? selectedCourse : null;
-      
-      let url = `${process.env.REACT_APP_BACKEND_URL}/api/attendance/dates-with-records?class_id=${selectedClass}&academic_year=${academicYear}`;
-      if (courseId) url += `&course_id=${courseId}`;
-      
+
       try {
-        const resp = await fetch(url, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          setRegistrosAttDates(new Set(data.dates || []));
-        } else {
-          setRegistrosAttDates(new Set());
-        }
+        const data = await attendanceAPI.getDatesWithRecords(selectedClass, academicYear, courseId);
+        setRegistrosAttDates(new Set(data.dates || []));
       } catch {
         setRegistrosAttDates(new Set());
       }
-      
+
       // 3. Carregar resumo por bimestre
       try {
-        let bimUrl = `${process.env.REACT_APP_BACKEND_URL}/api/attendance/bimestre-summary?class_id=${selectedClass}&academic_year=${academicYear}`;
-        if (courseId) bimUrl += `&course_id=${courseId}`;
-        const bimResp = await fetch(bimUrl, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-        });
-        if (bimResp.ok) {
-          setRegistrosBimSummary(await bimResp.json());
-        }
+        const data = await attendanceAPI.getBimestreSummary(selectedClass, academicYear, courseId);
+        setRegistrosBimSummary(data);
       } catch {
         setRegistrosBimSummary([]);
       }
@@ -978,11 +940,8 @@ export const Attendance = () => {
     if (!infoClass) { setInfoStudents([]); return; }
     setInfoLoading(true);
     try {
-      const token = localStorage.getItem('accessToken');
-      const res = await axios.get(`${VACCINE_API}/api/attendance/class-students-info/${infoClass}?academic_year=${academicYear}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setInfoStudents(res.data.students || []);
+      const data = await attendanceAPI.getClassStudentsInfo(infoClass, academicYear);
+      setInfoStudents(data.students || []);
     } catch (e) {
       console.error(e);
       setInfoStudents([]);
@@ -1070,122 +1029,42 @@ export const Attendance = () => {
           </div>
           
           <div className="p-4">
-            <Suspense fallback={
-              <div className="flex justify-center items-center py-16" data-testid="tab-loading">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-3 text-gray-500 text-sm">Carregando...</span>
-              </div>
-            }>
-            {/* Tab: Lançamento */}
-            {activeTab === 'lancamento' && (
-              <LancamentoTab
-                academicYear={academicYear}
-                setAcademicYear={setAcademicYear}
-                availableYears={availableYears}
-                schools={schools}
-                selectedSchool={selectedSchool}
-                setSelectedSchool={setSelectedSchool}
-                classes={classes}
-                selectedClass={selectedClass}
-                setSelectedClass={setSelectedClass}
-                courses={courses}
-                selectedCourse={selectedCourse}
-                setSelectedCourse={setSelectedCourse}
-                attendanceType={attendanceType}
-                attendanceSummary={attendanceSummary}
-                selectedClassData={selectedClassData}
-                selectedDate={selectedDate}
-                setSelectedDate={setSelectedDate}
-                dateCheck={dateCheck}
-                navigateDate={navigateDate}
-                loading={loading}
-                saving={saving}
-                attendanceData={attendanceData}
-                hasChanges={hasChanges}
-                canEdit={canEdit}
-                loadAttendance={loadAttendance}
-                markAll={markAll}
-                saveAttendance={saveAttendance}
-                isMultiAula={isMultiAula}
-                numberOfAulas={numberOfAulas}
-                setNumberOfAulas={setNumberOfAulas}
-                setHasChanges={setHasChanges}
-                aulaStatuses={aulaStatuses}
-                updateStudentStatus={updateStudentStatus}
-                vaccineStatuses={vaccineStatuses}
-                hasActiveCertificate={hasActiveCertificate}
-                getCertificateInfo={getCertificateInfo}
-                isStudentBlockedForProfessor={isStudentBlockedForProfessor}
-                getBlockedMessage={getBlockedMessage}
-                medicalCertificates={medicalCertificates}
-                setShowDeleteModal={setShowDeleteModal}
-              />
-            )}
-            
-            {/* Tab: Registros (Calendário Anual) */}
-            {activeTab === 'registros' && (
-              <RegistrosTab
-                selectedClass={selectedClass}
-                isMultiAula={isMultiAula}
-                registrosLoading={registrosLoading}
-                academicYear={academicYear}
-                registrosBimSummary={registrosBimSummary}
-                registrosBlockedDates={registrosBlockedDates}
-                registrosSabLetivos={registrosSabLetivos}
-                registrosAttDates={registrosAttDates}
-              />
-            )}
-            
-            {/* Tab: Relatórios */}
-            {activeTab === 'relatorios' && (
-              <RelatoriosTab
-                schools={schools}
-                selectedSchool={selectedSchool}
-                setSelectedSchool={setSelectedSchool}
-                classes={classes}
-                selectedClass={selectedClass}
-                setSelectedClass={setSelectedClass}
-                selectedBimestre={selectedBimestre}
-                setSelectedBimestre={setSelectedBimestre}
-                isAnosFinaisOrEja={isAnosFinaisOrEja}
-                courses={courses}
-                reportCourseId={reportCourseId}
-                setReportCourseId={setReportCourseId}
-                setClassReport={setClassReport}
-                loading={loading}
-                classReport={classReport}
-                loadClassReport={loadClassReport}
-                generateBimestrePdf={generateBimestrePdf}
-              />
-            )}
-            
-            {/* Tab: Informações */}
-            {activeTab === 'informacoes' && (
-              <InformacoesTab
-                academicYear={academicYear}
-                schools={schools}
-                infoSchool={infoSchool}
-                setInfoSchool={setInfoSchool}
-                infoClass={infoClass}
-                setInfoClass={setInfoClass}
-                infoClasses={infoClasses}
-                infoLoading={infoLoading}
-                infoStudents={infoStudents}
-              />
-            )}
-            
-            {/* Tab: Alertas */}
-            {activeTab === 'alertas' && (
-              <AlertasTab
-                schools={schools}
-                selectedSchool={selectedSchool}
-                setSelectedSchool={setSelectedSchool}
-                loadAlerts={loadAlerts}
-                loading={loading}
-                alertsData={alertsData}
-              />
-            )}
-            </Suspense>
+            <AttendanceContext.Provider value={{
+              academicYear, setAcademicYear, availableYears,
+              schools, selectedSchool, setSelectedSchool,
+              classes, selectedClass, setSelectedClass,
+              courses, selectedCourse, setSelectedCourse,
+              attendanceType, attendanceSummary, selectedClassData,
+              selectedDate, setSelectedDate, dateCheck, navigateDate,
+              loading, saving, attendanceData, hasChanges, canEdit,
+              loadAttendance, markAll, saveAttendance,
+              isMultiAula, numberOfAulas, setNumberOfAulas, setHasChanges,
+              aulaStatuses, updateStudentStatus,
+              vaccineStatuses, hasActiveCertificate, getCertificateInfo,
+              isStudentBlockedForProfessor, getBlockedMessage,
+              medicalCertificates, setShowDeleteModal,
+              registrosLoading, registrosBimSummary, registrosBlockedDates,
+              registrosSabLetivos, registrosAttDates,
+              selectedBimestre, setSelectedBimestre, isAnosFinaisOrEja,
+              reportCourseId, setReportCourseId, setClassReport,
+              classReport, loadClassReport, generateBimestrePdf,
+              infoSchool, setInfoSchool, infoClass, setInfoClass,
+              infoClasses, infoLoading, infoStudents,
+              loadAlerts, alertsData,
+            }}>
+              <Suspense fallback={
+                <div className="flex justify-center items-center py-16" data-testid="tab-loading">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-3 text-gray-500 text-sm">Carregando...</span>
+                </div>
+              }>
+                {activeTab === 'lancamento' && <LancamentoTab />}
+                {activeTab === 'registros' && <RegistrosTab />}
+                {activeTab === 'relatorios' && <RelatoriosTab />}
+                {activeTab === 'informacoes' && <InformacoesTab />}
+                {activeTab === 'alertas' && <AlertasTab />}
+              </Suspense>
+            </AttendanceContext.Provider>
           </div>
         </div>
         

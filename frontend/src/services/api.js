@@ -507,6 +507,41 @@ export const attendanceAPI = {
   getScheduleClassesCount: async (classId, courseId, date, academicYear) => {
     const response = await axios.get(`${API}/attendance/schedule-classes-count?class_id=${classId}&course_id=${courseId}&date=${date}&academic_year=${academicYear}`);
     return response.data;
+  },
+
+  getDatesWithRecords: async (classId, academicYear, courseId = null) => {
+    let url = `${API}/attendance/dates-with-records?class_id=${classId}&academic_year=${academicYear}`;
+    if (courseId) url += `&course_id=${courseId}`;
+    const response = await axios.get(url);
+    return response.data;
+  },
+
+  getBimestreSummary: async (classId, academicYear, courseId = null) => {
+    let url = `${API}/attendance/bimestre-summary?class_id=${classId}&academic_year=${academicYear}`;
+    if (courseId) url += `&course_id=${courseId}`;
+    const response = await axios.get(url);
+    return response.data;
+  },
+
+  getClassStudentsInfo: async (classId, academicYear) => {
+    const response = await axios.get(`${API}/attendance/class-students-info/${classId}?academic_year=${academicYear}`);
+    return response.data;
+  },
+
+  getBimestrePdfBlob: async (classId, bimestre, academicYear, courseId = null) => {
+    let url = `${API}/attendance/pdf/bimestre/${classId}?bimestre=${bimestre}&academic_year=${academicYear}`;
+    if (courseId) url += `&course_id=${courseId}`;
+    const response = await axios.get(url, { responseType: 'blob' });
+    return response.data;
+  }
+};
+
+// ============= VACCINES =============
+export const vaccinesAPI = {
+  getStatusBatch: async (studentIds, academicYear) => {
+    const ids = Array.isArray(studentIds) ? studentIds.join(',') : studentIds;
+    const response = await axios.get(`${API}/vaccines/status/batch?student_ids=${ids}&academic_year=${academicYear}`);
+    return response.data;
   }
 };
 

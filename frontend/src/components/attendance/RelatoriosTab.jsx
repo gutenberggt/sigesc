@@ -1,25 +1,17 @@
 import { FileText, FileDown, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAttendance } from '@/contexts/AttendanceContext';
 
-export const RelatoriosTab = ({
-  schools,
-  selectedSchool,
-  setSelectedSchool,
-  classes,
-  selectedClass,
-  setSelectedClass,
-  selectedBimestre,
-  setSelectedBimestre,
-  isAnosFinaisOrEja,
-  courses,
-  reportCourseId,
-  setReportCourseId,
-  setClassReport,
-  loading,
-  classReport,
-  loadClassReport,
-  generateBimestrePdf,
-}) => {
+export const RelatoriosTab = () => {
+  const {
+    schools, selectedSchool, setSelectedSchool,
+    classes, selectedClass, setSelectedClass,
+    selectedBimestre, setSelectedBimestre,
+    isAnosFinaisOrEja, courses,
+    reportCourseId, setReportCourseId, setClassReport,
+    loading, classReport, loadClassReport, generateBimestrePdf,
+  } = useAttendance();
+
   return (
     <div className="space-y-4" data-testid="attendance-relatorios-tab">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

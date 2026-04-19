@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { EDUCATION_LEVEL_LABELS, inferEducationLevel } from '@/utils/educationLevel';
+import { useAttendance } from '@/contexts/AttendanceContext';
 
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
@@ -20,30 +21,24 @@ const formatDate = (dateStr) => {
   return `${day}/${month}/${year}`;
 };
 
-export const LancamentoTab = ({
-  // Year & filters
-  academicYear, setAcademicYear, availableYears,
-  schools, selectedSchool, setSelectedSchool,
-  classes, selectedClass, setSelectedClass,
-  courses, selectedCourse, setSelectedCourse,
-  attendanceType,
-  attendanceSummary,
-  selectedClassData,
-  // Date
-  selectedDate, setSelectedDate, dateCheck, navigateDate,
-  // Attendance
-  loading, saving, attendanceData, hasChanges, canEdit,
-  loadAttendance, markAll, saveAttendance,
-  isMultiAula, numberOfAulas, setNumberOfAulas, setHasChanges, aulaStatuses,
-  updateStudentStatus,
-  // Blocking / certificates / vaccines
-  vaccineStatuses,
-  hasActiveCertificate, getCertificateInfo,
-  isStudentBlockedForProfessor, getBlockedMessage,
-  medicalCertificates,
-  // Delete modal
-  setShowDeleteModal,
-}) => {
+export const LancamentoTab = () => {
+  const {
+    academicYear, setAcademicYear, availableYears,
+    schools, selectedSchool, setSelectedSchool,
+    classes, selectedClass, setSelectedClass,
+    courses, selectedCourse, setSelectedCourse,
+    attendanceType, attendanceSummary, selectedClassData,
+    selectedDate, setSelectedDate, dateCheck, navigateDate,
+    loading, saving, attendanceData, hasChanges, canEdit,
+    loadAttendance, markAll, saveAttendance,
+    isMultiAula, numberOfAulas, setNumberOfAulas, setHasChanges,
+    aulaStatuses, updateStudentStatus,
+    vaccineStatuses,
+    hasActiveCertificate, getCertificateInfo,
+    isStudentBlockedForProfessor, getBlockedMessage,
+    medicalCertificates, setShowDeleteModal,
+  } = useAttendance();
+
   return (
     <div className="space-y-4" data-testid="attendance-lancamento-tab">
       {/* Filtros */}

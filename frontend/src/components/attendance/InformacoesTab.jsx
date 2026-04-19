@@ -1,4 +1,5 @@
 import { Loader2, Phone } from 'lucide-react';
+import { useAttendance } from '@/contexts/AttendanceContext';
 
 const formatPhone = (phone) => {
   if (!phone) return null;
@@ -8,17 +9,14 @@ const formatPhone = (phone) => {
   return withCountry;
 };
 
-export const InformacoesTab = ({
-  academicYear,
-  schools,
-  infoSchool,
-  setInfoSchool,
-  infoClass,
-  setInfoClass,
-  infoClasses,
-  infoLoading,
-  infoStudents,
-}) => {
+export const InformacoesTab = () => {
+  const {
+    academicYear, schools,
+    infoSchool, setInfoSchool,
+    infoClass, setInfoClass,
+    infoClasses, infoLoading, infoStudents,
+  } = useAttendance();
+
   return (
     <div className="space-y-4" data-testid="attendance-informacoes-tab">
       <div className="bg-white rounded-xl border p-4">
