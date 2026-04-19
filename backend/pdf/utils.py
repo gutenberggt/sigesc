@@ -150,6 +150,37 @@ TURNOS_PT = {
 
 # ===== FUNÇÕES UTILITÁRIAS =====
 
+def get_logo_path(logo_url=None):
+    """Retorna o caminho local (disco) do logotipo, baixando se necessário. Retorna None em falha."""
+    url = logo_url if logo_url else LOGO_URL
+    if not url:
+        return None
+    try:
+        url_hash = hashlib.md5(url.encode()).hexdigest()
+        suffix = '.jpg' if '.jpg' in url.lower() or '.jpeg' in url.lower() else '.png'
+        cache_path = os.path.join(_logo_cache_dir, f'{url_hash}{suffix}')
+        if os.path.exists(cache_path):
+            with open(cache_path, 'rb') as f:
+                header = f.read(4)
+            if not (header[:4] == b'\x89PNG' or header[:2] == b'\xff\xd8'):
+                os.remove(cache_path)
+        if not os.path.exists(cache_path):
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=3) as response:
+                content_type = response.headers.get('Content-Type', '')
+                if 'image' not in content_type and 'octet-stream' not in content_type:
+                    return None
+                image_data = response.read()
+                if not (image_data[:4] == b'\x89PNG' or image_data[:2] == b'\xff\xd8'):
+                    return None
+            with open(cache_path, 'wb') as f:
+                f.write(image_data)
+        return cache_path
+    except Exception as e:
+        logger.warning(f"Erro ao baixar logotipo de {url}: {e}")
+        return None
+
+
 def get_logo_image(width=2*cm, height=2*cm, logo_url=None):
     """Retorna o logotipo como Image do reportlab. Usa cache em disco."""
     url = logo_url if logo_url else LOGO_URL

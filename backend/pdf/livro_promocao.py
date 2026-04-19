@@ -16,11 +16,17 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak, 
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from reportlab.pdfbase.pdfmetrics import stringWidth
+from pdf.utils import get_logo_path
 
 PAGE_W, PAGE_H = landscape(A4)
 MX = 0.8 * cm
 USABLE_W = PAGE_W - 2 * MX
-FIXED_W = 0.6 * cm + 3.8 * cm + 0.5 * cm  # N° + Nome + Sexo
+# Larguras fixas: N° + Nome (mínimo) + Sexo
+COL_N_W = 0.6 * cm
+COL_NAME_MIN = 3.8 * cm
+COL_SEX_W = 0.5 * cm
+COL_NOTE_W = 0.95 * cm  # largura mínima suficiente para "10,0"
+FIXED_W = COL_N_W + COL_NAME_MIN + COL_SEX_W
 
 
 # ── Flowable: texto vertical ────────────────────────────────
@@ -102,6 +108,10 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
     mant_nome = mantenedora.get('nome', f'Prefeitura Municipal de {mun}')
     secretaria_nome = mantenedora.get('secretaria', 'Secretaria Municipal de Educação')
     slogan = mantenedora.get('slogan', '')
+
+    # Brasão (caminho local cacheado)
+    logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
+    brasao_path = get_logo_path(logo_url) if logo_url else None
     data_extenso = f"{mun} - {uf}, {today.day} de {meses[today.month-1]} de {today.year}"
     rodape_info = f"Documento gerado em {today.strftime('%d/%m/%Y às %H:%M')} | Total de alunos: {len(students_data)}"
     escola_nome = str(school.get('name', ''))
@@ -139,18 +149,33 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
         pn = doc_obj.page
         tp = page_total[0]
 
-        # Cabeçalho
+        # Brasão (à esquerda)
+        text_x = MX
+        if brasao_path:
+            try:
+                brasao_size = 1.6 * cm
+                canvas_obj.drawImage(
+                    brasao_path,
+                    MX, PAGE_H - 0.4 * cm - brasao_size,
+                    width=brasao_size, height=brasao_size,
+                    preserveAspectRatio=True, mask='auto'
+                )
+                text_x = MX + brasao_size + 0.2 * cm
+            except Exception:
+                pass
+
+        # Cabeçalho institucional (ao lado do brasão)
         y = PAGE_H - 0.6 * cm
         canvas_obj.setFont('Helvetica-Bold', 10)
-        canvas_obj.drawString(MX, y, mant_nome.upper())
+        canvas_obj.drawString(text_x, y, mant_nome.upper())
         y -= 12
         canvas_obj.setFont('Helvetica', 9)
-        canvas_obj.drawString(MX, y, secretaria_nome)
+        canvas_obj.drawString(text_x, y, secretaria_nome)
         if slogan:
             y -= 10
             canvas_obj.setFont('Helvetica-Oblique', 7)
             canvas_obj.setFillColor(colors.HexColor('#666666'))
-            canvas_obj.drawString(MX, y, f'"{slogan}"')
+            canvas_obj.drawString(text_x, y, f'"{slogan}"')
             canvas_obj.setFillColor(colors.black)
 
         canvas_obj.setFont('Helvetica-Bold', 14)
@@ -239,9 +264,10 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
                 row.append(fmt(gi.get(bim_key)))
             rows.append(row)
 
-        # Larguras
-        note_w = (USABLE_W - FIXED_W) / n if n > 0 else 1 * cm
-        cw = [0.6 * cm, 3.8 * cm, 0.5 * cm] + [note_w] * n
+        # Larguras: colunas de nota fixas no mínimo; sobra vai para Nome
+        note_w = COL_NOTE_W
+        name_w = max(COL_NAME_MIN, USABLE_W - (COL_N_W + COL_SEX_W + n * note_w))
+        cw = [COL_N_W, name_w, COL_SEX_W] + [note_w] * n
 
         tbl = Table(rows, colWidths=cw, repeatRows=2)
 
@@ -261,8 +287,8 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
             ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
             ('INNERGRID', (0, 0), (-1, -1), 0.3, colors.grey),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ('TOPPADDING', (0, 0), (-1, -1), 1),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
             ('LEFTPADDING', (0, 0), (-1, -1), 2),
             ('RIGHTPADDING', (0, 0), (-1, -1), 2),
             ('ROWBACKGROUNDS', (0, 2), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
@@ -319,8 +345,8 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
             ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
             ('INNERGRID', (0, 0), (-1, -1), 0.3, colors.grey),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
         ]
 
