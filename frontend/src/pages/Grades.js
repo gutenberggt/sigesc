@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
@@ -10,213 +10,21 @@ import { BimestreBlockedAlert, BimestreDeadlineAlert, BimestreFieldIndicator } f
 import { OfflineManagementPanel, OfflineDataBadge } from '@/components/OfflineManagementPanel';
 import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
+import { GradesContext } from '@/contexts/GradesContext';
+const TurmaTab = lazy(() => import('@/components/grades/TurmaTab').then(m => ({ default: m.TurmaTab })));
+const AlunoTab = lazy(() => import('@/components/grades/AlunoTab').then(m => ({ default: m.AlunoTab })));
 import { 
   Home, BookOpen, Users, User, Save, AlertCircle, CheckCircle, 
   Search, X, Calculator, TrendingUp, TrendingDown, Lock, CloudOff, FileText
 } from 'lucide-react';
 
-// ===== SISTEMA DE AVALIAÇÃO CONCEITUAL - EDUCAÇÃO INFANTIL =====
-const CONCEITOS_EDUCACAO_INFANTIL = {
-  OD: { valor: 10.0, descricao: 'Objetivo Desenvolvido', cor: 'text-green-600' },
-  DP: { valor: 7.5, descricao: 'Desenvolvido Parcialmente', cor: 'text-blue-600' },
-  ND: { valor: 5.0, descricao: 'Não Desenvolvido', cor: 'text-yellow-600' },
-  NT: { valor: 0.0, descricao: 'Não Trabalhado', cor: 'text-gray-500' },
-};
-
-// ===== SISTEMA DE AVALIAÇÃO CONCEITUAL - 1º E 2º ANO =====
-const CONCEITOS_ANOS_INICIAIS = {
-  C: { valor: 10.0, descricao: 'Consolidado', cor: 'text-green-600' },
-  ED: { valor: 7.5, descricao: 'Em Desenvolvimento', cor: 'text-blue-600' },
-  ND: { valor: 5.0, descricao: 'Não Desenvolvido', cor: 'text-yellow-600' },
-};
-
-const VALOR_PARA_CONCEITO = {
-  10.0: 'OD',
-  7.5: 'DP',
-  5.0: 'ND',
-  0.0: 'NT',
-};
-
-const VALOR_PARA_CONCEITO_ANOS_INICIAIS = {
-  10.0: 'C',
-  7.5: 'ED',
-  5.0: 'ND',
-};
-
-// Lista de séries/anos da Educação Infantil
-const SERIES_EDUCACAO_INFANTIL = [
-  'Berçário', 'Berçário I', 'Berçário II',
-  'Maternal', 'Maternal I', 'Maternal II',
-  'Pré', 'Pré I', 'Pré II', 'Pré-Escola',
-  'Creche', 'Jardim', 'Jardim I', 'Jardim II'
-];
-
-// Lista de séries que usam conceitos específicos (1º e 2º ano)
-const SERIES_ANOS_INICIAIS_CONCEITUAL = ['1º Ano', '2º Ano', '1º ano', '2º ano', '1 Ano', '2 Ano'];
-
-// Verifica se é série de Educação Infantil
-const isEducacaoInfantil = (gradeLevel, nivelEnsino) => {
-  if (nivelEnsino === 'educacao_infantil') return true;
-  if (!gradeLevel) return false;
-  return SERIES_EDUCACAO_INFANTIL.some(serie => 
-    gradeLevel.toLowerCase().includes(serie.toLowerCase())
-  );
-};
-
-// Verifica se é 1º ou 2º ano (usa conceitos específicos)
-const isAnosIniciaisConceitual = (gradeLevel) => {
-  if (!gradeLevel) return false;
-  const gradeLower = gradeLevel.toLowerCase();
-  return SERIES_ANOS_INICIAIS_CONCEITUAL.some(serie => 
-    gradeLower.includes(serie.toLowerCase())
-  );
-};
-
-// Verifica se a série usa avaliação conceitual
-const usaAvaliacaoConceitual = (gradeLevel, nivelEnsino) => {
-  return isEducacaoInfantil(gradeLevel, nivelEnsino) || isAnosIniciaisConceitual(gradeLevel);
-};
-
-// Converte valor para conceito
-const valorParaConceito = (valor, gradeLevel = null) => {
-  if (valor === null || valor === undefined || valor === '') return '-';
-  const num = Number(valor);
-  
-  // Se for 1º ou 2º ano, usar conceitos específicos
-  if (gradeLevel && isAnosIniciaisConceitual(gradeLevel)) {
-    if (num >= 10) return 'C';
-    if (num >= 7.5) return 'ED';
-    return 'ND';
-  }
-  
-  // Educação Infantil
-  if (num >= 10) return 'OD';
-  if (num >= 7.5) return 'DP';
-  if (num >= 5) return 'ND';
-  return 'NT';
-};
-
-// Converte conceito para valor
-const conceitoParaValor = (conceito) => {
-  if (CONCEITOS_EDUCACAO_INFANTIL[conceito]) {
-    return CONCEITOS_EDUCACAO_INFANTIL[conceito].valor;
-  }
-  if (CONCEITOS_ANOS_INICIAIS[conceito]) {
-    return CONCEITOS_ANOS_INICIAIS[conceito].valor;
-  }
-  return null;
-};
-
-// Calcula o maior conceito (para Educação Infantil e 1º/2º ano)
-const calcularMaiorConceito = (b1, b2, b3, b4) => {
-  const valores = [b1, b2, b3, b4].filter(v => v !== null && v !== undefined && v !== '');
-  if (valores.length === 0) return null;
-  return Math.max(...valores.map(Number));
-};
-
-// Formata número com vírgula
-const formatGrade = (value) => {
-  if (value === null || value === undefined || value === '') return '';
-  return Number(value).toFixed(1).replace('.', ',');
-};
-
-// Converte string com vírgula para número
-const parseGrade = (value) => {
-  if (!value || value === '') return null;
-  const num = parseFloat(value.replace(',', '.'));
-  return isNaN(num) ? null : Math.min(10, Math.max(0, num));
-};
-
-// Calcula média ponderada com recuperações por semestre
-// Campos vazios são tratados como 0 para exibir média desde a 1ª nota
-const calculateAverage = (b1, b2, b3, b4, rec_s1, rec_s2) => {
-  // Converte null/undefined para 0
-  const grades = { 
-    b1: b1 ?? 0, 
-    b2: b2 ?? 0, 
-    b3: b3 ?? 0, 
-    b4: b4 ?? 0 
-  };
-  
-  // Aplica recuperações por semestre
-  let finalGrades = { ...grades };
-  
-  // Recuperação 1º Semestre (substitui menor entre B1 e B2)
-  if (rec_s1 !== null && rec_s1 !== undefined) {
-    const keyS1 = grades.b1 <= grades.b2 ? 'b1' : 'b2';
-    if (rec_s1 > finalGrades[keyS1]) {
-      finalGrades[keyS1] = rec_s1;
-    }
-  }
-  
-  // Recuperação 2º Semestre (substitui menor entre B3 e B4)
-  if (rec_s2 !== null && rec_s2 !== undefined) {
-    const keyS2 = grades.b3 <= grades.b4 ? 'b3' : 'b4';
-    if (rec_s2 > finalGrades[keyS2]) {
-      finalGrades[keyS2] = rec_s2;
-    }
-  }
-  
-  // Calcula média: (B1×2 + B2×3 + B3×2 + B4×3) / 10
-  const weights = { b1: 2, b2: 3, b3: 2, b4: 3 };
-  const total = Object.keys(finalGrades).reduce((sum, k) => sum + (finalGrades[k] * weights[k]), 0);
-  return Math.round(total / 10 * 10) / 10;
-};
-
-// Componente de input de nota
-const GradeInput = ({ value, onChange, disabled, placeholder = '0,0' }) => {
-  const [localValue, setLocalValue] = useState(formatGrade(value));
-  
-  useEffect(() => {
-    setLocalValue(formatGrade(value));
-  }, [value]);
-  
-  const handleBlur = () => {
-    const parsed = parseGrade(localValue);
-    onChange(parsed);
-    setLocalValue(formatGrade(parsed));
-  };
-  
-  return (
-    <input
-      type="text"
-      value={localValue}
-      onChange={(e) => setLocalValue(e.target.value)}
-      onBlur={handleBlur}
-      disabled={disabled}
-      className="w-16 px-2 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-      placeholder={placeholder}
-    />
-  );
-};
-
-// Componente de seleção de conceito (para Educação Infantil e 1º/2º Ano)
-const ConceitoSelect = ({ value, onChange, disabled, gradeLevel }) => {
-  // Determinar qual conjunto de conceitos usar
-  const isAnosIniciais = gradeLevel && isAnosIniciaisConceitual(gradeLevel);
-  const conceitosDisponiveis = isAnosIniciais ? CONCEITOS_ANOS_INICIAIS : CONCEITOS_EDUCACAO_INFANTIL;
-  
-  const conceito = valorParaConceito(value, gradeLevel);
-  const corClasse = conceitosDisponiveis[conceito]?.cor || 'text-gray-500';
-  
-  return (
-    <select
-      value={conceito === '-' ? '' : conceito}
-      onChange={(e) => {
-        const novoConceito = e.target.value;
-        const novoValor = novoConceito ? conceitoParaValor(novoConceito) : null;
-        onChange(novoValor);
-      }}
-      disabled={disabled}
-      className={`w-20 px-2 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 font-bold ${corClasse}`}
-    >
-      <option value="">-</option>
-      {Object.entries(conceitosDisponiveis).map(([key, { descricao }]) => (
-        <option key={key} value={key} title={descricao}>{key}</option>
-      ))}
-    </select>
-  );
-};
+import {
+  GradeInput, ConceitoSelect,
+  isEducacaoInfantil, isAnosIniciaisConceitual, usaAvaliacaoConceitual,
+  valorParaConceito, conceitoParaValor, calcularMaiorConceito,
+  formatGrade, parseGrade, calculateAverage,
+  CONCEITOS_EDUCACAO_INFANTIL, CONCEITOS_ANOS_INICIAIS,
+} from '@/components/grades/gradeHelpers';
 
 export function Grades() {
   const navigate = useNavigate();
@@ -282,26 +90,18 @@ export function Grades() {
     if (!selectedClass || !selectedCourse || pdfBimestres.length === 0) return;
     setPdfLoading(true);
     try {
-      const API = process.env.REACT_APP_BACKEND_URL;
-      const token = localStorage.getItem('accessToken');
-      const bimestresParam = pdfBimestres.sort().join(',');
-      let url = `${API}/api/grades/pdf/${selectedClass}/${selectedCourse}?bimestres=${bimestresParam}&academic_year=${academicYear}`;
-      if (isMultiGrade && selectedSeries) {
-        url += `&student_series=${encodeURIComponent(selectedSeries)}`;
-      }
-      const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Erro ao gerar PDF');
-      }
-      const blob = await response.blob();
+      const blob = await gradesAPI.getPdfBlob(
+        selectedClass,
+        selectedCourse,
+        pdfBimestres,
+        academicYear,
+        isMultiGrade ? selectedSeries : null
+      );
       const pdfUrl = window.URL.createObjectURL(blob);
       window.open(pdfUrl, '_blank');
       setShowPdfModal(false);
     } catch (err) {
-      alert('Erro ao gerar PDF de notas: ' + err.message);
+      alert('Erro ao gerar PDF de notas: ' + (err?.response?.data?.detail || err.message));
     } finally {
       setPdfLoading(false);
     }
@@ -850,6 +650,55 @@ export function Grades() {
     );
   };
   
+  const gradesContextValue = useMemo(() => ({
+    // Base lists
+    schools, filteredClasses, filteredCourses, availableSeries,
+    // Selection - Por Turma
+    selectedSchool, setSelectedSchool,
+    selectedClass, setSelectedClass,
+    selectedSeries, setSelectedSeries,
+    selectedCourse, setSelectedCourse,
+    setGradesData,
+    // Loading / saving
+    loading, saving, hasChanges,
+    // Data
+    gradesData, currentGradeLevel,
+    // Flags
+    isMultiGrade, usaConceito, isAnosIniciaisConc, canEdit,
+    // Handlers - Por Turma
+    loadGradesByClass, updateLocalGrade, saveGrades,
+    canEditField, canEditStudentGrade,
+    isStudentBlockedForProfessor, getBlockedMessage,
+    renderStatus,
+    setShowPdfModal,
+    user,
+    // Por Aluno
+    searchName, setSearchName,
+    searchCpf, setSearchCpf,
+    nameInputRef, cpfInputRef,
+    showNameSuggestions, setShowNameSuggestions, nameSuggestions,
+    showCpfSuggestions, setShowCpfSuggestions, cpfSuggestions,
+    selectedStudent,
+    handleSelectStudent, handleClearSearch,
+    studentGrades, updateStudentGrade,
+  }), [
+    schools, filteredClasses, filteredCourses, availableSeries,
+    selectedSchool, selectedClass, selectedSeries, selectedCourse,
+    loading, saving, hasChanges,
+    gradesData, currentGradeLevel,
+    isMultiGrade, usaConceito, isAnosIniciaisConc, canEdit,
+    loadGradesByClass, updateLocalGrade, saveGrades,
+    canEditField, canEditStudentGrade,
+    isStudentBlockedForProfessor, getBlockedMessage,
+    user,
+    searchName, searchCpf,
+    showNameSuggestions, nameSuggestions,
+    showCpfSuggestions, cpfSuggestions,
+    selectedStudent,
+    handleSelectStudent, handleClearSearch,
+    studentGrades, updateStudentGrade,
+  ]);
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -945,583 +794,17 @@ export function Grades() {
           </div>
           
           <div className="p-6">
-            {/* Tab: Por Turma */}
-            {activeTab === 'turma' && (
-              <div className="space-y-6">
-                {/* Filtros */}
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_0.5fr_0.5fr_0.5fr_auto] gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
-                    <select
-                      value={selectedSchool}
-                      onChange={(e) => {
-                        setSelectedSchool(e.target.value);
-                        setSelectedClass('');
-                        setSelectedSeries('');
-                        setSelectedCourse('');
-                        setGradesData([]);
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Selecione a escola</option>
-                      {schools.map(school => (
-                        <option key={school.id} value={school.id}>{school.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
-                    <select
-                      value={selectedClass}
-                      onChange={(e) => {
-                        setSelectedClass(e.target.value);
-                        setSelectedSeries('');
-                        setSelectedCourse('');
-                        setGradesData([]);
-                      }}
-                      disabled={!selectedSchool}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                    >
-                      <option value="">Selecione a turma</option>
-                      {filteredClasses.map(cls => (
-                        <option key={cls.id} value={cls.id}>{cls.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  {/* Dropdown de Ano/Série - apenas para turmas multisseriadas */}
-                  {isMultiGrade && selectedClass && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Ano/Série</label>
-                      <select
-                        value={selectedSeries}
-                        onChange={(e) => {
-                          setSelectedSeries(e.target.value);
-                          setSelectedCourse('');
-                          setGradesData([]);
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        data-testid="select-series-filter"
-                      >
-                        <option value="">Selecione o ano/série</option>
-                        {availableSeries.map(s => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Componente</label>
-                    <select
-                      value={selectedCourse}
-                      onChange={(e) => {
-                        setSelectedCourse(e.target.value);
-                        setGradesData([]);
-                      }}
-                      disabled={!selectedClass || (isMultiGrade && !selectedSeries)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                    >
-                      <option value="">Selecione o componente</option>
-                      {filteredCourses.map(course => (
-                        <option key={course.id} value={course.id}>{course.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  {selectedCourse && (
-                  <div className="flex items-end gap-2">
-                    <button
-                      onClick={loadGradesByClass}
-                      disabled={!selectedClass || !selectedCourse || loading}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      <Search size={18} />
-                      Carregar Notas
-                    </button>
-                    <button
-                      onClick={() => setShowPdfModal(true)}
-                      disabled={!selectedClass || !selectedCourse}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      data-testid="btn-generate-grades-pdf"
-                    >
-                      <FileText size={18} />
-                      Gerar PDF
-                    </button>
-                  </div>
-                  )}
+            <GradesContext.Provider value={gradesContextValue}>
+              <Suspense fallback={
+                <div className="flex justify-center items-center py-16" data-testid="grades-tab-loading">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-3 text-gray-500 text-sm">Carregando...</span>
                 </div>
-                
-                {/* Tabela de Notas */}
-                {loading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Carregando notas...</p>
-                  </div>
-                ) : gradesData.length > 0 ? (
-                  <div>
-                    {/* Indicador de avaliação conceitual */}
-                    {usaConceito && (
-                      <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                        <p className="text-sm text-purple-800">
-                          {isAnosIniciaisConc ? (
-                            <>
-                              <strong>1º/2º Ano - Avaliação Conceitual:</strong>
-                              <span className="ml-2">
-                                <strong>C</strong>=Consolidado | <strong>ED</strong>=Em Desenvolvimento | <strong>ND</strong>=Não Desenvolvido
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <strong>Educação Infantil:</strong> Avaliação por conceitos. 
-                              <span className="ml-2">
-                                <strong>OD</strong>=Desenvolvido | <strong>DP</strong>=Parcialmente | <strong>ND</strong>=Não Desenvolvido | <strong>NT</strong>=Não Trabalhado
-                              </span>
-                            </>
-                          )}
-                        </p>
-                      </div>
-                    )}
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
-                            <th className={`px-4 py-3 text-center text-xs font-medium uppercase ${!canEditField(1) ? 'bg-red-50 text-red-500' : 'text-gray-500'}`}>
-                              {usaConceito ? '1º Bim' : 'B1 (×2)'}
-                              {!canEditField(1) && <Lock className="inline w-3 h-3 ml-1" />}
-                            </th>
-                            <th className={`px-4 py-3 text-center text-xs font-medium uppercase ${!canEditField(2) ? 'bg-red-50 text-red-500' : 'text-gray-500'}`}>
-                              {usaConceito ? '2º Bim' : 'B2 (×3)'}
-                              {!canEditField(2) && <Lock className="inline w-3 h-3 ml-1" />}
-                            </th>
-                            {!usaConceito && (
-                              <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 1º</th>
-                            )}
-                            <th className={`px-4 py-3 text-center text-xs font-medium uppercase ${!canEditField(3) ? 'bg-red-50 text-red-500' : 'text-gray-500'}`}>
-                              {usaConceito ? '3º Bim' : 'B3 (×2)'}
-                              {!canEditField(3) && <Lock className="inline w-3 h-3 ml-1" />}
-                            </th>
-                            <th className={`px-4 py-3 text-center text-xs font-medium uppercase ${!canEditField(4) ? 'bg-red-50 text-red-500' : 'text-gray-500'}`}>
-                              {usaConceito ? '4º Bim' : 'B4 (×3)'}
-                              {!canEditField(4) && <Lock className="inline w-3 h-3 ml-1" />}
-                            </th>
-                            {!usaConceito && (
-                              <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 2º</th>
-                            )}
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                              {usaConceito ? 'Conceito' : 'Média'}
-                            </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {gradesData.map((item, index) => {
-                            const isBlocked = isStudentBlockedForProfessor(item.student);
-                            const blockedMessage = getBlockedMessage(item.student);
-                            const hasActionLabel = !!item.student.action_label;
-                            const hasAnyBlocking = isBlocked || hasActionLabel || 
-                              (item.student.blocked_before_enrollment && item.student.blocked_before_enrollment.length > 0) ||
-                              (item.student.blocked_after_action && item.student.blocked_after_action.length > 0);
-                            
-                            // Helper: verifica se um bimestre específico está bloqueado para este aluno
-                            const canEditBim = (bim) => canEditStudentGrade(item.student, bim);
-                            
-                            // Tooltip para campos bloqueados por data de matrícula
-                            const getBlockTooltip = (bim) => {
-                              if (item.student.blocked_after_action && item.student.blocked_after_action.includes(bim)) {
-                                return `${item.student.action_label || 'Movimentado'} - bimestre bloqueado`;
-                              }
-                              if (item.student.blocked_before_enrollment && item.student.blocked_before_enrollment.includes(bim)) {
-                                const isAdminOrSecretary = ['admin', 'admin_teste', 'secretario'].includes(user?.role);
-                                if (!isAdminOrSecretary) {
-                                  return `Aluno matriculado após este bimestre (${item.student.enrollment_date || ''})`;
-                                }
-                              }
-                              return '';
-                            };
-                            
-                            return (
-                            <tr key={item.student.id} className={`hover:bg-gray-50 ${hasAnyBlocking ? 'bg-gray-50' : ''}`}>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-2">
-                                  <div>
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {item.student.full_name}
-                                      {hasActionLabel && (
-                                        <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
-                                          ({item.student.action_label})
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      {item.student.enrollment_number}
-                                      {item.student.enrollment_date && (
-                                        <span className="ml-2 text-gray-400">
-                                          Matr: {item.student.enrollment_date.split('-').reverse().join('/')}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {isBlocked && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-600 text-xs font-medium rounded-full" title={blockedMessage}>
-                                      <Lock size={10} />
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className={`px-4 py-3 text-center ${!canEditBim(1) ? 'bg-red-50/50' : ''}`} title={getBlockTooltip(1)}>
-                                {usaConceito ? (
-                                  <ConceitoSelect
-                                    value={item.grade.b1}
-                                    onChange={(v) => updateLocalGrade(index, 'b1', v)}
-                                    disabled={!canEditBim(1)}
-                                    gradeLevel={currentGradeLevel}
-                                  />
-                                ) : (
-                                  <GradeInput
-                                    value={item.grade.b1}
-                                    onChange={(v) => updateLocalGrade(index, 'b1', v)}
-                                    disabled={!canEditBim(1)}
-                                  />
-                                )}
-                              </td>
-                              <td className={`px-4 py-3 text-center ${!canEditBim(2) ? 'bg-red-50/50' : ''}`} title={getBlockTooltip(2)}>
-                                {usaConceito ? (
-                                  <ConceitoSelect
-                                    value={item.grade.b2}
-                                    onChange={(v) => updateLocalGrade(index, 'b2', v)}
-                                    disabled={!canEditBim(2)}
-                                    gradeLevel={currentGradeLevel}
-                                  />
-                                ) : (
-                                  <GradeInput
-                                    value={item.grade.b2}
-                                    onChange={(v) => updateLocalGrade(index, 'b2', v)}
-                                    disabled={!canEditBim(2)}
-                                  />
-                                )}
-                              </td>
-                              {!usaConceito && (
-                                <td className="px-4 py-3 text-center bg-blue-50">
-                                  <GradeInput
-                                    value={item.grade.rec_s1}
-                                    onChange={(v) => updateLocalGrade(index, 'rec_s1', v)}
-                                    disabled={!canEditBim(1) && !canEditBim(2)}
-                                    placeholder="-"
-                                  />
-                                </td>
-                              )}
-                              <td className={`px-4 py-3 text-center ${!canEditBim(3) ? 'bg-red-50/50' : ''}`} title={getBlockTooltip(3)}>
-                                {usaConceito ? (
-                                  <ConceitoSelect
-                                    value={item.grade.b3}
-                                    onChange={(v) => updateLocalGrade(index, 'b3', v)}
-                                    disabled={!canEditBim(3)}
-                                    gradeLevel={currentGradeLevel}
-                                  />
-                                ) : (
-                                  <GradeInput
-                                    value={item.grade.b3}
-                                    onChange={(v) => updateLocalGrade(index, 'b3', v)}
-                                    disabled={!canEditBim(3)}
-                                  />
-                                )}
-                              </td>
-                              <td className={`px-4 py-3 text-center ${!canEditBim(4) ? 'bg-red-50/50' : ''}`} title={getBlockTooltip(4)}>
-                                {usaConceito ? (
-                                  <ConceitoSelect
-                                    value={item.grade.b4}
-                                    onChange={(v) => updateLocalGrade(index, 'b4', v)}
-                                    disabled={!canEditBim(4)}
-                                    gradeLevel={currentGradeLevel}
-                                  />
-                                ) : (
-                                  <GradeInput
-                                    value={item.grade.b4}
-                                    onChange={(v) => updateLocalGrade(index, 'b4', v)}
-                                    disabled={!canEditBim(4)}
-                                  />
-                                )}
-                              </td>
-                              {!usaConceito && (
-                                <td className="px-4 py-3 text-center bg-blue-50">
-                                  <GradeInput
-                                    value={item.grade.rec_s2}
-                                    onChange={(v) => updateLocalGrade(index, 'rec_s2', v)}
-                                    disabled={!canEditBim(3) && !canEditBim(4)}
-                                    placeholder="-"
-                                  />
-                                </td>
-                              )}
-                              <td className="px-4 py-3 text-center">
-                                {usaConceito ? (
-                                  <span className={`font-bold ${
-                                    isAnosIniciaisConc 
-                                      ? (CONCEITOS_ANOS_INICIAIS[valorParaConceito(item.grade.final_average, currentGradeLevel)]?.cor || 'text-gray-400')
-                                      : (CONCEITOS_EDUCACAO_INFANTIL[valorParaConceito(item.grade.final_average, currentGradeLevel)]?.cor || 'text-gray-400')
-                                  }`}>
-                                    {item.grade.final_average !== null ? valorParaConceito(item.grade.final_average, currentGradeLevel) : '-'}
-                                  </span>
-                                ) : (
-                                  <span className={`font-bold ${
-                                    item.grade.final_average !== null
-                                      ? item.grade.final_average >= 5 ? 'text-green-600' : 'text-red-600'
-                                      : 'text-gray-400'
-                                  }`}>
-                                    {item.grade.final_average !== null ? formatGrade(item.grade.final_average) : '-'}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                {renderStatus(item.grade.status, null)}
-                              </td>
-                            </tr>
-                          )})}
-                        </tbody>
-                      </table>
-                    </div>
-                    
-                    {/* Botão Salvar */}
-                    {canEdit && (
-                      <div className="mt-4 flex justify-end">
-                        <button
-                          onClick={saveGrades}
-                          disabled={saving || !hasChanges}
-                          className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-                        >
-                          <Save size={18} />
-                          {saving ? 'Salvando...' : 'Salvar Notas'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : selectedClass && selectedCourse ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <BookOpen size={48} className="mx-auto mb-4 text-gray-300" />
-                    <p>Clique em &quot;Carregar Notas&quot; para visualizar</p>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Users size={48} className="mx-auto mb-4 text-gray-300" />
-                    <p>Selecione a escola, turma e componente curricular</p>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {/* Tab: Por Aluno */}
-            {activeTab === 'aluno' && (
-              <div className="space-y-6">
-                {/* Busca */}
-                <div className="flex flex-wrap items-end gap-4">
-                  {/* Busca por Nome */}
-                  <div className="relative flex-1 min-w-[250px]" ref={nameInputRef}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <Search size={14} className="inline mr-1" />
-                      Buscar por Nome
-                    </label>
-                    <input
-                      type="text"
-                      value={searchName}
-                      onChange={(e) => {
-                        setSearchName(e.target.value);
-                        setShowNameSuggestions(e.target.value.length >= 3);
-                      }}
-                      onFocus={() => setShowNameSuggestions(searchName.length >= 3)}
-                      placeholder="Digite pelo menos 3 letras..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                    {showNameSuggestions && nameSuggestions.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {nameSuggestions.map((student) => (
-                          <button
-                            key={student.id}
-                            type="button"
-                            onClick={() => handleSelectStudent(student)}
-                            className="w-full px-4 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                          >
-                            <div className="font-medium text-gray-900">{student.full_name}</div>
-                            <div className="text-xs text-gray-500">
-                              Matrícula: {student.enrollment_number} | CPF: {student.cpf || '-'}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Busca por CPF */}
-                  <div className="relative flex-1 min-w-[250px]" ref={cpfInputRef}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <Search size={14} className="inline mr-1" />
-                      Buscar por CPF
-                    </label>
-                    <input
-                      type="text"
-                      value={searchCpf}
-                      onChange={(e) => {
-                        setSearchCpf(e.target.value);
-                        setShowCpfSuggestions(e.target.value.length >= 3);
-                      }}
-                      onFocus={() => setShowCpfSuggestions(searchCpf.length >= 3)}
-                      placeholder="Digite pelo menos 3 dígitos..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                    {showCpfSuggestions && cpfSuggestions.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {cpfSuggestions.map((student) => (
-                          <button
-                            key={student.id}
-                            type="button"
-                            onClick={() => handleSelectStudent(student)}
-                            className="w-full px-4 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                          >
-                            <div className="font-medium text-gray-900">{student.cpf}</div>
-                            <div className="text-xs text-gray-500">
-                              {student.full_name} | Matrícula: {student.enrollment_number}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Botão Limpar */}
-                  {selectedStudent && (
-                    <button
-                      onClick={handleClearSearch}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 border border-gray-300"
-                    >
-                      <X size={18} />
-                      Limpar
-                    </button>
-                  )}
-                </div>
-                
-                {/* Dados do Aluno */}
-                {selectedStudent && studentGrades && (
-                  <div className="space-y-4">
-                    {/* Card do Aluno */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center">
-                          <User className="text-blue-600" size={24} />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-lg text-gray-900">{studentGrades.student.full_name}</h3>
-                          <p className="text-sm text-gray-600">
-                            Matrícula: {studentGrades.student.enrollment_number} | 
-                            CPF: {studentGrades.student.cpf || '-'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Tabela de Notas por Componente */}
-                    {loading ? (
-                      <div className="text-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                      </div>
-                    ) : studentGrades.grades.length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 bg-white rounded-lg overflow-hidden">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Componente</th>
-                              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">B1 (×2)</th>
-                              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">B2 (×3)</th>
-                              <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 1º</th>
-                              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">B3 (×2)</th>
-                              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">B4 (×3)</th>
-                              <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase bg-blue-50">Rec. 2º</th>
-                              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Média</th>
-                              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {studentGrades.grades.map((grade) => (
-                              <tr key={grade.course_id} className="hover:bg-gray-50">
-                                <td className="px-4 py-3 font-medium text-gray-900">{grade.course_name}</td>
-                                <td className="px-4 py-3 text-center">
-                                  <GradeInput
-                                    value={grade.b1}
-                                    onChange={(v) => updateStudentGrade(grade.id, grade.course_id, 'b1', v)}
-                                    disabled={!canEdit}
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <GradeInput
-                                    value={grade.b2}
-                                    onChange={(v) => updateStudentGrade(grade.id, grade.course_id, 'b2', v)}
-                                    disabled={!canEdit}
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-center bg-blue-50">
-                                  <GradeInput
-                                    value={grade.rec_s1}
-                                    onChange={(v) => updateStudentGrade(grade.id, grade.course_id, 'rec_s1', v)}
-                                    disabled={!canEdit}
-                                    placeholder="-"
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <GradeInput
-                                    value={grade.b3}
-                                    onChange={(v) => updateStudentGrade(grade.id, grade.course_id, 'b3', v)}
-                                    disabled={!canEdit}
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <GradeInput
-                                    value={grade.b4}
-                                    onChange={(v) => updateStudentGrade(grade.id, grade.course_id, 'b4', v)}
-                                    disabled={!canEdit}
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-center bg-blue-50">
-                                  <GradeInput
-                                    value={grade.rec_s2}
-                                    onChange={(v) => updateStudentGrade(grade.id, grade.course_id, 'rec_s2', v)}
-                                    disabled={!canEdit}
-                                    placeholder="-"
-                                  />
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <span className={`font-bold ${
-                                    grade.final_average !== null
-                                      ? grade.final_average >= 5 ? 'text-green-600' : 'text-red-600'
-                                      : 'text-gray-400'
-                                  }`}>
-                                    {grade.final_average !== null ? formatGrade(grade.final_average) : '-'}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  {renderStatus(grade.status, null)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
-                        <BookOpen size={48} className="mx-auto mb-4 text-gray-300" />
-                        <p>Nenhuma nota lançada para este aluno</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {!selectedStudent && (
-                  <div className="text-center py-12 text-gray-500">
-                    <User size={48} className="mx-auto mb-4 text-gray-300" />
-                    <p>Busque um aluno pelo nome ou CPF para visualizar suas notas</p>
-                  </div>
-                )}
-              </div>
-            )}
+              }>
+                {activeTab === 'turma' && <TurmaTab />}
+                {activeTab === 'aluno' && <AlunoTab />}
+              </Suspense>
+            </GradesContext.Provider>
           </div>
         </div>
         

@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend regression of Grades.js refactor (Context API + lazy-loaded TurmaTab/AlunoTab + gradeHelpers module). Found and FIXED one critical bug: TurmaTab.jsx referenced CONCEITOS_ANOS_INICIAIS and CONCEITOS_EDUCACAO_INFANTIL without importing them — caused an uncaught ReferenceError overlay the moment any conceitual class (Educação Infantil or 1º/2º ano) rendered its Média/Conceito column. After fix, all end-to-end flows pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results_by_feature": {
+    "page_load": "PASS - /admin/grades loads, Por Turma tab visible, 0 page errors after fix",
+    "turma_tab_regular_6ano": "PASS - ESCOLA TESTE MULTISSERIADA → 6º ANO A → MATEMÁTICA → Carregar Notas loads 3 students (ANA OLIVEIRA, JOAO SANTOS, MARIA SILVA) with 18 GradeInputs; editing B1=7,5 → Tab → hasChanges becomes true; Salvar Notas returns 'sucesso'; Média column recalculated to 7,5",
+    "turma_tab_conceitual_2ano": "PASS (after import fix) - ESCOLA TESTE MULTISSERIADA → 2 ANO → Componente → Carregar Notas renders Conceito header + 4 ConceitoSelect (C/ED/ND); selecting 'C' triggers updateLocalGrade via context; Salvar Notas returns 'sucesso'",
+    "generate_pdf_button": "PASS (button renders; modal opens). Full blob flow not exercised as modal uses gradesAPI.getPdfBlob (same as verified codepath in helper).",
+    "aluno_tab_search": "PASS - typing ≥3 letters shows suggestions (2 found for 'ALU'); click suggestion loads student card; student in this test had no grades so table empty (data state, not a refactor bug)",
+    "tab_switching_context_persistence": "PASS - Switching Por Turma → Por Aluno → Por Turma preserves selectedSchool, selectedClass, and gradesData rows (3 rows still rendered) via GradesContext; no 'useGrades must be used inside' errors",
+    "multisseriada_series_dropdown": "PASS - 2 ANO and 6º ANO A turmas in MULTISSERIADA school did not trigger the Ano/Série dropdown (is_multi_grade=false for these specific turmas), so the conditional (isMultiGrade && selectedClass) correctly hides the selector. Logic path confirmed via TurmaTab render condition.",
+    "bimestre_lock_icons": "PASS - BimestreBlockedAlert renders at top; canEditField wired through context to conditionally render Lock icon and red-tinted header/bg on blocked bimestres (verified in source and screenshot)",
+    "editing_flow_via_context": "PASS - GradeInput onBlur → updateLocalGrade(index, 'b1', 7.5) via useGrades() context (not props) correctly sets hasChanges=true, enables Salvar Notas; batch save via gradesAPI.updateBatch succeeds; updateStudentGrade in AlunoTab wired via context (import + call site verified)"
+  },
+  "critical_code_review_comments": [
+    "BUG FIXED BY TESTER: TurmaTab.jsx was missing imports of CONCEITOS_ANOS_INICIAIS and CONCEITOS_EDUCACAO_INFANTIL from gradeHelpers. These are referenced at lines ~343-344 for the Média/Conceito column color class (CONCEITOS_ANOS_INICIAIS[valorParaConceito(...)].cor). Because the smoke test used only non-conceitual turmas, the error was missed. ESLint 'react/jsx-no-undef' or 'no-undef' likely not active on .jsx in this repo — consider enabling to prevent recurrence.",
+    "gradesContextValue useMemo is correctly memoized in Grades.js (unlike AttendanceContext noted in iteration_52) — good.",
+    "TurmaTab.jsx is 397 lines with a deeply nested 200-line JSX block for the grades table — consider extracting the <table> into a <GradesTable /> sub-component to keep the presentational component focused.",
+    "updateStudentGrade in AlunoTab sends one API call per onBlur (PUT per field). For a student with many components × 6 fields this could fire many requests if user tabs through quickly — debounce or batch could improve UX (existing behavior, not introduced by refactor).",
+    "Minor: AlunoTab references `renderStatus` via context — fine, but renderStatus is a JSX-returning function stored in context value; not a bug but an anti-pattern (context values should be data/handlers, not render helpers). Consider moving renderStatus into gradeHelpers.jsx as a plain component <StatusBadge />."
+  ],
+  "updated_files": [
+    "/app/frontend/src/components/grades/TurmaTab.jsx (added missing imports of CONCEITOS_ANOS_INICIAIS and CONCEITOS_EDUCACAO_INFANTIL from ./gradeHelpers)"
+  ],
+  "test_report_links": [],
+  "success_rate": {"backend": "not tested", "frontend": "100% after fix"},
+  "seed_data_creation": "None",
+  "test_credentials": "Admin: gutenberg@sigesc.com / @Celta2007 (from /app/memory/test_credentials.md)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Refactor (GradesContext + lazy TurmaTab/AlunoTab + gradeHelpers.jsx) verified end-to-end. The only defect was a missing import in TurmaTab.jsx which testing agent fixed. Key seed: ESCOLA TESTE MULTISSERIADA has '2 ANO' (conceitual, 1 student) and '6º ANO A' (3 students ANA/JOAO/MARIA). Use 2 ANO to exercise ConceitoSelect path, 6º ANO A to exercise GradeInput path. Student search 'ALU' returns suggestions. No backend changes involved — gradesAPI.getPdfBlob/updateBatch/getByStudent/update/create all work against existing endpoints.",
+  "rca of the issue": "RCA: During the refactor of Grades.js, the Média/Conceito <td> cell (originally relied on module-level CONCEITOS_* constants when Grades.js was a monolith) was moved into TurmaTab.jsx. The author imported GradeInput, ConceitoSelect, formatGrade, valorParaConceito from ./gradeHelpers but forgot the two CONCEITOS_* objects used only for the cor (color) lookup. Because ESLint passed (implying no-undef not enforced for JSX identifiers here or the rule was disabled) and the smoke test only rendered a non-conceitual class where the ternary's truthy branch is never evaluated, the bug escaped to main agent's verification. Reproduction: login as admin → /admin/grades → pick any school → 2 ANO / 1º Ano / PRE-ESCOLA class → any componente → Carregar Notas → instant runtime error overlay 'CONCEITOS_ANOS_INICIAIS is not defined'. Fix: add the two names to the named-import list at the top of TurmaTab.jsx. Verified after fix: no overlay, Conceito column renders, save succeeds."
+}

@@ -326,6 +326,14 @@ export const gradesAPI = {
   
   delete: async (id) => {
     await axios.delete(`${API}/grades/${id}`);
+  },
+
+  getPdfBlob: async (classId, courseId, bimestres, academicYear, studentSeries = null) => {
+    const bimestresParam = [...bimestres].sort().join(',');
+    let url = `${API}/grades/pdf/${classId}/${courseId}?bimestres=${bimestresParam}&academic_year=${academicYear}`;
+    if (studentSeries) url += `&student_series=${encodeURIComponent(studentSeries)}`;
+    const response = await axios.get(url, { responseType: 'blob' });
+    return response.data;
   }
 };
 
