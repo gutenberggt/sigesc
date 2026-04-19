@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Layout } from '@/components/Layout';
 import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -38,12 +38,11 @@ import { extractErrorMessage } from '@/utils/errorHandler';
 import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
 import axios from 'axios';
-import { AlertasTab } from '@/components/attendance/AlertasTab';
-import { InformacoesTab } from '@/components/attendance/InformacoesTab';
-import { RelatoriosTab } from '@/components/attendance/RelatoriosTab';
-import { RegistrosTab } from '@/components/attendance/RegistrosTab';
-import { LancamentoTab } from '@/components/attendance/LancamentoTab';
-
+const LancamentoTab = lazy(() => import('@/components/attendance/LancamentoTab').then(m => ({ default: m.LancamentoTab })));
+const RegistrosTab = lazy(() => import('@/components/attendance/RegistrosTab').then(m => ({ default: m.RegistrosTab })));
+const InformacoesTab = lazy(() => import('@/components/attendance/InformacoesTab').then(m => ({ default: m.InformacoesTab })));
+const RelatoriosTab = lazy(() => import('@/components/attendance/RelatoriosTab').then(m => ({ default: m.RelatoriosTab })));
+const AlertasTab = lazy(() => import('@/components/attendance/AlertasTab').then(m => ({ default: m.AlertasTab })));
 const VACCINE_API = process.env.REACT_APP_BACKEND_URL;
 
 // Formata data para exibição
@@ -1071,6 +1070,12 @@ export const Attendance = () => {
           </div>
           
           <div className="p-4">
+            <Suspense fallback={
+              <div className="flex justify-center items-center py-16" data-testid="tab-loading">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-500 text-sm">Carregando...</span>
+              </div>
+            }>
             {/* Tab: Lançamento */}
             {activeTab === 'lancamento' && (
               <LancamentoTab
@@ -1180,6 +1185,7 @@ export const Attendance = () => {
                 alertsData={alertsData}
               />
             )}
+            </Suspense>
           </div>
         </div>
         
