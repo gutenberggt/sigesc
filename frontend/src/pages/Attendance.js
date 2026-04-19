@@ -22,9 +22,7 @@ import {
   CloudOff,
   Stethoscope,
   FileDown,
-  Info,
-  Phone,
-  Loader2
+  Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +38,11 @@ import { extractErrorMessage } from '@/utils/errorHandler';
 import { useOffline } from '@/contexts/OfflineContext';
 import { db, SYNC_STATUS, addToSyncQueue, SYNC_OPERATIONS } from '@/db/database';
 import axios from 'axios';
+import { AlertasTab } from '@/components/attendance/AlertasTab';
+import { InformacoesTab } from '@/components/attendance/InformacoesTab';
+import { RelatoriosTab } from '@/components/attendance/RelatoriosTab';
+import { RegistrosTab } from '@/components/attendance/RegistrosTab';
+import { LancamentoTab } from '@/components/attendance/LancamentoTab';
 
 const VACCINE_API = process.env.REACT_APP_BACKEND_URL;
 
@@ -992,14 +995,6 @@ export const Attendance = () => {
     if (activeTab === 'informacoes' && infoClass) loadInfoStudents();
   }, [activeTab, infoClass, loadInfoStudents]);
 
-  const formatPhone = (phone) => {
-    if (!phone) return null;
-    const clean = phone.replace(/\D/g, '');
-    if (clean.length < 10) return null;
-    const withCountry = clean.startsWith('55') ? clean : `55${clean}`;
-    return withCountry;
-  };
-
   return (
     <Layout>
       <div className="space-y-4">
@@ -1078,917 +1073,112 @@ export const Attendance = () => {
           <div className="p-4">
             {/* Tab: Lançamento */}
             {activeTab === 'lancamento' && (
-              <div className="space-y-4">
-                {/* Filtros */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-                  <div className="lg:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Ano Letivo</label>
-                    <select
-                      value={academicYear}
-                      onChange={(e) => setAcademicYear(parseInt(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      {availableYears.map(year => (
-                        <option key={year} value={year}>{year}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div className="lg:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
-                    <select
-                      value={selectedSchool}
-                      onChange={(e) => setSelectedSchool(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Selecione a escola</option>
-                      {schools.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div className="lg:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
-                    <select
-                      value={selectedClass}
-                      onChange={(e) => setSelectedClass(e.target.value)}
-                      disabled={!selectedSchool}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                    >
-                      <option value="">Selecione a turma</option>
-                      {classes.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  {attendanceType === 'by_component' && (
-                    <div className="lg:col-span-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Componente Curricular</label>
-                      <select
-                        value={selectedCourse}
-                        onChange={(e) => setSelectedCourse(e.target.value)}
-                        disabled={!selectedClass}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                      >
-                        <option value="">Selecione o componente</option>
-                        {courses.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Campos informativos: Previstos | Registrados | Restantes */}
-                  {selectedClass && attendanceSummary && (
-                    <div className={`${attendanceType === 'by_component' ? 'lg:col-span-2' : 'lg:col-span-3'} flex items-end`}>
-                      <div className="w-full grid grid-cols-3 gap-2" data-testid="attendance-summary">
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-center">
-                          <p className="text-xs font-medium text-blue-600">
-                            {attendanceSummary.type === 'aulas' ? 'Previstas' : 'Previstos'}
-                          </p>
-                          <p className="text-lg font-bold text-blue-800">
-                            {attendanceSummary.previstos} <span className="text-xs font-normal">{attendanceSummary.type === 'aulas' ? 'aulas' : 'dias'}</span>
-                          </p>
-                        </div>
-                        <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-center">
-                          <p className="text-xs font-medium text-green-600">
-                            {attendanceSummary.type === 'aulas' ? 'Registradas' : 'Registrados'}
-                          </p>
-                          <p className="text-lg font-bold text-green-800">
-                            {attendanceSummary.registrados} <span className="text-xs font-normal">{attendanceSummary.type === 'aulas' ? 'aulas' : 'dias'}</span>
-                          </p>
-                        </div>
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
-                          <p className="text-xs font-medium text-amber-600">Restantes</p>
-                          <p className="text-lg font-bold text-amber-800">
-                            {attendanceSummary.restantes} <span className="text-xs font-normal">{attendanceSummary.type === 'aulas' ? 'aulas' : 'dias'}</span>
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Seletor de Data */}
-                <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg">
-                  <Button variant="outline" size="sm" onClick={() => navigateDate(-1)}>
-                    <ChevronLeft size={18} />
-                  </Button>
-                  
-                  <div className="flex items-center gap-2">
-                    <Calendar size={18} className="text-gray-500" />
-                    <Input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      className="w-40"
-                    />
-                    <span className="text-sm text-gray-600">
-                      {WEEKDAYS[new Date(selectedDate + 'T12:00:00').getDay()]}
-                    </span>
-                  </div>
-                  
-                  <Button variant="outline" size="sm" onClick={() => navigateDate(1)}>
-                    <ChevronRight size={18} />
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-                  >
-                    Hoje
-                  </Button>
-                  
-                  {/* Status da data */}
-                  {dateCheck && (
-                    <div className={`ml-auto px-3 py-1 rounded-full text-sm ${
-                      dateCheck.can_record 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-red-100 text-red-700'
-                    }`}>
-                      {dateCheck.message}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Info do tipo de frequência */}
-                {selectedClassData && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
-                    <strong>{EDUCATION_LEVEL_LABELS[inferEducationLevel(selectedClassData)] || selectedClassData.education_level || inferEducationLevel(selectedClassData)}</strong>
-                    {' - '}
-                    {attendanceType === 'daily' 
-                      ? 'Frequência diária (uma por dia)'
-                      : 'Frequência por componente curricular'
-                    }
-                  </div>
-                )}
-                
-                {/* Botão Carregar */}
-                <div className="flex gap-2 flex-wrap items-center">
-                  <Button 
-                    onClick={loadAttendance}
-                    disabled={!selectedClass || !selectedDate || (attendanceType === 'by_component' && !selectedCourse)}
-                  >
-                    Carregar Frequência
-                  </Button>
-                  
-                  {attendanceData && canEdit && (
-                    <>
-                      <Button variant="outline" onClick={() => markAll('P')}>
-                        <CheckCircle size={16} className="mr-1 text-green-600" />
-                        Todos Presentes
-                      </Button>
-                      <Button variant="outline" onClick={() => markAll('F')}>
-                        <XCircle size={16} className="mr-1 text-red-600" />
-                        Todos Ausentes
-                      </Button>
-                    </>
-                  )}
-                  
-                  {/* Seletor Nº de Aulas (Anos Finais - múltiplas aulas por dia) */}
-                  {isMultiAula && attendanceData && (
-                    <div className="flex items-center gap-2 ml-auto bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
-                      <label className="text-sm font-medium text-blue-700 whitespace-nowrap">Nº de Aulas:</label>
-                      <select
-                        value={numberOfAulas}
-                        onChange={(e) => {
-                          const newNum = parseInt(e.target.value);
-                          setNumberOfAulas(newNum);
-                          setHasChanges(true);
-                        }}
-                        className="px-2 py-1 border border-blue-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500"
-                        data-testid="num-aulas-select"
-                      >
-                        {[0,1,2,3,4,5,6].map(n => (
-                          <option key={n} value={n}>{n} {n === 1 ? 'aula' : 'aulas'}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Tabela de Frequência */}
-                {loading ? (
-                  <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  </div>
-                ) : attendanceData ? (
-                  <div className="bg-white border rounded-lg overflow-hidden">
-                    <div className="p-3 bg-gray-50 border-b flex justify-between items-center">
-                      <div>
-                        <span className="font-medium">{attendanceData.class_name}</span>
-                        <span className="text-gray-500 ml-2">• {formatDate(attendanceData.date)}</span>
-                        <span className="text-gray-500 ml-2">• {attendanceData.students.length} alunos</span>
-                      </div>
-                      <div className="flex gap-4 text-sm">
-                        <span className="flex items-center gap-1">
-                          <span className="w-3 h-3 rounded bg-green-500"></span>
-                          P = Presente
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="w-3 h-3 rounded bg-red-500"></span>
-                          F = Falta
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="w-3 h-3 rounded bg-yellow-500"></span>
-                          J = Justificado
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {isMultiAula && numberOfAulas === 0 ? (
-                      <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border">
-                        <p className="font-medium">Nenhuma aula deste componente neste dia da semana</p>
-                        <p className="text-sm mt-1">Conforme o horário de aulas, não há aulas previstas para esta data.</p>
-                      </div>
-                    ) : (
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
-                          {isMultiAula ? (
-                            Array.from({ length: numberOfAulas }, (_, i) => (
-                              <th key={i} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                                {numberOfAulas > 1 ? `${i + 1}ª Aula` : 'Frequência'}
-                              </th>
-                            ))
-                          ) : (
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Frequência</th>
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {attendanceData.students.map(student => {
-                          const hasCertificate = hasActiveCertificate(student.id);
-                          const certInfo = getCertificateInfo(student.id);
-                          const isBlocked = isStudentBlockedForProfessor(student);
-                          const blockedMessage = getBlockedMessage(student);
-                          
-                          // Bloqueio por ação (transferido, desistente, etc.) - após a data da ação
-                          const hasActionLabel = !!student.action_label;
-                          const isBlockedByAction = hasActionLabel && student.action_date && 
-                            attendanceData.date >= student.action_date.substring(0, 10);
-                          
-                          // Bloqueio por data de matrícula - antes da matrícula
-                          const enrollDate = student.enrollment_date ? student.enrollment_date.substring(0, 10) : '';
-                          const isBeforeEnrollment = enrollDate && attendanceData.date < enrollDate;
-                          
-                          // Formata data de matrícula para exibição DD/MM/AAAA
-                          const enrollDateDisplay = enrollDate ? 
-                            `${enrollDate.substring(8,10)}/${enrollDate.substring(5,7)}/${enrollDate.substring(0,4)}` : '';
-                          
-                          const isAnyBlock = isBlocked || isBlockedByAction || isBeforeEnrollment;
-                          
-                          return (
-                            <tr key={student.id} className={`hover:bg-gray-50 ${hasCertificate ? 'bg-red-50' : ''} ${isAnyBlock ? 'bg-gray-100' : ''}`}>
-                              <td className="px-4 py-3 font-medium text-gray-900">
-                                <div className="flex items-center gap-2">
-                                  {(() => {
-                                    const vSt = vaccineStatuses[student.id];
-                                    const dotColor = vSt === 'up_to_date' ? 'bg-green-500' : vSt === 'not_up_to_date' ? 'bg-yellow-400' : 'bg-gray-300';
-                                    const dotTitle = vSt === 'up_to_date' ? 'Vacina em dia' : vSt === 'not_up_to_date' ? 'Vacina pendente' : 'Vacina não verificada';
-                                    return <span className={`inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColor}`} title={dotTitle} data-testid={`vaccine-dot-${student.id}`} />;
-                                  })()}
-                                  {student.full_name}
-                                  {hasActionLabel && (
-                                    <span className="inline-flex items-center px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
-                                      ({student.action_label})
-                                    </span>
-                                  )}
-                                  {hasCertificate && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full" title={certInfo?.period}>
-                                      <Stethoscope size={12} />
-                                      AM
-                                    </span>
-                                  )}
-                                  {isBlocked && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-600 text-xs font-medium rounded-full" title={blockedMessage}>
-                                      Bloqueado
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              {isMultiAula ? (
-                                Array.from({ length: numberOfAulas }, (_, aulaIdx) => {
-                                  const aulaNum = aulaIdx + 1;
-                                  const aulaStatus = aulaStatuses[student.id]?.[aulaNum] || '';
-                                  return (
-                                    <td key={aulaIdx} className="px-2 py-3">
-                                      {hasCertificate ? (
-                                        <div className="flex justify-center">
-                                          <div className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">AM</div>
-                                        </div>
-                                      ) : isAnyBlock ? (
-                                        <div className="flex justify-center">
-                                          <div className="px-2 py-1 bg-gray-200 text-gray-500 rounded text-xs text-center leading-tight">
-                                            {isBeforeEnrollment ? (
-                                              <><div>A partir de</div><div>{enrollDateDisplay}</div></>
-                                            ) : isBlockedByAction ? (
-                                              student.action_label
-                                            ) : '-'}
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div className="flex justify-center gap-1">
-                                          {['P', 'F', 'J'].map(status => (
-                                            <button
-                                              key={status}
-                                              onClick={() => canEdit && dateCheck?.can_record && updateStudentStatus(student.id, status, aulaNum)}
-                                              disabled={!canEdit || !dateCheck?.can_record}
-                                              className={`w-8 h-8 rounded-lg font-bold text-xs transition-all
-                                                ${aulaStatus === status 
-                                                  ? status === 'P' ? 'bg-green-500 text-white ring-2 ring-green-300' 
-                                                    : status === 'F' ? 'bg-red-500 text-white ring-2 ring-red-300'
-                                                    : 'bg-yellow-500 text-white ring-2 ring-yellow-300'
-                                                  : 'bg-gray-300 text-gray-500 hover:bg-gray-400'
-                                                }
-                                                ${(!canEdit || !dateCheck?.can_record) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-                                              `}
-                                            >
-                                              {status}
-                                            </button>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </td>
-                                  );
-                                })
-                              ) : (
-                                <td className="px-4 py-3">
-                                  {hasCertificate ? (
-                                    <div className="flex justify-center">
-                                      <div className="px-4 py-2 bg-red-100 text-red-700 rounded-lg font-bold text-center" title={`${certInfo?.reason}: ${certInfo?.period}`}>
-                                        <div className="flex items-center gap-1">
-                                          <Stethoscope size={16} />
-                                          <span>AM</span>
-                                        </div>
-                                        <span className="text-xs font-normal">Atestado Médico</span>
-                                      </div>
-                                    </div>
-                                  ) : isAnyBlock ? (
-                                    <div className="flex justify-center">
-                                      <div className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg text-center">
-                                        {isBeforeEnrollment ? (
-                                          <>
-                                            <span className="text-xs block">A partir de</span>
-                                            <span className="text-sm font-medium">{enrollDateDisplay}</span>
-                                          </>
-                                        ) : isBlockedByAction ? (
-                                          <span className="text-sm">{student.action_label}</span>
-                                        ) : (
-                                          <span className="text-sm">Edição bloqueada</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="flex justify-center gap-2">
-                                      {['P', 'F', 'J'].map(status => (
-                                        <button
-                                          key={status}
-                                          onClick={() => canEdit && dateCheck?.can_record && updateStudentStatus(student.id, status)}
-                                          disabled={!canEdit || !dateCheck?.can_record}
-                                          className={`w-10 h-10 rounded-lg font-bold transition-all
-                                            ${student.status === status 
-                                              ? status === 'P' ? 'bg-green-500 text-white ring-2 ring-green-300' 
-                                                : status === 'F' ? 'bg-red-500 text-white ring-2 ring-red-300'
-                                                : 'bg-yellow-500 text-white ring-2 ring-yellow-300'
-                                              : 'bg-gray-300 text-gray-500 hover:bg-gray-400'
-                                            }
-                                            ${(!canEdit || !dateCheck?.can_record) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-                                          `}
-                                        >
-                                          {status}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </td>
-                              )}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                    )}
-                    
-                    {/* Legenda de status */}
-                    {Object.keys(medicalCertificates).length > 0 && (
-                      <div className="p-3 bg-red-50 border-t border-red-200 text-sm text-red-700">
-                        <div className="flex items-center gap-2">
-                          <Stethoscope size={16} />
-                          <span><strong>AM = Atestado Médico</strong> - Alunos com atestado médico não podem ter a frequência alterada.</span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Botões Salvar e Excluir */}
-                    {canEdit && dateCheck?.can_record && (
-                      <div className="p-4 bg-gray-50 border-t flex justify-between items-center">
-                        <div>
-                          {attendanceData.attendance_id && (
-                            <Button
-                              variant="outline"
-                              onClick={() => setShowDeleteModal(true)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
-                            >
-                              <Trash2 size={16} className="mr-2" />
-                              Excluir Frequência
-                            </Button>
-                          )}
-                        </div>
-                        <Button
-                          onClick={saveAttendance}
-                          disabled={saving || !hasChanges}
-                        >
-                          {saving ? 'Salvando...' : 'Salvar Frequência'}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <Users size={48} className="mx-auto mb-4 opacity-30" />
-                    <p>Selecione os filtros e clique em "Carregar Frequência"</p>
-                  </div>
-                )}
-              </div>
+              <LancamentoTab
+                academicYear={academicYear}
+                setAcademicYear={setAcademicYear}
+                availableYears={availableYears}
+                schools={schools}
+                selectedSchool={selectedSchool}
+                setSelectedSchool={setSelectedSchool}
+                classes={classes}
+                selectedClass={selectedClass}
+                setSelectedClass={setSelectedClass}
+                courses={courses}
+                selectedCourse={selectedCourse}
+                setSelectedCourse={setSelectedCourse}
+                attendanceType={attendanceType}
+                attendanceSummary={attendanceSummary}
+                selectedClassData={selectedClassData}
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                dateCheck={dateCheck}
+                navigateDate={navigateDate}
+                loading={loading}
+                saving={saving}
+                attendanceData={attendanceData}
+                hasChanges={hasChanges}
+                canEdit={canEdit}
+                loadAttendance={loadAttendance}
+                markAll={markAll}
+                saveAttendance={saveAttendance}
+                isMultiAula={isMultiAula}
+                numberOfAulas={numberOfAulas}
+                setNumberOfAulas={setNumberOfAulas}
+                setHasChanges={setHasChanges}
+                aulaStatuses={aulaStatuses}
+                updateStudentStatus={updateStudentStatus}
+                vaccineStatuses={vaccineStatuses}
+                hasActiveCertificate={hasActiveCertificate}
+                getCertificateInfo={getCertificateInfo}
+                isStudentBlockedForProfessor={isStudentBlockedForProfessor}
+                getBlockedMessage={getBlockedMessage}
+                medicalCertificates={medicalCertificates}
+                setShowDeleteModal={setShowDeleteModal}
+              />
             )}
             
             {/* Tab: Registros (Calendário Anual) */}
             {activeTab === 'registros' && (
-              <div className="space-y-4">
-                {!selectedClass ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <Calendar size={48} className="mx-auto mb-4 opacity-30" />
-                    <p>Selecione a turma{isMultiAula ? ' e o componente curricular' : ''} para visualizar o calendário de registros</p>
-                  </div>
-                ) : registrosLoading ? (
-                  <div className="text-center py-12 text-gray-500">Carregando...</div>
-                ) : (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-medium text-gray-700">
-                        Calendário de Registros — {academicYear}
-                      </h3>
-                      <div className="flex items-center gap-4 text-xs">
-                        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-200 border border-green-400"></span> Com registro</span>
-                        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-100 border border-red-300"></span> Não letivo</span>
-                        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-300"></span> Sem registro</span>
-                      </div>
-                    </div>
-                    
-                    {/* Resumo por Bimestre */}
-                    {registrosBimSummary.length > 0 && (
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                        {registrosBimSummary.map(bim => (
-                          <div key={bim.bimestre} className="border rounded-lg p-3 bg-white">
-                            <div className="text-center font-semibold text-sm text-gray-700 mb-2 border-b pb-1">
-                              {bim.bimestre}º Bimestre
-                            </div>
-                            <div className="space-y-1">
-                              <div className="flex justify-between text-xs">
-                                <span className="text-gray-500">{bim.label_prev}:</span>
-                                <span className="font-bold text-blue-600">{bim.previstos}</span>
-                              </div>
-                              <div className="flex justify-between text-xs">
-                                <span className="text-gray-500">{bim.label_reg}:</span>
-                                <span className="font-bold text-green-600">{bim.registrados}</span>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                      {(() => {
-                        // Períodos bimestrais: dias fora de QUALQUER bimestre = não letivo
-                        const bimPeriods = registrosBimSummary.map(b => ({
-                          start: b.period_start,
-                          end: b.period_end
-                        }));
-                        const isWithinBimestre = (dateStr) => {
-                          if (bimPeriods.length === 0) return true; // sem dados, não bloquear
-                          return bimPeriods.some(p => dateStr >= p.start && dateStr <= p.end);
-                        };
-                        
-                        return (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">{Array.from({ length: 12 }, (_, monthIdx) => {
-                        const year = academicYear;
-                        const firstDay = new Date(year, monthIdx, 1);
-                        const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
-                        const startingDay = firstDay.getDay();
-                        const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-                        const weekDays = ['D','S','T','Q','Q','S','S'];
-                        
-                        // Contar dias letivos do mês
-                        let diasLetivos = 0;
-                        for (let d = 1; d <= daysInMonth; d++) {
-                          const dateStr = `${year}-${String(monthIdx+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                          const dow = new Date(year, monthIdx, d).getDay();
-                          const isSunday = dow === 0;
-                          const isSaturday = dow === 6;
-                          const isHoliday = registrosBlockedDates.has(dateStr);
-                          const isSabLetivo = registrosSabLetivos.has(dateStr);
-                          const isOutOfYear = !isWithinBimestre(dateStr);
-                          if (!isSunday && !isHoliday && !isOutOfYear && (!isSaturday || isSabLetivo)) diasLetivos++;
-                        }
-                        
-                        return (
-                          <div key={monthIdx} className="border rounded-lg p-3 bg-white">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-semibold text-sm text-gray-800">{monthNames[monthIdx]}</span>
-                              <span className="text-xs text-green-600 font-medium">{diasLetivos} dias letivos</span>
-                            </div>
-                            <div className="grid grid-cols-7 gap-px text-center">
-                              {weekDays.map((wd, i) => (
-                                <div key={i} className="text-[10px] font-medium text-gray-500 py-0.5">{wd}</div>
-                              ))}
-                              {Array.from({ length: startingDay }, (_, i) => (
-                                <div key={`empty-${i}`} />
-                              ))}
-                              {Array.from({ length: daysInMonth }, (_, i) => {
-                                const d = i + 1;
-                                const dateStr = `${year}-${String(monthIdx+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                                const dow = new Date(year, monthIdx, d).getDay();
-                                const isSunday = dow === 0;
-                                const isSaturday = dow === 6;
-                                const isHoliday = registrosBlockedDates.has(dateStr);
-                                const isSabLetivo = registrosSabLetivos.has(dateStr);
-                                const isOutOfYear = !isWithinBimestre(dateStr);
-                                const isBlocked = isSunday || isHoliday || isOutOfYear || (isSaturday && !isSabLetivo);
-                                const hasRecord = registrosAttDates.has(dateStr);
-                                const isToday = dateStr === new Date().toISOString().split('T')[0];
-                                
-                                let bgClass = 'bg-white';
-                                let textClass = 'text-gray-700';
-                                if (isBlocked) {
-                                  bgClass = 'bg-red-100';
-                                  textClass = 'text-red-500 font-medium';
-                                } else if (hasRecord) {
-                                  bgClass = 'bg-green-200';
-                                  textClass = 'text-green-800 font-medium';
-                                }
-                                
-                                return (
-                                  <div
-                                    key={d}
-                                    className={`text-[11px] py-0.5 rounded ${bgClass} ${textClass} ${isToday ? 'ring-1 ring-blue-500' : ''}`}
-                                    title={isBlocked ? (isHoliday ? 'Feriado / Recesso' : 'Dia não letivo') : hasRecord ? 'Frequência registrada' : ''}
-                                  >
-                                    {d}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>);
-                      })()}
-                  </div>
-                )}
-              </div>
+              <RegistrosTab
+                selectedClass={selectedClass}
+                isMultiAula={isMultiAula}
+                registrosLoading={registrosLoading}
+                academicYear={academicYear}
+                registrosBimSummary={registrosBimSummary}
+                registrosBlockedDates={registrosBlockedDates}
+                registrosSabLetivos={registrosSabLetivos}
+                registrosAttDates={registrosAttDates}
+              />
             )}
             
             {/* Tab: Relatórios */}
             {activeTab === 'relatorios' && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
-                    <select
-                      value={selectedSchool}
-                      onChange={(e) => setSelectedSchool(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      <option value="">Selecione a escola</option>
-                      {schools.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
-                    <select
-                      value={selectedClass}
-                      onChange={(e) => setSelectedClass(e.target.value)}
-                      disabled={!selectedSchool}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
-                    >
-                      <option value="">Selecione a turma</option>
-                      {classes.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bimestre</label>
-                    <select
-                      value={selectedBimestre}
-                      onChange={(e) => setSelectedBimestre(Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      <option value={1}>1º Bimestre</option>
-                      <option value={2}>2º Bimestre</option>
-                      <option value={3}>3º Bimestre</option>
-                      <option value={4}>4º Bimestre</option>
-                    </select>
-                  </div>
-                  
-                  {isAnosFinaisOrEja && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Componente Curricular <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={reportCourseId}
-                        onChange={(e) => {
-                          setReportCourseId(e.target.value);
-                          setClassReport(null);
-                        }}
-                        className={`w-full px-3 py-2 border rounded-lg ${!reportCourseId ? 'border-orange-300' : 'border-gray-300'}`}
-                        data-testid="report-course-select"
-                      >
-                        <option value="">Selecione o componente</option>
-                        {courses.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  
-                  <div className="flex items-end gap-2">
-                    <Button onClick={() => loadClassReport()} disabled={!selectedClass || (isAnosFinaisOrEja && !reportCourseId)}>
-                      <FileText size={18} className="mr-2" />
-                      Ver na Tela
-                    </Button>
-                    <Button 
-                      onClick={generateBimestrePdf} 
-                      disabled={!selectedClass || (isAnosFinaisOrEja && !reportCourseId)}
-                      variant="outline"
-                      className="border-green-500 text-green-600 hover:bg-green-50"
-                    >
-                      <FileDown size={18} className="mr-2" />
-                      Gerar PDF
-                    </Button>
-                  </div>
-                </div>
-                
-                {loading ? (
-                  <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  </div>
-                ) : classReport ? (
-                  <div className="bg-white border rounded-lg overflow-hidden">
-                    <div className="p-4 bg-gray-50 border-b">
-                      <h3 className="font-semibold">{classReport.class?.name}</h3>
-                      <p className="text-sm text-gray-500">
-                        {classReport.course_id && reportCourseId && (
-                          <span className="font-medium text-blue-600">
-                            {courses.find(c => c.id === reportCourseId)?.name || 'Componente'} • 
-                          </span>
-                        )}
-                        {classReport.total_school_days_recorded} {classReport.report_type === 'aulas' ? 'aulas' : 'dias'} com frequência registrada • 
-                        {classReport.total_students} alunos
-                      </p>
-                    </div>
-                    
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Presenças</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Faltas</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Justificadas</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Atestado</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">% Frequência</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {classReport.students.map(student => (
-                          <tr key={student.student_id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 font-medium">{student.student_name}</td>
-                            <td className="px-4 py-3 text-center text-green-600">{student.present}</td>
-                            <td className="px-4 py-3 text-center text-red-600">{student.absent}</td>
-                            <td className="px-4 py-3 text-center text-yellow-600">{student.justified}</td>
-                            <td className="px-4 py-3 text-center text-blue-600">{student.medical || 0}</td>
-                            <td className="px-4 py-3 text-center font-bold">
-                              <span className={student.attendance_percentage >= 75 ? 'text-green-600' : 'text-red-600'}>
-                                {student.attendance_percentage}%
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              {student.status === 'regular' ? (
-                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">Regular</span>
-                              ) : (
-                                <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs flex items-center gap-1 justify-center">
-                                  <AlertTriangle size={12} />
-                                  Alerta
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <FileText size={48} className="mx-auto mb-4 opacity-30" />
-                    <p>Selecione uma turma para gerar o relatório</p>
-                  </div>
-                )}
-              </div>
+              <RelatoriosTab
+                schools={schools}
+                selectedSchool={selectedSchool}
+                setSelectedSchool={setSelectedSchool}
+                classes={classes}
+                selectedClass={selectedClass}
+                setSelectedClass={setSelectedClass}
+                selectedBimestre={selectedBimestre}
+                setSelectedBimestre={setSelectedBimestre}
+                isAnosFinaisOrEja={isAnosFinaisOrEja}
+                courses={courses}
+                reportCourseId={reportCourseId}
+                setReportCourseId={setReportCourseId}
+                setClassReport={setClassReport}
+                loading={loading}
+                classReport={classReport}
+                loadClassReport={loadClassReport}
+                generateBimestrePdf={generateBimestrePdf}
+              />
             )}
             
             {/* Tab: Informações */}
             {activeTab === 'informacoes' && (
-              <div className="space-y-4">
-                <div className="bg-white rounded-xl border p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Ano</label>
-                      <select value={academicYear} disabled className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50" data-testid="info-year">
-                        <option value={academicYear}>{academicYear}</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Escola</label>
-                      <select value={infoSchool} onChange={e => setInfoSchool(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" data-testid="info-school">
-                        <option value="">Selecione uma escola</option>
-                        {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
-                      <select value={infoClass} onChange={e => setInfoClass(e.target.value)} disabled={!infoSchool} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm disabled:bg-gray-100" data-testid="info-class">
-                        <option value="">Selecione uma turma</option>
-                        {infoClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {infoLoading && (
-                  <div className="bg-white rounded-xl border p-8 flex items-center justify-center">
-                    <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
-                    <span className="ml-3 text-gray-500">Carregando...</span>
-                  </div>
-                )}
-
-                {!infoLoading && infoClass && infoStudents.length === 0 && (
-                  <div className="bg-white rounded-xl border p-8 text-center text-gray-500">
-                    Nenhum aluno encontrado nesta turma.
-                  </div>
-                )}
-
-                {!infoLoading && infoStudents.length > 0 && (
-                  <div className="bg-white rounded-xl border overflow-hidden">
-                    <div className="px-4 py-3 bg-gray-50 border-b flex justify-between items-center">
-                      <h3 className="font-semibold text-gray-900">Informações dos Alunos</h3>
-                      <span className="text-sm text-gray-500">{infoStudents.length} aluno(s)</span>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-gray-100 border-b">
-                            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase w-10">Nº</th>
-                            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Nome do Aluno</th>
-                            <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase w-32">Data de Nasc.</th>
-                            <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Nome da Mãe</th>
-                            <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase w-40">Telefone da Mãe</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {infoStudents.map((student, idx) => {
-                            const phoneFormatted = formatPhone(student.mother_phone);
-                            const birthDate = student.birth_date
-                              ? (() => { try { return new Date(student.birth_date + 'T00:00:00').toLocaleDateString('pt-BR'); } catch { return student.birth_date; } })()
-                              : '-';
-                            return (
-                              <tr key={student.id} className="hover:bg-gray-50" data-testid={`info-student-${student.id}`}>
-                                <td className="px-4 py-3 text-gray-500">{idx + 1}</td>
-                                <td className="px-4 py-3 font-medium text-gray-900">{student.full_name}</td>
-                                <td className="px-4 py-3 text-center text-gray-700">{birthDate}</td>
-                                <td className="px-4 py-3 text-gray-700">{student.mother_name || '-'}</td>
-                                <td className="px-4 py-3 text-center">
-                                  {phoneFormatted ? (
-                                    <a
-                                      href={`https://wa.me/${phoneFormatted}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm"
-                                      data-testid={`info-whatsapp-${student.id}`}
-                                    >
-                                      <Phone size={14} />
-                                      {student.mother_phone}
-                                    </a>
-                                  ) : (
-                                    <span className="text-gray-400">-</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {!infoClass && !infoLoading && (
-                  <div className="bg-white rounded-xl border p-8 text-center text-gray-400">
-                    Selecione uma escola e turma para visualizar as informações dos alunos.
-                  </div>
-                )}
-              </div>
+              <InformacoesTab
+                academicYear={academicYear}
+                schools={schools}
+                infoSchool={infoSchool}
+                setInfoSchool={setInfoSchool}
+                infoClass={infoClass}
+                setInfoClass={setInfoClass}
+                infoClasses={infoClasses}
+                infoLoading={infoLoading}
+                infoStudents={infoStudents}
+              />
             )}
             
             {/* Tab: Alertas */}
             {activeTab === 'alertas' && (
-              <div className="space-y-4">
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Filtrar por Escola</label>
-                    <select
-                      value={selectedSchool}
-                      onChange={(e) => setSelectedSchool(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      <option value="">Todas as escolas</option>
-                      {schools.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex items-end">
-                    <Button onClick={loadAlerts}>
-                      <AlertTriangle size={18} className="mr-2" />
-                      Buscar Alertas
-                    </Button>
-                  </div>
-                </div>
-                
-                {loading ? (
-                  <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  </div>
-                ) : alertsData ? (
-                  <div>
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2 text-red-700">
-                        <AlertTriangle size={20} />
-                        <span className="font-semibold">{alertsData.total_alerts} alunos com frequência abaixo de 75%</span>
-                      </div>
-                    </div>
-                    
-                    {alertsData.alerts.length > 0 ? (
-                      <div className="bg-white border rounded-lg overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Turma</th>
-                              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Faltas</th>
-                              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">% Frequência</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {alertsData.alerts.map((alert, idx) => (
-                              <tr key={idx} className="hover:bg-gray-50">
-                                <td className="px-4 py-3 font-medium">{alert.student_name}</td>
-                                <td className="px-4 py-3 text-sm text-gray-500">{alert.class_name}</td>
-                                <td className="px-4 py-3 text-center text-red-600 font-bold">{alert.absent}</td>
-                                <td className="px-4 py-3 text-center">
-                                  <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full font-bold">
-                                    {alert.attendance_percentage}%
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div className="text-center py-12 text-green-600">
-                        <CheckCircle size={48} className="mx-auto mb-4" />
-                        <p>Nenhum aluno com frequência abaixo de 75%</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <AlertTriangle size={48} className="mx-auto mb-4 opacity-30" />
-                    <p>Clique em "Buscar Alertas" para ver alunos com baixa frequência</p>
-                  </div>
-                )}
-              </div>
+              <AlertasTab
+                schools={schools}
+                selectedSchool={selectedSchool}
+                setSelectedSchool={setSelectedSchool}
+                loadAlerts={loadAlerts}
+                loading={loading}
+                alertsData={alertsData}
+              />
             )}
           </div>
         </div>

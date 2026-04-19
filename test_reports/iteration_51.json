@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only regression testing of refactored Attendance.js (container/presentational split into 5 tab components). Logged in as admin gutenberg@sigesc.com, exercised all 5 tabs (Lançamento, Registros, Informações, Relatórios, Alertas), settings modal, and verified AEE regression. All flows working, no runtime/console errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results_by_feature": {
+    "page_load": "PASS - /admin/attendance loads, 5 tabs visible, no JS errors",
+    "lancamento_tab": "PASS - Ano/Escola/Turma selects populate (ESCOLA TESTE MULTISSERIADA → 2 ANO, 6 turmas), Carregar Frequência loads 1 student (ALUNO TESTE DUPLICIDADE) with P/F/J buttons, date picker + navigation controls (<, Hoje, >) render, Previstos/Registrados/Restantes summary cards shown",
+    "registros_tab": "PASS - Anual calendar renders all 12 months (Janeiro..Dezembro), 4 bimestres with Dias Previstos/Registrados counts, colored day cells (red for non-letivos) visible, legenda Com registro/Não letivo/Sem registro present",
+    "informacoes_tab": "PASS - 3 selects visible; school select populates; info class select appears after school selection",
+    "relatorios_tab": "PASS - Escola/Turma/Bimestre selectors, 'Ver na Tela' and 'Gerar PDF' buttons render. (PDF download not triggered in test to avoid blob popup, but endpoint wiring is intact via button handler generateBimestrePdf)",
+    "alertas_tab": "PASS - Escola filter + 'Buscar Alertas' button triggers API; returned 1 student below 75% (JOAO SANTOS 64.3% in 6° ANO A) in table with ALUNO/TURMA/FALTAS/% FREQUÊNCIA columns",
+    "settings_modal": "PASS - Modal opens, 'Permitir lançamento em datas futuras' checkbox toggles (false→true), Cancelar closes modal",
+    "aee_regression": "PASS - 0 AEE classes present in Turma dropdown on Lançamento tab (filter preserved)",
+    "delete_modal": "NOT TESTED - requires existing attendance record to open; Excluir Frequência button only appears when attendance_id present"
+  },
+  "critical_code_review_comments": [
+    "Attendance.js container is still ~1262 lines; props drilling to LancamentoTab passes 35+ props — consider extracting a useAttendance hook or using Context to simplify and improve maintainability.",
+    "Duplicate env var constants at top of file: VACCINE_API and API_URL both equal process.env.REACT_APP_BACKEND_URL — consolidate to single constant.",
+    "Several inline fetch calls (dates-with-records, bimestre-summary, vaccine status) bypass the centralized services/api layer — move to attendanceAPI/vaccinesAPI for consistency and easier auth/retry handling.",
+    "selectedSchool/selectedClass state is shared across Lançamento, Relatórios and Alertas tabs — switching tabs reuses them, which can be surprising UX (e.g., turma filter applied in Lançamento bleeds into Relatórios). Consider per-tab state or explicit filter reset.",
+    "isMultiAula branch in loadAttendance references setNumberOfAulas while numberOfAulas state lives in container and is passed down — works, but placement of this schedule pre-fetch inside loadAttendance means selectedCourse dependency logic is subtle. Worth a comment.",
+    "useEffect on [activeTab, infoClass, loadInfoStudents] will refetch when loadInfoStudents identity changes — already wrapped in useCallback, OK."
+  ],
+  "updated_files": [],
+  "test_report_links": [],
+  "success_rate": {"backend": "not tested", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "test_credentials": "Admin: gutenberg@sigesc.com / @Celta2007 (from /app/memory/test_credentials.md)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Attendance refactor into /app/frontend/src/components/attendance/{LancamentoTab,RegistrosTab,InformacoesTab,RelatoriosTab,AlertasTab}.jsx is functionally equivalent to the pre-refactor version. School 'ESCOLA TESTE MULTISSERIADA' has turma '2 ANO' with 1 student 'ALUNO TESTE DUPLICIDADE' and turma '6° ANO A' contains JOAO SANTOS (64.3% freq) useful for alerts testing. PDF generation in Relatórios opens in new tab via blob URL — testing agents should not block on popup."
+}
