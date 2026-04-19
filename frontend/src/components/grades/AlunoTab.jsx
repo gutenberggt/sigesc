@@ -202,7 +202,7 @@ export const AlunoTab = () => {
                               </span>
                             </td>
                             <td className="px-4 py-3 text-center">
-                              {<StatusBadge status={grade.status} average={null} />}
+                              <StatusBadge status={grade.status} />
                             </td>
                           </tr>
                         ))}

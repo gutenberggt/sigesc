@@ -212,7 +212,7 @@ export const GradesTable = () => {
           )}
         </td>
         <td className="px-4 py-3 text-center">
-          {<StatusBadge status={item.grade.status} average={null} />}
+          <StatusBadge status={item.grade.status} />
         </td>
       </tr>
     )})}

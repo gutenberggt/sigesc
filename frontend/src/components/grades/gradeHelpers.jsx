@@ -203,18 +203,11 @@ const STATUS_CONFIG = {
   reprovado_frequencia: { label: 'Rep. Freq.', class: 'bg-orange-100 text-orange-800' },
 };
 
-export const StatusBadge = ({ status, average }) => {
+export const StatusBadge = ({ status }) => {
   const c = STATUS_CONFIG[status] || STATUS_CONFIG.cursando;
   return (
-    <div className="flex items-center gap-2">
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${c.class}`}>
-        {c.label}
-      </span>
-      {average !== null && (
-        <span className={`font-bold ${average >= 5 ? 'text-green-600' : 'text-red-600'}`}>
-          {formatGrade(average)}
-        </span>
-      )}
-    </div>
+    <span className={`px-2 py-1 rounded-full text-xs font-medium ${c.class}`}>
+      {c.label}
+    </span>
   );
 };
