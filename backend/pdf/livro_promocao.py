@@ -12,9 +12,9 @@ from datetime import datetime
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak, Flowable, Spacer, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak, Spacer, Paragraph
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from pdf.utils import get_logo_path
 
@@ -23,30 +23,21 @@ MX = 0.8 * cm
 USABLE_W = PAGE_W - 2 * MX
 # Larguras fixas: N° + Nome (mínimo) + Sexo
 COL_N_W = 0.6 * cm
-COL_NAME_MIN = 3.8 * cm
+COL_NAME_MIN = 4.5 * cm
 COL_SEX_W = 0.5 * cm
-COL_NOTE_W = 0.95 * cm  # largura mínima suficiente para "10,0"
+COL_NOTE_W = 1.0 * cm  # largura mínima suficiente para "10,0" em fonte 7
 FIXED_W = COL_N_W + COL_NAME_MIN + COL_SEX_W
 
 
-# ── Flowable: texto vertical ────────────────────────────────
-class VerticalText(Flowable):
-    def __init__(self, text, font='Helvetica-Bold', size=6, text_color=colors.white):
-        Flowable.__init__(self)
-        self.text = str(text or '')
-        self.font = font
-        self.size = size
-        self.text_color = text_color
-        self.width = size + 4
-        self.height = stringWidth(self.text, font, size) + 6
-
-    def draw(self):
-        self.canv.saveState()
-        self.canv.setFont(self.font, self.size)
-        self.canv.setFillColor(self.text_color)
-        self.canv.rotate(90)
-        self.canv.drawString(3, -self.size - 1, self.text)
-        self.canv.restoreState()
+# ── Estilos de Paragraph ───────────────────────────────────
+_STYLE_COMP_HEADER = ParagraphStyle(
+    name='CompHeader', fontName='Helvetica-Bold', fontSize=5.5, leading=6.5,
+    alignment=TA_CENTER, textColor=colors.white,
+)
+_STYLE_STUDENT_NAME = ParagraphStyle(
+    name='StudentName', fontName='Helvetica', fontSize=7, leading=8,
+    alignment=TA_LEFT, textColor=colors.black,
+)
 
 
 # ── Abreviações ──────────────────────────────────────────────
@@ -248,14 +239,21 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
         h1 = ['N°', 'NOME DO ALUNO', 'S']
         h1 += [f'NOTAS {title}'] + [''] * (nr - 1)
 
-        # Header 2: nomes dos componentes
+        # Header 2: nomes dos componentes (horizontal, com quebra automática)
         h2 = ['', '', '']
-        h2 += [VerticalText(abrev(c.get('name', ''))) for c in reg]
+        h2 += [Paragraph(abrev(c.get('name', '')), _STYLE_COMP_HEADER) for c in reg]
 
         # Dados
         rows = [h1, h2]
         for idx, st in enumerate(students_data, 1):
-            row = [str(idx), str(st.get('studentName', '') or '')[:30], str(st.get('sex', '-') or '-')[:1]]
+            nome = str(st.get('studentName', '') or '')
+            # Escape HTML e permitir quebra de linha natural
+            nome_safe = nome.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            row = [
+                str(idx),
+                Paragraph(nome_safe, _STYLE_STUDENT_NAME),
+                str(st.get('sex', '-') or '-')[:1]
+            ]
             gr = st.get('grades') or {}
             for c in all_comps:
                 gi = gr.get(c.get('id', ''), {})
@@ -272,30 +270,32 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
         tbl = Table(rows, colWidths=cw, repeatRows=2)
 
         style = [
+            # Cabeçalho principal
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 7),
+            ('FONTSIZE', (0, 0), (-1, 0), 8),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            # Sub-cabeçalho (componentes - Paragraph renderiza estilo próprio)
             ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#3b5998')),
-            ('TEXTCOLOR', (0, 1), (-1, 1), colors.white),
-            ('FONTSIZE', (0, 1), (-1, 1), 6),
-            ('FONTSIZE', (0, 2), (-1, -1), 6),
+            # Dados
+            ('FONTSIZE', (0, 2), (-1, -1), 7),
             ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
             ('ALIGN', (0, 2), (-1, -1), 'CENTER'),
             ('ALIGN', (1, 2), (1, -1), 'LEFT'),
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
-            ('INNERGRID', (0, 0), (-1, -1), 0.3, colors.grey),
+            # Bordas
+            ('BOX', (0, 0), (-1, -1), 0.8, colors.black),
+            ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#b0b0b0')),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 1),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
             ('LEFTPADDING', (0, 0), (-1, -1), 2),
             ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-            ('ROWBACKGROUNDS', (0, 2), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
-            ('LINEAFTER', (2, 0), (2, -1), 1.5, colors.black),
+            # Separadores mais grossos entre blocos
+            ('LINEAFTER', (2, 0), (2, -1), 1.2, colors.black),
             # Span do título NOTAS
             ('SPAN', (3, 0), (3 + nr - 1, 0)),
-            ('LINEAFTER', (3 + nr - 1, 0), (3 + nr - 1, -1), 1.5, colors.black),
+            ('LINEAFTER', (3 + nr - 1, 0), (3 + nr - 1, -1), 1.2, colors.black),
         ]
 
         tbl.setStyle(TableStyle(style))
