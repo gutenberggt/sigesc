@@ -308,6 +308,21 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Fix CORS 503: variáveis `turma_integral` e `class_id` indefinidas nos endpoints boletim e ficha individual (NameError → crash → 503 sem CORS)
 - Fix IndexedDB VersionError: SW v2.1.0 abre DB sem versão fixa + não intercepta requests cross-origin
 
+## Renomeação "Escola Integral" → "Tempo Integral" (Feb/2026)
+- Labels user-visible trocadas em Courses.js, Classes.js, CoursesNew.js, SchoolsComplete.js e backend/pdf/turma.py
+- Values/enums do banco (`atendimento_integral`) mantidos intactos para não quebrar filtros e lógicas existentes
+
+## Refatoração Attendance.js (Feb/2026)
+- `Attendance.js` reduzido de 2071 → ~1262 linhas via pattern container/presentational
+- Cada aba extraída em componente isolado em `/app/frontend/src/components/attendance/`:
+  - `LancamentoTab.jsx` - filtros, data picker, tabela de frequência, botões P/F/J, salvar/excluir
+  - `RegistrosTab.jsx` - calendário anual dos 12 meses + resumo por bimestre
+  - `InformacoesTab.jsx` - lista de alunos com telefone WhatsApp clicável
+  - `RelatoriosTab.jsx` - relatório de frequência + geração de PDF bimestral
+  - `AlertasTab.jsx` - alertas de frequência < 75%
+- Container mantém todo estado/handlers e passa props via drilling
+- Testado 100% pelo testing agent (iteration_51.json) - zero regressões
+
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
 - Coordenador: coordenador@sigesc.com / coordenador123
