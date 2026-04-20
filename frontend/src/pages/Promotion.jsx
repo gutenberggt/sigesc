@@ -642,9 +642,6 @@ export function Promotion() {
             </button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Livro de Promoção</h1>
-              <p className="text-gray-500 mt-1">
-                Educação Infantil, 1º ao 9º Ano e EJA (1ª a 4ª Etapa)
-              </p>
             </div>
           </div>
           
