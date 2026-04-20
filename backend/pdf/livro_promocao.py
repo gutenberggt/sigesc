@@ -12,7 +12,7 @@ from datetime import datetime
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak, Spacer, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak, Flowable, Spacer, Paragraph
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.pdfbase.pdfmetrics import stringWidth
@@ -22,18 +22,34 @@ PAGE_W, PAGE_H = landscape(A4)
 MX = 0.8 * cm
 USABLE_W = PAGE_W - 2 * MX
 # Larguras fixas: N° + Nome (mínimo) + Sexo
-COL_N_W = 0.6 * cm
-COL_NAME_MIN = 4.5 * cm
-COL_SEX_W = 0.5 * cm
-COL_NOTE_W = 1.0 * cm  # largura mínima suficiente para "10,0" em fonte 7
+COL_N_W = 0.55 * cm
+COL_NAME_MIN = 3.8 * cm
+COL_SEX_W = 0.45 * cm
+COL_NOTE_W = 0.62 * cm  # largura estreita - textos dos componentes na vertical
 FIXED_W = COL_N_W + COL_NAME_MIN + COL_SEX_W
 
 
+# ── Flowable: texto vertical para cabeçalhos de componentes ─
+class VerticalText(Flowable):
+    def __init__(self, text, font='Helvetica-Bold', size=6, text_color=colors.white):
+        Flowable.__init__(self)
+        self.text = str(text or '')
+        self.font = font
+        self.size = size
+        self.text_color = text_color
+        self.width = size + 4
+        self.height = stringWidth(self.text, font, size) + 6
+
+    def draw(self):
+        self.canv.saveState()
+        self.canv.setFont(self.font, self.size)
+        self.canv.setFillColor(self.text_color)
+        self.canv.rotate(90)
+        self.canv.drawString(3, -self.size - 1, self.text)
+        self.canv.restoreState()
+
+
 # ── Estilos de Paragraph ───────────────────────────────────
-_STYLE_COMP_HEADER = ParagraphStyle(
-    name='CompHeader', fontName='Helvetica-Bold', fontSize=5.5, leading=6.5,
-    alignment=TA_CENTER, textColor=colors.white,
-)
 _STYLE_STUDENT_NAME = ParagraphStyle(
     name='StudentName', fontName='Helvetica', fontSize=7, leading=8,
     alignment=TA_LEFT, textColor=colors.black,
@@ -119,8 +135,6 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
 
     # Tabela sempre usa apenas componentes regulares
     reg = [c for c in (courses or []) if not is_integral(c)]
-    # Flag apenas para decidir se exibe a citação na última página
-    has_integral_components = any(is_integral(c) for c in (courses or []))
 
     # Se não há nenhum regular (fallback), usar tudo como regular
     if not reg:
@@ -206,81 +220,6 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
 
         canvas_obj.restoreState()
 
-    # ── Helper: montar tabela de um bimestre ─────────────────
-    def build_bim_table(bim_key, title, include_integral=True):
-        """Cria tabela para um bimestre. Colunas: N° | Nome | S | [reg comps]
-        Componentes de atendimento diferente de 'regular' são ignorados.
-        """
-        all_comps = reg
-        n = len(all_comps)
-        nr = n
-
-        # Header 1: título com span
-        h1 = ['N°', 'NOME DO ALUNO', 'S']
-        h1 += [f'NOTAS {title}'] + [''] * (nr - 1)
-
-        # Header 2: nomes dos componentes (horizontal, com quebra automática)
-        h2 = ['', '', '']
-        h2 += [Paragraph(abrev(c.get('name', '')), _STYLE_COMP_HEADER) for c in reg]
-
-        # Dados
-        rows = [h1, h2]
-        for idx, st in enumerate(students_data, 1):
-            nome = str(st.get('studentName', '') or '')
-            # Escape HTML e permitir quebra de linha natural
-            nome_safe = nome.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-            row = [
-                str(idx),
-                Paragraph(nome_safe, _STYLE_STUDENT_NAME),
-                str(st.get('sex', '-') or '-')[:1]
-            ]
-            gr = st.get('grades') or {}
-            for c in all_comps:
-                gi = gr.get(c.get('id', ''), {})
-                if not isinstance(gi, dict):
-                    gi = {}
-                row.append(fmt(gi.get(bim_key)))
-            rows.append(row)
-
-        # Larguras: colunas de nota fixas no mínimo; sobra vai para Nome
-        note_w = COL_NOTE_W
-        name_w = max(COL_NAME_MIN, USABLE_W - (COL_N_W + COL_SEX_W + n * note_w))
-        cw = [COL_N_W, name_w, COL_SEX_W] + [note_w] * n
-
-        tbl = Table(rows, colWidths=cw, repeatRows=2)
-
-        style = [
-            # Cabeçalho principal
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 8),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            # Sub-cabeçalho (componentes - Paragraph renderiza estilo próprio)
-            ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#3b5998')),
-            # Dados
-            ('FONTSIZE', (0, 2), (-1, -1), 7),
-            ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
-            ('ALIGN', (0, 2), (-1, -1), 'CENTER'),
-            ('ALIGN', (1, 2), (1, -1), 'LEFT'),
-            # Bordas
-            ('BOX', (0, 0), (-1, -1), 0.8, colors.black),
-            ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#b0b0b0')),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 2),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-            ('LEFTPADDING', (0, 0), (-1, -1), 2),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-            # Separadores mais grossos entre blocos
-            ('LINEAFTER', (2, 0), (2, -1), 1.2, colors.black),
-            # Span do título NOTAS
-            ('SPAN', (3, 0), (3 + nr - 1, 0)),
-            ('LINEAFTER', (3 + nr - 1, 0), (3 + nr - 1, -1), 1.2, colors.black),
-        ]
-
-        tbl.setStyle(TableStyle(style))
-        return tbl
-
     # ── Helper: montar tabela combinada de um semestre ─────────
     # bloco = (bim_key, titulo). Se include_result=True, adiciona MÉDIA + CONCLUSÃO.
     def build_combined_table(blocos, include_result=False):
@@ -297,10 +236,10 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
         if include_result:
             h1 += ['MÉDIA', 'CONCLUSÃO']
 
-        # ── Header 2: abreviações ──
+        # ── Header 2: abreviações (texto vertical para economizar largura) ──
         h2 = ['', '', '']
         for _ in blocos:
-            h2 += [Paragraph(abrev(c.get('name', '')), _STYLE_COMP_HEADER) for c in reg]
+            h2 += [VerticalText(abrev(c.get('name', ''))) for c in reg]
         if include_result:
             h2 += ['', '']
 
@@ -337,12 +276,18 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
                 row.append(result_raw[:14])
             rows.append(row)
 
-        # ── Larguras ──
-        note_w = COL_NOTE_W
+        # ── Larguras (ajustadas dinamicamente para nunca passar da margem) ──
         media_w = 1.1 * cm
-        result_w = 2.3 * cm
+        result_w = 1.9 * cm
         total_note_cols = comps_per_bloco * n_blocos
         fixed_extra = (media_w + result_w) if include_result else 0
+        available_for_notes = USABLE_W - (COL_N_W + COL_NAME_MIN + COL_SEX_W + fixed_extra)
+        if total_note_cols > 0:
+            # Cada nota entre 0.45cm (mínimo p/ 10,0 na fonte 7) e 1.0cm (máx confortável)
+            note_w = max(0.45 * cm, min(1.0 * cm, available_for_notes / total_note_cols))
+        else:
+            note_w = 1.0 * cm
+        # Sobra vai para a coluna Nome
         name_w = max(
             COL_NAME_MIN,
             USABLE_W - (COL_N_W + COL_SEX_W + total_note_cols * note_w + fixed_extra),
