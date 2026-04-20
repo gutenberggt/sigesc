@@ -278,7 +278,7 @@ export function Promotion() {
     fetchSchools();
   }, []);
 
-  // Carregar turmas quando escola é selecionada (filtrar apenas séries elegíveis)
+  // Carregar turmas quando escola ou ano mudam (filtrar apenas séries elegíveis)
   useEffect(() => {
     const fetchClasses = async () => {
       if (!selectedSchool) {
@@ -288,19 +288,27 @@ export function Promotion() {
       try {
         // Passar school_id diretamente (não como objeto)
         const data = await classesAPI.list(selectedSchool);
-        // Filtrar apenas turmas elegíveis (Ed. Infantil, 1º-9º Ano, EJA) e excluir modalidade AEE
+        // Filtrar apenas turmas elegíveis (Ed. Infantil, 1º-9º Ano, EJA) + excluir AEE + bater com o ano letivo selecionado
         const filteredClasses = (data || []).filter(c => {
           const isAEE = (c.atendimento_programa || c.atendimento || c.modalidade || '').toLowerCase().includes('aee');
-          return isSerieElegivel(c.grade_level) && !isAEE;
+          if (!isSerieElegivel(c.grade_level) || isAEE) return false;
+          // Critical: turmas fora do ano letivo selecionado causam divergência com lista de alunos
+          if (c.academic_year && c.academic_year !== selectedYear) return false;
+          return true;
         });
         setClasses(filteredClasses);
+        // Se a turma atual não pertence mais ao novo filtro, limpa a seleção
+        setSelectedClass(prev => {
+          if (!prev) return prev;
+          return filteredClasses.some(c => c.id === prev) ? prev : '';
+        });
       } catch (error) {
         console.error('Erro ao carregar turmas:', error);
         toast.error('Erro ao carregar turmas');
       }
     };
     fetchClasses();
-  }, [selectedSchool]);
+  }, [selectedSchool, selectedYear]);
 
   // Carregar dados de promoção quando turma é selecionada
   const loadPromotionData = useCallback(async () => {
@@ -318,49 +326,54 @@ export function Promotion() {
         return;
       }
       
-      // Buscar matrículas da turma (buscar todas, depois filtrar)
-      let enrollments = await fetchEnrollments({ class_id: selectedClass });
+      // FONTE PRIMÁRIA: alunos pelo campo class_id (mesma base da tela de Cadastro de Alunos).
+      // Garante que o Livro de Promoção mostre os mesmos alunos vinculados à turma.
+      const studentsInClassResp = await studentsAPI.getAll({ class_id: selectedClass, page_size: 10000 });
+      const studentsInClass = studentsInClassResp.items || [];
 
-      // Excluir matrículas históricas (remanejamentos, progressões, cancelamentos)
-      // que ficam na turma antiga após remanejar aluno p/ outra turma.
-      // Manter apenas: ativos, transferidos (saída) e desistentes - que são os resultados válidos do livro.
+      // FONTE COMPLEMENTAR: matrículas (enrollments) para capturar histórico relevante
+      // - Transferidos e desistentes (saíram da turma mas devem constar no livro anual)
       const STATUS_VALIDOS_LIVRO = new Set([
         'active', 'ativo',
         'transferred', 'transferencia', 'transferido',
         'dropout', 'desistencia', 'desistente',
       ]);
-
+      let enrollments = await fetchEnrollments({ class_id: selectedClass });
       enrollments = (enrollments || []).filter(e => {
         const st = (e.status || 'active').toLowerCase();
         return STATUS_VALIDOS_LIVRO.has(st);
       });
+      // Filtro por ano letivo (se campo existir na matrícula)
+      enrollments = enrollments.filter(e => !e.academic_year || e.academic_year === selectedYear);
 
-      // Filtrar por ano se houver ano na matrícula, ou considerar todas
-      enrollments = (enrollments || []).filter(e =>
-        !e.academic_year || e.academic_year === selectedYear
-      );
-      
-      if (!enrollments || enrollments.length === 0) {
-        // Tentar buscar todas as matrículas sem filtro de ano (mantendo filtro de status)
-        const rawAll = await fetchEnrollments({ class_id: selectedClass });
-        enrollments = (rawAll || []).filter(e => {
-          const st = (e.status || 'active').toLowerCase();
-          return STATUS_VALIDOS_LIVRO.has(st);
-        });
-        if (!enrollments || enrollments.length === 0) {
-          toast.info('Nenhum aluno matriculado nesta turma');
-          setPromotionData([]);
-          setLoading(false);
-          return;
-        }
+      // Unir alunos: primários (students.class_id) + complementares (via enrollments, ex: transferidos)
+      const studentsMap = new Map();
+      studentsInClass.forEach(s => studentsMap.set(s.id, s));
+
+      const enrolledIds = enrollments.map(e => e.student_id);
+      const missingIds = enrolledIds.filter(id => !studentsMap.has(id));
+      if (missingIds.length > 0) {
+        // Carregar os alunos faltantes (status transferred/dropout que já não têm class_id atual)
+        const allStudentsResp = await studentsAPI.getAll({ page_size: 10000 });
+        const allStudentsData = allStudentsResp.items || [];
+        allStudentsData
+          .filter(s => missingIds.includes(s.id))
+          .forEach(s => studentsMap.set(s.id, s));
       }
-      
-      // Buscar dados dos alunos
-      const studentIds = enrollments.map(e => e.student_id);
-      const studentsResponse = await studentsAPI.getAll({page_size: 10000});
-      const studentsData = studentsResponse.items || [];
-      const filteredStudents = studentsData.filter(s => studentIds.includes(s.id));
+
+      const filteredStudents = Array.from(studentsMap.values());
       setStudents(filteredStudents);
+
+      if (filteredStudents.length === 0) {
+        toast.info('Nenhum aluno vinculado a esta turma');
+        setPromotionData([]);
+        setLoading(false);
+        return;
+      }
+
+      // Para os mapeamentos abaixo, manter enrollments indexadas por student_id
+      // (se aluno não tem enrollment na turma, usamos um placeholder 'active')
+      const studentIds = filteredStudents.map(s => s.id);
       
       // Buscar componentes curriculares filtrados pelas alocações de professores da turma
       const coursesData = await coursesAPI.getAll(classInfo.education_level);

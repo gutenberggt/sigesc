@@ -1549,31 +1549,36 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             # Buscar mantenedora
             mantenedora = await get_mantenedora_cached(db)
 
-            # Buscar matrículas da turma — excluir matrículas históricas (remanejamento/progressão/cancelamento)
-            # mantendo apenas: ativos, transferidos (saída) e desistentes
+            # ===== FONTES DE ALUNOS =====
+            # Fonte primária: alunos pelo campo class_id (mesma base da tela de Cadastro de Alunos).
+            # Isso garante consistência: o livro mostra os mesmos alunos listados na secretaria.
+            primary_students = await db.students.find({
+                "class_id": class_id
+            }, {"_id": 0}).to_list(2000)
+
+            # Fonte complementar: matrículas para capturar histórico (transferidos/desistentes)
             STATUS_VALIDOS_LIVRO = ['active', 'ativo',
                                     'transferred', 'transferencia', 'transferido',
                                     'dropout', 'desistencia', 'desistente']
             enrollments = await db.enrollments.find({
                 "class_id": class_id,
                 "status": {"$in": STATUS_VALIDOS_LIVRO}
-            }, {"_id": 0}).to_list(1000)
-
-            # Filtrar por ano letivo quando presente
+            }, {"_id": 0}).to_list(2000)
             enrollments = [e for e in enrollments if not e.get('academic_year') or e.get('academic_year') == academic_year]
 
-            if not enrollments:
-                raise HTTPException(status_code=404, detail="Nenhum aluno matriculado nesta turma")
+            # Unir alunos: primários + complementares (via enrollments, ex: transferidos que já mudaram de class_id)
+            students_map = {s.get("id"): s for s in primary_students}
+            enrolled_ids = [e.get("student_id") for e in enrollments]
+            missing_ids = [sid for sid in enrolled_ids if sid and sid not in students_map]
+            if missing_ids:
+                extra_students = await db.students.find({
+                    "id": {"$in": missing_ids}
+                }, {"_id": 0}).to_list(1000)
+                for s in extra_students:
+                    students_map[s.get("id")] = s
 
-            student_ids = [e.get("student_id") for e in enrollments]
-
-            # Buscar dados dos alunos
-            students = await db.students.find({
-                "id": {"$in": student_ids}
-            }, {"_id": 0}).to_list(1000)
-
-            # Criar mapa de alunos por ID
-            students_map = {s.get("id"): s for s in students}
+            if not students_map:
+                raise HTTPException(status_code=404, detail="Nenhum aluno vinculado a esta turma")
 
             # Buscar componentes curriculares filtrados pelas alocações de professores
             nivel_ensino = class_info.get('education_level', '')
@@ -1619,15 +1624,14 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             # Criar mapa de componentes
             courses_map = {c.get("id"): c for c in courses}
 
-            # Processar dados de cada aluno
+            # Mapa de enrollments por student_id (para resolver status)
+            enrollments_by_sid = {e.get("student_id"): e for e in enrollments}
+
+            # Processar dados de cada aluno (fonte primária = students_map)
             students_data = []
 
-            for enrollment in enrollments:
-                student_id = enrollment.get("student_id")
-                student = students_map.get(student_id)
-
-                if not student:
-                    continue
+            for student_id, student in students_map.items():
+                enrollment = enrollments_by_sid.get(student_id, {})
 
                 # Buscar notas do aluno
                 grades = await db.grades.find({
@@ -1689,9 +1693,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 result = "CURSANDO"
                 status = (enrollment.get("status") or "").lower()
 
-                if status in ["desistencia", "desistente"]:
+                if status in ["desistencia", "desistente", "dropout"]:
                     result = "DESISTENTE"
-                elif status in ["transferencia", "transferido"]:
+                elif status in ["transferencia", "transferido", "transferred"]:
                     result = "TRANSFERIDO"
                 else:
                     # Só componentes REGULARES contam para aprovação/reprovação
