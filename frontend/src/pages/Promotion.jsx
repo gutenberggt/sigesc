@@ -616,6 +616,21 @@ export function Promotion() {
   const selectedClassInfo = classes.find(c => c.id === selectedClass);
   const selectedSchoolInfo = schools.find(s => s.id === selectedSchool);
 
+  // Regime de avaliação: conceitual (Ed. Infantil + 1º/2º Ano) ou numérico
+  const usaConceito = !!selectedClassInfo && usaAvaliacaoConceitual(
+    selectedClassInfo.grade_level,
+    selectedClassInfo.education_level,
+  );
+  const gradeLevelForConc = selectedClassInfo?.grade_level || null;
+
+  const fmtGrade = (val) => {
+    if (val === null || val === undefined) return '-';
+    if (usaConceito) {
+      return valorParaConceito(val, gradeLevelForConc);
+    }
+    return typeof val === 'number' ? val.toFixed(1) : val;
+  };
+
   // Estatísticas
   const stats = {
     total: promotionData.length,
