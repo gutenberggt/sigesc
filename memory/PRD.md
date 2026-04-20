@@ -336,6 +336,15 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - `gradesAPI.getPdfBlob` adicionado em `api.js` (migrado do fetch inline)
 - Validado 100% pelo testing agent (iteration_53.json) - 1 bug de import faltante (CONCEITOS_*) corrigido pelo testing agent
 
+
+## Livro de Promoção - Ajustes (20/04/2026)
+- `Promotion.jsx`: importa `usaAvaliacaoConceitual` + `valorParaConceito` de `@/components/grades/gradeHelpers`.
+- `fmtGrade(val)` renderiza conceitos (letras: OD/DP/ND/NT para Ed. Infantil, C/ED/ND para 1º/2º Ano) em turmas conceituais; fallback para `.toFixed(1)` nos demais.
+- Coluna "TOTAL PONTOS" exibe "-" em turmas conceituais (não aplicável).
+- Highlight de nota baixa (<6) desabilitado em turmas conceituais.
+- Dropdown de turmas exclui modalidade AEE (filtro `atendimento_programa.includes('aee')`).
+- Validado via screenshot: turma "2 ANO" (1º/2º ano conceitual) exibindo "C" para valores 10.0.
+
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
 - Coordenador: coordenador@sigesc.com / coordenador123

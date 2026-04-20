@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Download, FileText, School, Users, BookOpen, Filter, RefreshCw, CheckCircle, XCircle, AlertTriangle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Home } from 'lucide-react';
 import { schoolsAPI, classesAPI, gradesAPI, coursesAPI, studentsAPI, teacherAssignmentAPI } from '@/services/api';
+import { usaAvaliacaoConceitual, valorParaConceito } from '@/components/grades/gradeHelpers';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -284,8 +285,11 @@ export function Promotion() {
       try {
         // Passar school_id diretamente (não como objeto)
         const data = await classesAPI.list(selectedSchool);
-        // Filtrar apenas turmas do 3º ao 9º Ano e EJA
-        const filteredClasses = (data || []).filter(c => isSerieElegivel(c.grade_level));
+        // Filtrar apenas turmas elegíveis (Ed. Infantil, 1º-9º Ano, EJA) e excluir modalidade AEE
+        const filteredClasses = (data || []).filter(c => {
+          const isAEE = (c.atendimento_programa || c.atendimento || c.modalidade || '').toLowerCase().includes('aee');
+          return isSerieElegivel(c.grade_level) && !isAEE;
+        });
         setClasses(filteredClasses);
       } catch (error) {
         console.error('Erro ao carregar turmas:', error);
@@ -972,14 +976,14 @@ export function Promotion() {
                                 let value = '-';
                                 if (gradeData) {
                                   if (period === 'totalPoints') {
-                                    value = gradeData.totalPoints ? gradeData.totalPoints.toFixed(1) : '-';
+                                    value = gradeData.totalPoints ? (usaConceito ? '-' : gradeData.totalPoints.toFixed(1)) : '-';
                                   } else if (period === 'finalAverage') {
-                                    value = gradeData.finalAverage ? gradeData.finalAverage.toFixed(1) : '-';
+                                    value = gradeData.finalAverage !== null && gradeData.finalAverage !== undefined ? fmtGrade(gradeData.finalAverage) : '-';
                                   } else {
-                                    value = gradeData[period] !== null && gradeData[period] !== undefined ? gradeData[period].toFixed(1) : '-';
+                                    value = gradeData[period] !== null && gradeData[period] !== undefined ? fmtGrade(gradeData[period]) : '-';
                                   }
                                 }
-                                const isLowGrade = period === 'finalAverage' && gradeData?.finalAverage !== null && gradeData?.finalAverage < 6;
+                                const isLowGrade = !usaConceito && period === 'finalAverage' && gradeData?.finalAverage !== null && gradeData?.finalAverage < 6;
                                 const isLast = idx === sectionCourses.length - 1;
                                 return (
                                   <td key={`${period}-${course.id}`} className={`px-1 py-2 text-center text-[10px] ${isLast ? 'border-r-2 border-slate-400' : 'border-r'} ${isLowGrade ? 'bg-red-100 text-red-700 font-bold' : ''}`}>
@@ -992,7 +996,7 @@ export function Promotion() {
                                 const gradeData = student.grades[course.id];
                                 let value = '-';
                                 if (gradeData) {
-                                  value = gradeData[period] !== null && gradeData[period] !== undefined ? gradeData[period].toFixed(1) : '-';
+                                  value = gradeData[period] !== null && gradeData[period] !== undefined ? fmtGrade(gradeData[period]) : '-';
                                 }
                                 const isLast = idx === intCourses.length - 1;
                                 return (
