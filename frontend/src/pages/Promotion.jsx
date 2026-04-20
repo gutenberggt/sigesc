@@ -228,8 +228,15 @@ export function Promotion() {
   // Anos disponíveis
   const years = [2025, 2026, 2027, 2028, 2029, 2030];
 
-  // Séries elegíveis para o Livro de Promoção (3º ao 9º Ano e EJA 1ª a 4ª Etapa)
+  // Séries elegíveis para o Livro de Promoção (Educação Infantil, 1º ao 9º Ano e EJA 1ª a 4ª Etapa)
   const SERIES_ELEGIVEIS = [
+    // Educação Infantil
+    'berçário', 'bercario', 'berçário i', 'berçário ii',
+    'maternal', 'maternal i', 'maternal ii',
+    'pré', 'pre', 'pré i', 'pré ii', 'pré-escola', 'pre-escola',
+    // 1º e 2º Ano (conceitual)
+    '1º ano', '1° ano', '1 ano', 'primeiro ano',
+    '2º ano', '2° ano', '2 ano', 'segundo ano',
     // 3º ao 5º Ano (Anos Iniciais)
     '3º ano', '3° ano', '3 ano', 'terceiro ano',
     '4º ano', '4° ano', '4 ano', 'quarto ano',
@@ -636,7 +643,7 @@ export function Promotion() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Livro de Promoção</h1>
               <p className="text-gray-500 mt-1">
-                3º ao 9º Ano e EJA (1ª a 4ª Etapa)
+                Educação Infantil, 1º ao 9º Ano e EJA (1ª a 4ª Etapa)
               </p>
             </div>
           </div>
@@ -707,7 +714,7 @@ export function Promotion() {
               
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">
-                  Turma (3º ao 9º Ano / EJA)
+                  Turma (Ed. Infantil / 1º ao 9º Ano / EJA)
                 </label>
                 <Select value={selectedClass} onValueChange={setSelectedClass} disabled={!selectedSchool}>
                   <SelectTrigger data-testid="class-select">
@@ -722,7 +729,7 @@ export function Promotion() {
                   <SelectContent>
                     {classes.length === 0 ? (
                       <SelectItem value="none" disabled>
-                        Nenhuma turma do 3º ao 9º Ano ou EJA
+                        Nenhuma turma da Ed. Infantil, 1º ao 9º Ano ou EJA
                       </SelectItem>
                     ) : (
                       classes.map(cls => (
