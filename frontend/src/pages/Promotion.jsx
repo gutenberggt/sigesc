@@ -203,14 +203,12 @@ export function Promotion() {
   const [courses, setCourses] = useState([]);
   const [gradesData, setGradesData] = useState([]);
   
-  // Separar regulares e integrais por atendimento_programa
+  // Ignorar TODOS os componentes de Tempo Integral no Livro de Promoção (regra de negócio)
   const isIntegralCourse = (c) => {
     const ap = (c.atendimento_programa || c.atendimento || '').toLowerCase().trim();
     return ap.includes('integral');
   };
   const regCourses = useMemo(() => courses.filter(c => !isIntegralCourse(c)), [courses]);
-  const intCourses = useMemo(() => courses.filter(c => isIntegralCourse(c)), [courses]);
-  const hasIntegral = intCourses.length > 0;
   
   // Filters
   const [selectedSchool, setSelectedSchool] = useState('');
@@ -986,17 +984,12 @@ export function Promotion() {
                       <th rowSpan={2} className="px-2 py-2 text-left font-semibold border-r min-w-[200px] sticky left-8 bg-slate-100 z-10">LISTA DE ALUNOS</th>
                       <th rowSpan={2} className="px-2 py-2 text-center font-semibold border-r-2 border-slate-400 w-10">SEXO</th>
                       
-                      {/* Bimestres 1-4 com NOTAS + PARTICIPAÇÃO */}
+                      {/* Bimestres 1-4 com NOTAS (somente regulares; integral ignorado por regra de negócio) */}
                       {['1º', '2º', '3º', '4º'].map((bim, bi) => (
                         <React.Fragment key={`bim-${bi}`}>
                           <th colSpan={regCourses.length} className={`px-2 py-1 text-center font-semibold border-r-2 border-slate-400 ${bi % 2 === 0 ? 'bg-blue-50' : 'bg-green-50'}`}>
                             NOTAS {bim} BIMESTRE
                           </th>
-                          {hasIntegral && (
-                            <th colSpan={intCourses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-purple-50 text-purple-800">
-                              PARTICIPAÇÃO {bim} BIM
-                            </th>
-                          )}
                           {/* Recuperação após 2º e 4º bimestre */}
                           {(bi === 1) && (
                             <th colSpan={regCourses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-yellow-50">
@@ -1010,13 +1003,13 @@ export function Promotion() {
                           )}
                         </React.Fragment>
                       ))}
-                      
+
                       {/* Total */}
-                      <th colSpan={courses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-purple-50">
+                      <th colSpan={regCourses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-purple-50">
                         TOTAL PONTOS ANUAIS
                       </th>
                       {/* Média */}
-                      <th colSpan={courses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-orange-50">
+                      <th colSpan={regCourses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-orange-50">
                         MÉDIA FINAL
                       </th>
                       {/* Resultado */}
@@ -1027,29 +1020,16 @@ export function Promotion() {
                     
                     {/* Sub-cabeçalho com nomes dos componentes */}
                     <tr className="bg-slate-50 border-b">
-                      {/* Para cada seção repetir os nomes dos componentes */}
-                      {['b1', 'b2', 'rec1', 'b3', 'b4', 'rec2', 'totalPoints', 'finalAverage'].map((section) => {
-                        const isRec = section === 'rec1' || section === 'rec2';
-                        const isBim = ['b1', 'b2', 'b3', 'b4'].includes(section);
-                        const isTotal = section === 'totalPoints' || section === 'finalAverage';
-                        // Rec e Total/Média: todos os componentes (mas Rec só regulares)
-                        const sectionCourses = isRec ? regCourses : (isTotal ? courses : (isBim ? regCourses : courses));
-                        return (
-                          <React.Fragment key={`sub-${section}`}>
-                            {sectionCourses.map((course, idx) => (
-                              <th key={`${section}-${course.id}`} className={`px-1 py-1 text-center font-normal text-[10px] whitespace-nowrap ${idx === sectionCourses.length - 1 ? 'border-r-2 border-slate-400' : 'border-r'}`}>
-                                {abbreviateComponent(course.name)}
-                              </th>
-                            ))}
-                            {/* Integrais após regulares nos bimestres */}
-                            {isBim && hasIntegral && intCourses.map((course, idx) => (
-                              <th key={`${section}-int-${course.id}`} className={`px-1 py-1 text-center font-normal text-[10px] whitespace-nowrap bg-purple-50 ${idx === intCourses.length - 1 ? 'border-r-2 border-slate-400' : 'border-r'}`}>
-                                {abbreviateComponent(course.name)}
-                              </th>
-                            ))}
-                          </React.Fragment>
-                        );
-                      })}
+                      {/* Sub-cabeçalho: somente componentes regulares (integral é ignorado no Livro de Promoção) */}
+                      {['b1', 'b2', 'rec1', 'b3', 'b4', 'rec2', 'totalPoints', 'finalAverage'].map((section) => (
+                        <React.Fragment key={`sub-${section}`}>
+                          {regCourses.map((course, idx) => (
+                            <th key={`${section}-${course.id}`} className={`px-1 py-1 text-center font-normal text-[10px] whitespace-nowrap ${idx === regCourses.length - 1 ? 'border-r-2 border-slate-400' : 'border-r'}`}>
+                              {abbreviateComponent(course.name)}
+                            </th>
+                          ))}
+                        </React.Fragment>
+                      ))}
                     </tr>
                   </thead>
                   
@@ -1062,52 +1042,31 @@ export function Promotion() {
                         </td>
                         <td className="px-2 py-2 border-r-2 border-slate-400 text-center">{student.sex}</td>
                         
-                        {/* Notas por seção */}
-                        {['b1', 'b2', 'rec1', 'b3', 'b4', 'rec2', 'totalPoints', 'finalAverage'].map((period) => {
-                          const isRec = period === 'rec1' || period === 'rec2';
-                          const isBim = ['b1', 'b2', 'b3', 'b4'].includes(period);
-                          const isTotal = period === 'totalPoints' || period === 'finalAverage';
-                          const sectionCourses = isRec ? regCourses : (isTotal ? courses : (isBim ? regCourses : courses));
-                          
-                          return (
-                            <React.Fragment key={`data-${period}`}>
-                              {sectionCourses.map((course, idx) => {
-                                const gradeData = student.grades[course.id];
-                                let value = '-';
-                                if (gradeData) {
-                                  if (period === 'totalPoints') {
-                                    value = gradeData.totalPoints ? (usaConceito ? '-' : gradeData.totalPoints.toFixed(1)) : '-';
-                                  } else if (period === 'finalAverage') {
-                                    value = gradeData.finalAverage !== null && gradeData.finalAverage !== undefined ? fmtGrade(gradeData.finalAverage) : '-';
-                                  } else {
-                                    value = gradeData[period] !== null && gradeData[period] !== undefined ? fmtGrade(gradeData[period]) : '-';
-                                  }
-                                }
-                                const isLowGrade = !usaConceito && period === 'finalAverage' && gradeData?.finalAverage !== null && gradeData?.finalAverage < 6;
-                                const isLast = idx === sectionCourses.length - 1;
-                                return (
-                                  <td key={`${period}-${course.id}`} className={`px-1 py-2 text-center text-[10px] ${isLast ? 'border-r-2 border-slate-400' : 'border-r'} ${isLowGrade ? 'bg-red-100 text-red-700 font-bold' : ''}`}>
-                                    {value}
-                                  </td>
-                                );
-                              })}
-                              {/* Integrais nos bimestres */}
-                              {isBim && hasIntegral && intCourses.map((course, idx) => {
-                                const gradeData = student.grades[course.id];
-                                let value = '-';
-                                if (gradeData) {
+                        {/* Notas por seção (somente componentes regulares; Tempo Integral ignorado) */}
+                        {['b1', 'b2', 'rec1', 'b3', 'b4', 'rec2', 'totalPoints', 'finalAverage'].map((period) => (
+                          <React.Fragment key={`data-${period}`}>
+                            {regCourses.map((course, idx) => {
+                              const gradeData = student.grades[course.id];
+                              let value = '-';
+                              if (gradeData) {
+                                if (period === 'totalPoints') {
+                                  value = gradeData.totalPoints ? (usaConceito ? '-' : gradeData.totalPoints.toFixed(1)) : '-';
+                                } else if (period === 'finalAverage') {
+                                  value = gradeData.finalAverage !== null && gradeData.finalAverage !== undefined ? fmtGrade(gradeData.finalAverage) : '-';
+                                } else {
                                   value = gradeData[period] !== null && gradeData[period] !== undefined ? fmtGrade(gradeData[period]) : '-';
                                 }
-                                const isLast = idx === intCourses.length - 1;
-                                return (
-                                  <td key={`${period}-int-${course.id}`} className={`px-1 py-2 text-center text-[10px] bg-purple-50/30 ${isLast ? 'border-r-2 border-slate-400' : 'border-r'}`}>
-                                    {value}
-                                  </td>
-                                );
-                              })}
-                            </React.Fragment>
-                          );
-                        })}
+                              }
+                              const isLowGrade = !usaConceito && period === 'finalAverage' && gradeData?.finalAverage !== null && gradeData?.finalAverage < 6;
+                              const isLast = idx === regCourses.length - 1;
+                              return (
+                                <td key={`${period}-${course.id}`} className={`px-1 py-2 text-center text-[10px] ${isLast ? 'border-r-2 border-slate-400' : 'border-r'} ${isLowGrade ? 'bg-red-100 text-red-700 font-bold' : ''}`}>
+                                  {value}
+                                </td>
+                              );
+                            })}
+                          </React.Fragment>
+                        ))}
                         
                         {/* Resultado Final */}
                         <td className="px-2 py-2 text-center">
