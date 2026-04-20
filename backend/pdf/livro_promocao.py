@@ -72,6 +72,14 @@ _ABREV = {
     'acompanhamento pedagógico de matemática': 'AC. PED. MAT.',
     'acomp. ped. de língua portuguesa': 'AC. PED. L. PORT.',
     'acomp. ped. de matemática': 'AC. PED. MAT.',
+    # Educação Infantil - Campos de Experiência (BNCC)
+    'o eu, o outro e nós': 'EU OUT. NÓS',
+    'corpo, gestos e movimentos': 'CORP. GEST.',
+    'escuta, fala, pensamento e imaginação': 'ESC. FALA.',
+    'traço, sons, cores e formas': 'TRAÇ. SONS',
+    'espaços, tempos, quantidades, relações e transformações': 'ESP. TEMP.',
+    'contação de histórias e iniciação musical': 'CONT. HIST.',
+    'higiene e saúde': 'HIG. SAÚDE',
 }
 
 def abrev(nome):
