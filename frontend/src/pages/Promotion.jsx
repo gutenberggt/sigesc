@@ -219,7 +219,10 @@ export function Promotion() {
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  
+
+  // Filtro de visualização rápida (resultado final)
+  const [quickFilter, setQuickFilter] = useState('TODOS');
+
   // Processed data
   const [promotionData, setPromotionData] = useState([]);
 
@@ -547,6 +550,11 @@ export function Promotion() {
     setCurrentPage(1);
   }, [selectedClass]);
 
+  // Reset página quando filtro rápido muda
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [quickFilter]);
+
   // Carregar (ou criar) Nº do Livro ao selecionar turma + ano
   useEffect(() => {
     if (!selectedClass) {
@@ -562,11 +570,25 @@ export function Promotion() {
       .catch(() => setBookNumber(''));
   }, [selectedClass, selectedYear]);
 
+  // Aplicar filtro de visualização rápida
+  const filteredPromotionData = useMemo(() => {
+    if (quickFilter === 'TODOS') return promotionData;
+    if (quickFilter === 'APROVADOS') {
+      return promotionData.filter(p =>
+        p.result === 'APROVADO' ||
+        p.result === 'APROVADO COM DEPENDÊNCIA' ||
+        p.result === 'PROMOVIDO' ||
+        p.result === 'CONCLUIU'
+      );
+    }
+    return promotionData.filter(p => p.result === quickFilter);
+  }, [promotionData, quickFilter]);
+
   // Calcular dados paginados
-  const totalPages = Math.ceil(promotionData.length / STUDENTS_PER_PAGE);
+  const totalPages = Math.ceil(filteredPromotionData.length / STUDENTS_PER_PAGE);
   const startIndex = (currentPage - 1) * STUDENTS_PER_PAGE;
   const endIndex = startIndex + STUDENTS_PER_PAGE;
-  const paginatedData = promotionData.slice(startIndex, endIndex);
+  const paginatedData = filteredPromotionData.slice(startIndex, endIndex);
 
   // Navegação de páginas
   const goToPage = (page) => {
@@ -877,7 +899,54 @@ export function Promotion() {
           </Card>
         ) : (
           <Card>
+            {/* Visualização rápida (filtros por resultado) */}
+            <div className="px-4 pt-4 pb-3 border-b bg-slate-50 flex flex-wrap items-center gap-2" data-testid="quick-filter-bar">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide mr-2">
+                Visualização rápida:
+              </span>
+              {[
+                { key: 'TODOS', label: `Todos (${stats.total})`, active: 'bg-slate-800 text-white border-slate-800' },
+                { key: 'APROVADOS', label: `Aprovados (${stats.approved})`, active: 'bg-green-600 text-white border-green-600' },
+                { key: 'REPROVADO', label: `Reprovados (${stats.failed})`, active: 'bg-red-600 text-white border-red-600' },
+                { key: 'CURSANDO', label: `Cursando (${stats.inProgress})`, active: 'bg-blue-600 text-white border-blue-600' },
+                { key: 'DESISTENTE', label: `Desistentes (${stats.dropped})`, active: 'bg-gray-500 text-white border-gray-500' },
+                { key: 'TRANSFERIDO', label: `Transferidos (${stats.transferred})`, active: 'bg-yellow-500 text-white border-yellow-500' },
+              ].map(chip => {
+                const isActive = quickFilter === chip.key;
+                return (
+                  <button
+                    key={chip.key}
+                    onClick={() => setQuickFilter(chip.key)}
+                    data-testid={`quick-filter-${chip.key.toLowerCase()}`}
+                    className={`px-3 py-1 rounded-full border text-xs font-semibold transition-all ${
+                      isActive
+                        ? chip.active + ' shadow-sm'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+              {quickFilter !== 'TODOS' && (
+                <span className="ml-auto text-xs text-gray-500" data-testid="quick-filter-summary">
+                  Exibindo {filteredPromotionData.length} de {promotionData.length} alunos
+                </span>
+              )}
+            </div>
             <CardContent className="p-0">
+              {paginatedData.length === 0 ? (
+                <div className="p-8 text-center text-gray-500" data-testid="quick-filter-empty">
+                  <Filter className="h-10 w-10 mx-auto mb-3 text-gray-400" />
+                  <p>Nenhum aluno corresponde ao filtro selecionado.</p>
+                  <button
+                    onClick={() => setQuickFilter('TODOS')}
+                    className="mt-3 text-sm text-emerald-700 hover:text-emerald-800 underline"
+                  >
+                    Mostrar todos os alunos
+                  </button>
+                </div>
+              ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-xs">
                   <thead>
@@ -1020,17 +1089,18 @@ export function Promotion() {
                   </tbody>
                 </table>
               </div>
+              )}
             </CardContent>
           </Card>
         )}
 
         {/* Paginação */}
-        {selectedClass && promotionData.length > STUDENTS_PER_PAGE && (
+        {selectedClass && filteredPromotionData.length > STUDENTS_PER_PAGE && (
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600">
-                  Mostrando {startIndex + 1} a {Math.min(endIndex, promotionData.length)} de {promotionData.length} alunos
+                  Mostrando {startIndex + 1} a {Math.min(endIndex, filteredPromotionData.length)} de {filteredPromotionData.length} alunos
                 </div>
                 
                 <div className="flex items-center gap-2">
