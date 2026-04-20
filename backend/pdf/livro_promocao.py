@@ -16,7 +16,8 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak, 
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.pdfbase.pdfmetrics import stringWidth
-from pdf.utils import get_logo_path
+from pdf.utils import get_logo_path, is_serie_conceitual_anos_iniciais, valor_para_conceito_fn, calcular_media_conceitual
+from grade_calculator import is_educacao_infantil as _is_educacao_infantil
 
 PAGE_W, PAGE_H = landscape(A4)
 MX = 0.8 * cm
@@ -123,9 +124,15 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
     escola_nome = str(school.get('name', ''))
     turma_nome = str(class_info.get('name', ''))
     grade_level = str(class_info.get('grade_level', ''))
+    nivel_ensino = str(class_info.get('education_level', '') or class_info.get('nivel_ensino', ''))
     shift_raw = class_info.get('shift', '')
     turno = {'morning':'MATUTINO','afternoon':'VESPERTINO','evening':'NOTURNO',
              'full_time':'INTEGRAL','night':'NOTURNO'}.get(shift_raw, str(shift_raw).upper())
+
+    # Modo de avaliação: conceitual (Ed. Infantil e 1º/2º ano) NÃO tem recuperação
+    is_ed_infantil = _is_educacao_infantil(grade_level, nivel_ensino)
+    is_anos_iniciais_conc = is_serie_conceitual_anos_iniciais(grade_level)
+    usa_conceito = is_ed_infantil or is_anos_iniciais_conc
 
     # Tipo de Atendimento da turma
     atendimento_raw = (class_info.get('atendimento_programa') or '').lower()
@@ -234,7 +241,7 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
         for _, titulo in blocos:
             h1 += [titulo] + [''] * (comps_per_bloco - 1)
         if include_result:
-            h1 += ['MÉDIA', 'CONCLUSÃO']
+            h1 += ['CONCEITO\nFINAL' if usa_conceito else 'MÉDIA', 'CONCLUSÃO']
 
         # ── Header 2: abreviações (texto vertical para economizar largura) ──
         h2 = ['', '', '']
@@ -259,20 +266,39 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
                     gi = gr.get(c.get('id', ''), {})
                     if not isinstance(gi, dict):
                         gi = {}
-                    row.append(fmt(gi.get(bim_key)))
+                    valor = gi.get(bim_key)
+                    if usa_conceito:
+                        # Exibe conceito em vez de número
+                        row.append(valor_para_conceito_fn(valor, grade_level) if valor is not None else '-')
+                    else:
+                        row.append(fmt(valor))
 
             if include_result:
-                # Média final = média das finalAverage dos componentes regulares
-                medias = []
-                for c in reg:
-                    gi = gr.get(c.get('id', ''), {})
-                    if isinstance(gi, dict):
-                        fa = gi.get('finalAverage')
-                        if isinstance(fa, (int, float)):
-                            medias.append(fa)
-                mg = sum(medias) / len(medias) if medias else 0
+                if usa_conceito:
+                    # Conceito final = maior conceito entre os 4 bimestres (por componente → depois agrega)
+                    # Para o resumo por aluno, pegamos o maior conceito alcançado em qualquer componente/bimestre.
+                    concept_vals = []
+                    for c in reg:
+                        gi = gr.get(c.get('id', ''), {})
+                        if isinstance(gi, dict):
+                            bims = [gi.get('b1'), gi.get('b2'), gi.get('b3'), gi.get('b4')]
+                            mc = calcular_media_conceitual(bims)
+                            if mc is not None:
+                                concept_vals.append(mc)
+                    final_val = max(concept_vals) if concept_vals else None
+                    row.append(valor_para_conceito_fn(final_val, grade_level) if final_val is not None else '-')
+                else:
+                    # Média final = média das finalAverage dos componentes regulares
+                    medias = []
+                    for c in reg:
+                        gi = gr.get(c.get('id', ''), {})
+                        if isinstance(gi, dict):
+                            fa = gi.get('finalAverage')
+                            if isinstance(fa, (int, float)):
+                                medias.append(fa)
+                    mg = sum(medias) / len(medias) if medias else 0
+                    row.append(fmt(mg) if medias else '-')
                 result_raw = str(st.get('result', 'CURSANDO') or 'CURSANDO')
-                row.append(fmt(mg) if medias else '-')
                 row.append(result_raw[:14])
             rows.append(row)
 
@@ -410,22 +436,45 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
     # ── Montar elementos ─────────────────────────────────────
     elements = []
 
-    # Página 1: 1º Bim + 2º Bim + Recuperação 1º Semestre
-    elements.append(build_combined_table(
-        [('b1', 'NOTAS 1º BIMESTRE'),
-         ('b2', 'NOTAS 2º BIMESTRE'),
-         ('rec1', 'RECUPERAÇÃO 1º SEMESTRE')],
-        include_result=False,
-    ))
+    if usa_conceito:
+        # Educação Infantil e 1º/2º Ano: sem recuperação
+        # Página 1: 1º Bim + 2º Bim
+        elements.append(build_combined_table(
+            [('b1', 'CONCEITOS 1º BIMESTRE'),
+             ('b2', 'CONCEITOS 2º BIMESTRE')],
+            include_result=False,
+        ))
+        # Página 2: 3º Bim + 4º Bim + CONCEITO FINAL + CONCLUSÃO
+        elements.append(PageBreak())
+        elements.append(build_combined_table(
+            [('b3', 'CONCEITOS 3º BIMESTRE'),
+             ('b4', 'CONCEITOS 4º BIMESTRE')],
+            include_result=True,
+        ))
+    else:
+        # 3º ao 9º Ano e EJA: com recuperação por semestre
+        # Página 1: 1º Bim + 2º Bim + Recuperação 1º Semestre
+        elements.append(build_combined_table(
+            [('b1', 'NOTAS 1º BIMESTRE'),
+             ('b2', 'NOTAS 2º BIMESTRE'),
+             ('rec1', 'RECUPERAÇÃO 1º SEMESTRE')],
+            include_result=False,
+        ))
+        # Página 2: 3º Bim + 4º Bim + Recuperação 2º Semestre + MÉDIA + CONCLUSÃO
+        elements.append(PageBreak())
+        elements.append(build_combined_table(
+            [('b3', 'NOTAS 3º BIMESTRE'),
+             ('b4', 'NOTAS 4º BIMESTRE'),
+             ('rec2', 'RECUPERAÇÃO 2º SEMESTRE')],
+            include_result=True,
+        ))
 
-    # Página 2: 3º Bim + 4º Bim + Recuperação 2º Semestre + MÉDIA + CONCLUSÃO
-    elements.append(PageBreak())
-    elements.append(build_combined_table(
-        [('b3', 'NOTAS 3º BIMESTRE'),
-         ('b4', 'NOTAS 4º BIMESTRE'),
-         ('rec2', 'RECUPERAÇÃO 2º SEMESTRE')],
-        include_result=True,
-    ))
+    # Legenda de conceitos (apenas quando conceitual)
+    if usa_conceito:
+        from pdf.utils import criar_legenda_conceitos
+        elements.append(Spacer(1, 0.3 * cm))
+        for el in criar_legenda_conceitos(is_educacao_infantil=is_ed_infantil, grade_level=grade_level):
+            elements.append(el)
 
     # Citação (última página) quando turma é Tempo Integral
     if is_tempo_integral:
