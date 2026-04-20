@@ -704,7 +704,7 @@ export function Grades() {
               onChange={(e) => setAcademicYear(parseInt(e.target.value))}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
-              {[2023, 2024, 2025, 2026].map(year => (
+              {(() => { const cy = new Date().getFullYear(); return [cy - 2, cy - 1, cy, cy + 1]; })().map(year => (
                 <option key={year} value={year}>{year}</option>
               ))}
             </select>

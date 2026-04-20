@@ -1004,28 +1004,28 @@ export const documentsAPI = {
   },
   
   // Baixar Boletim (retorna blob)
-  getBoletim: async (studentId, academicYear = '2025') => {
+  getBoletim: async (studentId, academicYear = String(new Date().getFullYear())) => {
     const url = `${BACKEND_URL}/api/documents/boletim/${studentId}?academic_year=${academicYear}`;
     const response = await axios.get(url, { responseType: 'blob' });
     return response.data;
   },
   
   // Baixar Ficha Individual (retorna blob)
-  getFichaIndividual: async (studentId, academicYear = '2025') => {
+  getFichaIndividual: async (studentId, academicYear = String(new Date().getFullYear())) => {
     const url = `${BACKEND_URL}/api/documents/ficha-individual/${studentId}?academic_year=${academicYear}`;
     const response = await axios.get(url, { responseType: 'blob' });
     return response.data;
   },
   
   // Baixar Certificado (retorna blob)
-  getCertificado: async (studentId, academicYear = '2025') => {
+  getCertificado: async (studentId, academicYear = String(new Date().getFullYear())) => {
     const url = `${BACKEND_URL}/api/documents/certificado/${studentId}?academic_year=${academicYear}`;
     const response = await axios.get(url, { responseType: 'blob' });
     return response.data;
   },
   
   // Baixar documentos em lote (retorna blob)
-  getBatchDocuments: async (classId, documentType, academicYear = '2025') => {
+  getBatchDocuments: async (classId, documentType, academicYear = String(new Date().getFullYear())) => {
     const url = `${BACKEND_URL}/api/documents/batch/${classId}/${documentType}?academic_year=${academicYear}`;
     const response = await axios.get(url, { responseType: 'blob' });
     return response.data;

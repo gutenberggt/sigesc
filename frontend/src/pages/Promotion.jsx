@@ -203,17 +203,27 @@ export function Promotion() {
   const [courses, setCourses] = useState([]);
   const [gradesData, setGradesData] = useState([]);
   
-  // Ignorar TODOS os componentes de Tempo Integral no Livro de Promoção (regra de negócio)
-  const isIntegralCourse = (c) => {
+  // Componentes formativos/Tempo Integral que NÃO entram no Livro de Promoção
+  const FORMATIVOS_NOMES = [
+    'arte e cultura',
+    'contação de histórias e iniciação musical',
+    'higiene e saúde',
+    'linguagem recreativa com práticas de esporte e lazer',
+    'recreação, esporte e lazer',
+    'recreação e lazer',
+  ];
+  const isFormativoCourse = (c) => {
     const ap = (c.atendimento_programa || c.atendimento || '').toLowerCase().trim();
-    return ap.includes('integral');
+    if (ap.includes('integral')) return true;
+    const nome = (c.name || '').toLowerCase().trim();
+    return FORMATIVOS_NOMES.some(n => nome === n || nome.startsWith(n));
   };
-  const regCourses = useMemo(() => courses.filter(c => !isIntegralCourse(c)), [courses]);
+  const regCourses = useMemo(() => courses.filter(c => !isFormativoCourse(c)), [courses]);
   
   // Filters
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
-  const [selectedYear, setSelectedYear] = useState(2025);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -990,13 +1000,13 @@ export function Promotion() {
                           <th colSpan={regCourses.length} className={`px-2 py-1 text-center font-semibold border-r-2 border-slate-400 ${bi % 2 === 0 ? 'bg-blue-50' : 'bg-green-50'}`}>
                             NOTAS {bim} BIMESTRE
                           </th>
-                          {/* Recuperação após 2º e 4º bimestre */}
-                          {(bi === 1) && (
+                          {/* Recuperação — apenas turmas com avaliação numérica (Ed. Infantil, 1º/2º Ano não têm) */}
+                          {!usaConceito && (bi === 1) && (
                             <th colSpan={regCourses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-yellow-50">
                               RECUPERAÇÃO 1º SEM
                             </th>
                           )}
-                          {(bi === 3) && (
+                          {!usaConceito && (bi === 3) && (
                             <th colSpan={regCourses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-yellow-50">
                               RECUPERAÇÃO 2º SEM
                             </th>
@@ -1004,13 +1014,15 @@ export function Promotion() {
                         </React.Fragment>
                       ))}
 
-                      {/* Total */}
-                      <th colSpan={regCourses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-purple-50">
-                        TOTAL PONTOS ANUAIS
-                      </th>
+                      {/* Total (só em regime numérico) */}
+                      {!usaConceito && (
+                        <th colSpan={regCourses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-purple-50">
+                          TOTAL PONTOS ANUAIS
+                        </th>
+                      )}
                       {/* Média */}
                       <th colSpan={regCourses.length} className="px-2 py-1 text-center font-semibold border-r-2 border-slate-400 bg-orange-50">
-                        MÉDIA FINAL
+                        {usaConceito ? 'CONCEITO FINAL' : 'MÉDIA FINAL'}
                       </th>
                       {/* Resultado */}
                       <th rowSpan={2} className="px-2 py-2 text-center font-semibold min-w-[100px] bg-slate-200">
@@ -1020,8 +1032,11 @@ export function Promotion() {
                     
                     {/* Sub-cabeçalho com nomes dos componentes */}
                     <tr className="bg-slate-50 border-b">
-                      {/* Sub-cabeçalho: somente componentes regulares (integral é ignorado no Livro de Promoção) */}
-                      {['b1', 'b2', 'rec1', 'b3', 'b4', 'rec2', 'totalPoints', 'finalAverage'].map((section) => (
+                      {/* Sub-cabeçalho: somente componentes regulares; Rec e Total ocultos em turmas conceituais */}
+                      {(usaConceito
+                        ? ['b1', 'b2', 'b3', 'b4', 'finalAverage']
+                        : ['b1', 'b2', 'rec1', 'b3', 'b4', 'rec2', 'totalPoints', 'finalAverage']
+                      ).map((section) => (
                         <React.Fragment key={`sub-${section}`}>
                           {regCourses.map((course, idx) => (
                             <th key={`${section}-${course.id}`} className={`px-1 py-1 text-center font-normal text-[10px] whitespace-nowrap ${idx === regCourses.length - 1 ? 'border-r-2 border-slate-400' : 'border-r'}`}>
@@ -1042,8 +1057,11 @@ export function Promotion() {
                         </td>
                         <td className="px-2 py-2 border-r-2 border-slate-400 text-center">{student.sex}</td>
                         
-                        {/* Notas por seção (somente componentes regulares; Tempo Integral ignorado) */}
-                        {['b1', 'b2', 'rec1', 'b3', 'b4', 'rec2', 'totalPoints', 'finalAverage'].map((period) => (
+                        {/* Notas por seção (regulares; Rec/Total ocultos em turmas conceituais) */}
+                        {(usaConceito
+                          ? ['b1', 'b2', 'b3', 'b4', 'finalAverage']
+                          : ['b1', 'b2', 'rec1', 'b3', 'b4', 'rec2', 'totalPoints', 'finalAverage']
+                        ).map((period) => (
                           <React.Fragment key={`data-${period}`}>
                             {regCourses.map((course, idx) => {
                               const gradeData = student.grades[course.id];

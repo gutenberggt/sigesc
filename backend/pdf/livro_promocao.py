@@ -107,7 +107,19 @@ def fmt(v):
 
 def is_integral(course):
     ap = (course.get('atendimento_programa') or '').lower()
-    return 'integral' in ap
+    if 'integral' in ap:
+        return True
+    # Componentes formativos/Tempo Integral — ignorados no Livro de Promoção
+    nome = (course.get('name') or '').lower().strip()
+    formativos = (
+        'arte e cultura',
+        'contação de histórias e iniciação musical',
+        'higiene e saúde',
+        'linguagem recreativa com práticas de esporte e lazer',
+        'recreação, esporte e lazer',
+        'recreação e lazer',
+    )
+    return any(nome == f or nome.startswith(f) for f in formativos)
 
 
 # ── Geração ──────────────────────────────────────────────────
