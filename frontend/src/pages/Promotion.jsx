@@ -456,53 +456,52 @@ export function Promotion() {
           }
         });
         
-        // Calcular total de pontos e média final por componente (usando média ponderada)
+        // Regime conceitual (Ed. Infantil, 1º/2º Ano): conceito final = MAIOR conceito entre os bimestres
+        const classUsaConceito = usaAvaliacaoConceitual(classInfo.grade_level, classInfo.education_level);
+
+        // Calcular total de pontos e média final por componente
         Object.keys(gradesByComponent).forEach(courseId => {
           const comp = gradesByComponent[courseId];
-          
-          // Obter notas bimestrais (usar 0 se null)
+
+          const hasAnyGrade = comp.b1 !== null || comp.b2 !== null || comp.b3 !== null || comp.b4 !== null;
+          if (!hasAnyGrade) return;
+
+          if (classUsaConceito) {
+            // Conceito final = MAIOR valor registrado (sem média ponderada, sem recuperação)
+            const vals = [comp.b1, comp.b2, comp.b3, comp.b4].filter(v => v !== null && v !== undefined);
+            comp.totalPoints = null; // não aplicável
+            comp.finalAverage = vals.length > 0 ? Math.max(...vals) : null;
+            return;
+          }
+
+          // Regime numérico: média ponderada com recuperações
           let b1 = comp.b1 !== null ? comp.b1 : 0;
           let b2 = comp.b2 !== null ? comp.b2 : 0;
           let b3 = comp.b3 !== null ? comp.b3 : 0;
           let b4 = comp.b4 !== null ? comp.b4 : 0;
-          
-          // Verificar se tem pelo menos uma nota registrada
-          const hasAnyGrade = comp.b1 !== null || comp.b2 !== null || comp.b3 !== null || comp.b4 !== null;
-          
-          if (hasAnyGrade) {
-            // Aplicar recuperação se houver (substitui a menor nota do semestre)
-            if (comp.rec1 !== null) {
-              // Recuperação do 1º semestre - substitui a menor nota entre B1 e B2
-              if (comp.b1 !== null && comp.b2 !== null) {
-                const minGrade = Math.min(b1, b2);
-                if (comp.rec1 > minGrade) {
-                  if (b1 <= b2) {
-                    b1 = comp.rec1;
-                  } else {
-                    b2 = comp.rec1;
-                  }
-                }
+
+          // Aplicar recuperação se houver (substitui a menor nota do semestre)
+          if (comp.rec1 !== null) {
+            if (comp.b1 !== null && comp.b2 !== null) {
+              const minGrade = Math.min(b1, b2);
+              if (comp.rec1 > minGrade) {
+                if (b1 <= b2) b1 = comp.rec1; else b2 = comp.rec1;
               }
             }
-            if (comp.rec2 !== null) {
-              // Recuperação do 2º semestre - substitui a menor nota entre B3 e B4
-              if (comp.b3 !== null && comp.b4 !== null) {
-                const minGrade = Math.min(b3, b4);
-                if (comp.rec2 > minGrade) {
-                  if (b3 <= b4) {
-                    b3 = comp.rec2;
-                  } else {
-                    b4 = comp.rec2;
-                  }
-                }
-              }
-            }
-            
-            // Calcular média ponderada: (B1×2 + B2×3 + B3×2 + B4×3) / 10
-            const total = (b1 * 2) + (b2 * 3) + (b3 * 2) + (b4 * 3);
-            comp.totalPoints = total;
-            comp.finalAverage = total / 10;
           }
+          if (comp.rec2 !== null) {
+            if (comp.b3 !== null && comp.b4 !== null) {
+              const minGrade = Math.min(b3, b4);
+              if (comp.rec2 > minGrade) {
+                if (b3 <= b4) b3 = comp.rec2; else b4 = comp.rec2;
+              }
+            }
+          }
+
+          // Calcular média ponderada: (B1×2 + B2×3 + B3×2 + B4×3) / 10
+          const total = (b1 * 2) + (b2 * 3) + (b3 * 2) + (b4 * 3);
+          comp.totalPoints = total;
+          comp.finalAverage = total / 10;
         });
         
         // Determinar resultado final

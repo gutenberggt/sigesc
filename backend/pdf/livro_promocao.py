@@ -248,27 +248,36 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
         canvas_obj.restoreState()
 
     # ── Helper: montar tabela combinada de um semestre ─────────
-    # bloco = (bim_key, titulo). Se include_result=True, adiciona MÉDIA + CONCLUSÃO.
+    # bloco = (bim_key, titulo). Keys suportadas: 'b1'/'b2'/'b3'/'b4', 'rec1'/'rec2', 'final_conceito'.
+    # Se include_result=True, adiciona MÉDIA + CONCLUSÃO (numérico) ou CONCLUSÃO (conceitual).
     def build_combined_table(blocos, include_result=False):
-        """Monta tabela: Nº | Nome | S | [bloco1: componentes] | [bloco2] | [bloco3] [| MÉDIA | CONCLUSÃO]
+        """Monta tabela: Nº | Nome | S | [bloco1] | [bloco2] | [bloco3] [| MÉDIA | CONCLUSÃO]
         Componentes de atendimento diferente de 'regular' são ignorados.
+        Em turmas conceituais, a coluna MÉDIA é substituída por um bloco 'CONCEITO FINAL' (um por componente).
         """
         n_blocos = len(blocos)
         comps_per_bloco = len(reg)
+        # Em conceitual, a "MÉDIA" vira um bloco inteiro (CONCEITO FINAL por componente) e fica fora desse counter
+        result_cols_extra = 0
+        if include_result:
+            result_cols_extra = 1 if usa_conceito else 2  # conceitual: só CONCLUSÃO; numérico: MÉDIA+CONCLUSÃO
 
         # ── Header 1: títulos spans ──
         h1 = ['N°', 'NOME DO\nALUNO', 'S']
         for _, titulo in blocos:
             h1 += [titulo] + [''] * (comps_per_bloco - 1)
         if include_result:
-            h1 += ['CONCEITO\nFINAL' if usa_conceito else 'MÉDIA', 'CONCLUSÃO']
+            if usa_conceito:
+                h1 += ['CONCLUSÃO']
+            else:
+                h1 += ['MÉDIA', 'CONCLUSÃO']
 
         # ── Header 2: abreviações (texto vertical para economizar largura) ──
         h2 = ['', '', '']
         for _ in blocos:
             h2 += [VerticalText(abrev(c.get('name', ''))) for c in reg]
         if include_result:
-            h2 += ['', '']
+            h2 += [''] * result_cols_extra
 
         # ── Dados ──
         rows = [h1, h2]
@@ -286,6 +295,13 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
                     gi = gr.get(c.get('id', ''), {})
                     if not isinstance(gi, dict):
                         gi = {}
+                    if bim_key == 'final_conceito':
+                        # Conceito final do componente = MAIOR conceito dos 4 bimestres
+                        bims = [gi.get('b1'), gi.get('b2'), gi.get('b3'), gi.get('b4')]
+                        bims_validos = [v for v in bims if v is not None]
+                        final_c = max(bims_validos) if bims_validos else None
+                        row.append(valor_para_conceito_fn(final_c, grade_level) if final_c is not None else '-')
+                        continue
                     valor = gi.get(bim_key)
                     if usa_conceito:
                         # Exibe conceito em vez de número
@@ -295,18 +311,8 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
 
             if include_result:
                 if usa_conceito:
-                    # Conceito final = maior conceito entre os 4 bimestres (por componente → depois agrega)
-                    # Para o resumo por aluno, pegamos o maior conceito alcançado em qualquer componente/bimestre.
-                    concept_vals = []
-                    for c in reg:
-                        gi = gr.get(c.get('id', ''), {})
-                        if isinstance(gi, dict):
-                            bims = [gi.get('b1'), gi.get('b2'), gi.get('b3'), gi.get('b4')]
-                            mc = calcular_media_conceitual(bims)
-                            if mc is not None:
-                                concept_vals.append(mc)
-                    final_val = max(concept_vals) if concept_vals else None
-                    row.append(valor_para_conceito_fn(final_val, grade_level) if final_val is not None else '-')
+                    # Nada a adicionar aqui (CONCEITO FINAL já é um bloco por componente).
+                    pass
                 else:
                     # Média final = média das finalAverage dos componentes regulares
                     medias = []
@@ -326,7 +332,10 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
         media_w = 1.1 * cm
         result_w = 1.9 * cm
         total_note_cols = comps_per_bloco * n_blocos
-        fixed_extra = (media_w + result_w) if include_result else 0
+        if include_result:
+            fixed_extra = result_w if usa_conceito else (media_w + result_w)
+        else:
+            fixed_extra = 0
         available_for_notes = USABLE_W - (COL_N_W + COL_NAME_MIN + COL_SEX_W + fixed_extra)
         if total_note_cols > 0:
             # Cada nota entre 0.45cm (mínimo p/ 10,0 na fonte 7) e 1.0cm (máx confortável)
@@ -340,7 +349,7 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
         )
         cw = [COL_N_W, name_w, COL_SEX_W] + [note_w] * total_note_cols
         if include_result:
-            cw += [media_w, result_w]
+            cw += ([result_w] if usa_conceito else [media_w, result_w])
 
         tbl = Table(rows, colWidths=cw, repeatRows=2)
 
@@ -378,9 +387,9 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
             style.append(('LINEAFTER', (col_end, 0), (col_end, -1), 1.2, colors.black))
             col_start = col_end + 1
 
-        # Colorir CONCLUSÃO
+        # Colorir CONCLUSÃO (sempre a última coluna)
         if include_result:
-            result_col = 3 + total_note_cols + 1
+            result_col = 3 + total_note_cols + (0 if usa_conceito else 1)
             for ri, st in enumerate(students_data, 2):  # row 2 é o primeiro aluno (0=h1, 1=h2)
                 r = str(st.get('result', '') or '').upper()
                 if 'APROVADO' in r and 'DEPEND' not in r:
@@ -464,11 +473,12 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
              ('b2', 'CONCEITOS 2º BIMESTRE')],
             include_result=False,
         ))
-        # Página 2: 3º Bim + 4º Bim + CONCEITO FINAL + CONCLUSÃO
+        # Página 2: 3º Bim + 4º Bim + CONCEITO FINAL (por componente) + CONCLUSÃO
         elements.append(PageBreak())
         elements.append(build_combined_table(
             [('b3', 'CONCEITOS 3º BIMESTRE'),
-             ('b4', 'CONCEITOS 4º BIMESTRE')],
+             ('b4', 'CONCEITOS 4º BIMESTRE'),
+             ('final_conceito', 'CONCEITO FINAL')],
             include_result=True,
         ))
     else:
