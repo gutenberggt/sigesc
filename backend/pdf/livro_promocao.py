@@ -104,7 +104,6 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
     brasao_path = get_logo_path(logo_url) if logo_url else None
     data_extenso = f"{mun} - {uf}, {today.day} de {meses[today.month-1]} de {today.year}"
-    rodape_info = f"Documento gerado em {today.strftime('%d/%m/%Y às %H:%M')} | Total de alunos: {len(students_data)}"
     escola_nome = str(school.get('name', ''))
     turma_nome = str(class_info.get('name', ''))
     grade_level = str(class_info.get('grade_level', ''))
@@ -127,14 +126,10 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
     if not reg:
         reg = courses or []
 
-    # Estimar total de páginas
-    # Bimestres 1-4 (cada um = 1 página) + Rec1 + Rec2 + Resultado = 7 páginas base
-    # Se muitos alunos, cada tabela pode gerar 2+ páginas
-    pages_per_table = 1 if len(students_data) <= 20 else 2
-    n_tables = 7  # b1, b2, rec1, b3, b4, rec2, resultado
-    page_total = [n_tables * pages_per_table]
+    # Estimar total de páginas base (2: semestre 1 e semestre 2 + resultado)
+    page_total = [2]
 
-    # ── Canvas callback ──────────────────────────────────────
+    # ── Canvas callback: apenas cabeçalho (sem rodapé) ─────────
     def header_footer(canvas_obj, doc_obj):
         canvas_obj.saveState()
         pn = doc_obj.page
@@ -208,21 +203,6 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
             canvas_obj.drawString(MX + off + 3, by3 + 3, lbl)
             canvas_obj.setFont('Helvetica', 7)
             canvas_obj.drawString(MX + off + 3 + stringWidth(lbl + ' ', 'Helvetica-Bold', 7), by3 + 3, val)
-
-        # Rodapé só na última
-        if pn == tp:
-            canvas_obj.setFont('Helvetica', 9)
-            canvas_obj.drawCentredString(PAGE_W / 2, 3.8 * cm, data_extenso)
-            ly = 2.6 * cm
-            cl, cr, hl = PAGE_W / 2 - 5 * cm, PAGE_W / 2 + 5 * cm, 4 * cm
-            canvas_obj.line(cl - hl, ly, cl + hl, ly)
-            canvas_obj.line(cr - hl, ly, cr + hl, ly)
-            canvas_obj.setFont('Helvetica', 9)
-            canvas_obj.drawCentredString(cl, ly - 12, 'Secretário(a)')
-            canvas_obj.drawCentredString(cr, ly - 12, 'Diretor(a)')
-            canvas_obj.setFont('Helvetica', 7)
-            canvas_obj.setFillColor(colors.HexColor('#666666'))
-            canvas_obj.drawString(MX, 0.6 * cm, rodape_info)
 
         canvas_obj.restoreState()
 
@@ -301,105 +281,209 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
         tbl.setStyle(TableStyle(style))
         return tbl
 
-    # ── Helper: tabela de recuperação (só regulares) ─────────
-    def build_rec_table(rec_key, title):
-        return build_bim_table(rec_key, title, include_integral=False)
+    # ── Helper: montar tabela combinada de um semestre ─────────
+    # bloco = (bim_key, titulo). Se include_result=True, adiciona MÉDIA + CONCLUSÃO.
+    def build_combined_table(blocos, include_result=False):
+        """Monta tabela: Nº | Nome | S | [bloco1: componentes] | [bloco2] | [bloco3] [| MÉDIA | CONCLUSÃO]
+        Componentes de atendimento diferente de 'regular' são ignorados.
+        """
+        n_blocos = len(blocos)
+        comps_per_bloco = len(reg)
 
-    # ── Helper: tabela de resultado final ────────────────────
-    def build_result_table():
-        h1 = ['N°', 'NOME DO ALUNO', 'S', 'TOTAL PONTOS', 'MÉDIA FINAL', 'RESULTADO']
-        rows = [h1]
+        # ── Header 1: títulos spans ──
+        h1 = ['N°', 'NOME DO\nALUNO', 'S']
+        for _, titulo in blocos:
+            h1 += [titulo] + [''] * (comps_per_bloco - 1)
+        if include_result:
+            h1 += ['MÉDIA', 'CONCLUSÃO']
+
+        # ── Header 2: abreviações ──
+        h2 = ['', '', '']
+        for _ in blocos:
+            h2 += [Paragraph(abrev(c.get('name', '')), _STYLE_COMP_HEADER) for c in reg]
+        if include_result:
+            h2 += ['', '']
+
+        # ── Dados ──
+        rows = [h1, h2]
         for idx, st in enumerate(students_data, 1):
-            gr = st.get('grades') or {}
-            tp_val, medias = 0, []
-            for c in (courses or []):
-                gi = gr.get(c.get('id', ''), {})
-                if isinstance(gi, dict):
-                    fa = gi.get('finalAverage')
-                    if isinstance(fa, (int, float)):
-                        tp_val += fa
-                        medias.append(fa)
-            mg = tp_val / len(medias) if medias else 0
-            rows.append([
+            nome = str(st.get('studentName', '') or '')
+            nome_safe = nome.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            row = [
                 str(idx),
-                str(st.get('studentName', '') or '')[:30],
+                Paragraph(nome_safe, _STYLE_STUDENT_NAME),
                 str(st.get('sex', '-') or '-')[:1],
-                fmt(tp_val) if tp_val > 0 else '-',
-                fmt(mg) if mg > 0 else '-',
-                str(st.get('result', 'CURSANDO') or 'CURSANDO')[:20]
-            ])
+            ]
+            gr = st.get('grades') or {}
+            for bim_key, _ in blocos:
+                for c in reg:
+                    gi = gr.get(c.get('id', ''), {})
+                    if not isinstance(gi, dict):
+                        gi = {}
+                    row.append(fmt(gi.get(bim_key)))
 
-        cw = [0.6 * cm, 8 * cm, 0.5 * cm, 4 * cm, 4 * cm, 4 * cm]
-        tbl = Table(rows, colWidths=cw, repeatRows=1)
+            if include_result:
+                # Média final = média das finalAverage dos componentes regulares
+                medias = []
+                for c in reg:
+                    gi = gr.get(c.get('id', ''), {})
+                    if isinstance(gi, dict):
+                        fa = gi.get('finalAverage')
+                        if isinstance(fa, (int, float)):
+                            medias.append(fa)
+                mg = sum(medias) / len(medias) if medias else 0
+                result_raw = str(st.get('result', 'CURSANDO') or 'CURSANDO')
+                row.append(fmt(mg) if medias else '-')
+                row.append(result_raw[:14])
+            rows.append(row)
+
+        # ── Larguras ──
+        note_w = COL_NOTE_W
+        media_w = 1.1 * cm
+        result_w = 2.3 * cm
+        total_note_cols = comps_per_bloco * n_blocos
+        fixed_extra = (media_w + result_w) if include_result else 0
+        name_w = max(
+            COL_NAME_MIN,
+            USABLE_W - (COL_N_W + COL_SEX_W + total_note_cols * note_w + fixed_extra),
+        )
+        cw = [COL_N_W, name_w, COL_SEX_W] + [note_w] * total_note_cols
+        if include_result:
+            cw += [media_w, result_w]
+
+        tbl = Table(rows, colWidths=cw, repeatRows=2)
 
         style = [
+            # Cabeçalho principal
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 8),
+            ('FONTSIZE', (0, 0), (-1, 0), 7.5),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTSIZE', (0, 1), (-1, -1), 7),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
-            ('ALIGN', (1, 1), (1, -1), 'LEFT'),
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
-            ('INNERGRID', (0, 0), (-1, -1), 0.3, colors.grey),
+            # Sub-cabeçalho
+            ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#3b5998')),
+            # Dados
+            ('FONTSIZE', (0, 2), (-1, -1), 7),
+            ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
+            ('ALIGN', (0, 2), (-1, -1), 'CENTER'),
+            ('ALIGN', (1, 2), (1, -1), 'LEFT'),
+            # Bordas
+            ('BOX', (0, 0), (-1, -1), 0.8, colors.black),
+            ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#b0b0b0')),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('TOPPADDING', (0, 0), (-1, -1), 2),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+            # Separador grosso depois da coluna Sexo
+            ('LINEAFTER', (2, 0), (2, -1), 1.2, colors.black),
         ]
 
-        # Colorir resultado
-        for ri, st in enumerate(students_data, 1):
-            r = str(st.get('result', '') or '')
-            if 'APROVADO' in r and 'DEPENDÊNCIA' not in r:
-                style.append(('BACKGROUND', (5, ri), (5, ri), colors.HexColor('#c8e6c9')))
-                style.append(('TEXTCOLOR', (5, ri), (5, ri), colors.HexColor('#1b5e20')))
-                style.append(('FONTNAME', (5, ri), (5, ri), 'Helvetica-Bold'))
-            elif 'REPROVADO' in r:
-                style.append(('BACKGROUND', (5, ri), (5, ri), colors.HexColor('#ffcdd2')))
-                style.append(('TEXTCOLOR', (5, ri), (5, ri), colors.HexColor('#b71c1c')))
-                style.append(('FONTNAME', (5, ri), (5, ri), 'Helvetica-Bold'))
-            elif 'DEPENDÊNCIA' in r:
-                style.append(('BACKGROUND', (5, ri), (5, ri), colors.HexColor('#fff9c4')))
-                style.append(('FONTNAME', (5, ri), (5, ri), 'Helvetica-Bold'))
+        # Spans e separadores entre blocos
+        col_start = 3
+        for _, _ in blocos:
+            col_end = col_start + comps_per_bloco - 1
+            style.append(('SPAN', (col_start, 0), (col_end, 0)))
+            style.append(('LINEAFTER', (col_end, 0), (col_end, -1), 1.2, colors.black))
+            col_start = col_end + 1
+
+        # Colorir CONCLUSÃO
+        if include_result:
+            result_col = 3 + total_note_cols + 1
+            for ri, st in enumerate(students_data, 2):  # row 2 é o primeiro aluno (0=h1, 1=h2)
+                r = str(st.get('result', '') or '').upper()
+                if 'APROVADO' in r and 'DEPEND' not in r:
+                    style.append(('BACKGROUND', (result_col, ri), (result_col, ri), colors.HexColor('#c8e6c9')))
+                    style.append(('TEXTCOLOR', (result_col, ri), (result_col, ri), colors.HexColor('#1b5e20')))
+                    style.append(('FONTNAME', (result_col, ri), (result_col, ri), 'Helvetica-Bold'))
+                elif 'REPROVADO' in r:
+                    style.append(('BACKGROUND', (result_col, ri), (result_col, ri), colors.HexColor('#ffcdd2')))
+                    style.append(('TEXTCOLOR', (result_col, ri), (result_col, ri), colors.HexColor('#b71c1c')))
+                    style.append(('FONTNAME', (result_col, ri), (result_col, ri), 'Helvetica-Bold'))
+                elif 'DEPEND' in r:
+                    style.append(('BACKGROUND', (result_col, ri), (result_col, ri), colors.HexColor('#fff9c4')))
+                    style.append(('FONTNAME', (result_col, ri), (result_col, ri), 'Helvetica-Bold'))
 
         tbl.setStyle(TableStyle(style))
         return tbl
 
+    # ── Helper: bloco de encerramento (assinaturas + info geração) ─
+    def build_closing_block():
+        from datetime import datetime as _dt
+        gen_time = _dt.now().strftime('%d/%m/%Y às %H:%M')
+        total_alunos = len(students_data)
+
+        line_style = ParagraphStyle(
+            name='ClosingLine', fontName='Helvetica', fontSize=9, leading=11,
+            alignment=TA_CENTER, textColor=colors.black,
+        )
+        label_style = ParagraphStyle(
+            name='ClosingLabel', fontName='Helvetica-Bold', fontSize=8, leading=10,
+            alignment=TA_CENTER, textColor=colors.black,
+        )
+        info_style = ParagraphStyle(
+            name='ClosingInfo', fontName='Helvetica-Oblique', fontSize=7, leading=9,
+            alignment=TA_CENTER, textColor=colors.HexColor('#555555'),
+        )
+
+        # Cidade-UF, Data (data_extenso já contém "Cidade - UF, dd de mês de aaaa")
+        city_line = Paragraph(f'<b>{data_extenso}</b>', line_style)
+
+        # Assinaturas (tabela de 2 colunas com linha horizontal)
+        sig_row_sep = [
+            Paragraph('_' * 45, line_style),
+            Paragraph('_' * 45, line_style),
+        ]
+        sig_row_lbl = [
+            Paragraph('Secretário(a)', label_style),
+            Paragraph('Diretor(a)', label_style),
+        ]
+        sig_tbl = Table(
+            [sig_row_sep, sig_row_lbl],
+            colWidths=[USABLE_W / 2, USABLE_W / 2],
+        )
+        sig_tbl.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ]))
+
+        info_line = Paragraph(
+            f'Documento gerado em {gen_time} | Total de alunos(as): {total_alunos:02d}',
+            info_style,
+        )
+
+        return [
+            Spacer(1, 0.8 * cm),
+            city_line,
+            Spacer(1, 1.0 * cm),
+            sig_tbl,
+            Spacer(1, 0.5 * cm),
+            info_line,
+        ]
+
     # ── Montar elementos ─────────────────────────────────────
     elements = []
 
-    # Página 1: 1º Bimestre
-    elements.append(build_bim_table('b1', '1º BIMESTRE'))
+    # Página 1: 1º Bim + 2º Bim + Recuperação 1º Semestre
+    elements.append(build_combined_table(
+        [('b1', 'NOTAS 1º BIMESTRE'),
+         ('b2', 'NOTAS 2º BIMESTRE'),
+         ('rec1', 'RECUPERAÇÃO 1º SEMESTRE')],
+        include_result=False,
+    ))
 
-    # Página 2: 2º Bimestre
+    # Página 2: 3º Bim + 4º Bim + Recuperação 2º Semestre + MÉDIA + CONCLUSÃO
     elements.append(PageBreak())
-    elements.append(build_bim_table('b2', '2º BIMESTRE'))
+    elements.append(build_combined_table(
+        [('b3', 'NOTAS 3º BIMESTRE'),
+         ('b4', 'NOTAS 4º BIMESTRE'),
+         ('rec2', 'RECUPERAÇÃO 2º SEMESTRE')],
+        include_result=True,
+    ))
 
-    # Página 3: Recuperação 1º Semestre (só regulares)
-    elements.append(PageBreak())
-    elements.append(build_rec_table('rec1', 'RECUPERAÇÃO 1º SEMESTRE'))
-
-    # Página 4: 3º Bimestre
-    elements.append(PageBreak())
-    elements.append(build_bim_table('b3', '3º BIMESTRE'))
-
-    # Página 5: 4º Bimestre
-    elements.append(PageBreak())
-    elements.append(build_bim_table('b4', '4º BIMESTRE'))
-
-    # Página 6: Recuperação 2º Semestre (só regulares)
-    elements.append(PageBreak())
-    elements.append(build_rec_table('rec2', 'RECUPERAÇÃO 2º SEMESTRE'))
-
-    # Página 7: Resultado Final
-    elements.append(PageBreak())
-    elements.append(build_result_table())
-
-    # Citação ao final (última página) quando a turma é de Tempo Integral
-    if is_tempo_integral and has_integral_components:
+    # Citação (última página) quando turma é Tempo Integral
+    if is_tempo_integral:
         cit_style = ParagraphStyle(
             name='CitacaoIntegral',
             fontName='Helvetica-Oblique',
@@ -408,17 +492,21 @@ def generate_livro_promocao_pdf(school, class_info, students_data, courses, acad
             alignment=TA_CENTER,
             textColor=colors.HexColor('#333333'),
         )
-        elements.append(Spacer(1, 0.4 * cm))
+        elements.append(Spacer(1, 0.3 * cm))
         elements.append(Paragraph(
             'As atividades curriculares complementares de caráter formativo, '
             'referentes ao atendimento em tempo integral, encontram-se registradas '
             'em documento complementar (Adendo), parte integrante deste registro.',
-            cit_style
+            cit_style,
         ))
+
+    # Encerramento (apenas última página)
+    for el in build_closing_block():
+        elements.append(el)
 
     # ── Build ────────────────────────────────────────────────
     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
-        leftMargin=MX, rightMargin=MX, topMargin=3.5 * cm, bottomMargin=4.2 * cm)
+        leftMargin=MX, rightMargin=MX, topMargin=3.5 * cm, bottomMargin=1.2 * cm)
     doc.build(elements, onFirstPage=header_footer, onLaterPages=header_footer)
 
     # Atualizar total de páginas se diferente do estimado
