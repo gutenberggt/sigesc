@@ -752,7 +752,7 @@ export function Promotion() {
               
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">
-                  Turma (Ed. Infantil / 1º ao 9º Ano / EJA)
+                  Turma
                 </label>
                 <Select value={selectedClass} onValueChange={setSelectedClass} disabled={!selectedSchool}>
                   <SelectTrigger data-testid="class-select">
