@@ -1418,7 +1418,7 @@ class EnrollmentBase(BaseModel):
     student_series: Optional[str] = None
     
     # Situação
-    status: Literal['active', 'completed', 'cancelled', 'transferred'] = 'active'
+    status: Literal['active', 'completed', 'cancelled', 'transferred', 'relocated', 'progressed', 'dropout'] = 'active'
     
     # Observações
     observations: Optional[str] = None
@@ -1432,7 +1432,7 @@ class EnrollmentUpdate(BaseModel):
     enrollment_date: Optional[str] = None
     enrollment_number: Optional[str] = None
     student_series: Optional[str] = None
-    status: Optional[Literal['active', 'completed', 'cancelled', 'transferred']] = None
+    status: Optional[Literal['active', 'completed', 'cancelled', 'transferred', 'relocated', 'progressed', 'dropout']] = None
     observations: Optional[str] = None
 
 class Enrollment(EnrollmentBase):

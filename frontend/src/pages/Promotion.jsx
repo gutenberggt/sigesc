@@ -320,15 +320,33 @@ export function Promotion() {
       
       // Buscar matrículas da turma (buscar todas, depois filtrar)
       let enrollments = await fetchEnrollments({ class_id: selectedClass });
-      
+
+      // Excluir matrículas históricas (remanejamentos, progressões, cancelamentos)
+      // que ficam na turma antiga após remanejar aluno p/ outra turma.
+      // Manter apenas: ativos, transferidos (saída) e desistentes - que são os resultados válidos do livro.
+      const STATUS_VALIDOS_LIVRO = new Set([
+        'active', 'ativo',
+        'transferred', 'transferencia', 'transferido',
+        'dropout', 'desistencia', 'desistente',
+      ]);
+
+      enrollments = (enrollments || []).filter(e => {
+        const st = (e.status || 'active').toLowerCase();
+        return STATUS_VALIDOS_LIVRO.has(st);
+      });
+
       // Filtrar por ano se houver ano na matrícula, ou considerar todas
-      enrollments = (enrollments || []).filter(e => 
+      enrollments = (enrollments || []).filter(e =>
         !e.academic_year || e.academic_year === selectedYear
       );
       
       if (!enrollments || enrollments.length === 0) {
-        // Tentar buscar todas as matrículas sem filtro de ano
-        enrollments = await fetchEnrollments({ class_id: selectedClass });
+        // Tentar buscar todas as matrículas sem filtro de ano (mantendo filtro de status)
+        const rawAll = await fetchEnrollments({ class_id: selectedClass });
+        enrollments = (rawAll || []).filter(e => {
+          const st = (e.status || 'active').toLowerCase();
+          return STATUS_VALIDOS_LIVRO.has(st);
+        });
         if (!enrollments || enrollments.length === 0) {
           toast.info('Nenhum aluno matriculado nesta turma');
           setPromotionData([]);
@@ -469,10 +487,10 @@ export function Promotion() {
         // Determinar resultado final
         let result = 'CURSANDO';
         const status = studentEnrollment?.status?.toLowerCase();
-        
-        if (status === 'desistencia' || status === 'desistente') {
+
+        if (status === 'desistencia' || status === 'desistente' || status === 'dropout') {
           result = 'DESISTENTE';
-        } else if (status === 'transferencia' || status === 'transferido') {
+        } else if (status === 'transferencia' || status === 'transferido' || status === 'transferred') {
           result = 'TRANSFERIDO';
         } else {
           // Só considerar componentes REGULARES (atendimento_programa diferente de regular é formativo)

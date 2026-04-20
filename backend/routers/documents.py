@@ -1549,10 +1549,18 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             # Buscar mantenedora
             mantenedora = await get_mantenedora_cached(db)
 
-            # Buscar matrículas da turma
+            # Buscar matrículas da turma — excluir matrículas históricas (remanejamento/progressão/cancelamento)
+            # mantendo apenas: ativos, transferidos (saída) e desistentes
+            STATUS_VALIDOS_LIVRO = ['active', 'ativo',
+                                    'transferred', 'transferencia', 'transferido',
+                                    'dropout', 'desistencia', 'desistente']
             enrollments = await db.enrollments.find({
-                "class_id": class_id
+                "class_id": class_id,
+                "status": {"$in": STATUS_VALIDOS_LIVRO}
             }, {"_id": 0}).to_list(1000)
+
+            # Filtrar por ano letivo quando presente
+            enrollments = [e for e in enrollments if not e.get('academic_year') or e.get('academic_year') == academic_year]
 
             if not enrollments:
                 raise HTTPException(status_code=404, detail="Nenhum aluno matriculado nesta turma")
