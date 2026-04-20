@@ -998,7 +998,7 @@ export function Promotion() {
                       {['1º', '2º', '3º', '4º'].map((bim, bi) => (
                         <React.Fragment key={`bim-${bi}`}>
                           <th colSpan={regCourses.length} className={`px-2 py-1 text-center font-semibold border-r-2 border-slate-400 ${bi % 2 === 0 ? 'bg-blue-50' : 'bg-green-50'}`}>
-                            NOTAS {bim} BIMESTRE
+                            {usaConceito ? `CONCEITOS ${bim} BIMESTRE` : `NOTAS ${bim} BIMESTRE`}
                           </th>
                           {/* Recuperação — apenas turmas com avaliação numérica (Ed. Infantil, 1º/2º Ano não têm) */}
                           {!usaConceito && (bi === 1) && (
