@@ -18,13 +18,23 @@ export const EDUCATION_LEVEL_LABELS = {
 export const inferEducationLevel = (classInfo) => {
   if (!classInfo) return '';
   const explicit = (classInfo.education_level || classInfo.nivel_ensino || classInfo.level || '').toLowerCase();
-  if (explicit && explicit !== '') return explicit;
   const ref = (classInfo.grade_level || classInfo.name || '').toUpperCase();
+
+  // Se explicit for 'eja' genérico, refinar usando grade_level para distinguir inicial/final
+  if (explicit === 'eja') {
+    if (/FINAL|ANOS?\s*FINAI|[6-9]|3[ªº°]?\s*ETAPA|4[ªº°]?\s*ETAPA|TERCEIRA\s*ETAPA|QUARTA\s*ETAPA/.test(ref)) return 'eja_final';
+    if (/1[ªº°]?\s*ETAPA|2[ªº°]?\s*ETAPA|PRIMEIRA\s*ETAPA|SEGUNDA\s*ETAPA/.test(ref)) return 'eja_inicial';
+    return 'eja';
+  }
+  if (explicit && explicit !== '') return explicit;
   if (/PRÉ[- ]?ESCOLA|BERÇÁRIO|MATERNAL|CRECHE|INFANTIL/.test(ref)) return 'educacao_infantil';
   if (/\bEJA\b/.test(ref)) {
-    if (/FINAL|ANOS?\s*FINAI|[6-9]/.test(ref)) return 'eja_final';
+    if (/FINAL|ANOS?\s*FINAI|[6-9]|3[ªº°]?\s*ETAPA|4[ªº°]?\s*ETAPA|TERCEIRA\s*ETAPA|QUARTA\s*ETAPA/.test(ref)) return 'eja_final';
     return 'eja_inicial';
   }
+  // EJA sem o rótulo "EJA" no nome, mas com grade_level indicando etapa:
+  if (/3[ªº°]?\s*ETAPA|4[ªº°]?\s*ETAPA|TERCEIRA\s*ETAPA|QUARTA\s*ETAPA/.test(ref)) return 'eja_final';
+  if (/1[ªº°]?\s*ETAPA|2[ªº°]?\s*ETAPA|PRIMEIRA\s*ETAPA|SEGUNDA\s*ETAPA/.test(ref)) return 'eja_inicial';
   const match = ref.match(/(\d+)[ºª°]?\s*(ANO|SÉRIE)/i);
   if (match) {
     const num = parseInt(match[1]);

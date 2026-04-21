@@ -133,7 +133,9 @@ export const LearningObjects = () => {
     if (!selectedClassInfo) return false;
     const level = inferEducationLevel(selectedClassInfo);
     const name = (selectedClassInfo.name || '').toUpperCase();
-    if (level === 'eja') return true;
+    // EJA Anos Finais (3ª/4ª Etapa) exige componente por PDF, assim como 6º-9º Ano.
+    // EJA 1ª/2ª Etapa não (professor único, mesma lógica de Anos Iniciais).
+    if (level === 'eja' || level === 'eja_final') return true;
     if (level === 'fundamental' || level === 'fundamental_anos_finais') {
       const grade = selectedClassInfo.grade_level || '';
       if (['6', '7', '8', '9'].includes(grade)) return true;
