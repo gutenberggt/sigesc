@@ -133,3 +133,25 @@ alunos de uma escola), preferir:
    em vez de acumular em `BytesIO` completo.
 
 Evite bloquear o event loop por mais de 2 segundos.
+
+## 🚀 Padrão Async Job (já implementado)
+
+Existe em `backend/pdf_jobs.py` um registry de jobs em memória + endpoints:
+
+- `POST /api/documents/jobs/promotion/{class_id}?academic_year=Y` → inicia, devolve `{job_id}`.
+- `GET /api/documents/jobs/{job_id}/status` → `{status, progress, message, filename, error}`.
+- `GET /api/documents/jobs/{job_id}/download` → baixa o PDF pronto.
+
+Frontend (ex.: `Promotion.jsx::handleDownloadPDF`) faz polling a cada 500ms
+e exibe um modal com barra de progresso + mensagem de estágio:
+`Iniciando...` → `Carregando turma e escola...` → `Consolidando matrículas...`
+→ `Carregando notas...` → `Calculando médias...` → `Renderizando PDF...` → `Concluído`.
+
+**Para aplicar o mesmo padrão em outros PDFs pesados:**
+1. Extrair a lógica do endpoint GET em uma função `async _build_xxx_pdf(..., progress_cb=None) → (bytes, filename)`.
+2. Instrumentar `progress_cb(pct, msg)` em milestones (buscar dados / agregar / render).
+3. Criar endpoint `POST /documents/jobs/xxx/...` espelhando o shape do Livro de Promoção.
+4. O front usa o mesmo fluxo (dispatch → poll → download).
+
+Jobs expiram 10 min após conclusão — limpeza automática.
+

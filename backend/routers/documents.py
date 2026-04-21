@@ -1540,10 +1540,34 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         - Resultado final (Aprovado/Reprovado/etc)
         """
         current_user = await AuthMiddleware.get_current_user(request)
+        try:
+            pdf_bytes, filename = await _build_livro_promocao_pdf(class_id, academic_year)
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'inline; filename="{filename}"'}
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            logger.error(f"Erro ao gerar Livro de Promoção: {e}\n{tb}")
+            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+
+
+    async def _build_livro_promocao_pdf(class_id: str, academic_year: int, progress_cb=None):
+        """Constrói o Livro de Promoção (bytes, filename). Reutilizada pelo endpoint sync e pelo job async."""
+        def _p(pct, msg=''):
+            if progress_cb:
+                try:
+                    progress_cb(pct, msg)
+                except Exception:
+                    pass
 
         try:
             import asyncio as _asyncio_lp
-            # Buscar turma, escola (via school_id obtido de turma) e mantenedora em paralelo sempre que possível
+            _p(10, 'Carregando turma e escola...')
             class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
             if not class_info:
                 raise HTTPException(status_code=404, detail="Turma não encontrada")
@@ -1564,6 +1588,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             )
             if not school:
                 school = {"name": "Escola Municipal"}
+            _p(25, 'Consolidando matrículas...')
 
             enrollments = [e for e in enrollments if not e.get('academic_year') or e.get('academic_year') == academic_year]
 
@@ -1624,6 +1649,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
             # Criar mapa de componentes
             courses_map = {c.get("id"): c for c in courses}
+            _p(45, 'Carregando notas dos alunos...')
 
             # Mapa de enrollments por student_id (para resolver status)
             enrollments_by_sid = {e.get("student_id"): e for e in enrollments}
@@ -1641,6 +1667,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 if sid not in grades_by_student:
                     grades_by_student[sid] = []
                 grades_by_student[sid].append(g)
+            _p(60, 'Calculando médias e resultados...')
 
             # Processar dados de cada aluno (fonte primária = students_map)
             students_data = []
@@ -1753,6 +1780,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
             # Obter Nº do Livro (cria se não existir)
             book_number = await _get_or_create_book_number(class_id, academic_year)
+            _p(80, 'Renderizando PDF (isso pode levar alguns segundos)...')
 
             # Gerar PDF
             pdf_buffer = generate_livro_promocao_pdf(
@@ -1768,14 +1796,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             # Gerar nome do arquivo
             turma_nome = class_info.get("name", "turma").replace(" ", "_")
             filename = f"livro_promocao_{turma_nome}_{academic_year}.pdf"
-
-            return Response(
-                content=pdf_buffer.getvalue(),
-                media_type="application/pdf",
-                headers={
-                    "Content-Disposition": f'inline; filename="{filename}"'
-                }
-            )
+            _p(95, 'Finalizando...')
+            return pdf_buffer.getvalue(), filename
 
         except HTTPException:
             raise
@@ -1783,7 +1805,84 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             import traceback
             tb = traceback.format_exc()
             logger.error(f"Erro ao gerar Livro de Promoção: {e}\n{tb}")
-            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}\n{tb}")
+            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+
+
+    # ===== PDF JOBS ASSÍNCRONOS =====
+    # Reduz percepção de lentidão com progress bar + polling.
+    # ⚠️  PERFORMANCE — LEIA /app/docs/pdf-performance.md ANTES DE ALTERAR ⚠️
+    from pdf_jobs import job_registry
+
+    @router.post("/documents/jobs/promotion/{class_id}")
+    async def start_livro_promocao_job(
+        class_id: str,
+        academic_year: int = 2025,
+        request: Request = None,
+    ):
+        """Inicia job assíncrono do Livro de Promoção e devolve job_id para polling."""
+        await AuthMiddleware.get_current_user(request)
+        job = job_registry.create()
+
+        async def _runner():
+            try:
+                def _progress(pct, msg=''):
+                    job_registry.update(job.id, progress=max(5, min(95, pct)), message=msg, status='running')
+                job_registry.update(job.id, status='running', progress=5, message='Iniciando...')
+                pdf_bytes, filename = await _build_livro_promocao_pdf(class_id, academic_year, progress_cb=_progress)
+                import time as _t
+                job_registry.update(
+                    job.id, status='done', progress=100, message='Concluído',
+                    pdf_bytes=pdf_bytes, filename=filename, done_at=_t.time(),
+                )
+            except HTTPException as he:
+                import time as _t
+                job_registry.update(
+                    job.id, status='error', error=he.detail or 'Erro',
+                    message='Erro', done_at=_t.time(),
+                )
+            except Exception as e:  # noqa: BLE001
+                import time as _t
+                import traceback as _tb
+                logger.error(f"Job PDF {job.id} falhou: {e}\n{_tb.format_exc()}")
+                job_registry.update(
+                    job.id, status='error', error=str(e) or 'Erro interno',
+                    message='Erro', done_at=_t.time(),
+                )
+
+        import asyncio as _asy
+        _asy.create_task(_runner())
+        return {"job_id": job.id, "status": "queued"}
+
+    @router.get("/documents/jobs/{job_id}/status")
+    async def get_pdf_job_status(job_id: str, request: Request = None):
+        """Polling do progresso do job de PDF."""
+        await AuthMiddleware.get_current_user(request)
+        job = job_registry.get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job não encontrado ou expirado")
+        return {
+            "job_id": job.id,
+            "status": job.status,
+            "progress": job.progress,
+            "message": job.message,
+            "filename": job.filename,
+            "error": job.error,
+        }
+
+    @router.get("/documents/jobs/{job_id}/download")
+    async def download_pdf_job(job_id: str, request: Request = None):
+        """Baixa o PDF de um job concluído."""
+        await AuthMiddleware.get_current_user(request)
+        job = job_registry.get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job não encontrado ou expirado")
+        if job.status != 'done' or not job.pdf_bytes:
+            raise HTTPException(status_code=409, detail=f"Job ainda não concluído (status={job.status})")
+        return Response(
+            content=job.pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{job.filename}"'}
+        )
 
 
     @router.get("/documents/batch/{class_id}/{document_type}")

@@ -231,6 +231,9 @@ export function Promotion() {
   // Filtro de visualização rápida (resultado final)
   const [quickFilter, setQuickFilter] = useState('TODOS');
 
+  // Progresso de geração do PDF (0-100 + mensagem)
+  const [pdfProgress, setPdfProgress] = useState(null); // { progress, message, status } | null
+
   // Processed data
   const [promotionData, setPromotionData] = useState([]);
 
@@ -635,44 +638,72 @@ export function Promotion() {
     }
   };
 
-  // Gerar PDF do Livro de Promoção
+  // Gerar PDF do Livro de Promoção (fluxo assíncrono com barra de progresso)
   const handleDownloadPDF = async () => {
     if (!selectedClass) {
       toast.error('Selecione uma turma');
       return;
     }
-    
+
+    const authHeaders = { 'Authorization': `Bearer ${accessToken}` };
+    setPdfProgress({ progress: 3, message: 'Enfileirando...', status: 'queued' });
+
     try {
-      setLoading(true);
-      const response = await fetch(
-        `${API_URL}/api/documents/promotion/${selectedClass}?academic_year=${selectedYear}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        }
+      // 1) Dispara o job
+      const startResp = await fetch(
+        `${API_URL}/api/documents/jobs/promotion/${selectedClass}?academic_year=${selectedYear}`,
+        { method: 'POST', headers: authHeaders }
       );
-      
-      if (!response.ok) {
-        throw new Error('Erro ao gerar PDF');
+      if (!startResp.ok) throw new Error('Falha ao iniciar a geração');
+      const { job_id } = await startResp.json();
+
+      // 2) Polling a cada 500ms
+      let attempts = 0;
+      let lastStatus = null;
+      while (attempts < 120) { // até 60s
+        attempts += 1;
+        await new Promise(r => setTimeout(r, 500));
+        const stResp = await fetch(
+          `${API_URL}/api/documents/jobs/${job_id}/status`,
+          { headers: authHeaders }
+        );
+        if (!stResp.ok) throw new Error('Erro ao verificar status do PDF');
+        lastStatus = await stResp.json();
+        setPdfProgress({
+          progress: lastStatus.progress || 0,
+          message: lastStatus.message || 'Processando...',
+          status: lastStatus.status,
+        });
+        if (lastStatus.status === 'done' || lastStatus.status === 'error') break;
       }
-      
-      const blob = await response.blob();
+      if (!lastStatus || lastStatus.status !== 'done') {
+        throw new Error(lastStatus?.error || 'Tempo limite esgotado. Tente novamente.');
+      }
+
+      // 3) Download
+      setPdfProgress({ progress: 100, message: 'Baixando...', status: 'done' });
+      const dlResp = await fetch(
+        `${API_URL}/api/documents/jobs/${job_id}/download`,
+        { headers: authHeaders }
+      );
+      if (!dlResp.ok) throw new Error('Falha ao baixar o PDF');
+      const blob = await dlResp.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `livro_promocao_${selectedYear}.pdf`;
+      a.download = lastStatus.filename || `livro_promocao_${selectedYear}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast.success('PDF gerado com sucesso!');
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
-      toast.error('Erro ao gerar PDF. Verifique se o endpoint está disponível.');
+      toast.error(error.message || 'Erro ao gerar PDF.');
     } finally {
-      setLoading(false);
+      // Fecha o modal de progresso com um leve delay para o usuário ver o 100%
+      setTimeout(() => setPdfProgress(null), 600);
     }
   };
 
@@ -1179,6 +1210,49 @@ export function Promotion() {
           </Card>
         )}
       </div>
+
+      {/* Modal de progresso de geração do PDF */}
+      {pdfProgress && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          data-testid="pdf-progress-overlay"
+        >
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4" data-testid="pdf-progress-modal">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                {pdfProgress.status === 'error' ? (
+                  <span className="text-red-600 text-xl font-bold">!</span>
+                ) : pdfProgress.status === 'done' ? (
+                  <span className="text-emerald-600 text-xl">✓</span>
+                ) : (
+                  <Loader2 className="h-5 w-5 text-emerald-600 animate-spin" />
+                )}
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Gerando Livro de Promoção</h3>
+                <p className="text-xs text-gray-500">Turma: {selectedClassInfo?.name} · {selectedYear}</p>
+              </div>
+            </div>
+
+            <div className="mb-2 flex justify-between text-xs font-medium text-gray-600">
+              <span data-testid="pdf-progress-message">{pdfProgress.message}</span>
+              <span data-testid="pdf-progress-percent">{pdfProgress.progress}%</span>
+            </div>
+            <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-300 ease-out ${
+                  pdfProgress.status === 'error' ? 'bg-red-500' : 'bg-emerald-500'
+                }`}
+                style={{ width: `${Math.max(3, pdfProgress.progress)}%` }}
+              />
+            </div>
+
+            <p className="mt-4 text-[11px] text-gray-400 leading-relaxed">
+              Sua mantenedora, escola e componentes estão em cache — subsequentes ficam ainda mais rápidos.
+            </p>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
