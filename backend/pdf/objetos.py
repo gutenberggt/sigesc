@@ -94,7 +94,17 @@ def generate_learning_objects_pdf(
     turno = turnos.get(class_info.get('shift', ''), class_info.get('shift', ''))
     serie = format_serie_multigrade(class_info) or class_info.get('grade', class_info.get('grade_level', class_info.get('name', '')))
     is_infantil = education_level == 'educacao_infantil'
-    is_dias = education_level in ('educacao_infantil', 'fundamental_anos_iniciais', 'eja', 'eja_inicial')
+
+    # 3ª/4ª Etapa (EJA Anos Finais) devem ter o mesmo layout do 6º ao 9º Ano (com AULAS por componente),
+    # mesmo quando cadastradas com education_level='eja' genérico.
+    grade_lower = (class_info.get('grade_level') or '').lower().strip()
+    is_eja_anos_finais_por_etapa = any(t in grade_lower for t in (
+        '3ª etapa', '3° etapa', '3 etapa', 'terceira etapa',
+        '4ª etapa', '4° etapa', '4 etapa', 'quarta etapa',
+    ))
+
+    is_dias = (education_level in ('educacao_infantil', 'fundamental_anos_iniciais', 'eja', 'eja_inicial')
+               and not is_eja_anos_finais_por_etapa)
     label_componente = 'Campo de Experiência' if is_infantil else 'Componente Curricular'
     
     # Totais para o cabeçalho
