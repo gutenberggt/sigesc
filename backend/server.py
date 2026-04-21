@@ -194,6 +194,28 @@ async def create_indexes():
         # Índices para courses (componentes)
         await db.courses.create_index("id", unique=True)
         await db.courses.create_index("nivel_ensino")
+
+        # ===== ÍNDICES ADICIONAIS PARA PERFORMANCE DE PDFs (2026-02) =====
+        # learning_objects PDF: busca por class_id + academic_year + date (range)
+        await db.learning_objects.create_index(
+            [("class_id", 1), ("academic_year", 1), ("date", 1)],
+            name="lo_class_year_date"
+        )
+        await db.learning_objects.create_index(
+            [("class_id", 1), ("course_id", 1), ("academic_year", 1)],
+            name="lo_class_course_year"
+        )
+        # enrollments por class_id+status (Livro de Promoção filtra por status)
+        await db.enrollments.create_index(
+            [("class_id", 1), ("status", 1), ("academic_year", 1)],
+            name="enr_class_status_year"
+        )
+        # calendar_events filtrados por academic_year (tipo string ou int)
+        await db.calendar_events.create_index("academic_year", name="calevents_year")
+        # calendario_letivo por ano_letivo
+        await db.calendario_letivo.create_index(
+            [("ano_letivo", 1), ("school_id", 1)], name="cal_year_school"
+        )
         
         # Índices para schools
         await db.schools.create_index("id", unique=True)

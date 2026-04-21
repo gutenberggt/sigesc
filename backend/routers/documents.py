@@ -1,6 +1,12 @@
 """
 Router para Documentos.
 Extraído automaticamente de server.py.
+
+⚠️  PERFORMANCE — LEIA /app/docs/pdf-performance.md ANTES DE ALTERAR ⚠️
+   - Nenhum find_one() em loop: use $in.
+   - Queries independentes em asyncio.gather.
+   - Cache global (_doc_cache / pdf_cache) para mantenedora/escola.
+   - Notas em lote (grades) quando processar vários alunos.
 """
 
 from fastapi import APIRouter, HTTPException, status, Request, Response
@@ -1536,34 +1542,29 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         current_user = await AuthMiddleware.get_current_user(request)
 
         try:
-            # Buscar turma
+            import asyncio as _asyncio_lp
+            # Buscar turma, escola (via school_id obtido de turma) e mantenedora em paralelo sempre que possível
             class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
             if not class_info:
                 raise HTTPException(status_code=404, detail="Turma não encontrada")
 
-            # Buscar escola
-            school = await get_school_cached(db, class_info.get("school_id"))
-            if not school:
-                school = {"name": "Escola Municipal"}
-
-            # Buscar mantenedora
-            mantenedora = await get_mantenedora_cached(db)
-
-            # ===== FONTES DE ALUNOS =====
-            # Fonte primária: alunos pelo campo class_id (mesma base da tela de Cadastro de Alunos).
-            # Isso garante consistência: o livro mostra os mesmos alunos listados na secretaria.
-            primary_students = await db.students.find({
-                "class_id": class_id
-            }, {"_id": 0}).to_list(2000)
-
-            # Fonte complementar: matrículas para capturar histórico (transferidos/desistentes)
+            school_task = get_school_cached(db, class_info.get("school_id"))
+            mantenedora_task = get_mantenedora_cached(db)
+            primary_students_task = db.students.find({"class_id": class_id}, {"_id": 0}).to_list(2000)
             STATUS_VALIDOS_LIVRO = ['active', 'ativo',
                                     'transferred', 'transferencia', 'transferido',
                                     'dropout', 'desistencia', 'desistente']
-            enrollments = await db.enrollments.find({
+            enrollments_task = db.enrollments.find({
                 "class_id": class_id,
                 "status": {"$in": STATUS_VALIDOS_LIVRO}
             }, {"_id": 0}).to_list(2000)
+
+            school, mantenedora, primary_students, enrollments = await _asyncio_lp.gather(
+                school_task, mantenedora_task, primary_students_task, enrollments_task
+            )
+            if not school:
+                school = {"name": "Escola Municipal"}
+
             enrollments = [e for e in enrollments if not e.get('academic_year') or e.get('academic_year') == academic_year]
 
             # Unir alunos: primários + complementares (via enrollments, ex: transferidos que já mudaram de class_id)
@@ -1627,17 +1628,28 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             # Mapa de enrollments por student_id (para resolver status)
             enrollments_by_sid = {e.get("student_id"): e for e in enrollments}
 
+            # PERFORMANCE: buscar TODAS as notas da turma em uma única query (evita N+1)
+            all_student_ids = list(students_map.keys())
+            all_grades_cursor = db.grades.find({
+                "student_id": {"$in": all_student_ids},
+                "academic_year": academic_year
+            }, {"_id": 0})
+            all_grades = await all_grades_cursor.to_list(length=None)
+            grades_by_student: dict = {}
+            for g in all_grades:
+                sid = g.get("student_id")
+                if sid not in grades_by_student:
+                    grades_by_student[sid] = []
+                grades_by_student[sid].append(g)
+
             # Processar dados de cada aluno (fonte primária = students_map)
             students_data = []
 
             for student_id, student in students_map.items():
                 enrollment = enrollments_by_sid.get(student_id, {})
 
-                # Buscar notas do aluno
-                grades = await db.grades.find({
-                    "student_id": student_id,
-                    "academic_year": academic_year
-                }, {"_id": 0}).to_list(500)
+                # Notas do aluno (vêm do batch acima)
+                grades = grades_by_student.get(student_id, [])
 
                 # Organizar notas por componente
                 grades_by_component = {}

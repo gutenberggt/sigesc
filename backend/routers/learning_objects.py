@@ -1,6 +1,11 @@
 """
 Router para Objetos de Aprendizagem.
 Extraído automaticamente de server.py.
+
+⚠️  PERFORMANCE — LEIA /app/docs/pdf-performance.md ANTES DE ALTERAR ⚠️
+   - Nenhum find_one() em loop: use $in.
+   - Queries independentes em asyncio.gather.
+   - Cache global via pdf_cache (mantenedora/calendário/escola).
 """
 
 from fastapi import APIRouter, HTTPException, Request, Query
@@ -12,6 +17,7 @@ import logging
 from models import *
 from auth_middleware import AuthMiddleware
 from pdf_generator import generate_learning_objects_pdf
+from pdf_cache import get_mantenedora_cached, get_calendario_cached, get_school_cached
 from text_utils import format_data_uppercase
 
 logger = logging.getLogger(__name__)
@@ -232,29 +238,24 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if not academic_year:
             academic_year = datetime.now().year
 
-        # Buscar dados em paralelo para acelerar
+        # Buscar dados em paralelo para acelerar (mantenedora e calendário com cache TTL)
         import asyncio
         turma_task = db.classes.find_one({"id": class_id}, {"_id": 0})
-        mantenedora_task = db.mantenedora.find_one({}, {"_id": 0})
-        calendario_task = db.calendario_letivo.find_one(
-            {"ano_letivo": academic_year, "school_id": None}, {"_id": 0}
-        )
-        
+        mantenedora_task = get_mantenedora_cached(db)
+        calendario_task = get_calendario_cached(db, academic_year, None)
+
         turma, mantenedora, calendario = await asyncio.gather(
             turma_task, mantenedora_task, calendario_task
         )
-        
+
         if not turma:
             raise HTTPException(status_code=404, detail="Turma não encontrada")
 
-        school = await db.schools.find_one({"id": turma.get('school_id')}, {"_id": 0})
+        school = await get_school_cached(db, turma.get('school_id'))
         if not school:
             raise HTTPException(status_code=404, detail="Escola não encontrada")
 
-        if not calendario:
-            calendario = await db.calendario_letivo.find_one(
-                {"ano_letivo": academic_year}, {"_id": 0}
-            )
+        # calendario pode vir None se não houver para o ano — get_calendario_cached já faz fallback
 
         bk_inicio = f"bimestre_{bimestre}_inicio"
         bk_fim = f"bimestre_{bimestre}_fim"
@@ -282,14 +283,18 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         records = await db.learning_objects.find(query, {"_id": 0}).sort("date", 1).to_list(1000)
 
-        # Enriquecer com nomes dos componentes
+        # Enriquecer com nomes dos componentes (1 query batch, não N+1)
+        course_ids_unicos = list({r.get('course_id') for r in records if r.get('course_id')})
         course_names = {}
+        if course_ids_unicos:
+            cursor = db.courses.find(
+                {"id": {"$in": course_ids_unicos}},
+                {"_id": 0, "id": 1, "name": 1}
+            )
+            async for c in cursor:
+                course_names[c['id']] = c.get('name', '')
         for r in records:
-            cid = r.get('course_id')
-            if cid and cid not in course_names:
-                course = await db.courses.find_one({"id": cid}, {"_id": 0, "name": 1})
-                course_names[cid] = course.get('name', '') if course else ''
-            r['course_name'] = course_names.get(cid, '')
+            r['course_name'] = course_names.get(r.get('course_id'), '')
 
         # Buscar professor (se course_id, buscar professor específico do componente)
         teacher_name = ""
