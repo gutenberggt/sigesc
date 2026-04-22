@@ -278,5 +278,153 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         return report
 
 
+    @router.post("/mantenedora/_migrate_legacy")
+    async def migrate_legacy_mantenedora(request: Request):
+        """Migra dados da collection legacy `mantenedora` (singular) para a
+        primeira entrada em `mantenedoras` (plural), preservando campos existentes.
+        
+        Use em produção quando a mantenedora plural foi criada vazia pelo bootstrap
+        (só com id/name) mas os dados reais (nome, cnpj, endereço, brasão) estão na
+        coleção antiga singular.
+        
+        Idempotente: só copia campos que estão ausentes/vazios na nova mantenedora.
+        """
+        try:
+            current_user = await AuthMiddleware.get_current_user(request)
+        except Exception as e:
+            raise HTTPException(status_code=401, detail=str(e))
+        
+        if not is_super_admin(current_user):
+            raise HTTPException(status_code=403, detail="Apenas super_admin pode migrar dados legacy")
+        
+        current_db = get_db_for_user(current_user)
+        report = {"actions": []}
+        
+        # 1. Busca doc legacy em db.mantenedora (singular)
+        legacy_doc = None
+        try:
+            legacy_doc = await current_db.mantenedora.find_one({}, {"_id": 0})
+        except Exception as e:
+            report["actions"].append(f"erro ao ler legacy: {e}")
+        
+        if not legacy_doc:
+            # Tenta também buscar em mantenedoras (plural) qualquer doc com dados ricos
+            try:
+                total = await current_db.mantenedoras.count_documents({})
+                if total > 1:
+                    # Procura doc com nome preenchido e campos típicos
+                    rich_doc = await current_db.mantenedoras.find_one(
+                        {"$and": [
+                            {"nome": {"$exists": True, "$ne": "", "$ne": None}},
+                            {"$or": [
+                                {"cnpj": {"$ne": ""}},
+                                {"brasao_url": {"$ne": ""}},
+                                {"logotipo_url": {"$ne": ""}},
+                            ]},
+                        ]},
+                        {"_id": 0},
+                    )
+                    if rich_doc:
+                        legacy_doc = rich_doc
+                        report["actions"].append(
+                            f"usando mantenedora rica existente como source: {rich_doc.get('nome')}"
+                        )
+            except Exception as e:
+                report["actions"].append(f"erro ao buscar mantenedora rica: {e}")
+        
+        if not legacy_doc:
+            report["actions"].append("ABORTADO: nenhum doc legacy encontrado em db.mantenedora")
+            return report
+        
+        report["legacy_found"] = {
+            "nome": legacy_doc.get("nome") or legacy_doc.get("name"),
+            "cnpj": legacy_doc.get("cnpj"),
+            "brasao_url": legacy_doc.get("brasao_url") or legacy_doc.get("logotipo_url"),
+        }
+        
+        # 2. Pega a PRIMEIRA mantenedora ativa/default no plural
+        try:
+            target = await current_db.mantenedoras.find_one({}, {"_id": 0}, sort=[("created_at", 1)])
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Erro ao buscar target: {e}")
+        
+        if not target:
+            # Se não há target, cria uma com os dados legacy diretamente
+            new_id = legacy_doc.get("id") or str(uuid.uuid4())
+            legacy_doc["id"] = new_id
+            legacy_doc["created_at"] = legacy_doc.get("created_at") or datetime.now(timezone.utc).isoformat()
+            try:
+                await current_db.mantenedoras.insert_one(dict(legacy_doc))
+                report["actions"].append(f"mantenedora criada com dados legacy (id={new_id})")
+                report["target_id"] = new_id
+                return report
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Erro ao inserir: {e}")
+        
+        target_id = target.get("id")
+        report["target_id"] = target_id
+        
+        # 3. Copia campos do legacy que estão ausentes/vazios no target
+        fields_to_copy = [
+            "nome", "cnpj", "codigo_inep", "natureza_juridica",
+            "logotipo_url", "brasao_url", "slogan", "secretaria",
+            "media_aprovacao", "frequencia_minima",
+            "aprovacao_com_dependencia", "max_componentes_dependencia",
+            "cursar_apenas_dependencia", "qtd_componentes_apenas_dependencia",
+            "cep", "logradouro", "numero", "complemento", "bairro",
+            "municipio", "estado",
+            "telefone", "celular", "email", "site",
+            "contato_nome", "contato_cargo",
+            "responsavel_nome", "responsavel_cargo", "responsavel_cpf",
+            "responsavel_celular", "responsavel_email",
+            "exibir_pre_matricula", "mensagem_destaque", "mensagem_destaque_cor",
+        ]
+        
+        updates = {}
+        for field in fields_to_copy:
+            legacy_val = legacy_doc.get(field)
+            target_val = target.get(field)
+            # Copia se legacy tem valor E target está vazio/ausente
+            if legacy_val not in (None, "", 0) and target_val in (None, "", 0, False):
+                updates[field] = legacy_val
+        
+        # Caso especial: se target tem name mas não nome, usa name
+        if not target.get("nome") and target.get("name"):
+            updates["nome"] = target["name"]
+        # Se legacy tem "name" mas não "nome"
+        if "nome" not in updates and legacy_doc.get("name") and not target.get("nome"):
+            updates["nome"] = legacy_doc["name"]
+        
+        if updates:
+            updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+            try:
+                await current_db.mantenedoras.update_one(
+                    {"id": target_id},
+                    {"$set": updates},
+                )
+                report["actions"].append(f"copiados {len(updates)} campos para mantenedora {target_id}")
+                report["fields_copied"] = list(updates.keys())
+            except Exception as e:
+                report["actions"].append(f"erro no update: {e}")
+        else:
+            report["actions"].append("target já tem todos os campos preenchidos; nada a copiar")
+        
+        # 4. Retorna a mantenedora atualizada para confirmação
+        try:
+            final = await current_db.mantenedoras.find_one({"id": target_id}, {"_id": 0})
+            report["final_state"] = {
+                "id": final.get("id"),
+                "nome": final.get("nome") or final.get("name"),
+                "cnpj": final.get("cnpj"),
+                "brasao_url": final.get("brasao_url") or final.get("logotipo_url"),
+                "municipio": final.get("municipio"),
+                "secretaria": final.get("secretaria"),
+            }
+        except Exception:
+            pass
+        
+        return report
+
+
 
     return router
