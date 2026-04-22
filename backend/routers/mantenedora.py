@@ -165,5 +165,118 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             return {"auth_ok": True, "db_error": str(e)}
 
 
+    @router.post("/mantenedora/_heal")
+    async def heal_mantenedora(request: Request):
+        """Executa migração self-heal SOB DEMANDA. 
+        
+        Disponível para qualquer usuário autenticado, MAS:
+        - Só promove o user atual a super_admin se AINDA NÃO existir nenhum super_admin
+          no sistema (bootstrap-once).
+        - Backfill de mantenedora_id em todas as coleções é sempre executado (idempotente).
+        
+        Retorna relatório do que foi feito.
+        """
+        try:
+            current_user = await AuthMiddleware.get_current_user(request)
+        except Exception as e:
+            raise HTTPException(status_code=401, detail=str(e))
+        
+        current_db = get_db_for_user(current_user)
+        report = {"user_email": current_user.get("email"), "actions": []}
+        
+        # 1. Verifica se já existe super_admin
+        try:
+            existing_super = await current_db.users.find_one(
+                {"$or": [{"role": "super_admin"}, {"roles": "super_admin"}]},
+                {"_id": 0, "id": 1, "email": 1},
+            )
+        except Exception as e:
+            existing_super = None
+            report["actions"].append(f"erro ao verificar super_admin: {e}")
+        
+        # 2. Se não há super_admin, promove o user ATUAL (self-bootstrap)
+        if not existing_super and current_user.get("id"):
+            try:
+                await current_db.users.update_one(
+                    {"id": current_user["id"]},
+                    {"$set": {"role": "super_admin", "is_primary": True}},
+                )
+                report["actions"].append(
+                    f"{current_user.get('email')} promovido a super_admin + is_primary=True"
+                )
+            except Exception as e:
+                report["actions"].append(f"erro ao promover user: {e}")
+        elif existing_super:
+            report["actions"].append(
+                f"super_admin já existe ({existing_super.get('email')}); pulando promoção"
+            )
+        
+        # 3. Garante que há pelo menos uma mantenedora
+        try:
+            total_mant = await current_db.mantenedoras.count_documents({})
+        except Exception as e:
+            total_mant = 0
+            report["actions"].append(f"erro ao contar mantenedoras: {e}")
+        
+        if total_mant == 0:
+            new_mant = {
+                "id": str(uuid.uuid4()),
+                "nome": "Mantenedora Principal",
+                "cnpj": "",
+                "codigo_inep": "",
+                "natureza_juridica": "Pública Municipal",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            try:
+                await current_db.mantenedoras.insert_one(dict(new_mant))
+                report["actions"].append(f"mantenedora default criada (id={new_mant['id']})")
+            except Exception as e:
+                report["actions"].append(f"erro ao criar mantenedora default: {e}")
+        
+        # 4. Pega a primeira mantenedora para backfill
+        first_mant = None
+        try:
+            first_mant = await current_db.mantenedoras.find_one({}, {"_id": 0})
+        except Exception as e:
+            report["actions"].append(f"erro ao buscar mantenedora: {e}")
+        
+        if not first_mant:
+            report["actions"].append("ABORTADO: nenhuma mantenedora disponível para backfill")
+            return report
+        
+        mant_id = first_mant.get("id")
+        report["mantenedora_id"] = mant_id
+        report["mantenedora_nome"] = first_mant.get("nome")
+        
+        # 5. Backfill mantenedora_id em todas as coleções tenant-scoped
+        total_healed = 0
+        healed_detail = {}
+        for coll in ("schools", "staff", "students", "classes", "courses",
+                     "enrollments", "grades", "learning_objects", "calendar_events",
+                     "calendario_letivo", "school_assignments", "teacher_assignments",
+                     "payroll_items", "announcements", "users", "pre_matriculas",
+                     "mantenedora_documentos"):
+            try:
+                res = await current_db[coll].update_many(
+                    {"$or": [
+                        {"mantenedora_id": {"$exists": False}},
+                        {"mantenedora_id": None},
+                        {"mantenedora_id": ""},
+                    ]},
+                    {"$set": {"mantenedora_id": mant_id}},
+                )
+                if res.modified_count:
+                    total_healed += res.modified_count
+                    healed_detail[coll] = res.modified_count
+            except Exception as e:
+                healed_detail[coll] = f"erro: {e}"
+        
+        report["backfill_total"] = total_healed
+        report["backfill_detail"] = healed_detail
+        report["actions"].append(f"backfill mantenedora_id: {total_healed} docs migrados")
+        
+        return report
+
+
 
     return router
