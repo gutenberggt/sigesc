@@ -37,7 +37,20 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             # super_admin cross-tenant: pega a primeira (ou cria uma se não houver nenhuma)
             doc = await current_db.mantenedoras.find_one({}, {"_id": 0})
         else:
-            raise HTTPException(status_code=400, detail="Usuário sem mantenedora vinculada")
+            # Self-heal: usuário legado sem mantenedora_id. Se há apenas uma mantenedora
+            # cadastrada, usa ela automaticamente e vincula o usuário (banco pós-migração
+            # single-tenant que ainda não recebeu o backfill).
+            total = await current_db.mantenedoras.count_documents({})
+            if total >= 1:
+                doc = await current_db.mantenedoras.find_one({}, {"_id": 0})
+                if doc and current_user.get("id"):
+                    await current_db.users.update_one(
+                        {"id": current_user["id"]},
+                        {"$set": {"mantenedora_id": doc["id"]}},
+                    )
+                    tenant_id = doc["id"]
+            else:
+                raise HTTPException(status_code=400, detail="Usuário sem mantenedora vinculada")
         return current_user, current_db, doc, tenant_id
 
     @router.get("/mantenedora", response_model=Mantenedora)

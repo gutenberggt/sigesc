@@ -268,6 +268,65 @@ async def create_indexes():
                     logger.info(f"Multi-tenant: {first_admin.get('email')} promovido a super_admin.")
         except Exception as exc:
             logger.warning(f"Multi-tenant: bootstrap ignorado: {exc}")
+
+        # ===== Self-healing idempotente (roda sempre no startup) =====
+        # Produção pode ter código novo mas dados pré-migração. Este bloco:
+        # 1. Garante que existe pelo menos 1 super_admin (promove o primeiro admin legado);
+        # 2. Preenche mantenedora_id ausente em documentos de todas as coleções tenant-scoped,
+        #    usando a primeira mantenedora cadastrada como fallback. É idempotente (só atualiza
+        #    documentos que não têm o campo).
+        try:
+            any_super = await db.users.find_one(
+                {"$or": [{"role": "super_admin"}, {"roles": "super_admin"}]},
+                {"_id": 0, "id": 1},
+            )
+            first_mant = await db.mantenedoras.find_one({}, {"_id": 0, "id": 1, "nome": 1, "name": 1})
+            first_mant_id = first_mant.get("id") if first_mant else None
+
+            if not any_super:
+                legacy_admin = await db.users.find_one(
+                    {"role": "admin", "is_primary": True},
+                    {"_id": 0, "id": 1, "email": 1},
+                ) or await db.users.find_one(
+                    {"role": "admin"},
+                    {"_id": 0, "id": 1, "email": 1},
+                )
+                if legacy_admin:
+                    await db.users.update_one(
+                        {"id": legacy_admin["id"]},
+                        {"$set": {"role": "super_admin", "is_primary": True}},
+                    )
+                    logger.info(
+                        f"Self-heal: {legacy_admin.get('email')} promovido a super_admin (is_primary=True)."
+                    )
+
+            if first_mant_id:
+                total_healed = 0
+                for coll in ("schools", "staff", "students", "classes", "courses",
+                             "enrollments", "grades", "learning_objects", "calendar_events",
+                             "calendario_letivo", "school_assignments", "teacher_assignments",
+                             "payroll_items", "announcements", "users", "pre_matriculas",
+                             "mantenedora_documentos"):
+                    try:
+                        res = await db[coll].update_many(
+                            {"$or": [
+                                {"mantenedora_id": {"$exists": False}},
+                                {"mantenedora_id": None},
+                                {"mantenedora_id": ""},
+                            ]},
+                            {"$set": {"mantenedora_id": first_mant_id}},
+                        )
+                        if res.modified_count:
+                            total_healed += res.modified_count
+                            logger.info(
+                                f"Self-heal: backfill mantenedora_id em {coll}: {res.modified_count} docs."
+                            )
+                    except Exception:
+                        pass
+                if total_healed:
+                    logger.info(f"Self-heal: total de {total_healed} documentos migrados.")
+        except Exception as exc:
+            logger.warning(f"Self-heal multi-tenant ignorado: {exc}")
         
         # Índices para schools
         await db.schools.create_index("id", unique=True)
