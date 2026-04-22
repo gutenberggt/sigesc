@@ -230,29 +230,21 @@ async def create_indexes():
             except Exception:
                 pass
 
-        # ===== Migração automática: criar 1ª mantenedora e marcar dados legados =====
+        # ===== Bootstrap multi-tenant: cria mantenedora inicial se não houver nenhuma =====
+        # Nota: a migração do legado db.mantenedora (singular) já foi executada e a coleção
+        # foi droppada. Mantém-se apenas o bootstrap para instalações totalmente novas.
         try:
             existing = await db.mantenedoras.count_documents({})
             if existing == 0:
-                # Tenta criar a partir do legado singular db.mantenedora, se existir
-                legacy = await db.mantenedora.find_one({}, {"_id": 0})
-                if legacy:
-                    legacy_doc = {**legacy}
-                    legacy_doc['id'] = legacy_doc.get('id') or __import__('uuid').uuid4().hex
-                    legacy_doc.setdefault('name', legacy_doc.get('name') or 'Mantenedora Legada')
-                    legacy_doc.setdefault('created_at', __import__('datetime').datetime.now(__import__('datetime').timezone.utc))
-                    await db.mantenedoras.insert_one(legacy_doc)
-                    mid = legacy_doc['id']
-                else:
-                    import uuid as _uuid
-                    import datetime as _dt
-                    mid = str(_uuid.uuid4())
-                    await db.mantenedoras.insert_one({
-                        "id": mid, "name": "Mantenedora Principal", "ativo": True,
-                        "created_at": _dt.datetime.now(_dt.timezone.utc),
-                    })
+                import uuid as _uuid
+                import datetime as _dt
+                mid = str(_uuid.uuid4())
+                await db.mantenedoras.insert_one({
+                    "id": mid, "name": "Mantenedora Principal", "ativo": True,
+                    "created_at": _dt.datetime.now(_dt.timezone.utc),
+                })
 
-                # Marca documentos legados com a mantenedora principal
+                # Marca documentos pré-existentes com a mantenedora principal
                 for coll in ("schools", "staff", "students", "classes", "courses",
                              "enrollments", "grades", "learning_objects", "calendar_events",
                              "calendario_letivo", "school_assignments", "teacher_assignments",
@@ -264,7 +256,7 @@ async def create_indexes():
                         )
                     except Exception:
                         pass
-                logger.info(f"Multi-tenant: mantenedora principal criada (id={mid}) e dados legados migrados.")
+                logger.info(f"Multi-tenant: mantenedora principal criada (id={mid}).")
 
                 # Promover o primeiro admin a super_admin (cross-tenant)
                 first_admin = await db.users.find_one({"role": "admin"}, {"_id": 0, "id": 1, "email": 1})
@@ -275,7 +267,7 @@ async def create_indexes():
                     )
                     logger.info(f"Multi-tenant: {first_admin.get('email')} promovido a super_admin.")
         except Exception as exc:
-            logger.warning(f"Multi-tenant: migração inicial ignorada: {exc}")
+            logger.warning(f"Multi-tenant: bootstrap ignorado: {exc}")
         
         # Índices para schools
         await db.schools.create_index("id", unique=True)

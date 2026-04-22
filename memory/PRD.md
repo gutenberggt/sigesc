@@ -406,6 +406,23 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - **SilentModeToggle renomeado**: títulos e labels deixam explícito que silencia apenas os bips de mensagens. Tooltip: "Silenciar bips das mensagens". Menu: "Silenciar bips por X min". Nota: "as notificações visuais continuam aparecendo normalmente".
 - **Wizard Passo 2 expandido**: novo parser CSV com cabeçalho, split respeitando aspas, conversão de tipos (int/bool aceita `sim/não/true/false/1/0`). Template gerado dinamicamente a partir de `SCHOOL_COLUMNS` com 40 campos agrupados em 4 seções (Geral, Infraestrutura, Dependências, Equipamentos). Botão `wizard-download-template` gera e baixa `modelo_escolas.csv` pronto com linha de exemplo. Painel azul exibe visualmente os campos de cada grupo antes do upload.
 
+## P3 Cleanup — Remoção do legacy + No-reload Tenant Switch (22/04/2026)
+
+**P3.1 — Coleção `db.mantenedora` (singular) removida:**
+- Todos os callers runtime migrados para `get_mantenedora_cached(db, tenant_id=None)` em `pdf_cache.py` (attendance_ext.py, bolsa_familia.py, class_details.py, grades.py).
+- Coleção `db.mantenedora` **droppada** do MongoDB.
+- `get_mantenedora_cached` reduzido a 2 níveis de fallback (tenant_id→multi / único doc na coleção plural).
+- `server.py` bootstrap limpo: não referencia mais a coleção legada; apenas cria mantenedora principal se não houver nenhuma.
+
+**P3.2 — Sem reload ao trocar tenant:**
+- Novo `TenantSyncBoundary.jsx` envolve o `<main>` do Layout; escuta evento custom `tenant-changed` e incrementa `version` que vira a `key` da árvore, forçando remount sem recarregar a página.
+- `TenantSwitcher.jsx` troca `window.location.reload()` por `window.dispatchEvent(new Event('tenant-changed'))`.
+- `Mantenedoras.jsx` `openEdit()` troca reload por dispatch + `navigate('/admin/mantenedora')`.
+- Validado pelo testing agent (iteration_59): Playwright `framenavigated` captura **0 navegações** após troca de tenant (antes era reload). Pencil edit dispara apenas 1 pushState do React Router, sem reload.
+
+Validado: **17/17 PASS** (13 backend + 4 frontend).
+
+
 - Token frontend: `localStorage.getItem('accessToken')` (NÃO 'token')
 - Escapar HTML em PDFs: usar `xml_escape`
 - Background polling: usar `useRef` para initial load

@@ -82,7 +82,6 @@ async def get_mantenedora_cached(db, tenant_id: Optional[str] = None) -> Optiona
     Prioridade:
       1. Se tenant_id informado → busca na coleção multi-tenant `mantenedoras`.
       2. Fallback: única mantenedora da coleção `mantenedoras`.
-      3. Fallback legado: coleção singular `mantenedora` (deprecada).
     """
     key = f"mantenedora:{tenant_id or 'global'}"
     async def fetch():
@@ -92,11 +91,7 @@ async def get_mantenedora_cached(db, tenant_id: Optional[str] = None) -> Optiona
             if doc:
                 return doc
         # 2) Single-tenant típico: 1 mantenedora só
-        doc = await db.mantenedoras.find_one({}, {"_id": 0})
-        if doc:
-            return doc
-        # 3) Fallback legado
-        return await db.mantenedora.find_one({}, {"_id": 0})
+        return await db.mantenedoras.find_one({}, {"_id": 0})
     return await pdf_cache.get_or_fetch(key, fetch, ttl=300.0)
 
 
