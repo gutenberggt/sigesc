@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { UserCog, Calendar, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { teacherAssignmentAPI } from '@/services/api';
+import { teacherAssignmentAPI, classesAPI } from '@/services/api';
 import { toast } from 'sonner';
 
 /**
@@ -33,21 +33,49 @@ export const SubstituicaoSection = ({
   const [cargaHoraria, setCargaHoraria] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Turmas da escola selecionada
-  const turmasDaEscola = useMemo(() => {
-    if (!schoolId) return [];
-    return (filteredClasses || []).filter(c => c.school_id === schoolId);
-  }, [schoolId, filteredClasses]);
+  // Busca ativa de turmas da escola — respeita as permissões do usuário no backend
+  const [turmasDaEscola, setTurmasDaEscola] = useState([]);
+  const [loadingTurmas, setLoadingTurmas] = useState(false);
+
+  useEffect(() => {
+    if (!schoolId) {
+      setTurmasDaEscola([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingTurmas(true);
+      try {
+        const data = await classesAPI.list(schoolId);
+        if (!cancelled) {
+          // Filtrar por ano letivo quando conhecido (consistente com o Livro de Promoção)
+          const year = alocacaoForm.academic_year || new Date().getFullYear();
+          const filtered = (Array.isArray(data) ? data : []).filter(c =>
+            !c.academic_year || c.academic_year === year
+          );
+          setTurmasDaEscola(filtered);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setTurmasDaEscola([]);
+          toast.error('Erro ao carregar turmas desta escola');
+        }
+      } finally {
+        if (!cancelled) setLoadingTurmas(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [schoolId, alocacaoForm.academic_year]);
 
   // Componentes: baseado no nível da turma quando possível
   const componentesDaTurma = useMemo(() => {
     if (!classId) return courses || [];
-    const turma = (filteredClasses || []).find(c => c.id === classId);
+    const turma = turmasDaEscola.find(c => c.id === classId);
     if (!turma) return courses || [];
     const nivel = turma.education_level || turma.nivel_ensino;
     if (!nivel) return courses || [];
     return (courses || []).filter(c => !c.nivel_ensino || c.nivel_ensino === nivel);
-  }, [classId, courses, filteredClasses]);
+  }, [classId, courses, turmasDaEscola]);
 
   // Alocação do titular naquela combinação (regente)
   const regenteAlocacao = useMemo(() => {
@@ -132,10 +160,18 @@ export const SubstituicaoSection = ({
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Turma *</label>
           <select value={classId} onChange={(e) => { setClassId(e.target.value); setCourseId(''); }}
-            disabled={!schoolId}
+            disabled={!schoolId || loadingTurmas}
             className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-amber-500 bg-white disabled:bg-gray-100"
             data-testid="subst-class-select">
-            <option value="">Selecione</option>
+            <option value="">
+              {!schoolId
+                ? 'Selecione a escola'
+                : loadingTurmas
+                  ? 'Carregando...'
+                  : turmasDaEscola.length === 0
+                    ? 'Nenhuma turma encontrada'
+                    : 'Selecione'}
+            </option>
             {turmasDaEscola.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
