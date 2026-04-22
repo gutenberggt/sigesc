@@ -98,13 +98,6 @@ export const Layout = ({ children }) => {
                   </p>
                 )}
               </div>
-
-              {/* Seletor de Mantenedora (somente super_admin) - agrupado visualmente com o contexto da mantenedora */}
-              {user?.role === 'super_admin' && (
-                <div className="hidden md:block pl-2 border-l border-gray-200 ml-2">
-                  <TenantSwitcher />
-                </div>
-              )}
             </div>
 
             {/* Notifications & User Info */}
@@ -157,6 +150,12 @@ export const Layout = ({ children }) => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow pb-16">
+        {/* Seletor de Mantenedora (somente super_admin) - topo direito da área de conteúdo */}
+        {user?.role === 'super_admin' && (
+          <div className="flex justify-end mb-4" data-testid="tenant-switcher-wrapper">
+            <TenantSwitcher />
+          </div>
+        )}
         <TenantSyncBoundary>
           {children}
         </TenantSyncBoundary>
