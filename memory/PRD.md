@@ -392,6 +392,14 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Secretário: secretario@sigesc.com / secretario123
 - Agente de Vacinas: vacinas@sigesc.com / vacinas123
 
+## Modo Silencioso + Wizard de Onboarding + Cleanup StaffModal (22/04/2026)
+
+- 🔇 **Modo Silencioso** (`utils/silentMode.js` + `components/SilentModeToggle.jsx`): toggle no header com opções 15/30/60/120 minutos, persiste em localStorage (`silent_mode_until`) e evento custom `silent-mode-changed` para sync cross-tab. Bips de mensagem (playMessageBeeps) respeitam o modo via `!isSilentModeActive()` em MessagesBadge.
+- 🧙 **Wizard de Onboarding de Mantenedora** (`components/OnboardingWizard.jsx`): 3 passos com stepper visual — (1) Dados da Mantenedora (POST /api/mantenedoras + seleciona tenant automaticamente via localStorage), (2) Importar Escolas via CSV com parser (formato `nome,inep,municipio`) ou pular, (3) Criar Usuário Gerente (POST /api/auth/register) + designar como gerente da mantenedora (POST /api/mantenedoras/{id}/gerente). Substitui o modal legacy de criação em Mantenedoras.jsx.
+- 🗑️ **Campo "Carga Horária Semanal" removido** do StaffModal.js; adicionada nota italic "A Carga Horária Semanal é definida em Gerenciar Lotações" ao lado de Data de Admissão para orientar o usuário.
+- Validado pelo testing agent (iteration_58.json): **100% PASS** em todos os 3 fluxos, incluindo teste E2E do wizard (criação + cleanup com DELETE).
+
+
 ## Notas Técnicas
 - Token frontend: `localStorage.getItem('accessToken')` (NÃO 'token')
 - Escapar HTML em PDFs: usar `xml_escape`

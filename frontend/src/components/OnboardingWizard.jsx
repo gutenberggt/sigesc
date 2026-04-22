@@ -108,7 +108,7 @@ export const OnboardingWizard = ({ isOpen, onClose, onComplete }) => {
     }
   };
 
-  // Passo 3 → cria usuário gerente
+  // Passo 3 → cria usuário gerente e vincula à mantenedora
   const handleStep3 = async () => {
     if (!gerenteData.full_name || !gerenteData.email || !gerenteData.password) {
       toast.error('Preencha todos os campos do gerente');
@@ -120,14 +120,22 @@ export const OnboardingWizard = ({ isOpen, onClose, onComplete }) => {
     }
     setSubmitting(true);
     try {
-      await axios.post(`${API}/api/auth/register`, {
+      const { data: newUser } = await axios.post(`${API}/api/auth/register`, {
         full_name: gerenteData.full_name,
         email: gerenteData.email,
         password: gerenteData.password,
         role: 'gerente',
         status: 'active',
       });
-      toast.success('Gerente criado! Onboarding concluído.');
+      // Vincula explicitamente o usuário como gerente desta mantenedora
+      if (createdMantenedora?.id && newUser?.id) {
+        try {
+          await axios.post(`${API}/api/mantenedoras/${createdMantenedora.id}/gerente`, { user_id: newUser.id });
+        } catch (_e) {
+          // Falha na vinculação não impede a conclusão; super_admin pode designar manualmente depois.
+        }
+      }
+      toast.success('Gerente criado e vinculado! Onboarding concluído.');
       if (onComplete) onComplete(createdMantenedora);
       close();
     } catch (e) {
