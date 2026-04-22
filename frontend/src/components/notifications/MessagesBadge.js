@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { notificationsAPI, connectionsAPI, getWebSocketUrl } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessaging } from '@/contexts/MessagingContext';
+import { playMessageBeeps } from '@/utils/messageSound';
 
 export const MessagesBadge = () => {
   const { user } = useAuth();
@@ -55,6 +56,10 @@ export const MessagesBadge = () => {
         const data = JSON.parse(event.data);
         if (data.type === 'new_message') {
           fetchUnreadCount();
+          // 3 bips ao receber nova mensagem (não toca para mensagens do próprio usuário)
+          if (data.message?.sender_id !== user?.id) {
+            playMessageBeeps();
+          }
         }
       } catch (error) {
         // Ignorar erros de parsing

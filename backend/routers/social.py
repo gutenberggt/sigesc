@@ -281,7 +281,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             }
 
         # Se admin está envolvido, permitir mensagem direta (status virtual)
-        current_is_admin = current_user.get('role') in ('admin', 'admin_teste')
+        current_is_admin = current_user.get('role') in ('admin', 'admin_teste', 'super_admin', 'gerente', 'semed3')
         other_is_admin = await _is_admin(user_id)
         if current_is_admin or other_is_admin:
             return {"status": "admin_direct", "connection_id": None, "is_requester": False}
@@ -292,7 +292,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     async def _is_admin(user_id: str) -> bool:
         """Verifica se um usuário é administrador"""
         u = await db.users.find_one({"id": user_id}, {"_id": 0, "role": 1})
-        return u.get('role') in ('admin', 'admin_teste') if u else False
+        return u.get('role') in ('admin', 'admin_teste', 'super_admin', 'gerente', 'semed3') if u else False
 
     async def _ensure_connection(user_a_id: str, user_b_id: str):
         """Garante que existe uma conexão aceita entre dois usuários. Cria se não existir."""
@@ -329,7 +329,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if current_user['id'] == user_id:
             raise HTTPException(status_code=400, detail="Não pode conectar consigo mesmo")
         
-        sender_is_admin = current_user.get('role') in ('admin', 'admin_teste')
+        sender_is_admin = current_user.get('role') in ('admin', 'admin_teste', 'super_admin', 'gerente', 'semed3')
         receiver_is_admin = await _is_admin(user_id)
         
         if not sender_is_admin and not receiver_is_admin:
@@ -359,7 +359,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         sender_id = current_user['id']
         receiver_id = data.receiver_id
 
-        sender_is_admin = current_user.get('role') in ('admin', 'admin_teste')
+        sender_is_admin = current_user.get('role') in ('admin', 'admin_teste', 'super_admin', 'gerente', 'semed3')
         receiver_is_admin = await _is_admin(receiver_id)
 
         # Verificar se estão conectados

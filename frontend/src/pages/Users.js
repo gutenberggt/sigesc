@@ -470,6 +470,10 @@ export const Users = () => {
             onDelete={handleDelete}
             canEdit={canEdit}
             canDelete={canDelete}
+            // Super Administrador primário (nato): lixeira nunca aparece;
+            // lápis aparece apenas para ele mesmo editar o próprio cadastro.
+            canDeleteRow={(row) => !row.is_primary}
+            canEditRow={(row) => !row.is_primary || row.id === user?.id}
           />
         )}
 
