@@ -87,11 +87,16 @@ export const Layout = ({ children }) => {
                 />
               )}
               
-              {/* Nome da Mantenedora */}
+              {/* Nome da Mantenedora + Secretaria */}
               <div className="hidden md:block">
                 <p className="text-xs font-medium text-gray-700 leading-tight">
                   {mantenedora?.nome || 'Prefeitura Municipal'}
                 </p>
+                {mantenedora?.secretaria && (
+                  <p className="text-[10px] text-gray-500 leading-tight mt-0.5" data-testid="mantenedora-secretaria">
+                    {mantenedora.secretaria}
+                  </p>
+                )}
               </div>
             </div>
 

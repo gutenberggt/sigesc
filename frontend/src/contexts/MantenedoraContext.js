@@ -1,19 +1,26 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { mantenedoraAPI } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 const MantenedoraContext = createContext(null);
 
 export const MantenedoraProvider = ({ children }) => {
+  const { user } = useAuth();
   const [mantenedora, setMantenedora] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const loadMantenedora = useCallback(async () => {
+    // Sem usuário autenticado, não tenta carregar (o axios falharia com 401)
+    if (!user) {
+      setMantenedora(null);
+      setLoading(false);
+      return;
+    }
     try {
       const data = await mantenedoraAPI.get();
       setMantenedora(data);
     } catch (error) {
       console.error('Erro ao carregar mantenedora:', error);
-      // Valores padrão caso não consiga carregar
       setMantenedora({
         nome: 'Prefeitura Municipal',
         municipio: 'Floresta do Araguaia',
@@ -23,10 +30,17 @@ export const MantenedoraProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     loadMantenedora();
+  }, [loadMantenedora]);
+
+  // Recarrega quando o tenant ativo muda (TenantSwitcher dispara esse evento)
+  useEffect(() => {
+    const handler = () => loadMantenedora();
+    window.addEventListener('tenant-changed', handler);
+    return () => window.removeEventListener('tenant-changed', handler);
   }, [loadMantenedora]);
 
   // Função para recarregar os dados (útil após atualização)
