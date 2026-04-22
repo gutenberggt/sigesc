@@ -9,6 +9,7 @@ import { useMessaging } from '@/contexts/MessagingContext';
 import { ChatBox } from '@/components/messaging';
 import { useUnsavedChangesContext } from '@/contexts/UnsavedChangesContext';
 import { TenantSwitcher } from '@/components/TenantSwitcher';
+import { SilentModeToggle } from '@/components/SilentModeToggle';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
@@ -100,6 +101,9 @@ export const Layout = ({ children }) => {
 
               {/* Status de Conexão Offline */}
               <ConnectionStatusBadge showDetails={false} />
+              
+              {/* Modo Silencioso */}
+              <SilentModeToggle />
               
               {/* Ícones de Notificação */}
               <MessagesBadge />

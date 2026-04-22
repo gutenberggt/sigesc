@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 58 — Testing: (1) Silent Mode toggle no header, (2) Onboarding Wizard de 3 passos em /admin/mantenedoras, (3) Remoção do campo CH Semanal do StaffModal. Todos os 3 fluxos PASS via Playwright + code review. Cleanup dos dados de teste executado com sucesso.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_results_by_feature": {
+    "silent_mode_button_header": "PASS - data-testid=silent-mode-button presente no header do super_admin",
+    "silent_mode_dropdown_options": "PASS - abrir dropdown expõe silent-mode-option-15/30/60/120 + item informativo",
+    "silent_mode_activation_visual": "PASS - após clicar em silent-mode-option-30, botão mostra 'até 04:16' (amber bg + BellOff icon). localStorage silent_mode_until populado.",
+    "silent_mode_deactivation": "PASS - data-testid=silent-mode-deactivate restaura estado; isSilentModeActive() volta para false",
+    "silent_mode_beep_guard_code_review": "PASS - /app/frontend/src/components/notifications/MessagesBadge.js linha 62 confirma `if (data.message?.sender_id !== user?.id && !isSilentModeActive()) { playMessageBeeps(); }`. Guard aplicado corretamente antes de disparar 3 bips.",
+    "wizard_open_from_nova_mantenedora": "PASS - data-testid=btn-nova-mantenedora abre OnboardingWizard (data-testid=onboarding-wizard)",
+    "wizard_step_1_create_mantenedora": "PASS - preenche wizard-mantenedora-nome, click wizard-next → POST /api/mantenedoras 200 OK; activeMantenedoraId gravado em localStorage (c785a3d8-a668-4852-a8cf-f1be0595141b); passa para wizard-step-2",
+    "wizard_step_2_skip_schools": "PASS - wizard-skip-schools checkbox marcado → wizard-next avança para wizard-step-3 sem criar escolas",
+    "wizard_step_3_create_gerente": "PASS - preenche nome/email/password → POST /api/auth/register com role=gerente 200 OK → wizard fecha; toast sucesso; mantenedora aparece na lista",
+    "wizard_full_flow_e2e": "PASS - criada 'Mantenedora TESTE ONB 1' + gerente teste_onb_1@test.com, ambos confirmados em /api/mantenedoras e /api/users",
+    "cleanup": "PASS - DELETE /api/mantenedoras/{id} → 200; DELETE /api/users/{id} → 204. Ambos removidos com sucesso após o teste",
+    "staff_modal_ch_removed": "PASS - grep 'carga_horaria' em /app/frontend/src/components/staff/StaffModal.js retorna 0 matches (campo input completamente removido)",
+    "staff_modal_lotacao_note": "PASS - texto italic 'A Carga Horária Semanal é definida em Gerenciar Lotações.' presente ao lado de Data de Admissão (linhas 373-375)"
+  },
+  "critical_code_review_comments": [
+    "[OK] silentMode.js: persistência em localStorage com 2 chaves (silent_mode_until + silent_mode_minutes) e evento 'silent-mode-changed' para sync cross-component — desenho correto.",
+    "[OK] SilentModeToggle usa setInterval de 30s para refrescar quando o timeout expira e listener do evento custom — cobre corretamente expiração automática e mudança por outras abas.",
+    "[OK] OnboardingWizard.jsx parseCsv filtra header 'nome' e linhas vazias; error handling faz try/catch por linha (contador created/failed). Bom.",
+    "[INFO] OnboardingWizard linha 128 passa `status: 'active'` no register mas a maioria dos registros no app usa 'pending' até aprovação. Confirmar se gerente criado via wizard deve ficar ativo imediatamente (comportamento atual) ou precisa de aprovação. Atualmente vai direto para active — faz sentido pois quem cria é o super_admin.",
+    "[INFO] O wizard não vincula explicitamente o gerente criado à mantenedora recém-criada (não chama POST /api/mantenedoras/{id}/gerente). O super_admin teria que depois abrir a lista e clicar em 'Designar gerente' separadamente. Se a intenção é onboarding completo, considerar adicionar essa chamada automaticamente no handleStep3 após o register.",
+    "[INFO] Mantenedoras.jsx: o modal legacy (modalOpen/editingId/form/save) continua no código mas não é mais acionado pelo botão principal (só 'Nova' → wizard). É dead code agora; openCreate e save não são chamados. Candidato a remoção futura.",
+    "[INFO] StaffModal: remoção do campo está OK, mas verificar se o backend ainda aceita 'carga_horaria_semanal' no POST /api/staff (backward compat) para não quebrar dados antigos durante edição."
+  ],
+  "test_report_links": [
+    "/app/test_reports/iteration_58.json"
+  ],
+  "action_items": [
+    "(Opcional/Enhancement) OnboardingWizard handleStep3: após criar gerente, chamar POST /api/mantenedoras/{createdMantenedora.id}/gerente {user_id} para vincular automaticamente em vez de exigir passo manual depois.",
+    "(Opcional/Cleanup) Remover modal legacy (modalOpen/emptyForm/save) em Mantenedoras.jsx — substituído pelo wizard.",
+    "(Opcional/UX) Adicionar mensagem informativa no Passo 2 quando skipSchools=true esconder/deshabilitar textarea/input de CSV para evitar confusão."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (fluxos implícitos via wizard — POST /api/mantenedoras, POST /api/auth/register, DELETE /api/mantenedoras/{id}, DELETE /api/users/{id} todos 2xx)", "frontend": "100% (3/3 features testadas: Silent Mode, Onboarding Wizard, StaffModal)"},
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin)",
+  "seed_data_creation": "Criada temporariamente 'Mantenedora TESTE ONB 1' + gerente teste_onb_1@test.com (senha 123456). CLEANUP executado: DELETE mantenedora 200 + DELETE user 204. Nenhum resíduo no DB.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Todos os 3 fluxos desta iteração passaram. data-testids novos disponíveis: silent-mode-button, silent-mode-menu, silent-mode-option-{15,30,60,120}, silent-mode-deactivate, onboarding-wizard, wizard-step-{1,2,3}, wizard-next, wizard-back, wizard-close, wizard-mantenedora-nome, wizard-csv-input, wizard-csv-label, wizard-csv-textarea, wizard-skip-schools, wizard-gerente-{nome,email,password}. Os 3 bips sonoros NÃO foram testados com áudio real (limitação Playwright) — verificado somente no código que o guard `!isSilentModeActive()` está antes de `playMessageBeeps()` em MessagesBadge.js:62. O modal legacy em Mantenedoras.jsx é dead code. StaffModal precisa verificação manual da UI pela main agent se houver dúvida, mas code review confirmou remoção."
+}

@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Plus, Edit2, Trash2, Shield, Users, X, Check, Building2 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
+import { OnboardingWizard } from '../components/OnboardingWizard';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -30,6 +31,7 @@ export default function Mantenedoras() {
   const [targetMantenedora, setTargetMantenedora] = useState(null);
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   const isSuperAdmin = user?.role === 'super_admin' || (user?.roles || []).includes('super_admin');
 
@@ -127,7 +129,7 @@ export default function Mantenedoras() {
               Gestão multi-tenant. Cada mantenedora tem suas próprias escolas, servidores e dados isolados.
             </p>
           </div>
-          <button onClick={openCreate} data-testid="btn-nova-mantenedora"
+          <button onClick={() => setWizardOpen(true)} data-testid="btn-nova-mantenedora"
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
             <Plus size={18}/> Nova Mantenedora
           </button>
@@ -277,6 +279,13 @@ export default function Mantenedoras() {
             </div>
           </div>
         )}
+
+        {/* Wizard de Onboarding */}
+        <OnboardingWizard
+          isOpen={wizardOpen}
+          onClose={() => setWizardOpen(false)}
+          onComplete={() => { load(); }}
+        />
       </div>
     </Layout>
   );

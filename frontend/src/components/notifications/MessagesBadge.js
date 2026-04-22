@@ -5,6 +5,7 @@ import { notificationsAPI, connectionsAPI, getWebSocketUrl } from '@/services/ap
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessaging } from '@/contexts/MessagingContext';
 import { playMessageBeeps } from '@/utils/messageSound';
+import { isSilentModeActive } from '@/utils/silentMode';
 
 export const MessagesBadge = () => {
   const { user } = useAuth();
@@ -56,8 +57,9 @@ export const MessagesBadge = () => {
         const data = JSON.parse(event.data);
         if (data.type === 'new_message') {
           fetchUnreadCount();
-          // 3 bips ao receber nova mensagem (não toca para mensagens do próprio usuário)
-          if (data.message?.sender_id !== user?.id) {
+          // 3 bips ao receber nova mensagem (não toca para mensagens do próprio usuário
+          // nem quando o Modo Silencioso está ativo)
+          if (data.message?.sender_id !== user?.id && !isSilentModeActive()) {
             playMessageBeeps();
           }
         }
