@@ -220,7 +220,7 @@ const Announcements = () => {
 
   const availableRoles = () => {
     // Admin, SEMED e SEMED3 podem enviar para todos
-    if (user?.role === 'admin' || user?.role === 'admin_teste' || user?.role === 'semed' || user?.role === 'semed3') {
+    if (['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role) || user?.role === 'semed' || user?.role === 'semed3') {
       return ['secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel'];
     }
     // Secretário, Diretor, Coordenador podem enviar para professores e alunos

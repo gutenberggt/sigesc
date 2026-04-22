@@ -56,13 +56,17 @@ export default function Mantenedoras() {
   };
 
   const openCreate = () => { setEditingId(null); setForm(emptyForm); setModalOpen(true); };
+  
+  /**
+   * Editar mantenedora: seleciona a mantenedora no TenantSwitcher (localStorage)
+   * e redireciona para a página detalhada "Unidade Mantenedora" que exibirá
+   * TODOS os dados dessa mantenedora (endereço, contato, responsável, políticas, etc).
+   */
   const openEdit = (m) => {
-    setEditingId(m.id);
-    setForm({
-      nome: m.nome || m.name || '', cnpj: m.cnpj || '', municipio: m.municipio || m.cidade || '',
-      estado: m.estado || '', logotipo_url: m.logotipo_url || m.logo_url || '', ativo: m.ativo !== false,
-    });
-    setModalOpen(true);
+    localStorage.setItem('activeMantenedoraId', m.id);
+    navigate('/admin/mantenedora');
+    // Hard reload para que o MantenedoraContext + TenantSwitcher peguem o novo tenant
+    window.location.reload();
   };
   const save = async () => {
     if (!form.nome) { toast.error('Informe o nome da mantenedora'); return; }

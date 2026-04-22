@@ -88,8 +88,8 @@ export const useStaff = () => {
   const [alert, setAlert] = useState({ show: false, type: '', message: '' });
   
   // Permissões
-  const canEdit = user?.role === 'admin' || user?.role === 'secretario';
-  const canDelete = user?.role === 'admin' || user?.role === 'secretario';
+  const canEdit = ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario'].includes(user?.role);
+  const canDelete = ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario'].includes(user?.role);
   
   // Helper para extrair mensagem de erro do Pydantic ou string
   const extractErrorMessage = (error) => {

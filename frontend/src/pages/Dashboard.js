@@ -422,19 +422,7 @@ export const Dashboard = () => {
               {isSemed ? 'Consultar Módulos' : 'Menu de Administração'}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Mantenedoras (Multi-tenant) - apenas super_admin */}
-              {isSuperAdmin && (
-                <button
-                  onClick={() => navigate('/admin/mantenedoras')}
-                  className="flex items-center space-x-3 p-4 border border-indigo-200 bg-indigo-50/30 rounded-lg hover:bg-indigo-50 hover:border-indigo-400 transition-all"
-                  data-testid="nav-mantenedoras-multi-button"
-                >
-                  <Building2 className="text-indigo-700" size={24} />
-                  <span className="font-medium text-gray-900">Mantenedoras <span className="text-[10px] uppercase tracking-wider text-indigo-600 ml-1">(multi-tenant)</span></span>
-                </button>
-              )}
-              
-              {/* Mantenedora - apenas para admin */}
+              {/* Mantenedora - admin/super_admin/gerente (edita a mantenedora ativa selecionada no switcher) */}
               {isAdmin && (
                 <button
                   onClick={() => navigate('/admin/mantenedora')}

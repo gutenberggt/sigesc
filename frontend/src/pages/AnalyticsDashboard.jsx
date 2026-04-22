@@ -389,7 +389,7 @@ export function AnalyticsDashboard() {
   const [performanceRestricted, setPerformanceRestricted] = useState(false); // Restrição de dados de alunos
   
   const userRole = (user?.role || '').toLowerCase();
-  const isAdmin = ['admin', 'admin_teste'].includes(userRole);
+  const isAdmin = ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(userRole);
   const isSemed = userRole === 'semed' || userRole === 'semed3';
   const isGlobal = isAdmin || isSemed;
   const isSchoolStaff = ['diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'secretario', 'secretário'].includes(userRole);

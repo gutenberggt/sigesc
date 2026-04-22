@@ -31,6 +31,8 @@ const ROLE_MATRIX = {
     { key: 'audit_logs', label: 'Auditoria', category: 'Sistema' },
   ],
   roles: {
+    super_admin: { label: 'Super Admin', color: 'indigo' },
+    gerente: { label: 'Gerente', color: 'cyan' },
     admin: { label: 'Admin', color: 'red' },
     secretario: { label: 'Secretário', color: 'blue' },
     diretor: { label: 'Diretor', color: 'indigo' },
@@ -43,6 +45,8 @@ const ROLE_MATRIX = {
   },
   // access: 'full' = edita, 'view' = visualiza, 'analyst' = analista HR, null = sem acesso
   access: {
+    super_admin: { schools: 'full', classes: 'full', students: 'full', staff: 'full', grades: 'full', attendance: 'full', learning_objects: 'full', calendar: 'full', announcements: 'full', promotion: 'full', diary_dashboard: 'full', diario_aee: 'full', hr: 'full', analytics: 'full', pre_matriculas: 'full', users: 'full', online_users: 'full', audit_logs: 'full' },
+    gerente:     { schools: 'full', classes: 'full', students: 'full', staff: 'full', grades: 'full', attendance: 'full', learning_objects: 'full', calendar: 'full', announcements: 'full', promotion: 'full', diary_dashboard: 'full', diario_aee: 'full', hr: 'full', analytics: 'full', pre_matriculas: 'full', users: 'full', online_users: 'full', audit_logs: 'full' },
     admin:       { schools: 'full', classes: 'full', students: 'full', staff: 'full', grades: 'full', attendance: 'full', learning_objects: 'full', calendar: 'full', announcements: 'full', promotion: 'full', diary_dashboard: 'full', diario_aee: 'full', hr: 'full', analytics: 'full', pre_matriculas: 'full', users: 'full', online_users: 'full', audit_logs: 'full' },
     secretario:  { schools: 'full', classes: 'full', students: 'full', staff: 'full', grades: 'full', attendance: 'full', learning_objects: 'full', calendar: 'full', announcements: 'full', promotion: 'full', diary_dashboard: 'view', diario_aee: 'full', hr: 'full', analytics: 'view', pre_matriculas: 'full', users: 'full', online_users: null, audit_logs: null },
     diretor:     { schools: 'view', classes: 'view', students: 'view', staff: 'view', grades: 'view', attendance: 'view', learning_objects: 'view', calendar: 'view', announcements: 'full', promotion: 'view', diary_dashboard: 'view', diario_aee: 'view', hr: 'full', analytics: 'view', pre_matriculas: 'view', users: null, online_users: null, audit_logs: null },
@@ -55,7 +59,7 @@ const ROLE_MATRIX = {
   }
 };
 
-const ADMIN_ONLY_ROLES = ['admin', 'admin_teste', 'semed', 'semed1', 'semed2', 'semed3', 'ass_social', 'ass_social_2', 'agente_vacinas'];
+const ADMIN_ONLY_ROLES = ['super_admin', 'gerente', 'admin', 'admin_teste', 'semed', 'semed1', 'semed2', 'semed3', 'ass_social', 'ass_social_2', 'agente_vacinas'];
 const SEMED_ROLES_LIST = ['semed', 'semed1', 'semed2', 'semed3'];
 
 export const Users = () => {
@@ -83,7 +87,7 @@ export const Users = () => {
   
   // Restrições: todos SEMED são somente visualização no módulo de Usuários
   const canEdit = !SEMED_ROLES_LIST.includes(user?.role);
-  const canDelete = user?.role === 'admin' || user?.role === 'admin_teste';
+  const canDelete = ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role);
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
   useEffect(() => {
@@ -223,7 +227,7 @@ export const Users = () => {
   };
 
   // Verifica se o usuário atual é administrador
-  const isCurrentUserAdmin = user?.role === 'admin' || user?.role === 'admin_teste';
+  const isCurrentUserAdmin = ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role);
   
   // Papéis admin/semed/ass_social só podem ser criados/selecionados por admins
   const availableRoles = Object.entries(roleLabels).filter(([value]) => {

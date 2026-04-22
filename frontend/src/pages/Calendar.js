@@ -868,7 +868,7 @@ export const Calendar = () => {
   };
   
   // Configurar Períodos Bimestrais - Exclusivo ao administrador
-  const canEditPeriodos = user?.role === 'admin' || user?.role === 'admin_teste';
+  const canEditPeriodos = ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role);
   
   // Navegação
   const navigate = (direction) => {
@@ -965,7 +965,7 @@ export const Calendar = () => {
           </div>
           
           <div className="flex gap-2">
-            {(user?.role === 'admin' || user?.role === 'admin_teste') && mainTab === 'calendario' && (
+            {(['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role)) && mainTab === 'calendario' && (
               <>
                 <Button variant="outline" onClick={() => {
                   setAnoSelecionadoPeriodos(currentYear);

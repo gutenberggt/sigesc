@@ -89,7 +89,7 @@ export default function HRPayroll() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const token = localStorage.getItem('accessToken');
-  const isAdmin = ['admin', 'admin_teste'].includes(user?.role);
+  const isAdmin = ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role);
   const isAnalista = ['semed2'].includes(user?.role);
   const isSemedViewer = ['semed3'].includes(user?.role);
   const isGlobal = isAdmin || isAnalista || isSemedViewer;
