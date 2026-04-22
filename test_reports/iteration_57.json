@@ -33,9 +33,9 @@
   "action_items": [],
   "updated_files": ["/app/backend/tests/test_mantenedora_active.py"],
   "success_rate": {"backend": "100% (32/32: 10 new + 22 regression)", "frontend": "100% (6/6 critical flows)"},
-  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin, mantenedora_id=a991c1ac-56b1-46a8-b122-effedbe19b21)",
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin, mantenedora_id=multi-tenant-ui-5)",
   "seed_data_creation": "Criada e removida (cleanup) mantenedora TEST_MT_ITER57_TENANT durante a execução pytest. Algumas mantenedoras de teste anteriores ainda aparecem na lista — não bloqueante.",
   "retest_needed": false,
   "main_agent_can_self_test": true,
-  "context_for_next_testing_agent": "Novo arquivo de testes criado: /app/backend/tests/test_mantenedora_active.py (10 testes). Cobre o refactor /api/mantenedora→coleção plural + tenant scope. Use export REACT_APP_BACKEND_URL=https://multitenant-phase2.preview.emergentagent.com antes de rodar pytest. data-testids relevantes: nav-mantenedora-button (Dashboard), tenant-switcher-button (Layout header), mantenedora-row-<id> + button[title='Editar'] (lista). A Matriz de Permissões em Users.js tem 11 papéis × 18 módulos. Coleção legacy `db.mantenedora` singular pode ser droppada em iteration de cleanup."
+  "context_for_next_testing_agent": "Novo arquivo de testes criado: /app/backend/tests/test_mantenedora_active.py (10 testes). Cobre o refactor /api/mantenedora→coleção plural + tenant scope. Use export REACT_APP_BACKEND_URL=https://multi-tenant-ui-5.preview.emergentagent.com antes de rodar pytest. data-testids relevantes: nav-mantenedora-button (Dashboard), tenant-switcher-button (Layout header), mantenedora-row-<id> + button[title='Editar'] (lista). A Matriz de Permissões em Users.js tem 11 papéis × 18 módulos. Coleção legacy `db.mantenedora` singular pode ser droppada em iteration de cleanup."
 }

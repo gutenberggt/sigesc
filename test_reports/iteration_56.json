@@ -28,7 +28,7 @@
   "action_items": [],
   "updated_files": ["/app/backend/tests/test_multitenant_phase2.py"],
   "success_rate": {"backend": "100% (22/22)", "frontend": "100% (TenantSwitcher visible, dropdown works, localStorage persists, X-Mantenedora-Id injected)"},
-  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin, mantenedora_id=a991c1ac-56b1-46a8-b122-effedbe19b21)",
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin, mantenedora_id=multi-tenant-ui-5)",
   "seed_data_creation": "Created and removed TEST_MT_PHASE2_TENANT mantenedora and TEST_PHASE2_ESCOLA_T2 school during the test run (cleanup verified in fixture teardown).",
   "retest_needed": false,
   "main_agent_can_self_test": true,

@@ -11,7 +11,7 @@
   },
   "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
   "test_results_by_feature": {
-    "auth_login_super_admin": "PASS - login returns role=super_admin and mantenedora_id=a991c1ac-56b1-46a8-b122-effedbe19b21",
+    "auth_login_super_admin": "PASS - login returns role=super_admin and mantenedora_id=multi-tenant-ui-5",
     "auth_me_super_admin": "PASS - /api/auth/me returns role=super_admin with mantenedora_id",
     "schools_list": "PASS - returns ESCOLA TESTE MULTISSERIADA (no longer empty)",
     "classes_list": "PASS - non-empty",
@@ -41,7 +41,7 @@
     "/app/test_reports/pytest/pytest_multitenant_phase1.xml"
   ],
   "success_rate": {"backend": "100% (16/16)", "frontend": "not tested (per request)"},
-  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin, mantenedora_id=a991c1ac-56b1-46a8-b122-effedbe19b21)",
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin, mantenedora_id=multi-tenant-ui-5)",
   "seed_data_creation": "Created and removed TEST_MULTITENANT_SCHOOL_PHASE1 during the tenant-injection test. Cleaned up.",
   "retest_needed": false,
   "main_agent_can_self_test": true,
