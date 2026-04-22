@@ -29,12 +29,24 @@ def setup_router(db, audit_service, sandbox_db=None):
 
     @router.get("")
     async def list_users(request: Request, skip: int = 0, limit: int = 1000):
-        """Lista usuários (admin, secretario e semed) — filtrado por mantenedora ativa"""
+        """Lista usuários (admin, secretario e semed) — filtrado por mantenedora ativa.
+        Super_admin é usuário nato de toda mantenedora: aparece em qualquer tenant selecionado.
+        """
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'semed', 'semed3'])(request)
         current_db = get_db_for_user(current_user)
         
-        # Multi-tenancy: filtra por mantenedora ativa
-        filter_query = apply_tenant_filter({}, current_user, request)
+        # Multi-tenancy: filtra por mantenedora ativa (mas super_admin é cross-tenant nato)
+        from tenant_scope import get_mantenedora_scope
+        tenant_id = get_mantenedora_scope(current_user, request)
+        if tenant_id:
+            # Tenant específico: inclui os usuários da mantenedora + qualquer super_admin (nato)
+            filter_query = {'$or': [
+                {'mantenedora_id': tenant_id},
+                {'role': 'super_admin'}
+            ]}
+        else:
+            # Cross-tenant (super_admin sem seleção): todos os usuários
+            filter_query = {}
         
         users = await current_db.users.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         
@@ -58,8 +70,9 @@ def setup_router(db, audit_service, sandbox_db=None):
                 detail="Usuário não encontrado"
             )
         
-        # Multi-tenancy
-        assert_same_tenant(user_doc, current_user, request)
+        # Multi-tenancy: super_admin é usuário nato de toda mantenedora
+        if user_doc.get('role') != 'super_admin':
+            assert_same_tenant(user_doc, current_user, request)
         
         user_doc.pop('password_hash', None)
         return user_doc
@@ -78,8 +91,9 @@ def setup_router(db, audit_service, sandbox_db=None):
                 detail="Usuário não encontrado"
             )
         
-        # Multi-tenancy
-        assert_same_tenant(user_doc, current_user, request)
+        # Multi-tenancy: super_admin é usuário nato (acessível de qualquer tenant)
+        if user_doc.get('role') != 'super_admin':
+            assert_same_tenant(user_doc, current_user, request)
         
         # Prepara atualização
         update_data = user_update.model_dump(exclude_unset=True)
@@ -120,8 +134,9 @@ def setup_router(db, audit_service, sandbox_db=None):
                 detail="Usuário não encontrado"
             )
         
-        # Multi-tenancy
-        assert_same_tenant(user, current_user, request)
+        # Multi-tenancy: super_admin é nato de toda mantenedora
+        if user.get('role') != 'super_admin':
+            assert_same_tenant(user, current_user, request)
         
         # Não permitir excluir o próprio usuário
         if user_id == current_user['id']:
