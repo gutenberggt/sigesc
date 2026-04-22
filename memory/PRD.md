@@ -345,6 +345,20 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - Dropdown de turmas exclui modalidade AEE (filtro `atendimento_programa.includes('aee')`).
 - Validado via screenshot: turma "2 ANO" (1º/2º ano conceitual) exibindo "C" para valores 10.0.
 
+## Multi-Tenancy Fase 1 - Correção P0 (22/04/2026)
+- **Problema**: Após migração Fase 1 (`admin` → `super_admin` no banco), toda a plataforma retornava HTTP 403 para o admin principal porque os routers usavam `require_roles(['admin', 'admin_teste'])` sem `super_admin`.
+- **Correção centralizada em `auth_middleware.py`**:
+  - `require_roles`: fast-path para `super_admin` (bypass cross-tenant) e `gerente` tratado como `admin` escopado à sua mantenedora.
+  - `require_roles_with_coordinator_edit`: idem.
+  - `check_school_access`: inclui `super_admin`/`gerente` como papéis com acesso a todas as escolas.
+  - `get_user_permissions`: retorna permissões completas para `super_admin`/`gerente`.
+- **Listagens inline atualizadas** (`students.py`, `classes.py`, `analytics.py`, `announcements.py`, `grades.py`, `attendance.py`, `documents.py`, `sync.py`, `admin.py`, `hr.py`, `calendar_ext.py`, `class_schedule.py`, `learning_objects.py`, `medical_certificates.py`, `pre_matricula.py`, `mantenedora.py`): `super_admin`/`gerente` adicionados aos "wide roles".
+- **`routers/schools.py`**: tenant scoping via `tenant_scope.py` — `create_school` injeta `mantenedora_id`, `update_school`/`delete_school`/`get_school` validam com `assert_same_tenant`. `list_schools` aplica `apply_tenant_filter`.
+- **`models.py`**: `School` agora expõe `mantenedora_id` na resposta da API.
+- Validado pelo testing agent (iteration_55.json): 16/16 testes backend passando, sem regressões 403.
+
+
+
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
 - Coordenador: coordenador@sigesc.com / coordenador123
