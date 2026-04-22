@@ -12,24 +12,157 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { X, ChevronRight, ChevronLeft, Check, Building2, School, UserPlus, Upload, Loader2 } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Check, Building2, School, UserPlus, Upload, Loader2, Download } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const emptyMantenedora = { nome: '', cnpj: '', municipio: '', estado: 'PA', logotipo_url: '', ativo: true };
 const emptyGerente = { full_name: '', email: '', password: '' };
 
+// Colunas do template CSV. A ordem define as colunas da planilha.
+// type: 'string' | 'int' | 'bool'. Valores booleanos aceitam sim/não/true/false/1/0.
+const SCHOOL_COLUMNS = [
+  // ─── Geral ─────────────────────────────────────────────────────────
+  { key: 'name', label: 'Nome*', type: 'string', group: 'Geral' },
+  { key: 'inep_code', label: 'Código INEP', type: 'string', group: 'Geral' },
+  { key: 'cnpj', label: 'CNPJ', type: 'string', group: 'Geral' },
+  { key: 'zona_localizacao', label: 'Zona (urbana/rural)', type: 'string', group: 'Geral' },
+  { key: 'cep', label: 'CEP', type: 'string', group: 'Geral' },
+  { key: 'logradouro', label: 'Logradouro', type: 'string', group: 'Geral' },
+  { key: 'numero', label: 'Número', type: 'string', group: 'Geral' },
+  { key: 'bairro', label: 'Bairro', type: 'string', group: 'Geral' },
+  { key: 'municipio', label: 'Município', type: 'string', group: 'Geral' },
+  { key: 'estado', label: 'UF', type: 'string', group: 'Geral' },
+  { key: 'telefone', label: 'Telefone', type: 'string', group: 'Geral' },
+  { key: 'email', label: 'E-mail', type: 'string', group: 'Geral' },
+  { key: 'dependencia_administrativa', label: 'Dep. Administrativa', type: 'string', group: 'Geral' },
+  { key: 'situacao_funcionamento', label: 'Situação', type: 'string', group: 'Geral' },
+  { key: 'gestor_principal', label: 'Gestor Principal', type: 'string', group: 'Geral' },
+  // ─── Infraestrutura ────────────────────────────────────────────────
+  { key: 'abastecimento_agua', label: 'Abastec. Água', type: 'string', group: 'Infraestrutura' },
+  { key: 'energia_eletrica', label: 'Energia Elétrica', type: 'string', group: 'Infraestrutura' },
+  { key: 'saneamento', label: 'Saneamento', type: 'string', group: 'Infraestrutura' },
+  { key: 'coleta_lixo', label: 'Coleta de Lixo', type: 'string', group: 'Infraestrutura' },
+  { key: 'possui_rampas', label: 'Possui Rampas', type: 'bool', group: 'Infraestrutura' },
+  { key: 'banheiros_adaptados', label: 'Banheiros Adaptados', type: 'bool', group: 'Infraestrutura' },
+  { key: 'possui_internet', label: 'Possui Internet', type: 'bool', group: 'Infraestrutura' },
+  { key: 'estado_conservacao', label: 'Estado Conservação', type: 'string', group: 'Infraestrutura' },
+  // ─── Dependências ─────────────────────────────────────────────────
+  { key: 'numero_salas_aula', label: 'Nº Salas de Aula', type: 'int', group: 'Dependências' },
+  { key: 'capacidade_total_alunos', label: 'Capacidade Alunos', type: 'int', group: 'Dependências' },
+  { key: 'sala_direcao', label: 'Sala Direção', type: 'bool', group: 'Dependências' },
+  { key: 'sala_secretaria', label: 'Sala Secretaria', type: 'bool', group: 'Dependências' },
+  { key: 'numero_banheiros', label: 'Nº Banheiros', type: 'int', group: 'Dependências' },
+  { key: 'possui_cozinha', label: 'Possui Cozinha', type: 'bool', group: 'Dependências' },
+  { key: 'possui_biblioteca', label: 'Possui Biblioteca', type: 'bool', group: 'Dependências' },
+  { key: 'possui_lab_informatica', label: 'Lab. Informática', type: 'bool', group: 'Dependências' },
+  { key: 'possui_quadra', label: 'Quadra Esportiva', type: 'bool', group: 'Dependências' },
+  // ─── Equipamentos ─────────────────────────────────────────────────
+  { key: 'qtd_computadores', label: 'Qtd Computadores', type: 'int', group: 'Equipamentos' },
+  { key: 'qtd_tablets', label: 'Qtd Tablets', type: 'int', group: 'Equipamentos' },
+  { key: 'qtd_projetores', label: 'Qtd Projetores', type: 'int', group: 'Equipamentos' },
+  { key: 'qtd_impressoras', label: 'Qtd Impressoras', type: 'int', group: 'Equipamentos' },
+  { key: 'qtd_televisores', label: 'Qtd Televisores', type: 'int', group: 'Equipamentos' },
+  { key: 'qtd_lousas_digitais', label: 'Qtd Lousas Digitais', type: 'int', group: 'Equipamentos' },
+  { key: 'qtd_cameras', label: 'Qtd Câmeras', type: 'int', group: 'Equipamentos' },
+  { key: 'qtd_extintores', label: 'Qtd Extintores', type: 'int', group: 'Equipamentos' },
+];
+
+const parseBool = (v) => {
+  if (v === undefined || v === null) return undefined;
+  const s = String(v).trim().toLowerCase();
+  if (!s) return undefined;
+  return ['sim', 'true', '1', 's', 'yes', 'y'].includes(s);
+};
+
+const parseInt10 = (v) => {
+  if (v === undefined || v === null || String(v).trim() === '') return undefined;
+  const n = parseInt(String(v).trim(), 10);
+  return isNaN(n) ? undefined : n;
+};
+
+// Split CSV line respeitando aspas
+const splitCsvLine = (line) => {
+  const out = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; } else inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      out.push(cur); cur = '';
+    } else cur += ch;
+  }
+  out.push(cur);
+  return out.map((s) => s.trim());
+};
+
 const parseCsv = (text) => {
-  // CSV simples: uma escola por linha; colunas: nome, inep, municipio (ou apenas nome)
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const cols = line.split(',').map((c) => c.trim());
-      return { name: cols[0] || '', codigo_inep: cols[1] || '', municipio: cols[2] || '' };
-    })
-    .filter((s) => s.name && s.name.toLowerCase() !== 'nome');
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+  // Detecta se a primeira linha é header (contém "nome" ou "name")
+  const firstCols = splitCsvLine(lines[0]).map((c) => c.toLowerCase());
+  const hasHeader = firstCols.some((c) => c.includes('nome') || c === 'name' || c === 'name*');
+  const header = hasHeader ? firstCols : SCHOOL_COLUMNS.map((c) => c.key);
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+
+  // Mapeia cada coluna do header para um SCHOOL_COLUMNS key (por label ou key)
+  const keyIndex = header.map((h) => {
+    const normalized = h.replace(/[*\s]/g, '').toLowerCase();
+    const found = SCHOOL_COLUMNS.find((col) => {
+      const byKey = col.key.toLowerCase() === normalized;
+      const byLabel = col.label.replace(/[*\s]/g, '').toLowerCase() === normalized;
+      return byKey || byLabel;
+    });
+    return found ? found.key : null;
+  });
+
+  return dataLines.map((line) => {
+    const values = splitCsvLine(line);
+    const obj = {};
+    values.forEach((val, idx) => {
+      const key = keyIndex[idx];
+      if (!key || val === '') return;
+      const colMeta = SCHOOL_COLUMNS.find((c) => c.key === key);
+      if (!colMeta) return;
+      if (colMeta.type === 'bool') {
+        const b = parseBool(val);
+        if (b !== undefined) obj[key] = b;
+      } else if (colMeta.type === 'int') {
+        const n = parseInt10(val);
+        if (n !== undefined) obj[key] = n;
+      } else {
+        obj[key] = val;
+      }
+    });
+    return obj;
+  }).filter((s) => s.name);
+};
+
+const downloadCsvTemplate = () => {
+  const header = SCHOOL_COLUMNS.map((c) => c.label).join(',');
+  const example = SCHOOL_COLUMNS.map((c) => {
+    if (c.key === 'name') return 'ESCOLA MUNICIPAL EXEMPLO';
+    if (c.key === 'inep_code') return '12345678';
+    if (c.key === 'cnpj') return '00.000.000/0001-00';
+    if (c.key === 'zona_localizacao') return 'urbana';
+    if (c.key === 'cep') return '68530-000';
+    if (c.key === 'municipio') return 'CIDADE EXEMPLO';
+    if (c.key === 'estado') return 'PA';
+    if (c.key === 'situacao_funcionamento') return 'Em atividade';
+    if (c.type === 'bool') return 'sim';
+    if (c.type === 'int') return '0';
+    return '';
+  }).join(',');
+  const csv = `${header}\n${example}\n`;
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'modelo_escolas.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 };
 
 export const OnboardingWizard = ({ isOpen, onClose, onComplete }) => {
@@ -88,12 +221,13 @@ export const OnboardingWizard = ({ isOpen, onClose, onComplete }) => {
       let failed = 0;
       for (const s of parsedSchools) {
         try {
-          await axios.post(`${API}/api/schools`, {
-            name: s.name,
-            codigo_inep: s.codigo_inep || undefined,
+          // Fallbacks de município/estado a partir da mantenedora
+          const payload = {
+            ...s,
             municipio: s.municipio || createdMantenedora?.municipio || undefined,
-            estado: createdMantenedora?.estado || 'PA',
-          });
+            estado: s.estado || createdMantenedora?.estado || 'PA',
+          };
+          await axios.post(`${API}/api/schools`, payload);
           created++;
         } catch (_err) {
           failed++;
@@ -227,12 +361,35 @@ export const OnboardingWizard = ({ isOpen, onClose, onComplete }) => {
           {/* Passo 2 */}
           {step === 2 && (
             <div className="space-y-3" data-testid="wizard-step-2">
-              <p className="text-sm text-gray-600 mb-2">Importe a lista de escolas via arquivo CSV (opcional).</p>
-              <div className="bg-gray-50 border border-gray-200 rounded-md p-3 text-xs text-gray-600">
-                <strong>Formato esperado:</strong> Uma linha por escola, colunas <code>nome, inep, município</code>.<br />
-                <strong>Exemplo:</strong><br />
-                <code className="block mt-1 font-mono">ESCOLA MUNICIPAL EXEMPLO,12345678,Cidade</code>
+              <p className="text-sm text-gray-600 mb-2">Importe as escolas da prefeitura em lote via planilha CSV (opcional).</p>
+              
+              <div className="bg-indigo-50 border border-indigo-200 rounded-md p-3 text-xs">
+                <div className="flex items-center justify-between mb-2">
+                  <strong className="text-indigo-800">Planilha modelo com todos os campos:</strong>
+                  <button
+                    type="button"
+                    onClick={downloadCsvTemplate}
+                    className="flex items-center gap-1 px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-[11px]"
+                    data-testid="wizard-download-template"
+                  >
+                    <Download size={12} /> Baixar modelo CSV
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-indigo-900">
+                  {['Geral', 'Infraestrutura', 'Dependências', 'Equipamentos'].map((grp) => (
+                    <div key={grp}>
+                      <div className="font-semibold text-[11px] uppercase tracking-wide mt-1">{grp}</div>
+                      <div className="text-[11px] text-indigo-800">
+                        {SCHOOL_COLUMNS.filter((c) => c.group === grp).map((c) => c.label.replace('*', '')).join(' · ')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-[11px] text-indigo-700 mt-2 italic">
+                  Booleanos aceitam <code>sim/não</code> ou <code>true/false</code>. A primeira linha deve conter os nomes das colunas.
+                </div>
               </div>
+              
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md cursor-pointer hover:bg-indigo-100 text-sm" data-testid="wizard-csv-label">
                   <Upload size={14} />
@@ -244,7 +401,7 @@ export const OnboardingWizard = ({ isOpen, onClose, onComplete }) => {
                 )}
               </div>
               <textarea
-                placeholder="Ou cole as linhas aqui..."
+                placeholder="Ou cole as linhas aqui (inclua o cabeçalho)..."
                 value={csvText}
                 onChange={(e) => {
                   setCsvText(e.target.value);

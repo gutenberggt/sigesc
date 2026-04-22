@@ -52,7 +52,7 @@ export const SilentModeToggle = () => {
             ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
         }`}
-        title={active ? `Silenciado até ${formatSilentUntil(until)}` : 'Silenciar notificações'}
+        title={active ? `Mensagens silenciadas até ${formatSilentUntil(until)}` : 'Silenciar bips das mensagens'}
         data-testid="silent-mode-button"
       >
         {active ? (
@@ -66,9 +66,9 @@ export const SilentModeToggle = () => {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50" data-testid="silent-mode-menu">
+        <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50" data-testid="silent-mode-menu">
           <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 border-b border-gray-100">
-            Modo Silencioso
+            Silenciar bips de mensagens
           </div>
           {active && (
             <>
@@ -81,7 +81,7 @@ export const SilentModeToggle = () => {
                 className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-gray-700 border-b border-gray-100"
                 data-testid="silent-mode-deactivate"
               >
-                Reativar notificações
+                Reativar bips de mensagens
               </button>
             </>
           )}
@@ -92,9 +92,12 @@ export const SilentModeToggle = () => {
               className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-gray-700"
               data-testid={`silent-mode-option-${opt.minutes}`}
             >
-              Silenciar por {opt.label}
+              Silenciar bips por {opt.label}
             </button>
           ))}
+          <div className="px-3 py-2 text-[10px] text-gray-500 border-t border-gray-100 italic">
+            Nota: as notificações visuais continuam aparecendo normalmente.
+          </div>
         </div>
       )}
     </div>

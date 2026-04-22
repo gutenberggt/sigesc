@@ -401,6 +401,11 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 
 
 ## Notas Técnicas
+
+## Ajustes — Modo Silencioso só para mensagens + Wizard com template completo (22/04/2026)
+- **SilentModeToggle renomeado**: títulos e labels deixam explícito que silencia apenas os bips de mensagens. Tooltip: "Silenciar bips das mensagens". Menu: "Silenciar bips por X min". Nota: "as notificações visuais continuam aparecendo normalmente".
+- **Wizard Passo 2 expandido**: novo parser CSV com cabeçalho, split respeitando aspas, conversão de tipos (int/bool aceita `sim/não/true/false/1/0`). Template gerado dinamicamente a partir de `SCHOOL_COLUMNS` com 40 campos agrupados em 4 seções (Geral, Infraestrutura, Dependências, Equipamentos). Botão `wizard-download-template` gera e baixa `modelo_escolas.csv` pronto com linha de exemplo. Painel azul exibe visualmente os campos de cada grupo antes do upload.
+
 - Token frontend: `localStorage.getItem('accessToken')` (NÃO 'token')
 - Escapar HTML em PDFs: usar `xml_escape`
 - Background polling: usar `useRef` para initial load
