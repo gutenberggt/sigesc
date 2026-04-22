@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe } from 'lucide-react';
+import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2 } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI, analyticsAPI } from '@/services/api';
@@ -30,7 +30,7 @@ export const Dashboard = () => {
     return JSON.parse(userSchoolIdsJson);
   }, [userSchoolIdsJson]);
   
-  const { isAdmin, isSecretario, isDiretor, isCoordenador, isProfessor, isSemed, isSchoolStaff, isAdminOrSecretary, isSemedFull, isAssistenteSocial, hasRole } = usePermissions();
+  const { isAdmin, isSuperAdmin, isSecretario, isDiretor, isCoordenador, isProfessor, isSemed, isSchoolStaff, isAdminOrSecretary, isSemedFull, isAssistenteSocial, hasRole } = usePermissions();
 
   useEffect(() => {
     // Não carrega stats se for professor (será redirecionado)
@@ -422,6 +422,18 @@ export const Dashboard = () => {
               {isSemed ? 'Consultar Módulos' : 'Menu de Administração'}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Mantenedoras (Multi-tenant) - apenas super_admin */}
+              {isSuperAdmin && (
+                <button
+                  onClick={() => navigate('/admin/mantenedoras')}
+                  className="flex items-center space-x-3 p-4 border border-indigo-200 bg-indigo-50/30 rounded-lg hover:bg-indigo-50 hover:border-indigo-400 transition-all"
+                  data-testid="nav-mantenedoras-multi-button"
+                >
+                  <Building2 className="text-indigo-700" size={24} />
+                  <span className="font-medium text-gray-900">Mantenedoras <span className="text-[10px] uppercase tracking-wider text-indigo-600 ml-1">(multi-tenant)</span></span>
+                </button>
+              )}
+              
               {/* Mantenedora - apenas para admin */}
               {isAdmin && (
                 <button

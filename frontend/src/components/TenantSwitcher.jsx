@@ -9,13 +9,15 @@
  * "Todas" (sem seleção) faz o super_admin operar cross-tenant (None no backend).
  */
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ChevronDown, Building2, Check } from 'lucide-react';
+import { ChevronDown, Building2, Check, Settings } from 'lucide-react';
 import { getActiveTenantId } from '@/services/api';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const TenantSwitcher = () => {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [mantenedoras, setMantenedoras] = useState([]);
   const [activeId, setActiveId] = useState(getActiveTenantId() || '');
@@ -94,6 +96,18 @@ export const TenantSwitcher = () => {
               {activeId === m.id && <Check size={14} className="shrink-0" />}
             </button>
           ))}
+          
+          {/* Ação: gerenciar mantenedoras (criar, editar, excluir) */}
+          <div className="border-t border-gray-100 mt-1">
+            <button
+              onClick={() => { setOpen(false); navigate('/admin/mantenedoras'); }}
+              className="w-full text-left px-3 py-2 hover:bg-indigo-50 text-indigo-700 flex items-center gap-2 text-sm font-medium"
+              data-testid="tenant-switcher-manage"
+            >
+              <Settings size={14} />
+              <span>Gerenciar mantenedoras</span>
+            </button>
+          </div>
         </div>
       )}
     </div>
