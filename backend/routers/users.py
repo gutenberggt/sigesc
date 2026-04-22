@@ -10,6 +10,7 @@ from passlib.context import CryptContext
 from models import UserResponse, UserUpdate
 from auth_middleware import AuthMiddleware
 from text_utils import format_data_uppercase
+from tenant_scope import apply_tenant_filter, assert_same_tenant
 
 router = APIRouter(prefix="/users", tags=["Usuários"])
 
@@ -28,11 +29,14 @@ def setup_router(db, audit_service, sandbox_db=None):
 
     @router.get("")
     async def list_users(request: Request, skip: int = 0, limit: int = 1000):
-        """Lista usuários (admin, secretario e semed)"""
+        """Lista usuários (admin, secretario e semed) — filtrado por mantenedora ativa"""
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'semed', 'semed3'])(request)
         current_db = get_db_for_user(current_user)
         
-        users = await current_db.users.find({}, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+        # Multi-tenancy: filtra por mantenedora ativa
+        filter_query = apply_tenant_filter({}, current_user, request)
+        
+        users = await current_db.users.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         
         # Remove password_hash de todos
         for user in users:
@@ -54,6 +58,9 @@ def setup_router(db, audit_service, sandbox_db=None):
                 detail="Usuário não encontrado"
             )
         
+        # Multi-tenancy
+        assert_same_tenant(user_doc, current_user, request)
+        
         user_doc.pop('password_hash', None)
         return user_doc
 
@@ -70,6 +77,9 @@ def setup_router(db, audit_service, sandbox_db=None):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Usuário não encontrado"
             )
+        
+        # Multi-tenancy
+        assert_same_tenant(user_doc, current_user, request)
         
         # Prepara atualização
         update_data = user_update.model_dump(exclude_unset=True)
@@ -109,6 +119,9 @@ def setup_router(db, audit_service, sandbox_db=None):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Usuário não encontrado"
             )
+        
+        # Multi-tenancy
+        assert_same_tenant(user, current_user, request)
         
         # Não permitir excluir o próprio usuário
         if user_id == current_user['id']:

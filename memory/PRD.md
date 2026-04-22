@@ -381,6 +381,13 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
+
+## Multi-Tenancy — Isolamento de Usuários e Alunos (22/04/2026)
+- **`routers/users.py`**: GET `/api/users` agora aplica `apply_tenant_filter`; GET/PUT/DELETE `/api/users/{id}` validam com `assert_same_tenant`.
+- **`routers/students.py`**: GET `/api/students/{id}` passou a validar `assert_same_tenant` (list já filtrava).
+- **`routers/auth.py`**: `POST /api/auth/register` agora injeta `mantenedora_id` derivado de (1) criador autenticado via `get_mantenedora_scope`, (2) fallback para a única mantenedora cadastrada — garantindo que novos usuários nasçam vinculados ao tenant correto.
+- Validação de isolamento end-to-end com 2 tenants (A e B): Tenant A → 9 users/9 alunos; Tenant B → 1 user/1 aluno; cross-tenant super_admin → 10 users/10 alunos/2 schools. Zero vazamento.
+
 - Coordenador: coordenador@sigesc.com / coordenador123
 - Secretário: secretario@sigesc.com / secretario123
 - Agente de Vacinas: vacinas@sigesc.com / vacinas123

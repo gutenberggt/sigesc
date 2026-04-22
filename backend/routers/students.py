@@ -545,6 +545,9 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         # Verifica acesso à escola do aluno
         await AuthMiddleware.verify_school_access(request, student_doc['school_id'])
         
+        # Multi-tenancy: valida tenant
+        assert_same_tenant(student_doc, current_user, request)
+        
         return Student(**student_doc)
 
     @router.put("/{student_id}", response_model=Student)

@@ -225,8 +225,9 @@ def setup_router(db, audit_service):
         return UserResponse(**user_doc)
 
     @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-    async def register(user_data: UserCreate):
-        """Registra novo usuário"""
+    async def register(user_data: UserCreate, request: Request):
+        """Registra novo usuário. Multi-tenancy: herda mantenedora do criador autenticado
+        ou do header X-Mantenedora-Id. Fallback para a única mantenedora cadastrada."""
         existing_user = await db.users.find_one({"email": user_data.email})
         if existing_user:
             raise HTTPException(
@@ -242,6 +243,26 @@ def setup_router(db, audit_service):
         
         doc = user_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
+        
+        # Multi-tenancy: deriva mantenedora_id
+        tenant_id = None
+        # 1) Se há criador autenticado, usa o scope dele
+        try:
+            from tenant_scope import get_mantenedora_scope
+            creator = await AuthMiddleware.get_current_user(request)
+            tenant_id = get_mantenedora_scope(creator, request)
+            if not tenant_id and creator.get('mantenedora_id'):
+                tenant_id = creator['mantenedora_id']
+        except HTTPException:
+            # Endpoint também usado em onboarding sem auth
+            pass
+        # 2) Fallback: única mantenedora cadastrada
+        if not tenant_id:
+            mantenedoras = await db.mantenedoras.find({}, {"_id": 0, "id": 1}).to_list(2)
+            if len(mantenedoras) == 1:
+                tenant_id = mantenedoras[0]['id']
+        if tenant_id:
+            doc['mantenedora_id'] = tenant_id
         
         await db.users.insert_one(doc)
         return UserResponse(**user_obj.model_dump(exclude={'password_hash'}))
