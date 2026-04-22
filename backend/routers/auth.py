@@ -227,13 +227,26 @@ def setup_router(db, audit_service):
     @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
     async def register(user_data: UserCreate, request: Request):
         """Registra novo usuário. Multi-tenancy: herda mantenedora do criador autenticado
-        ou do header X-Mantenedora-Id. Fallback para a única mantenedora cadastrada."""
+        ou do header X-Mantenedora-Id. Fallback para a única mantenedora cadastrada.
+        Apenas super_admin pode criar outro super_admin."""
         existing_user = await db.users.find_one({"email": user_data.email})
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email já cadastrado"
             )
+        
+        # Regra: papel super_admin só pode ser criado por outro super_admin
+        if user_data.role == 'super_admin':
+            try:
+                creator = await AuthMiddleware.get_current_user(request)
+            except HTTPException:
+                creator = None
+            if not creator or creator.get('role') != 'super_admin':
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Apenas um Super Administrador pode criar outro Super Administrador"
+                )
         
         user_dict = format_data_uppercase(user_data.model_dump(exclude={'password'}))
         user_obj = UserInDB(

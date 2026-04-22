@@ -139,9 +139,9 @@ export const Dashboard = () => {
     aluno: 'Aluno(a)',
     responsavel: 'Responsável(is)',
     semed: 'SEMED',
-    semed1: 'SEMED 1',
-    semed2: 'SEMED 2',
-    semed3: 'SEMED 3',
+    semed1: 'Tutor',
+    semed2: 'Analista',
+    semed3: 'Administração',
     admin_teste: 'Administrador'
   };
 

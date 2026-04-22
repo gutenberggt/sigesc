@@ -95,6 +95,20 @@ def setup_router(db, audit_service, sandbox_db=None):
         if user_doc.get('role') != 'super_admin':
             assert_same_tenant(user_doc, current_user, request)
         
+        # Regra: promoção para super_admin só por super_admin
+        update_raw = user_update.model_dump(exclude_unset=True)
+        if update_raw.get('role') == 'super_admin' and current_user.get('role') != 'super_admin':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Apenas um Super Administrador pode atribuir o papel de Super Administrador"
+            )
+        # Bloqueio: não permitir rebaixar o super_admin primário
+        if user_doc.get('is_primary') and update_raw.get('role') and update_raw['role'] != 'super_admin':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="O Super Administrador primário não pode ter seu papel alterado"
+            )
+        
         # Prepara atualização
         update_data = user_update.model_dump(exclude_unset=True)
         
@@ -132,6 +146,20 @@ def setup_router(db, audit_service, sandbox_db=None):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Usuário não encontrado"
+            )
+        
+        # Super Administrador PRIMÁRIO (is_primary) nunca pode ser excluído
+        if user.get('is_primary'):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="O Super Administrador primário do sistema não pode ser excluído"
+            )
+        
+        # Apenas outro super_admin pode excluir um super_admin
+        if user.get('role') == 'super_admin' and current_user.get('role') != 'super_admin':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Apenas um Super Administrador pode excluir outro Super Administrador"
             )
         
         # Multi-tenancy: super_admin é nato de toda mantenedora

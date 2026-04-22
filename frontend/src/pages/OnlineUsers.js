@@ -9,7 +9,7 @@ const ROLE_LABELS = {
   'admin': 'Administrador',
   'admin_teste': 'Admin Teste',
   'semed': 'SEMED',
-  'semed3': 'SEMED 3',
+  'semed3': 'Administração',
   'secretario': 'Secretário(a)',
   'diretor': 'Diretor(a)',
   'coordenador': 'Coordenador(a)',

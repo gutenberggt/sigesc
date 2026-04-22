@@ -39,9 +39,9 @@ const ROLE_MATRIX = {
     coordenador: { label: 'Coordenador', color: 'purple' },
     professor: { label: 'Professor', color: 'green' },
     semed: { label: 'SEMED', color: 'teal' },
-    semed1: { label: 'SEMED 1', color: 'teal' },
-    semed2: { label: 'SEMED 2', color: 'teal' },
-    semed3: { label: 'SEMED 3', color: 'teal' },
+    semed1: { label: 'Tutor', color: 'teal' },
+    semed2: { label: 'Analista', color: 'teal' },
+    semed3: { label: 'Administração', color: 'teal' },
   },
   // access: 'full' = edita, 'view' = visualiza, 'analyst' = analista HR, null = sem acesso
   access: {
@@ -208,6 +208,8 @@ export const Users = () => {
   };
 
   const roleLabels = {
+    super_admin: 'Super Administrador',
+    gerente: 'Gerente',
     admin: 'Administrador',
     ass_social: 'Ass. Social',
     ass_social_2: 'Ass. Social 2',
@@ -221,16 +223,19 @@ export const Users = () => {
     aluno: 'Aluno(a)',
     responsavel: 'Responsável(is)',
     semed: 'SEMED',
-    semed1: 'SEMED 1',
-    semed2: 'SEMED 2',
-    semed3: 'SEMED 3'
+    semed1: 'Tutor',
+    semed2: 'Analista',
+    semed3: 'Administração'
   };
 
   // Verifica se o usuário atual é administrador
   const isCurrentUserAdmin = ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role);
+  const isCurrentUserSuperAdmin = user?.role === 'super_admin';
   
-  // Papéis admin/semed/ass_social só podem ser criados/selecionados por admins
+  // Papéis admin/semed/ass_social só podem ser criados/selecionados por admins.
+  // O papel super_admin só aparece no seletor para outro super_admin.
   const availableRoles = Object.entries(roleLabels).filter(([value]) => {
+    if (value === 'super_admin' && !isCurrentUserSuperAdmin) return false;
     if (ADMIN_ONLY_ROLES.includes(value) && !isCurrentUserAdmin) return false;
     return true;
   });
