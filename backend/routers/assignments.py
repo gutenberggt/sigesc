@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 from models import *
 from auth_middleware import AuthMiddleware
+from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create
 
 
 router = APIRouter(tags=["Lotações"])
@@ -35,6 +36,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     ):
         """Lista lotações"""
         await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed1', 'semed2', 'semed3', 'diretor'])(request)
+        current_user = await AuthMiddleware.get_current_user(request)
 
         query = {}
         if school_id:
@@ -45,6 +47,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             query["status"] = status
         if academic_year:
             query["academic_year"] = academic_year
+        
+        # Multi-tenancy
+        query = apply_tenant_filter(query, current_user, request)
 
         assignments = await db.school_assignments.find(query, {"_id": 0}).to_list(1000)
 
@@ -89,7 +94,12 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             raise HTTPException(status_code=400, detail="Servidor já possui lotação ativa com esta função nesta escola para este ano")
 
         new_assignment = SchoolAssignment(**assignment.model_dump())
-        await db.school_assignments.insert_one(new_assignment.model_dump())
+        sa_doc = new_assignment.model_dump()
+        # Multi-tenancy: injeta mantenedora_id derivada da escola
+        sa_doc['mantenedora_id'] = await resolve_tenant_id_for_create(
+            db, current_user, request, school_id=assignment.school_id
+        )
+        await db.school_assignments.insert_one(sa_doc)
 
         # Auditoria de criação de lotação
         await audit_service.log(
@@ -210,6 +220,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     ):
         """Lista alocações de professores"""
         await AuthMiddleware.require_roles(['admin', 'secretario', 'semed', 'semed1', 'semed2', 'semed3', 'diretor', 'coordenador', 'auxiliar_secretaria'])(request)
+        current_user = await AuthMiddleware.get_current_user(request)
 
         query = {}
         if school_id:
@@ -224,6 +235,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             query["academic_year"] = academic_year
         if status:
             query["status"] = status
+        
+        # Multi-tenancy
+        query = apply_tenant_filter(query, current_user, request)
 
         assignments = await db.teacher_assignments.find(query, {"_id": 0}).to_list(1000)
 
@@ -283,7 +297,12 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             raise HTTPException(status_code=400, detail="Este professor já está alocado para este componente nesta turma")
 
         new_assignment = TeacherAssignment(**assignment.model_dump())
-        await db.teacher_assignments.insert_one(new_assignment.model_dump())
+        ta_doc = new_assignment.model_dump()
+        # Multi-tenancy: injeta mantenedora_id derivada da escola
+        ta_doc['mantenedora_id'] = await resolve_tenant_id_for_create(
+            db, current_user, request, school_id=assignment.school_id
+        )
+        await db.teacher_assignments.insert_one(ta_doc)
 
         return await db.teacher_assignments.find_one({"id": new_assignment.id}, {"_id": 0})
 

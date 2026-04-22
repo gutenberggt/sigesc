@@ -1,0 +1,36 @@
+{
+  "summary": "Multi-Tenant Phase 2 (backend scoping + TenantSwitcher) fully validated. 22/22 backend pytest tests pass and frontend Playwright run confirms TenantSwitcher renders for super_admin, dropdown lists 'Todas (cross-tenant)' + mantenedoras, selection persists to localStorage.activeMantenedoraId, and axios interceptor injects X-Mantenedora-Id header on every subsequent API call (52 requests verified).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_results_by_feature": {
+    "regression_phase1": "PASS - super_admin login, /me returns mantenedora_id, classes>=6, students>=9, staff>=1, courses>=18, enrollments(2026)>=40, ESCOLA TESTE MULTISSERIADA visible for both no-header and t1-header.",
+    "tenant_create_injection_schools": "PASS - POST /api/schools with X-Mantenedora-Id=<t2> persists mantenedora_id in MongoDB (verified via direct DB query).",
+    "cross_tenant_listing_isolation_schools": "PASS - super_admin without header sees both T1 (MULTISSERIADA) and T2 (TEST_PHASE2_ESCOLA_T2) schools; with X-Mantenedora-Id=<t1> only sees T1; with X-Mantenedora-Id=<t2> only sees T2.",
+    "assert_same_tenant_403": "PASS - GET/PUT/DELETE on T2 school using T1 header returns 403 (or 404 when the find_one filter excluded it first; both are acceptable per assert_same_tenant contract).",
+    "t2_empty_listings_post_creation": "PASS - For new T2 mantenedora, /api/classes, /api/students, /api/courses, /api/staff, /api/school-assignments, /api/teacher-assignments all return 0 items, proving filter is correctly applied.",
+    "tenant_switcher_visible_super_admin": "PASS - data-testid='tenant-switcher-button' visible after super_admin login; default label 'Todas as mantenedoras'.",
+    "tenant_switcher_dropdown_options": "PASS - Menu opens with 'Todas (cross-tenant)' option + 1 mantenedora 'Prefeitura Municipal de Floresta do Araguaia'.",
+    "tenant_switcher_localstorage_persist": "PASS - Selecting tenant writes localStorage.activeMantenedoraId = <id> and reloads the page.",
+    "axios_interceptor_x_mantenedora_id": "PASS - 52 subsequent API requests captured carry X-Mantenedora-Id header (e.g. /api/students, /api/staff, /api/profiles/me, /api/mantenedora, /api/analytics/overview)."
+  },
+  "critical_code_review_comments": [
+    "[INFO] tenant_scope.py is correctly wired into schools/classes/students/staff/courses/enrollments/grades/learning_objects/school-assignments/teacher-assignments routers. apply_tenant_filter, assert_same_tenant and resolve_tenant_id_for_create cover the create/read/update/delete cases.",
+    "[INFO] Phase 1 finding (mantenedora_id missing from School Pydantic response) still applies — the field is persisted in MongoDB and the filter works correctly, but the API response does not echo mantenedora_id back. Frontend currently relies on the user context, not on the school object, so it does not block. Recommend exposing mantenedora_id on the School/Class/Student/Staff/Course response models for future cross-tenant audit UIs.",
+    "[INFO] DELETE /api/mantenedoras/{id} called during fixture teardown — verify it actually cascades or hard-deletes the test mantenedora; otherwise a stale TEST_MT_PHASE2_TENANT may accumulate. Cleanup ran without error in pytest run.",
+    "[INFO] TenantSwitcher.jsx fetches /api/mantenedoras with raw axios (not the wrapped client) on line 28 — this works only because the global axios.defaults.headers.common['Authorization'] is set elsewhere, but the X-Mantenedora-Id interceptor only fires on the wrapped instance. Currently fine because the load uses `axios.get` and listing of mantenedoras is cross-tenant for super_admin, but consider switching to the api wrapper for consistency.",
+    "[INFO] window.location.reload() after selecting tenant is a hard reset — works but loses any in-page state. Consider invalidating react-query cache instead in a future iteration."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_multitenant_phase2.py",
+    "/app/test_reports/pytest/pytest_multitenant_phase2.xml",
+    "/app/backend/tests/test_multitenant_phase1.py"
+  ],
+  "action_items": [],
+  "updated_files": ["/app/backend/tests/test_multitenant_phase2.py"],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "100% (TenantSwitcher visible, dropdown works, localStorage persists, X-Mantenedora-Id injected)"},
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin, mantenedora_id=a991c1ac-56b1-46a8-b122-effedbe19b21)",
+  "seed_data_creation": "Created and removed TEST_MT_PHASE2_TENANT mantenedora and TEST_PHASE2_ESCOLA_T2 school during the test run (cleanup verified in fixture teardown).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 2 multi-tenant scoping is fully validated. Test suite at /app/backend/tests/test_multitenant_phase2.py covers POST tenant injection (schools), cross-tenant listing isolation, assert_same_tenant 403, T2 empty listings, plus all Phase 1 regression. Reusable for any future router added to tenant_scope. Frontend TenantSwitcher data-testids: tenant-switcher-button, tenant-switcher-menu, tenant-option-all, tenant-option-<id>. Note: localStorage activeMantenedoraId may persist across runs — clean it before non-super_admin tests."
+}

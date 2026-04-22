@@ -17,6 +17,7 @@ import logging
 
 from models import Grade, GradeCreate, GradeUpdate
 from auth_middleware import AuthMiddleware
+from tenant_scope import resolve_tenant_id_for_create, apply_tenant_filter
 
 logger = logging.getLogger(__name__)
 
@@ -385,6 +386,11 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         grade_dict['final_average'] = None
         grade_dict['status'] = 'cursando'
         
+        # Multi-tenancy: injeta mantenedora_id derivada da turma
+        grade_dict['mantenedora_id'] = await resolve_tenant_id_for_create(
+            current_db, current_user, request, class_id=grade_data.class_id
+        )
+        
         await current_db.grades.insert_one(grade_dict)
         
         if any([grade_data.b1, grade_data.b2, grade_data.b3, grade_data.b4]):
@@ -501,6 +507,11 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                     'status': 'cursando',
                     'created_at': datetime.now(timezone.utc).isoformat()
                 }
+                
+                # Multi-tenancy: injeta mantenedora_id derivada da turma
+                new_grade['mantenedora_id'] = await resolve_tenant_id_for_create(
+                    current_db, current_user, request, class_id=grade_data['class_id']
+                )
                 
                 await current_db.grades.insert_one(new_grade)
                 updated = await calculate_and_update_grade(current_db, new_grade['id'])

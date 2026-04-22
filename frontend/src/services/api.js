@@ -6,11 +6,19 @@ const API = `${BACKEND_URL}/api`;
 // Configura interceptor para incluir token
 export const getToken = () => localStorage.getItem('accessToken');
 
+// Multi-tenancy: super_admin pode selecionar uma mantenedora ativa
+export const getActiveTenantId = () => localStorage.getItem('activeMantenedoraId');
+
 axios.interceptors.request.use(
   (config) => {
     const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // Injeta X-Mantenedora-Id para super_admin com tenant ativo
+    const tenantId = getActiveTenantId();
+    if (tenantId) {
+      config.headers['X-Mantenedora-Id'] = tenantId;
     }
     return config;
   },

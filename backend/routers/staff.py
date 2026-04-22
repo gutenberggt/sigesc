@@ -17,6 +17,7 @@ import uuid
 from models import Staff, StaffCreate, StaffUpdate
 from auth_middleware import AuthMiddleware
 from text_utils import format_data_uppercase
+from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create, get_mantenedora_scope
 
 router = APIRouter(prefix="/staff", tags=["Servidores"])
 
@@ -60,6 +61,9 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
         if status:
             query["status"] = status
         
+        # Multi-tenancy
+        query = apply_tenant_filter(query, current_user, request)
+        
         staff_list = await current_db.staff.find(query, {"_id": 0}).to_list(1000)
         
         if school_id:
@@ -86,6 +90,7 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
         staff = await current_db.staff.find_one({"id": staff_id}, {"_id": 0})
         if not staff:
             raise HTTPException(status_code=404, detail="Servidor não encontrado")
+        assert_same_tenant(staff, current_user, request)
         
         lotacoes = await current_db.school_assignments.find({"staff_id": staff_id}, {"_id": 0}).to_list(100)
         for lot in lotacoes:
@@ -185,7 +190,11 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
             **staff_dict
         )
         
-        await current_db.staff.insert_one(new_staff.model_dump())
+        staff_doc = new_staff.model_dump()
+        # Multi-tenancy: injeta mantenedora_id do scope do usuário
+        staff_doc['mantenedora_id'] = await resolve_tenant_id_for_create(current_db, current_user, request)
+        
+        await current_db.staff.insert_one(staff_doc)
         
         result = await current_db.staff.find_one({"id": new_staff.id}, {"_id": 0})
         
@@ -213,6 +222,7 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
         existing = await current_db.staff.find_one({"id": staff_id})
         if not existing:
             raise HTTPException(status_code=404, detail="Servidor não encontrado")
+        assert_same_tenant(existing, current_user, request)
         
         # Validar CPF duplicado (excluindo o próprio servidor)
         if staff_data.cpf:
@@ -266,6 +276,7 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
         existing = await current_db.staff.find_one({"id": staff_id})
         if not existing:
             raise HTTPException(status_code=404, detail="Servidor não encontrado")
+        assert_same_tenant(existing, current_user, request)
         
         active_assignments = await current_db.school_assignments.find_one({"staff_id": staff_id, "status": "ativo"})
         if active_assignments:

@@ -9,6 +9,7 @@ from pymongo.errors import DuplicateKeyError
 
 from models import Enrollment, EnrollmentCreate, EnrollmentUpdate
 from auth_middleware import AuthMiddleware
+from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create
 
 router = APIRouter(prefix="/enrollments", tags=["Matrículas"])
 
@@ -70,6 +71,13 @@ def setup_router(db, audit_service):
         doc = enrollment_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
         
+        # Multi-tenancy: injeta mantenedora_id derivada da turma/escola
+        doc['mantenedora_id'] = await resolve_tenant_id_for_create(
+            db, current_user, request,
+            school_id=enrollment_data.school_id,
+            class_id=enrollment_data.class_id
+        )
+        
         try:
             await db.enrollments.insert_one(doc)
         except DuplicateKeyError:
@@ -117,6 +125,9 @@ def setup_router(db, audit_service):
         if class_id:
             filter_query['class_id'] = class_id
         
+        # Multi-tenancy
+        filter_query = apply_tenant_filter(filter_query, current_user, request)
+        
         enrollments = await db.enrollments.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         
         return enrollments
@@ -134,6 +145,8 @@ def setup_router(db, audit_service):
                 detail="Matrícula não encontrada"
             )
         
+        assert_same_tenant(enrollment_doc, current_user, request)
+        
         return Enrollment(**enrollment_doc)
 
     @router.put("/{enrollment_id}", response_model=Enrollment)
@@ -148,6 +161,7 @@ def setup_router(db, audit_service):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Matrícula não encontrada"
             )
+        assert_same_tenant(existing_enrollment, current_user, request)
         
         update_data = enrollment_update.model_dump(exclude_unset=True)
         
@@ -206,6 +220,7 @@ def setup_router(db, audit_service):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Matrícula não encontrada"
             )
+        assert_same_tenant(existing, current_user, request)
         
         result = await db.enrollments.delete_one({"id": enrollment_id})
         

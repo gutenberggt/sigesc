@@ -8,6 +8,7 @@ import { ConnectionStatusBadge, OfflineBanner, FloatingStatusIndicator } from '@
 import { useMessaging } from '@/contexts/MessagingContext';
 import { ChatBox } from '@/components/messaging';
 import { useUnsavedChangesContext } from '@/contexts/UnsavedChangesContext';
+import { TenantSwitcher } from '@/components/TenantSwitcher';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
@@ -28,6 +29,8 @@ export const Layout = ({ children }) => {
   };
 
   const roleLabels = {
+    super_admin: 'Super Administrador',
+    gerente: 'Gerente',
     admin: 'Administrador',
     admin_teste: 'Administrador',
     secretario: 'Secretário(a)',
@@ -92,6 +95,9 @@ export const Layout = ({ children }) => {
 
             {/* Notifications & User Info */}
             <div className="flex items-center space-x-2">
+              {/* Seletor de Mantenedora (somente super_admin) */}
+              {user?.role === 'super_admin' && <TenantSwitcher />}
+
               {/* Status de Conexão Offline */}
               <ConnectionStatusBadge showDetails={false} />
               

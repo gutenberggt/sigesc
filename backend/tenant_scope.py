@@ -89,3 +89,41 @@ def assert_same_tenant(doc: dict, user: dict, request: Optional[Request] = None)
     user_mid = get_mantenedora_scope(user, request)
     if doc_mid and user_mid and doc_mid != user_mid:
         raise HTTPException(status_code=403, detail="Registro pertence a outra mantenedora")
+
+
+async def resolve_tenant_id_for_create(db, user: dict, request: Optional[Request] = None,
+                                        school_id: Optional[str] = None,
+                                        class_id: Optional[str] = None,
+                                        student_id: Optional[str] = None,
+                                        staff_id: Optional[str] = None) -> Optional[str]:
+    """
+    Resolve o mantenedora_id a ser gravado em um novo documento.
+    Ordem de preferência:
+      1. scope ativo do usuário (header/query para super_admin, ou mantenedora_id próprio)
+      2. school_id → schools.mantenedora_id
+      3. class_id → classes.mantenedora_id
+      4. student_id → students.mantenedora_id
+      5. staff_id → staff.mantenedora_id
+    Retorna None se não conseguir derivar (deixa a critério do caller decidir se é erro).
+    """
+    scope = get_mantenedora_scope(user, request)
+    if scope:
+        return scope
+    # super_admin sem header → deriva do parent
+    if school_id:
+        doc = await db.schools.find_one({'id': school_id}, {'_id': 0, 'mantenedora_id': 1})
+        if doc and doc.get('mantenedora_id'):
+            return doc['mantenedora_id']
+    if class_id:
+        doc = await db.classes.find_one({'id': class_id}, {'_id': 0, 'mantenedora_id': 1})
+        if doc and doc.get('mantenedora_id'):
+            return doc['mantenedora_id']
+    if student_id:
+        doc = await db.students.find_one({'id': student_id}, {'_id': 0, 'mantenedora_id': 1})
+        if doc and doc.get('mantenedora_id'):
+            return doc['mantenedora_id']
+    if staff_id:
+        doc = await db.staff.find_one({'id': staff_id}, {'_id': 0, 'mantenedora_id': 1})
+        if doc and doc.get('mantenedora_id'):
+            return doc['mantenedora_id']
+    return None

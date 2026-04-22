@@ -19,6 +19,7 @@ from auth_middleware import AuthMiddleware
 from pdf_generator import generate_learning_objects_pdf
 from pdf_cache import get_mantenedora_cached, get_calendario_cached, get_school_cached
 from text_utils import format_data_uppercase
+from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 end_date = f"{academic_year}-{month + 1:02d}-01"
             query["date"] = {"$gte": start_date, "$lt": end_date}
 
+        # Multi-tenancy
+        query = apply_tenant_filter(query, current_user, request)
+        
         objects = await db.learning_objects.find(query, {"_id": 0}).sort("date", -1).to_list(1000)
 
         # Enriquecer com nomes
@@ -149,7 +153,13 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             recorded_by=current_user['id']
         )
 
-        await db.learning_objects.insert_one(new_object.model_dump())
+        doc = new_object.model_dump()
+        # Multi-tenancy: injeta mantenedora_id derivada da turma
+        doc['mantenedora_id'] = await resolve_tenant_id_for_create(
+            db, current_user, request, class_id=data.class_id
+        )
+
+        await db.learning_objects.insert_one(doc)
 
         return await db.learning_objects.find_one({"id": new_object.id}, {"_id": 0})
 

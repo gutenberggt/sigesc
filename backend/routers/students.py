@@ -24,6 +24,7 @@ from pymongo.errors import DuplicateKeyError
 from models import Student, StudentCreate, StudentUpdate
 from auth_middleware import AuthMiddleware
 from text_utils import format_data_uppercase
+from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create, get_mantenedora_scope
 
 router = APIRouter(prefix="/students", tags=["Alunos"])
 
@@ -89,6 +90,11 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         student_obj = Student(**student_dict)
         doc = student_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
+        
+        # Multi-tenancy: injeta mantenedora_id derivada da escola
+        doc['mantenedora_id'] = await resolve_tenant_id_for_create(
+            current_db, current_user, request, school_id=student_data.school_id
+        )
         
         await current_db.students.insert_one(doc)
         
@@ -231,6 +237,9 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 ]
             else:
                 filter_query['$or'] = search_or
+        
+        # Multi-tenancy: aplica filtro por mantenedora
+        filter_query = apply_tenant_filter(filter_query, current_user, request)
         
         # Conta total para paginação
         total = await current_db.students.count_documents(filter_query)

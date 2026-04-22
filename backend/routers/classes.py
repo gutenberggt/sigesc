@@ -10,6 +10,7 @@ from models import Class, ClassCreate, ClassUpdate
 from auth_middleware import AuthMiddleware
 from text_utils import format_data_uppercase
 from utils.cache import cache, CACHE_TTL_CLASSES
+from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create, get_mantenedora_scope
 
 router = APIRouter(prefix="/classes", tags=["Turmas"])
 
@@ -38,6 +39,11 @@ def setup_router(db, audit_service, sandbox_db=None):
         doc = class_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
         
+        # Multi-tenancy: injeta mantenedora_id derivada da escola
+        doc['mantenedora_id'] = await resolve_tenant_id_for_create(
+            current_db, current_user, request, school_id=class_data.school_id
+        )
+        
         await current_db.classes.insert_one(doc)
         
         cache.invalidate('classes')
@@ -49,9 +55,12 @@ def setup_router(db, audit_service, sandbox_db=None):
         current_user = await AuthMiddleware.get_current_user(request)
         current_db = get_db_for_user(current_user)
         
+        tenant_id = get_mantenedora_scope(current_user, request)
+        
         cache_params = {
             'role': current_user['role'],
             'school_ids': sorted(current_user.get('school_ids', [])),
+            'tenant': tenant_id or 'ALL',
             'school_id': school_id, 'skip': skip, 'limit': limit
         }
         cached = cache.get('classes', cache_params)
@@ -71,6 +80,9 @@ def setup_router(db, audit_service, sandbox_db=None):
                 filter_query['school_id'] = school_id
             else:
                 filter_query['school_id'] = {"$in": current_user.get('school_ids', [])}
+        
+        # Multi-tenancy: aplica filtro por mantenedora
+        filter_query = apply_tenant_filter(filter_query, current_user, request)
         
         classes = await current_db.classes.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         
@@ -118,6 +130,9 @@ def setup_router(db, audit_service, sandbox_db=None):
         # Verifica acesso à escola da turma
         await AuthMiddleware.verify_school_access(request, class_doc['school_id'])
         
+        # Multi-tenancy: valida tenant
+        assert_same_tenant(class_doc, current_user, request)
+        
         return Class(**class_doc)
 
     @router.put("/{class_id}", response_model=Class)
@@ -136,6 +151,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         # Verifica acesso
         await AuthMiddleware.verify_school_access(request, class_doc['school_id'])
+        assert_same_tenant(class_doc, current_user, request)
         
         update_data = class_update.model_dump(exclude_unset=True)
         
@@ -168,6 +184,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         # Verifica acesso
         await AuthMiddleware.verify_school_access(request, class_doc['school_id'])
+        assert_same_tenant(class_doc, current_user, request)
         
         result = await current_db.classes.delete_one({"id": class_id})
         

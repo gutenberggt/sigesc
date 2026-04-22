@@ -17,6 +17,7 @@ import uuid
 import logging
 
 from auth_middleware import AuthMiddleware
+from tenant_scope import apply_tenant_filter, resolve_tenant_id_for_create
 
 logger = logging.getLogger(__name__)
 
@@ -412,6 +413,11 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                         count_query["course_id"] = attendance.course_id
                     existing_count = await current_db.attendance.count_documents(count_query)
                     new_attendance["aula_numero"] = existing_count + 1
+            
+            # Multi-tenancy: injeta mantenedora_id derivada da turma
+            new_attendance['mantenedora_id'] = await resolve_tenant_id_for_create(
+                current_db, current_user, request, class_id=attendance.class_id
+            )
             
             await current_db.attendance.insert_one(new_attendance)
             

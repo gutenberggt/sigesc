@@ -10,6 +10,7 @@ from models import Course, CourseCreate, CourseUpdate
 from auth_middleware import AuthMiddleware
 from text_utils import format_data_uppercase
 from utils.cache import cache, CACHE_TTL_COURSES
+from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create, get_mantenedora_scope
 
 router = APIRouter(prefix="/courses", tags=["Componentes Curriculares"])
 
@@ -19,7 +20,7 @@ def setup_router(db, audit_service):
 
     @router.post("", response_model=Course, status_code=status.HTTP_201_CREATED)
     async def create_course(course_data: CourseCreate, request: Request):
-        """Cria novo componente curricular (global para todas as escolas)"""
+        """Cria novo componente curricular (por mantenedora)"""
         current_user = await AuthMiddleware.require_roles(['admin'])(request)
         
         # Converte dados para maiúsculas
@@ -28,6 +29,9 @@ def setup_router(db, audit_service):
         doc = course_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
         
+        # Multi-tenancy: injeta mantenedora_id do scope do usuário
+        doc['mantenedora_id'] = await resolve_tenant_id_for_create(db, current_user, request)
+        
         await db.courses.insert_one(doc)
         
         cache.invalidate('courses')
@@ -35,10 +39,11 @@ def setup_router(db, audit_service):
 
     @router.get("", response_model=List[Course])
     async def list_courses(request: Request, nivel_ensino: Optional[str] = None, skip: int = 0, limit: int = 500):
-        """Lista componentes curriculares (global)"""
+        """Lista componentes curriculares (por mantenedora)"""
         current_user = await AuthMiddleware.get_current_user(request)
         
-        cache_params = {'nivel_ensino': nivel_ensino, 'skip': skip, 'limit': limit}
+        tenant_id = get_mantenedora_scope(current_user, request)
+        cache_params = {'nivel_ensino': nivel_ensino, 'skip': skip, 'limit': limit, 'tenant': tenant_id or 'ALL'}
         cached = cache.get('courses', cache_params)
         if cached is not None:
             return cached
@@ -48,6 +53,9 @@ def setup_router(db, audit_service):
         
         if nivel_ensino:
             filter_query['nivel_ensino'] = nivel_ensino
+        
+        # Multi-tenancy
+        filter_query = apply_tenant_filter(filter_query, current_user, request)
         
         courses = await db.courses.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         
@@ -67,6 +75,8 @@ def setup_router(db, audit_service):
                 detail="Componente curricular não encontrado"
             )
         
+        assert_same_tenant(course_doc, current_user, request)
+        
         return Course(**course_doc)
 
     @router.put("/{course_id}", response_model=Course)
@@ -81,6 +91,8 @@ def setup_router(db, audit_service):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Componente curricular não encontrado"
             )
+        
+        assert_same_tenant(course_doc, current_user, request)
         
         update_data = course_update.model_dump(exclude_unset=True)
         
@@ -101,6 +113,15 @@ def setup_router(db, audit_service):
     async def delete_course(course_id: str, request: Request):
         """Deleta componente curricular"""
         current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        
+        # Valida tenant antes de deletar
+        existing = await db.courses.find_one({"id": course_id}, {"_id": 0, "mantenedora_id": 1})
+        if not existing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Componente curricular não encontrado"
+            )
+        assert_same_tenant(existing, current_user, request)
         
         result = await db.courses.delete_one({"id": course_id})
         
