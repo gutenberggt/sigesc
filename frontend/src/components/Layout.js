@@ -152,7 +152,7 @@ export const Layout = ({ children }) => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow pb-16">
         {/* Seletor de Mantenedora (somente super_admin) - topo direito da área de conteúdo */}
         {user?.role === 'super_admin' && (
-          <div className="flex justify-end mb-4" data-testid="tenant-switcher-wrapper">
+          <div className="flex justify-end -mt-6 mb-1" data-testid="tenant-switcher-wrapper">
             <TenantSwitcher />
           </div>
         )}
