@@ -98,13 +98,17 @@ export const Layout = ({ children }) => {
                   </p>
                 )}
               </div>
+
+              {/* Seletor de Mantenedora (somente super_admin) - agrupado visualmente com o contexto da mantenedora */}
+              {user?.role === 'super_admin' && (
+                <div className="hidden md:block pl-2 border-l border-gray-200 ml-2">
+                  <TenantSwitcher />
+                </div>
+              )}
             </div>
 
             {/* Notifications & User Info */}
             <div className="flex items-center space-x-2">
-              {/* Seletor de Mantenedora (somente super_admin) */}
-              {user?.role === 'super_admin' && <TenantSwitcher />}
-
               {/* Status de Conexão Offline */}
               <ConnectionStatusBadge showDetails={false} />
               
