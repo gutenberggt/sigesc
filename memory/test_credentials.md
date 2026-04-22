@@ -19,3 +19,8 @@
 ## Assistência Social 2
 - Email: assistencia2@sigesc.com
 - Senha: assistencia2123
+
+## Super Admin (Multi-Tenant)
+- Email: gutenberg@sigesc.com (promovido automaticamente de admin → super_admin)
+- Senha: @Celta2007
+- Poderes: criar mantenedoras, designar gerentes, alternar contexto de tenant

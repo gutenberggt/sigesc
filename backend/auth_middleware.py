@@ -62,7 +62,8 @@ class AuthMiddleware:
             'role': payload.get('role'),
             'school_ids': payload.get('school_ids', []),
             'email': payload.get('email'),
-            'is_sandbox': payload.get('is_sandbox', False)
+            'is_sandbox': payload.get('is_sandbox', False),
+            'mantenedora_id': payload.get('mantenedora_id'),
         }
     
     @staticmethod

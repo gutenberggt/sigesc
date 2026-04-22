@@ -37,6 +37,7 @@ const Announcements = lazy(() => import('@/pages/Announcements'));
 const Mantenedora = lazy(() => import('@/pages/Mantenedora'));
 const AuditLogs = lazy(() => import('@/pages/AuditLogs'));
 const AdminTools = lazy(() => import('@/pages/AdminTools'));
+const Mantenedoras = lazy(() => import('@/pages/Mantenedoras'));
 const Promotion = lazy(() => import('@/pages/Promotion'));
 const AnalyticsDashboard = lazy(() => import('@/pages/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
 const DiaryDashboard = lazy(() => import('@/pages/DiaryDashboard'));
@@ -156,6 +157,15 @@ function App() {
           />
           
           {/* Rotas de administração */}
+          <Route
+            path="/admin/mantenedoras"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin']}>
+                <Mantenedoras />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/admin/schools"
             element={

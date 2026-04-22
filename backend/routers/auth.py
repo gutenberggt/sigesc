@@ -124,7 +124,8 @@ def setup_router(db, audit_service):
             "sub": user.id,
             "email": user.email,
             "role": effective_role,
-            "school_ids": school_ids
+            "school_ids": school_ids,
+            "mantenedora_id": getattr(user, 'mantenedora_id', None),
         }
         
         access_token = create_access_token(token_data)

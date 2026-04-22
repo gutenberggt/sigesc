@@ -40,6 +40,7 @@ from routers.class_schedule import setup_class_schedule_router
 from routers.diary_dashboard import create_diary_dashboard_router
 from routers.aee import setup_aee_router
 from routers.auth import setup_router as setup_auth_router
+from routers.mantenedoras import create_mantenedoras_router
 
 # Importar novos roteadores extraídos (Phase 2)
 from routers import (
@@ -216,6 +217,65 @@ async def create_indexes():
         await db.calendario_letivo.create_index(
             [("ano_letivo", 1), ("school_id", 1)], name="cal_year_school"
         )
+
+        # ===== Índices Multi-tenant (Mantenedora) =====
+        await db.mantenedoras.create_index("id", unique=True)
+        # Índices compostos nas principais coleções para aceleração com filtro por tenant
+        for coll in ("schools", "staff", "students", "classes", "courses",
+                     "enrollments", "grades", "learning_objects", "calendar_events",
+                     "calendario_letivo", "school_assignments", "teacher_assignments",
+                     "payroll_items", "announcements"):
+            try:
+                await db[coll].create_index("mantenedora_id", name=f"{coll[:15]}_mid")
+            except Exception:
+                pass
+
+        # ===== Migração automática: criar 1ª mantenedora e marcar dados legados =====
+        try:
+            existing = await db.mantenedoras.count_documents({})
+            if existing == 0:
+                # Tenta criar a partir do legado singular db.mantenedora, se existir
+                legacy = await db.mantenedora.find_one({}, {"_id": 0})
+                if legacy:
+                    legacy_doc = {**legacy}
+                    legacy_doc['id'] = legacy_doc.get('id') or __import__('uuid').uuid4().hex
+                    legacy_doc.setdefault('name', legacy_doc.get('name') or 'Mantenedora Legada')
+                    legacy_doc.setdefault('created_at', __import__('datetime').datetime.now(__import__('datetime').timezone.utc))
+                    await db.mantenedoras.insert_one(legacy_doc)
+                    mid = legacy_doc['id']
+                else:
+                    import uuid as _uuid
+                    import datetime as _dt
+                    mid = str(_uuid.uuid4())
+                    await db.mantenedoras.insert_one({
+                        "id": mid, "name": "Mantenedora Principal", "ativo": True,
+                        "created_at": _dt.datetime.now(_dt.timezone.utc),
+                    })
+
+                # Marca documentos legados com a mantenedora principal
+                for coll in ("schools", "staff", "students", "classes", "courses",
+                             "enrollments", "grades", "learning_objects", "calendar_events",
+                             "calendario_letivo", "school_assignments", "teacher_assignments",
+                             "payroll_items", "announcements", "users"):
+                    try:
+                        await db[coll].update_many(
+                            {"mantenedora_id": {"$exists": False}},
+                            {"$set": {"mantenedora_id": mid}}
+                        )
+                    except Exception:
+                        pass
+                logger.info(f"Multi-tenant: mantenedora principal criada (id={mid}) e dados legados migrados.")
+
+                # Promover o primeiro admin a super_admin (cross-tenant)
+                first_admin = await db.users.find_one({"role": "admin"}, {"_id": 0, "id": 1, "email": 1})
+                if first_admin:
+                    await db.users.update_one(
+                        {"id": first_admin["id"]},
+                        {"$set": {"role": "super_admin"}}
+                    )
+                    logger.info(f"Multi-tenant: {first_admin.get('email')} promovido a super_admin.")
+        except Exception as exc:
+            logger.warning(f"Multi-tenant: migração inicial ignorada: {exc}")
         
         # Índices para schools
         await db.schools.create_index("id", unique=True)
@@ -431,6 +491,7 @@ app.include_router(class_schedule_router, prefix="/api")
 app.include_router(diary_dashboard_router, prefix="/api")
 app.include_router(aee_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
+app.include_router(create_mantenedoras_router(db))
 
 # Fase 2 - roteadores extraídos
 app.include_router(admin_messages_mod.router, prefix="/api")

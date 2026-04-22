@@ -1,0 +1,91 @@
+"""
+Multi-tenancy — Escopo por Mantenedora.
+
+⚠️  LEIA ANTES DE MEXER EM NOVOS ROUTERS  ⚠️
+
+Modelo:
+  - `super_admin`  → enxerga tudo, pode criar mantenedoras, designar gerentes,
+    alternar contexto ativo via header `X-Mantenedora-Id` ou query `?mantenedora_id=...`.
+  - `gerente`      → admin limitado à sua própria mantenedora.
+  - demais roles   → limitados à mantenedora do próprio usuário.
+
+Helpers principais:
+  - get_mantenedora_scope(user, request) → mantenedora_id ativa para a request.
+  - apply_tenant_filter(query, user, request) → injeta filtro em queries MongoDB.
+  - assert_same_tenant(doc, user, request) → 403 se o documento vier de outro tenant.
+
+Coleções com escopo obrigatório (devem persistir `mantenedora_id` ao criar):
+  schools, staff, students, classes, courses, enrollments, grades,
+  learning_objects, calendar_events, calendario_letivo, payroll_items,
+  school_assignments, teacher_assignments, mantenedora_documentos,
+  announcements, pre_matriculas.
+
+Coleções cross-tenant (sem `mantenedora_id`):
+  mantenedoras (a própria tabela de tenants), users (o campo está no user),
+  audit_logs (inclui `mantenedora_id` por registro mas não filtra na UI).
+
+Quando criar novo endpoint/router:
+  1. Ler `mantenedora_id` via get_mantenedora_scope().
+  2. Na criação: inserir `mantenedora_id` no documento.
+  3. Na leitura: incluir no filtro do find().
+  4. Na atualização/deleção: validar via assert_same_tenant().
+"""
+from __future__ import annotations
+from typing import Optional
+from fastapi import Request, HTTPException
+
+
+def get_user_mantenedora_id(user: dict) -> Optional[str]:
+    if not user:
+        return None
+    return user.get('mantenedora_id')
+
+
+def is_super_admin(user: dict) -> bool:
+    if not user:
+        return False
+    if user.get('role') == 'super_admin':
+        return True
+    roles = user.get('roles') or []
+    return 'super_admin' in roles
+
+
+def get_mantenedora_scope(user: dict, request: Optional[Request] = None) -> Optional[str]:
+    """
+    Retorna a mantenedora_id ativa para a request do usuário.
+    - super_admin pode enviar X-Mantenedora-Id (header) ou ?mantenedora_id= (query)
+      para atuar sob um tenant específico; caso contrário atua cross-tenant (None).
+    - Qualquer outro usuário fica travado em sua própria mantenedora.
+    """
+    if is_super_admin(user):
+        if request is not None:
+            hdr = request.headers.get('X-Mantenedora-Id')
+            if hdr:
+                return hdr
+            qp = request.query_params.get('mantenedora_id') if hasattr(request, 'query_params') else None
+            if qp:
+                return qp
+        return None  # cross-tenant (enxerga tudo)
+    return get_user_mantenedora_id(user)
+
+
+def apply_tenant_filter(base_query: dict, user: dict, request: Optional[Request] = None) -> dict:
+    """Retorna base_query acrescido de {'mantenedora_id': ...} quando aplicável."""
+    mid = get_mantenedora_scope(user, request)
+    if mid is None:
+        return base_query  # super_admin cross-tenant
+    q = dict(base_query)
+    q['mantenedora_id'] = mid
+    return q
+
+
+def assert_same_tenant(doc: dict, user: dict, request: Optional[Request] = None) -> None:
+    """Garante que o documento pertence ao tenant da request. 403 caso contrário."""
+    if doc is None:
+        return
+    if is_super_admin(user) and get_mantenedora_scope(user, request) is None:
+        return
+    doc_mid = doc.get('mantenedora_id')
+    user_mid = get_mantenedora_scope(user, request)
+    if doc_mid and user_mid and doc_mid != user_mid:
+        raise HTTPException(status_code=403, detail="Registro pertence a outra mantenedora")
