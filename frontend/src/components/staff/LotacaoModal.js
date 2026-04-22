@@ -48,16 +48,19 @@ export const LotacaoModal = ({
     setEditForm({
       funcao: lotacao.funcao || 'apoio',
       turno: lotacao.turno || '',
-      data_inicio: lotacao.data_inicio || ''
+      data_inicio: lotacao.data_inicio || '',
+      carga_horaria: lotacao.carga_horaria != null ? String(lotacao.carga_horaria) : '',
     });
     onEditLotacao(lotacao);
   };
-  
+
   const handleSaveEdit = async () => {
     if (!editingLotacao) return;
     setSavingEdit(true);
     try {
-      await onSaveEditLotacao(editingLotacao.id, editForm);
+      const payload = { ...editForm };
+      payload.carga_horaria = editForm.carga_horaria ? parseInt(editForm.carga_horaria, 10) : null;
+      await onSaveEditLotacao(editingLotacao.id, payload);
     } finally {
       setSavingEdit(false);
     }
@@ -155,7 +158,7 @@ export const LotacaoModal = ({
                             <button type="button" onClick={onCancelEditLotacao} className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded" title="Cancelar"><X size={16} /></button>
                           </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-4 gap-2">
                           <div>
                             <label className="block text-xs text-gray-600 mb-1">Função</label>
                             <select value={editForm.funcao} onChange={(e) => setEditForm({ ...editForm, funcao: e.target.value })} className="w-full px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500">
@@ -173,6 +176,12 @@ export const LotacaoModal = ({
                             <label className="block text-xs text-gray-600 mb-1">Data Início</label>
                             <input type="date" value={editForm.data_inicio} onChange={(e) => setEditForm({ ...editForm, data_inicio: e.target.value })} className="w-full px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500" />
                           </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">CH Semanal</label>
+                            <input type="number" min="0" max="60" value={editForm.carga_horaria} placeholder="h/sem"
+                              onChange={(e) => setEditForm({ ...editForm, carga_horaria: e.target.value })}
+                              className="w-full px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500" />
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -184,7 +193,7 @@ export const LotacaoModal = ({
                             {lot.tipo_lotacao === 'anexa' && <span className="ml-1.5 text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Anexa</span>}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {FUNCOES[lot.funcao]} {TURNOS[lot.turno] ? `\u2022 ${TURNOS[lot.turno]}` : ''} {lot.data_inicio ? `\u2022 Desde ${lot.data_inicio}` : ''}
+                            {FUNCOES[lot.funcao]} {TURNOS[lot.turno] ? `\u2022 ${TURNOS[lot.turno]}` : ''} {lot.carga_horaria ? `\u2022 ${lot.carga_horaria}h/sem` : ''} {lot.data_inicio ? `\u2022 Desde ${lot.data_inicio}` : ''}
                           </p>
                         </div>
                         {canDelete && (
@@ -331,8 +340,8 @@ export const LotacaoModal = ({
               </div>
             )}
             
-            {/* 3) Turno + Data Início */}
-            <div className="grid grid-cols-2 gap-4 mb-3">
+            {/* 3) Turno + Data Início + Carga Horária Semanal */}
+            <div className="grid grid-cols-3 gap-4 mb-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Turno</label>
                 <select
@@ -348,7 +357,7 @@ export const LotacaoModal = ({
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data Início *</label>
                 <input
                   type="date"
                   value={lotacaoForm.data_inicio}
@@ -356,6 +365,20 @@ export const LotacaoModal = ({
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
                   data-testid="lotacao-data-inicio"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Carga Horária Semanal *</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={lotacaoForm.carga_horaria}
+                  onChange={(e) => setLotacaoForm({ ...lotacaoForm, carga_horaria: e.target.value })}
+                  placeholder="Ex: 20"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                  data-testid="lotacao-carga-horaria-input"
+                />
+                <p className="text-[10px] text-gray-500 mt-0.5">horas/semana nesta escola</p>
               </div>
             </div>
             <div className="text-sm text-blue-600 mb-1">Ano Letivo: <strong>{selectedYear}</strong></div>

@@ -191,6 +191,54 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
             }
         }
 
+    @router.post("/admin/migrate-staff-ch-to-lotacao")
+    async def migrate_staff_ch_to_lotacao(request: Request):
+        """
+        Migra staff.carga_horaria_semanal → school_assignments.carga_horaria.
+        Para cada lotação ativa sem carga_horaria definida, copia a CH global do servidor.
+        Para casos de múltiplas lotações (ex.: professor em 2 escolas), REPETE o valor em todas
+        (comportamento alinhado com a regra de negócio: as duas escolas assumem a mesma CH inicial
+        e podem ser ajustadas individualmente depois).
+
+        Idempotente: lotações que já têm carga_horaria > 0 definida não são sobrescritas.
+        """
+        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_db = get_db_for_user(current_user) if get_db_for_user else db
+
+        total = 0
+        updated = 0
+        skipped_had_ch = 0
+        skipped_no_source = 0
+
+        async for lot in current_db.school_assignments.find({}, {"_id": 1, "staff_id": 1, "carga_horaria": 1}):
+            total += 1
+            if lot.get('carga_horaria') not in (None, 0, ''):
+                skipped_had_ch += 1
+                continue
+            staff = await current_db.staff.find_one(
+                {"id": lot.get('staff_id')}, {"_id": 0, "carga_horaria_semanal": 1}
+            )
+            ch = (staff or {}).get('carga_horaria_semanal')
+            if not ch:
+                skipped_no_source += 1
+                continue
+            await current_db.school_assignments.update_one(
+                {"_id": lot["_id"]},
+                {"$set": {"carga_horaria": int(ch)}}
+            )
+            updated += 1
+
+        return {
+            "success": True,
+            "message": f"{updated} lotações receberam a CH do servidor (de {total}).",
+            "details": {
+                "total_lotacoes": total,
+                "updated": updated,
+                "skipped_ch_already_set": skipped_had_ch,
+                "skipped_staff_without_ch": skipped_no_source,
+            }
+        }
+
     @router.post("/admin/cleanup-anexa-payroll")
     async def cleanup_anexa_payroll(request: Request):
         """

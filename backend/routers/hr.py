@@ -1263,7 +1263,19 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 if staff.get('status') in ('exonerado', 'aposentado'):
                     continue
 
-                ch_semanal = staff.get('carga_horaria_semanal') or 0
+                # ===== CH da lotação tem prioridade sobre a CH global do servidor =====
+                # Fonte oficial agora é school_assignments.carga_horaria (por escola).
+                # Fallback para staff.carga_horaria_semanal mantém compatibilidade com dados
+                # legados ainda não migrados.
+                lotacao_escola = await current_db.school_assignments.find_one(
+                    {"staff_id": emp_id, "school_id": school_id, "status": "ativo"},
+                    {"_id": 0, "carga_horaria": 1}
+                )
+                ch_semanal = None
+                if lotacao_escola and lotacao_escola.get('carga_horaria') is not None:
+                    ch_semanal = lotacao_escola.get('carga_horaria') or 0
+                else:
+                    ch_semanal = staff.get('carga_horaria_semanal') or 0
                 ch_mensal = round(ch_semanal * 5, 1)
                 is_professor = staff.get('cargo') == 'professor'
                 carga_aulas = int(assign.get('carga_horaria') or 0)

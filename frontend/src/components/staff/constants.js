@@ -108,6 +108,7 @@ export const INITIAL_LOTACAO_FORM = {
   funcao: 'professor',
   data_inicio: '',
   turno: '',
+  carga_horaria: '',  // Horas semanais nesta escola (migrado de staff.carga_horaria_semanal)
   status: 'ativo',
   academic_year: new Date().getFullYear(),
   observacoes: ''

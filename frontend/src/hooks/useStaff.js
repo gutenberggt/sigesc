@@ -653,15 +653,16 @@ export const useStaff = () => {
   
   const handleLotacaoStaffChange = useCallback(async (staffId) => {
     const staff = staffList.find(s => s.id === staffId);
-    setLotacaoForm(prev => ({ 
-      ...prev, 
+    setLotacaoForm(prev => ({
+      ...prev,
       staff_id: staffId,
-      funcao: staff?.cargo === 'professor' ? 'professor' : 'apoio'
+      funcao: staff?.cargo === 'professor' ? 'professor' : 'apoio',
+      // Pré-preenche com a CH global do servidor (legado) — o usuário pode ajustar
+      carga_horaria: staff?.carga_horaria_semanal ? String(staff.carga_horaria_semanal) : ''
     }));
     setExistingLotacoes([]);
-    
+
     if (staffId) {
-      // Carregar lotações do ano selecionado
       await loadExistingLotacoes(staffId, lotacaoForm.academic_year);
     }
   }, [staffList, loadExistingLotacoes, lotacaoForm.academic_year]);
@@ -719,9 +720,10 @@ export const useStaff = () => {
           ...lotacaoForm,
           school_id: escola.id,
           funcao: escola.funcao || lotacaoForm.funcao,
-          tipo_lotacao: escola.tipo_lotacao || 'regular'
+          tipo_lotacao: escola.tipo_lotacao || 'regular',
+          carga_horaria: lotacaoForm.carga_horaria ? parseInt(lotacaoForm.carga_horaria, 10) : null,
         };
-        
+
         try {
           await schoolAssignmentAPI.create(data);
         } catch (err) {

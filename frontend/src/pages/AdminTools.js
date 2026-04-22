@@ -35,6 +35,9 @@ const AdminTools = () => {
         case 'payroll-hours':
           endpoint = '/api/admin/migrate-payroll-hours';
           break;
+        case 'ch-to-lotacao':
+          endpoint = '/api/admin/migrate-staff-ch-to-lotacao';
+          break;
         case 'cleanup-anexa':
           endpoint = '/api/admin/cleanup-anexa-payroll';
           break;
@@ -275,6 +278,46 @@ const AdminTools = () => {
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 {loading && loadingType === 'payroll-hours' ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    Executando...
+                  </>
+                ) : (
+                  <>
+                    <Clock size={18} />
+                    Executar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Migrar CH do Servidor para Lotações */}
+          <div className="border rounded-lg p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <Clock className="text-indigo-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Migrar Carga Horária Semanal → Lotações</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Copia <code className="text-xs bg-gray-100 px-1">staff.carga_horaria_semanal</code> para cada
+                    lotação ativa do servidor (school_assignments). Servidores com múltiplas lotações recebem
+                    a mesma CH em cada escola (podem ser ajustadas depois em Gerenciar Lotações).
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Idempotente — lotações com CH já preenchida não são sobrescritas. Afeta: school_assignments.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => runMigration('ch-to-lotacao')}
+                disabled={loading}
+                data-testid="btn-migrate-ch-to-lotacao"
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {loading && loadingType === 'ch-to-lotacao' ? (
                   <>
                     <Loader2 className="animate-spin" size={18} />
                     Executando...
