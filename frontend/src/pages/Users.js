@@ -33,7 +33,6 @@ const ROLE_MATRIX = {
   roles: {
     super_admin: { label: 'Super Admin', color: 'indigo' },
     gerente: { label: 'Gerente', color: 'cyan' },
-    admin: { label: 'Admin', color: 'red' },
     secretario: { label: 'Secretário', color: 'blue' },
     diretor: { label: 'Diretor', color: 'indigo' },
     coordenador: { label: 'Coordenador', color: 'purple' },
@@ -47,7 +46,6 @@ const ROLE_MATRIX = {
   access: {
     super_admin: { schools: 'full', classes: 'full', students: 'full', staff: 'full', grades: 'full', attendance: 'full', learning_objects: 'full', calendar: 'full', announcements: 'full', promotion: 'full', diary_dashboard: 'full', diario_aee: 'full', hr: 'full', analytics: 'full', pre_matriculas: 'full', users: 'full', online_users: 'full', audit_logs: 'full' },
     gerente:     { schools: 'full', classes: 'full', students: 'full', staff: 'full', grades: 'full', attendance: 'full', learning_objects: 'full', calendar: 'full', announcements: 'full', promotion: 'full', diary_dashboard: 'full', diario_aee: 'full', hr: 'full', analytics: 'full', pre_matriculas: 'full', users: 'full', online_users: 'full', audit_logs: 'full' },
-    admin:       { schools: 'full', classes: 'full', students: 'full', staff: 'full', grades: 'full', attendance: 'full', learning_objects: 'full', calendar: 'full', announcements: 'full', promotion: 'full', diary_dashboard: 'full', diario_aee: 'full', hr: 'full', analytics: 'full', pre_matriculas: 'full', users: 'full', online_users: 'full', audit_logs: 'full' },
     secretario:  { schools: 'full', classes: 'full', students: 'full', staff: 'full', grades: 'full', attendance: 'full', learning_objects: 'full', calendar: 'full', announcements: 'full', promotion: 'full', diary_dashboard: 'view', diario_aee: 'full', hr: 'full', analytics: 'view', pre_matriculas: 'full', users: 'full', online_users: null, audit_logs: null },
     diretor:     { schools: 'view', classes: 'view', students: 'view', staff: 'view', grades: 'view', attendance: 'view', learning_objects: 'view', calendar: 'view', announcements: 'full', promotion: 'view', diary_dashboard: 'view', diario_aee: 'view', hr: 'full', analytics: 'view', pre_matriculas: 'view', users: null, online_users: null, audit_logs: null },
     coordenador: { schools: null, classes: 'view', students: 'view', staff: null, grades: 'view', attendance: 'view', learning_objects: 'view', calendar: 'view', announcements: 'full', promotion: 'view', diary_dashboard: 'view', diario_aee: 'view', hr: null, analytics: 'view', pre_matriculas: null, users: null, online_users: null, audit_logs: null },

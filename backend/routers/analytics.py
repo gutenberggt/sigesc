@@ -6,6 +6,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 from bson import ObjectId
 from auth_middleware import AuthMiddleware
+from tenant_scope import apply_tenant_filter
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -51,6 +52,8 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         elif not is_global and user_school_ids:
             school_query['id'] = {'$in': user_school_ids}
         
+        # Multi-tenancy: filtra por mantenedora ativa
+        school_query = apply_tenant_filter(school_query, user, request)
         total_schools = await current_db.schools.count_documents(school_query)
         
         # ============ CONTAGEM DE TURMAS ============
@@ -66,6 +69,10 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         if academic_year:
             class_filter_with_year['academic_year'] = {'$in': [str(academic_year), academic_year]}
         
+        # Multi-tenancy
+        class_filter_with_year = apply_tenant_filter(class_filter_with_year, user, request)
+        class_base_filter = apply_tenant_filter(class_base_filter, user, request)
+        
         total_classes = await current_db.classes.count_documents(class_filter_with_year)
         
         # ============ CONTAGEM DE ALUNOS ATIVOS ============
@@ -78,13 +85,17 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         elif not is_global and user_school_ids:
             student_filter['school_id'] = {'$in': user_school_ids}
         
+        # Multi-tenancy
+        student_filter = apply_tenant_filter(student_filter, user, request)
         total_students = await current_db.students.count_documents(student_filter)
         
         # Também conta o total geral de alunos (para informação)
-        total_students_all = await current_db.students.count_documents(
+        all_students_filter = (
             {'school_id': school_id} if school_id else 
             {'school_id': {'$in': user_school_ids}} if not is_global and user_school_ids else {}
         )
+        all_students_filter = apply_tenant_filter(all_students_filter, user, request)
+        total_students_all = await current_db.students.count_documents(all_students_filter)
         
         # ============ CONTAGEM DE MATRÍCULAS ============
         # Matrículas são os vínculos aluno-turma por ano letivo
@@ -100,6 +111,9 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         enrollment_filter = {**enrollment_base_filter}
         if academic_year:
             enrollment_filter['academic_year'] = {'$in': [str(academic_year), academic_year]}
+        
+        # Multi-tenancy
+        enrollment_filter = apply_tenant_filter(enrollment_filter, user, request)
         
         # Contagem de matrículas por status
         enrollments_pipeline = [
