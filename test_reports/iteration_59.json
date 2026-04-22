@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 59 - P3 regression: (A) Backend endpoints after drop of legacy db.mantenedora (singular) collection, (B) TenantSwitcher + Mantenedoras pencil now use custom event 'tenant-changed' + TenantSyncBoundary instead of window.location.reload(). ALL TESTS PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_results_by_feature": {
+    "backend_regression_endpoints": "PASS 13/13 (pytest /app/backend/tests/test_tenant_regression.py). GET /api/mantenedora, /api/analytics/overview, /api/classes, /api/schools, /api/users, /api/students, /api/mantenedoras, /api/grades, /api/attendance, /api/bolsa-familia, /api/class-details/* all returned <500 status codes. get_mantenedora_cached agora lê de db.mantenedoras (plural) com fallback seguro.",
+    "mongo_collections_state": "PASS - db.mantenedora (legacy) DROPPED (exists=False). db.mantenedoras (plural) exists com 2 docs.",
+    "tenant_switcher_no_reload": "PASS - Framenavigated listener captured 0 navigations apos clicar tenant item 'teste' no TenantSwitcher. Sentinel DOM adicionado ao boundary foi removido (confirma remount via key). Boundary data-testid=tenant-sync-boundary permanece presente. body.innerText mudou (confirma refetch). localStorage.activeMantenedoraId atualizado para 6bb7a4b9-6f85-4221-bb80-9a243a019d93.",
+    "pencil_edit_uses_navigate": "PASS - Click no lapis de mantenedora em /admin/mantenedoras disparou 1 framenav para /admin/mantenedora (pushState do React Router, NAO reload). localStorage.activeMantenedoraId atualizado. Sessao preservada (sem flash para /login).",
+    "tenant_sync_boundary_component": "PASS - /app/frontend/src/components/TenantSyncBoundary.jsx implementado corretamente: useState version + useEffect listener 'tenant-changed' + key={version} no div. Envolvido em Layout.js:151.",
+    "no_residual_db_mantenedora_calls": "PASS - grep 'db.mantenedora[^s]' em /app/backend/routers/ retorna 0 matches. Restam apenas: (1) /app/backend/pdf_cache.py:99 (fallback legado na funcao get_mantenedora_cached - inofensivo pois retorna None se coll nao existir); (2) /app/backend/server.py:238 (migracao one-shot no startup - verifica se mantenedoras esta vazia antes)."
+  },
+  "critical_code_review_comments": [
+    "[OK] pdf_cache.get_mantenedora_cached implementa corretamente a cascata 1)tenant_id -> 2)single -> 3)legacy. Fallback legado nao quebra mesmo com a coleção dropada (find_one em coleção inexistente retorna None no Mongo).",
+    "[OK] TenantSyncBoundary usa pattern idiomático (key-based remount) — superior ao window.location.reload() pois preserva sessão, histórico e evita flash branco.",
+    "[OK] TenantSwitcher.jsx linha 49-50 substituiu reload por window.dispatchEvent(new Event('tenant-changed')). Mantenedoras.jsx linha 69 aplicou o mesmo padrão + navigate(). Consistente.",
+    "[INFO] server.py:238 ainda referencia db.mantenedora para migração one-shot; seguro pois find_one numa coleção que não existe retorna None no MongoDB. Pode ser removido em cleanup futuro já que a migração já foi executada.",
+    "[INFO] pdf_cache.py linha 99: fallback legado inerte mas polui semântica — considerar remover agora que a coleção foi dropada, reduzindo superfície de código morto.",
+    "[INFO] Console mostra 401 em '/api/mantenedora' durante mount inicial antes do token hidratar — não é bug desta iteração, já existia. Componente faz retry ao ter token."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_tenant_regression.py",
+    "/app/test_reports/pytest/iter59_tenant.xml",
+    "/app/test_reports/iteration_59.json"
+  ],
+  "action_items": [
+    "(Opcional/Cleanup) Remover pdf_cache.py:99 fallback para db.mantenedora agora que a coleção foi dropada permanentemente.",
+    "(Opcional/Cleanup) Remover server.py:237-244 bloco de migração legado — a migração já rodou, não é mais necessária."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_tenant_regression.py (criado)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100% (4/4 fluxos: switcher sem reload, boundary remount, pencil navigate, data refetch)"},
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin)",
+  "seed_data_creation": "Nenhuma — apenas leitura, sem side effects de teste.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "TenantSyncBoundary está montado em Layout.js envolvendo <main>. data-testids relevantes: tenant-switcher, tenant-switcher-button, tenant-switcher-menu, tenant-option-all, tenant-option-{uuid}, tenant-switcher-manage, tenant-sync-boundary, nav-mantenedora-button. Validação crítica (NO reload) foi feita via page.on('framenavigated') captando 0 navs apos click no tenant item. Para pencil edit, 1 framenav é esperado (React Router pushState, nao reload — confirmado pois sessao, boundary e estrutura da pagina sao preservadas). Mongo: db.mantenedora DROPPED; db.mantenedoras tem 2 docs. Backend tests: pytest /app/backend/tests/test_tenant_regression.py (13/13 pass)."
+}

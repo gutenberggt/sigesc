@@ -76,11 +76,48 @@ class _TTLCache:
 pdf_cache = _TTLCache(default_ttl=300.0)  # 5 minutos
 
 
-async def get_mantenedora_cached(db) -> Optional[dict]:
-    """Retorna mantenedora (config global) com cache de 5 min."""
+async def get_mantenedora_cached(db, tenant_id: Optional[str] = None) -> Optional[dict]:
+    """Retorna mantenedora ativa (multi-tenant) com cache de 5 min.
+    
+    Prioridade:
+      1. Se tenant_id informado → busca na coleção multi-tenant `mantenedoras`.
+      2. Fallback: única mantenedora da coleção `mantenedoras`.
+      3. Fallback legado: coleção singular `mantenedora` (deprecada).
+    """
+    key = f"mantenedora:{tenant_id or 'global'}"
     async def fetch():
+        # 1) Busca no multi-tenant
+        if tenant_id:
+            doc = await db.mantenedoras.find_one({"id": tenant_id}, {"_id": 0})
+            if doc:
+                return doc
+        # 2) Single-tenant típico: 1 mantenedora só
+        doc = await db.mantenedoras.find_one({}, {"_id": 0})
+        if doc:
+            return doc
+        # 3) Fallback legado
         return await db.mantenedora.find_one({}, {"_id": 0})
-    return await pdf_cache.get_or_fetch("mantenedora:global", fetch, ttl=300.0)
+    return await pdf_cache.get_or_fetch(key, fetch, ttl=300.0)
+
+
+async def read_mantenedora_for_request(db, request=None, user=None) -> Optional[dict]:
+    """Helper para rotas: resolve o tenant ativo a partir do request/user e retorna
+    o documento da mantenedora. Substitui os usos legados de `db.mantenedora.find_one({})`.
+    """
+    tenant_id = None
+    try:
+        from tenant_scope import get_mantenedora_scope
+        if user is None and request is not None:
+            from auth_middleware import AuthMiddleware
+            try:
+                user = await AuthMiddleware.get_current_user(request)
+            except Exception:
+                user = None
+        if user is not None:
+            tenant_id = get_mantenedora_scope(user, request)
+    except Exception:
+        tenant_id = None
+    return await get_mantenedora_cached(db, tenant_id)
 
 
 async def get_calendario_cached(db, academic_year: int, school_id: Optional[str] = None) -> Optional[dict]:

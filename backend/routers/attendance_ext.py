@@ -194,8 +194,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # Busca dados em paralelo para acelerar
         import asyncio
+        from pdf_cache import get_mantenedora_cached
         turma_task = db.classes.find_one({"id": class_id}, {"_id": 0})
-        mantenedora_task = db.mantenedora.find_one({}, {"_id": 0})
+        mantenedora_task = get_mantenedora_cached(db)
         calendario_task = db.calendario_letivo.find_one(
             {"ano_letivo": academic_year, "school_id": None}, {"_id": 0}
         )

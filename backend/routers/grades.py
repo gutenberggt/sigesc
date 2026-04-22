@@ -17,6 +17,7 @@ import logging
 
 from models import Grade, GradeCreate, GradeUpdate
 from auth_middleware import AuthMiddleware
+from pdf_cache import get_mantenedora_cached
 from tenant_scope import resolve_tenant_id_for_create, apply_tenant_filter
 
 logger = logging.getLogger(__name__)
@@ -245,7 +246,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                     }
         
         # Busca calendário para determinar períodos dos bimestres
-        calendario = await current_db.mantenedora.find_one({}, {"_id": 0})
+        calendario = await get_mantenedora_cached(current_db)
         bimestre_ranges = {}
         for b in [1, 2, 3, 4]:
             bk_ini = f"bimestre_{b}_inicio"
@@ -586,7 +587,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         import asyncio
         class_task = current_db.classes.find_one({"id": class_id}, {"_id": 0})
         course_task = current_db.courses.find_one({"id": course_id}, {"_id": 0})
-        mantenedora_task = current_db.mantenedora.find_one({}, {"_id": 0})
+        mantenedora_task = get_mantenedora_cached(current_db)
         
         class_info, course, mantenedora = await asyncio.gather(
             class_task, course_task, mantenedora_task

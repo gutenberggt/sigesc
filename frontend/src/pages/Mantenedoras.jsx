@@ -66,9 +66,8 @@ export default function Mantenedoras() {
    */
   const openEdit = (m) => {
     localStorage.setItem('activeMantenedoraId', m.id);
+    window.dispatchEvent(new Event('tenant-changed'));
     navigate('/admin/mantenedora');
-    // Hard reload para que o MantenedoraContext + TenantSwitcher peguem o novo tenant
-    window.location.reload();
   };
   const save = async () => {
     if (!form.nome) { toast.error('Informe o nome da mantenedora'); return; }

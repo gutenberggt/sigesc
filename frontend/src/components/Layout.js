@@ -10,6 +10,7 @@ import { ChatBox } from '@/components/messaging';
 import { useUnsavedChangesContext } from '@/contexts/UnsavedChangesContext';
 import { TenantSwitcher } from '@/components/TenantSwitcher';
 import { SilentModeToggle } from '@/components/SilentModeToggle';
+import { TenantSyncBoundary } from '@/components/TenantSyncBoundary';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
@@ -147,7 +148,9 @@ export const Layout = ({ children }) => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow pb-16">
-        {children}
+        <TenantSyncBoundary>
+          {children}
+        </TenantSyncBoundary>
       </main>
       
       {/* Footer com Copyright - Fixo na parte inferior */}

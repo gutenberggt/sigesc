@@ -46,8 +46,8 @@ export const TenantSwitcher = () => {
     }
     setActiveId(id || '');
     setOpen(false);
-    // Recarrega a página para que todos os dados sejam re-buscados sob o novo contexto
-    window.location.reload();
+    // Dispara evento global — componentes sob TenantSyncBoundary serão remontados
+    window.dispatchEvent(new Event('tenant-changed'));
   };
 
   const active = mantenedoras.find((m) => m.id === activeId);

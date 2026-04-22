@@ -11,6 +11,7 @@ import io
 import calendar
 
 from auth_middleware import AuthMiddleware
+from pdf_cache import get_mantenedora_cached
 from pdf.utils import format_date_pt
 
 logger = logging.getLogger(__name__)
@@ -200,7 +201,7 @@ def setup_router(db, **kwargs):
         class_map = {c["id"]: c for c in classes}
 
         # Buscar mantenedora
-        mant = await db.mantenedora.find_one({}, {"_id": 0, "municipio": 1, "uf": 1})
+        mant = await get_mantenedora_cached(db)
         municipio_uf = ""
         if mant:
             mun = mant.get("municipio", "")
@@ -344,7 +345,7 @@ def setup_router(db, **kwargs):
         if not school:
             raise HTTPException(status_code=404, detail="Escola não encontrada")
 
-        mant = await db.mantenedora.find_one({}, {"_id": 0, "municipio": 1, "uf": 1})
+        mant = await get_mantenedora_cached(db)
         municipio_uf = ""
         if mant:
             mun = mant.get("municipio", "")

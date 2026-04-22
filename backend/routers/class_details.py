@@ -10,6 +10,7 @@ import logging
 
 from models import *
 from auth_middleware import AuthMiddleware
+from pdf_cache import get_mantenedora_cached
 from pdf_generator import generate_class_details_pdf
 
 logger = logging.getLogger(__name__)
@@ -287,7 +288,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             school = {"name": "Escola Municipal"}
 
         # Busca mantenedora
-        mantenedora = await db.mantenedora.find_one({}, {"_id": 0})
+        mantenedora = await get_mantenedora_cached(db)
 
         # Busca professores alocados na turma
         alocacoes = await db.teacher_assignments.find(
