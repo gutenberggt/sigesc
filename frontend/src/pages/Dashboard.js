@@ -126,6 +126,8 @@ export const Dashboard = () => {
   }
 
   const roleLabels = {
+    super_admin: 'Super Administrador',
+    gerente: 'Gerente da Mantenedora',
     admin: 'Administrador',
     ass_social: 'Ass. Social',
     secretario: 'Secretário(a)',
@@ -145,6 +147,8 @@ export const Dashboard = () => {
 
   const getDashboardCards = () => {
     switch (user?.role) {
+      case 'super_admin':
+      case 'gerente':
       case 'admin':
       case 'admin_teste':
         return [

@@ -19,8 +19,12 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // admin_teste tem as mesmas permissões de admin
-  const effectiveRole = user.role === 'admin_teste' ? 'admin' : user.role;
+  // super_admin tem TODOS os poderes de admin; admin_teste idem
+  // gerente tem poderes de admin dentro da própria mantenedora
+  let effectiveRole = user.role;
+  if (effectiveRole === 'admin_teste') effectiveRole = 'admin';
+  if (effectiveRole === 'super_admin' && !allowedRoles.includes('super_admin')) effectiveRole = 'admin';
+  if (effectiveRole === 'gerente' && !allowedRoles.includes('gerente')) effectiveRole = 'admin';
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(effectiveRole)) {
     return (

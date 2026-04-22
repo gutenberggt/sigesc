@@ -20,7 +20,10 @@ export const usePermissions = () => {
     const role = (user?.role || '').toLowerCase();
 
     // ===== Checks de role =====
-    const isAdmin = role === 'admin' || role === 'admin_teste';
+    const isSuperAdmin = role === 'super_admin';
+    const isGerente = role === 'gerente';
+    // super_admin e gerente herdam todos os poderes de admin
+    const isAdmin = role === 'admin' || role === 'admin_teste' || isSuperAdmin || isGerente;
     const isSecretario = role === 'secretario';
     const isDiretor = role === 'diretor';
     const isCoordenador = role === 'coordenador' || role === 'apoio_pedagogico' || role === 'auxiliar_secretaria';
@@ -77,6 +80,8 @@ export const usePermissions = () => {
       // Role
       role,
       isAdmin,
+      isSuperAdmin,
+      isGerente,
       isSecretario,
       isDiretor,
       isCoordenador,
