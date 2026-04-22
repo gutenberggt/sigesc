@@ -1152,6 +1152,10 @@ export const useStaff = () => {
     editingAlocacao,
     handleEditAlocacao,
     handleCancelEditAlocacao,
-    handleSaveEditAlocacao
+    handleSaveEditAlocacao,
+
+    // Substituição
+    loadExistingAlocacoes,
+    existingAlocacoes
   };
 };

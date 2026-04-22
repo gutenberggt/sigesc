@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { GraduationCap, BookOpen, Plus, Minus, Trash2, AlertTriangle, Calendar, Pencil, Check, X } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
+import { SubstituicaoSection } from './SubstituicaoSection';
 
 export const AlocacaoModal = ({
   isOpen,
@@ -44,7 +45,11 @@ export const AlocacaoModal = ({
   onSaveEditAlocacao,
   // Props para ignorar carga horária
   onToggleIgnoreNew,
-  onToggleIgnoreExisting
+  onToggleIgnoreExisting,
+  // Props para Substituição
+  schools,
+  staffList,
+  onSubstitutionSaved,
 }) => {
   const currentYear = new Date().getFullYear();
   const selectedYear = alocacaoForm.academic_year || currentYear;
@@ -538,13 +543,25 @@ export const AlocacaoModal = ({
                 ? `Adicionar ${alocacaoTurmas.length * alocacaoComponentes.length} alocação(ões)` 
                 : 'Adicionar Alocação'}
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={onClose}
           >
             Fechar
           </Button>
         </div>
+
+        {/* + Adicionar Nova Substituição */}
+        <SubstituicaoSection
+          alocacaoForm={alocacaoForm}
+          professorSchools={professorSchools}
+          filteredClasses={filteredClasses}
+          courses={courses}
+          staffList={staffList}
+          existingAlocacoes={existingAlocacoes}
+          schools={schools || professorSchools}
+          onSaved={onSubstitutionSaved}
+        />
       </div>
     </Modal>
   );

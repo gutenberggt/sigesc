@@ -318,6 +318,9 @@ const Staff = () => {
           onEditAlocacao={staff.handleEditAlocacao}
           onCancelEditAlocacao={staff.handleCancelEditAlocacao}
           onSaveEditAlocacao={staff.handleSaveEditAlocacao}
+          schools={staff.schools}
+          staffList={staff.staffList}
+          onSubstitutionSaved={staff.loadExistingAlocacoes ? () => staff.loadExistingAlocacoes(staff.alocacaoForm?.staff_id) : undefined}
         />
         
         <StaffDetailModal

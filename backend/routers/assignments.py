@@ -288,6 +288,76 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         return await db.teacher_assignments.find_one({"id": new_assignment.id}, {"_id": 0})
 
 
+    @router.post("/teacher-assignments/substitutions")
+    async def create_teacher_substitution(assignment: TeacherAssignmentCreate, request: Request):
+        """
+        Cria uma **substituição** de professor para uma turma/componente.
+        - `staff_id` = professor substituto.
+        - `substituted_staff_id` = staff_id do titular sendo substituído (deduzido se não fornecido).
+        - Data início obrigatória; data fim opcional (vigente enquanto vazio).
+        - Cria lotação temporária na escola caso o substituto ainda não tenha, garantindo
+          aparição automática na Folha de Pagamento daquela escola.
+        """
+        current_user = await AuthMiddleware.require_roles(['admin', 'secretario', 'diretor'])(request)
+
+        payload = assignment.model_dump()
+        payload['is_substituicao'] = True
+
+        staff = await db.staff.find_one({"id": payload['staff_id']})
+        if not staff:
+            raise HTTPException(status_code=404, detail="Professor substituto não encontrado")
+
+        if not payload.get('data_inicio_substituicao'):
+            raise HTTPException(status_code=400, detail="Data de início da substituição é obrigatória")
+
+        # Se não informou o titular, deduz a partir da alocação ativa naquela turma/componente
+        if not payload.get('substituted_staff_id'):
+            titular_assign = await db.teacher_assignments.find_one({
+                "class_id": payload['class_id'],
+                "course_id": payload['course_id'],
+                "academic_year": payload['academic_year'],
+                "status": "ativo",
+                "is_substituicao": {"$ne": True},
+            }, {"_id": 0, "staff_id": 1, "carga_horaria_semanal": 1})
+            if titular_assign:
+                payload['substituted_staff_id'] = titular_assign.get('staff_id')
+                if not payload.get('carga_horaria_semanal'):
+                    payload['carga_horaria_semanal'] = titular_assign.get('carga_horaria_semanal')
+
+        new_assignment = TeacherAssignment(**payload)
+        await db.teacher_assignments.insert_one(new_assignment.model_dump())
+
+        # Garantir que o substituto tenha lotação ativa na escola, para a Folha de Pagamento
+        # identificá-lo e calcular proventos da substituição.
+        school_assign = await db.school_assignments.find_one({
+            "staff_id": payload['staff_id'],
+            "school_id": payload['school_id'],
+            "status": "ativo",
+        })
+        if not school_assign:
+            try:
+                from models import SchoolAssignment
+                lot_temp = SchoolAssignment(
+                    staff_id=payload['staff_id'],
+                    school_id=payload['school_id'],
+                    funcao='professor',
+                    tipo_lotacao='regular',
+                    data_inicio=payload.get('data_inicio_substituicao') or datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+                    data_fim=payload.get('data_fim_substituicao'),
+                    carga_horaria=payload.get('carga_horaria_semanal'),
+                    academic_year=payload['academic_year'],
+                    status='ativo',
+                    observacoes='Lotação criada automaticamente via Substituição',
+                )
+                await db.school_assignments.insert_one(lot_temp.model_dump())
+            except Exception as e:  # noqa: BLE001
+                # Não derruba a criação da substituição por falha de lotação automática
+                import logging
+                logging.getLogger(__name__).warning(f"Não foi possível criar lotação auto p/ substituição: {e}")
+
+        return await db.teacher_assignments.find_one({"id": new_assignment.id}, {"_id": 0})
+
+
     @router.put("/teacher-assignments/{assignment_id}")
     async def update_teacher_assignment(assignment_id: str, assignment_data: TeacherAssignmentUpdate, request: Request):
         """Atualiza alocação de professor"""

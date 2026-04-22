@@ -1923,7 +1923,13 @@ class TeacherAssignmentBase(BaseModel):
     substituto_staff_id: Optional[str] = None
     data_substituicao: Optional[str] = None
     motivo_substituicao: Optional[str] = None
-    
+
+    # Substituição pontual (quando este registro representa o próprio substituto atuando)
+    is_substituicao: Optional[bool] = False
+    substituted_staff_id: Optional[str] = None  # staff_id do titular que está sendo substituído
+    data_inicio_substituicao: Optional[str] = None
+    data_fim_substituicao: Optional[str] = None
+
     observacoes: Optional[str] = None
 
 class TeacherAssignmentCreate(TeacherAssignmentBase):

@@ -656,6 +656,11 @@ export const teacherAssignmentAPI = {
   delete: async (id) => {
     const response = await axios.delete(`${API}/teacher-assignments/${id}`);
     return response.data;
+  },
+
+  createSubstitution: async (data) => {
+    const response = await axios.post(`${API}/teacher-assignments/substitutions`, data);
+    return response.data;
   }
 };
 
