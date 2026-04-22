@@ -71,7 +71,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         current_user = await AuthMiddleware.get_current_user(request)
 
         # Verificar permissão (apenas admin e semed podem editar)
-        if current_user.get('role') not in ['admin', 'semed']:
+        if current_user.get('role') not in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed']:
             raise HTTPException(status_code=403, detail="Sem permissão para editar a mantenedora")
 
         # Buscar mantenedora existente

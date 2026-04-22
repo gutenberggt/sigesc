@@ -117,7 +117,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 )
 
         # Verifica a data limite de edição por bimestre (apenas para não-admins e não-secretarios)
-        if user_role not in ['admin', 'secretario']:
+        if user_role not in ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario']:
             calendario = await db.calendario_letivo.find_one(
                 {"ano_letivo": academic_year},
                 {"_id": 0}
@@ -165,7 +165,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             raise HTTPException(status_code=404, detail="Registro não encontrado")
 
         # Verifica a data limite de edição por bimestre (apenas para não-admins e não-secretarios)
-        if user_role not in ['admin', 'secretario']:
+        if user_role not in ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario']:
             academic_year = existing.get('academic_year', datetime.now().year)
             calendario = await db.calendario_letivo.find_one(
                 {"ano_letivo": academic_year},

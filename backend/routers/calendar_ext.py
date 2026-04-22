@@ -82,7 +82,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         )
 
         # Admin e secretário sempre podem editar, mas devem ver as datas limite
-        if user_role in ['admin', 'secretario']:
+        if user_role in ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario']:
             bimestres_status = []
             for i in range(1, 5):
                 data_limite = calendario.get(f"bimestre_{i}_data_limite") if calendario else None

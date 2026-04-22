@@ -446,7 +446,7 @@ async def fetch_collection_data_paginated(
             class_query['academic_year'] = academic_year
             
         # Filtra por escolas do usuário se não for admin
-        if user['role'] not in ['admin', 'admin_teste'] and user.get('school_ids'):
+        if user['role'] not in ['admin', 'admin_teste', 'super_admin', 'gerente'] and user.get('school_ids'):
             class_query['school_id'] = {'$in': user['school_ids']}
         
         total = await db.classes.count_documents(class_query)
@@ -457,7 +457,7 @@ async def fetch_collection_data_paginated(
         course_query = {}
         
         # Filtra por escolas do usuário se não for admin
-        if user['role'] not in ['admin', 'admin_teste'] and user.get('school_ids'):
+        if user['role'] not in ['admin', 'admin_teste', 'super_admin', 'gerente'] and user.get('school_ids'):
             course_query['school_id'] = {'$in': user['school_ids']}
         
         total = await db.courses.count_documents(course_query)
@@ -468,7 +468,7 @@ async def fetch_collection_data_paginated(
         school_query = {}
         
         # Filtra por escolas do usuário se não for admin
-        if user['role'] not in ['admin', 'admin_teste'] and user.get('school_ids'):
+        if user['role'] not in ['admin', 'admin_teste', 'super_admin', 'gerente'] and user.get('school_ids'):
             school_query['id'] = {'$in': user['school_ids']}
         
         total = await db.schools.count_documents(school_query)

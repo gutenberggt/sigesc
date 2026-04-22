@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/hr", tags=["RH / Folha"])
 
 # Roles com acesso ao módulo
-ADMIN_ROLES = ['admin', 'admin_teste']
+ADMIN_ROLES = ['admin', 'admin_teste', 'super_admin', 'gerente']
 SEMED_ANALISTA = ['semed2']           # Analista da Secretaria: pode aprovar/devolver
 SEMED_VIEWER = ['semed3']             # Somente visualização
 SCHOOL_ROLES = ['diretor', 'secretario']

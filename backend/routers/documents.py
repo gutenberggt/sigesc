@@ -79,7 +79,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         """Valida se o aluno pode ter documentos gerados e se o usuário tem permissão."""
         if not student.get('class_id'):
             return False, "Aluno(a) sem matrícula"
-        if current_user.get('role') in ['admin', 'admin_teste']:
+        if current_user.get('role') in ['admin', 'admin_teste', 'super_admin', 'gerente']:
             return True, None
         user_school_id = current_user.get('school_id')
         student_school_id = student.get('school_id')

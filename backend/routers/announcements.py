@@ -29,7 +29,7 @@ def can_user_create_announcement(user: dict, recipient: dict) -> bool:
     recipient_type = recipient.get('type', '')
     
     # Admin e SEMED podem enviar para qualquer destinatário
-    if user_role in ['admin', 'admin_teste', 'semed', 'semed1', 'semed2', 'semed3']:
+    if user_role in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed1', 'semed2', 'semed3']:
         return True
     
     # Secretário pode enviar para escolas vinculadas e para todos
@@ -294,7 +294,7 @@ def setup_announcements_router(db, audit_service, connection_manager=None, sandb
         if not announcement:
             raise HTTPException(status_code=404, detail="Aviso não encontrado")
         
-        if announcement['sender_id'] != current_user['id'] and current_user['role'] not in ['admin', 'admin_teste']:
+        if announcement['sender_id'] != current_user['id'] and current_user['role'] not in ['admin', 'admin_teste', 'super_admin', 'gerente']:
             raise HTTPException(status_code=403, detail="Apenas o remetente pode editar o aviso")
         
         update_fields = {}
@@ -338,7 +338,7 @@ def setup_announcements_router(db, audit_service, connection_manager=None, sandb
         if not announcement:
             raise HTTPException(status_code=404, detail="Aviso não encontrado")
         
-        if announcement['sender_id'] != current_user['id'] and current_user['role'] not in ['admin', 'admin_teste']:
+        if announcement['sender_id'] != current_user['id'] and current_user['role'] not in ['admin', 'admin_teste', 'super_admin', 'gerente']:
             raise HTTPException(status_code=403, detail="Apenas o remetente ou admin pode excluir o aviso")
         
         await current_db.announcements.delete_one({'id': announcement_id})
@@ -396,7 +396,7 @@ def setup_announcements_router(db, audit_service, connection_manager=None, sandb
         if not announcement:
             raise HTTPException(status_code=404, detail="Aviso não encontrado")
         
-        if announcement['sender_id'] != current_user['id'] and current_user['role'] not in ['admin', 'admin_teste', 'semed', 'semed3']:
+        if announcement['sender_id'] != current_user['id'] and current_user['role'] not in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3']:
             raise HTTPException(status_code=403, detail="Apenas o remetente pode ver quem leu")
         
         reads = await current_db.announcement_reads.find(

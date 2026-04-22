@@ -17,7 +17,7 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
     @router.post("/admin/migrate-uppercase")
     async def migrate_to_uppercase(request: Request):
         """Converte todos os campos de texto para CAIXA ALTA no banco de dados."""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'super_admin', 'gerente'])(request)
 
         COLLECTIONS_CONFIG = {
             'students': [

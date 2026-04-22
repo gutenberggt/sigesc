@@ -153,8 +153,8 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         # Constrói filtro
         filter_query = {}
         
-        # Admin, admin_teste, SEMED, SEMED3, Secretário, Assistente Social e Agente de Vacinas podem ver TODOS os alunos
-        if current_user['role'] in ['admin', 'admin_teste', 'semed', 'semed3', 'secretario', 'ass_social', 'ass_social_2', 'agente_vacinas']:
+        # Admin, admin_teste, super_admin, gerente, SEMED, SEMED3, Secretário, Assistente Social e Agente de Vacinas podem ver TODOS os alunos
+        if current_user['role'] in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3', 'secretario', 'ass_social', 'ass_social_2', 'agente_vacinas']:
             if school_id:
                 filter_query['school_id'] = school_id
             if class_id:
@@ -568,7 +568,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         student_status = student_doc.get('status', '')
         
         # Admin tem acesso total
-        if current_user.get('role') in ['admin', 'admin_teste']:
+        if current_user.get('role') in ['admin', 'admin_teste', 'super_admin', 'gerente']:
             pass
         elif current_user.get('role') == 'secretario':
             is_active = student_status in ['active', 'Ativo']

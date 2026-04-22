@@ -69,7 +69,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
     @router.put("/settings/{academic_year}")
     async def update_attendance_settings(academic_year: int, request: Request, allow_future_dates: bool):
         """Atualiza configurações de frequência (apenas Admin/Secretário)"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario'])(request)
         current_db = get_db_for_user(current_user)
         
         existing = await current_db.attendance_settings.find_one({"academic_year": academic_year})
@@ -107,7 +107,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         settings = await current_db.attendance_settings.find_one({"academic_year": year}, {"_id": 0})
         allow_future = settings.get("allow_future_dates", False) if settings else False
         
-        can_use_future = current_user['role'] in ['admin', 'admin_teste', 'secretario'] and allow_future
+        can_use_future = current_user['role'] in ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario'] and allow_future
         
         # Verifica eventos do calendário
         events = await current_db.calendar_events.find({

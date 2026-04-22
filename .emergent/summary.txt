@@ -1,131 +1,174 @@
 <analysis>**original_problem_statement**: 
-O usuário solicitou diversas melhorias na UI de Frequência (mudança de abas para colunas múltiplas baseadas em um dropdown de Nº de Aulas), sincronização de calendários em Objetos de Conhecimento, tratamento de datas não letivas e feriados, adição de uma aba Registros na Frequência, otimização da geração de PDFs, correção no Dashboard Analítico (Desempenho de alunos e professores), e correção profunda nos cálculos de Dias Letivos e Aulas Previstas. No final da sessão, introduziu um novo requisito para a exibição do campo Série/Ano nos relatórios PDF (Frequência e Objetos de Conhecimento) visando contemplar turmas multisseriadas.
-
 PRODUCT REQUIREMENTS:
-- PDFs de Relatório de Frequência e Registro de Objetos de Conhecimento: Quando a turma for multisseriada (ex: 1º, 2º e 3º ano juntos), o campo Série/Ano no cabeçalho do PDF deve exibir todas as séries combinadas (ex: 1º, 2º e 3º Ano ou 1º/2º/3º Ano).
+O usuário solicitou diversas correções e novos recursos no sistema:
+1. Validar e consertar o carregamento da aba Informações na página de Controle de Frequência. (Concluído)
+2. Exibir notas como conceitos (letras) na interface do Livro de Promoção para Ed. Infantil / 1º-2º Ano. (Concluído)
+3. Adicionar filtros de Visualização Rápida no Livro de Promoção. (Concluído)
+4. Corrigir divergência de quantidade de alunos exibida no Livro de Promoção em relação ao Cadastro de Alunos. (Concluído)
+5. Ocultar componentes formativos/Tempo Integral no Livro de Promoção (UI e PDF). (Concluído)
+6. Fixar o ano letivo padrão como o ano atual (2026) em todos os filtros. (Concluído)
+7. Ajustar PDF e Modal de Objetos de Conhecimento para que turmas da EJA 3ª/4ª Etapa se comportem como 6º ao 9º Ano. (Concluído)
+8. Otimizar e acelerar a geração de PDFs no sistema. (Concluído - Implementado processamento Assíncrono com barra de progresso)
+9. Migrar Carga Horária Semanal do cadastro do servidor para Gerenciar Lotações. (Concluído)
+10. Adicionar o recurso de Nova Substituição em Alocações de Professor. (Concluído)
+11. [NOVO] Implementar suporte a Multi-tenancy (Múltiplas Mantenedoras no mesmo sistema). (Fase 1 Concluída, Fase 2 pendente).
 
-**User's preferred language**: Portuguese (Português). INSTRUCT next agent to respond in the user's preferred language only.
+**User's preferred language**: Portuguese
+INSTRUCT next agent to respond in Portuguese only.
 
 **what currently exists?** 
-O lançamento de Frequência foi completamente refatorado para usar múltiplas colunas em vez de abas, sincronizando o total de aulas previstas com o Horário de Aulas da turma. A UI e os cálculos do Registro de Objetos de Conhecimento foram adaptados com regras rigorosas por nível de ensino. O calendário bloqueia corretamente feriados, domingos e períodos fora dos bimestres letivos. O Dashboard Analítico está operacional com o Desempenho dos Professores adicionado. O backend para a geração de PDFs foi paralelizado (asyncio) e refatorado, e a contagem duplicada de Dias Letivos (201 vs 200) foi finalmente unificada.
+O sistema passou por melhorias expressivas de performance e lógica de negócio. A geração de PDF pesados (como o Livro de Promoção) foi convertida para Jobs Assíncronos () com polling e barra de progresso no frontend, além da eliminação de queries N+1. O Livro de Promoção UI/PDF agora reflete precisamente os alunos matriculados usando  como fonte de verdade, oculta disciplinas formativas e calcula o CONCEITO FINAL corretamente para anos iniciais. Foi adicionado o modelo de substituição temporária de professores. E o mais impactante: o sistema iniciou a migração para a arquitetura **Multi-tenant**. A Fase 1 foi entregue: modelos base, CRUD de mantenedoras, injeção de  no JWT do usuário, papel  ativado e UI gerencial no frontend.
 
 **Last working item**: 
-    - Last item agent was working: Adaptação do campo Série/Ano nos cabeçalhos dos PDFs gerados por  e  para suportar exibição formatada de turmas multisseriadas.
-    - Status: NOT STARTED
+    - Last item agent was working: Investigando e corrigindo um bug crítico introduzido pela Fase 1 da migração Multi-tenant. O usuário relatou Tinha uma escola! Ela sumiu!. O agente descobriu que o novo papel  não possui permissão explícita mapeada no decorator  das rotas de escolas (), causando erro 403 Forbidden e ocultando as escolas do usuário.
+    - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? backend testing agent / manual testing by curl generating the PDFs.
+    - Which testing method agent to use? backend/frontend testing agent
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  Issue 1: (P1) Carga horária prevista zerada na folha de pagamento
-     - Attempted fixes: Nenhum nesta iteração.
-     - Next debug checklist: Solicitar regras de negócio ao usuário para o cálculo.
-     - Why fix this issue and what will be achieved with the fix?: Evita falhas no relatório financeiro de pagamentos.
-     - Status: USER VERIFICATION PENDING
+  Issue 1: (P0) Rotas do backend bloqueando o novo perfil  e 
+     - Attempted fixes: O agente identificou o erro lendo os arquivos, mas não implementou o fix.
+     - Next debug checklist: Editar  e outras rotas de domínio principais. Onde houver , atualize para incluir  e . Aproveite para padronizar as permissões globais de .
+     - Why fix this issue and what will be achieved with the fix? Desbloqueia o uso do sistema pelo administrador principal, que atualmente não consegue ver as escolas cadastradas.
+     - Status: IN PROGRESS
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? both
+
+  Issue 2: (P0) Multi-tenancy Fase 2 - Vazamento de dados entre Mantenedoras (Falta Scoping)
+     - Attempted fixes: O arquivo de utilidade  foi criado, mas ainda **não foi aplicado** aos endpoints.
+     - Next debug checklist: Modificar as queries do MongoDB em todos os principais roteadores (, , , , , ) para filtrar obrigatoriamente por . Usar a lógica já preparada em .
+     - Why fix this issue and what will be achieved with the fix? Sem isso, dados cadastrados na Mantenedora A serão visíveis na Mantenedora B, inviabilizando o multi-tenant.
+     - Status: NOT STARTED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? backend
+
+  Issue 3: (P1) Carga horária prevista zerada na folha de pagamento
+     - Attempted fixes: N/A.
+     - Next debug checklist: Definir regras de negócio com o usuário para a correção do cálculo de Carga horária na folha.
+     - Why fix this issue and what will be achieved with the fix? Evita erros financeiros no RH.
+     - Status: NOT STARTED
      - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix?: backend
-     - Blocked on other issue: None
+     - Should Test frontend/backend/both after fix? backend
+
+  Issue 4: (P2) Alterar carga horária de componentes curriculares
+     - Attempted fixes: N/A.
+     - Next debug checklist: Ajustar banco de dados/frontend para aceitar e renderizar cargas horárias fracionadas, se necessário.
+     - Why fix this issue and what will be achieved with the fix? Flexibilidade na alocação da grade curricular.
+     - Status: NOT STARTED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? both
 
 **In progress Task List**: 
-  Task 1: Ajuste de nomenclatura para Turmas Multisseriadas nos PDFs (Frequência e Objetos de Conhecimento)
-     - Where to resume: Arquivos  e . Verificar a propriedade  ou  da turma ou iterar pelas matrículas ativas na turma para agregar os nomes (ex: 1º, 2º e 3º Ano) caso a collection da turma já não tenha uma array de séries designadas.
-     - What will be achieved with this?: Atendimento exato do escopo solicitado no último prompt, onde o cabeçalho não refletirá apenas uma série caso a turma mescle múltiplos anos.
-     - Status: NOT STARTED
-     - Should Test frontend/backend/both after fix?: backend (geração de PDF via curl/endpoint)
-     - Blocked on something: None
+  Task 1: (P0) Arquitetura Multi-tenancy (Fases 2, 3 e 4)
+     - Where to resume: Aplicar o escopo de segurança nos roteadores principais (Fase 2) e depois criar o seletor visual de Mantenedora para que o  possa alternar o contexto na UI.
+     - What will be achieved with this? Isolamento completo de dados entre prefeituras/escolas no mesmo backend SaaS.
+     - Status: IN PROGRESS
+     - Should Test frontend/backend/both after fix? both
+     - Blocked on something: Issue 1 ( forbidden error).
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - (P1) Alterar carga horária de componentes curriculares.
-    - (P2) Implementar envio de e-mail de confirmação na pré-matrícula.
-
+    - (P1) Remover o campo CH Semanal do Modal de Servidor (), visto que a informação oficial agora fica apenas na aba Lotação.
+    - (P2) Adicionar botão de Baixar em segundo plano (minimizar modal) durante a geração de PDFs demorados.
+    
     Future Tasks:
-    - (P3) Avaliar uso de  do React Router v7 com  para lidar com navegações de forms não salvos.
+    - (P3) Implementar envio de e-mail de confirmação na pré-matrícula.
+    - (P3) Avaliar uso de  do React Router v7 para formulários não salvos.
 
 **Completed work in this session**
-- UI Frequência Anos Finais: Dropdown Nº de Aulas substituindo as abas, gerando colunas dinamicamente. (DONE)
-- Fix de cache em Produção: Atualização do  (PWA) para  e bump de versão. (DONE)
-- Otimização do PDF de Frequência: Resolvido gargalo que impedia a visualização lado a lado de dados legados com dados multi-aula. (DONE)
-- Customizações UI Objetos de Conhecimento: Troca de Metodologia para Práticas Pedagógicas, ocultação de campos para níveis Iniciais/Infantis. (DONE)
-- Calendário Integrado (Objetos de Conhecimento e Aba Registros): Buscando feriados via  e bloqueando seleções fora de dias letivos ou fora de bimestres. (DONE)
-- Sincronização Automática Nº de Aulas: Busca no Horário de Aulas a quantidade de sessões do componente naquele dia da semana. (DONE)
-- Aba Registros (Frequência): Visão anual dos dias com/sem lançamento de frequência, incluindo summary em cards no topo. (DONE)
-- Otimização Global de PDF: Paralelização via  e memoization (cache) de Estilos ParagraphStyle e Imagem de Logo. (DONE)
-- Dashboard Analítico: Resolvidos bugs nos aggregations  do MongoDB, permitindo cálculo do desempenho de alunos; nova feature de Desempenho dos Professores adicionada. (DONE)
-- Correção Dias Letivos: Resolvida inconsistência crônica de 200 vs 201 dias unificando chamadas nas rotas de PDFs e calculando em tempo real com os feriados salvos. (DONE)
+- Refatoração do Livro de Promoção para exibir Conceitos por disciplina baseados no maior valor bimestral (DONE)
+- Filtro de Visualização Rápida no Livro de Promoção implementado (DONE)
+- Ocultação de disciplinas formativas/Tempo Integral nas notas finais do Livro de Promoção (DONE)
+- Sincronização entre Cadastro de Alunos e Livro de Promoção corrigindo dados fantasmas (/) (DONE)
+- Geração assíncrona de PDF com suporte à fila, cache em memória e Barra de Progresso visual (DONE)
+- Ajustes de  aplicados à geração de PDFs de Objetos de Conhecimento (DONE)
+- Migração do banco para armazenar Carga Horária Semanal em Lotações (DONE)
+- Funcionalidade de Nova Substituição de Professor integrada (DONE)
+- Multi-tenancy FASE 1: CRUD de Mantenedoras e inclusão do parâmetro  (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-   Nenhum.
+   Nenhum não listado acima.
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: None
-  - Recurrence count: 0
-  - Status: RESOLVED
+  - Issue recurrence in previous fork: Bug do número divergente de alunos no Livro de Promoção. 
+  - Recurrence count: 1
+  - Status: RESOLVED (Passou a utilizar  como fonte da verdade em vez da branch histórica de ).
 
 **Code Architecture**
-
+mantenedora_id
 
 **Key Technical Concepts**
-- **Sincronia Níveis de Ensino**: Lógica altamente ramificada onde ,  tem comportamento diferente de ,  e . 
-- **Otimização Assíncrona de PDF**: A geração de reportes usa corrotinas  antes de repassar a compilação do Canvas ao ReportLab (síncrono).
+- **Multi-tenancy via Row-level Security**: O  é embutido no JWT. Todo usuário herda esse ID. O backend deve usar  para forçar que todo endpoint do MongoDB filtre por , mantendo total isolamento dos dados (SaaS mode).
+- **Processamento Assíncrono In-Memory**: PDFs longos usam . O endpoint cria o Job, retorna 202 Accepted + , e o Frontend realiza polling (barrinha de progresso) até o download ().
 
 **key DB schema**
-  - : Tabela base de verdade para feriados, recessos e sábados letivos (usar sempre campo  e ).
-  - : Define a base  que preenche a frequência automaticamente.
+  - : Nova collection para gerenciar os Tenants.
+  - : Recebeu  (None se for ).
+  - : 
+  - : 
 
 **changes in tech stack**
-  - Service worker strategy alterada para previnir deploy blocking no frontend.
+  - Implementado padrão Polling para chamadas longas de API (Async Job Generation para os PDFs).
 
 **All files of reference** 
--  (Alvo da nova feature)
--  (Alvo da nova feature)
--  (Onde fetch da turma p/ pdf de frequência acontece)
--  (Onde fetch da turma p/ pdf de objetos acontece)
+-  (Local crítico do bug de permissões pendente)
+-  (Onde habitam as funções do FASE 2)
+- 
+- 
 
 **Areas that need refactoring**: 
-Nenhuma área crítica detectada.
+- Todos os routers de domínio (, , , etc) precisam receber o check do  para aplicar a Fase 2 do projeto Multi-tenant de forma segura.
 
 **key api endpoints**
 - 
+-  (Alterado para suportar async poll e retornar )
 - 
 
 **Critical Info for New Agent** 
-- O próximo e imediato passo (P0) é tratar a string do campo Série/Ano no cabeçalho dos dois PDFs listados para exibir nomes concatenados caso a turma seja multisseriada. Verifique o que vem no dicionário  em  (se existe uma lista  ou se você deve puxar as séries pelas matrículas ativas daquela turma e processar a string).
-- INSTRUCT: Sempre se comunique com o usuário em **Português**. 
+- O administrador mudou sua  de  para  via migração no banco de dados para suportar a arquitetura Multi-Tenant.
+- **ISSO QUEBROU A PLATAFORMA**: Muitos endpoints, principalmente , usam o decorador hardcoded . Sendo um , o usuário recebe 403.
+- **SUA PRIMEIRA AÇÃO** deve ser percorrer as rotas críticas (, , , etc) e adicionar as roles  e  nestes validadores de segurança. 
+- Após estabilizar a UI, inicie o Scoping de Tenants (Fase 2).
 
 **documents and test reports created in this job** 
-- N/A
+-  (Plano de arquitetura e fases do SaaS multi-mantenedora).
+-  (Documentação das otimizações do gerador).
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. **User**: Mostrou screenshot de nome divergente no Horário de Aula (Professora). -> **Agent**: Fez fallback pelo nome do componente para resolver divergência de IDs.
-2. **User**: Aulas previstas para esse componente também sumiram. -> **Agent**: Usou o mesmo Helper de fallback na rota .
-3. **User**: Ficha individual ainda está mostrando 201 dias em vez de 200. -> **Agent**: Encontrou a query defeituosa de  e a lógica duplicada de .
-4. **User**: Ainda gera 201. -> **Agent**: Encontrou a terceira cópia defeituosa nos endpoints de  e corrigiu.
-5. **User**: O cálculo corrigido de Dias letivos (que usa 200) conflita com Dias Previstos no PDF de Objetos (45, 57..). -> **Agent**: Refatorou  para usar  da mesma forma unificada.
-6. **User**: (HUMAN PENDING - NOVO REQUISITO) Nos PDFs de relatório de FREQUÊNCIA - Xº BIMESTRE DE AAAA e REGISTRO DE OBJETOS DE CONHECIMENTO, no campo Série/Ano, para turmas multisseriadas, faz-se necessário a exibição de todas as séries/anos que compões a turma. Exemplos: Se for multisseriada e fizerem parte da turma o 1º ano, 2º ano e 3º ano, exibir 1º, 2º e 3º Ano ou 1º/2º/3º Ano e assim sucessivamente. -> **Agent**: (O limite de contexto impediu de concluir. Retome daqui).
+1. (User) Pediu o recurso de Adicionar Substituição em Alocações de Professor.
+2. (User) Mostrou bug de que as turmas não carregavam após selecionar a Escola.
+3. (Agent) Corrigiu bug de carregamento.
+4. (User) É possível termos mais de uma Mantenedora no mesmo sistema...?
+5. (Agent) Explicou o Multi-tenant e propôs Plano Faseado (F1 a F4). Pediu confirmação.
+6. (User) Skip ask_human: proceda com julgamento.
+7. (Agent) Implementou a Fase 1 (Models, Admin UI, super_admin).
+8. (User) Upload de imagem: relatou sumiço de módulos do dashboard.
+9. (Agent) Ajustou  no frontend, restaurando painéis do Dashboard. Sugeriu iniciar a F2 (Scoping Backend).
+10. (User) Tinha uma escola! Ela sumiu! (Alerta de restrição nas rotas do backend).
 
 **Project Health Check:**
-- Broken: Nenhum. O último pedido ainda precisa ser implementado.
-- Mocked: Nenhum.
+- **Broken**: Endpoints do  e outros devolvendo HTTP 403 para a conta principal () que agora é .
 
 **3rd Party Integrations** 
-Nenhuma ativamente configurada em andamento neste bloco.
+- Sem adições (Nenhuma nova integração exigida).
 
 **Testing status**
-  - Testing agent used after significant changes: YES
+  - Testing agent used after significant changes: NO (Devido à natureza da tarefa baseada em arquitetura, screenshots foram priorizadas. Usar testing subagent é vital para a Fase 2 do Multi-tenant).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: []
-  - Known regressions: Nenhuma conhecida, mas a lógica de verificação de 'Dias Letivos' precisa ser tratada com cuidado extra por ter causado problemas de caching/dados passados repetidas vezes.
+  - Test files created: None
+  - Known regressions: Perfil super_admin sem acesso às listas ().
 
 **Credentials to test flow:**
-(Verifique o arquivo  presente no diretório )
+Use . Conta principal migrada para super_admin:
+ / 
 
 **What agent forgot to execute**
-O agente não iniciou as edições nos geradores de PDF ( e ) para contemplar o suporte ao label das turmas multisseriadas. 
+O agente criou e atualizou os modelos para a role , e atualizou os check hooks do frontend (), mas esqueceu de atualizar a camada de segurança no **backend** (, etc.), resultando no bloqueio de requisições API ao usuário.
 
 **Debugging checklist for current issue**
-    Issue: Adequação da Label da Série/Ano para Turmas Multisseriadas (PDF)
-    Backend files to check: 
-    -  (Localize a célula que imprime SÉRIE/ANO no topo)
-    -  (Localize a célula análoga)
-    - Entenda de onde os scripts puxam os dados (da collection ). Avalie se basta modificar  para verificar arrays ou concatenar dados. Pode ser necessário buscar os  dos  ativos se o campo da turma for omisso.</analysis>
+    Issue: Usuário não consegue ver a lista de Escolas.
+    Backend files to check:  e .
+    
+    Why fix: Restaura o acesso total ao backend para o administrador principal do sistema.
+    Should Test frontend/backend/both after fix: both.</analysis>

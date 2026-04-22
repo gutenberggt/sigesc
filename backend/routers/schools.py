@@ -10,6 +10,7 @@ from models import School, SchoolCreate, SchoolUpdate
 from auth_middleware import AuthMiddleware
 from text_utils import format_data_uppercase
 from utils.cache import cache, CACHE_TTL_SCHOOLS
+from tenant_scope import apply_tenant_filter, get_mantenedora_scope, assert_same_tenant, is_super_admin
 
 router = APIRouter(prefix="/schools", tags=["Escolas"])
 
@@ -40,6 +41,15 @@ def setup_router(db, audit_service, sandbox_db=None):
         doc = school_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
         
+        # Multi-tenancy: injeta mantenedora_id
+        tenant_id = get_mantenedora_scope(current_user, request)
+        if tenant_id is None and not is_super_admin(current_user):
+            raise HTTPException(status_code=400, detail="Usuário sem mantenedora definida")
+        if tenant_id is None:
+            # super_admin criando sem tenant selecionado — exige seleção explícita
+            raise HTTPException(status_code=400, detail="Selecione uma mantenedora antes de criar a escola")
+        doc['mantenedora_id'] = tenant_id
+        
         await current_db.schools.insert_one(doc)
         
         cache.invalidate('schools')
@@ -51,25 +61,31 @@ def setup_router(db, audit_service, sandbox_db=None):
         current_user = await AuthMiddleware.get_current_user(request)
         current_db = get_db_for_user(current_user)
         
-        # Cache key baseada no papel e escolas do usuário
+        # Escopo do tenant para esta request
+        tenant_id = get_mantenedora_scope(current_user, request)
+        
+        # Cache key baseada no papel, escolas do usuário e tenant ativo
         cache_params = {
             'role': current_user['role'],
             'school_ids': sorted(current_user.get('school_ids', [])),
+            'tenant': tenant_id or 'ALL',
             'skip': skip, 'limit': limit, 'include_student_count': include_student_count
         }
         cached = cache.get('schools', cache_params)
         if cached is not None:
             return cached
         
-        # Admin, admin_teste, SEMED, SEMED3, Assistente Social e Agente de Vacinas veem todas as escolas
-        if current_user['role'] in ['admin', 'admin_teste', 'semed', 'semed3', 'ass_social', 'ass_social_2', 'agente_vacinas']:
-            schools = await current_db.schools.find({}, {"_id": 0}).sort("name", 1).collation({"locale": "pt", "strength": 1}).skip(skip).limit(limit).to_list(limit)
-        else:
-            # Outros papéis veem apenas escolas vinculadas
-            schools = await current_db.schools.find(
-                {"id": {"$in": current_user['school_ids']}},
-                {"_id": 0}
-            ).sort("name", 1).collation({"locale": "pt", "strength": 1}).skip(skip).limit(limit).to_list(limit)
+        # Papéis que veem todas as escolas (dentro do tenant): admin, admin_teste, super_admin, gerente, semed, semed3, ass_social, agente_vacinas
+        wide_roles = ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3', 'ass_social', 'ass_social_2', 'agente_vacinas']
+        
+        base_filter = {}
+        if current_user['role'] not in wide_roles:
+            base_filter = {"id": {"$in": current_user.get('school_ids', [])}}
+        
+        # Aplica filtro multi-tenant (respeita super_admin cross-tenant quando sem seleção)
+        query = apply_tenant_filter(base_filter, current_user, request)
+        
+        schools = await current_db.schools.find(query, {"_id": 0}).sort("name", 1).collation({"locale": "pt", "strength": 1}).skip(skip).limit(limit).to_list(limit)
         
         # Adicionar contagem de alunos ativos se solicitado
         if include_student_count and schools:
@@ -118,6 +134,9 @@ def setup_router(db, audit_service, sandbox_db=None):
                 detail="Escola não encontrada"
             )
         
+        # Multi-tenancy: garante que pertence ao tenant atual
+        assert_same_tenant(school, current_user, request)
+        
         return School(**school)
 
     @router.put("/{school_id}", response_model=School)
@@ -128,8 +147,8 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         # Admin pode editar qualquer escola
         # Secretário pode editar apenas escolas vinculadas
-        if current_user['role'] in ['admin', 'admin_teste']:
-            pass  # Admin pode editar qualquer escola
+        if current_user['role'] in ['admin', 'admin_teste', 'super_admin', 'gerente']:
+            pass  # Admin/super_admin/gerente podem editar
         elif current_user['role'] == 'secretario':
             if school_id not in current_user.get('school_ids', []):
                 raise HTTPException(
@@ -153,6 +172,15 @@ def setup_router(db, audit_service, sandbox_db=None):
         update_data = format_data_uppercase(update_data)
         
         if update_data:
+            # Multi-tenancy: verifica tenant antes de atualizar
+            existing = await current_db.schools.find_one({"id": school_id}, {"_id": 0, "mantenedora_id": 1})
+            if not existing:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Escola não encontrada"
+                )
+            assert_same_tenant(existing, current_user, request)
+            
             result = await current_db.schools.update_one(
                 {"id": school_id},
                 {"$set": update_data}
@@ -173,6 +201,15 @@ def setup_router(db, audit_service, sandbox_db=None):
         """Deleta escola definitivamente"""
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
         current_db = get_db_for_user(current_user)
+        
+        # Multi-tenancy: verifica tenant antes de deletar
+        existing = await current_db.schools.find_one({"id": school_id}, {"_id": 0, "mantenedora_id": 1})
+        if not existing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Escola não encontrada"
+            )
+        assert_same_tenant(existing, current_user, request)
         
         result = await current_db.schools.delete_one({"id": school_id})
         

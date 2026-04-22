@@ -1,0 +1,50 @@
+{
+  "summary": "Multi-tenant Phase 1 backend regression validated. 16/16 tests pass. super_admin (gutenberg@sigesc.com) successfully accesses all listing endpoints with no 403 regression and POST /api/schools persists mantenedora_id correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/schools/{id} and POST /api/schools (response body)",
+        "issue": "School Pydantic response model does NOT expose `mantenedora_id`. The field IS persisted in MongoDB (verified directly via DB query) but is hidden from the API response. Frontend cannot read which tenant a school belongs to without an extra lookup. Recommend adding `mantenedora_id: Optional[str] = None` to the School model."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_results_by_feature": {
+    "auth_login_super_admin": "PASS - login returns role=super_admin and mantenedora_id=a991c1ac-56b1-46a8-b122-effedbe19b21",
+    "auth_me_super_admin": "PASS - /api/auth/me returns role=super_admin with mantenedora_id",
+    "schools_list": "PASS - returns ESCOLA TESTE MULTISSERIADA (no longer empty)",
+    "classes_list": "PASS - non-empty",
+    "students_pagination": "PASS - total>0 and items returned",
+    "staff_list": "PASS - 200",
+    "courses_list": "PASS - 200",
+    "enrollments_2026": "PASS - 200",
+    "mantenedoras_endpoint": "PASS - 200, super_admin can list mantenedoras",
+    "school_assignments": "PASS - 200",
+    "teacher_assignments": "PASS - 200",
+    "grades_no_403": "PASS - super_admin not blocked",
+    "attendance_no_403": "PASS - super_admin not blocked",
+    "learning_objects_no_403": "PASS - super_admin not blocked",
+    "documents_no_403": "PASS - super_admin not blocked",
+    "create_school_tenant_injection": "PASS - With X-Mantenedora-Id header, POST /api/schools persists mantenedora_id (verified in MongoDB). Without header, super_admin gets 400 'Selecione uma mantenedora antes de criar a escola' which is the intended cross-tenant guard."
+  },
+  "critical_code_review_comments": [
+    "[MINOR] backend/routers/schools.py create_school returns the Pydantic School object directly (line 56: `return school_obj`), which does NOT carry the mantenedora_id field even though it was added to the dict that was inserted. Same gap on GET. Add `mantenedora_id: Optional[str] = None` to the School model in models.py so the API response exposes it. Without this, frontend cannot tell which tenant a school belongs to.",
+    "[INFO] Behavior of POST /api/schools requires super_admin to set X-Mantenedora-Id header (or ?mantenedora_id=) — without it, returns 400. This is the intended guard per tenant_scope.py, but the frontend MUST send the header (or the user must select a tenant context) before creating schools. Document this for the frontend team.",
+    "[INFO] auth_middleware.require_roles correctly fast-paths super_admin (line 76-77) and treats gerente as admin (line 87-88). check_school_access (line 140) and get_user_permissions (line 217) both include super_admin/gerente. Looks correct.",
+    "[INFO] tenant_scope.py is well-documented and only currently wired in routers/schools.py; the docstring lists 16+ collections that still need scoping in Phase 2 (students, staff, classes, courses, enrollments, grades, etc.). Cross-tenant data leakage is possible today for non-super_admin users in a multi-tenant scenario, but for the current single-mantenedora seed (only one mantenedora exists) this is not yet a runtime issue.",
+    "[INFO] For Phase 2, consider also wrapping list_schools cache key by tenant_id so that switching mantenedora context doesn't return stale cached results across tenants — already done correctly (line 71 includes tenant in cache_params)."
+  ],
+  "updated_files": [],
+  "test_report_links": [
+    "/app/backend/tests/test_multitenant_phase1.py",
+    "/app/test_reports/pytest/pytest_multitenant_phase1.xml"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "not tested (per request)"},
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin, mantenedora_id=a991c1ac-56b1-46a8-b122-effedbe19b21)",
+  "seed_data_creation": "Created and removed TEST_MULTITENANT_SCHOOL_PHASE1 during the tenant-injection test. Cleaned up.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 1 multi-tenant unblock for super_admin is fully validated. Test file at /app/backend/tests/test_multitenant_phase1.py covers the full P0 regression and can be re-run on every Phase 2 PR. The only finding is a cosmetic gap: Pydantic School model omits `mantenedora_id` from API responses though the field IS persisted in MongoDB. Future Phase 2 work needs to wire tenant_scope into students/staff/classes/courses/enrollments/grades/learning_objects/etc routers (schools.py is the only one wired today).",
+  "rca of the issue": "Phase 1 fix verified: auth_middleware.require_roles now fast-paths super_admin (and gerente as admin), check_school_access and get_user_permissions include super_admin/gerente, list endpoints (students, classes, schools, etc.) include super_admin/gerente in wide_roles, and POST /api/schools injects mantenedora_id when X-Mantenedora-Id header is provided. Persistence confirmed via direct MongoDB query. No 403 regressions observed."
+}

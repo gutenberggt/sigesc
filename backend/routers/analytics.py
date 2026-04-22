@@ -38,7 +38,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         user = await AuthMiddleware.get_current_user(request)
         
         # Determina se usuário tem visão global ou restrita
-        is_global = user.get('role') in ['admin', 'admin_teste', 'semed', 'semed3']
+        is_global = user.get('role') in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3']
         user_school_ids = user.get('school_ids', []) or []
         if user.get('school_links'):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
@@ -293,7 +293,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
         
-        is_global = user.get('role') in ['admin', 'admin_teste', 'semed', 'semed3']
+        is_global = user.get('role') in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3']
         user_school_ids = user.get('school_ids', []) or []
         if user.get('school_links'):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
@@ -364,7 +364,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
         
-        is_global = user.get('role') in ['admin', 'admin_teste', 'semed', 'semed3']
+        is_global = user.get('role') in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3']
         user_school_ids = user.get('school_ids', []) or []
         if user.get('school_links'):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
@@ -447,7 +447,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
         
-        is_global = user.get('role') in ['admin', 'admin_teste', 'semed', 'semed3']
+        is_global = user.get('role') in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3']
         user_school_ids = user.get('school_ids', []) or []
         if user.get('school_links'):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
@@ -528,7 +528,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
         
-        is_global = user.get('role') in ['admin', 'admin_teste', 'semed', 'semed3']
+        is_global = user.get('role') in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3']
         user_school_ids = user.get('school_ids', []) or []
         if user.get('school_links'):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]
@@ -637,7 +637,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         # ============================================
         # RESTRIÇÃO DE ACESSO AO RANKING
         # ============================================
-        is_admin = user_role in ['admin', 'admin_teste']
+        is_admin = user_role in ['admin', 'admin_teste', 'super_admin', 'gerente']
         is_semed = user_role in ['semed3']
         is_global = is_admin or is_semed
         
@@ -1100,7 +1100,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         # ============================================
         # RESTRIÇÕES DE ACESSO POR PERFIL
         # ============================================
-        is_admin = user_role in ['admin', 'admin_teste']
+        is_admin = user_role in ['admin', 'admin_teste', 'super_admin', 'gerente']
         is_semed = user_role == 'semed3'
         is_global = is_admin or is_semed
         is_school_staff = user_role in ['diretor', 'coordenador', 'auxiliar_secretaria', 'secretario', 'secretário']
@@ -1314,7 +1314,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         """Top 10 professores por desempenho: preenchimento de diários, aprovação e faltas"""
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
-        is_global = user.get('role') in ['admin', 'admin_teste', 'semed', 'semed3']
+        is_global = user.get('role') in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3']
         
         # Buscar alocações de professores
         alloc_filter = {'academic_year': year_filter(academic_year)}
@@ -1566,7 +1566,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
         
-        is_global = user.get('role') in ['admin', 'admin_teste', 'semed', 'semed3']
+        is_global = user.get('role') in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3']
         user_school_ids = user.get('school_ids', []) or []
         if user.get('school_links'):
             user_school_ids = [link.get('school_id') for link in user.get('school_links', [])]

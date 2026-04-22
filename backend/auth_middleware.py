@@ -72,13 +72,20 @@ class AuthMiddleware:
         async def role_checker(request: Request):
             user = await AuthMiddleware.get_current_user(request)
             
+            # super_admin tem acesso total (cross-tenant) — Multi-tenancy Fase 1
+            if user['role'] == 'super_admin':
+                return user
+            
             # admin_teste tem as mesmas permissões que admin
             # apoio_pedagogico tem as mesmas permissões que coordenador
+            # gerente é admin escopado à sua mantenedora
             effective_role = user['role']
             if effective_role == 'admin_teste':
                 effective_role = 'admin'
             elif effective_role == 'apoio_pedagogico':
                 effective_role = 'coordenador'
+            elif effective_role == 'gerente':
+                effective_role = 'admin'
             
             if effective_role not in allowed_roles:
                 raise HTTPException(
@@ -102,7 +109,12 @@ class AuthMiddleware:
             
             # Se não for coordenador/apoio_pedagogico, verifica normalmente
             if user['role'] not in ('coordenador', 'apoio_pedagogico'):
-                if user['role'] not in allowed_roles:
+                # super_admin tem acesso total (cross-tenant)
+                if user['role'] == 'super_admin':
+                    return user
+                # gerente é admin escopado à mantenedora
+                effective_role = 'admin' if user['role'] == 'gerente' else user['role']
+                if effective_role not in allowed_roles:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail=f'Acesso negado. Papel requerido: {", ".join(allowed_roles)}'
@@ -124,8 +136,8 @@ class AuthMiddleware:
     @staticmethod
     def check_school_access(user: dict, school_id: str) -> bool:
         """Verifica se o usuário tem acesso à escola"""
-        # Admin, admin_teste, SEMED e SEMED3 têm acesso a todas as escolas
-        if user['role'] in ['admin', 'admin_teste', 'semed', 'semed3']:
+        # super_admin, admin, admin_teste, SEMED e SEMED3 têm acesso a todas as escolas
+        if user['role'] in ['super_admin', 'admin', 'admin_teste', 'semed', 'semed3', 'gerente']:
             return True
         
         # Outros papéis precisam ter a escola vinculada
@@ -202,7 +214,7 @@ class AuthMiddleware:
                 'can_view_all_school_data': True,
                 'is_read_only_except_diary': True
             }
-        elif user['role'] in ['admin', 'admin_teste']:
+        elif user['role'] in ['admin', 'admin_teste', 'super_admin', 'gerente']:
             return {
                 'role': user['role'],
                 'can_edit_grades': True,

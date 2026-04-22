@@ -422,7 +422,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         user_role = current_user.get('role', '')
         
         # Verifica ano letivo aberto (para não-admins)
-        if grades and user_role not in ['admin', 'admin_teste'] and verify_academic_year_open_or_raise:
+        if grades and user_role not in ['admin', 'admin_teste', 'super_admin', 'gerente'] and verify_academic_year_open_or_raise:
             first_grade = grades[0]
             class_doc = await current_db.classes.find_one(
                 {"id": first_grade['class_id']},
@@ -435,7 +435,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 )
         
         # Verifica deadline do bimestre
-        if grades and user_role not in ['admin', 'admin_teste', 'secretario'] and verify_bimestre_edit_deadline_or_raise:
+        if grades and user_role not in ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario'] and verify_bimestre_edit_deadline_or_raise:
             first_grade = grades[0]
             academic_year = first_grade.get('academic_year')
             
@@ -540,7 +540,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
     @router.delete("/{grade_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_grade(grade_id: str, request: Request):
         """Remove uma nota"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'super_admin', 'gerente'])(request)
         current_db = get_db_for_user(current_user)
         
         result = await current_db.grades.delete_one({"id": grade_id})

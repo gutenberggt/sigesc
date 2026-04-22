@@ -29,7 +29,7 @@ def setup_medical_certificates_router(db, auth_middleware):
         current_user = await auth_middleware.get_current_user(request)
         
         # Verificar permissão (apenas secretário e admin)
-        if current_user['role'] not in ['admin', 'secretario']:
+        if current_user['role'] not in ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario']:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Apenas secretários e administradores podem registrar atestados médicos"
@@ -193,7 +193,7 @@ def setup_medical_certificates_router(db, auth_middleware):
         """
         current_user = await auth_middleware.get_current_user(request)
         
-        if current_user['role'] not in ['admin', 'secretario']:
+        if current_user['role'] not in ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario']:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Apenas secretários e administradores podem atualizar atestados médicos"

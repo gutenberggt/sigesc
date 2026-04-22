@@ -318,8 +318,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         recipient_type = recipient.get('type', '')
 
-        # Admin pode enviar para qualquer um
-        if user_role == 'admin':
+        # Admin/super_admin/admin_teste/gerente podem enviar para qualquer um
+        if user_role in ('admin', 'admin_teste', 'super_admin', 'gerente'):
             return True
 
         # Secretário, Diretor, Coordenador - limitado à escola
