@@ -43,34 +43,37 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/mantenedora", response_model=Mantenedora)
     async def get_mantenedora(request: Request):
         """Busca a Unidade Mantenedora ATIVA (selecionada via TenantSwitcher)."""
-        _, current_db, doc, _ = await _resolve_active(request)
+        current_user, current_db, doc, tenant_id = await _resolve_active(request)
         if not doc:
-            # Cria uma mantenedora padrão se não houver nenhuma (onboarding inicial)
-            default_mantenedora = {
-                "id": str(uuid.uuid4()),
-                "nome": "Nova Mantenedora",
-                "cnpj": "",
-                "codigo_inep": "",
-                "natureza_juridica": "Pública Municipal",
-                "cep": "",
-                "logradouro": "",
-                "numero": "",
-                "complemento": "",
-                "bairro": "",
-                "municipio": "",
-                "estado": "PA",
-                "telefone": "",
-                "celular": "",
-                "email": "",
-                "site": "",
-                "responsavel_nome": "",
-                "responsavel_cargo": "Prefeito(a)",
-                "responsavel_cpf": "",
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": None
-            }
-            await current_db.mantenedoras.insert_one(default_mantenedora)
-            return default_mantenedora
+            # super_admin sem tenant e sem mantenedora alguma cadastrada → cria default
+            if is_super_admin(current_user) and not tenant_id:
+                default_mantenedora = {
+                    "id": str(uuid.uuid4()),
+                    "nome": "Nova Mantenedora",
+                    "cnpj": "",
+                    "codigo_inep": "",
+                    "natureza_juridica": "Pública Municipal",
+                    "cep": "",
+                    "logradouro": "",
+                    "numero": "",
+                    "complemento": "",
+                    "bairro": "",
+                    "municipio": "",
+                    "estado": "PA",
+                    "telefone": "",
+                    "celular": "",
+                    "email": "",
+                    "site": "",
+                    "responsavel_nome": "",
+                    "responsavel_cargo": "Prefeito(a)",
+                    "responsavel_cpf": "",
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": None
+                }
+                await current_db.mantenedoras.insert_one(default_mantenedora)
+                return default_mantenedora
+            # Header apontando para tenant inexistente, ou usuário sem tenant
+            raise HTTPException(status_code=404, detail="Mantenedora não encontrada")
         return doc
 
 

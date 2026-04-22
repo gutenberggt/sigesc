@@ -370,6 +370,15 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 
 
 
+
+## Multi-Tenancy Fase 3 — Unidade Mantenedora Ativa + Super_admin Full Powers (22/04/2026)
+- **Reestruturação `/api/mantenedora`**: router agora lê/escreve na coleção multi-tenant `mantenedoras` (plural) usando `_resolve_active(request)` — respeita X-Mantenedora-Id header ou fallback cross-tenant do super_admin. Coleção legacy `db.mantenedora` (singular) deprecada.
+- **Dashboard**: removido card "Mantenedoras (multi-tenant)" redundante; agora só o card "Mantenedora" que navega para `/admin/mantenedora` (Unidade Mantenedora) exibindo os dados da mantenedora ativa.
+- **Lista `/admin/mantenedoras`**: botão editar (lápis) agora salva `activeMantenedoraId` no localStorage e redireciona para `/admin/mantenedora` — fluxo unificado com o TenantSwitcher.
+- **Super_admin full powers**: corrigidos 10+ arquivos do frontend que hardcodavam `user?.role === 'admin' || 'admin_teste'` sem incluir `super_admin`/`gerente`. Agora super_admin pode deletar usuários, editar calendário/períodos letivos, avisos, analytics, HR, escolas, staff, perfis, assistência social.
+- **Matriz de Permissões** (Users.js): adicionadas as linhas `super_admin` (label "Super Admin", indigo) e `gerente` (label "Gerente", cyan) ao `ROLE_MATRIX`, ambos com acesso `'full'` em todos os 18 módulos. `ADMIN_ONLY_ROLES` estendido para controlar atribuição dos novos papéis.
+- Validado pelo testing agent (iteration_57.json): **32/32 backend + 6/6 frontend PASS**.
+
 ## Credenciais de Teste
 - Admin: gutenberg@sigesc.com / @Celta2007
 - Coordenador: coordenador@sigesc.com / coordenador123
