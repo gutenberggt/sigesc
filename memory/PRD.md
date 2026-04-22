@@ -357,6 +357,17 @@ Sistema full-stack (React + FastAPI + MongoDB) para gestão escolar municipal.
 - **`models.py`**: `School` agora expõe `mantenedora_id` na resposta da API.
 - Validado pelo testing agent (iteration_55.json): 16/16 testes backend passando, sem regressões 403.
 
+## Multi-Tenancy Fase 2 — Scoping Completo + Tenant Switcher (22/04/2026)
+- **Backfill de `mantenedora_id`** (`scripts/backfill_tenant_scope.py`): 2000+ documentos estampados (aee_estudantes, attendance, audit_logs, class_schedules, hr_audit_logs, medical_certificates, messages, payroll_*, promotion_*, school_payrolls, student_history, vaccine_status, user_profiles, connections) derivando tenant de school_id/class_id/student_id e fallback para mantenedora única.
+- **Routers com tenant scoping aplicado** (create injeta, list filtra, get/put/delete validam com `assert_same_tenant`):
+  - `schools.py`, `classes.py`, `students.py`, `staff.py`, `courses.py`, `enrollments.py`, `grades.py`, `attendance.py`, `learning_objects.py`, `assignments.py` (school_assignments + teacher_assignments).
+- **Helper central** `resolve_tenant_id_for_create(db, user, request, school_id=..., class_id=..., student_id=..., staff_id=...)` em `tenant_scope.py` deriva o tenant via parent entity quando o scope ativo do usuário for `None` (super_admin sem header).
+- **Frontend `TenantSwitcher.jsx`** (novo): dropdown no header visível apenas para `super_admin` com opções "Todas (cross-tenant)" + lista de mantenedoras. Seleção persistida em `localStorage.activeMantenedoraId` e recarrega a página.
+- **Axios interceptor** (`services/api.js`): injeta `X-Mantenedora-Id` em todas as requisições quando há tenant ativo selecionado — o backend usa esse header em `get_mantenedora_scope`.
+- **Layout.js**: `roleLabels` atualizado com `super_admin: 'Super Administrador'` e `gerente: 'Gerente'`.
+- Validado pelo testing agent (iteration_56.json): 22/22 testes backend PASS + frontend Playwright confirma TenantSwitcher funcional e 52 requests carregam o header corretamente. Cross-tenant isolation validado com 2 mantenedoras distintas.
+
+
 
 
 ## Credenciais de Teste
