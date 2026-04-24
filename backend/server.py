@@ -71,6 +71,7 @@ from routers import mec_integration as mec_mod
 from routers import bolsa_familia as bolsa_mod
 from routers import pmpi as pmpi_mod
 from routers import pmpi_engine as pmpi_engine_mod
+from routers import pmpi_ai as pmpi_ai_mod
 from routers import action_plans as action_plans_mod
 
 # Utilitários compartilhados
@@ -542,6 +543,7 @@ mec_mod.setup_router(db)
 bolsa_mod.setup_router(db)
 pmpi_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 pmpi_engine_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
+pmpi_ai_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 action_plans_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 
 # --- Incluir TODOS os roteadores na app ---
@@ -594,6 +596,7 @@ app.include_router(mec_mod.router, prefix="/api")
 app.include_router(bolsa_mod.router, prefix="/api")
 app.include_router(pmpi_mod.router, prefix="/api")
 app.include_router(pmpi_engine_mod.router, prefix="/api")
+app.include_router(pmpi_ai_mod.router, prefix="/api")
 app.include_router(action_plans_mod.router, prefix="/api")
 
 # Include the legacy api_router AFTER modular routers

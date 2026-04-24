@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Loader2, Home, Siren, Plus, Play, Target, Settings, Check,
-  RefreshCw, Trash2, Pencil, AlertTriangle, CheckCircle2, Clock, Save, X
+  RefreshCw, Trash2, Pencil, AlertTriangle, CheckCircle2, Clock, Save, X,
+  Shield, Brain
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,7 +46,15 @@ const api = {
   deleteRule: (id) => axios.delete(`${API}/pmpi/alert-rules/${id}`).then(r => r.data),
   seedDefaults: () => axios.post(`${API}/pmpi/alert-rules/seed-defaults`).then(r => r.data),
   listGoals: (month) => axios.get(`${API}/pmpi/monthly-goals`, { params: month ? { month } : {} }).then(r => r.data),
-  generateGoals: () => axios.post(`${API}/pmpi/monthly-goals/generate`).then(r => r.data)
+  generateGoals: () => axios.post(`${API}/pmpi/monthly-goals/generate`).then(r => r.data),
+  // Onda 3
+  ranking: () => axios.get(`${API}/pmpi/ranking`).then(r => r.data),
+  managerProfile: () => axios.get(`${API}/pmpi/manager-profile`).then(r => r.data),
+  intervention: (schoolId) => axios.get(`${API}/pmpi/intervention-level/${schoolId}`).then(r => r.data),
+  aiAnalyze: (schoolId) => axios.post(`${API}/pmpi/ai/analyze/${schoolId}`).then(r => r.data),
+  aiHistory: (schoolId) => axios.get(`${API}/pmpi/ai/analyses`, { params: schoolId ? { school_id: schoolId } : {} }).then(r => r.data),
+  cronStatus: () => axios.get(`${API}/pmpi/cron/status`).then(r => r.data),
+  cronTrigger: () => axios.post(`${API}/pmpi/cron/trigger-now`).then(r => r.data),
 };
 
 // ======= ALERTS TAB =======
@@ -362,6 +371,230 @@ function GoalsTab() {
   );
 }
 
+// ======= INTELLIGENCE TAB (Onda 3) =======
+function IntelligenceTab() {
+  const [ranking, setRanking] = useState([]);
+  const [managers, setManagers] = useState([]);
+  const [cron, setCron] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [aiSchool, setAiSchool] = useState('');
+  const [aiResult, setAiResult] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [interventionResult, setInterventionResult] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [rk, mp, cr] = await Promise.all([
+        api.ranking(), api.managerProfile(), api.cronStatus()
+      ]);
+      setRanking(rk.items || []);
+      setManagers(mp.items || []);
+      setCron(cr);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const runAi = async () => {
+    if (!aiSchool) { toast.error('Selecione uma escola'); return; }
+    try {
+      setAiLoading(true);
+      setAiResult(null);
+      setInterventionResult(null);
+      const [ai, iv] = await Promise.all([
+        api.aiAnalyze(aiSchool),
+        api.intervention(aiSchool),
+      ]);
+      setAiResult(ai);
+      setInterventionResult(iv);
+      toast.success('Análise concluída');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || e.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const triggerCron = async () => {
+    try { await api.cronTrigger(); toast.success('Motor executado manualmente'); await load(); }
+    catch (e) { toast.error(e?.response?.data?.detail || e.message); }
+  };
+
+  const rankColor = (score) => {
+    if (score == null) return 'text-gray-400';
+    if (score >= 85) return 'text-green-600';
+    if (score >= 70) return 'text-yellow-600';
+    if (score >= 50) return 'text-orange-600';
+    return 'text-red-600';
+  };
+  const profileColor = {
+    proativo: 'bg-green-100 text-green-700',
+    reativo: 'bg-yellow-100 text-yellow-800',
+    critico: 'bg-red-100 text-red-700'
+  };
+  const riskColor = { baixo: 'bg-green-100 text-green-700', medio: 'bg-yellow-100 text-yellow-800', alto: 'bg-red-100 text-red-700' };
+  const interventionColor = [
+    'bg-green-100 text-green-700',
+    'bg-blue-100 text-blue-700',
+    'bg-orange-100 text-orange-700',
+    'bg-red-100 text-red-700'
+  ];
+
+  return (
+    <div className="space-y-5">
+      {/* Cron status */}
+      <Card>
+        <CardContent className="p-3 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${cron?.running ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+            <div>
+              <div className="text-xs text-gray-500">Agendador</div>
+              <div className="text-sm font-medium">
+                {cron?.running ? 'Rodando' : 'Parado'}
+                {cron?.jobs?.[0]?.next_run_time && (
+                  <span className="text-xs text-gray-500 ml-2">
+                    · Próxima execução: {new Date(cron.jobs[0].next_run_time).toLocaleString('pt-BR')}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={triggerCron} data-testid="trigger-cron-btn">
+            <Play className="w-4 h-4 mr-2" /> Disparar agora
+          </Button>
+        </CardContent>
+      </Card>
+
+      {loading ? (
+        <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-blue-600" /></div>
+      ) : (
+        <>
+          {/* Ranking institucional */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Target className="w-5 h-5 text-blue-600" />Ranking Institucional</CardTitle></CardHeader>
+            <CardContent>
+              {ranking.length === 0 ? (
+                <p className="text-gray-500 text-sm">Nenhuma escola disponível.</p>
+              ) : (
+                <div className="space-y-2" data-testid="ranking-list">
+                  {ranking.map(r => (
+                    <div key={r.school_id} className="flex items-center justify-between p-2 border rounded-md hover:bg-gray-50" data-testid={`rank-row-${r.school_id}`}>
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl font-bold text-gray-400">#{r.position}</span>
+                        <div>
+                          <div className="font-medium text-sm">{r.school_name}</div>
+                          <div className="text-xs text-gray-500">
+                            Freq: {r.kpis?.frequencia?.value ?? '—'} · Aulas: {r.kpis?.aulas_lancadas?.value ?? '—'} · Notas: {r.kpis?.notas_lancadas?.value ?? '—'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`text-xl font-bold ${rankColor(r.score)}`}>
+                        {r.score ?? '—'}
+                        <span className="text-xs text-gray-400 ml-1">score</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Perfil dos gestores */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Shield className="w-5 h-5 text-purple-600" />Perfil dos Gestores (60 dias)</CardTitle></CardHeader>
+            <CardContent>
+              {managers.length === 0 ? (
+                <p className="text-gray-500 text-sm">Nenhum gestor identificado. Cadastre diretores/coordenadores com vínculo a escolas.</p>
+              ) : (
+                <div className="space-y-2" data-testid="managers-list">
+                  {managers.map(m => (
+                    <div key={m.user_id} className="flex items-center justify-between p-2 border rounded-md">
+                      <div>
+                        <div className="font-medium text-sm">{m.user_name}</div>
+                        <div className="text-xs text-gray-500">
+                          ACK médio: {m.tempo_medio_ack_horas ?? '—'}h · Planos no prazo: {m.planos_no_prazo_pct ?? '—'}% · Reincidentes: {m.alertas_reincidentes}
+                        </div>
+                      </div>
+                      <span className={`text-xs px-3 py-1 rounded-full font-medium ${profileColor[m.perfil] || 'bg-gray-100 text-gray-700'}`}>
+                        {m.perfil.toUpperCase()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* IA preditiva */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2">
+              <Siren className="w-5 h-5 text-orange-600" /> Análise Preditiva com IA (Claude Sonnet)
+            </CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex gap-2 items-end flex-wrap">
+                <div className="flex-1 min-w-[220px]">
+                  <Label className="text-xs">Escola para analisar</Label>
+                  <select className="w-full border rounded-md px-3 py-2 text-sm" value={aiSchool}
+                    onChange={e => setAiSchool(e.target.value)} data-testid="ai-school-select">
+                    <option value="">Selecione...</option>
+                    {ranking.map(r => (<option key={r.school_id} value={r.school_id}>{r.school_name}</option>))}
+                  </select>
+                </div>
+                <Button onClick={runAi} disabled={aiLoading || !aiSchool} data-testid="run-ai-btn">
+                  {aiLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analisando...</> : <><Play className="w-4 h-4 mr-2" /> Analisar</>}
+                </Button>
+              </div>
+              {aiLoading && <p className="text-xs text-gray-500">⏳ Claude está analisando (≈ 15-25s)...</p>}
+              {aiResult && (
+                <div className="border rounded-md p-3 bg-blue-50/30 space-y-3" data-testid="ai-result">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${riskColor[aiResult.nivel_risco] || 'bg-gray-100 text-gray-700'}`}>
+                      Risco: {aiResult.nivel_risco?.toUpperCase()}
+                    </span>
+                    <span className="text-xs text-gray-500">Modelo: {aiResult.model}</span>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-gray-700 mb-1">Análise</div>
+                    <p className="text-sm text-gray-800">{aiResult.analise}</p>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-gray-700 mb-1">Recomendações</div>
+                    <ul className="list-disc list-inside text-sm text-gray-800 space-y-1">
+                      {(aiResult.recomendacoes || []).map((r, i) => (<li key={i}>{r}</li>))}
+                    </ul>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-gray-700 mb-1">Previsão para o próximo mês</div>
+                    <p className="text-sm text-gray-800 italic">{aiResult.previsao_proximo_mes}</p>
+                  </div>
+                </div>
+              )}
+              {interventionResult && (
+                <div className={`border rounded-md p-3 ${interventionColor[interventionResult.intervention_level] || 'bg-gray-100'}`} data-testid="intervention-result">
+                  <div className="text-xs font-semibold uppercase mb-1">
+                    Nível de Intervenção Recomendado: {interventionResult.intervention_level}
+                  </div>
+                  <p className="text-sm">{interventionResult.recommendation}</p>
+                  <div className="text-xs mt-1 opacity-80">
+                    Alertas abertos: {interventionResult.alerts_open} · Críticos: {interventionResult.alerts_critical} · Score: {interventionResult.score ?? '—'}
+                  </div>
+                  {interventionResult.notify_roles?.length > 0 && (
+                    <div className="text-xs mt-1 opacity-80">Notificar: {interventionResult.notify_roles.join(', ')}</div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ======= MAIN PAGE =======
 export default function PmpiEngine() {
   return (
@@ -384,10 +617,12 @@ export default function PmpiEngine() {
           <TabsTrigger value="alerts" data-testid="tab-alerts"><Siren className="w-4 h-4 mr-2" />Alertas</TabsTrigger>
           <TabsTrigger value="rules" data-testid="tab-rules"><Settings className="w-4 h-4 mr-2" />Regras</TabsTrigger>
           <TabsTrigger value="goals" data-testid="tab-goals"><Target className="w-4 h-4 mr-2" />Metas Mensais</TabsTrigger>
+          <TabsTrigger value="intel" data-testid="tab-intelligence"><Brain className="w-4 h-4 mr-2" />Inteligência</TabsTrigger>
         </TabsList>
         <TabsContent value="alerts" className="mt-4"><AlertsTab /></TabsContent>
         <TabsContent value="rules" className="mt-4"><RulesTab /></TabsContent>
         <TabsContent value="goals" className="mt-4"><GoalsTab /></TabsContent>
+        <TabsContent value="intel" className="mt-4"><IntelligenceTab /></TabsContent>
       </Tabs>
     </div>
   );
