@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity } from 'lucide-react';
+import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity, Siren } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI, analyticsAPI } from '@/services/api';
@@ -484,6 +484,18 @@ export const Dashboard = () => {
                 >
                   <ClipboardList className="text-orange-600" size={24} />
                   <span className="font-medium text-gray-900">Planos de Ação</span>
+                </button>
+              )}
+
+              {/* PMPI-GE - Motor (Alertas/Regras/Metas) */}
+              {(isAdmin || isSemedFull) && (
+                <button
+                  onClick={() => navigate('/pmpi/engine')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all"
+                  data-testid="nav-pmpi-engine-button"
+                >
+                  <Siren className="text-red-600" size={24} />
+                  <span className="font-medium text-gray-900">Motor PMPI-GE</span>
                 </button>
               )}
               

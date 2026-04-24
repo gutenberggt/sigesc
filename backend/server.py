@@ -70,6 +70,7 @@ from routers import vaccines as vaccines_mod
 from routers import mec_integration as mec_mod
 from routers import bolsa_familia as bolsa_mod
 from routers import pmpi as pmpi_mod
+from routers import pmpi_engine as pmpi_engine_mod
 from routers import action_plans as action_plans_mod
 
 # Utilitários compartilhados
@@ -235,6 +236,17 @@ async def create_indexes():
         try:
             await db.action_plans.create_index("id", unique=True)
             await db.action_plans.create_index([("school_id", 1), ("status", 1)])
+        except Exception:
+            pass
+        # Índices PMPI Engine (Onda 2)
+        try:
+            await db.alert_rules.create_index("id", unique=True)
+            await db.alert_rules.create_index([("mantenedora_id", 1), ("active", 1)])
+            await db.alerts.create_index("id", unique=True)
+            await db.alerts.create_index([("mantenedora_id", 1), ("status", 1), ("detected_at", -1)])
+            await db.alerts.create_index([("rule_id", 1), ("school_id", 1), ("status", 1)])
+            await db.monthly_goals.create_index("id", unique=True)
+            await db.monthly_goals.create_index([("mantenedora_id", 1), ("month", 1), ("school_id", 1)], unique=True)
         except Exception:
             pass
 
@@ -529,6 +541,7 @@ vaccines_mod.setup_router(db)
 mec_mod.setup_router(db)
 bolsa_mod.setup_router(db)
 pmpi_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
+pmpi_engine_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 action_plans_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 
 # --- Incluir TODOS os roteadores na app ---
@@ -580,6 +593,7 @@ app.include_router(vaccines_mod.router, prefix="/api")
 app.include_router(mec_mod.router, prefix="/api")
 app.include_router(bolsa_mod.router, prefix="/api")
 app.include_router(pmpi_mod.router, prefix="/api")
+app.include_router(pmpi_engine_mod.router, prefix="/api")
 app.include_router(action_plans_mod.router, prefix="/api")
 
 # Include the legacy api_router AFTER modular routers

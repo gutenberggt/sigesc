@@ -40,6 +40,7 @@ const AdminTools = lazy(() => import('@/pages/AdminTools'));
 const Mantenedoras = lazy(() => import('@/pages/Mantenedoras'));
 const SemedPanel = lazy(() => import('@/pages/SemedPanel'));
 const ActionPlans = lazy(() => import('@/pages/ActionPlans'));
+const PmpiEngine = lazy(() => import('@/pages/PmpiEngine'));
 const Promotion = lazy(() => import('@/pages/Promotion'));
 const AnalyticsDashboard = lazy(() => import('@/pages/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
 const DiaryDashboard = lazy(() => import('@/pages/DiaryDashboard'));
@@ -184,6 +185,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'semed', 'semed1', 'semed2', 'semed3', 'secretario', 'diretor', 'coordenador']}>
                 <ActionPlans />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* PMPI-GE — Motor (Alertas, Regras, Metas) - Onda 2 */}
+          <Route
+            path="/pmpi/engine"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'semed', 'semed1', 'semed2', 'semed3']}>
+                <PmpiEngine />
               </ProtectedRoute>
             }
           />
