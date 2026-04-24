@@ -31,7 +31,7 @@
   ],
   "success_rate": {"backend": "100% (9/9)", "frontend": "100% (todos os data-testids e fluxos validados)"},
   "test_credentials": "Aluno: aluno@sigesc.com / aluno123 — Admin: gutenberg@sigesc.com / @Celta2007",
-  "seed_data_creation": "Re-executado /app/backend/scripts/seed_test_student.py (idempotente) — vinculou user ao student_id=097095b5-2153-4be4-bdc2-695b96164f0d (ALUNO TESTE DUPLICIDADE, turma 2º ANO, mantenedora Floresta do Araguaia).",
+  "seed_data_creation": "Re-executado /app/backend/scripts/seed_test_student.py (idempotente) — vinculou user ao student_id=bulk-student-portal (ALUNO TESTE DUPLICIDADE, turma 2º ANO, mantenedora Floresta do Araguaia).",
   "retest_needed": false,
   "should_main_agent_self_test": false,
   "context_for_next_testing_agent": "Feature Boletim Virtual do Aluno validada em iteration_60. Aluno seed cai em turma 2º ANO (usa_conceito=true) com apenas 1 componente (ARTE) e sem faltas — por isso a trilha testada automaticamente foi a CONCEITO + alerta de parabéns. Para testar trilha NÃO-conceito (boletim-table completa com Rec 1..4, Rec Final, Média, Final), seria necessário apontar manualmente user.student_id para um aluno matriculado em 3º ANO+ com grades. A API retorna 200 com shape completo e todas as regras (conceito, alertas, situação final, dias letivos fallback=200) funcionando conforme o PRD. Test file pytest: /app/backend/tests/test_student_portal.py cobre 9 cenários.",

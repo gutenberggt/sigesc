@@ -21,9 +21,9 @@ from text_utils import format_data_uppercase
 router = APIRouter(prefix="/aee", tags=["AEE"])
 
 # Roles permitidos para AEE (leitura + escrita)
-ROLES_AEE_WRITE = ['admin', 'admin_teste', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'secretario']
+ROLES_AEE_WRITE = ['admin', 'admin_teste', 'super_admin', 'gerente', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'secretario']
 # Roles somente visualização
-ROLES_AEE_VIEW = ['diretor', 'semed1', 'semed2', 'semed3']
+ROLES_AEE_VIEW = ['diretor', 'semed', 'semed1', 'semed2', 'semed3']
 # Todos com acesso
 ROLES_AEE = ROLES_AEE_WRITE + ROLES_AEE_VIEW
 

@@ -141,6 +141,27 @@ const DiarioAEE = () => {
     if (!selectedSchool || !tokenRef.current) return;
     
     const authHeader = { 'Authorization': `Bearer ${tokenRef.current}` };
+
+    // Helper seguro: garante que o body só é lido uma vez e nunca quebra em status HTTP não-ok
+    const safeFetchJson = async (url, options = {}) => {
+      try {
+        const res = await fetch(url, options);
+        let body = null;
+        try {
+          body = await res.json();
+        } catch (_) {
+          body = null;
+        }
+        if (!res.ok) {
+          console.error(`[AEE] ${res.status} em ${url}`, body);
+          return null;
+        }
+        return body;
+      } catch (err) {
+        console.error(`[AEE] Falha de rede em ${url}`, err);
+        return null;
+      }
+    };
     
     // Mostrar loading apenas na primeira carga
     if (!initialLoadDone.current) {
@@ -148,67 +169,56 @@ const DiarioAEE = () => {
     }
     try {
       // Busca estudantes AEE
-      const estudantesRes = await fetch(
+      const estudantesData = await safeFetchJson(
         `${API_URL}/api/aee/estudantes?school_id=${selectedSchool}&academic_year=${academicYear}`,
         { headers: authHeader }
       );
-      const estudantesData = await estudantesRes.json();
-      setEstudantes(estudantesData || []);
+      setEstudantes(Array.isArray(estudantesData) ? estudantesData : []);
       
       // Busca planos
-      const planosRes = await fetch(
+      const planosData = await safeFetchJson(
         `${API_URL}/api/aee/planos?school_id=${selectedSchool}&academic_year=${academicYear}`,
         { headers: authHeader }
       );
-      const planosData = await planosRes.json();
-      setPlanos(planosData.items || []);
+      setPlanos(planosData?.items || []);
       
       // Busca atendimentos
-      const atendRes = await fetch(
+      const atendData = await safeFetchJson(
         `${API_URL}/api/aee/atendimentos?school_id=${selectedSchool}&academic_year=${academicYear}`,
         { headers: authHeader }
       );
-      const atendData = await atendRes.json();
-      setAtendimentos(atendData.items || []);
+      setAtendimentos(atendData?.items || []);
       
       // Busca diário consolidado
-      const diarioRes = await fetch(
+      const diarioDataRes = await safeFetchJson(
         `${API_URL}/api/aee/diario?school_id=${selectedSchool}&academic_year=${academicYear}`,
         { headers: authHeader }
       );
-      const diarioDataRes = await diarioRes.json();
       setDiarioData(diarioDataRes);
       
       // Busca alunos da escola para o modal
       let studentsUrl = `${API_URL}/api/students?school_id=${selectedSchool}&page_size=200`;
-      const studentsRes = await fetch(studentsUrl, { headers: authHeader });
-      const studentsData = await studentsRes.json();
-      setStudents(studentsData.items || studentsData || []);
+      const studentsData = await safeFetchJson(studentsUrl, { headers: authHeader });
+      setStudents(studentsData?.items || studentsData || []);
       
       // Busca turmas da escola
-      const turmasRes = await fetch(
+      const turmasData = await safeFetchJson(
         `${API_URL}/api/classes?school_id=${selectedSchool}`,
         { headers: authHeader }
       );
-      const turmasData = await turmasRes.json();
-      const allTurmas = turmasData.items || turmasData || [];
+      const allTurmas = turmasData?.items || turmasData || [];
       setTurmas(allTurmas);
 
       // Para professor: buscar suas alocações e filtrar turmas AEE
       let aee = allTurmas.filter(t => (t.atendimento_programa || '').toLowerCase() === 'aee');
       if (isProfessor) {
-        try {
-          const profTurmasRes = await fetch(
-            `${API_URL}/api/professor/turmas`,
-            { headers: authHeader }
-          );
-          const profTurmas = await profTurmasRes.json();
-          const profIds = new Set((profTurmas || []).map(t => t.id));
-          setProfessorTurmaIds(profIds);
-          aee = aee.filter(t => profIds.has(t.id));
-        } catch (e) {
-          console.error('Erro ao buscar turmas do professor:', e);
-        }
+        const profTurmas = await safeFetchJson(
+          `${API_URL}/api/professor/turmas`,
+          { headers: authHeader }
+        );
+        const profIds = new Set((profTurmas || []).map(t => t.id));
+        setProfessorTurmaIds(profIds);
+        aee = aee.filter(t => profIds.has(t.id));
       }
       setTurmasAEE(aee);
       

@@ -27,7 +27,7 @@
   ],
   "success_rate": {"backend": "100% (2/2)", "frontend": "100% (todos os testids e fluxos validados)"},
   "test_credentials": "Aluno: aluno@sigesc.com / aluno123 — Admin: gutenberg@sigesc.com / @Celta2007 (header X-Mantenedora-Id: a991c1ac-56b1-46a8-b122-effedbe19b21)",
-  "seed_data_creation": "N/A — seed existente (turma AEE id=73844918-60b1-4c62-b6cb-a21a35cc49c1, turma não-AEE 6º ANO id=3da4e569-6522-432c-9b42-1e344a2f0c69, aluno seed student_id=097095b5-2153-4be4-bdc2-695b96164f0d em turma 2 ANO / shift=morning).",
+  "seed_data_creation": "N/A — seed existente (turma AEE id=bulk-student-portal, turma não-AEE 6º ANO id=bulk-student-portal, aluno seed student_id=bulk-student-portal em turma 2 ANO / shift=morning).",
   "retest_needed": false,
   "should_main_agent_self_test": false,
   "context_for_next_testing_agent": "Iteração 61 confirma que: (a) PDF AEE: 'Série/Etapa: -' quando atendimento_programa='AEE'; (b) login de aluno cai em /aluno e botão 'Boletim' leva a /aluno/boletim; (c) Layout (sigesc-logo, user-name, logout-button, aprender-digital-link) presente em ambas as rotas; (d) shift 'morning' → 'Matutino' na seção 'TURMA' do boletim ('2 ANO · 2º ANO · Matutino'); (e) link 'Início' no boletim aponta para /aluno; (f) footer '© 2026 Desenvolvido por Gutenberg Barroso' + link 'Aprender Digital' presentes. pytest files: test_class_details_pdf_aee.py (2/2) e test_student_portal.py (9/9 da iter60).",
