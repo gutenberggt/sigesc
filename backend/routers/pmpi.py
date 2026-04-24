@@ -94,9 +94,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     ) -> dict:
         """Calcula os 5 KPIs para uma escola no período (últimos N dias).
         
-        Auto-detecta o `academic_year` mais recente presente nos dados da escola
-        para compatibilidade com bancos legados (onde o ano letivo corrente pode
-        não bater com `now.year`).
+        IMPORTANTE: `grades`, `learning_objects` e `attendance` podem NÃO ter o
+        campo `school_id`. Nesses casos filtra-se por `class_id ∈ [classes da escola]`.
         """
         now = datetime.now(timezone.utc)
         window_start = now - timedelta(days=days_window)
@@ -110,17 +109,40 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "carga_horaria": {"value": None, "detail": {}},
         }
 
-        # Filtro apenas por school_id (school_id já implica tenant via schools.mantenedora_id).
-        # Não aplicamos mantenedora_id aqui porque muitos dados legados (attendance, grades,
-        # learning_objects, etc) podem não ter esse campo em bancos pré-migração.
+        # 0. Turmas da escola (base para filtrar dados que não têm school_id)
+        class_ids = []
+        try:
+            async for c in current_db.classes.find({"school_id": school_id}, {"_id": 0, "id": 1}):
+                if c.get("id"):
+                    class_ids.append(c["id"])
+        except Exception:
+            pass
+
+        # Filtros alternativos
         school_filter = {"school_id": school_id}
+        class_filter = {"class_id": {"$in": class_ids}} if class_ids else None
+
+        # Helper: busca documentos tentando school_id primeiro, class_id depois
+        async def _count_with_fallback(coll, extra_match=None):
+            extra = extra_match or {}
+            total = 0
+            # Primeiro tenta com school_id
+            try:
+                total = await current_db[coll].count_documents({**school_filter, **extra})
+            except Exception:
+                total = 0
+            if total == 0 and class_filter:
+                try:
+                    total = await current_db[coll].count_documents({**class_filter, **extra})
+                except Exception:
+                    pass
+            return total
 
         # ---- Auto-detecta academic_year vigente da escola ----
         academic_year = now.year
         try:
-            # Pega o ano mais recente em classes/enrollments/learning_objects
             latest_class = await current_db.classes.find_one(
-                school_filter, {"_id": 0, "academic_year": 1},
+                {"school_id": school_id}, {"_id": 0, "academic_year": 1},
                 sort=[("academic_year", -1)],
             )
             if latest_class and latest_class.get("academic_year"):
@@ -132,15 +154,29 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         try:
             total_records = 0
             presentes = 0
-            cursor = current_db.attendance.find(
-                {**school_filter, "date": {"$gte": window_start_iso[:10]}},
-                {"_id": 0, "records": 1},
-            ).limit(2000)
-            async for att in cursor:
-                for rec in (att.get("records") or []):
-                    total_records += 1
-                    if (rec.get("status") or "").lower() in ("presente", "present", "p"):
-                        presentes += 1
+            # Procura attendance pela escola OU pelas turmas
+            query = {"date": {"$gte": window_start_iso[:10]}}
+            try:
+                first = await current_db.attendance.find_one({**school_filter, **query}, {"_id": 0, "id": 1})
+            except Exception:
+                first = None
+            if first is None and class_filter:
+                try:
+                    first = await current_db.attendance.find_one({**class_filter, **query}, {"_id": 0, "id": 1})
+                    if first:
+                        base_q = {**class_filter, **query}
+                    else:
+                        base_q = None
+                except Exception:
+                    base_q = None
+            else:
+                base_q = {**school_filter, **query} if first else None
+            if base_q is not None:
+                async for att in current_db.attendance.find(base_q, {"_id": 0, "records": 1}).limit(2000):
+                    for rec in (att.get("records") or []):
+                        total_records += 1
+                        if (rec.get("status") or "").lower() in ("presente", "present", "p"):
+                            presentes += 1
             if total_records > 0:
                 kpis["frequencia"]["value"] = round(100.0 * presentes / total_records, 2)
                 kpis["frequencia"]["detail"] = {
@@ -153,44 +189,34 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # ---------------- 2. % Aulas lançadas ----------------
         try:
-            lancadas = await current_db.learning_objects.count_documents({
-                **school_filter,
-                "date": {"$gte": window_start_iso[:10]},
-            })
-            n_classes = await current_db.classes.count_documents({
-                **school_filter, "academic_year": academic_year,
-            })
-            if n_classes == 0:
-                # Fallback: usa total de turmas sem filtrar ano
-                n_classes = await current_db.classes.count_documents(school_filter)
+            lancadas = await _count_with_fallback(
+                "learning_objects", {"date": {"$gte": window_start_iso[:10]}}
+            )
+            n_classes = len(class_ids)
             previstas = max(n_classes * 5 * days_window * 5 // 7, 1)
             pct = 100.0 * lancadas / previstas if previstas else None
             kpis["aulas_lancadas"]["value"] = round(min(pct, 100.0), 2) if pct is not None else None
             kpis["aulas_lancadas"]["detail"] = {
                 "lancadas": lancadas,
                 "previstas_estimadas": previstas,
-                "academic_year_ref": academic_year,
+                "n_classes": n_classes,
             }
         except Exception as e:
             kpis["aulas_lancadas"]["detail"] = {"erro": str(e)}
 
         # ---------------- 3. % Notas lançadas (QUALQUER bimestre com dados) ----------------
         try:
-            total_enrol = await current_db.enrollments.count_documents({
-                **school_filter,
+            total_enrol = await _count_with_fallback("enrollments", {
                 "academic_year": academic_year,
-                "status": {"$in": ["ativa", "active", "matriculado"]},
+                "status": {"$in": ["ativa", "active", "matriculado", "matriculada"]},
             })
             if total_enrol == 0:
-                total_enrol = await current_db.enrollments.count_documents({
-                    **school_filter,
-                    "status": {"$in": ["ativa", "active", "matriculado"]},
+                total_enrol = await _count_with_fallback("enrollments", {
+                    "status": {"$in": ["ativa", "active", "matriculado", "matriculada"]},
                 })
-            n_courses = await current_db.courses.count_documents(school_filter)
+            n_courses = await _count_with_fallback("courses")
             expected = total_enrol * max(n_courses, 1)
-            # Conta grades que tenham QUALQUER bimestre preenchido (b1/b2/b3/b4)
-            filled = await current_db.grades.count_documents({
-                **school_filter,
+            grades_filter_extra = {
                 "academic_year": academic_year,
                 "$or": [
                     {"b1": {"$ne": None, "$exists": True}},
@@ -198,11 +224,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     {"b3": {"$ne": None, "$exists": True}},
                     {"b4": {"$ne": None, "$exists": True}},
                 ],
-            })
+            }
+            filled = await _count_with_fallback("grades", grades_filter_extra)
             if filled == 0:
-                # Sem filtro de ano como fallback
-                filled = await current_db.grades.count_documents({
-                    **school_filter,
+                # Sem filtro de ano
+                filled = await _count_with_fallback("grades", {
                     "$or": [
                         {"b1": {"$ne": None, "$exists": True}},
                         {"b2": {"$ne": None, "$exists": True}},
@@ -215,7 +241,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             kpis["notas_lancadas"]["detail"] = {
                 "preenchidas": filled,
                 "esperado_estimado": expected,
-                "academic_year_ref": academic_year,
+                "total_matriculas": total_enrol,
+                "n_courses": n_courses,
             }
         except Exception as e:
             kpis["notas_lancadas"]["detail"] = {"erro": str(e)}
@@ -224,9 +251,14 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         try:
             total_delay = 0
             n = 0
+            query = {"date": {"$gte": window_start_iso[:10]}}
+            # Tenta school_id primeiro, class_id como fallback
+            find_filter = {**school_filter, **query}
+            first = await current_db.learning_objects.find_one(find_filter, {"_id": 0, "id": 1})
+            if first is None and class_filter:
+                find_filter = {**class_filter, **query}
             cursor = current_db.learning_objects.find(
-                {**school_filter, "date": {"$gte": window_start_iso[:10]}},
-                {"_id": 0, "date": 1, "created_at": 1},
+                find_filter, {"_id": 0, "date": 1, "created_at": 1}
             ).limit(500)
             async for lo in cursor:
                 try:
@@ -252,28 +284,31 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # ---------------- 5. % Carga horária cumprida ----------------
         try:
-            # Soma das number_of_classes de learning_objects no ano
+            # Tenta school_id → fallback class_id
+            lo_match = {**school_filter, "academic_year": academic_year}
+            any_with_school = await current_db.learning_objects.find_one(lo_match, {"_id": 0, "id": 1})
+            if any_with_school is None and class_filter:
+                lo_match = {**class_filter, "academic_year": academic_year}
+                any_with_class = await current_db.learning_objects.find_one(lo_match, {"_id": 0, "id": 1})
+                if any_with_class is None:
+                    lo_match = dict(class_filter) if class_filter else school_filter
             total_lo = 0
             async for row in current_db.learning_objects.aggregate([
-                {"$match": {**school_filter, "academic_year": academic_year}},
+                {"$match": lo_match},
                 {"$group": {"_id": None, "total": {"$sum": "$number_of_classes"}}},
             ]):
                 total_lo = row.get("total") or 0
-            # Fallback sem filtro de ano
-            if total_lo == 0:
-                async for row in current_db.learning_objects.aggregate([
-                    {"$match": school_filter},
-                    {"$group": {"_id": None, "total": {"$sum": "$number_of_classes"}}},
-                ]):
-                    total_lo = row.get("total") or 0
-            # Previsto: soma de workload dos courses da escola (aproximação)
+            # Courses da escola (com fallback class_id)
+            courses_match = school_filter
+            first_c = await current_db.courses.find_one(school_filter, {"_id": 0, "id": 1})
+            if first_c is None and class_filter:
+                courses_match = class_filter
             total_prev = 0
             async for row in current_db.courses.aggregate([
-                {"$match": school_filter},
+                {"$match": courses_match},
                 {"$group": {"_id": None, "total": {"$sum": "$workload"}}},
             ]):
                 total_prev = row.get("total") or 0
-            # Prorateado pelo mês atual (total/12 × mês)
             prorated = (total_prev or 1) * (now.month / 12.0)
             pct = 100.0 * total_lo / prorated if prorated else None
             if pct is not None:
@@ -282,7 +317,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     "aulas_dadas_total": total_lo,
                     "previsto_proporcional": round(prorated, 1),
                     "mes_referencia": now.month,
-                    "academic_year_ref": academic_year,
                 }
         except Exception as e:
             kpis["carga_horaria"]["detail"] = {"erro": str(e)}
