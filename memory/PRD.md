@@ -58,6 +58,18 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
   - `action_type_map` atualizado em `grades.py`, `attendance.py` e `class_details.py` (inclui `reclassificacao`)
   - Filtros de enrollment inativa atualizados para incluir `reclassified`
 
+### Ferramenta: Criar Usuários de Alunos em Lote **[24/Fev/2026]**
+- Backend: endpoint `POST /api/admin/student-users/bulk-create` (super_admin only) com service em `/app/backend/services/student_account_service.py` — pré-carga em 3 queries + `insert_many` em lotes de 500 (10k alunos em ~10s)
+- Script CLI: `python backend/scripts/create_student_users_bulk.py` (dry-run + `--apply`)
+- **UI em Ferramentas de Administração** (`/admin/tools`): novo card "Criar Usuários dos Alunos (em lote)" com:
+  - Botão "Ver Prévia" (dry-run) → 4 KPIs (avaliados / a criar / já possuem / ignorados) + tabela Aluno/E-mail/Senha
+  - Expansor com lista de alunos ignorados e motivo
+  - Botão "Criar N usuário(s)" → diálogo de confirmação → "Confirmar Criação"
+  - Mensagem de sucesso com contador de inseridos
+- Regra: e-mail = `{primeironome}{ultimosobrenome}{MM}@sigesc.com`, senha = `DDMMAAAA`, `must_change_password=true`
+- Idempotente: pode rodar quantas vezes quiser — cria apenas quem falta
+- Testes: 5/5 pytest em `test_student_bulk_users.py` + 100% frontend (iteration_63)
+
 ### Portal do Aluno — Dashboard e Layout **[24/Fev/2026]**
 - Nova rota `/aluno` com `AlunoDashboard.jsx` — dashboard do aluno
 - Login de aluno agora cai em `/aluno` (Dashboard.js também redireciona `role=aluno` → `/aluno`)
