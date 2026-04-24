@@ -750,7 +750,7 @@ export const Calendar = () => {
   const currentMonth = currentDate.getMonth();
   
   // Verificar se usuário pode editar datas limite (apenas admin e secretario)
-  const canEditDataLimite = user?.role && ['admin', 'secretario'].includes(user.role);
+  const canEditDataLimite = user?.role && ['super_admin', 'admin', 'admin_teste', 'secretario'].includes(user.role);
   
   // Estado para os períodos bimestrais
   const [periodos, setPeriodos] = useState({

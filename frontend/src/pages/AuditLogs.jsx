@@ -190,7 +190,7 @@ export const AuditLogs = () => {
   const totalPages = Math.ceil(total / limit);
 
   // Verifica permissão
-  if (!['admin', 'secretario', 'semed'].includes(user?.role)) {
+  if (!['super_admin', 'admin', 'admin_teste', 'secretario', 'semed'].includes(user?.role)) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-96">

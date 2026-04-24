@@ -71,7 +71,7 @@ export const GradesTable = () => {
           return `${item.student.action_label || 'Movimentado'} - bimestre bloqueado`;
         }
         if (item.student.blocked_before_enrollment && item.student.blocked_before_enrollment.includes(bim)) {
-          const isAdminOrSecretary = ['admin', 'admin_teste', 'secretario'].includes(user?.role);
+          const isAdminOrSecretary = ['super_admin', 'admin', 'admin_teste', 'secretario'].includes(user?.role);
           if (!isAdminOrSecretary) {
             return `Aluno matriculado após este bimestre (${item.student.enrollment_date || ''})`;
           }

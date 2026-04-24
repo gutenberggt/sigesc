@@ -297,7 +297,7 @@ export function ClassScheduleTab({ academicYear }) {
   const [teacherAllocations, setTeacherAllocations] = useState([]); // Alocações de professores
   
   // Permissões
-  const canEdit = ['admin', 'admin_teste', 'secretario'].includes(user?.role);
+  const canEdit = ['super_admin', 'admin', 'admin_teste', 'secretario'].includes(user?.role);
   
   // IDs das escolas vinculadas ao usuário
   const userSchoolIds = useMemo(() => {
@@ -311,7 +311,7 @@ export function ClassScheduleTab({ academicYear }) {
         let data = await schoolsAPI.getAll();
         
         // Filtrar por escolas vinculadas se não for admin/semed
-        if (!['admin', 'admin_teste', 'semed'].includes(user?.role) && userSchoolIds.length > 0) {
+        if (!['super_admin', 'admin', 'admin_teste', 'semed'].includes(user?.role) && userSchoolIds.length > 0) {
           data = data.filter(s => userSchoolIds.includes(s.id));
         }
         
@@ -680,7 +680,7 @@ export function ClassScheduleTab({ academicYear }) {
           )}
           
           {/* Botão Ver Conflitos da Rede */}
-          {['admin', 'admin_teste', 'semed', 'secretario'].includes(user?.role) && (
+          {['super_admin', 'admin', 'admin_teste', 'semed', 'secretario'].includes(user?.role) && (
             <Button
               variant="outline"
               size="sm"

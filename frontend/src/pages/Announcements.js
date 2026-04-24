@@ -224,7 +224,7 @@ const Announcements = () => {
       return ['secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel'];
     }
     // Secretário, Diretor, Coordenador podem enviar para professores e alunos
-    if (['secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria'].includes(user?.role)) {
+    if (['super_admin', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria'].includes(user?.role)) {
       return ['professor', 'aluno', 'responsavel'];
     }
     // Professor pode enviar para alunos e responsáveis
@@ -268,7 +268,7 @@ const Announcements = () => {
   };
 
   // Verificar se pode criar avisos
-  const canCreate = ['admin', 'semed', 'semed3', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor'].includes(user?.role);
+  const canCreate = ['super_admin', 'admin', 'admin_teste', 'semed', 'semed3', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor'].includes(user?.role);
 
   return (
     <Layout>
