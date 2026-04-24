@@ -151,11 +151,27 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
   };
 
   const handleSave = () => {
+    const linesOf = (v) => (typeof v === 'string' ? v.split('\n').map(s => s.trim()).filter(Boolean) : []);
+    const toBarreiras = (v) => {
+      if (Array.isArray(v) && v.length && typeof v[0] === 'object') return v;
+      return linesOf(v).map(descricao => ({ tipo: 'outra', descricao, estrategias: [] }));
+    };
+    const toObjetivos = (v) => {
+      if (Array.isArray(v) && v.length && typeof v[0] === 'object') return v;
+      return linesOf(v).map(descricao => ({
+        descricao, prazo: 'medio', indicadores: [], status: 'nao_iniciado'
+      }));
+    };
+    const toRecursos = (v) => {
+      if (Array.isArray(v) && v.length && typeof v[0] === 'object') return v;
+      return linesOf(v).map(descricao => ({ tipo: 'outro', descricao, disponivel: true }));
+    };
+
     const payload = {
       ...form,
-      barreiras: typeof form.barreiras === 'string' ? form.barreiras.split('\n').filter(b => b.trim()) : (form.barreiras || []),
-      objetivos: typeof form.objetivos === 'string' ? form.objetivos.split('\n').filter(o => o.trim()) : (form.objetivos || []),
-      recursos_acessibilidade: typeof form.recursos_acessibilidade === 'string' ? form.recursos_acessibilidade.split('\n').filter(r => r.trim()) : (form.recursos_acessibilidade || []),
+      barreiras: toBarreiras(form.barreiras),
+      objetivos: toObjetivos(form.objetivos),
+      recursos_acessibilidade: toRecursos(form.recursos_acessibilidade),
     };
     onSave(payload);
   };

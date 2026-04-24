@@ -230,6 +230,26 @@ const DiarioAEE = () => {
     fetchData();
   }, [fetchData]);
 
+  // Parser robusto de erro de response: lê o body uma única vez como texto,
+  // tenta decodificar JSON (FastAPI detail pode vir como string OU array de validações).
+  const parseResponseError = async (response, fallback = 'Erro ao processar requisição') => {
+    let text = '';
+    try { text = await response.text(); } catch { /* body já consumido em algum lugar */ }
+    if (!text) return fallback;
+    try {
+      const obj = JSON.parse(text);
+      if (obj?.detail) {
+        if (Array.isArray(obj.detail)) {
+          return obj.detail.map(d => d?.msg || JSON.stringify(d)).join(' · ');
+        }
+        return typeof obj.detail === 'string' ? obj.detail : JSON.stringify(obj.detail);
+      }
+      return obj?.message || fallback;
+    } catch {
+      return text.slice(0, 200);
+    }
+  };
+
   const showAlert = (type, message) => {
     setAlert({ show: true, type, message });
   };
@@ -261,8 +281,7 @@ const DiarioAEE = () => {
       });
       
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Erro ao salvar plano');
+        throw new Error(await parseResponseError(response, 'Erro ao salvar plano'));
       }
       
       showAlert('success', editingPlano ? 'Plano atualizado com sucesso!' : 'Plano criado com sucesso!');
@@ -308,8 +327,7 @@ const DiarioAEE = () => {
       });
       
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Erro ao salvar atendimento');
+        throw new Error(await parseResponseError(response, 'Erro ao salvar atendimento'));
       }
       
       showAlert('success', editingAtendimento ? 'Atendimento atualizado!' : 'Atendimento registrado!');
