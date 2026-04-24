@@ -31,6 +31,7 @@ const DISABILITIES_OPTIONS = [
   'Transtorno do Espectro Autista (TEA)',
   'Altas Habilidades/Superdotação',
   'Transtorno de Déficit de Atenção e Hiperatividade (TDAH)',
+  'Transtorno do Desenvolvimento da Linguagem (TDL)',
   'Dislexia',
   'Discalculia',
   'Síndrome de Down'
