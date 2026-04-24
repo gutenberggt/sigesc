@@ -180,7 +180,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         
         # Busca alunos inativos que JÁ ESTIVERAM nesta turma
         inactive_enrollments = await current_db.enrollments.find(
-            {"class_id": class_id, "status": {"$in": ["transferred", "dropout", "cancelled", "relocated", "progressed"]}},
+            {"class_id": class_id, "status": {"$in": ["transferred", "dropout", "cancelled", "relocated", "progressed", "reclassified"]}},
             {"_id": 0, "student_id": 1, "enrollment_number": 1, "academic_year": 1, "status": 1, "enrollment_date": 1}
         ).to_list(1000)
         
@@ -225,6 +225,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 'transferencia_saida': 'Transferido',
                 'remanejamento': 'Remanejado',
                 'progressao': 'Progredido',
+                'reclassificacao': 'Reclassificado',
                 'desistencia': 'Desistente',
                 'cancelamento': 'Cancelado'
             }

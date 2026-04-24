@@ -797,6 +797,9 @@ export function StudentsComplete() {
       case 'progredir':
         // Progredir: só se ativo
         return status === 'active' || status === 'ativo';
+      case 'reclassificar':
+        // Reclassificar: só se ativo
+        return status === 'active' || status === 'ativo';
       case 'cancelar':
         // Cancelar: só se ativo
         return status === 'active' || status === 'ativo';
@@ -833,6 +836,7 @@ export function StudentsComplete() {
         'transferir': 'A ação "Transferir" só é permitida para alunos com status "Ativo".',
         'remanejar': 'A ação "Remanejar" só é permitida para alunos com status "Ativo".',
         'progredir': 'A ação "Progredir" só é permitida para alunos com status "Ativo".',
+        'reclassificar': 'A ação "Reclassificar" só é permitida para alunos com status "Ativo".',
         'cancelar': 'A ação "Cancelar" só é permitida para alunos com status "Ativo".',
         'desistir': 'A ação "Desistir" só é permitida para alunos com status "Ativo".'
       };
@@ -998,6 +1002,38 @@ export function StudentsComplete() {
             };
           }
           break;
+
+        case 'reclassificar':
+          // Validações
+          if (!actionData.targetClassId) {
+            showAlert('error', 'Selecione a turma de destino para reclassificação');
+            setExecutingAction(false);
+            return;
+          }
+
+          if (actionData.targetClassId === formData.class_id) {
+            showAlert('error', 'A turma de destino deve ser diferente da turma atual');
+            setExecutingAction(false);
+            return;
+          }
+
+          const turmaReclassOrigem = classes.find(c => c.id === formData.class_id);
+          const turmaReclassDestino = classes.find(c => c.id === actionData.targetClassId);
+
+          updateData = {
+            class_id: actionData.targetClassId,
+            action_hint: 'reclassificacao'
+          };
+
+          historyEntry = {
+            ...historyEntry,
+            action_type: 'reclassificacao',
+            new_status: 'active',
+            school_id: formData.school_id,
+            class_id: actionData.targetClassId,
+            observations: `Reclassificação de ${turmaReclassOrigem?.name || 'turma anterior'} para ${turmaReclassDestino?.name || 'nova turma'}. ${actionData.reason ? 'Motivo: ' + actionData.reason + '. ' : ''}${actionData.notes || ''}`
+          };
+          break;
           
         case 'cancelar':
           updateData = {
@@ -1043,10 +1079,12 @@ export function StudentsComplete() {
       // Executa a atualização
       await studentsAPI.update(editingStudent.id, updateData);
       
-      // Se for remanejamento ou progressão (sem emitir histórico), copia dados para a nova turma
-      if ((selectedAction === 'remanejar' || (selectedAction === 'progredir' && !actionData.emitirHistorico)) && formData.class_id && actionData.targetClassId) {
+      // Se for remanejamento, progressão ou reclassificação (sem emitir histórico), copia dados para a nova turma
+      if ((selectedAction === 'remanejar' || selectedAction === 'reclassificar' || (selectedAction === 'progredir' && !actionData.emitirHistorico)) && formData.class_id && actionData.targetClassId) {
         try {
-          const copyType = selectedAction === 'remanejar' ? 'remanejamento' : 'progressao';
+          const copyType = selectedAction === 'remanejar' ? 'remanejamento'
+            : selectedAction === 'reclassificar' ? 'reclassificacao'
+            : 'progressao';
           const API_URL = process.env.REACT_APP_BACKEND_URL;
           const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
           
@@ -1092,7 +1130,9 @@ export function StudentsComplete() {
         'transferir': 'Transferência',
         'remanejar': 'Remanejamento',
         'progredir': 'Progressão',
-        'cancelar': 'Cancelamento'
+        'reclassificar': 'Reclassificação',
+        'cancelar': 'Cancelamento',
+        'desistir': 'Desistência'
       };
       
       showAlert('success', `${actionLabels[selectedAction]} realizada com sucesso!`);
@@ -2899,6 +2939,9 @@ export function StudentsComplete() {
                   <option value="progredir" disabled={!canExecuteAction('progredir', editingStudent?.status)}>
                     ⬆️ Progredir {!canExecuteAction('progredir', editingStudent?.status) ? '(indisponível)' : ''}
                   </option>
+                  <option value="reclassificar" disabled={!canExecuteAction('reclassificar', editingStudent?.status)}>
+                    🎓 Reclassificar {!canExecuteAction('reclassificar', editingStudent?.status) ? '(indisponível)' : ''}
+                  </option>
                   <option value="cancelar" disabled={!canExecuteAction('cancelar', editingStudent?.status)}>
                     ❌ Cancelar {!canExecuteAction('cancelar', editingStudent?.status) ? '(indisponível)' : ''}
                   </option>
@@ -2908,7 +2951,7 @@ export function StudentsComplete() {
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
                   {formData.status === 'active' || formData.status === 'ativo' 
-                    ? 'Disponível: Transferir, Remanejar, Progredir, Cancelar, Desistir'
+                    ? 'Disponível: Transferir, Remanejar, Progredir, Reclassificar, Cancelar, Desistir'
                     : 'Disponível: Matricular'}
                 </p>
               </div>
@@ -3181,6 +3224,7 @@ export function StudentsComplete() {
                       item.action_type === 'transferencia_saida' ? 'bg-orange-100 text-orange-700' :
                       item.action_type === 'transferencia_entrada' ? 'bg-purple-100 text-purple-700' :
                       item.action_type === 'progressao' ? 'bg-purple-100 text-purple-700' :
+                      item.action_type === 'reclassificacao' ? 'bg-indigo-100 text-indigo-700' :
                       item.action_type === 'mudanca_status' ? 'bg-yellow-100 text-yellow-700' :
                       'bg-gray-100 text-gray-700'
                     }`}>
@@ -3189,6 +3233,7 @@ export function StudentsComplete() {
                        item.action_type === 'transferencia_saida' ? 'Transf. Saída' :
                        item.action_type === 'transferencia_entrada' ? 'Transf. Entrada' :
                        item.action_type === 'progressao' ? 'Progressão' :
+                       item.action_type === 'reclassificacao' ? 'Reclassificação' :
                        item.action_type === 'cancelamento' ? 'Cancelamento' :
                        item.action_type === 'mudanca_status' ? 'Mudança Status' :
                        'Edição'}
@@ -4263,6 +4308,7 @@ export function StudentsComplete() {
             selectedAction === 'transferir' ? '🔄 Transferir Aluno' :
             selectedAction === 'remanejar' ? '↔️ Remanejar Aluno' :
             selectedAction === 'progredir' ? '⬆️ Progredir Aluno' :
+            selectedAction === 'reclassificar' ? '🎓 Reclassificar Aluno' :
             selectedAction === 'cancelar' ? '❌ Cancelar Matrícula' :
             selectedAction === 'desistir' ? '🚫 Registrar Desistência' :
             'Ação do Aluno'
@@ -4564,6 +4610,68 @@ export function StudentsComplete() {
               </div>
             )}
 
+            {/* RECLASSIFICAR - Seleciona turma de destino */}
+            {selectedAction === 'reclassificar' && (
+              <div className="space-y-4">
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                  <p className="text-sm text-indigo-800">
+                    <strong>🎓 Reclassificar:</strong> O aluno será reclassificado para outra série/turma com base em avaliação de conhecimento (Art. 23 da LDB).
+                    É semelhante à Progressão, porém usado quando o aluno demonstra domínio de conteúdo de série diferente da sua idade/matrícula atual.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">Turma atual:</span>
+                    <p className="font-medium">{classes.find(c => c.id === formData.class_id)?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Escola:</span>
+                    <p className="font-medium">{schools.find(s => s.id === formData.school_id)?.name || 'N/A'}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nova Turma (série reclassificada) <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={actionData.targetClassId}
+                    onChange={(e) => setActionData(prev => ({ ...prev, targetClassId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    data-testid="reclassificar-target-class-select"
+                  >
+                    <option value="">Selecione a turma de destino...</option>
+                    {classes
+                      .filter(c => c.school_id === formData.school_id && c.id !== formData.class_id)
+                      .map(cls => (
+                        <option key={cls.id} value={cls.id}>{cls.name}</option>
+                      ))
+                    }
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Motivo da Reclassificação
+                  </label>
+                  <textarea
+                    value={actionData.reason || ''}
+                    onChange={(e) => setActionData(prev => ({ ...prev, reason: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Ex.: Avaliação diagnóstica realizada em .../.../...; aluno demonstrou domínio do conteúdo do X ano."
+                    rows={3}
+                    data-testid="reclassificar-reason-textarea"
+                  />
+                </div>
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800">
+                  ⚠️ <strong>Atenção:</strong> Após a reclassificação, na turma de <em>origem</em> o diário (frequência e notas) do aluno ficará bloqueado a partir desta data.
+                  Na turma de <em>destino</em>, o diário só aceitará lançamentos a partir desta data; a frequência anterior será migrada e ficará bloqueada para edição.
+                </div>
+              </div>
+            )}
+
             {/* Data da Ação (comum a todas as ações) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -4571,6 +4679,7 @@ export function StudentsComplete() {
                  selectedAction === 'transferir' ? 'Data da Transferência' :
                  selectedAction === 'remanejar' ? 'Data do Remanejamento' :
                  selectedAction === 'progredir' ? 'Data da Progressão' :
+                 selectedAction === 'reclassificar' ? 'Data da Reclassificação' :
                  selectedAction === 'cancelar' ? 'Data do Cancelamento' :
                  selectedAction === 'desistir' ? 'Data da Desistência' :
                  'Data da Ação'} <span className="text-red-500">*</span>

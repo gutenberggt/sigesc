@@ -632,11 +632,14 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         action_type = 'edicao'
         history_obs = None
         
-        # Verifica se é mudança de turma (remanejamento ou progressão)
+        # Verifica se é mudança de turma (remanejamento, progressão ou reclassificação)
         if new_class_id and new_class_id != old_class_id and new_school_id == old_school_id:
             if action_hint == 'progressao':
                 action_type = 'progressao'
                 enrollment_inactive_status = 'progressed'
+            elif action_hint == 'reclassificacao':
+                action_type = 'reclassificacao'
+                enrollment_inactive_status = 'reclassified'
             else:
                 action_type = 'remanejamento'
                 enrollment_inactive_status = 'relocated'
@@ -662,13 +665,16 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                 "academic_year": academic_year,
                 "status": "active",
                 "enrollment_number": old_enrollment.get("enrollment_number") if old_enrollment else None,
-                "student_series": update_data.get('student_series') or (old_enrollment.get("student_series") if old_enrollment else None)
+                "student_series": update_data.get('student_series') or (old_enrollment.get("student_series") if old_enrollment else None),
+                "enrollment_date": (f"{custom_action_date}T12:00:00+00:00" if custom_action_date else datetime.now(timezone.utc).isoformat())
             }
             await current_db.enrollments.insert_one(new_enrollment)
             
             new_class = await current_db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
             if action_type == 'progressao':
                 history_obs = f"Progressão para turma: {new_class.get('name') if new_class else new_class_id}"
+            elif action_type == 'reclassificacao':
+                history_obs = f"Reclassificado para turma: {new_class.get('name') if new_class else new_class_id}"
             else:
                 history_obs = f"Remanejado para turma: {new_class.get('name') if new_class else new_class_id}"
         
@@ -853,7 +859,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             history_action_date = datetime.now(timezone.utc).isoformat()
         
         # Define class_id do histórico: para remanejamento/progressão, usa a turma de ORIGEM
-        history_class_id = old_class_id if action_type in ('remanejamento', 'progressao') else (new_class_id or old_class_id)
+        history_class_id = old_class_id if action_type in ('remanejamento', 'progressao', 'reclassificacao') else (new_class_id or old_class_id)
         
         # Registra no histórico
         history_entry = {
@@ -1059,10 +1065,11 @@ def setup_students_router(db, audit_service, sandbox_db=None):
     async def copy_student_data_to_new_class(student_id: str, request: Request):
         """
         Copia dados de frequência e notas do aluno da turma de origem para a turma de destino.
-        Usado durante remanejamento e progressão.
+        Usado durante remanejamento, progressão e reclassificação.
         
-        - Remanejamento: copia frequência E notas
-        - Progressão (mesma escola): copia apenas frequência
+        - Remanejamento: copia frequência E notas (mesma série)
+        - Progressão (mesma escola): copia apenas frequência (série diferente)
+        - Reclassificação: copia apenas frequência (série diferente definida por avaliação)
         
         Os dados na turma de origem são mantidos, mas ficam bloqueados para edição pelo professor.
         """
@@ -1072,7 +1079,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         body = await request.json()
         source_class_id = body.get('source_class_id')
         target_class_id = body.get('target_class_id')
-        copy_type = body.get('copy_type', 'remanejamento')  # 'remanejamento' ou 'progressao'
+        copy_type = body.get('copy_type', 'remanejamento')  # 'remanejamento' | 'progressao' | 'reclassificacao'
         academic_year = body.get('academic_year', datetime.now().year)
         
         if not source_class_id or not target_class_id:
