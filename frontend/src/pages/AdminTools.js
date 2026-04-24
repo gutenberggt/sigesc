@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Wrench, Type, CheckCircle2, AlertCircle, Loader2, Calendar, Trash2, Clock, UserX } from 'lucide-react';
+import { Home, Wrench, Type, CheckCircle2, AlertCircle, Loader2, Calendar, Trash2, Clock, UserX, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -15,6 +15,46 @@ const AdminTools = () => {
   const [error, setError] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [confirmExecute, setConfirmExecute] = useState(false);
+  const [bulkStudentPlan, setBulkStudentPlan] = useState(null);
+  const [bulkStudentResult, setBulkStudentResult] = useState(null);
+  const [confirmBulkStudent, setConfirmBulkStudent] = useState(false);
+
+  const runBulkStudentUsers = async (apply) => {
+    setLoading(true);
+    setLoadingType('bulk-student-users');
+    setResult(null);
+    setError(null);
+    if (!apply) {
+      setBulkStudentPlan(null);
+      setBulkStudentResult(null);
+    }
+    try {
+      const response = await fetch(`${API_URL}/api/admin/student-users/bulk-create`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apply }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || 'Erro ao executar a criação em massa');
+      }
+      const data = await response.json();
+      if (apply) {
+        setBulkStudentResult(data);
+        setConfirmBulkStudent(false);
+      } else {
+        setBulkStudentPlan(data);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      setLoadingType(null);
+    }
+  };
 
   const runMigration = async (type) => {
     setLoading(true);
@@ -370,6 +410,176 @@ const AdminTools = () => {
                 )}
               </button>
             </div>
+          </div>
+
+          {/* Criar Usuários de Alunos em Massa */}
+          <div className="border rounded-lg p-4" data-testid="tool-bulk-student-users">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3 flex-1">
+                <div className="p-2 bg-emerald-100 rounded-lg">
+                  <UserPlus className="text-emerald-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Criar Usuários dos Alunos (em lote)</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Gera contas de acesso (role=aluno) para todos os alunos <strong>ativos</strong> que ainda não têm usuário.
+                    É <strong>idempotente</strong> — pode rodar novamente a qualquer momento para atualizar com novos alunos.
+                  </p>
+                  <div className="text-xs text-gray-500 mt-2 bg-gray-50 rounded p-2 space-y-0.5">
+                    <p>• <strong>E-mail</strong>: primeironome + últimosobrenome + mês de nascimento (MM) @sigesc.com</p>
+                    <p>• <strong>Senha</strong>: data de nascimento no formato DDMMAAAA</p>
+                    <p>• Senha deve ser trocada no 1º acesso</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 shrink-0">
+                <button
+                  onClick={() => runBulkStudentUsers(false)}
+                  disabled={loading}
+                  data-testid="btn-preview-bulk-students"
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 whitespace-nowrap"
+                >
+                  {loading && loadingType === 'bulk-student-users' && !confirmBulkStudent ? (
+                    <><Loader2 className="animate-spin" size={18} />Analisando...</>
+                  ) : (
+                    <><UserPlus size={18} />Ver Prévia</>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {bulkStudentPlan && (
+              <div className="mt-4 border-t pt-4" data-testid="bulk-students-preview">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                  <div className="bg-gray-50 rounded p-2 text-sm text-center">
+                    <p className="font-bold text-gray-800">{bulkStudentPlan.totals.scanned}</p>
+                    <p className="text-gray-600 text-xs">Alunos avaliados</p>
+                  </div>
+                  <div className="bg-emerald-50 rounded p-2 text-sm text-center">
+                    <p className="font-bold text-emerald-700">{bulkStudentPlan.totals.to_create}</p>
+                    <p className="text-emerald-600 text-xs">Serão criados</p>
+                  </div>
+                  <div className="bg-blue-50 rounded p-2 text-sm text-center">
+                    <p className="font-bold text-blue-700">{bulkStudentPlan.totals.already_has_user}</p>
+                    <p className="text-blue-600 text-xs">Já possuem user</p>
+                  </div>
+                  <div className="bg-amber-50 rounded p-2 text-sm text-center">
+                    <p className="font-bold text-amber-700">{bulkStudentPlan.totals.skipped}</p>
+                    <p className="text-amber-600 text-xs">Ignorados</p>
+                  </div>
+                </div>
+
+                {bulkStudentPlan.preview_to_create && bulkStudentPlan.preview_to_create.length > 0 && (
+                  <div className="max-h-64 overflow-y-auto border rounded mb-3">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-100 sticky top-0">
+                        <tr>
+                          <th className="text-left p-2">Aluno</th>
+                          <th className="text-left p-2">E-mail</th>
+                          <th className="text-left p-2">Senha (DDMMAAAA)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bulkStudentPlan.preview_to_create.map((r) => (
+                          <tr key={r.student_id} className="border-t">
+                            <td className="p-2">{r.full_name}</td>
+                            <td className="p-2 font-mono text-[11px]">{r.email}</td>
+                            <td className="p-2 font-mono">{r.password}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {bulkStudentPlan.totals.to_create > bulkStudentPlan.preview_to_create.length && (
+                      <p className="p-2 text-[11px] text-gray-500 bg-gray-50">
+                        Mostrando {bulkStudentPlan.preview_to_create.length} de {bulkStudentPlan.totals.to_create} novos usuários.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {bulkStudentPlan.skipped && bulkStudentPlan.skipped.length > 0 && (
+                  <details className="mb-3">
+                    <summary className="text-xs text-amber-700 cursor-pointer font-medium">
+                      Ver {bulkStudentPlan.skipped.length} aluno(s) ignorado(s)
+                    </summary>
+                    <div className="max-h-40 overflow-y-auto mt-2 border rounded bg-amber-50/50">
+                      <table className="w-full text-xs">
+                        <thead className="bg-amber-100 sticky top-0">
+                          <tr>
+                            <th className="text-left p-2">Aluno</th>
+                            <th className="text-left p-2">Motivo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bulkStudentPlan.skipped.map((s) => (
+                            <tr key={s.student_id} className="border-t border-amber-200">
+                              <td className="p-2">{s.full_name || '(sem nome)'}</td>
+                              <td className="p-2 text-amber-800">{s.reason}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                )}
+
+                {bulkStudentPlan.totals.to_create > 0 && !bulkStudentResult && (
+                  !confirmBulkStudent ? (
+                    <button
+                      onClick={() => setConfirmBulkStudent(true)}
+                      className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                      data-testid="btn-confirm-bulk-students"
+                    >
+                      Criar {bulkStudentPlan.totals.to_create} usuário(s)
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                      <p className="text-emerald-900 font-medium text-sm flex-1">
+                        Confirma a criação de {bulkStudentPlan.totals.to_create} usuário(s)?
+                      </p>
+                      <button
+                        onClick={() => runBulkStudentUsers(true)}
+                        disabled={loading}
+                        className="px-4 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 disabled:opacity-50 whitespace-nowrap"
+                        data-testid="btn-execute-bulk-students"
+                      >
+                        {loading && loadingType === 'bulk-student-users' ? (
+                          <span className="flex items-center gap-2"><Loader2 className="animate-spin" size={16} />Criando...</span>
+                        ) : 'Confirmar Criação'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmBulkStudent(false)}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )
+                )}
+
+                {bulkStudentPlan.totals.to_create === 0 && !bulkStudentResult && (
+                  <p className="text-sm text-blue-700 bg-blue-50 p-2 rounded">
+                    ✅ Todos os alunos ativos já possuem usuário.
+                  </p>
+                )}
+
+                {bulkStudentResult && (
+                  <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle2 className="text-green-600" size={20} />
+                      <p className="font-medium text-green-900">
+                        {bulkStudentResult.applied?.inserted ?? 0} usuário(s) criado(s).
+                      </p>
+                    </div>
+                    {bulkStudentResult.applied?.errors?.length > 0 && (
+                      <p className="text-xs text-red-600">
+                        {bulkStudentResult.applied.errors.length} erro(s) — verifique logs do servidor.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Limpeza de Matrículas Canceladas */}
