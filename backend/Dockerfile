@@ -14,6 +14,10 @@ COPY requirements.txt .
 # Instala dependências Python
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Instala emergentintegrations (lib interna do Emergent, precisa de index extra)
+RUN pip install --no-cache-dir emergentintegrations==0.1.1 \
+    --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/
+
 # Copia o código
 COPY . .
 
