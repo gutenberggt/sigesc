@@ -58,6 +58,15 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
   - `action_type_map` atualizado em `grades.py`, `attendance.py` e `class_details.py` (inclui `reclassificacao`)
   - Filtros de enrollment inativa atualizados para incluir `reclassified`
 
+### Portal do Aluno — Dashboard e Layout **[24/Fev/2026]**
+- Nova rota `/aluno` com `AlunoDashboard.jsx` — dashboard minimalista com botão **"Boletim"** que leva a `/aluno/boletim`
+- Login de aluno agora cai em `/aluno` (Dashboard.js também redireciona `role=aluno` → `/aluno` para entradas diretas em `/dashboard`)
+- `/aluno` e `/aluno/boletim` renderizados **dentro do `<Layout>`** (barra superior com logo SIGESC, mantenedora/secretaria, nome do usuário e logout; footer com © 2026 Gutenberg Barroso + link Aprender Digital)
+- Boletim agora exibe turno em português via `SHIFT_LABEL` (morning→Matutino, afternoon→Vespertino, evening/night→Noturno, full_time/integral→Integral)
+- Link "Início" no Boletim aponta para `/aluno`
+- PDF **Detalhes da Turma** — turmas AEE agora exibem `Série/Etapa: -` (não o `grade_level`)
+- Testes: `/app/backend/tests/test_class_details_pdf_aee.py` (2/2 pass)
+
 ## Current Backlog
 
 ### P1
