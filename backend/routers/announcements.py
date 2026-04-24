@@ -95,7 +95,11 @@ async def get_announcement_target_users(db, recipient: dict, sender: dict) -> Li
                 {'student_id': 1}
             ).to_list(500)
             
+            student_ids_turma = []
             for enrollment in enrollments:
+                sid = enrollment.get('student_id')
+                if sid:
+                    student_ids_turma.append(sid)
                 guardians = await db.guardians.find(
                     {'student_ids': enrollment['student_id']},
                     {'user_id': 1}
@@ -104,6 +108,15 @@ async def get_announcement_target_users(db, recipient: dict, sender: dict) -> Li
                 for guardian in guardians:
                     if guardian.get('user_id'):
                         target_users.add(guardian['user_id'])
+            
+            # Alunos da turma (users com role='aluno' e student_id vinculado)
+            if student_ids_turma:
+                aluno_users = await db.users.find(
+                    {'role': 'aluno', 'student_id': {'$in': student_ids_turma}, 'status': 'active'},
+                    {'id': 1}
+                ).to_list(500)
+                for u in aluno_users:
+                    target_users.add(u['id'])
                         
     elif recipient_type == 'semed':
         # Apenas usuários com role SEMED

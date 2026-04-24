@@ -1,0 +1,37 @@
+{
+  "summary": "Testado o novo Dashboard do Aluno (/aluno) com 3 cards (Boletim, Próximos Eventos, Avisos). Frontend: 100% — todos os testids presentes, Layout (logo/footer/aprender-digital) envolve a página, navegação btn-boletim → /aluno/boletim e link-ver-todos-avisos → /comunicacao OK, badge vermelho '1 novo' + título em negrito para avisos não lidos, eventos com data DD/MM/YYYY + dia grande + tipo ('Sábado Letivo' em azul). Backend: 3/4 testes pytest passam — upcoming-events 200 OK (5 sábados letivos), /me/announcements retorna o aviso seed 'Reunião de pais e mestres' com todos campos requeridos (id/title/content/sender_name/sender_role/created_at/is_read), super_admin recebe 403 em /me/announcements. FALHA: aviso com recipient.type='class' NÃO inclui o aluno em target_user_ids (bug na linha 79 de announcements.py — usa class_id singular enquanto o modelo AnnouncementRecipient só declara class_ids plural).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/announcements (recipient.type='class')", "issue": "target_user_ids fica vazio. Em /app/backend/routers/announcements.py linha 79 o código faz `class_id = recipient.get('class_id')` (singular) mas o modelo pydantic AnnouncementRecipient (models.py linha 285) só tem `class_ids: List[str]`. Portanto `recipient.get('class_id')` sempre é None e o bloco que resolve professores/responsáveis/alunos da turma nunca executa. Consequência: a 'mudança em get_announcement_target_users' para incluir role='aluno' (linhas 112-119) não é atingida. Afeta também professores (teacher_assignments) e guardians, não só alunos.", "priority": "CRITICAL"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_student_dashboard_widgets.py",
+    "/app/test_reports/pytest/pytest_student_dashboard_widgets.xml"
+  ],
+  "action_items": [
+    "Corrigir /app/backend/routers/announcements.py linha 78-120 (bloco `elif recipient_type == 'class'`): iterar sobre `recipient.get('class_ids', [])` (lista) em vez de `recipient.get('class_id')` singular. Ex.: `for cid in recipient.get('class_ids') or []:` e dentro aplicar a busca de teacher_assignments/enrollments/aluno_users. Idêntica correção já foi aplicada implicitamente pelos demais ramos (role/school usam *_ids plural)."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/routers/announcements.py L79: inconsistência histórica — ramo 'class' usa chave singular `class_id`, quebrado desde sempre com o modelo atual. Outros ramos já usam plural (target_roles, school_ids, user_ids).",
+    "/app/frontend/src/pages/AlunoDashboard.jsx: componente bem estruturado; useEffect roda uma vez, estados loadingE/loadingA separados, fallback visual correto para vazio. Nenhum cleanup necessário (sem subscribers externos).",
+    "/app/backend/routers/student_portal.py L426-454: `/me/upcoming-events` aplica `$or` com {school_id: X} / null / missing — correto para eventos globais da mantenedora; adicionar filtro por mantenedora_id seria robustez extra para multi-tenant.",
+    "/app/backend/routers/student_portal.py L459-487: `/me/announcements` filtra por target_user_ids contendo user.id — OK, mas não filtra por mantenedora_id. Em multi-tenant isso pode vazar avisos entre mantenedoras caso mesmo user existisse em mais de uma (baixo risco)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_student_dashboard_widgets.py (novo — 4 testes)"
+  ],
+  "success_rate": {"backend": "75% (3/4)", "frontend": "100%"},
+  "test_credentials": "Aluno aluno@sigesc.com/aluno123; Super admin gutenberg@sigesc.com/@Celta2007 (X-Mantenedora-Id: a991c1ac-56b1-46a8-b122-effedbe19b21)",
+  "seed_data_creation": "Nenhum seed novo criado. Teste de class announcement tenta POST /api/announcements e DELETE no final (cleanup best-effort). Aviso de teste fica órfão se o POST for bem-sucedido mas sem target_user_ids — atualmente deixa lixo com target vazio; depois do fix o DELETE funciona.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "A UI do /aluno está 100% OK (testids btn-boletim/card-eventos/card-avisos/link-ver-todos-avisos/aluno-dashboard; Layout; badge vermelho e negrito em não lidos; data relativa + dia grande + tipo colorido). Bug remanescente é puramente backend: announcements.py L79 usa `class_id` singular em vez de `class_ids` plural. Após o main agent corrigir, rodar `pytest /app/backend/tests/test_student_dashboard_widgets.py -v` — os 4 devem passar. O teste TestClassTargetedAnnouncement cria aviso via POST /api/announcements com {recipient:{type:'class', class_ids:[<turma 9f71ed93-c55f-44d2-87a9-c8567ccddd6a>]}} e valida que 92207223-0af8-446c-abfe-b2810dbbc48c está em target_user_ids.",
+  "rca of the issue": "RCA do bug: router aceita recipient do modelo AnnouncementRecipient (pydantic) que define class_ids: List[str]. `recipient.model_dump()` devolve dict com chave 'class_ids' (plural). O código em announcements.py L79 lê `recipient.get('class_id')` (singular), resultando em None. Sem class_id o bloco de lookup de teacher_assignments/enrollments/users é pulado inteiramente, produzindo target_users=[]. Reprodução: `curl -X POST /api/announcements -d '{\"title\":\"X\",\"content\":\"Y\",\"recipient\":{\"type\":\"class\",\"class_ids\":[\"<any>\"]}}'` → response `target_user_ids: []`. Mitigação: substituir bloco L78-119 por iteração sobre recipient.get('class_ids') ou []."
+}

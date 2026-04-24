@@ -420,4 +420,70 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "computed_at": now.isoformat(),
         }
 
+    # ==============================================================
+    # Próximos Eventos do Calendário Letivo (da escola do aluno)
+    # ==============================================================
+    @router.get("/me/upcoming-events")
+    async def get_upcoming_events(request: Request, limit: int = 6):
+        user = await AuthMiddleware.get_current_user(request)
+        current_db = _get_db(user)
+        student = await _resolve_student(user, current_db)
+
+        # Resolve escola a partir da matrícula ativa; fallback para student.school_id
+        enrollment = await current_db.enrollments.find_one(
+            {"student_id": student["id"],
+             "status": {"$in": ["ativa", "active", "matriculado", "matriculada"]}},
+            {"_id": 0},
+        ) or {}
+        school_id = enrollment.get("school_id") or student.get("school_id")
+        class_doc = {}
+        if enrollment.get("class_id"):
+            class_doc = await current_db.classes.find_one({"id": enrollment["class_id"]}, {"_id": 0}) or {}
+        if not school_id:
+            school_id = class_doc.get("school_id")
+
+        today = date.today().isoformat()
+        q: dict = {"start_date": {"$gte": today}}
+        # Alguns eventos são globais (sem school_id) e valem para toda a mantenedora;
+        # incluímos também os da escola específica.
+        if school_id:
+            q = {"start_date": {"$gte": today},
+                 "$or": [{"school_id": school_id}, {"school_id": None}, {"school_id": {"$exists": False}}]}
+
+        events = await current_db.calendar_events.find(q, {"_id": 0}).sort("start_date", 1).to_list(limit)
+        return {"events": events, "today": today, "school_id": school_id}
+
+    # ==============================================================
+    # Avisos direcionados ao aluno
+    # ==============================================================
+    @router.get("/me/announcements")
+    async def get_my_announcements(request: Request, limit: int = 10):
+        user = await AuthMiddleware.get_current_user(request)
+        if user.get("role") not in ("aluno", "student"):
+            raise HTTPException(status_code=403, detail="Apenas alunos acessam esta rota")
+        current_db = _get_db(user)
+
+        announcements = await current_db.announcements.find(
+            {"target_user_ids": user["id"]},
+            {"_id": 0},
+        ).sort("created_at", -1).limit(limit).to_list(limit)
+
+        read_statuses = await current_db.announcement_reads.find(
+            {"user_id": user["id"]}, {"_id": 0, "announcement_id": 1, "read_at": 1},
+        ).to_list(500)
+        read_map = {r["announcement_id"]: r.get("read_at") for r in read_statuses}
+
+        result = []
+        for ann in announcements:
+            result.append({
+                "id": ann["id"],
+                "title": ann.get("title"),
+                "content": ann.get("content"),
+                "sender_name": ann.get("sender_name"),
+                "sender_role": ann.get("sender_role"),
+                "created_at": ann.get("created_at"),
+                "is_read": ann["id"] in read_map,
+            })
+        return {"announcements": result, "total": len(result)}
+
     return router
