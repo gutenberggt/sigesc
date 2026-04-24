@@ -58,6 +58,7 @@ export default function BoletimAluno() {
   if (!data) return null;
 
   const higher = data.higher_grade;
+  const conceito = data.usa_conceito;
   const freq = data.frequencia || {};
   const freqPct = freq.percentual_presenca_dias_letivos ?? freq.percentual_presenca_attendance;
 
@@ -153,68 +154,122 @@ export default function BoletimAluno() {
         </div>
       )}
 
-      {/* Tabela de notas */}
+      {/* Tabela de notas / conceitos */}
       <Card>
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-xs" data-testid="boletim-table">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-2 py-2 text-left">Componente Curricular</th>
-                <th className="px-2 py-2 text-center w-14">1º Bim</th>
-                <th className="px-2 py-2 text-center w-14">Rec 1</th>
-                <th className="px-2 py-2 text-center w-14">2º Bim</th>
-                <th className="px-2 py-2 text-center w-14">Rec 2</th>
-                <th className="px-2 py-2 text-center w-14">3º Bim</th>
-                <th className="px-2 py-2 text-center w-14">Rec 3</th>
-                <th className="px-2 py-2 text-center w-14">4º Bim</th>
-                <th className="px-2 py-2 text-center w-14">Rec 4</th>
-                <th className="px-2 py-2 text-center w-16 bg-blue-50">Média</th>
-                <th className="px-2 py-2 text-center w-14">Rec Final</th>
-                <th className="px-2 py-2 text-center w-16 bg-blue-50">Final</th>
-                {higher && <th className="px-2 py-2 text-center w-14">Faltas</th>}
-                <th className="px-2 py-2 text-center w-24">Situação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.componentes && data.componentes.length > 0 ? data.componentes.map((row, i) => (
-                <tr key={row.course_id} className={i % 2 ? 'bg-gray-50' : ''}>
-                  <td className="px-2 py-1.5 font-medium">{row.course_name}</td>
-                  <td className="px-2 py-1.5 text-center">{fmt(row.b1)}</td>
-                  <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_b1)}</td>
-                  <td className="px-2 py-1.5 text-center">{fmt(row.b2)}</td>
-                  <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_b2)}</td>
-                  <td className="px-2 py-1.5 text-center">{fmt(row.b3)}</td>
-                  <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_b3)}</td>
-                  <td className="px-2 py-1.5 text-center">{fmt(row.b4)}</td>
-                  <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_b4)}</td>
-                  <td className="px-2 py-1.5 text-center font-semibold bg-blue-50">{fmt(row.media)}</td>
-                  <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_final)}</td>
-                  <td className="px-2 py-1.5 text-center font-bold bg-blue-50">{fmt(row.media_final)}</td>
-                  {higher && <td className="px-2 py-1.5 text-center">{row.faltas_componente ?? '—'}</td>}
-                  <td className="px-2 py-1.5 text-center">
-                    {row.situacao && (
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${SITUATION_COLOR[row.situacao]}`}>
-                        {SITUATION_LABEL[row.situacao]}
-                      </span>
-                    )}
+          {conceito ? (
+            <table className="w-full text-xs" data-testid="boletim-table-conceito">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-2 py-2 text-left" rowSpan={2}>Componente Curricular</th>
+                  <th className="px-2 py-2 text-center bg-blue-50" colSpan={2}>1º Semestre</th>
+                  <th className="px-2 py-2 text-center bg-indigo-50" colSpan={2}>2º Semestre</th>
+                  {higher && <th className="px-2 py-2 text-center w-16" rowSpan={2}>Faltas</th>}
+                  <th className="px-2 py-2 text-center w-24" rowSpan={2}>Situação</th>
+                </tr>
+                <tr>
+                  <th className="px-2 py-1 text-center w-20 bg-blue-50">1º Bim</th>
+                  <th className="px-2 py-1 text-center w-20 bg-blue-50">2º Bim</th>
+                  <th className="px-2 py-1 text-center w-20 bg-indigo-50">3º Bim</th>
+                  <th className="px-2 py-1 text-center w-20 bg-indigo-50">4º Bim</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.componentes && data.componentes.length > 0 ? data.componentes.map((row, i) => (
+                  <tr key={row.course_id} className={i % 2 ? 'bg-gray-50' : ''}>
+                    <td className="px-2 py-1.5 font-medium">{row.course_name}</td>
+                    <td className="px-2 py-1.5 text-center font-semibold">{fmt(row.b1)}</td>
+                    <td className="px-2 py-1.5 text-center font-semibold">{fmt(row.b2)}</td>
+                    <td className="px-2 py-1.5 text-center font-semibold">{fmt(row.b3)}</td>
+                    <td className="px-2 py-1.5 text-center font-semibold">{fmt(row.b4)}</td>
+                    {higher && <td className="px-2 py-1.5 text-center">{row.faltas_componente ?? '—'}</td>}
+                    <td className="px-2 py-1.5 text-center">
+                      {row.situacao && (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${SITUATION_COLOR[row.situacao]}`}>
+                          {SITUATION_LABEL[row.situacao]}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr><td colSpan={higher ? 7 : 6} className="py-8 text-center text-gray-500">
+                    Nenhum componente curricular encontrado para sua turma.
+                  </td></tr>
+                )}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={higher ? 7 : 6} className="px-3 py-2 text-[10px] italic text-gray-500 bg-yellow-50">
+                    Esta turma é avaliada por <strong>conceito</strong> (Educação Infantil / 1º / 2º Ano). Não há recuperação nem média numérica.
                   </td>
                 </tr>
-              )) : (
-                <tr><td colSpan={higher ? 14 : 13} className="py-8 text-center text-gray-500">
-                  Nenhum componente curricular encontrado para sua turma.
-                </td></tr>
-              )}
-            </tbody>
-            {data.media_geral !== null && data.media_geral !== undefined && (
-              <tfoot className="bg-gray-100 font-bold">
-                <tr>
-                  <td colSpan={9} className="px-2 py-2 text-right">Média geral:</td>
-                  <td className="px-2 py-2 text-center text-base" data-testid="media-geral">{data.media_geral.toFixed(2)}</td>
-                  <td colSpan={higher ? 4 : 3}></td>
-                </tr>
               </tfoot>
-            )}
-          </table>
+            </table>
+          ) : (
+            <table className="w-full text-xs" data-testid="boletim-table">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-2 py-2 text-left" rowSpan={2}>Componente Curricular</th>
+                  <th className="px-2 py-2 text-center bg-blue-50" colSpan={4}>1º Semestre</th>
+                  <th className="px-2 py-2 text-center bg-indigo-50" colSpan={4}>2º Semestre</th>
+                  <th className="px-2 py-2 text-center w-16 bg-blue-50" rowSpan={2}>Média</th>
+                  <th className="px-2 py-2 text-center w-14" rowSpan={2}>Rec Final</th>
+                  <th className="px-2 py-2 text-center w-16 bg-blue-50" rowSpan={2}>Final</th>
+                  {higher && <th className="px-2 py-2 text-center w-14" rowSpan={2}>Faltas</th>}
+                  <th className="px-2 py-2 text-center w-24" rowSpan={2}>Situação</th>
+                </tr>
+                <tr>
+                  <th className="px-2 py-1 text-center w-14 bg-blue-50">1º Bim</th>
+                  <th className="px-2 py-1 text-center w-14 bg-blue-50">Rec 1</th>
+                  <th className="px-2 py-1 text-center w-14 bg-blue-50">2º Bim</th>
+                  <th className="px-2 py-1 text-center w-14 bg-blue-50">Rec 2</th>
+                  <th className="px-2 py-1 text-center w-14 bg-indigo-50">3º Bim</th>
+                  <th className="px-2 py-1 text-center w-14 bg-indigo-50">Rec 3</th>
+                  <th className="px-2 py-1 text-center w-14 bg-indigo-50">4º Bim</th>
+                  <th className="px-2 py-1 text-center w-14 bg-indigo-50">Rec 4</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.componentes && data.componentes.length > 0 ? data.componentes.map((row, i) => (
+                  <tr key={row.course_id} className={i % 2 ? 'bg-gray-50' : ''}>
+                    <td className="px-2 py-1.5 font-medium">{row.course_name}</td>
+                    <td className="px-2 py-1.5 text-center">{fmt(row.b1)}</td>
+                    <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_b1)}</td>
+                    <td className="px-2 py-1.5 text-center">{fmt(row.b2)}</td>
+                    <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_b2)}</td>
+                    <td className="px-2 py-1.5 text-center">{fmt(row.b3)}</td>
+                    <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_b3)}</td>
+                    <td className="px-2 py-1.5 text-center">{fmt(row.b4)}</td>
+                    <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_b4)}</td>
+                    <td className="px-2 py-1.5 text-center font-semibold bg-blue-50">{fmt(row.media)}</td>
+                    <td className="px-2 py-1.5 text-center text-gray-500">{fmt(row.rec_final)}</td>
+                    <td className="px-2 py-1.5 text-center font-bold bg-blue-50">{fmt(row.media_final)}</td>
+                    {higher && <td className="px-2 py-1.5 text-center">{row.faltas_componente ?? '—'}</td>}
+                    <td className="px-2 py-1.5 text-center">
+                      {row.situacao && (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${SITUATION_COLOR[row.situacao]}`}>
+                          {SITUATION_LABEL[row.situacao]}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr><td colSpan={higher ? 14 : 13} className="py-8 text-center text-gray-500">
+                    Nenhum componente curricular encontrado para sua turma.
+                  </td></tr>
+                )}
+              </tbody>
+              {data.media_geral !== null && data.media_geral !== undefined && (
+                <tfoot className="bg-gray-100 font-bold">
+                  <tr>
+                    <td colSpan={9} className="px-2 py-2 text-right">Média geral:</td>
+                    <td className="px-2 py-2 text-center text-base" data-testid="media-geral">{data.media_geral.toFixed(2)}</td>
+                    <td colSpan={higher ? 4 : 3}></td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          )}
         </CardContent>
       </Card>
 

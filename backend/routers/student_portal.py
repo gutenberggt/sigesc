@@ -40,6 +40,29 @@ def _is_higher_grade(grade_level: Optional[str], education_level: Optional[str])
     return False
 
 
+def _is_conceito(grade_level: Optional[str], education_level: Optional[str]) -> bool:
+    """Retorna True para turmas avaliadas por CONCEITO (sem média numérica / sem recuperação):
+    - Educação Infantil (qualquer idade)
+    - 1º Ano (Fundamental I)
+    - 2º Ano (Fundamental I)
+    """
+    edu = (education_level or "").lower()
+    g = (grade_level or "").lower()
+    if "infantil" in edu or "creche" in edu or "pré" in edu or "pre-escola" in edu or "pre escola" in edu:
+        return True
+    if "infantil" in g or "creche" in g or "pré" in g or "berçário" in g or "maternal" in g:
+        return True
+    # Detecta 1º / 2º ano (Fund I)
+    norm = g.replace(" ", "")
+    for tok in ("1º", "1°", "2º", "2°"):
+        if tok + "ano" in norm or tok + "ano" in g.replace(" ", "").replace("-", ""):
+            return True
+    # Fallback: "1 ano" / "2 ano" com espaço
+    if g.strip().startswith(("1 ano", "2 ano", "1º ano", "2º ano", "1° ano", "2° ano")):
+        return True
+    return False
+
+
 def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     def _get_db(user: dict):
@@ -52,20 +75,25 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         """
         if user.get("role") not in ("aluno", "student"):
             raise HTTPException(status_code=403, detail="Apenas alunos acessam esta rota")
-        student_id = user.get("student_id")
-        if not student_id:
-            # Fallback: tenta match por email (se student tem email)
-            if user.get("email"):
-                st = await current_db.students.find_one(
-                    {"email": user["email"]}, {"_id": 0},
-                )
-                if st:
-                    return st
-            raise HTTPException(status_code=404, detail="Aluno sem vínculo no sistema")
-        st = await current_db.students.find_one({"id": student_id}, {"_id": 0})
-        if not st:
-            raise HTTPException(status_code=404, detail="Registro do aluno não encontrado")
-        return st
+        # JWT não carrega student_id — busca no user doc
+        user_doc = await current_db.users.find_one(
+            {"id": user.get("id")}, {"_id": 0, "student_id": 1, "email": 1}
+        ) or {}
+        student_id = user_doc.get("student_id") or user.get("student_id")
+        if student_id:
+            st = await current_db.students.find_one({"id": student_id}, {"_id": 0})
+            if st:
+                return st
+        # Fallback: tenta match por email (caso students tenha email)
+        email = user_doc.get("email") or user.get("email")
+        if email:
+            st = await current_db.students.find_one({"email": email}, {"_id": 0})
+            if st:
+                return st
+        raise HTTPException(
+            status_code=404,
+            detail="Aluno sem vínculo no sistema. Contate a secretaria para vincular seu cadastro.",
+        )
 
     @router.get("/me")
     async def get_me(request: Request):
@@ -116,20 +144,6 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         media_aprovacao = float(mantenedora.get("media_aprovacao") or 6.0)
         freq_minima = float(mantenedora.get("frequencia_minima") or 75.0)
 
-        # ----- Componentes da turma -----
-        course_ids = class_doc.get("course_ids") or []
-        courses = []
-        if course_ids:
-            async for c in current_db.courses.find({"id": {"$in": course_ids}}, {"_id": 0}):
-                courses.append(c)
-        else:
-            # Fallback: pega todos os courses vinculados à turma/escola
-            async for c in current_db.courses.find(
-                {"$or": [{"class_id": class_doc.get("id")}, {"school_id": school.get("id")}]},
-                {"_id": 0},
-            ):
-                courses.append(c)
-
         # ----- Notas do aluno -----
         grades_by_course = {}
         async for g in current_db.grades.find(
@@ -138,6 +152,35 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             cid = g.get("course_id")
             if cid:
                 grades_by_course[cid] = g
+
+        # ----- Componentes da turma -----
+        course_ids = class_doc.get("course_ids") or []
+        courses = []
+        if course_ids:
+            async for c in current_db.courses.find({"id": {"$in": course_ids}}, {"_id": 0}):
+                courses.append(c)
+        else:
+            # Fallback 1: courses linkados à turma/escola (alguns tenants)
+            async for c in current_db.courses.find(
+                {"$or": [{"class_id": class_doc.get("id")}, {"school_id": school.get("id")}]},
+                {"_id": 0},
+            ):
+                courses.append(c)
+
+        # Fallback 2: componentes obtidos a partir dos grades lançados do aluno
+        if not courses and grades_by_course:
+            cids = list(grades_by_course.keys())
+            async for c in current_db.courses.find({"id": {"$in": cids}}, {"_id": 0}):
+                courses.append(c)
+
+        # Fallback 3: componentes da mantenedora compatíveis com o nível de ensino
+        if not courses and mant_id:
+            edu_level = class_doc.get("education_level")
+            q = {"mantenedora_id": mant_id}
+            if edu_level:
+                q["$or"] = [{"nivel_ensino": edu_level}, {"nivel_ensino": None}, {"nivel_ensino": {"$exists": False}}]
+            async for c in current_db.courses.find(q, {"_id": 0}).limit(30):
+                courses.append(c)
 
         # ----- Faltas por turma (e por componente se Fund II/EJA) -----
         attendance_total = 0
@@ -208,6 +251,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # ----- Monta linhas do boletim por componente -----
         higher_grade = _is_higher_grade(class_doc.get("grade_level"), class_doc.get("education_level"))
+        usa_conceito = _is_conceito(class_doc.get("grade_level"), class_doc.get("education_level"))
         linhas = []
         soma_medias = 0.0
         n_com_nota = 0
@@ -222,6 +266,25 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             rec_b3 = g.get("rec_b3") or g.get("rec3")
             rec_b4 = g.get("rec_b4") or g.get("rec4")
             rec_final = g.get("rec_final") or g.get("recuperacao_final")
+
+            if usa_conceito:
+                # Educação Infantil / 1º ano / 2º ano: conceito, sem recuperação, sem média numérica
+                bims_preenchidos = [x for x in (b1, b2, b3, b4) if x is not None and x != ""]
+                situacao_comp = "cursando" if len(bims_preenchidos) < 4 else "aprovado"
+                linhas.append({
+                    "course_id": course.get("id"),
+                    "course_name": course.get("name"),
+                    "workload": course.get("workload"),
+                    "b1": b1, "b2": b2, "b3": b3, "b4": b4,
+                    "rec_b1": None, "rec_b2": None, "rec_b3": None, "rec_b4": None,
+                    "rec_final": None,
+                    "media": None,
+                    "media_final": None,
+                    "situacao": situacao_comp,
+                    "usa_conceito": True,
+                    "faltas_componente": faltas_por_componente.get(course.get("id"), 0) if higher_grade else None,
+                })
+                continue
 
             # Aplica recuperação (maior entre bim e rec_bim)
             def _eff(bim, rec):
@@ -260,6 +323,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "media": media,
                 "media_final": media_final,
                 "situacao": situacao_comp,
+                "usa_conceito": False,
                 "faltas_componente": faltas_por_componente.get(course.get("id"), 0) if higher_grade else None,
             })
 
@@ -267,14 +331,23 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # ----- Situação final global (considera média e frequência) -----
         situacao_final = "cursando"
-        any_finalizada = any(row.get("situacao") in ("aprovado", "reprovado") for row in linhas)
         freq_ok = (freq_percent_letivo or 100.0) >= freq_minima
-        if any_finalizada:
-            any_reprovada = any(row.get("situacao") == "reprovado" for row in linhas)
-            if any_reprovada or not freq_ok:
-                situacao_final = "reprovado"
-            else:
-                situacao_final = "aprovado"
+        if usa_conceito:
+            # Em turmas por conceito: aprovação depende apenas da frequência e preenchimento
+            todos_bims_preenchidos = all(
+                all(row.get(b) not in (None, "") for b in ("b1", "b2", "b3", "b4"))
+                for row in linhas
+            ) if linhas else False
+            if todos_bims_preenchidos:
+                situacao_final = "aprovado" if freq_ok else "reprovado"
+        else:
+            any_finalizada = any(row.get("situacao") in ("aprovado", "reprovado") for row in linhas)
+            if any_finalizada:
+                any_reprovada = any(row.get("situacao") == "reprovado" for row in linhas)
+                if any_reprovada or not freq_ok:
+                    situacao_final = "reprovado"
+                else:
+                    situacao_final = "aprovado"
 
         # ----- Alertas de frequência -----
         alerts = []
@@ -330,6 +403,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "media_aprovacao": media_aprovacao,
             "frequencia_minima": freq_minima,
             "higher_grade": higher_grade,
+            "usa_conceito": usa_conceito,
             "componentes": linhas,
             "media_geral": media_geral,
             "frequencia": {

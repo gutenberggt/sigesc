@@ -24,3 +24,11 @@
 - Email: gutenberg@sigesc.com (promovido automaticamente de admin → super_admin)
 - Senha: @Celta2007
 - Poderes: criar mantenedoras, designar gerentes, alternar contexto de tenant
+
+## Aluno (Boletim Virtual)
+- Email: aluno@sigesc.com
+- Senha: aluno123
+- Role: aluno
+- Observação: vínculo `student_id` é atribuído via script `python backend/scripts/seed_test_student.py`.
+  O script escolhe automaticamente um aluno com dados (matrícula/notas) e sincroniza o vínculo.
+  Para re-rodar (idempotente): `cd /app/backend && python scripts/seed_test_student.py`

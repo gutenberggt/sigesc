@@ -55,14 +55,16 @@ export const Login = () => {
     const result = await login(email, password);
 
     if (result.success) {
+      const userRole = result.user?.role;
+      const targetPath = userRole === 'aluno' ? '/aluno/boletim' : '/dashboard';
       // Mostra mensagem se for login offline
       if (result.offline) {
         setInfo(result.message);
         setTimeout(() => {
-          navigate('/dashboard');
+          navigate(targetPath);
         }, 1500);
       } else {
-        navigate('/dashboard');
+        navigate(targetPath);
       }
     } else {
       setError(result.error);
