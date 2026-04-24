@@ -73,6 +73,7 @@ from routers import pmpi as pmpi_mod
 from routers import pmpi_engine as pmpi_engine_mod
 from routers import pmpi_ai as pmpi_ai_mod
 from routers import action_plans as action_plans_mod
+from routers import student_portal as student_portal_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
@@ -545,6 +546,7 @@ pmpi_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 pmpi_engine_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 pmpi_ai_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 action_plans_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
+student_portal_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 
 # --- Incluir TODOS os roteadores na app ---
 # Fase 1
@@ -598,6 +600,7 @@ app.include_router(pmpi_mod.router, prefix="/api")
 app.include_router(pmpi_engine_mod.router, prefix="/api")
 app.include_router(pmpi_ai_mod.router, prefix="/api")
 app.include_router(action_plans_mod.router, prefix="/api")
+app.include_router(student_portal_mod.router, prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)

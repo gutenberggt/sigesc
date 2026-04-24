@@ -41,6 +41,7 @@ const Mantenedoras = lazy(() => import('@/pages/Mantenedoras'));
 const SemedPanel = lazy(() => import('@/pages/SemedPanel'));
 const ActionPlans = lazy(() => import('@/pages/ActionPlans'));
 const PmpiEngine = lazy(() => import('@/pages/PmpiEngine'));
+const BoletimAluno = lazy(() => import('@/pages/BoletimAluno'));
 const Promotion = lazy(() => import('@/pages/Promotion'));
 const AnalyticsDashboard = lazy(() => import('@/pages/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
 const DiaryDashboard = lazy(() => import('@/pages/DiaryDashboard'));
@@ -195,6 +196,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'semed', 'semed1', 'semed2', 'semed3']}>
                 <PmpiEngine />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Portal do Aluno — Boletim virtual */}
+          <Route
+            path="/aluno/boletim"
+            element={
+              <ProtectedRoute allowedRoles={['aluno', 'student', 'super_admin', 'admin', 'admin_teste']}>
+                <BoletimAluno />
               </ProtectedRoute>
             }
           />
