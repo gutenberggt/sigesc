@@ -133,10 +133,8 @@ class TestClassTargetedAnnouncement:
         )
         assert r.status_code in (200, 201), f"criar aviso: {r.status_code} {r.text}"
         created = r.json()
-        target_ids = created.get("target_user_ids") or []
-        assert STUDENT_USER_ID in target_ids, (
-            f"aluno {STUDENT_USER_ID} deveria estar em target_user_ids; recebeu {target_ids}"
-        )
+        # AnnouncementResponse (pydantic) não expõe target_user_ids — validamos
+        # via endpoint do aluno logo abaixo (efeito observável).
 
         # Confirma via endpoint do aluno
         r = requests.get(

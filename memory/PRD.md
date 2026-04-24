@@ -59,13 +59,18 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
   - Filtros de enrollment inativa atualizados para incluir `reclassified`
 
 ### Portal do Aluno — Dashboard e Layout **[24/Fev/2026]**
-- Nova rota `/aluno` com `AlunoDashboard.jsx` — dashboard minimalista com botão **"Boletim"** que leva a `/aluno/boletim`
-- Login de aluno agora cai em `/aluno` (Dashboard.js também redireciona `role=aluno` → `/aluno` para entradas diretas em `/dashboard`)
+- Nova rota `/aluno` com `AlunoDashboard.jsx` — dashboard do aluno
+- Login de aluno agora cai em `/aluno` (Dashboard.js também redireciona `role=aluno` → `/aluno`)
 - `/aluno` e `/aluno/boletim` renderizados **dentro do `<Layout>`** (barra superior com logo SIGESC, mantenedora/secretaria, nome do usuário e logout; footer com © 2026 Gutenberg Barroso + link Aprender Digital)
-- Boletim agora exibe turno em português via `SHIFT_LABEL` (morning→Matutino, afternoon→Vespertino, evening/night→Noturno, full_time/integral→Integral)
+- Boletim exibe turno em português via `SHIFT_LABEL`
 - Link "Início" no Boletim aponta para `/aluno`
 - PDF **Detalhes da Turma** — turmas AEE agora exibem `Série/Etapa: -` (não o `grade_level`)
-- Testes: `/app/backend/tests/test_class_details_pdf_aee.py` (2/2 pass)
+- Dashboard do Aluno com **3 cards**:
+  - 🎓 **Boletim** (card principal) → `/aluno/boletim`
+  - 📅 **Próximos Eventos** — consome `/api/student/me/upcoming-events` (calendário letivo da escola, até 5 eventos futuros, com data relativa Hoje/Amanhã/em X dias/DD-MM-YYYY)
+  - 📣 **Avisos** — consome `/api/student/me/announcements` (avisos direcionados, não lidos em negrito + badge vermelho com contador)
+- **Bug fix (announcements.py)**: `get_announcement_target_users` agora usa `class_ids` (plural) em vez de `class_id` (singular) — estava quebrado desde sempre pelo modelo `AnnouncementRecipient` só declarar a chave plural. Agora avisos direcionados a turmas realmente chegam aos professores/responsáveis/alunos da turma.
+- Testes: 15/15 pytest (`test_student_portal.py` + `test_class_details_pdf_aee.py` + `test_student_dashboard_widgets.py`)
 
 ## Current Backlog
 

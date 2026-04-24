@@ -76,25 +76,30 @@ async def get_announcement_target_users(db, recipient: dict, sender: dict) -> Li
             target_users = {u['id'] for u in users}
             
     elif recipient_type == 'class':
-        class_id = recipient.get('class_id')
-        if class_id:
+        # Modelo AnnouncementRecipient declara class_ids (plural); compat com class_id singular legado.
+        class_ids = recipient.get('class_ids') or []
+        legacy_single = recipient.get('class_id')
+        if legacy_single and legacy_single not in class_ids:
+            class_ids = [legacy_single, *class_ids]
+
+        for class_id in class_ids:
             # Professores da turma
             assignments = await db.teacher_assignments.find(
                 {'class_id': class_id},
                 {'staff_id': 1}
             ).to_list(100)
-            
+
             for assignment in assignments:
                 staff = await db.staff.find_one({'id': assignment['staff_id']}, {'user_id': 1})
                 if staff and staff.get('user_id'):
                     target_users.add(staff['user_id'])
-            
+
             # Responsáveis dos alunos da turma
             enrollments = await db.enrollments.find(
                 {'class_id': class_id, 'status': 'active'},
                 {'student_id': 1}
             ).to_list(500)
-            
+
             student_ids_turma = []
             for enrollment in enrollments:
                 sid = enrollment.get('student_id')
@@ -104,11 +109,11 @@ async def get_announcement_target_users(db, recipient: dict, sender: dict) -> Li
                     {'student_ids': enrollment['student_id']},
                     {'user_id': 1}
                 ).to_list(10)
-                
+
                 for guardian in guardians:
                     if guardian.get('user_id'):
                         target_users.add(guardian['user_id'])
-            
+
             # Alunos da turma (users com role='aluno' e student_id vinculado)
             if student_ids_turma:
                 aluno_users = await db.users.find(
