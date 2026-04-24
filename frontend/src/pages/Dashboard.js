@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2 } from 'lucide-react';
+import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI, analyticsAPI } from '@/services/api';
@@ -461,6 +461,30 @@ export const Dashboard = () => {
                 <BarChart3 className="text-emerald-600" size={24} />
                 <span className="font-medium text-gray-900">Dashboard Analítico</span>
               </button>
+              )}
+
+              {/* PMPI-GE - Painel do Secretário */}
+              {(isAdmin || isSemedFull || isSemed) && (
+                <button
+                  onClick={() => navigate('/semed/panel')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
+                  data-testid="nav-semed-panel-button"
+                >
+                  <Activity className="text-blue-600" size={24} />
+                  <span className="font-medium text-gray-900">Painel do Secretário</span>
+                </button>
+              )}
+
+              {/* PMPI-GE - Planos de Ação */}
+              {(isAdmin || isSemedFull || isSemed || isSchoolStaff) && (
+                <button
+                  onClick={() => navigate('/action-plans')}
+                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all"
+                  data-testid="nav-action-plans-button"
+                >
+                  <ClipboardList className="text-orange-600" size={24} />
+                  <span className="font-medium text-gray-900">Planos de Ação</span>
+                </button>
               )}
               
               {/* Dashboard de Acompanhamento de Diários */}

@@ -38,6 +38,8 @@ const Mantenedora = lazy(() => import('@/pages/Mantenedora'));
 const AuditLogs = lazy(() => import('@/pages/AuditLogs'));
 const AdminTools = lazy(() => import('@/pages/AdminTools'));
 const Mantenedoras = lazy(() => import('@/pages/Mantenedoras'));
+const SemedPanel = lazy(() => import('@/pages/SemedPanel'));
+const ActionPlans = lazy(() => import('@/pages/ActionPlans'));
 const Promotion = lazy(() => import('@/pages/Promotion'));
 const AnalyticsDashboard = lazy(() => import('@/pages/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
 const DiaryDashboard = lazy(() => import('@/pages/DiaryDashboard'));
@@ -162,6 +164,26 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['super_admin']}>
                 <Mantenedoras />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* PMPI-GE — Painel do Secretário */}
+          <Route
+            path="/semed/panel"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'semed', 'semed1', 'semed2', 'semed3', 'secretario', 'diretor']}>
+                <SemedPanel />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* PMPI-GE — Planos de Ação */}
+          <Route
+            path="/action-plans"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'semed', 'semed1', 'semed2', 'semed3', 'secretario', 'diretor', 'coordenador']}>
+                <ActionPlans />
               </ProtectedRoute>
             }
           />

@@ -1208,3 +1208,44 @@ export const analyticsAPI = {
     return response.data;
   }
 };
+
+
+// ============= PMPI-GE (Monitoramento / Painel SEMED) =============
+export const pmpiAPI = {
+  getOverview: async () => {
+    const response = await axios.get(`${API}/pmpi/overview`);
+    return response.data;
+  },
+  getSchoolKpis: async (schoolId, days = 30) => {
+    const response = await axios.get(`${API}/pmpi/kpis/${schoolId}`, { params: { days } });
+    return response.data;
+  },
+  getThresholds: async () => {
+    const response = await axios.get(`${API}/pmpi/thresholds`);
+    return response.data;
+  }
+};
+
+// ============= ACTION PLANS =============
+export const actionPlansAPI = {
+  list: async (filters = {}) => {
+    const response = await axios.get(`${API}/action-plans`, { params: filters });
+    return response.data;
+  },
+  get: async (id) => {
+    const response = await axios.get(`${API}/action-plans/${id}`);
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await axios.post(`${API}/action-plans`, data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await axios.put(`${API}/action-plans/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await axios.delete(`${API}/action-plans/${id}`);
+    return response.data;
+  }
+};

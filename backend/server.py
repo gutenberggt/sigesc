@@ -69,6 +69,8 @@ from routers import student_history as student_history_mod
 from routers import vaccines as vaccines_mod
 from routers import mec_integration as mec_mod
 from routers import bolsa_familia as bolsa_mod
+from routers import pmpi as pmpi_mod
+from routers import action_plans as action_plans_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
@@ -224,11 +226,17 @@ async def create_indexes():
         for coll in ("schools", "staff", "students", "classes", "courses",
                      "enrollments", "grades", "learning_objects", "calendar_events",
                      "calendario_letivo", "school_assignments", "teacher_assignments",
-                     "payroll_items", "announcements"):
+                     "payroll_items", "announcements", "action_plans"):
             try:
                 await db[coll].create_index("mantenedora_id", name=f"{coll[:15]}_mid")
             except Exception:
                 pass
+        # Índices específicos de action_plans
+        try:
+            await db.action_plans.create_index("id", unique=True)
+            await db.action_plans.create_index([("school_id", 1), ("status", 1)])
+        except Exception:
+            pass
 
         # ===== Bootstrap multi-tenant: cria mantenedora inicial se não houver nenhuma =====
         # Nota: a migração do legado db.mantenedora (singular) já foi executada e a coleção
@@ -520,6 +528,8 @@ student_history_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs
 vaccines_mod.setup_router(db)
 mec_mod.setup_router(db)
 bolsa_mod.setup_router(db)
+pmpi_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
+action_plans_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 
 # --- Incluir TODOS os roteadores na app ---
 # Fase 1
@@ -569,6 +579,8 @@ app.include_router(student_history_mod.router, prefix="/api")
 app.include_router(vaccines_mod.router, prefix="/api")
 app.include_router(mec_mod.router, prefix="/api")
 app.include_router(bolsa_mod.router, prefix="/api")
+app.include_router(pmpi_mod.router, prefix="/api")
+app.include_router(action_plans_mod.router, prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)
