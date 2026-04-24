@@ -32,6 +32,16 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 - Secretaria exibida no header
 - **[22/Fev/2026]** TenantSwitcher reposicionado para a esquerda do header, agrupado visualmente com o bloco Mantenedora/Secretaria (melhor hierarquia visual)
 
+### Boletim Virtual do Aluno  **[24/Fev/2026]**
+- Nova rota `/aluno/boletim` (role=`aluno`) com redirect automático no login
+- Backend: `GET /api/student/me/report-card` — identificação escola/aluno, notas b1..b4, recuperação por bimestre, recuperação final, média geral e situação
+- Detecção automática de **turmas por CONCEITO** (Educação Infantil / 1º Ano / 2º Ano): exibe só b1..b4 (sem recuperação, sem média numérica, sem final)
+- Demais anos: 4 bimestres agrupados em 2 semestres (1º Sem: B1+B2, 2º Sem: B3+B4) com recuperação por bimestre + recuperação final
+- Fund II (6º–9º) e EJA 3ª/4ª etapa → faltas por componente curricular
+- Alertas: `> 25%` faltas → aviso vermelho; `≥ 95%` presença → parabéns verde
+- Seed idempotente de conta de teste: `python backend/scripts/seed_test_student.py` (aluno@sigesc.com / aluno123)
+- Testes: `/app/backend/tests/test_student_portal.py` (9 cenários, 100% pass)
+
 ## Current Backlog
 
 ### P1

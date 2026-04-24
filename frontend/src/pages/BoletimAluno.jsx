@@ -79,7 +79,12 @@ export default function BoletimAluno() {
         <CardContent className="p-5">
           <div className="flex items-center gap-4">
             {data.mantenedora?.brasao_url && (
-              <img src={data.mantenedora.brasao_url} alt="Brasão" className="w-16 h-16 object-contain" />
+              <img
+                src={data.mantenedora.brasao_url}
+                alt="Brasão"
+                className="w-16 h-16 object-contain"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
             )}
             <div className="flex-1 text-center">
               <h1 className="text-sm font-bold uppercase tracking-wide">{data.mantenedora?.nome}</h1>
@@ -87,10 +92,17 @@ export default function BoletimAluno() {
                 <p className="text-xs text-gray-600">{data.mantenedora.secretaria}</p>
               )}
               <h2 className="text-lg font-bold mt-1">{data.escola?.nome}</h2>
-              <p className="text-xs text-gray-500">
-                {data.escola?.municipio} / {data.escola?.estado}
-                {data.escola?.inep && <> · INEP: {data.escola.inep}</>}
-              </p>
+              {(data.escola?.municipio || data.escola?.estado || data.escola?.inep) && (
+                <p className="text-xs text-gray-500">
+                  {[data.escola?.municipio, data.escola?.estado].filter(Boolean).join(' / ')}
+                  {data.escola?.inep && (
+                    <>
+                      {(data.escola?.municipio || data.escola?.estado) && ' · '}
+                      INEP: {data.escola.inep}
+                    </>
+                  )}
+                </p>
+              )}
             </div>
           </div>
           <div className="border-t mt-3 pt-3 flex items-center justify-center gap-2">
