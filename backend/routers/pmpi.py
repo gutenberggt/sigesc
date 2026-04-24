@@ -92,11 +92,15 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     async def _compute_kpis_for_school(
         current_db, school_id: str, tenant_filter_base: dict, days_window: int = 30
     ) -> dict:
-        """Calcula os 5 KPIs para uma escola no período (últimos N dias)."""
+        """Calcula os 5 KPIs para uma escola no período (últimos N dias).
+        
+        Auto-detecta o `academic_year` mais recente presente nos dados da escola
+        para compatibilidade com bancos legados (onde o ano letivo corrente pode
+        não bater com `now.year`).
+        """
         now = datetime.now(timezone.utc)
         window_start = now - timedelta(days=days_window)
         window_start_iso = window_start.isoformat()
-        academic_year = now.year
 
         kpis = {
             "frequencia": {"value": None, "detail": {}},
@@ -106,8 +110,23 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "carga_horaria": {"value": None, "detail": {}},
         }
 
-        school_filter = dict(tenant_filter_base)
-        school_filter["school_id"] = school_id
+        # Filtro apenas por school_id (school_id já implica tenant via schools.mantenedora_id).
+        # Não aplicamos mantenedora_id aqui porque muitos dados legados (attendance, grades,
+        # learning_objects, etc) podem não ter esse campo em bancos pré-migração.
+        school_filter = {"school_id": school_id}
+
+        # ---- Auto-detecta academic_year vigente da escola ----
+        academic_year = now.year
+        try:
+            # Pega o ano mais recente em classes/enrollments/learning_objects
+            latest_class = await current_db.classes.find_one(
+                school_filter, {"_id": 0, "academic_year": 1},
+                sort=[("academic_year", -1)],
+            )
+            if latest_class and latest_class.get("academic_year"):
+                academic_year = int(latest_class["academic_year"])
+        except Exception:
+            pass
 
         # ---------------- 1. Frequência (% presença) ----------------
         try:
@@ -133,51 +152,70 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             kpis["frequencia"]["detail"] = {"erro": str(e)}
 
         # ---------------- 2. % Aulas lançadas ----------------
-        # Previsto: contar aulas esperadas ≈ (class_schedules.slots_per_day × dias letivos)
-        # Lançadas: count de learning_objects no período.
         try:
             lancadas = await current_db.learning_objects.count_documents({
                 **school_filter,
                 "date": {"$gte": window_start_iso[:10]},
             })
-            # Fallback simples de previsão: nº de turmas × 5 aulas/dia × dias úteis na janela
             n_classes = await current_db.classes.count_documents({
                 **school_filter, "academic_year": academic_year,
             })
-            previstas = max(n_classes * 5 * days_window * 5 // 7, 1)  # ~5 aulas/dia, dias úteis
+            if n_classes == 0:
+                # Fallback: usa total de turmas sem filtrar ano
+                n_classes = await current_db.classes.count_documents(school_filter)
+            previstas = max(n_classes * 5 * days_window * 5 // 7, 1)
             pct = 100.0 * lancadas / previstas if previstas else None
             kpis["aulas_lancadas"]["value"] = round(min(pct, 100.0), 2) if pct is not None else None
             kpis["aulas_lancadas"]["detail"] = {
-                "lancadas": lancadas, "previstas_estimadas": previstas,
+                "lancadas": lancadas,
+                "previstas_estimadas": previstas,
+                "academic_year_ref": academic_year,
             }
         except Exception as e:
             kpis["aulas_lancadas"]["detail"] = {"erro": str(e)}
 
-        # ---------------- 3. % Notas lançadas (bimestre atual) ----------------
+        # ---------------- 3. % Notas lançadas (QUALQUER bimestre com dados) ----------------
         try:
-            month = now.month
-            bimestre = (month - 1) // 3 + 1  # 1-4 aproximado
-            bim_field = f"b{bimestre}"
             total_enrol = await current_db.enrollments.count_documents({
                 **school_filter,
                 "academic_year": academic_year,
                 "status": {"$in": ["ativa", "active", "matriculado"]},
             })
-            # Esperado: total_enrol × nº courses ativos na escola (aproximação)
-            n_courses = await current_db.courses.count_documents({
-                **school_filter,
-            })
+            if total_enrol == 0:
+                total_enrol = await current_db.enrollments.count_documents({
+                    **school_filter,
+                    "status": {"$in": ["ativa", "active", "matriculado"]},
+                })
+            n_courses = await current_db.courses.count_documents(school_filter)
             expected = total_enrol * max(n_courses, 1)
+            # Conta grades que tenham QUALQUER bimestre preenchido (b1/b2/b3/b4)
             filled = await current_db.grades.count_documents({
                 **school_filter,
                 "academic_year": academic_year,
-                bim_field: {"$ne": None, "$exists": True},
+                "$or": [
+                    {"b1": {"$ne": None, "$exists": True}},
+                    {"b2": {"$ne": None, "$exists": True}},
+                    {"b3": {"$ne": None, "$exists": True}},
+                    {"b4": {"$ne": None, "$exists": True}},
+                ],
             })
+            if filled == 0:
+                # Sem filtro de ano como fallback
+                filled = await current_db.grades.count_documents({
+                    **school_filter,
+                    "$or": [
+                        {"b1": {"$ne": None, "$exists": True}},
+                        {"b2": {"$ne": None, "$exists": True}},
+                        {"b3": {"$ne": None, "$exists": True}},
+                        {"b4": {"$ne": None, "$exists": True}},
+                    ],
+                })
             pct = 100.0 * filled / expected if expected else None
             kpis["notas_lancadas"]["value"] = round(min(pct, 100.0), 2) if pct is not None else None
             kpis["notas_lancadas"]["detail"] = {
-                "bimestre": bimestre, "preenchidas": filled,
+                "preenchidas": filled,
                 "esperado_estimado": expected,
+                "academic_year_ref": academic_year,
             }
         except Exception as e:
             kpis["notas_lancadas"]["detail"] = {"erro": str(e)}
@@ -215,22 +253,25 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # ---------------- 5. % Carga horária cumprida ----------------
         try:
             # Soma das number_of_classes de learning_objects no ano
-            pipeline = [
-                {"$match": {
-                    **school_filter, "academic_year": academic_year,
-                }},
-                {"$group": {"_id": None, "total": {"$sum": "$number_of_classes"}}},
-            ]
             total_lo = 0
-            async for row in current_db.learning_objects.aggregate(pipeline):
+            async for row in current_db.learning_objects.aggregate([
+                {"$match": {**school_filter, "academic_year": academic_year}},
+                {"$group": {"_id": None, "total": {"$sum": "$number_of_classes"}}},
+            ]):
                 total_lo = row.get("total") or 0
+            # Fallback sem filtro de ano
+            if total_lo == 0:
+                async for row in current_db.learning_objects.aggregate([
+                    {"$match": school_filter},
+                    {"$group": {"_id": None, "total": {"$sum": "$number_of_classes"}}},
+                ]):
+                    total_lo = row.get("total") or 0
             # Previsto: soma de workload dos courses da escola (aproximação)
-            pipeline2 = [
+            total_prev = 0
+            async for row in current_db.courses.aggregate([
                 {"$match": school_filter},
                 {"$group": {"_id": None, "total": {"$sum": "$workload"}}},
-            ]
-            total_prev = 0
-            async for row in current_db.courses.aggregate(pipeline2):
+            ]):
                 total_prev = row.get("total") or 0
             # Prorateado pelo mês atual (total/12 × mês)
             prorated = (total_prev or 1) * (now.month / 12.0)
@@ -241,6 +282,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     "aulas_dadas_total": total_lo,
                     "previsto_proporcional": round(prorated, 1),
                     "mes_referencia": now.month,
+                    "academic_year_ref": academic_year,
                 }
         except Exception as e:
             kpis["carga_horaria"]["detail"] = {"erro": str(e)}
