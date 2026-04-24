@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasRole } from '@/utils/permissions';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -190,7 +191,7 @@ export const AuditLogs = () => {
   const totalPages = Math.ceil(total / limit);
 
   // Verifica permissão
-  if (!['super_admin', 'admin', 'admin_teste', 'secretario', 'semed'].includes(user?.role)) {
+  if (!hasRole(user, ['admin', 'admin_teste', 'secretario', 'semed'])) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-96">

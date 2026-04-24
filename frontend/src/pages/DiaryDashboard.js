@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { schoolsAPI, classesAPI, coursesAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasRole } from '@/utils/permissions';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart,
@@ -55,9 +56,9 @@ export const DiaryDashboard = () => {
   const [gradesStats, setGradesStats] = useState(null);
   const [contentStats, setContentStats] = useState(null);
 
-  // Verificar permissão de acesso
+  // Verificar permissão de acesso (super_admin incluído automaticamente via helper)
   const allowedRoles = ['admin', 'admin_teste', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed3'];
-  const hasAccess = allowedRoles.includes(user?.role);
+  const hasAccess = hasRole(user, allowedRoles);
 
   // Carregar escolas
   useEffect(() => {

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { announcementsAPI, schoolsAPI, classesAPI, usersAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasRole } from '@/utils/permissions';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/Modal';
@@ -219,12 +220,12 @@ const Announcements = () => {
   };
 
   const availableRoles = () => {
-    // Admin, SEMED e SEMED3 podem enviar para todos
-    if (['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role) || user?.role === 'semed' || user?.role === 'semed3') {
+    // Admin, SEMED e SEMED3 podem enviar para todos (super_admin via hasRole)
+    if (hasRole(user, ['admin', 'admin_teste', 'gerente', 'semed', 'semed3'])) {
       return ['secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'aluno', 'responsavel'];
     }
     // Secretário, Diretor, Coordenador podem enviar para professores e alunos
-    if (['super_admin', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria'].includes(user?.role)) {
+    if (hasRole(user, ['secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria'])) {
       return ['professor', 'aluno', 'responsavel'];
     }
     // Professor pode enviar para alunos e responsáveis
@@ -267,8 +268,8 @@ const Announcements = () => {
     }
   };
 
-  // Verificar se pode criar avisos
-  const canCreate = ['super_admin', 'admin', 'admin_teste', 'semed', 'semed3', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor'].includes(user?.role);
+  // Verificar se pode criar avisos (super_admin incluído via hasRole)
+  const canCreate = hasRole(user, ['admin', 'admin_teste', 'semed', 'semed3', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor']);
 
   return (
     <Layout>

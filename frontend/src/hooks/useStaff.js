@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasRole } from '@/utils/permissions';
 import { staffAPI, schoolAssignmentAPI, teacherAssignmentAPI, schoolsAPI, classesAPI, coursesAPI } from '@/services/api';
 import { INITIAL_STAFF_FORM, INITIAL_LOTACAO_FORM, INITIAL_ALOCACAO_FORM } from '@/components/staff/constants';
 
@@ -88,8 +89,8 @@ export const useStaff = () => {
   const [alert, setAlert] = useState({ show: false, type: '', message: '' });
   
   // Permissões
-  const canEdit = ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario'].includes(user?.role);
-  const canDelete = ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario'].includes(user?.role);
+  const canEdit = hasRole(user, ['admin', 'admin_teste', 'gerente', 'secretario']);
+  const canDelete = hasRole(user, ['admin', 'admin_teste', 'gerente', 'secretario']);
   
   // Helper para extrair mensagem de erro do Pydantic ou string
   const extractErrorMessage = (error) => {

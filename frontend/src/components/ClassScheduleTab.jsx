@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/Modal';
 import { classScheduleAPI, schoolsAPI, classesAPI, coursesAPI, calendarAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasRole } from '@/utils/permissions';
 
 // Dias da semana
 const DAYS = [
@@ -297,7 +298,7 @@ export function ClassScheduleTab({ academicYear }) {
   const [teacherAllocations, setTeacherAllocations] = useState([]); // Alocações de professores
   
   // Permissões
-  const canEdit = ['super_admin', 'admin', 'admin_teste', 'secretario'].includes(user?.role);
+  const canEdit = hasRole(user, ['admin', 'admin_teste', 'secretario']);
   
   // IDs das escolas vinculadas ao usuário
   const userSchoolIds = useMemo(() => {
@@ -311,7 +312,7 @@ export function ClassScheduleTab({ academicYear }) {
         let data = await schoolsAPI.getAll();
         
         // Filtrar por escolas vinculadas se não for admin/semed
-        if (!['super_admin', 'admin', 'admin_teste', 'semed'].includes(user?.role) && userSchoolIds.length > 0) {
+        if (!hasRole(user, ['admin', 'admin_teste', 'semed']) && userSchoolIds.length > 0) {
           data = data.filter(s => userSchoolIds.includes(s.id));
         }
         
@@ -680,7 +681,7 @@ export function ClassScheduleTab({ academicYear }) {
           )}
           
           {/* Botão Ver Conflitos da Rede */}
-          {['super_admin', 'admin', 'admin_teste', 'semed', 'secretario'].includes(user?.role) && (
+          {hasRole(user, ['admin', 'admin_teste', 'semed', 'secretario']) && (
             <Button
               variant="outline"
               size="sm"

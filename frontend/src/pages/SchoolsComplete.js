@@ -7,6 +7,7 @@ import { Tabs } from '@/components/Tabs';
 import { schoolsAPI, classesAPI, schoolAssignmentAPI, staffAPI, uploadAPI, calendarAPI, teacherAssignmentAPI } from '@/services/api';
 import { formatPhone, formatCEP } from '@/utils/formatters';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasRole } from '@/utils/permissions';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
 import { Plus, AlertCircle, CheckCircle, Home, Users, Phone, Clock, Eye, Edit2, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -34,7 +35,7 @@ export function SchoolsComplete() {
   // Admin: pode tudo
   // Secretário: pode visualizar e editar escolas onde tem vínculo, mas não criar/excluir
   // SEMED: pode visualizar tudo, mas não pode editar/excluir
-  const isAdmin = ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role);
+  const isAdmin = hasRole(user, ['admin', 'admin_teste', 'gerente']);
   const isSecretario = user?.role === 'secretario';
   const isSemed = user?.role === 'semed' || user?.role === 'semed3';
   

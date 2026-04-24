@@ -5,6 +5,7 @@ import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { usersAPI, schoolsAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasRole } from '@/utils/permissions';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { Plus, AlertCircle, CheckCircle, Home, Shield, ChevronDown, Check, X, Minus, Eye, Edit3 } from 'lucide-react';
 
@@ -85,7 +86,7 @@ export const Users = () => {
   
   // Restrições: todos SEMED são somente visualização no módulo de Usuários
   const canEdit = !SEMED_ROLES_LIST.includes(user?.role);
-  const canDelete = ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role);
+  const canDelete = hasRole(user, ['admin', 'admin_teste', 'gerente']);
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
   useEffect(() => {
@@ -227,7 +228,7 @@ export const Users = () => {
   };
 
   // Verifica se o usuário atual é administrador
-  const isCurrentUserAdmin = ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role);
+  const isCurrentUserAdmin = hasRole(user, ['admin', 'admin_teste', 'gerente']);
   const isCurrentUserSuperAdmin = user?.role === 'super_admin';
   
   // Papéis admin/semed/ass_social só podem ser criados/selecionados por admins.

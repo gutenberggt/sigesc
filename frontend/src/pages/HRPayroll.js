@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { hasRole } from '@/utils/permissions';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -89,7 +90,7 @@ export default function HRPayroll() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const token = localStorage.getItem('accessToken');
-  const isAdmin = ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role);
+  const isAdmin = hasRole(user, ['admin', 'admin_teste', 'gerente']);
   const isAnalista = ['semed2'].includes(user?.role);
   const isSemedViewer = ['semed3'].includes(user?.role);
   const isGlobal = isAdmin || isAnalista || isSemedViewer;

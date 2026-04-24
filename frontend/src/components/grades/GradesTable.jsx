@@ -1,4 +1,5 @@
 import { Lock } from 'lucide-react';
+import { hasRole } from '@/utils/permissions';
 import {
   GradeInput,
   ConceitoSelect,
@@ -71,7 +72,7 @@ export const GradesTable = () => {
           return `${item.student.action_label || 'Movimentado'} - bimestre bloqueado`;
         }
         if (item.student.blocked_before_enrollment && item.student.blocked_before_enrollment.includes(bim)) {
-          const isAdminOrSecretary = ['super_admin', 'admin', 'admin_teste', 'secretario'].includes(user?.role);
+          const isAdminOrSecretary = hasRole(user, ['admin', 'admin_teste', 'secretario']);
           if (!isAdminOrSecretary) {
             return `Aluno matriculado após este bimestre (${item.student.enrollment_date || ''})`;
           }

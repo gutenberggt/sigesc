@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/Modal';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasRole } from '@/utils/permissions';
 import { profilesAPI, uploadAPI, connectionsAPI } from '@/services/api';
 import { useMessaging } from '@/contexts/MessagingContext';
 import { ConnectionsList } from '@/components/messaging';
@@ -96,7 +97,7 @@ export const UserProfile = () => {
   
   // Verificar permissões
   const isOwnProfile = !userId || userId === user?.id;
-  const isAdmin = ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role);
+  const isAdmin = hasRole(user, ['admin', 'admin_teste', 'gerente']);
   const canEdit = isOwnProfile || isAdmin;
 
   // Carregar status de conexão quando visualizar perfil de outro usuário

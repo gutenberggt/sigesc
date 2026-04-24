@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasRole } from '@/utils/permissions';
 import { studentsAPI, attendanceAPI, schoolsAPI, classesAPI } from '@/services/api';
 import { formatCPF } from '@/utils/formatters';
 import { Search, User, Calendar, School, BookOpen, Percent, LogOut, X, Loader2, FileText } from 'lucide-react';
@@ -161,7 +162,7 @@ export default function AssocialDashboard() {
             </div>
             
             <div className="flex items-center space-x-4">
-              {(user?.role === 'ass_social_2' || ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role)) && (
+              {(user?.role === 'ass_social_2' || hasRole(user, ['admin', 'admin_teste', 'gerente'])) && (
                 <button
                   onClick={() => window.open('/admin/bolsa-familia', '_blank')}
                   className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-sm font-medium"

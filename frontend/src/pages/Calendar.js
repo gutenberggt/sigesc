@@ -22,6 +22,7 @@ import { Modal } from '@/components/Modal';
 import { calendarAPI } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { hasRole } from '@/utils/permissions';
 import { ClassScheduleTab } from '@/components/ClassScheduleTab';
 
 // Helper para obter data local no formato YYYY-MM-DD (evita problemas de timezone)
@@ -750,7 +751,7 @@ export const Calendar = () => {
   const currentMonth = currentDate.getMonth();
   
   // Verificar se usuário pode editar datas limite (apenas admin e secretario)
-  const canEditDataLimite = user?.role && ['super_admin', 'admin', 'admin_teste', 'secretario'].includes(user.role);
+  const canEditDataLimite = hasRole(user, ['admin', 'admin_teste', 'secretario']);
   
   // Estado para os períodos bimestrais
   const [periodos, setPeriodos] = useState({
@@ -868,7 +869,7 @@ export const Calendar = () => {
   };
   
   // Configurar Períodos Bimestrais - Exclusivo ao administrador
-  const canEditPeriodos = ['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role);
+  const canEditPeriodos = hasRole(user, ['admin', 'admin_teste', 'gerente']);
   
   // Navegação
   const navigate = (direction) => {
@@ -965,7 +966,7 @@ export const Calendar = () => {
           </div>
           
           <div className="flex gap-2">
-            {(['admin', 'admin_teste', 'super_admin', 'gerente'].includes(user?.role)) && mainTab === 'calendario' && (
+            {hasRole(user, ['admin', 'admin_teste', 'gerente']) && mainTab === 'calendario' && (
               <>
                 <Button variant="outline" onClick={() => {
                   setAnoSelecionadoPeriodos(currentYear);
