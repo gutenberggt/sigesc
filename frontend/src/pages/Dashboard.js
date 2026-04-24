@@ -125,6 +125,11 @@ export const Dashboard = () => {
     return <Navigate to="/vacinas" replace />;
   }
 
+  // Redireciona aluno para o portal do aluno
+  if (user?.role === 'aluno' || user?.role === 'student') {
+    return <Navigate to="/aluno" replace />;
+  }
+
   const roleLabels = {
     super_admin: 'Super Administrador',
     gerente: 'Gerente da Mantenedora',

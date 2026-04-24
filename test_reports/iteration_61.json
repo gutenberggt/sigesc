@@ -1,0 +1,35 @@
+{
+  "summary": "Tested 4 features: (1) PDF 'Detalhes da Turma' para turma AEE mostra 'Série/Etapa: -'; (2) PDF turma não-AEE mantém grade_level; (3) Login de aluno redireciona para /aluno (novo dashboard) e botão Boletim navega para /aluno/boletim; (4) Layout (header/footer) envolve /aluno e /aluno/boletim; (5) Turno renderizado em português ('Matutino'); (6) Link 'Início' no Boletim aponta para /aluno. Todos os 2 testes pytest passam e todos os fluxos/testids frontend validados.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_class_details_pdf_aee.py",
+    "/app/test_reports/pytest/pytest_class_details_pdf_aee.xml",
+    "/app/backend/tests/test_student_portal.py (regressão iteration_60)"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "/app/backend/pdf/turma.py linha ~163: detecção 'is_aee' usa `(class_info.get('atendimento_programa') or '').strip().lower() == 'aee'` — correto e robusto a None/espaços/case.",
+    "/app/frontend/src/pages/BoletimAluno.jsx: SHIFT_LABEL cobre morning/afternoon/evening/night/full_time/integral e variantes em PT — bom trabalho com fallback '—' quando shift é vazio.",
+    "/app/frontend/src/pages/AlunoDashboard.jsx: componente bem enxuto, usa Layout e expõe data-testid 'aluno-dashboard' e 'btn-boletim'.",
+    "/app/frontend/src/App.js: rota /aluno restrita a roles aluno/student/super_admin/admin — OK.",
+    "/app/frontend/src/pages/Login.js: redirecionamento role==='aluno' → /aluno está correto; outros papéis vão para /dashboard e Dashboard.js faz Navigate para /aluno caso role=aluno (caminho de fallback preservado)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_class_details_pdf_aee.py (novo)"
+  ],
+  "success_rate": {"backend": "100% (2/2)", "frontend": "100% (todos os testids e fluxos validados)"},
+  "test_credentials": "Aluno: aluno@sigesc.com / aluno123 — Admin: gutenberg@sigesc.com / @Celta2007 (header X-Mantenedora-Id: a991c1ac-56b1-46a8-b122-effedbe19b21)",
+  "seed_data_creation": "N/A — seed existente (turma AEE id=73844918-60b1-4c62-b6cb-a21a35cc49c1, turma não-AEE 6º ANO id=3da4e569-6522-432c-9b42-1e344a2f0c69, aluno seed student_id=097095b5-2153-4be4-bdc2-695b96164f0d em turma 2 ANO / shift=morning).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteração 61 confirma que: (a) PDF AEE: 'Série/Etapa: -' quando atendimento_programa='AEE'; (b) login de aluno cai em /aluno e botão 'Boletim' leva a /aluno/boletim; (c) Layout (sigesc-logo, user-name, logout-button, aprender-digital-link) presente em ambas as rotas; (d) shift 'morning' → 'Matutino' na seção 'TURMA' do boletim ('2 ANO · 2º ANO · Matutino'); (e) link 'Início' no boletim aponta para /aluno; (f) footer '© 2026 Desenvolvido por Gutenberg Barroso' + link 'Aprender Digital' presentes. pytest files: test_class_details_pdf_aee.py (2/2) e test_student_portal.py (9/9 da iter60).",
+  "rca of the issue": "N/A — nenhum bug encontrado."
+}

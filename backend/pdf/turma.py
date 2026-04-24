@@ -159,11 +159,14 @@ def generate_class_details_pdf(
     nivel = education_levels.get(class_info.get('education_level') or class_info.get('nivel_ensino', ''), class_info.get('education_level', '-'))
     turno = shifts.get(class_info.get('shift'), class_info.get('shift', '-'))
     atendimento = atendimentos.get(class_info.get('atendimento_programa', ''), class_info.get('atendimento_programa', '-'))
+    # Para turmas de AEE, "Série/Etapa" não se aplica
+    is_aee = (class_info.get('atendimento_programa') or '').strip().lower() == 'aee'
+    serie_etapa_val = '-' if is_aee else class_info.get('grade_level', '-')
 
     fields_data = [
         make_field('Nome:', class_info.get('name', '-')) + make_field('Ano Letivo:', str(class_info.get('academic_year', '-'))),
         make_field('Escola:', school.get('name', '-')) + make_field('Turno:', turno),
-        make_field('Nível de Ensino:', nivel) + make_field('Série/Etapa:', class_info.get('grade_level', '-')),
+        make_field('Nível de Ensino:', nivel) + make_field('Série/Etapa:', serie_etapa_val),
         make_field('Atendimento:', atendimento) + make_field('Alunos Matriculados:', str(len(students))),
     ]
 

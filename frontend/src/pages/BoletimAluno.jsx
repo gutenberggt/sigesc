@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Layout } from '@/components/Layout';
 import axios from 'axios';
 import { valorParaConceito, CONCEITOS_EDUCACAO_INFANTIL, CONCEITOS_ANOS_INICIAIS } from '@/components/grades/gradeHelpers';
 
@@ -16,6 +17,23 @@ const SITUATION_COLOR = {
   aprovado: 'bg-green-100 text-green-800 border-green-300',
   reprovado: 'bg-red-100 text-red-800 border-red-300',
   cursando: 'bg-blue-100 text-blue-800 border-blue-300'
+};
+
+const SHIFT_LABEL = {
+  morning: 'Matutino',
+  afternoon: 'Vespertino',
+  evening: 'Noturno',
+  night: 'Noturno',
+  full_time: 'Integral',
+  integral: 'Integral',
+  matutino: 'Matutino',
+  vespertino: 'Vespertino',
+  noturno: 'Noturno',
+};
+const fmtShift = (s) => {
+  if (!s) return '—';
+  const key = String(s).toLowerCase().trim();
+  return SHIFT_LABEL[key] || s;
 };
 
 const fmt = (v) => v === null || v === undefined ? '—' : (typeof v === 'number' ? v.toFixed(1) : v);
@@ -59,19 +77,25 @@ export default function BoletimAluno() {
   }, []);
 
   if (loading) {
-    return <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-blue-600" /></div>;
+    return (
+      <Layout>
+        <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-blue-600" /></div>
+      </Layout>
+    );
   }
   if (error) {
     return (
-      <div className="max-w-3xl mx-auto py-10">
-        <Card className="border-red-300">
-          <CardContent className="p-6 text-center">
-            <XCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
-            <p className="text-red-700 font-medium">{error}</p>
-            <p className="text-sm text-gray-500 mt-2">Se você é aluno e vê este erro, entre em contato com a secretaria da escola.</p>
-          </CardContent>
-        </Card>
-      </div>
+      <Layout>
+        <div className="max-w-3xl mx-auto py-10">
+          <Card className="border-red-300">
+            <CardContent className="p-6 text-center">
+              <XCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+              <p className="text-red-700 font-medium">{error}</p>
+              <p className="text-sm text-gray-500 mt-2">Se você é aluno e vê este erro, entre em contato com a secretaria da escola.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
     );
   }
   if (!data) return null;
@@ -82,16 +106,17 @@ export default function BoletimAluno() {
   const freqPct = freq.percentual_presenca_dias_letivos ?? freq.percentual_presenca_attendance;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 pb-10" data-testid="boletim-aluno">
-      {/* Actions - não imprimem */}
-      <div className="flex justify-between items-center print:hidden">
-        <Link to="/dashboard" className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
-          <Home size={18} /><span>Início</span>
-        </Link>
-        <Button variant="outline" onClick={() => window.print()} data-testid="print-btn">
-          <Printer className="w-4 h-4 mr-2" /> Imprimir
-        </Button>
-      </div>
+    <Layout>
+      <div className="max-w-5xl mx-auto space-y-4 pb-10" data-testid="boletim-aluno">
+        {/* Actions - não imprimem */}
+        <div className="flex justify-between items-center print:hidden">
+          <Link to="/aluno" className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
+            <Home size={18} /><span>Início</span>
+          </Link>
+          <Button variant="outline" onClick={() => window.print()} data-testid="print-btn">
+            <Printer className="w-4 h-4 mr-2" /> Imprimir
+          </Button>
+        </div>
 
       {/* Cabeçalho oficial */}
       <Card className="border-2">
@@ -149,7 +174,7 @@ export default function BoletimAluno() {
           <div className="col-span-2">
             <div className="text-[10px] uppercase text-gray-500">Turma</div>
             <div className="font-semibold">
-              {data.turma?.nome} · {data.turma?.grade_level} · {data.turma?.shift}
+              {data.turma?.nome} · {data.turma?.grade_level} · {fmtShift(data.turma?.shift)}
             </div>
           </div>
           <div>
@@ -373,6 +398,7 @@ export default function BoletimAluno() {
       <p className="text-[10px] text-center text-gray-400">
         Gerado em: {new Date(data.computed_at).toLocaleString('pt-BR')}
       </p>
-    </div>
+      </div>
+    </Layout>
   );
 }

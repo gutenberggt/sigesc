@@ -42,6 +42,7 @@ const SemedPanel = lazy(() => import('@/pages/SemedPanel'));
 const ActionPlans = lazy(() => import('@/pages/ActionPlans'));
 const PmpiEngine = lazy(() => import('@/pages/PmpiEngine'));
 const BoletimAluno = lazy(() => import('@/pages/BoletimAluno'));
+const AlunoDashboard = lazy(() => import('@/pages/AlunoDashboard'));
 const Promotion = lazy(() => import('@/pages/Promotion'));
 const AnalyticsDashboard = lazy(() => import('@/pages/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
 const DiaryDashboard = lazy(() => import('@/pages/DiaryDashboard'));
@@ -200,7 +201,15 @@ function App() {
             }
           />
 
-          {/* Portal do Aluno — Boletim virtual */}
+          {/* Portal do Aluno — Dashboard + Boletim virtual */}
+          <Route
+            path="/aluno"
+            element={
+              <ProtectedRoute allowedRoles={['aluno', 'student', 'super_admin', 'admin', 'admin_teste']}>
+                <AlunoDashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/aluno/boletim"
             element={

@@ -56,7 +56,7 @@ export const Login = () => {
 
     if (result.success) {
       const userRole = result.user?.role;
-      const targetPath = userRole === 'aluno' ? '/aluno/boletim' : '/dashboard';
+      const targetPath = userRole === 'aluno' ? '/aluno' : '/dashboard';
       // Mostra mensagem se for login offline
       if (result.offline) {
         setInfo(result.message);
