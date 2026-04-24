@@ -69,7 +69,9 @@ def _build_email_base(full_name: str, mm: str) -> Optional[str]:
 
 
 async def _resolve_unique_email(db, base: str, reserved: set[str]) -> str:
-    """Garante unicidade do email verificando DB + set de reservados (mesmo batch)."""
+    """DEPRECATED: substituído por _pick_unique_email com set pré-populado.
+    Mantido apenas como fallback caso alguém importe externamente.
+    """
     candidate = f"{base}{EMAIL_DOMAIN}"
     attempt = 1
     while True:
@@ -92,6 +94,9 @@ async def build_plan_for_students(
     """
     Gera plano (sem escrever) de criação de usuários para alunos ativos.
 
+    Otimizado: pré-carrega todos os student_ids e emails já em uso em 2 queries,
+    evitando N+1 DB round-trips para cenários com milhares de alunos.
+
     Retorna:
         {
           'to_create': [ {student_id, full_name, email, password, birth_date, school_id, ...} ],
@@ -103,8 +108,32 @@ async def build_plan_for_students(
     to_create: list[dict] = []
     skipped: list[dict] = []
     already: list[dict] = []
-    reserved_emails: set[str] = set()
 
+    # ---- Pré-carga (evita N+1) ----------------------------------
+    # 1) Mapa student_id -> {id, email} dos users já existentes (role='aluno')
+    existing_user_by_sid: dict[str, dict] = {}
+    async for u in db.users.find(
+        {"role": "aluno", "student_id": {"$exists": True, "$ne": None}},
+        {"_id": 0, "id": 1, "email": 1, "student_id": 1},
+    ).batch_size(1000):
+        sid = u.get("student_id")
+        if sid:
+            existing_user_by_sid[sid] = {"id": u.get("id"), "email": u.get("email")}
+
+    # 2) Set de todos os emails já em uso (qualquer role)
+    taken_emails: set[str] = set()
+    async for u in db.users.find({}, {"_id": 0, "email": 1}).batch_size(1000):
+        em = u.get("email")
+        if em:
+            taken_emails.add(em.lower())
+
+    # 3) Mapa school_id -> mantenedora_id (para fallback)
+    school_to_mant: dict[str, str] = {}
+    async for s in db.schools.find({}, {"_id": 0, "id": 1, "mantenedora_id": 1}):
+        if s.get("id") and s.get("mantenedora_id"):
+            school_to_mant[s["id"]] = s["mantenedora_id"]
+
+    # ---- Query de alunos -----------------------------------------
     q: dict = {}
     if not include_inactive:
         q["status"] = {"$in": ["active", "Ativo", "ativo"]}
@@ -113,7 +142,8 @@ async def build_plan_for_students(
     if school_ids:
         q["school_id"] = {"$in": school_ids}
 
-    cursor = db.students.find(q, {"_id": 0}).sort("full_name", 1)
+    # Sem .sort() para evitar erro de 32MB sort-in-memory sem índice.
+    cursor = db.students.find(q, {"_id": 0}).batch_size(500)
 
     async for st in cursor:
         sid = st.get("id")
@@ -121,12 +151,10 @@ async def build_plan_for_students(
         birth = _parse_birth_date(st.get("birth_date") or st.get("dob"))
 
         # Já tem user?
-        existing_u = await db.users.find_one(
-            {"student_id": sid, "role": "aluno"}, {"_id": 0, "id": 1, "email": 1}
-        )
-        if existing_u:
+        if sid in existing_user_by_sid:
+            eu = existing_user_by_sid[sid]
             already.append({"student_id": sid, "full_name": name,
-                            "email": existing_u["email"], "user_id": existing_u["id"]})
+                            "email": eu.get("email"), "user_id": eu.get("id")})
             continue
 
         if not name or len(name.split()) < 2:
@@ -145,14 +173,12 @@ async def build_plan_for_students(
                             "reason": "não foi possível gerar email base"})
             continue
 
-        email = await _resolve_unique_email(db, base, reserved_emails)
+        email = _pick_unique_email(base, taken_emails)
+        taken_emails.add(email.lower())  # reserva para próximos do batch
         password_plain = f"{dd}{mm}{yyyy}"
 
         school_id = st.get("school_id")
-        mant_id = st.get("mantenedora_id")
-        if not mant_id and school_id:
-            sch = await db.schools.find_one({"id": school_id}, {"_id": 0, "mantenedora_id": 1})
-            mant_id = (sch or {}).get("mantenedora_id")
+        mant_id = st.get("mantenedora_id") or (school_to_mant.get(school_id) if school_id else None)
 
         to_create.append({
             "student_id": sid,
@@ -178,12 +204,47 @@ async def build_plan_for_students(
     }
 
 
-async def apply_plan(db, plan: dict) -> dict:
-    """Aplica (grava) os users do plano. Retorna totals."""
+def _pick_unique_email(base: str, taken: set[str]) -> str:
+    """Escolhe email único checando apenas o set em memória (já pré-populado)."""
+    candidate = f"{base}{EMAIL_DOMAIN}"
+    if candidate.lower() not in taken:
+        return candidate
+    n = 2
+    while True:
+        candidate = f"{base}-{n}{EMAIL_DOMAIN}"
+        if candidate.lower() not in taken:
+            return candidate
+        n += 1
+
+
+async def apply_plan(db, plan: dict, batch_size: int = 500) -> dict:
+    """Aplica (grava) os users do plano em lotes com insert_many. Retorna totals."""
     now = datetime.now(timezone.utc).isoformat()
     inserted = 0
     errors: list[dict] = []
-    for row in plan.get("to_create") or []:
+
+    rows = plan.get("to_create") or []
+    batch: list[dict] = []
+
+    async def _flush(current_batch: list[dict]):
+        nonlocal inserted
+        if not current_batch:
+            return
+        try:
+            await db.users.insert_many(current_batch, ordered=False)
+            inserted += len(current_batch)
+        except Exception as e:  # noqa: BLE001,F841
+            # Em caso de erro de um doc do batch, faz fallback individual para
+            # identificar exatamente quais falharam.
+            for doc in current_batch:
+                try:
+                    await db.users.insert_one(doc)
+                    inserted += 1
+                except Exception as e2:  # noqa: BLE001
+                    errors.append({"student_id": doc.get("student_id"),
+                                   "email": doc.get("email"), "error": str(e2)})
+
+    for row in rows:
         try:
             doc = {
                 "id": str(uuid.uuid4()),
@@ -199,11 +260,15 @@ async def apply_plan(db, plan: dict) -> dict:
                 "student_id": row["student_id"],
                 "password_hash": hash_password(row["password"]),
                 "created_at": now,
-                "must_change_password": True,  # boa prática: obrigar troca no 1º acesso
+                "must_change_password": True,
             }
-            await db.users.insert_one(doc)
-            inserted += 1
+            batch.append(doc)
+            if len(batch) >= batch_size:
+                await _flush(batch)
+                batch = []
         except Exception as e:  # noqa: BLE001
             errors.append({"student_id": row.get("student_id"),
                            "email": row.get("email"), "error": str(e)})
+
+    await _flush(batch)
     return {"inserted": inserted, "errors": errors}
