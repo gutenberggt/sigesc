@@ -300,132 +300,26 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     "alerts_created": 0, "alerts_resolved": 0,
                     "message": "Nenhuma regra ativa. Execute /alert-rules/seed-defaults."}
 
-        # Import dinâmico do cálculo de KPIs
-        from routers.pmpi import _classify  # noqa: F401
+        # Import dinâmico do cálculo de KPIs (service compartilhado)
+        from services.pmpi_compute import compute_kpis_for_school
+
         created = 0
         resolved = 0
-        now = datetime.now(timezone.utc).isoformat()
-        # Precisamos de acesso à função interna _compute_kpis_for_school, que vive
-        # dentro de setup_router do módulo pmpi. Replicamos a assinatura aqui:
-        async def compute(school_id: str) -> dict:
-            from datetime import timedelta
-            nowdt = datetime.now(timezone.utc)
-            days_window = 30
-            window_start_iso = (nowdt - timedelta(days=days_window)).isoformat()
-            academic_year = nowdt.year
-            base = dict(tenant_query)
-            base["school_id"] = school_id
-            kpis = {m: {"value": None} for m in KPI_METRICS}
-
-            # 1. Frequência
-            try:
-                total, presentes = 0, 0
-                cursor = current_db.attendance.find(
-                    {**base, "date": {"$gte": window_start_iso[:10]}},
-                    {"_id": 0, "records": 1},
-                ).limit(2000)
-                async for att in cursor:
-                    for rec in (att.get("records") or []):
-                        total += 1
-                        if (rec.get("status") or "").lower() in ("presente", "present", "p"):
-                            presentes += 1
-                if total:
-                    kpis["frequencia"]["value"] = round(100.0 * presentes / total, 2)
-            except Exception:
-                pass
-
-            # 2. Aulas lançadas
-            try:
-                lancadas = await current_db.learning_objects.count_documents({
-                    **base, "date": {"$gte": window_start_iso[:10]},
-                })
-                n_classes = await current_db.classes.count_documents({
-                    **base, "academic_year": academic_year,
-                })
-                previstas = max(n_classes * 5 * days_window * 5 // 7, 1)
-                pct = 100.0 * lancadas / previstas if previstas else None
-                if pct is not None:
-                    kpis["aulas_lancadas"]["value"] = round(min(pct, 100.0), 2)
-            except Exception:
-                pass
-
-            # 3. Notas lançadas
-            try:
-                bimestre = (nowdt.month - 1) // 3 + 1
-                bim_field = f"b{bimestre}"
-                total_enrol = await current_db.enrollments.count_documents({
-                    **base, "academic_year": academic_year,
-                    "status": {"$in": ["ativa", "active", "matriculado"]},
-                })
-                n_courses = await current_db.courses.count_documents(base)
-                expected = total_enrol * max(n_courses, 1)
-                filled = await current_db.grades.count_documents({
-                    **base, "academic_year": academic_year,
-                    bim_field: {"$ne": None, "$exists": True},
-                })
-                pct = 100.0 * filled / expected if expected else None
-                if pct is not None:
-                    kpis["notas_lancadas"]["value"] = round(min(pct, 100.0), 2)
-            except Exception:
-                pass
-
-            # 4. Atrasos
-            try:
-                total_delay, n = 0, 0
-                cursor = current_db.learning_objects.find(
-                    {**base, "date": {"$gte": window_start_iso[:10]}},
-                    {"_id": 0, "date": 1, "created_at": 1},
-                ).limit(500)
-                async for lo in cursor:
-                    try:
-                        d_date = datetime.fromisoformat(str(lo["date"])[:10])
-                        d_created = datetime.fromisoformat(
-                            str(lo["created_at"]).replace("Z", "+00:00"))
-                        if d_created.tzinfo:
-                            d_created = d_created.replace(tzinfo=None)
-                        delta = (d_created - d_date).days
-                        if delta >= 0:
-                            total_delay += delta
-                            n += 1
-                    except Exception:
-                        continue
-                if n:
-                    kpis["atrasos_dias"]["value"] = round(total_delay / n, 2)
-            except Exception:
-                pass
-
-            # 5. Carga horária
-            try:
-                total_lo = 0
-                async for row in current_db.learning_objects.aggregate([
-                    {"$match": {**base, "academic_year": academic_year}},
-                    {"$group": {"_id": None, "total": {"$sum": "$number_of_classes"}}},
-                ]):
-                    total_lo = row.get("total") or 0
-                total_prev = 0
-                async for row in current_db.courses.aggregate([
-                    {"$match": base},
-                    {"$group": {"_id": None, "total": {"$sum": "$workload"}}},
-                ]):
-                    total_prev = row.get("total") or 0
-                prorated = (total_prev or 1) * (nowdt.month / 12.0)
-                pct = 100.0 * total_lo / prorated if prorated else None
-                if pct is not None:
-                    kpis["carga_horaria"]["value"] = round(min(pct, 100.0), 2)
-            except Exception:
-                pass
-            return kpis
+        now = datetime.now(timezone.utc)
+        now_iso = now.isoformat()
 
         # Para cada escola, calcula KPIs e avalia regras
-        matched_keys = set()     # (rule_id, school_id) que estão violados agora
+        matched_keys = set()
         for school in schools_list:
             sid = school["id"]
-            kpis = await compute(sid)
+            kpis_full = await compute_kpis_for_school(current_db, sid, days_window=30)
+            # Extrai só o valor por KPI para avaliação das regras
+            kpi_values = {k: v.get("value") for k, v in kpis_full.items()}
+
             for rule in rules:
-                val = kpis.get(rule["kpi"], {}).get("value")
+                val = kpi_values.get(rule["kpi"])
                 if _compare(val, rule["operator"], rule["threshold"]):
                     matched_keys.add((rule["id"], sid))
-                    # Verifica se já há alerta aberto
                     existing = await current_db.alerts.find_one(
                         {"rule_id": rule["id"], "school_id": sid, "status": "open"},
                         {"_id": 0, "id": 1},
@@ -435,8 +329,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                             {"id": existing["id"]},
                             {"$set": {
                                 "kpi_value": val,
-                                "updated_at": now,
-                                "last_seen_at": now,
+                                "updated_at": now_iso,
+                                "last_seen_at": now_iso,
                             }},
                         )
                     else:
@@ -453,9 +347,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                             "operator": rule["operator"],
                             "severity": rule["severity"],
                             "status": "open",
-                            "detected_at": now,
-                            "updated_at": now,
-                            "last_seen_at": now,
+                            "detected_at": now_iso,
+                            "updated_at": now_iso,
+                            "last_seen_at": now_iso,
                         }
                         await current_db.alerts.insert_one(dict(alert))
                         created += 1
@@ -471,9 +365,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     {"id": a["id"]},
                     {"$set": {
                         "status": "resolved",
-                        "resolved_at": now,
+                        "resolved_at": now_iso,
                         "resolved_by_name": "motor-auto",
-                        "updated_at": now,
+                        "updated_at": now_iso,
                     }},
                 )
                 resolved += 1
@@ -483,7 +377,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "rules_evaluated": len(rules),
             "alerts_created": created,
             "alerts_auto_resolved": resolved,
-            "ran_at": now,
+            "ran_at": now_iso,
         }
 
     # ============= MONTHLY GOALS =============
@@ -524,63 +418,14 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             tenant_query, {"_id": 0, "id": 1, "name": 1}
         )]
 
-        # Reaproveita a função compute do motor
+        # Reaproveita a função compute do service compartilhado
+        from services.pmpi_compute import compute_kpis_for_school
         generated = 0
         updated = 0
         for school in schools_list:
             sid = school["id"]
-            # Busca overview via mesmo algoritmo de _compute_kpis_for_school (via endpoint interno)
-            # Para simplicidade, recalcula aqui usando as mesmas regras simplificadas
-            # de cálculo. Na Onda 3 extrairemos para service compartilhado.
-            from routers.pmpi import _classify  # noqa: F401
-            # chamamos o helper via HTTP local seria overhead; replicamos valores atuais:
-            # Na prática, aqui usamos a última janela de 30 dias como baseline.
-            from datetime import timedelta
-            window_start = (now - timedelta(days=30)).isoformat()[:10]
-            academic_year = now.year
-            base = dict(tenant_query)
-            base["school_id"] = sid
-            baseline = {}
-
-            # Frequência
-            total, presentes = 0, 0
-            async for att in current_db.attendance.find(
-                {**base, "date": {"$gte": window_start}}, {"_id": 0, "records": 1}
-            ).limit(2000):
-                for rec in (att.get("records") or []):
-                    total += 1
-                    if (rec.get("status") or "").lower() in ("presente", "present", "p"):
-                        presentes += 1
-            baseline["frequencia"] = round(100.0 * presentes / total, 2) if total else None
-
-            # Aulas lançadas
-            lancadas = await current_db.learning_objects.count_documents({
-                **base, "date": {"$gte": window_start},
-            })
-            n_classes = await current_db.classes.count_documents({
-                **base, "academic_year": academic_year,
-            })
-            previstas = max(n_classes * 5 * 30 * 5 // 7, 1)
-            pct = 100.0 * lancadas / previstas if previstas else None
-            baseline["aulas_lancadas"] = round(min(pct, 100.0), 2) if pct is not None else None
-
-            # Notas lançadas (bim atual)
-            bim = (now.month - 1) // 3 + 1
-            total_enrol = await current_db.enrollments.count_documents({
-                **base, "academic_year": academic_year,
-                "status": {"$in": ["ativa", "active", "matriculado"]},
-            })
-            n_courses = await current_db.courses.count_documents(base)
-            expected = total_enrol * max(n_courses, 1)
-            filled = await current_db.grades.count_documents({
-                **base, "academic_year": academic_year,
-                f"b{bim}": {"$ne": None, "$exists": True},
-            })
-            pct = 100.0 * filled / expected if expected else None
-            baseline["notas_lancadas"] = round(min(pct, 100.0), 2) if pct is not None else None
-
-            baseline["atrasos_dias"] = None
-            baseline["carga_horaria"] = None
+            kpis_full = await compute_kpis_for_school(current_db, sid, days_window=30)
+            baseline = {k: v.get("value") for k, v in kpis_full.items()}
 
             # Define metas
             goals = {}

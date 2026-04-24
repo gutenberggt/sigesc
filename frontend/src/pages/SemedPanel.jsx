@@ -1,16 +1,19 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, Activity, AlertTriangle, CheckCircle2, XCircle, Home, RefreshCw, FileSignature } from 'lucide-react';
+import {
+  Loader2, Activity, AlertTriangle, CheckCircle2, XCircle, Home, RefreshCw, FileSignature,
+  Users, BookOpen, Award, Clock, CalendarRange
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { pmpiAPI } from '@/services/api';
 
-const KPI_LABELS = {
-  frequencia: 'Frequência',
-  aulas_lancadas: 'Aulas Lançadas',
-  notas_lancadas: 'Notas Lançadas',
-  atrasos_dias: 'Atraso (dias)',
-  carga_horaria: 'Carga Horária'
+const KPI_META = {
+  frequencia:     { label: 'Frequência',     icon: Users,         accent: 'text-sky-600',     bgAccent: 'bg-sky-50'     },
+  aulas_lancadas: { label: 'Aulas Lançadas', icon: BookOpen,      accent: 'text-indigo-600',  bgAccent: 'bg-indigo-50'  },
+  notas_lancadas: { label: 'Notas Lançadas', icon: Award,         accent: 'text-amber-600',   bgAccent: 'bg-amber-50'   },
+  atrasos_dias:   { label: 'Atraso (dias)',  icon: Clock,         accent: 'text-rose-600',    bgAccent: 'bg-rose-50'    },
+  carga_horaria:  { label: 'Carga Horária',  icon: CalendarRange, accent: 'text-emerald-600', bgAccent: 'bg-emerald-50' }
 };
 
 const KPI_SUFFIX = {
@@ -22,27 +25,43 @@ const KPI_SUFFIX = {
 };
 
 const RISK_COLORS = {
-  verde: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', dot: 'bg-green-500', label: 'OK' },
-  amarelo: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-800', dot: 'bg-yellow-500', label: 'Atenção' },
-  vermelho: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', dot: 'bg-red-500', label: 'Crítico' },
-  sem_dados: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600', dot: 'bg-gray-400', label: 'Sem dados' }
+  verde:     { bg: 'bg-green-50',  border: 'border-green-300',   text: 'text-green-700',   dot: 'bg-green-500',  label: 'OK' },
+  amarelo:   { bg: 'bg-yellow-50', border: 'border-yellow-300',  text: 'text-yellow-800',  dot: 'bg-yellow-500', label: 'Atenção' },
+  vermelho:  { bg: 'bg-red-50',    border: 'border-red-300',     text: 'text-red-700',     dot: 'bg-red-500',    label: 'Crítico' },
+  sem_dados: { bg: 'bg-gray-50',   border: 'border-gray-200',    text: 'text-gray-600',    dot: 'bg-gray-400',   label: 'Sem dados' }
 };
 
 const KpiBadge = ({ metric, kpi }) => {
-  const color = RISK_COLORS[kpi?.status] || RISK_COLORS.sem_dados;
+  const meta = KPI_META[metric];
+  const Icon = meta?.icon || Activity;
+  const status = kpi?.status || 'sem_dados';
+  const risk = RISK_COLORS[status];
+  // Indicador de status no topo direito + cor da borda;
+  // o card mantém a cor base do KPI no ícone e header, para identidade visual própria
   return (
     <div
-      className={`${color.bg} ${color.border} ${color.text} border rounded-lg px-3 py-2 flex flex-col gap-0.5 min-w-[110px]`}
+      className={`relative border ${risk.border} rounded-lg bg-white overflow-hidden min-w-[120px] shadow-sm hover:shadow-md transition-all`}
       data-testid={`kpi-${metric}`}
     >
-      <div className="text-[10px] uppercase tracking-wide opacity-70">{KPI_LABELS[metric]}</div>
-      <div className="flex items-baseline gap-1">
-        <span className="font-bold text-lg">
-          {kpi?.value !== null && kpi?.value !== undefined ? kpi.value : '—'}
-        </span>
-        {kpi?.value !== null && kpi?.value !== undefined && (
-          <span className="text-xs opacity-70">{KPI_SUFFIX[metric]}</span>
-        )}
+      {/* Faixa lateral na cor base do KPI */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${meta?.accent?.replace('text-', 'bg-')}`} />
+      {/* Dot de status no canto */}
+      <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${risk.dot}`} title={risk.label} />
+      <div className="pl-3 pr-2 py-2 flex flex-col gap-0.5">
+        <div className="flex items-center gap-1.5">
+          <Icon className={`w-3.5 h-3.5 ${meta?.accent || 'text-gray-500'}`} />
+          <span className="text-[10px] uppercase tracking-wide text-gray-600 font-semibold">
+            {meta?.label || metric}
+          </span>
+        </div>
+        <div className="flex items-baseline gap-1">
+          <span className={`font-bold text-xl ${risk.text}`}>
+            {kpi?.value !== null && kpi?.value !== undefined ? kpi.value : '—'}
+          </span>
+          {kpi?.value !== null && kpi?.value !== undefined && (
+            <span className="text-[11px] text-gray-500">{KPI_SUFFIX[metric]}</span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -65,7 +84,7 @@ const SchoolCard = ({ school }) => {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-          {Object.keys(KPI_LABELS).map(m => (
+          {Object.keys(KPI_META).map(m => (
             <KpiBadge key={m} metric={m} kpi={school.kpis?.[m]} />
           ))}
         </div>

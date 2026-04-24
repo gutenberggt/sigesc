@@ -110,47 +110,10 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if not school:
             raise HTTPException(status_code=404, detail="Escola não encontrada")
 
-        # Calcula KPIs usando a função auxiliar do módulo pmpi (compute inline para evitar acoplamento)
-        from datetime import timedelta as _td
-        now = datetime.now(timezone.utc)
-        window_start = (now - _td(days=30)).isoformat()[:10]
-        academic_year = now.year
-        base = dict(base_filter)
-        base["school_id"] = school_id
-
-        kpis = {}
-        # Frequência
-        total, presentes = 0, 0
-        async for att in current_db.attendance.find(
-            {**base, "date": {"$gte": window_start}}, {"_id": 0, "records": 1}
-        ).limit(2000):
-            for rec in (att.get("records") or []):
-                total += 1
-                if (rec.get("status") or "").lower() in ("presente", "present", "p"):
-                    presentes += 1
-        kpis["frequencia"] = round(100.0 * presentes / total, 2) if total else None
-
-        lancadas = await current_db.learning_objects.count_documents({
-            **base, "date": {"$gte": window_start},
-        })
-        n_classes = await current_db.classes.count_documents({
-            **base, "academic_year": academic_year,
-        })
-        previstas = max(n_classes * 5 * 30 * 5 // 7, 1)
-        kpis["aulas_lancadas"] = round(min(100.0 * lancadas / previstas, 100.0), 2) if previstas else None
-
-        bim = (now.month - 1) // 3 + 1
-        total_enrol = await current_db.enrollments.count_documents({
-            **base, "academic_year": academic_year,
-            "status": {"$in": ["ativa", "active", "matriculado"]},
-        })
-        n_courses = await current_db.courses.count_documents(base)
-        expected = total_enrol * max(n_courses, 1)
-        filled = await current_db.grades.count_documents({
-            **base, "academic_year": academic_year,
-            f"b{bim}": {"$ne": None, "$exists": True},
-        })
-        kpis["notas_lancadas"] = round(min(100.0 * filled / expected, 100.0), 2) if expected else None
+        # Calcula KPIs usando o service compartilhado
+        from services.pmpi_compute import compute_kpis_for_school
+        kpis_full = await compute_kpis_for_school(current_db, school_id, days_window=30)
+        kpis = {k: v.get("value") for k, v in kpis_full.items()}
 
         # Alertas ativos e planos em andamento
         alerts_open = await current_db.alerts.count_documents({
@@ -161,14 +124,22 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "status": {"$in": ["active", "in_progress"]},
         })
 
-        # Tendência: compara com mês anterior (window_prev)
+        # Tendência: frequência do mês anterior (comparativo)
+        from datetime import timedelta as _td
+        now = datetime.now(timezone.utc)
         window_prev_start = (now - _td(days=60)).isoformat()[:10]
         window_prev_end = (now - _td(days=30)).isoformat()[:10]
+        class_ids = []
+        async for c in current_db.classes.find({"school_id": school_id}, {"_id": 0, "id": 1}):
+            if c.get("id"):
+                class_ids.append(c["id"])
         total_p, pres_p = 0, 0
-        async for att in current_db.attendance.find(
-            {**base, "date": {"$gte": window_prev_start, "$lt": window_prev_end}},
-            {"_id": 0, "records": 1}
-        ).limit(2000):
+        base_q = {"school_id": school_id, "date": {"$gte": window_prev_start, "$lt": window_prev_end}}
+        first_att = await current_db.attendance.find_one(base_q, {"_id": 0, "id": 1})
+        if first_att is None and class_ids:
+            base_q = {"class_id": {"$in": class_ids},
+                      "date": {"$gte": window_prev_start, "$lt": window_prev_end}}
+        async for att in current_db.attendance.find(base_q, {"_id": 0, "records": 1}).limit(2000):
             for rec in (att.get("records") or []):
                 total_p += 1
                 if (rec.get("status") or "").lower() in ("presente", "present", "p"):
@@ -393,58 +364,13 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             base, {"_id": 0, "id": 1, "name": 1}
         )]
 
-        # Reaproveita função de cálculo do router pmpi
-        # Para evitar requests internos, recalcula inline de forma simplificada
-        from datetime import timedelta as _td
+        # Usa service compartilhado para cálculo
+        from services.pmpi_compute import compute_kpis_for_school
         now = datetime.now(timezone.utc)
-        window_start = (now - _td(days=30)).isoformat()[:10]
-        academic_year = now.year
-
-        async def _quick_kpis(sid):
-            base_s = {**base, "school_id": sid}
-            kpis = {k: {"value": None} for k in
-                    ("frequencia", "aulas_lancadas", "notas_lancadas",
-                     "atrasos_dias", "carga_horaria")}
-            # Frequência
-            total, presentes = 0, 0
-            async for att in current_db.attendance.find(
-                {**base_s, "date": {"$gte": window_start}}, {"_id": 0, "records": 1}
-            ).limit(2000):
-                for rec in (att.get("records") or []):
-                    total += 1
-                    if (rec.get("status") or "").lower() in ("presente", "present", "p"):
-                        presentes += 1
-            if total:
-                kpis["frequencia"]["value"] = round(100.0 * presentes / total, 2)
-
-            # Aulas
-            lan = await current_db.learning_objects.count_documents({
-                **base_s, "date": {"$gte": window_start},
-            })
-            nc = await current_db.classes.count_documents({
-                **base_s, "academic_year": academic_year,
-            })
-            prev = max(nc * 5 * 30 * 5 // 7, 1)
-            kpis["aulas_lancadas"]["value"] = round(min(100.0 * lan / prev, 100.0), 2) if prev else None
-
-            # Notas
-            bim = (now.month - 1) // 3 + 1
-            te = await current_db.enrollments.count_documents({
-                **base_s, "academic_year": academic_year,
-                "status": {"$in": ["ativa", "active", "matriculado"]},
-            })
-            ncr = await current_db.courses.count_documents(base_s)
-            exp = te * max(ncr, 1)
-            fil = await current_db.grades.count_documents({
-                **base_s, "academic_year": academic_year,
-                f"b{bim}": {"$ne": None, "$exists": True},
-            })
-            kpis["notas_lancadas"]["value"] = round(min(100.0 * fil / exp, 100.0), 2) if exp else None
-            return kpis
 
         items = []
         for school in schools_list:
-            k = await _quick_kpis(school["id"])
+            k = await compute_kpis_for_school(current_db, school["id"], days_window=30)
             score = _score_from_kpis(k)
             items.append({
                 "school_id": school["id"],
@@ -584,6 +510,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 # Job diário (fora do setup para ser importável)
 async def _daily_job_for_db(target_db):
     """Executa motor de alertas + gera metas para TODOS os tenants do banco."""
+    from services.pmpi_compute import compute_kpis_for_school
     now = datetime.now(timezone.utc)
     tenants = [t async for t in target_db.mantenedoras.find({}, {"_id": 0, "id": 1})]
     for t in tenants:
@@ -600,47 +527,16 @@ async def _daily_job_for_db(target_db):
 
         for school in schools_list:
             sid = school["id"]
-            # KPI simplificado inline
-            base = {"mantenedora_id": tid, "school_id": sid}
-            window_start = (now - timedelta(days=30)).isoformat()[:10]
-            academic_year = now.year
-            kpis = {}
-            total, presentes = 0, 0
-            async for att in target_db.attendance.find(
-                {**base, "date": {"$gte": window_start}}, {"_id": 0, "records": 1}
-            ).limit(2000):
-                for rec in (att.get("records") or []):
-                    total += 1
-                    if (rec.get("status") or "").lower() in ("presente", "present", "p"):
-                        presentes += 1
-            kpis["frequencia"] = round(100.0 * presentes / total, 2) if total else None
-            lan = await target_db.learning_objects.count_documents({**base, "date": {"$gte": window_start}})
-            nc = await target_db.classes.count_documents({**base, "academic_year": academic_year})
-            prev = max(nc * 5 * 30 * 5 // 7, 1)
-            kpis["aulas_lancadas"] = round(min(100.0 * lan / prev, 100.0), 2) if prev else None
-            bim = (now.month - 1) // 3 + 1
-            te = await target_db.enrollments.count_documents({
-                **base, "academic_year": academic_year,
-                "status": {"$in": ["ativa", "active", "matriculado"]},
-            })
-            ncr = await target_db.courses.count_documents(base)
-            exp = te * max(ncr, 1)
-            fil = await target_db.grades.count_documents({
-                **base, "academic_year": academic_year,
-                f"b{bim}": {"$ne": None, "$exists": True},
-            })
-            kpis["notas_lancadas"] = round(min(100.0 * fil / exp, 100.0), 2) if exp else None
-            kpis["atrasos_dias"] = None
-            kpis["carga_horaria"] = None
+            kpis_full = await compute_kpis_for_school(target_db, sid, days_window=30)
+            kpi_values = {k: v.get("value") for k, v in kpis_full.items()}
 
-            # Avalia cada regra
             def _cmp(v, op, thr):
                 if v is None:
                     return False
                 return ({"lt": v < thr, "lte": v <= thr, "gt": v > thr, "gte": v >= thr}.get(op, False))
 
             for rule in rules:
-                val = kpis.get(rule["kpi"])
+                val = kpi_values.get(rule["kpi"])
                 if _cmp(val, rule["operator"], rule["threshold"]):
                     matched_keys.add((rule["id"], sid))
                     existing = await target_db.alerts.find_one(
