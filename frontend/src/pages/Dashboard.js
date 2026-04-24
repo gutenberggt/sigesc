@@ -40,9 +40,10 @@ export const Dashboard = () => {
       try {
         setLoading(true);
         const currentYear = new Date().getFullYear();
-        const [schoolsData, usersData, classesData, studentsData, staffData, profileData, mantenedoraData, analyticsData] = await Promise.all([
+        const [schoolsData, usersData, usersCount, classesData, studentsData, staffData, profileData, mantenedoraData, analyticsData] = await Promise.all([
           schoolsAPI.getAll().catch(() => []),
           usersAPI.getAll().catch(() => []),
+          usersAPI.count().catch(() => null),
           classesAPI.getAll().catch(() => []),
           studentsAPI.getAll().catch(() => []),
           staffAPI.list().catch(() => []),
@@ -85,7 +86,7 @@ export const Dashboard = () => {
 
         setStats({
           schools: activeSchoolsCount,
-          users: usersData.length,
+          users: usersCount?.total ?? usersData.length,
           classes: filteredClasses.length,
           students: activeStudentsCount,
           staff: staffCount

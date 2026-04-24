@@ -56,6 +56,27 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         return users
 
+    @router.get("/count")
+    async def count_users(request: Request):
+        """Retorna o total real de usuários (não limitado ao paginado) da mantenedora ativa.
+        Usado pelo card 'Usuários' do Dashboard para evitar travar em 1000.
+        """
+        current_user = await AuthMiddleware.require_roles(
+            ['admin', 'admin_teste', 'secretario', 'semed', 'semed3']
+        )(request)
+        current_db = get_db_for_user(current_user)
+
+        from tenant_scope import get_mantenedora_scope
+        tenant_id = get_mantenedora_scope(current_user, request)
+        if tenant_id:
+            filter_query = {'$or': [{'mantenedora_id': tenant_id}, {'role': 'super_admin'}]}
+        else:
+            filter_query = {}
+
+        total = await current_db.users.count_documents(filter_query)
+        total_active = await current_db.users.count_documents({**filter_query, 'status': 'active'})
+        return {"total": total, "total_active": total_active}
+
     @router.get("/{user_id}")
     async def get_user(user_id: str, request: Request):
         """Busca usuário por ID"""

@@ -81,7 +81,12 @@ export const usersAPI = {
     const response = await axios.get(`${API}/users`);
     return response.data;
   },
-  
+
+  count: async () => {
+    const response = await axios.get(`${API}/users/count`);
+    return response.data; // { total, total_active }
+  },
+
   getById: async (id) => {
     const response = await axios.get(`${API}/users/${id}`);
     return response.data;
