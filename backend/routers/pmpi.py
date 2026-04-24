@@ -364,4 +364,97 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         await AuthMiddleware.get_current_user(request)
         return THRESHOLDS
 
+    @router.get("/_diag/{school_id}")
+    async def diag_school(school_id: str, request: Request):
+        """Diagnóstico completo dos dados de uma escola para debug de KPIs."""
+        user = await AuthMiddleware.get_current_user(request)
+        current_db = user and _get_db(user)
+        if current_db is None:
+            raise HTTPException(status_code=500, detail="sem db")
+        from datetime import timedelta as _td
+        now = datetime.now(timezone.utc)
+        window_start = (now - _td(days=30)).isoformat()[:10]
+        sf = {"school_id": school_id}
+
+        out = {"school_id": school_id, "window_start": window_start,
+               "now": now.isoformat(), "samples": {}, "counts": {}, "stats": {}}
+
+        # Counts por collection
+        for coll in ("attendance", "learning_objects", "grades", "enrollments",
+                     "classes", "courses"):
+            try:
+                out["counts"][coll] = await current_db[coll].count_documents(sf)
+            except Exception as e:
+                out["counts"][coll] = f"erro: {e}"
+
+        # Attendance - sample + dates distintas
+        try:
+            sample = await current_db.attendance.find_one(sf, {"_id": 0})
+            out["samples"]["attendance"] = sample
+            dates = await current_db.attendance.distinct("date", sf)
+            out["stats"]["attendance_dates_count"] = len(dates)
+            out["stats"]["attendance_dates_sample"] = sorted([str(d) for d in dates], reverse=True)[:5]
+            out["stats"]["attendance_in_window"] = await current_db.attendance.count_documents({
+                **sf, "date": {"$gte": window_start}
+            })
+        except Exception as e:
+            out["samples"]["attendance"] = f"erro: {e}"
+
+        # Learning objects
+        try:
+            sample = await current_db.learning_objects.find_one(sf, {"_id": 0})
+            out["samples"]["learning_objects"] = sample
+            dates = await current_db.learning_objects.distinct("date", sf)
+            out["stats"]["lo_dates_count"] = len(dates)
+            out["stats"]["lo_dates_sample"] = sorted([str(d) for d in dates], reverse=True)[:5]
+            out["stats"]["lo_in_window"] = await current_db.learning_objects.count_documents({
+                **sf, "date": {"$gte": window_start}
+            })
+            # Também academic_year distintos
+            years = await current_db.learning_objects.distinct("academic_year", sf)
+            out["stats"]["lo_academic_years"] = sorted([y for y in years if y])
+        except Exception as e:
+            out["samples"]["learning_objects"] = f"erro: {e}"
+
+        # Grades
+        try:
+            sample = await current_db.grades.find_one(sf, {"_id": 0})
+            out["samples"]["grades"] = sample
+            years = await current_db.grades.distinct("academic_year", sf)
+            out["stats"]["grades_academic_years"] = sorted([y for y in years if y])
+            # Conta por campo de bimestre
+            for field in ("b1", "b2", "b3", "b4",
+                          "nota_b1", "nota_b2", "nota_b3", "nota_b4",
+                          "nota1", "nota2", "nota3", "nota4"):
+                try:
+                    n = await current_db.grades.count_documents({
+                        **sf, field: {"$ne": None, "$exists": True}
+                    })
+                    if n > 0:
+                        out["stats"][f"grades_with_{field}"] = n
+                except Exception:
+                    pass
+        except Exception as e:
+            out["samples"]["grades"] = f"erro: {e}"
+
+        # Classes
+        try:
+            sample = await current_db.classes.find_one(sf, {"_id": 0})
+            out["samples"]["classes"] = sample
+            years = await current_db.classes.distinct("academic_year", sf)
+            out["stats"]["classes_academic_years"] = sorted([y for y in years if y])
+        except Exception as e:
+            out["samples"]["classes"] = f"erro: {e}"
+
+        # Enrollments
+        try:
+            sample = await current_db.enrollments.find_one(sf, {"_id": 0})
+            out["samples"]["enrollments"] = sample
+            status_vals = await current_db.enrollments.distinct("status", sf)
+            out["stats"]["enrollments_status_values"] = list(status_vals)[:10]
+        except Exception as e:
+            out["samples"]["enrollments"] = f"erro: {e}"
+
+        return out
+
     return router
