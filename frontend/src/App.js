@@ -312,7 +312,7 @@ function App() {
           <Route
             path="/admin/attendance"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'secretario', 'professor', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed', 'semed1', 'semed2', 'semed3']}>
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'secretario', 'professor', 'diretor', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'semed', 'semed1', 'semed2', 'semed3']}>
                 <Attendance />
               </ProtectedRoute>
             }

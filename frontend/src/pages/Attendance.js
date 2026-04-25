@@ -531,7 +531,7 @@ export const Attendance = () => {
   };
   
   // Atualiza status de um aluno (aulaNum para multi-aula, null para diário)
-  const updateStudentStatus = useCallback((studentId, status, aulaNum = null) => {
+  const updateStudentStatus = (studentId, status, aulaNum = null) => {
     // Bloqueia se aluno tem atestado médico
     if (hasActiveCertificate(studentId)) {
       showAlertMessage('error', 'Este aluno possui atestado médico para esta data. O status não pode ser alterado.');
@@ -556,10 +556,10 @@ export const Attendance = () => {
       });
     }
     setHasChanges(true);
-  }, [hasActiveCertificate, showAlertMessage]);
+  };
   
   // Marca todos com o mesmo status (exceto alunos com atestado)
-  const markAll = useCallback((status) => {
+  const markAll = (status) => {
     if (isMultiAula) {
       // Multi-aula: marcar todas as aulas de todos os alunos (functional setState)
       setAttendanceData(currentData => {
@@ -589,7 +589,7 @@ export const Attendance = () => {
       });
     }
     setHasChanges(true);
-  }, [isMultiAula, numberOfAulas, hasActiveCertificate]);
+  };
   
   // Salva frequência (com suporte offline)
   const saveAttendance = async () => {
