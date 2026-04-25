@@ -26,9 +26,9 @@ if not BASE_URL:
 
 
 STUDENT_EMAIL = "aluno@sigesc.com"
-STUDENT_PASSWORD = "aluno123"
+STUDENT_PASSWORD = os.getenv("SIGESC_TEST_STUDENT_PASSWORD", "aluno123")
 ADMIN_EMAIL = "gutenberg@sigesc.com"
-ADMIN_PASSWORD = "@Celta2007"
+ADMIN_PASSWORD = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 
 
 # -------- Fixtures --------

@@ -1325,12 +1325,12 @@ export function SchoolsComplete() {
             {niveisAtivos.length > 0 ? (
               <div className="space-y-4">
                 {niveisAtivos.map((nivel, idx) => (
-                  <div key={idx} className={`p-4 rounded-lg border ${corClasses[nivel.cor]}`}>
+                  <div key={nivel.nome || `nivel-${idx}`} className={`p-4 rounded-lg border ${corClasses[nivel.cor]}`}>
                     <h5 className="font-semibold mb-2">{nivel.nome}</h5>
                     {nivel.subniveis.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {nivel.subniveis.map((sub, subIdx) => (
-                          <span key={subIdx} className="px-2 py-1 bg-white/50 rounded text-sm">
+                          <span key={`${nivel.nome}-${sub}-${subIdx}`} className="px-2 py-1 bg-white/50 rounded text-sm">
                             {sub}
                           </span>
                         ))}
@@ -1349,7 +1349,7 @@ export function SchoolsComplete() {
             {atendimentosAtivos.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {atendimentosAtivos.map((atend, idx) => (
-                  <span key={idx} className="px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm">
+                  <span key={`atend-${atend}-${idx}`} className="px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm">
                     ✓ {atend}
                   </span>
                 ))}
@@ -1797,7 +1797,7 @@ export function SchoolsComplete() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {schoolClasses.map((classItem, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
+                  <tr key={classItem.id || `class-${index}`} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">{classItem.name}</td>
                     <td className="px-4 py-3 text-sm text-center text-gray-900 font-medium">{classItem.student_count ?? '-'}</td>
                     <td className="px-4 py-3 text-sm">{renderTipoBadge(classItem.atendimento_programa)}</td>
@@ -2009,7 +2009,7 @@ export function SchoolsComplete() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {schoolStaff.map((staff, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
+                  <tr key={staff.id || staff.cpf || `staff-${index}`} className="hover:bg-gray-50">
                     {/* Nome */}
                     <td className="px-3 py-3 text-sm font-medium text-gray-900">{staff.nome}</td>
                     {/* CPF */}
@@ -2041,7 +2041,7 @@ export function SchoolsComplete() {
                       {staff.turmas && staff.turmas.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {staff.turmas.slice(0, 3).map((turma, idx) => (
-                            <span key={idx} className="inline-flex px-2 py-0.5 text-xs bg-blue-50 text-blue-700 rounded">
+                            <span key={`${staff.id || staff.cpf || index}-turma-${turma}-${idx}`} className="inline-flex px-2 py-0.5 text-xs bg-blue-50 text-blue-700 rounded">
                               {turma}
                             </span>
                           ))}

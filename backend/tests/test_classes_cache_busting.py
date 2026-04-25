@@ -17,7 +17,7 @@ class TestClassesCacheBusting:
         # Login to get token
         login_response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "gutenberg@sigesc.com", "password": "@Celta2007"}
+            json={"email": "gutenberg@sigesc.com", "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")}
         )
         assert login_response.status_code == 200, f"Login failed: {login_response.text}"
         self.token = login_response.json().get("access_token")

@@ -10,7 +10,7 @@ import requests
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://bulk-student-portal.preview.emergentagent.com').rstrip('/')
 ADMIN_EMAIL = "gutenberg@sigesc.com"
-ADMIN_PASSWORD = "@Celta2007"
+ADMIN_PASSWORD = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 
 
 @pytest.fixture(scope="module")

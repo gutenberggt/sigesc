@@ -22,7 +22,7 @@ if not BASE_URL:
                 break
 
 ADMIN_EMAIL = "gutenberg@sigesc.com"
-ADMIN_PASSWORD = "@Celta2007"
+ADMIN_PASSWORD = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 MANTENEDORA_ID = "a991c1ac-56b1-46a8-b122-effedbe19b21"
 
 CLASS_ID_AEE = "73844918-60b1-4c62-b6cb-a21a35cc49c1"

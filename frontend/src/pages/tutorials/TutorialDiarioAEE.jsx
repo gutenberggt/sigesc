@@ -149,7 +149,7 @@ export default function TutorialDiárioAEE() {
                 ].map((item, index) => {
                   const Icon = item.icon;
                   return (
-                    <div key={index} className={`bg-${item.color}-500/10 border border-${item.color}-500/20 rounded-xl p-4 flex items-center gap-4`}>
+                    <div key={item.title} className={`bg-${item.color}-500/10 border border-${item.color}-500/20 rounded-xl p-4 flex items-center gap-4`}>
                       <div className={`p-2 bg-${item.color}-500/20 rounded-lg`}>
                         <Icon size={20} className={`text-${item.color}-400`} />
                       </div>
@@ -382,7 +382,7 @@ export default function TutorialDiárioAEE() {
                   { label: 'Evidências', desc: 'Registre observações sobre o progresso' },
                   { label: 'Próximo Atendimento', desc: 'O que será trabalhado na próxima sessão?' },
                 ].map((item, index) => (
-                  <div key={index} className="flex gap-2 text-slate-300">
+                  <div key={item.label} className="flex gap-2 text-slate-300">
                     <span className="text-slate-200 font-medium min-w-[160px]">{item.label}:</span>
                     <span className="text-slate-400">{item.desc}</span>
                   </div>
@@ -461,7 +461,7 @@ export default function TutorialDiárioAEE() {
                   { num: '4', title: 'GERAR PDF', desc: '(mensalmente ou quando necessário)', color: 'purple' },
                   { num: '5', title: 'REVISAR PLANO', desc: '(conforme frequência definida)', color: 'blue' },
                 ].map((item, index) => (
-                  <div key={index} className="flex items-center gap-4">
+                  <div key={item.num} className="flex items-center gap-4">
                     <div className={`w-10 h-10 bg-${item.color}-500/20 text-${item.color}-400 rounded-full flex items-center justify-center font-bold text-lg`}>
                       {item.num}
                     </div>
@@ -507,7 +507,7 @@ export default function TutorialDiárioAEE() {
                     a: 'Edite o plano e atualize as informações de turma e professor regente.'
                   },
                 ].map((item, index) => (
-                  <div key={index} className="bg-slate-900/50 rounded-xl p-4">
+                  <div key={item.q || `faq-${index}`} className="bg-slate-900/50 rounded-xl p-4">
                     <h3 className="font-semibold text-white mb-2 flex items-start gap-2">
                       <span className="text-blue-400">P:</span>
                       {item.q}

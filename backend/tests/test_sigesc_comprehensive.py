@@ -11,7 +11,7 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
 TEST_EMAIL = "gutenberg@sigesc.com"
-TEST_PASSWORD = "@Celta2007"
+TEST_PASSWORD = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 
 
 @pytest.fixture(scope="session")

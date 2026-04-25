@@ -17,7 +17,7 @@ if not BASE_URL:
     except FileNotFoundError:
         pass
 
-CREDS = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}
+CREDS = {"email": "gutenberg@sigesc.com", "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")}
 
 
 @pytest.fixture(scope="module")

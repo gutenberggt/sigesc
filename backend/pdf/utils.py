@@ -156,7 +156,7 @@ def get_logo_path(logo_url=None):
     if not url:
         return None
     try:
-        url_hash = hashlib.md5(url.encode()).hexdigest()
+        url_hash = hashlib.sha256(url.encode()).hexdigest()
         suffix = '.jpg' if '.jpg' in url.lower() or '.jpeg' in url.lower() else '.png'
         cache_path = os.path.join(_logo_cache_dir, f'{url_hash}{suffix}')
         if os.path.exists(cache_path):
@@ -187,7 +187,7 @@ def get_logo_image(width=2*cm, height=2*cm, logo_url=None):
     if not url:
         return None
     try:
-        url_hash = hashlib.md5(url.encode()).hexdigest()
+        url_hash = hashlib.sha256(url.encode()).hexdigest()
         cache_key = (url_hash, width, height)
         
         # Cache em memória (mais rápido)

@@ -28,7 +28,7 @@ class TestTeacherAllocationIntegralClasses:
         self.token = None
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "gutenberg@sigesc.com",
-            "password": "@Celta2007"
+            "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
         })
         if response.status_code == 200:
             self.token = response.json().get('access_token')
@@ -214,7 +214,7 @@ class TestFilteredCoursesLogic:
         self.token = None
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "gutenberg@sigesc.com",
-            "password": "@Celta2007"
+            "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
         })
         if response.status_code == 200:
             self.token = response.json().get('access_token')

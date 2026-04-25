@@ -17,7 +17,7 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://bulk-student-portal.
 
 # Test credentials
 ADMIN_EMAIL = "gutenberg@sigesc.com"
-ADMIN_PASSWORD = "@Celta2007"
+ADMIN_PASSWORD = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 
 # Known IDs from previous tests
 KNOWN_COMPETENCY_ID = "4f702c74-46c6-4233-ba50-9e1443b493f2"

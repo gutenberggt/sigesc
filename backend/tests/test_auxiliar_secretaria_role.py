@@ -22,12 +22,12 @@ AUXILIAR_CREDENTIALS = {
 
 ADMIN_CREDENTIALS = {
     "email": "gutenberg@sigesc.com",
-    "password": "@Celta2007"
+    "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 }
 
 SECRETARIO_CREDENTIALS = {
     "email": "secretario@sigesc.com",
-    "password": "secretario123"
+    "password": os.getenv("SIGESC_TEST_SECRETARIO_PASSWORD", "secretario123")
 }
 
 class TestAuxiliarSecretariaLogin:

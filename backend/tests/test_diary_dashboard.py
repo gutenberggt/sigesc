@@ -20,7 +20,7 @@ class TestDiaryDashboardEndpoints:
         """Setup test - login as admin"""
         login_response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "gutenberg@sigesc.com",
-            "password": "@Celta2007"
+            "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
         })
         assert login_response.status_code == 200, f"Login failed: {login_response.text}"
         self.token = login_response.json()["access_token"]
@@ -154,7 +154,7 @@ class TestRolePermissions:
         """Setup test - login as admin"""
         login_response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "gutenberg@sigesc.com",
-            "password": "@Celta2007"
+            "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
         })
         assert login_response.status_code == 200
         self.admin_token = login_response.json()["access_token"]
@@ -195,7 +195,7 @@ class TestNewRolesDefinition:
         """Setup test - login as admin"""
         login_response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "gutenberg@sigesc.com",
-            "password": "@Celta2007"
+            "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
         })
         assert login_response.status_code == 200
         self.token = login_response.json()["access_token"]
@@ -229,7 +229,7 @@ class TestDiaryDashboardFilters:
         """Setup test - login as admin"""
         login_response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "gutenberg@sigesc.com",
-            "password": "@Celta2007"
+            "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
         })
         assert login_response.status_code == 200
         self.token = login_response.json()["access_token"]

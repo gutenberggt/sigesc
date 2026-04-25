@@ -14,7 +14,7 @@ import os
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL').rstrip('/')
 
 # Test credentials
-ADMIN_CREDENTIALS = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}
+ADMIN_CREDENTIALS = {"email": "gutenberg@sigesc.com", "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")}
 SEMED3_CREDENTIALS = {"email": "semed3test@sigesc.com", "password": "Semed3Test123"}
 
 

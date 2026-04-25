@@ -10,7 +10,7 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
 ADMIN_EMAIL = "gutenberg@sigesc.com"
-ADMIN_PASSWORD = "@Celta2007"
+ADMIN_PASSWORD = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 
 # Test school ID (ESCOLA TESTE MULTISSERIADA)
 TEST_SCHOOL_ID = "220d4022-ec5e-4fb6-86fc-9233112b87b2"

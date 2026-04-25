@@ -32,7 +32,7 @@ from auth_utils import hash_password  # noqa: E402
 load_dotenv(BACKEND_DIR / ".env")
 
 TEST_EMAIL = "aluno@sigesc.com"
-TEST_PASSWORD = "aluno123"
+TEST_PASSWORD = os.getenv("SIGESC_TEST_STUDENT_PASSWORD", "aluno123")
 
 
 async def _pick_best_student(db) -> dict | None:

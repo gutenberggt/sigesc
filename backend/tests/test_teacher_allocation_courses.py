@@ -17,7 +17,7 @@ class TestCoursesAPI:
         """Get authentication token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "gutenberg@sigesc.com",
-            "password": "@Celta2007"
+            "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
         })
         assert response.status_code == 200, f"Login failed: {response.text}"
         return response.json().get("access_token")
@@ -71,7 +71,7 @@ class TestClassesAPI:
         """Get authentication token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "gutenberg@sigesc.com",
-            "password": "@Celta2007"
+            "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
         })
         assert response.status_code == 200
         return response.json().get("access_token")
@@ -127,7 +127,7 @@ class TestTeacherAllocationFlow:
         """Get authentication token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "gutenberg@sigesc.com",
-            "password": "@Celta2007"
+            "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
         })
         assert response.status_code == 200
         return response.json().get("access_token")
@@ -208,7 +208,7 @@ class TestSchoolAtendimentoIntegral:
         """Get authentication token"""
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
             "email": "gutenberg@sigesc.com",
-            "password": "@Celta2007"
+            "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
         })
         assert response.status_code == 200
         return response.json().get("access_token")

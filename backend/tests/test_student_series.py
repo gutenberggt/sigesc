@@ -251,7 +251,7 @@ def auth_token(api_client):
     """Get authentication token"""
     response = api_client.post(f"{BASE_URL}/api/auth/login", json={
         "email": "gutenberg@sigesc.com",
-        "password": "@Celta2007"
+        "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
     })
     if response.status_code == 200:
         return response.json().get("access_token")

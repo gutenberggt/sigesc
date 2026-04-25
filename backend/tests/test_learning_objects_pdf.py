@@ -33,7 +33,7 @@ if not BASE_URL:
 
 # Test credentials
 ADMIN_EMAIL = "gutenberg@sigesc.com"
-ADMIN_PASSWORD = "@Celta2007"
+ADMIN_PASSWORD = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 
 # Test data
 CLASS_WITH_RECORDS = "2df28f9e-1b80-4bbb-828a-d5a477639854"  # PRE-ESCOLA I with 6 records

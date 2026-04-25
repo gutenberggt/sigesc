@@ -22,7 +22,7 @@ class TestSchoolStatusUpdate:
         # Login to get token
         login_response = self.session.post(f"{BASE_URL}/api/auth/login", json={
             "email": "gutenberg@sigesc.com",
-            "password": "@Celta2007"
+            "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
         })
         
         if login_response.status_code != 200:
@@ -150,7 +150,7 @@ class TestClassCreation:
         # Login to get token
         login_response = self.session.post(f"{BASE_URL}/api/auth/login", json={
             "email": "gutenberg@sigesc.com",
-            "password": "@Celta2007"
+            "password": os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
         })
         
         if login_response.status_code != 200:

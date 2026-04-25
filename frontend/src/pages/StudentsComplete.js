@@ -604,6 +604,14 @@ export function StudentsComplete() {
         mergedData[key] = value;
       }
     });
+    // Injeta _key estável em authorized_persons carregados do backend
+    // (necessário pois React precisa de chave estável; backend não persiste _key)
+    if (Array.isArray(mergedData.authorized_persons)) {
+      mergedData.authorized_persons = mergedData.authorized_persons.map((p, i) => ({
+        ...p,
+        _key: p._key || `ap-loaded-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`
+      }));
+    }
     setFormData(mergedData);
     setIsModalOpen(true);
     
@@ -1188,6 +1196,11 @@ export function StudentsComplete() {
         cleanData[field] = null;
       }
     });
+    // Remove _key (apenas para chave estável no React, não deve ser persistido)
+    if (Array.isArray(cleanData.authorized_persons)) {
+      // eslint-disable-next-line no-unused-vars
+      cleanData.authorized_persons = cleanData.authorized_persons.map(({ _key, ...rest }) => rest);
+    }
 
     try {
       if (editingStudent) {
@@ -1305,7 +1318,10 @@ export function StudentsComplete() {
     }
     setFormData(prev => ({
       ...prev,
-      authorized_persons: [...prev.authorized_persons, { name: '', relationship: '', phone: '', document: '' }]
+      authorized_persons: [
+        ...prev.authorized_persons,
+        { _key: `ap-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: '', relationship: '', phone: '', document: '' }
+      ]
     }));
   };
 
@@ -2312,7 +2328,7 @@ export function StudentsComplete() {
         </div>
 
         {formData.authorized_persons.map((person, index) => (
-          <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+          <div key={person._key || `ap-${index}`} className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
               <input
@@ -2644,7 +2660,7 @@ export function StudentsComplete() {
       
       <div className="space-y-2">
         {formData.documents_urls.map((url, index) => (
-          <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+          <div key={url || `doc-${index}`} className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
             <FileText className="text-gray-600" size={20} />
             <span className="flex-1 text-sm text-gray-700 truncate">
               {url.split('/').pop() || `Documento ${index + 1}`}

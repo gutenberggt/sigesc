@@ -18,7 +18,7 @@ class TTLCache:
     def _make_key(self, prefix: str, params: dict) -> str:
         """Gera chave de cache baseada no prefixo e parâmetros."""
         raw = json.dumps(params, sort_keys=True, default=str)
-        return f"{prefix}:{hashlib.md5(raw.encode()).hexdigest()}"
+        return f"{prefix}:{hashlib.sha256(raw.encode()).hexdigest()}"
     
     def get(self, prefix: str, params: dict) -> Optional[Any]:
         """Busca valor do cache. Retorna None se expirado ou não existe."""

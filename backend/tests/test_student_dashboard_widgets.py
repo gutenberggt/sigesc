@@ -20,9 +20,9 @@ BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or _load_frontend_env() or "
 assert BASE_URL, "REACT_APP_BACKEND_URL not configured"
 
 STUDENT_EMAIL = "aluno@sigesc.com"
-STUDENT_PASS = "aluno123"
+STUDENT_PASS = os.getenv("SIGESC_TEST_STUDENT_PASSWORD", "aluno123")
 ADMIN_EMAIL = "gutenberg@sigesc.com"
-ADMIN_PASS = "@Celta2007"
+ADMIN_PASS = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 MANTENEDORA_ID = "a991c1ac-56b1-46a8-b122-effedbe19b21"
 STUDENT_USER_ID = "92207223-0af8-446c-abfe-b2810dbbc48c"
 STUDENT_CLASS_ID = "9f71ed93"  # prefix; find full from student enrollments

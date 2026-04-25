@@ -43,7 +43,7 @@ class TestAEEPermissions:
     @pytest.fixture(autouse=True)
     def setup(self):
         """Setup admin token for creating test users"""
-        self.admin_token = TestAuthHelper.login("gutenberg@sigesc.com", "@Celta2007")
+        self.admin_token = TestAuthHelper.login("gutenberg@sigesc.com", os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007"))
         assert self.admin_token, "Admin login failed"
         self.admin_headers = TestAuthHelper.get_headers(self.admin_token)
     
@@ -97,7 +97,7 @@ class TestAuditPermissions:
     @pytest.fixture(autouse=True)
     def setup(self):
         """Setup admin token"""
-        self.admin_token = TestAuthHelper.login("gutenberg@sigesc.com", "@Celta2007")
+        self.admin_token = TestAuthHelper.login("gutenberg@sigesc.com", os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007"))
         assert self.admin_token, "Admin login failed"
         self.admin_headers = TestAuthHelper.get_headers(self.admin_token)
     
@@ -145,7 +145,7 @@ class TestAnnouncementsPermissions:
     @pytest.fixture(autouse=True)
     def setup(self):
         """Setup admin token"""
-        self.admin_token = TestAuthHelper.login("gutenberg@sigesc.com", "@Celta2007")
+        self.admin_token = TestAuthHelper.login("gutenberg@sigesc.com", os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007"))
         assert self.admin_token, "Admin login failed"
         self.admin_headers = TestAuthHelper.get_headers(self.admin_token)
     

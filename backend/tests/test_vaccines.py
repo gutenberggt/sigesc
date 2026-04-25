@@ -15,9 +15,9 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
 ADMIN_EMAIL = "gutenberg@sigesc.com"
-ADMIN_PASSWORD = "@Celta2007"
+ADMIN_PASSWORD = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 VACCINE_AGENT_EMAIL = "vacinas@sigesc.com"
-VACCINE_AGENT_PASSWORD = "@Celta2007"
+VACCINE_AGENT_PASSWORD = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 
 # Test data from context
 TEST_STUDENT_ID = "5c63ab15-1e48-4da2-946e-b9543003dae7"  # MARIA SILVA

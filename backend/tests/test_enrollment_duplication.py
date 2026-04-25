@@ -29,7 +29,7 @@ ACADEMIC_YEAR = 2026
 
 # Admin credentials
 ADMIN_EMAIL = "gutenberg@sigesc.com"
-ADMIN_PASSWORD = "@Celta2007"
+ADMIN_PASSWORD = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 
 
 class TestEnrollmentDuplication:

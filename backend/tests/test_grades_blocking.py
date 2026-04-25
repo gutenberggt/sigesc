@@ -19,9 +19,9 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
 ADMIN_EMAIL = "gutenberg@sigesc.com"
-ADMIN_PASSWORD = "@Celta2007"
+ADMIN_PASSWORD = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 SECRETARIO_EMAIL = "secretario@sigesc.com"
-SECRETARIO_PASSWORD = "secretario123"
+SECRETARIO_PASSWORD = os.getenv("SIGESC_TEST_SECRETARIO_PASSWORD", "secretario123")
 
 # Test class with students having various blocking states
 TEST_CLASS_ID = "c09b8666-c8bb-40d1-b835-c2b0fa4b8ecd"
