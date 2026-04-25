@@ -104,6 +104,36 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
   - **Defesa em profundidade no backend** (Feb 2026): `AuthorizedPerson` model tem `ConfigDict(extra="ignore")` explícito; novo `tests/test_authorized_persons_sanitization.py` (2 testes, ambos passando) garante via PUT e POST que `_key` é silenciosamente descartado e nunca chega ao MongoDB. Estratégia: sanitização (não rejeição) — se um cliente legado enviar `_key`, a API ainda funciona.
 - **Itens descartados após análise:** `is None`/`is True`/`is False` na codebase são **semanticamente corretos** (distinguem `None` de `False`), e o reviewer flaggeou erroneamente.
 
+### Code Quality - Onda 2 (Hook Dependencies, Feb 2026)
+**Estratégia: 1 arquivo por vez, parar para teste manual entre cada um.**
+
+#### useStaff.js ✅ (commitado)
+- Função `extractErrorMessage` movida do escopo do hook para escopo de módulo (linha 10). Era recriada a cada render, causando referência stale nos 4 useCallback que a usavam mas não a incluíam nas deps.
+- Solução cirúrgica: 1 mudança resolveu os 4 callbacks flagados. Mais correta que adicionar nas deps (que recriaria callbacks a cada render).
+- Validação E2E: aba Lotações + edição de servidor + Salvar → toast verde. 0 errors/warnings/loops. `extractErrorMessage` testado com mocks (Pydantic array, string, vazio, sem response) — todos os caminhos OK.
+
+#### VaccineDashboard.js ✅ (commitado)
+- Diagnóstico real diferente do reviewer: as deps arrays dos 4 useEffects estavam corretas (setters e module imports são inerentemente estáveis).
+- **Bug latente real encontrado:** `localStorage.getItem('accessToken')` lido a cada render → token NÃO se atualizava reativamente em renovações automáticas. As 7 chamadas axios diretas usariam token stale após renovação até algum setState forçar re-render.
+- Fix (1 linha): `const { user, logout, accessToken: token } = useAuth();` substituiu o read de localStorage. Token agora reativo.
+- Validação: cards KPI populados, 0 errors/warnings/loops.
+
+#### Grades.js ✅ (a aguardando teste manual em produção)
+- **Confirmado: useMemo `gradesContextValue` (linha 629) era inútil** — 6 funções (`loadGradesByClass`, `handleSelectStudent`, `handleClearSearch`, `updateLocalGrade`, `saveGrades`, `updateStudentGrade`) eram recriadas a cada render e estavam no deps array → memo invalidava sempre.
+- **8 mudanças aplicadas:** 7 funções envolvidas em `useCallback` com deps mínimas + `showAlert` adicionalmente.
+- **Bonus de imutabilidade** em `updateLocalGrade` e `updateStudentGrade`: trocados de `[...gradesData]` (captura no closure) e mutação in-place para **functional setState** (`setGradesData(prev => ...)`) com spread imutável. Elimina:
+  - Risco de média stale em digitações rápidas (race condition)
+  - Mutação acidental do prevState (anti-pattern React)
+  - Permite remover `gradesData` e `studentGrades` das deps dos callbacks (eram instabilizadores).
+- **Os 3 riscos antecipados pelo usuário:**
+  - 🚨 Cálculo errado: blindado (cálculo agora dentro do functional setState)
+  - 🚨 Stale data: blindado (functional setState garante estado mais recente)
+  - 🚨 useMemo inútil: resolvido (callbacks estáveis fazem o memo realmente cachear)
+- Smoke E2E passou (0 errors/warnings/loops). Teste com digitação real pendente — banco preview tem turma sem alunos. **Aguarda validação manual em produção.**
+
+#### Attendance.js ⏸️ (pendente — após validação de Grades.js)
+#### Split App.js ⏸️ (Onda 2 item g — após Attendance.js)
+
 ## Current Backlog
 
 ### P1
