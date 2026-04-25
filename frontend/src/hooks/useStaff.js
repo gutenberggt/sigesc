@@ -4,6 +4,24 @@ import { hasRole } from '@/utils/permissions';
 import { staffAPI, schoolAssignmentAPI, teacherAssignmentAPI, schoolsAPI, classesAPI, coursesAPI } from '@/services/api';
 import { INITIAL_STAFF_FORM, INITIAL_LOTACAO_FORM, INITIAL_ALOCACAO_FORM } from '@/components/staff/constants';
 
+// Função pura, sem dependência de state/props/hook — fica estável fora do componente.
+// Antes estava redefinida a cada render do hook, causando referência stale nos useCallback
+// que a usavam mas não a incluíam nas deps.
+const extractErrorMessage = (error) => {
+  const detail = error.response?.data?.detail;
+  if (typeof detail === 'string') {
+    return detail;
+  }
+  if (Array.isArray(detail) && detail.length > 0) {
+    // Erro de validação Pydantic - extrai a mensagem do primeiro erro
+    return detail[0]?.msg || detail[0]?.message || 'Erro de validação';
+  }
+  if (detail && typeof detail === 'object') {
+    return detail.msg || detail.message || 'Erro desconhecido';
+  }
+  return 'Erro ao processar requisição';
+};
+
 export const useStaff = () => {
   const { user } = useAuth();
   const academicYear = new Date().getFullYear();
@@ -91,22 +109,6 @@ export const useStaff = () => {
   // Permissões
   const canEdit = hasRole(user, ['admin', 'admin_teste', 'gerente', 'secretario']);
   const canDelete = hasRole(user, ['admin', 'admin_teste', 'gerente', 'secretario']);
-  
-  // Helper para extrair mensagem de erro do Pydantic ou string
-  const extractErrorMessage = (error) => {
-    const detail = error.response?.data?.detail;
-    if (typeof detail === 'string') {
-      return detail;
-    }
-    if (Array.isArray(detail) && detail.length > 0) {
-      // Erro de validação Pydantic - extrai a mensagem do primeiro erro
-      return detail[0]?.msg || detail[0]?.message || 'Erro de validação';
-    }
-    if (detail && typeof detail === 'object') {
-      return detail.msg || detail.message || 'Erro desconhecido';
-    }
-    return 'Erro ao processar requisição';
-  };
   
   // Alert helper
   const showAlertMessage = useCallback((type, message) => {
