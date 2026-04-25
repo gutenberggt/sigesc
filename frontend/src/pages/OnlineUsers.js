@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, Wifi, Monitor, Clock, RefreshCw, Home } from 'lucide-react';
+import { Users, Wifi, Monitor, Clock, RefreshCw, Home, LogOut, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { hasRole } from '@/utils/permissions';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -34,13 +35,18 @@ const ROLE_COLORS = {
 };
 
 export default function OnlineUsers() {
-  const { accessToken } = useAuth();
+  const { user: currentUser, accessToken } = useAuth();
   const navigate = useNavigate();
   const tokenRef = useRef(accessToken);
   tokenRef.current = accessToken;
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [confirmTarget, setConfirmTarget] = useState(null); // user a desconectar
+  const [revoking, setRevoking] = useState(false);
+  const [feedback, setFeedback] = useState(null); // { type, message }
+  
+  const isSuperAdmin = hasRole(currentUser, ['super_admin']);
 
   const fetchOnlineUsers = async () => {
     try {
@@ -57,6 +63,34 @@ export default function OnlineUsers() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForceLogout = async () => {
+    if (!confirmTarget) return;
+    setRevoking(true);
+    try {
+      const response = await fetch(
+        `${API_URL}/api/admin/sessions/revoke/${confirmTarget.id}`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${tokenRef.current}` }
+        }
+      );
+      if (response.ok) {
+        setFeedback({ type: 'success', message: `Sessões de ${confirmTarget.full_name} encerradas com sucesso.` });
+        setConfirmTarget(null);
+        // Atualiza lista após pequeno delay (deixa backend processar)
+        setTimeout(fetchOnlineUsers, 800);
+      } else {
+        const body = await response.json().catch(() => ({}));
+        setFeedback({ type: 'error', message: body.detail || 'Erro ao encerrar sessões.' });
+      }
+    } catch (error) {
+      setFeedback({ type: 'error', message: 'Falha de rede ao encerrar sessões.' });
+    } finally {
+      setRevoking(false);
+    }
+    setTimeout(() => setFeedback(null), 5000);
   };
 
   useEffect(() => {

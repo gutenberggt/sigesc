@@ -80,8 +80,8 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
 
     @router.get("/admin/online-users")
     async def get_online_users(request: Request):
-        """Retorna lista de usuários online (apenas admin e semed3)"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'semed3'])(request)
+        """Retorna lista de usuários online (apenas admin/super_admin/semed3)"""
+        current_user = await AuthMiddleware.require_roles(['super_admin', 'admin', 'admin_teste', 'semed3'])(request)
         current_db = get_db_for_user(current_user) if get_db_for_user else db
 
         online = active_sessions.get_online(threshold_minutes=5) if active_sessions else {}
@@ -132,6 +132,72 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
 
         result.sort(key=lambda x: unicodedata.normalize('NFD', x['full_name']).encode('ascii', 'ignore').decode('ascii'))
         return result
+
+    @router.post("/admin/sessions/revoke/{user_id}")
+    async def force_logout_user(user_id: str, request: Request):
+        """
+        Força logout remoto: revoga todos os access/refresh tokens de um usuário.
+        Apenas super_admin pode invocar — útil quando aluno/professor esquece
+        sessão aberta em PC compartilhado e secretaria precisa encerrar
+        sem saber a senha.
+        """
+        from auth_utils import token_blacklist
+        current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
+
+        # Carrega dados do alvo para audit (com escopo correto se multi-tenant)
+        current_db = get_db_for_user(current_user) if get_db_for_user else db
+        target = await current_db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "full_name": 1, "email": 1, "role": 1})
+        if not target:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado")
+
+        # Não permite super_admin se desconectar via essa rota (use logout normal)
+        if target['id'] == current_user['id']:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Use /api/auth/logout para encerrar sua própria sessão"
+            )
+
+        # Revoga todos os tokens (access + refresh via revoke_all_before)
+        await token_blacklist.revoke_all_user_tokens(
+            user_id=user_id,
+            reason=f'admin_force_logout_by_{current_user["id"]}'
+        )
+
+        # Remove do tracker de sessões ativas (deixa de aparecer em /online-users)
+        if active_sessions:
+            active_sessions.remove(user_id)
+
+        # Audit log
+        try:
+            from services.audit_service import audit_service
+            await audit_service.log(
+                action='force_logout',
+                collection='users',
+                user=current_user,
+                request=request,
+                document_id=user_id,
+                description=f"Logout remoto forçado: {target.get('full_name')} ({target.get('email')}) - {target.get('role')}"
+            )
+        except Exception as e:
+            logger.error(f"Falha ao registrar audit de force_logout: {e}")
+
+        # Notifica via WebSocket (se conectado) para que o frontend trate o logout em tempo real
+        if connection_manager:
+            try:
+                await connection_manager.send_message(user_id, {
+                    "type": "force_logout",
+                    "reason": "admin_force_logout",
+                    "message": "Sua sessão foi encerrada pelo administrador"
+                })
+            except Exception as e:
+                logger.error(f"Falha ao notificar via WS: {e}")
+
+        return {
+            "message": "Sessões revogadas com sucesso",
+            "user_id": user_id,
+            "user_name": target.get('full_name'),
+            "user_email": target.get('email'),
+        }
 
     @router.post("/admin/migrate-payroll-hours")
     async def migrate_payroll_hours(request: Request):
