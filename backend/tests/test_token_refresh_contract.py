@@ -169,16 +169,6 @@ class TestTokenRefreshContract:
 class TestLogoutBlacklist:
     """Logout deve invalidar o access_token mesmo antes de seu vencimento natural."""
 
-    @pytest.mark.xfail(
-        reason=(
-            "DESCOBERTA: backend NÃO está blacklistando tokens após /api/auth/logout. "
-            "auth_utils.token_blacklist existe mas AuthMiddleware aparentemente não consulta "
-            "antes de aceitar a request. Issue de segurança pré-existente — fora do escopo "
-            "da Onda 2 de hooks. Recomendação: criar issue separado para revisar o "
-            "fluxo de blacklist em /app/backend/auth_middleware.py + /api/auth/logout."
-        ),
-        strict=False,
-    )
     def test_logout_blacklists_access_token(self):
         # Login isolado pra não interferir com a outra suíte
         login = requests.post(
@@ -209,6 +199,83 @@ class TestLogoutBlacklist:
         after = _get_me(token)
         assert after.status_code == 401, (
             f"Token deveria ser blacklistado após logout. Status: {after.status_code}, body: {after.text}"
+        )
+
+    def test_logout_invalidates_refresh_token(self):
+        """Após logout, refresh_token também deve ser bloqueado."""
+        login = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD},
+            timeout=20,
+        )
+        if login.status_code != 200:
+            pytest.skip("Login falhou")
+        body = login.json()
+        access = body.get("access_token") or body.get("token")
+        refresh = body.get("refresh_token")
+
+        # Logout enviando refresh_token explicitamente (revoga jti específico)
+        requests.post(
+            f"{BASE_URL}/api/auth/logout",
+            headers={"Authorization": f"Bearer {access}"},
+            json={"refresh_token": refresh},
+            timeout=20,
+        )
+
+        # Tenta usar o refresh — deve ser rejeitado
+        r = requests.post(
+            f"{BASE_URL}/api/auth/refresh",
+            json={"refresh_token": refresh},
+            timeout=20,
+        )
+        assert r.status_code == 401, (
+            f"Refresh token deveria ser bloqueado após logout. Status: {r.status_code}"
+        )
+
+    def test_logout_revokes_other_concurrent_sessions(self):
+        """
+        Crítico para ambiente educacional: usuário logado em 2 devices.
+        Logout em device A deve invalidar token em device B.
+        """
+        # Aguarda 1.1s para garantir que iat (segundo) seja > revoke_all_before
+        # de testes anteriores deste módulo (microssegundos do mesmo segundo).
+        import time
+        time.sleep(1.1)
+        # Login no device A
+        login_a = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD},
+            timeout=20,
+        )
+        if login_a.status_code != 200:
+            pytest.skip("Login falhou")
+        token_a = login_a.json().get("access_token") or login_a.json().get("token")
+
+        # Login no device B (mesmo usuário, sessão separada)
+        login_b = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD},
+            timeout=20,
+        )
+        token_b = login_b.json().get("access_token") or login_b.json().get("token")
+
+        # Ambos devem funcionar inicialmente
+        assert _get_me(token_a).status_code == 200
+        assert _get_me(token_b).status_code == 200
+
+        # Logout no device A
+        requests.post(
+            f"{BASE_URL}/api/auth/logout",
+            headers={"Authorization": f"Bearer {token_a}"},
+            timeout=20,
+        )
+
+        # Token B (de outro device) também deve ser invalidado
+        # (revoke_all_user_tokens usa marker user-wide)
+        after_b = _get_me(token_b)
+        assert after_b.status_code == 401, (
+            f"Sessão concorrente do device B deveria ser invalidada após logout. "
+            f"Status: {after_b.status_code}, body: {after_b.text}"
         )
 
 

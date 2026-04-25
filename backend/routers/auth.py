@@ -162,6 +162,19 @@ def setup_router(db, audit_service):
                 )
             
             user_id = payload.get('sub')
+            
+            # Bloqueia refresh se token foi revogado individualmente OU se o usuário
+            # tem revoke_all_before posterior ao iat deste refresh_token (ex.: logout).
+            refresh_jti = payload.get('jti')
+            refresh_iat = payload.get('iat')
+            if await token_blacklist.is_token_revoked(
+                jti=refresh_jti, user_id=user_id, issued_at=refresh_iat
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Refresh token revogado"
+                )
+            
             user_doc = await db.users.find_one({"id": user_id}, {"_id": 0})
             
             if not user_doc:
@@ -282,9 +295,16 @@ def setup_router(db, audit_service):
 
     @router.post("/logout")
     async def logout(request: Request):
-        """Revoga o refresh token atual do usuário."""
+        """
+        Revoga o refresh token atual + todos os access tokens emitidos antes
+        do logout (via revoke_all_before).
+        Em ambiente educacional (multi-device, salas compartilhadas), logout
+        invalida todas as sessões do usuário — comportamento mais seguro que
+        deixar access_tokens válidos até expirarem naturalmente (15min).
+        """
         current_user = await AuthMiddleware.get_current_user(request)
         
+        # Revoga refresh_token específico (se enviado)
         try:
             body = await request.json()
             refresh_token = body.get('refresh_token')
@@ -301,8 +321,15 @@ def setup_router(db, audit_service):
                         expires_at=exp_datetime,
                         reason='user_logout'
                     )
-        except:
+        except Exception:
             pass
+        
+        # Revoga TODOS os access_tokens emitidos antes deste momento
+        # (auth_middleware consulta is_token_revoked com user_id+iat).
+        await token_blacklist.revoke_all_user_tokens(
+            user_id=current_user['id'],
+            reason='user_logout'
+        )
         
         await audit_service.log(
             action='logout',

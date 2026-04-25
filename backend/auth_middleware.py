@@ -1,7 +1,7 @@
 from fastapi import Request, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Optional
-from auth_utils import decode_token
+from auth_utils import decode_token, token_blacklist
 import logging
 
 logger = logging.getLogger(__name__)
@@ -56,6 +56,22 @@ class AuthMiddleware:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail='Token inválido',
             )
+        
+        # Consulta blacklist: token revogado individualmente (jti) OU dentro
+        # da janela de revoke_all (logout). O comparador usa iat (issued at) do
+        # access_token. Tokens emitidos antes do fix (sem iat) ignoram o
+        # check de revoke_all_before, mas continuam expirando naturalmente.
+        issued_at = payload.get('iat')
+        token_jti = payload.get('jti')  # access tokens novos podem ter jti no futuro
+        if issued_at is not None or token_jti is not None:
+            if await token_blacklist.is_token_revoked(
+                jti=token_jti, user_id=user_id, issued_at=issued_at
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail='Token revogado',
+                    headers={'WWW-Authenticate': 'Bearer'},
+                )
         
         return {
             'id': user_id,

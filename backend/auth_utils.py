@@ -37,14 +37,20 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
-    """Cria token de acesso JWT - PATCH 3.1: TTL reduzido"""
+    """Cria token de acesso JWT - PATCH 3.1: TTL reduzido + iat para suportar revogação via revoke_all"""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
-    to_encode.update({'exp': expire, 'type': 'access'})
+    # iat (numérico) permite que TokenBlacklistService.is_token_revoked compare
+    # com revoke_all_before quando logout invalida todas as sessões do usuário.
+    to_encode.update({
+        'exp': expire,
+        'type': 'access',
+        'iat': int(datetime.now(timezone.utc).timestamp())
+    })
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -194,8 +200,15 @@ class TokenBlacklistService:
                         'revoke_all_before': {'$exists': True}
                     }, sort=[('revoke_all_before', -1)])
                     
-                    if revoke_all and token_issued < revoke_all['revoke_all_before']:
-                        return True
+                    if revoke_all:
+                        # Motor sem tz_aware retorna datetime naive do Mongo;
+                        # nosso token_issued é aware. Normalizamos para evitar
+                        # TypeError na comparação que era engolido pelo except.
+                        revoke_before = revoke_all['revoke_all_before']
+                        if revoke_before.tzinfo is None:
+                            revoke_before = revoke_before.replace(tzinfo=timezone.utc)
+                        if token_issued < revoke_before:
+                            return True
                 except Exception as e:
                     logger.debug(f"[TokenBlacklist] Erro ao verificar revoke_all: {e}")
             

@@ -118,6 +118,10 @@ _shared_kwargs = {
 # Inicializa o serviço de auditoria com a conexão do banco
 audit_service.set_db(db)
 
+# PATCH 3.3: Inicializa o blacklist top-level (set_db é sync; ensure_index roda no startup event)
+# Garante que mesmo se startup event falhar, blacklist tem db.
+token_blacklist.set_db(db)
+
 # Create the main app
 app = FastAPI(title="SIGESC API", version="1.0.0")
 
