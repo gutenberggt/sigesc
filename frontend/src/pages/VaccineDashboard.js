@@ -10,7 +10,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function VaccineDashboard() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, accessToken: token } = useAuth();
   const [searchType, setSearchType] = useState('name');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -25,7 +25,6 @@ export default function VaccineDashboard() {
   const [vaccineStatus, setVaccineStatus] = useState(null); // current student vaccine status
   const [savingStatus, setSavingStatus] = useState(false);
   const academicYear = new Date().getFullYear();
-  const token = localStorage.getItem('accessToken');
 
   // Estado para listagem por turma
   const [listYear, setListYear] = useState(new Date().getFullYear());
