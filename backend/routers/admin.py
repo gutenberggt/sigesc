@@ -3,11 +3,13 @@ Router para endpoints administrativos.
 Extraído de server.py durante a refatoração modular.
 """
 
+import logging
 from fastapi import APIRouter, HTTPException, status, Request
 import unicodedata
 
 from auth_middleware import AuthMiddleware
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Admin"])
 
 
