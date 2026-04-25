@@ -245,10 +245,10 @@ export function Grades() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
   
-  const showAlert = (type, message) => {
+  const showAlert = useCallback((type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 5000);
-  };
+  }, []);
   
   // Turma selecionada (para obter nível de ensino e série)
   const selectedClassData = isProfessor 
@@ -386,7 +386,7 @@ export function Grades() {
   
   // Carrega notas por turma
   // Carrega notas por turma (com suporte offline)
-  const loadGradesByClass = async () => {
+  const loadGradesByClass = useCallback(async () => {
     if (!selectedClass || !selectedCourse) return;
     
     setLoading(true);
@@ -463,10 +463,10 @@ export function Grades() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedClass, selectedCourse, isOnline, academicYear, isMultiGrade, selectedSeries, showAlert]);
   
   // Carrega notas por aluno
-  const loadGradesByStudent = async (studentId) => {
+  const loadGradesByStudent = useCallback(async (studentId) => {
     setLoading(true);
     try {
       const data = await gradesAPI.getByStudent(studentId, academicYear);
@@ -477,54 +477,55 @@ export function Grades() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [academicYear, showAlert]);
   
   // Seleciona aluno
-  const handleSelectStudent = (student) => {
+  const handleSelectStudent = useCallback((student) => {
     setSelectedStudent(student);
     setSearchName(student.full_name || '');
     setSearchCpf(student.cpf || '');
     setShowNameSuggestions(false);
     setShowCpfSuggestions(false);
     loadGradesByStudent(student.id);
-  };
+  }, [loadGradesByStudent]);
   
   // Limpa busca
-  const handleClearSearch = () => {
+  const handleClearSearch = useCallback(() => {
     setSearchName('');
     setSearchCpf('');
     setSelectedStudent(null);
     setStudentGrades(null);
     setShowNameSuggestions(false);
     setShowCpfSuggestions(false);
-  };
+  }, []);
   
   // Atualiza nota local (por turma)
-  const updateLocalGrade = (index, field, value) => {
-    const newData = [...gradesData];
-    newData[index].grade[field] = value;
-    
-    const g = newData[index].grade;
-    
-    if (usaConceito) {
-      // Educação Infantil ou 1º/2º Ano: média é o MAIOR conceito alcançado
-      g.final_average = calcularMaiorConceito(g.b1, g.b2, g.b3, g.b4);
-      // Se não há nenhum conceito lançado, status é cursando
-      g.status = g.final_average !== null ? 'aprovado' : 'cursando';
-    } else {
-      // Outros níveis: Recalcula média com recuperações por semestre
-      g.final_average = calculateAverage(g.b1, g.b2, g.b3, g.b4, g.rec_s1, g.rec_s2);
-      g.status = g.final_average !== null 
-        ? (g.final_average >= 5 ? 'aprovado' : 'reprovado_nota')
-        : 'cursando';
-    }
-    
-    setGradesData(newData);
+  const updateLocalGrade = useCallback((index, field, value) => {
+    setGradesData(prevData => {
+      const newData = [...prevData];
+      newData[index] = { ...newData[index], grade: { ...newData[index].grade, [field]: value } };
+      const g = newData[index].grade;
+      
+      if (usaConceito) {
+        // Educação Infantil ou 1º/2º Ano: média é o MAIOR conceito alcançado
+        g.final_average = calcularMaiorConceito(g.b1, g.b2, g.b3, g.b4);
+        // Se não há nenhum conceito lançado, status é cursando
+        g.status = g.final_average !== null ? 'aprovado' : 'cursando';
+      } else {
+        // Outros níveis: Recalcula média com recuperações por semestre
+        g.final_average = calculateAverage(g.b1, g.b2, g.b3, g.b4, g.rec_s1, g.rec_s2);
+        g.status = g.final_average !== null 
+          ? (g.final_average >= 5 ? 'aprovado' : 'reprovado_nota')
+          : 'cursando';
+      }
+      
+      return newData;
+    });
     setHasChanges(true);
-  };
+  }, [usaConceito]);
   
   // Salva notas da turma (com suporte offline)
-  const saveGrades = async () => {
+  const saveGrades = useCallback(async () => {
     setSaving(true);
     try {
       const gradesToSave = gradesData.map(item => ({
@@ -584,25 +585,30 @@ export function Grades() {
     } finally {
       setSaving(false);
     }
-  };
+  }, [gradesData, selectedClass, selectedCourse, academicYear, isOnline, loadGradesByClass, showAlert]);
   
   // Atualiza nota individual do aluno
-  const updateStudentGrade = async (gradeId, courseId, field, value) => {
+  const updateStudentGrade = useCallback(async (gradeId, courseId, field, value) => {
     if (!selectedStudent) return;
     
-    // Atualiza localmente primeiro
-    const newGrades = { ...studentGrades };
-    const gradeIndex = newGrades.grades.findIndex(g => g.course_id === courseId);
-    
-    if (gradeIndex >= 0) {
-      newGrades.grades[gradeIndex][field] = value;
-      const g = newGrades.grades[gradeIndex];
-      g.final_average = calculateAverage(g.b1, g.b2, g.b3, g.b4, g.rec_s1, g.rec_s2);
-      g.status = g.final_average !== null 
-        ? (g.final_average >= 5 ? 'aprovado' : 'reprovado_nota')
-        : 'cursando';
-      setStudentGrades(newGrades);
-    }
+    // Atualiza localmente primeiro (functional update evita stale closure)
+    setStudentGrades(prev => {
+      if (!prev) return prev;
+      const newGrades = { ...prev, grades: [...prev.grades] };
+      const gradeIndex = newGrades.grades.findIndex(g => g.course_id === courseId);
+      if (gradeIndex >= 0) {
+        const updatedGrade = { ...newGrades.grades[gradeIndex], [field]: value };
+        updatedGrade.final_average = calculateAverage(
+          updatedGrade.b1, updatedGrade.b2, updatedGrade.b3, updatedGrade.b4,
+          updatedGrade.rec_s1, updatedGrade.rec_s2
+        );
+        updatedGrade.status = updatedGrade.final_average !== null
+          ? (updatedGrade.final_average >= 5 ? 'aprovado' : 'reprovado_nota')
+          : 'cursando';
+        newGrades.grades[gradeIndex] = updatedGrade;
+      }
+      return newGrades;
+    });
     
     // Salva no servidor
     try {
@@ -624,7 +630,7 @@ export function Grades() {
       console.error('Erro ao salvar nota:', error);
       showAlert('error', 'Erro ao salvar nota');
     }
-  };
+  }, [selectedStudent, academicYear, loadGradesByStudent, showAlert]);
   
   const gradesContextValue = useMemo(() => ({
     // Base lists
