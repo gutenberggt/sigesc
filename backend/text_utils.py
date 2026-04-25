@@ -32,6 +32,8 @@ LOWERCASE_FIELDS = {
     'zona_localizacao', 'tipo_unidade', 'atendimento_programa',
     'tipo_atividade', 'tipo_atendimento', 'tipo_deficiencia',
     'form_pagamento', 'comunidade_tradicional',
+    # Campos Literal do módulo AEE (Plano, Atendimento, Articulação)
+    'dias_atendimento', 'prazo', 'tipo',
     # IDs referenciados
     'escola_id', 'student_id', 'class_id', 'teacher_id',
     'school_id', 'user_id', 'enrollment_id',
