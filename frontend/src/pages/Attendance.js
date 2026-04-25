@@ -531,9 +531,7 @@ export const Attendance = () => {
   };
   
   // Atualiza status de um aluno (aulaNum para multi-aula, null para diário)
-  const updateStudentStatus = (studentId, status, aulaNum = null) => {
-    if (!attendanceData) return;
-    
+  const updateStudentStatus = useCallback((studentId, status, aulaNum = null) => {
     // Bloqueia se aluno tem atestado médico
     if (hasActiveCertificate(studentId)) {
       showAlertMessage('error', 'Este aluno possui atestado médico para esta data. O status não pode ser alterado.');
@@ -541,46 +539,57 @@ export const Attendance = () => {
     }
     
     if (aulaNum !== null) {
-      // Multi-aula: atualizar aulaStatuses
+      // Multi-aula: atualizar aulaStatuses (já functional)
       setAulaStatuses(prev => ({
         ...prev,
         [studentId]: { ...(prev[studentId] || {}), [aulaNum]: status }
       }));
     } else {
-      // Diário: atualizar student.status
-      const newStudents = attendanceData.students.map(s => {
-        if (s.id !== studentId) return s;
-        return { ...s, status };
+      // Diário: atualizar student.status com functional setState (evita stale em cliques rápidos)
+      setAttendanceData(prev => {
+        if (!prev) return prev;
+        const newStudents = prev.students.map(s => {
+          if (s.id !== studentId) return s;
+          return { ...s, status };
+        });
+        return { ...prev, students: newStudents };
       });
-      setAttendanceData({ ...attendanceData, students: newStudents });
     }
     setHasChanges(true);
-  };
+  }, [hasActiveCertificate, showAlertMessage]);
   
   // Marca todos com o mesmo status (exceto alunos com atestado)
-  const markAll = (status) => {
-    if (!attendanceData) return;
-    
+  const markAll = useCallback((status) => {
     if (isMultiAula) {
-      // Multi-aula: marcar todas as aulas de todos os alunos
-      const newStatuses = { ...aulaStatuses };
-      attendanceData.students.forEach(s => {
-        if (hasActiveCertificate(s.id)) return;
-        if (!newStatuses[s.id]) newStatuses[s.id] = {};
-        for (let a = 1; a <= numberOfAulas; a++) {
-          newStatuses[s.id][a] = status;
-        }
+      // Multi-aula: marcar todas as aulas de todos os alunos (functional setState)
+      setAttendanceData(currentData => {
+        if (!currentData) return currentData;
+        setAulaStatuses(prevStatuses => {
+          const newStatuses = { ...prevStatuses };
+          currentData.students.forEach(s => {
+            if (hasActiveCertificate(s.id)) return;
+            if (!newStatuses[s.id]) newStatuses[s.id] = {};
+            for (let a = 1; a <= numberOfAulas; a++) {
+              newStatuses[s.id][a] = status;
+            }
+          });
+          return newStatuses;
+        });
+        return currentData; // não muda attendanceData no multi-aula
       });
-      setAulaStatuses(newStatuses);
     } else {
-      const newStudents = attendanceData.students.map(s => {
-        if (hasActiveCertificate(s.id)) return s;
-        return { ...s, status };
+      // Diário: usa functional setState para garantir consistência
+      setAttendanceData(prev => {
+        if (!prev) return prev;
+        const newStudents = prev.students.map(s => {
+          if (hasActiveCertificate(s.id)) return s;
+          return { ...s, status };
+        });
+        return { ...prev, students: newStudents };
       });
-      setAttendanceData({ ...attendanceData, students: newStudents });
     }
     setHasChanges(true);
-  };
+  }, [isMultiAula, numberOfAulas, hasActiveCertificate]);
   
   // Salva frequência (com suporte offline)
   const saveAttendance = async () => {
