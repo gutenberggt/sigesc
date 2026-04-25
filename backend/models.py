@@ -853,6 +853,10 @@ class Course(CourseBase):
 
 class AuthorizedPerson(BaseModel):
     """Pessoa autorizada a buscar o aluno"""
+    # extra="ignore" garante que campos auxiliares de UI (ex.: _key usado para
+    # estabilidade de chaves React) sejam silenciosamente descartados na
+    # validação Pydantic e nunca cheguem ao MongoDB.
+    model_config = ConfigDict(extra="ignore")
     name: str
     relationship: str  # Parentesco: tio, avó, vizinho, etc.
     phone: Optional[str] = None
