@@ -362,19 +362,19 @@ export const Attendance = () => {
     }
   };
   
-  const checkDate = async () => {
+  const checkDate = useCallback(async () => {
     try {
       const data = await attendanceAPI.checkDate(selectedDate);
       setDateCheck(data);
     } catch (error) {
       console.error('Erro ao verificar data:', error);
     }
-  };
+  }, [selectedDate]);
   
-  const showAlertMessage = (type, message) => {
+  const showAlertMessage = useCallback((type, message) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 4000);
-  };
+  }, []);
   
   // Carrega frequência da turma (com suporte offline)
   const loadAttendance = async () => {
@@ -507,7 +507,7 @@ export const Attendance = () => {
   };
   
   // Carrega atestados médicos para os alunos da turma na data selecionada
-  const loadMedicalCertificates = async () => {
+  const loadMedicalCertificates = useCallback(async () => {
     try {
       if (!attendanceData?.students?.length) return;
       
@@ -518,17 +518,17 @@ export const Attendance = () => {
       console.error('Erro ao carregar atestados médicos:', error);
       // Não bloqueia a frequência se houver erro ao carregar atestados
     }
-  };
+  }, [attendanceData, selectedDate]);
   
   // Verifica se um aluno tem atestado médico na data selecionada
-  const hasActiveCertificate = (studentId) => {
+  const hasActiveCertificate = useCallback((studentId) => {
     return medicalCertificates[studentId] !== undefined;
-  };
+  }, [medicalCertificates]);
   
   // Obtém informações do atestado médico de um aluno
-  const getCertificateInfo = (studentId) => {
+  const getCertificateInfo = useCallback((studentId) => {
     return medicalCertificates[studentId];
-  };
+  }, [medicalCertificates]);
   
   // Atualiza status de um aluno (aulaNum para multi-aula, null para diário)
   const updateStudentStatus = (studentId, status, aulaNum = null) => {
@@ -814,11 +814,11 @@ export const Attendance = () => {
   };
   
   // Navega data
-  const navigateDate = (days) => {
+  const navigateDate = useCallback((days) => {
     const date = new Date(selectedDate + 'T12:00:00');
     date.setDate(date.getDate() + days);
     setSelectedDate(date.toISOString().split('T')[0]);
-  };
+  }, [selectedDate]);
   
   // Turma selecionada
   const selectedClassData = classes.find(c => c.id === selectedClass);
