@@ -64,10 +64,15 @@ export const GradesTable = () => {
         (item.student.blocked_after_action && item.student.blocked_after_action.length > 0);
       
       // Helper: verifica se um bimestre específico está bloqueado para este aluno
-      const canEditBim = (bim) => canEditStudentGrade(item.student, bim);
+      const canEditBim = (bim) => canEditStudentGrade(item.student, bim, item.grade);
+      // Feb 2026: nota migrada da turma origem
+      const isMigratedGrade = !!item.grade?.migrated_from_class_id;
       
       // Tooltip para campos bloqueados por data de matrícula
       const getBlockTooltip = (bim) => {
+        if (isMigratedGrade && !hasRole(user, ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario'])) {
+          return 'Nota migrada da turma de origem — apenas secretário, gerente ou super administrador podem editar';
+        }
         if (item.student.blocked_after_action && item.student.blocked_after_action.includes(bim)) {
           return `${item.student.action_label || 'Movimentado'} - bimestre bloqueado`;
         }
@@ -90,6 +95,15 @@ export const GradesTable = () => {
                 {hasActionLabel && (
                   <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
                     ({item.student.action_label})
+                  </span>
+                )}
+                {isMigratedGrade && (
+                  <span
+                    className="ml-2 inline-flex items-center px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full"
+                    title="Notas migradas da turma de origem"
+                    data-testid={`migrated-badge-${item.student.id}`}
+                  >
+                    Migrado
                   </span>
                 )}
               </div>

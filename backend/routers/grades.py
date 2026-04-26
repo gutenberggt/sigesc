@@ -24,6 +24,30 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/grades", tags=["Notas"])
 
+# Roles autorizadas a editar registros migrados da turma de origem (Feb 2026)
+# Conforme orientação: secretário, gerente, super_admin (+ admin/admin_teste por
+# compatibilidade administrativa).
+ROLES_CAN_EDIT_MIGRATED = ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario']
+
+
+def _ensure_can_edit_migrated_grade(grade: dict, user: dict) -> None:
+    """Bloqueia edição de notas migradas para profissionais sem permissão.
+
+    Se a grade tem `migrated_from_class_id`, o registro foi copiado da turma
+    origem em uma ação (remanejar/progredir/reclassificar). Apenas roles
+    administrativas podem alterar; o professor regular precisa solicitar
+    revisão pela secretaria.
+    """
+    if grade and grade.get('migrated_from_class_id'):
+        if user.get('role') not in ROLES_CAN_EDIT_MIGRATED:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    'Esta nota foi migrada da turma de origem do aluno. '
+                    'A edição é restrita a secretário, gerente ou super administrador.'
+                )
+            )
+
 
 async def calculate_and_update_grade(db, grade_id: str):
     """Calcula média final e atualiza status da nota"""
@@ -293,16 +317,35 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
             action_label = action_info_map.get(student['id'], {}).get('action_label', '')
             
             blocked_before = []  # Bimestres antes da matrícula
-            blocked_after = []   # Bimestres após a ação
+            blocked_after = []   # Bimestres após a ação (Feb 2026: inclui o bimestre que CONTÉM a action_date)
+            zeroed_after = []    # Bimestres com início > action_date (notas devem aparecer como null/vazio)
             for b in [1, 2, 3, 4]:
                 b_start, b_end = bimestre_ranges[b]
                 # Bloqueio pré-matrícula: bimestre termina antes da data de matrícula
                 if enroll_dt and b_end < enroll_dt:
                     blocked_before.append(b)
-                # Bloqueio pós-ação: bimestre inicia após a data da ação
-                if action_dt and action_label and b_start > action_dt:
+                # Bloqueio pós-ação: bimestre que CONTÉM action_date OU posteriores
+                if action_dt and action_label and b_end >= action_dt:
                     blocked_after.append(b)
-            
+                # Notas em bimestres totalmente após a ação devem aparecer vazias
+                # (mantém visíveis as do bimestre que contém a ação — read-only)
+                if action_dt and action_label and b_start > action_dt:
+                    zeroed_after.append(b)
+
+            # Aplica zeragem dos bimestres totalmente posteriores à ação na origem
+            if zeroed_after:
+                grade = dict(grade)  # cópia local para não afetar o cache do MongoDB
+                for b in zeroed_after:
+                    grade[f'b{b}'] = None
+                # Médias e recuperações também ficam vazias se referem a bimestres pós-ação
+                if 4 in zeroed_after:
+                    grade['final_average'] = None
+                    grade['recovery'] = None
+                if 1 in zeroed_after or 2 in zeroed_after:
+                    grade['rec_s1'] = None
+                if 3 in zeroed_after or 4 in zeroed_after:
+                    grade['rec_s2'] = None
+
             student_data = {
                 'id': student['id'],
                 'full_name': student['full_name'],
@@ -371,6 +414,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         }, {"_id": 0})
         
         if existing:
+            _ensure_can_edit_migrated_grade(existing, current_user)
             update_data = grade_data.model_dump(exclude_unset=True, exclude={'student_id', 'class_id', 'course_id', 'academic_year'})
             update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
             
@@ -410,7 +454,8 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         grade = await current_db.grades.find_one({"id": grade_id}, {"_id": 0})
         if not grade:
             raise HTTPException(status_code=404, detail="Nota não encontrada")
-        
+        _ensure_can_edit_migrated_grade(grade, current_user)
+
         update_data = grade_update.model_dump(exclude_unset=True)
         update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
         
@@ -468,6 +513,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
             }, {"_id": 0})
             
             if existing:
+                _ensure_can_edit_migrated_grade(existing, current_user)
                 grade_keys = ['b1', 'b2', 'b3', 'b4', 'rec_s1', 'rec_s2', 'recovery', 'observations']
                 update_fields = {k: v for k, v in grade_data.items() if k in grade_keys}
                 update_fields['updated_at'] = datetime.now(timezone.utc).isoformat()

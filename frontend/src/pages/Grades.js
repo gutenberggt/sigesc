@@ -160,13 +160,14 @@ export function Grades() {
   
   // Função para verificar se pode editar notas de um aluno específico em um bimestre
   // Regras:
-  // - blocked_after_action: bloqueado para TODOS (transferência/desistência)
+  // - blocked_after_action: bloqueado para TODOS (transferência/desistência/remanejamento)
   // - blocked_before_enrollment: bloqueado para professor, liberado para admin/secretário
-  const canEditStudentGrade = useCallback((student, bimestre) => {
+  // - migrated_from_class_id: registro migrado da turma origem → só admin/secretário/gerente/super_admin editam
+  const canEditStudentGrade = useCallback((student, bimestre, gradeRecord) => {
     if (isStudentBlockedForProfessor(student)) {
       return false;
     }
-    // Bloqueio pós-ação (transferência/desistência) → bloqueio absoluto
+    // Bloqueio pós-ação (transferência/desistência/remanejamento) → bloqueio absoluto
     if (student.blocked_after_action && student.blocked_after_action.includes(bimestre)) {
       return false;
     }
@@ -176,8 +177,12 @@ export function Grades() {
         return false;
       }
     }
+    // Feb 2026: registro migrado da turma origem → só admin/secretário/gerente/super_admin
+    if (gradeRecord && gradeRecord.migrated_from_class_id && !isAdminOrSecretary) {
+      return false;
+    }
     return canEditField(bimestre);
-  }, [isStudentBlockedForProfessor, canEditField, user?.role]);
+  }, [isStudentBlockedForProfessor, canEditField, isAdminOrSecretary]);
   
   // Carrega dados iniciais
   useEffect(() => {

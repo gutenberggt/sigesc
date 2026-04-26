@@ -1,0 +1,48 @@
+{
+  "summary": "Cobertura adicional do Feb 2026 freeze + migration. Criei /app/backend/tests/test_freeze_migration_extra.py (5 tests) cobrindo: (a) professor não pode editar grade migrated via PUT/POST/batch (todos 403), (b) super_admin pode editar e flag migrated_from_class_id é preservada após update, (c) PDF de frequência por bimestre retorna 200 application/pdf tanto para turma destino quanto para turma origem com aluno transferido, (d) cross-tenant guard em GET /api/schools/{id} bloqueia gerente da Mantenedora A acessar escola da Mantenedora B (403 'Escola pertence a outra mantenedora'). Todos os 5 novos testes passam isoladamente E em conjunto com os 2 testes pré-existentes de freeze_origin_and_migration. Frontend smoke test: /admin/grades carrega para super_admin sem 'Acesso Negado' (badge 'Migrado' não pôde ser validado visualmente sem dados em produção mas a estrutura JSX em GradesTable.jsx está correta — data-testid='migrated-badge-{student_id}' renderizado quando item.grade.migrated_from_class_id presente). DESCOBERTA CRÍTICA: regressão intermitente em test_designar_gerente_security.py — o teste passava isolado antes mas agora falha de forma reprodutível. RCA abaixo.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "auth_utils.revoke_all_user_tokens / TokenBlacklistService.is_token_revoked",
+        "issue": "Race-condition de precisão: JWT 'iat' é gravado como inteiro de segundos (int(datetime.now().timestamp())) enquanto revoke_all_before é gravado como datetime com microssegundos. Quando o relogin ocorre no MESMO SEGUNDO da revogação (cenário comum em fluxos automatizados ou quando o usuário re-loga rapidamente após designar_gerente), token_issued (datetime arredondado para segundos) acaba menor que revoke_before (com microssegundos > 0), e o NOVO token é falsamente classificado como revogado → 401. Reproduzido 100% em test_designar_gerente_security.test_old_token_revoked_after_designar_gerente: re-login retorna 200 mas GET /api/students retorna 401 'Token revogado'. Mesmo comportamento ocorreria em outros pontos que chamam revoke_all_user_tokens (logout global, troca de senha) caso o usuário re-logue no mesmo segundo.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_freeze_migration_extra.py",
+    "/app/backend/tests/test_freeze_origin_and_migration.py",
+    "/app/backend/tests/test_designar_gerente_security.py",
+    "/app/test_reports/pytest/freeze_migration.xml"
+  ],
+  "action_items": [
+    "FIX URGENTE auth_utils.revoke_all_user_tokens: truncar revoke_all_before para precisão de segundos (revoke_all_before = datetime.now(timezone.utc).replace(microsecond=0)) OU subtrair 1s, OU (preferido) usar comparação <= em is_token_revoked com tolerância de 1 segundo. Também avaliar se em create_access_token o iat deveria ser microseconds-aware. Sem o fix há risco real de usuários reais ficarem em loop de 'precisa relogar' ao serem designados gerente — basta o relogin acontecer no mesmo segundo.",
+    "Considerar adicionar pequeno sleep (await asyncio.sleep(1.1)) ao final de POST /api/mantenedoras/{mid}/gerente após revoke, OU assegurar que o próximo issue_token gera iat estritamente > revoke_all_before. (mitigação alternativa)"
+  ],
+  "critical_code_review_comments": [
+    "auth_utils.create_access_token: iat usa int(datetime.now().timestamp()) (precisão de segundos), enquanto auth_utils.TokenBlacklistService.revoke_all_user_tokens grava revoke_all_before com precisão microssegundos. is_token_revoked compara token_issued (= datetime.fromtimestamp(iat) → microsecond=0) com revoke_before. Para tokens emitidos no mesmo segundo da revogação, token_issued < revoke_before quase sempre (revoke_before tem microssegundos > 0). Resultado: o novo token é incorretamente classificado como revogado.",
+    "routers/grades.py _ensure_can_edit_migrated_grade: lógica correta e helper bem nomeado. ROLES_CAN_EDIT_MIGRATED inclui admin, admin_teste, super_admin, gerente, secretario — alinhado com requisitos.",
+    "routers/attendance.py _block_if_changing_migrated_attendance: preservação da flag migrated_from_class_id no caminho privileged é a abordagem correta para auditoria. Implementação OK.",
+    "auth_middleware.verify_school_access linha 198: a condicional `if not (is_super_admin(user) and active_tenant is None)` é redundante porque get_mantenedora_scope já só retorna None para super_admin sem header — mas defensivamente OK.",
+    "GradesTable.jsx: badge 'Migrado' implementado corretamente com data-testid='migrated-badge-{student_id}', tooltip e estilo âmbar conforme spec."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_freeze_migration_extra.py (novo, 5 testes)"
+  ],
+  "success_rate": {
+    "backend": "87.5% (7/8 testes da suíte freeze/migration). 5/5 dos novos testes passam. 2/2 dos pré-existentes de freeze_origin_and_migration passam. 0/1 de test_designar_gerente_security passa devido ao bug de timing descrito.",
+    "frontend": "100% (2/2 smoke checks): login + carga de /admin/grades sem 'Acesso Negado'"
+  },
+  "test_credentials": "Super admin: gutenberg@sigesc.com / @Celta2007 (lido de /app/memory/test_credentials.md). Para os novos testes criei users efêmeros com senha 'test123' e cleanup teardown.",
+  "seed_data_creation": "Cada teste usa fixtures isoladas com prefixos TEST_FME_/TEST_CrossTenant_ e teardown automático. Mantenedoras 'TEST_CrossTenant_Mant_B' e 'TEST_Pau_Darco_for_security_test' persistem entre runs (não são deletadas no teardown para permitir reuso de IDs e evitar conflito com FKs); apenas usuários e classes/students/grades/attendance são limpos.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Após o main agent corrigir o bug em auth_utils, re-rodar `pytest backend/tests/test_designar_gerente_security.py backend/tests/test_freeze_origin_and_migration.py backend/tests/test_freeze_migration_extra.py -v`. Esperado: 8/8 passing. As 5 novas asserções em test_freeze_migration_extra.py cobrem:\n1) test_professor_cannot_edit_migrated_grade — PUT/POST/batch como professor → 403\n2) test_super_admin_can_edit_migrated_grade_preserving_flag — PUT como super_admin → 200, b2 atualizado, migrated_from_class_id preservado no DB\n3) test_attendance_pdf_bimestre_returns_pdf — turma destino → 200 PDF\n4) test_attendance_pdf_origin_class_with_action_date — turma origem (com action_date) → 200 PDF\n5) test_cross_tenant_guard_blocks_school_from_other_mantenedora — gerente Mant A com school_link residual → 200 na própria escola; 403 ('outra mantenedora') na escola alheia.\nO badge 'Migrado' no frontend não foi validado visualmente por exigir dados de teste em produção; lógica em GradesTable.jsx e Grades.js (canEditStudentGrade) inspecionada manualmente e correta.",
+  "rca of the issue": "Bug auth_utils race condition de precisão.\n\nReproduction:\n1. Login (login emite token com iat = int(now.timestamp()) → ex. 1730500000)\n2. POST /api/mantenedoras/{mid}/gerente { user_id }\n3. Endpoint chama revoke_all_user_tokens → grava revoke_all_before = datetime.now() = 2026-04-26 22:26:03.872000+00:00\n4. Re-login imediatamente: iat = int(now.timestamp()) = 1730500003 (mesmo segundo, ex. 22:26:03.999)\n5. Próxima request com novo token → is_token_revoked compara token_issued = datetime.fromtimestamp(1730500003) = 22:26:03.000000+00:00 com revoke_all_before = 22:26:03.872000\n6. token_issued (.000) < revoke_before (.872) → True → 401 Unauthorized 'Token revogado'\n\nMitigation (recomendação para o main agent):\n```python\n# Em revoke_all_user_tokens:\nnow = datetime.now(timezone.utc).replace(microsecond=0)\nawait self.db[...].insert_one({..., 'revoke_all_before': now, ...})\n```\nOU em is_token_revoked, comparar com tolerância:\n```python\nif token_issued + timedelta(seconds=1) <= revoke_before:\n    return True\n```\nA primeira opção é mais robusta porque alinha com a precisão real do iat do JWT.\n\nImpacto produção: usuários designados gerente (ou que sofrem revoke_all por troca de senha/logout global) podem ser forçados a esperar 1+ segundos antes de re-logar com sucesso. Em UI rápida e fluxos automatizados (scripts de migração em massa) o efeito é 401 reproduzível."
+}

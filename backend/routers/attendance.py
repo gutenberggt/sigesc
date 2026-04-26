@@ -23,6 +23,41 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/attendance", tags=["Frequência"])
 
+# Roles autorizadas a editar registros migrados de frequência (Feb 2026)
+ROLES_CAN_EDIT_MIGRATED_ATTENDANCE = ['admin', 'admin_teste', 'super_admin', 'gerente', 'secretario']
+
+
+def _block_if_changing_migrated_attendance(existing_records, new_records, user):
+    """Para usuários sem role administrativa, mantém intactos os registros que
+    foram migrados de outra turma (preserva status original).
+
+    Para usuários autorizados (secretario/gerente/super_admin/admin), preserva
+    a flag `migrated_from_class_id` ao atualizar o status — a edição é permitida
+    mas o registro continua marcado como migrado para histórico/auditoria.
+    """
+    existing_by_sid = {r['student_id']: r for r in (existing_records or [])}
+    privileged = user.get('role') in ROLES_CAN_EDIT_MIGRATED_ATTENDANCE
+    blocked = []
+    out = []
+    for nr in new_records:
+        sid = nr.get('student_id')
+        old = existing_by_sid.get(sid)
+        if old and old.get('migrated_from_class_id'):
+            if privileged:
+                # Atualiza preservando metadados de migração
+                merged = dict(old)
+                merged.update(nr)
+                merged['migrated_from_class_id'] = old['migrated_from_class_id']
+                if old.get('migrated_at'):
+                    merged['migrated_at'] = old['migrated_at']
+                out.append(merged)
+            else:
+                out.append(old)  # status preservado
+                blocked.append(sid)
+        else:
+            out.append(nr)
+    return out, blocked
+
 
 class AttendanceRecord(BaseModel):
     student_id: str
@@ -352,8 +387,14 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
         existing = await current_db.attendance.find_one(query)
         
         records_data = [{"student_id": r.student_id, "status": r.status} for r in attendance.records]
-        
+
         if existing:
+            # Se há registros migrados (frequência copiada da turma origem),
+            # roles não-administrativas não podem alterar — preserva o status original.
+            records_data, blocked_sids = _block_if_changing_migrated_attendance(
+                existing.get('records') or [], records_data, current_user
+            )
+
             update_data = {
                 "records": records_data,
                 "observations": attendance.observations,

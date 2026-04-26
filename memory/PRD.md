@@ -202,6 +202,28 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 6. `/api/schools` → apenas escolas de Pau Darco ✅
 - **Pytest**: `tests/test_designar_gerente_security.py::test_old_token_revoked_after_designar_gerente` PASSED.
 
+### Congelamento de origem + Migração de dados (Feb 2026)
+**Regra de negócio (uniformizada para frequência e notas):**
+- **Turma de origem**: a partir da data da ação (transferência, remanejamento, progressão, reclassificação), o **bimestre que contém a `action_date` E todos os posteriores ficam bloqueados para edição**. Notas/células com data anterior à ação permanecem visíveis (read-only); notas em bimestres totalmente posteriores são retornadas como `null`; células de frequência com `date >= action_date` aparecem em branco no PDF.
+- **Turma de destino**: cópia uniforme — frequência E notas migram em **TODAS as 4 ações** (antes só remanejamento copiava notas). Cada registro copiado recebe `migrated_from_class_id` (id da turma origem) e `migrated_at` (timestamp ISO). Edição dos registros migrados é restrita a **admin / admin_teste / super_admin / gerente / secretario**; professor regular vê os valores em read-only com badge "Migrado".
+- **Histórico legado**: ações anteriores ao fix permanecem editáveis livremente (regra vale apenas para ações futuras, sem migração retroativa).
+
+**Backend:**
+- `students.py copy_student_data_to_new_class`: removido o branch `if copy_type == 'remanejamento'` que limitava a cópia de notas; agora copia em qualquer `copy_type`. Cada record (`attendance.records[]`) e cada documento `grades` recebe `migrated_from_class_id` + `migrated_at`. Permissão expandida: super_admin/gerente também podem invocar (necessário para o fluxo do bug de tenant que revoga tokens). Idempotente — não sobrescreve registros já existentes no destino.
+- `grades.py _ensure_can_edit_migrated_grade()`: helper aplicado em `POST /grades`, `PUT /grades/{id}` e `POST /grades/batch` — bloqueia (403) edição de grade com `migrated_from_class_id` para roles fora da lista autorizada.
+- `grades.py load_grades_by_class`: `blocked_after_action` passou de `b_start > action_date` para `b_end >= action_date` (inclui bimestre que contém a data). Bimestres com `b_start > action_date` retornam `b1..b4=null` no payload (mantém B1=8.5 visível, B2..B4=None) + recovery/rec_s1/rec_s2/final_average zerados quando o bimestre referenciado está totalmente após a ação.
+- `attendance.py _block_if_changing_migrated_attendance()`: ao salvar uma sessão de frequência, registros com `migrated_from_class_id` são preservados intactos para roles não autorizadas; para roles autorizadas, a flag de migração é mantida ao atualizar o status (auditável).
+- `attendance_ext.py get_attendance_bimestre_pdf`: busca `student_history` por turma para alunos inativos; durante a montagem do attendance_by_date pula registros com `att.date >= action_date` → célula em branco no PDF.
+- `auth_middleware.verify_school_access`: cross-tenant guard — se `active_tenant` ≠ `school.mantenedora_id`, retorna 403 "Escola pertence a outra mantenedora" (fecha bypass mencionado no fix anterior; gerente não pode mais usar `GET /schools/{id}` para ler escola de outra mantenedora mesmo via school_links residuais).
+
+**Frontend:**
+- `Grades.js canEditStudentGrade()`: adicionado parâmetro `gradeRecord` — retorna `false` se `gradeRecord.migrated_from_class_id` e user fora da lista autorizada.
+- `GradesTable.jsx`: badge âmbar "Migrado" ao lado do nome do aluno; tooltip nos campos explicando "Nota migrada da turma de origem — apenas secretário, gerente ou super administrador podem editar".
+
+**Pytests** (`tests/test_freeze_origin_and_migration.py`, 2/2 passing):
+1. `copy-data` marca todos os registros com `migrated_from_class_id` (3 attendances + 1 grade copiados).
+2. `load_grades_by_class` na origem retorna `blocked_after_action=[1,2,3,4]` para aluno remanejado em 10/03/2026, e `b1=8.5` (visível), `b2=b3=b4=null`.
+
 ## Current Backlog
 
 ### P1

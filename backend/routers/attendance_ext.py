@@ -326,6 +326,29 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1}
             ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(1000)
 
+        # ===== Feb 2026: célula em branco após action_date para alunos inativos =====
+        # Para cada aluno que SAIU desta turma (transferred/relocated/progressed/reclassified),
+        # buscamos a action_date no student_history. Frequências com data >= action_date
+        # serão omitidas no PDF (células ficam vazias).
+        inactive_action_dates = {}
+        if student_ids:
+            history_entries = await db.student_history.find(
+                {
+                    "student_id": {"$in": student_ids},
+                    "class_id": class_id,
+                    "action_type": {"$in": [
+                        "transferencia_saida", "remanejamento",
+                        "progressao", "reclassificacao",
+                        "desistencia", "cancelamento"
+                    ]},
+                },
+                {"_id": 0, "student_id": 1, "action_date": 1}
+            ).sort("action_date", -1).to_list(1000)
+            for h in history_entries:
+                sid = h.get('student_id')
+                if sid not in inactive_action_dates and h.get('action_date'):
+                    inactive_action_dates[sid] = str(h['action_date'])[:10]
+
         # Busca frequências do período do bimestre (filtrando por course_id se informado)
         att_query = {
             "class_id": class_id,
@@ -378,8 +401,12 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             students_attendance = []
             for student in students:
                 attendance_by_session = {}
-                
+                action_dt_for_student = inactive_action_dates.get(student['id'])
+
                 for att in sorted_attendances:
+                    # Feb 2026: pula registros com data >= action_date (célula vazia no PDF)
+                    if action_dt_for_student and str(att.get('date', ''))[:10] >= action_dt_for_student:
+                        continue
                     if att.get('aula_numero') is not None:
                         # Registro novo: status direto
                         key = (att['date'], att['aula_numero'])
@@ -441,8 +468,12 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             for student in students:
                 attendance_by_date = {}
                 attendance_classes_by_date = {}
+                action_dt_for_student = inactive_action_dates.get(student['id'])
 
                 for att in sorted_attendances:
+                    # Feb 2026: pula registros com data >= action_date (célula vazia no PDF)
+                    if action_dt_for_student and str(att.get('date', ''))[:10] >= action_dt_for_student:
+                        continue
                     num_classes = att.get('number_of_classes', 1)
                     for record in att.get('records', []):
                         if record['student_id'] == student['id']:

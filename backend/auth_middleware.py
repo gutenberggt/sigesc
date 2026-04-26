@@ -161,15 +161,46 @@ class AuthMiddleware:
     
     @staticmethod
     async def verify_school_access(request: Request, school_id: str):
-        """Verifica acesso à escola e retorna usuário"""
+        """Verifica acesso à escola e retorna usuário.
+
+        Cross-tenant guard (Feb 2026): para gerente/admin/etc., também valida
+        que a escola pertence à mantenedora do usuário (a partir do JWT).
+        Super_admin pode atuar cross-tenant ou no tenant ativo via header
+        X-Mantenedora-Id (resolvido por get_mantenedora_scope).
+        """
+        from tenant_scope import is_super_admin, get_mantenedora_scope
+
         user = await AuthMiddleware.get_current_user(request)
-        
+
         if not AuthMiddleware.check_school_access(user, school_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail='Acesso negado a esta escola'
             )
-        
+
+        # Cross-tenant check: a escola precisa pertencer ao tenant ativo do user.
+        # super_admin atuando cross-tenant (sem header) ignora; com header,
+        # também é validado pela mesma rota.
+        active_tenant = get_mantenedora_scope(user, request)
+        if active_tenant is not None:
+            # Importação preguiçosa para evitar ciclo no startup
+            from server import db as _db  # noqa: WPS433
+            school = await _db.schools.find_one(
+                {"id": school_id}, {"_id": 0, "mantenedora_id": 1}
+            )
+            school_tenant = (school or {}).get('mantenedora_id')
+            # Se a escola tem mantenedora declarada, força o match.
+            # Escolas legadas sem mantenedora_id passam (não é campo obrigatório
+            # para coleções ainda não migradas).
+            if school_tenant and school_tenant != active_tenant:
+                # super_admin acessando seu próprio tenant ativo passa por aqui
+                # apenas se o header bater com o tenant da escola.
+                if not (is_super_admin(user) and active_tenant is None):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail='Escola pertence a outra mantenedora'
+                    )
+
         return user
     
     @staticmethod
