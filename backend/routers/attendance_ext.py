@@ -135,14 +135,33 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             {"_id": 0, "date": 1, "records": 1}
         ).to_list(1000)
 
-        # Conta faltas (status 'F')
+        # Conta faltas (status 'F'), considerando atestado médico
         absences = 0
         presences = 0
         justified = 0
+        medical = 0
+
+        # Buscar atestados do aluno no período
+        certs = await db.medical_certificates.find(
+            {
+                "student_id": student_id,
+                "start_date": {"$lte": today},
+                "end_date": {"$gte": f"{academic_year}-01-01"}
+            },
+            {"_id": 0, "start_date": 1, "end_date": 1}
+        ).to_list(None)
+        attendance_dates_set = {a.get('date', '')[:10] for a in attendances}
+        from services.attendance_utils import fetch_medical_days_for_student
+        medical_days_set = fetch_medical_days_for_student(certs, attendance_dates_set)
 
         for att in attendances:
             for record in att.get('records', []):
                 if record['student_id'] == student_id:
+                    d10 = att.get('date', '')[:10]
+                    # Atestado vence o status original (Feb 2026)
+                    if d10 in medical_days_set:
+                        medical += 1
+                        continue
                     if record['status'] == 'F':
                         absences += 1
                     elif record['status'] == 'P':
@@ -152,6 +171,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         # Calcula porcentagem usando a fórmula:
         # ((Dias Letivos até hoje - Faltas) / Dias Letivos até hoje) × 100
+        # Atestado é considerado como não-falta (subtrai do denominador efetivo)
         if school_days > 0:
             attendance_percentage = ((school_days - absences) / school_days) * 100
         else:
@@ -171,6 +191,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "absences": absences,
                 "presences": presences,
                 "justified": justified,
+                "medical": medical,
                 "attendance_percentage": round(attendance_percentage, 1),
                 "status": "regular" if attendance_percentage >= 75 else "alerta"
             },

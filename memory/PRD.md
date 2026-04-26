@@ -251,6 +251,21 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 **Pytest** (`tests/test_attendance_pdf_atestado.py`): cria turma + aluno + 2 sessões (P em 09/03 e F em 10/03) + atestado cobrindo 09/03 a 12/03 → gera PDF e valida que o texto extraído contém 'A' (independente do status original lançado pelo professor). PASSED.
 
+### Propagação da regra "A" nos relatórios sintéticos (Feb 2026)
+**Uniformização**: a regra "atestado vence sobre P/F/J" agora é aplicada também:
+- **Relatório de turma** (`GET /api/attendance/report/class/{class_id}`): `student_stats` reclassifica células como `medical` quando data ∈ `medical_days[sid]`; `attendance_percentage = (present + justified + medical) / total * 100`.
+- **Cálculo individual** (`GET /api/attendance/student-attendance/{student_id}`): adicionado bucket `medical` e desconto de faltas cobertas por atestado antes do cálculo da porcentagem.
+- **Boletim e Ficha Individual** (`pdf/boletim.py` via `routers/documents.py`): no loop que calcula `faltas_regular` e `faltas_por_componente`, datas com 'F' que estão em `medical_days_set` deixam de contar como falta (atestado vence). Resultado: a coluna "Faltas" do boletim e o `total_geral_faltas` ficam alinhados com o PDF de frequência da turma.
+- **Declaração de Frequência** (`pdf/declaracoes.py` via `routers/documents.py`): `total_faltas -= faltas_cobertas_por_atestado` antes de calcular `frequency_percentage`.
+
+**Helper centralizado**: `/app/backend/services/attendance_utils.py` expõe:
+- `fetch_medical_days_for_student(certs, candidate_dates)` → set de YYYY-MM-DD cobertos por atestado, opcionalmente filtrado pelo calendário letivo.
+- `classify_with_atestado(date, raw_status, medical_days)` → status efetivo ('A'/'P'/'F'/'J'/'L').
+- `compute_attendance_buckets(records, medical_days)` → P/F/J/L/A/total.
+- `attendance_percentage(buckets)` → (P+J+A)/total × 100.
+
+**Pytest adicional**: `test_class_summary_excludes_certificate_days_from_absences` valida que `/api/attendance/report/class/{class_id}` retorna `absent=0`, `medical=2`, `attendance_percentage=100.0` para um aluno com 2 sessões (P+F) ambas cobertas por atestado. 10/10 pytest verde.
+
 ## Current Backlog
 
 ### P1

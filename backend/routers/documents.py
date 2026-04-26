@@ -331,6 +331,22 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         ).to_list(500)
 
         # Separar faltas por tipo: Regular (diário) e Escola Integral (por componente)
+        # Feb 2026: dias cobertos por atestado médico válido NÃO contam como falta
+        # (alinhamento com PDF de frequência da turma — atestado vence 'F').
+        certs = await db.medical_certificates.find(
+            {
+                "student_id": student_id,
+                "start_date": {"$lte": f"{int(actual_academic_year)}-12-31"},
+                "end_date": {"$gte": f"{int(actual_academic_year)}-01-01"}
+            },
+            {"_id": 0, "start_date": 1, "end_date": 1}
+        ).to_list(None)
+        att_dates_set = {a.get('date', '')[:10] for a in attendance_records if a.get('date')}
+        from services.attendance_utils import fetch_medical_days_for_student
+        medical_days_set = (
+            fetch_medical_days_for_student(certs, att_dates_set) if att_dates_set else set()
+        )
+
         faltas_regular = 0
         faltas_por_componente = {}
 
@@ -338,11 +354,15 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             period = att_record.get('period', 'regular')
             course_id = att_record.get('course_id')
             attendance_type = att_record.get('attendance_type', 'daily')
+            d10 = (att_record.get('date') or '')[:10]
 
             student_records = att_record.get('records', [])
             for sr in student_records:
                 if sr.get('student_id') == student_id:
                     status = sr.get('status', '')
+                    if status == 'F' and d10 in medical_days_set:
+                        # Atestado vence: não conta como falta
+                        continue
                     if status == 'F':
                         if attendance_type == 'daily' and period == 'regular':
                             faltas_regular += 1
@@ -807,6 +827,27 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # Calcular total de faltas
         total_faltas = sum(1 for a in attendances if a.get('status') in ['absent', 'F', 'A'])
 
+        # Feb 2026: descontar faltas cobertas por atestado médico válido
+        # (atestado vence sobre F lançado pelo professor — alinha com PDF de frequência)
+        certs = await db.medical_certificates.find(
+            {
+                "student_id": student_id,
+                "start_date": {"$lte": f"{actual_academic_year}-12-31"},
+                "end_date": {"$gte": f"{actual_academic_year}-01-01"}
+            },
+            {"_id": 0, "start_date": 1, "end_date": 1}
+        ).to_list(None)
+        att_dates = {a.get('date', '')[:10] for a in attendances if a.get('date')}
+        from services.attendance_utils import fetch_medical_days_for_student
+        medical_days_set = fetch_medical_days_for_student(certs, att_dates) if att_dates else set()
+        # Faltas em dias com atestado deixam de contar como falta
+        faltas_cobertas_por_atestado = sum(
+            1 for a in attendances
+            if a.get('status') in ['absent', 'F', 'A']
+            and a.get('date', '')[:10] in medical_days_set
+        )
+        total_faltas = max(0, total_faltas - faltas_cobertas_por_atestado)
+
         # Se não houver calendário configurado, usar fallback baseado na data
         if total_dias_letivos_ate_hoje == 0:
             # Calcular aproximadamente considerando 200 dias letivos por ano
@@ -1021,15 +1062,34 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         faltas_regular = 0  # Faltas do período regular (frequência diária)
         faltas_por_componente = {}  # Faltas por componente (escola integral)
 
+        # Feb 2026: descontar faltas cobertas por atestado médico válido
+        certs = await db.medical_certificates.find(
+            {
+                "student_id": student_id,
+                "start_date": {"$lte": f"{int(actual_academic_year)}-12-31"},
+                "end_date": {"$gte": f"{int(actual_academic_year)}-01-01"}
+            },
+            {"_id": 0, "start_date": 1, "end_date": 1}
+        ).to_list(None)
+        att_dates_set = {a.get('date', '')[:10] for a in attendance_records if a.get('date')}
+        from services.attendance_utils import fetch_medical_days_for_student
+        medical_days_set = (
+            fetch_medical_days_for_student(certs, att_dates_set) if att_dates_set else set()
+        )
+
         for att_record in attendance_records:
             period = att_record.get('period', 'regular')
             course_id = att_record.get('course_id')
             attendance_type = att_record.get('attendance_type', 'daily')
+            d10 = (att_record.get('date') or '')[:10]
 
             student_records = att_record.get('records', [])
             for sr in student_records:
                 if sr.get('student_id') == student_id:
                     status = sr.get('status', '')
+                    if status == 'F' and d10 in medical_days_set:
+                        # Atestado vence — não conta como falta
+                        continue
                     if status == 'F':  # Falta
                         if attendance_type == 'daily' and period == 'regular':
                             # Frequência diária regular - soma nas faltas gerais

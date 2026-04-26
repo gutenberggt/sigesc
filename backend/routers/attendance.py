@@ -663,52 +663,22 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 'total': 0
             }
         
-        # Coleta datas de aula para calcular atestados
+        # Coleta datas de aula para calcular atestados (1ª passada apenas datas)
         attendance_dates = set()
-        aula_keys_set = set()  # Deduplicação (date, aula)
+        aula_keys_set = set()
         for att in attendances:
             att_date = att.get('date', '')[:10]
+            if att_date:
+                attendance_dates.add(att_date)
             has_aula_numero = att.get('aula_numero') is not None
             num_classes = 1 if has_aula_numero else att.get('number_of_classes', 1)
-            
-            # Deduplicar para contagem total
             if has_aula_numero:
                 aula_keys_set.add((att_date, att['aula_numero']))
             else:
                 for i in range(1, num_classes + 1):
                     aula_keys_set.add((att_date, i))
-            
-            if att_date:
-                attendance_dates.add(att_date)
-            for record in att.get('records', []):
-                sid = record.get('student_id')
-                if sid in student_stats:
-                    raw_status = record.get('status', '')
-                    
-                    if '|' in raw_status:
-                        # Pipe-separated statuses (legado multi-aula)
-                        statuses = raw_status.split('|')
-                        student_stats[sid]['total'] += len(statuses)
-                        for s in statuses:
-                            s = s.strip()
-                            if s in ['present', 'P']:
-                                student_stats[sid]['present'] += 1
-                            elif s in ['absent', 'F', 'A']:
-                                student_stats[sid]['absent'] += 1
-                            elif s in ['justified', 'J']:
-                                student_stats[sid]['justified'] += 1
-                    else:
-                        student_stats[sid]['total'] += num_classes
-                        if raw_status in ['present', 'P']:
-                            student_stats[sid]['present'] += num_classes
-                        elif raw_status in ['absent', 'F', 'A']:
-                            student_stats[sid]['absent'] += num_classes
-                        elif raw_status in ['justified', 'J']:
-                            student_stats[sid]['justified'] += num_classes
-                        elif raw_status in ['late', 'L']:
-                            student_stats[sid]['late'] += num_classes
-        
-        # Busca atestados médicos para os alunos da turma
+
+        # Busca atestados médicos PRIMEIRO (Feb 2026: regra do 'A' substitui status)
         medical_days = {}
         if all_student_ids and attendance_dates:
             sorted_dates = sorted(attendance_dates)
@@ -722,7 +692,6 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 },
                 {"_id": 0, "student_id": 1, "start_date": 1, "end_date": 1}
             ).to_list(None)
-            
             for cert in certificates:
                 sid = cert.get('student_id')
                 if sid not in medical_days:
@@ -732,6 +701,46 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 for d in attendance_dates:
                     if start <= d <= end:
                         medical_days[sid].add(d)
+
+        # 2ª passada: classifica cada célula respeitando atestado (A vence P/F/J)
+        for att in attendances:
+            att_date = att.get('date', '')[:10]
+            has_aula_numero = att.get('aula_numero') is not None
+            num_classes = 1 if has_aula_numero else att.get('number_of_classes', 1)
+
+            for record in att.get('records', []):
+                sid = record.get('student_id')
+                if sid not in student_stats:
+                    continue
+                raw_status = record.get('status', '')
+                in_atestado = att_date in medical_days.get(sid, set())
+
+                if '|' in raw_status:
+                    # Pipe-separated statuses (legado multi-aula)
+                    statuses = raw_status.split('|')
+                    student_stats[sid]['total'] += len(statuses)
+                    for s in statuses:
+                        s = s.strip()
+                        if in_atestado:
+                            student_stats[sid]['medical'] = student_stats[sid].get('medical', 0) + 1
+                        elif s in ['present', 'P']:
+                            student_stats[sid]['present'] += 1
+                        elif s in ['absent', 'F', 'A']:
+                            student_stats[sid]['absent'] += 1
+                        elif s in ['justified', 'J']:
+                            student_stats[sid]['justified'] += 1
+                else:
+                    student_stats[sid]['total'] += num_classes
+                    if in_atestado:
+                        student_stats[sid]['medical'] = student_stats[sid].get('medical', 0) + num_classes
+                    elif raw_status in ['present', 'P']:
+                        student_stats[sid]['present'] += num_classes
+                    elif raw_status in ['absent', 'F', 'A']:
+                        student_stats[sid]['absent'] += num_classes
+                    elif raw_status in ['justified', 'J']:
+                        student_stats[sid]['justified'] += num_classes
+                    elif raw_status in ['late', 'L']:
+                        student_stats[sid]['late'] += num_classes
         
         report = []
         for student in students:
@@ -740,13 +749,16 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             present = stats.get('present', 0)
             justified = stats.get('justified', 0)
             absent = stats.get('absent', 0)
-            
-            # Calcula percentual de frequência (presença + justificadas contam)
-            attendance_percentage = round((present + justified) / total * 100, 1) if total > 0 else 0
-            
+            medical_count = stats.get('medical', 0)
+
+            # Feb 2026: medical conta como presença (não-falta) — alinhado com PDF
+            attendance_percentage = round(
+                (present + justified + medical_count) / total * 100, 1
+            ) if total > 0 else 0
+
             # Define status baseado na frequência mínima (75%)
             freq_status = 'regular' if attendance_percentage >= 75 else 'infrequente'
-            
+
             report.append({
                 "student_id": student['id'],
                 "student_name": student['full_name'],
@@ -754,7 +766,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 "present": present,
                 "absent": absent,
                 "justified": justified,
-                "medical": len(medical_days.get(student['id'], set())),
+                "medical": medical_count,
                 "late": stats.get('late', 0),
                 "total": total,
                 "attendance_percentage": attendance_percentage,

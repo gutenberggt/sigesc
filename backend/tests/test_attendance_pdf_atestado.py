@@ -152,3 +152,31 @@ def test_attendance_pdf_renders_A_for_certificate_days(super_token, setup_attend
     # Legenda no rodapé (Feb 2026)
     assert "Legenda" in full_text, "Legenda não encontrada no PDF"
     assert "Atestado" in full_text, "Texto 'Atestado' (legenda) não encontrado no PDF"
+
+
+def test_class_summary_excludes_certificate_days_from_absences(super_token, setup_attendance_with_certificate):
+    """O endpoint /api/attendance/report/class/{class_id} deve descontar dias com atestado das faltas."""
+    d = setup_attendance_with_certificate
+    r = requests.get(
+        f"{BASE_URL}/api/attendance/report/class/{d['class_id']}",
+        params={"academic_year": 2026},
+        headers={"Authorization": f"Bearer {super_token}"},
+        timeout=30,
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    students = data.get('students', data) if isinstance(data, dict) else data
+    target = next((s for s in students if s.get('student_id') == d['student_id']), None)
+    assert target is not None, f"Aluno não retornado no summary: {students}"
+    # 2 dias registrados: 09/03 (P) e 10/03 (F). Atestado 09-12/03 cobre ambos.
+    # Após Feb 2026: ausências efetivas devem ser 0 (a falta de 10/03 vira atestado).
+    assert target.get('absent') == 0, (
+        f"Esperado absent=0 (falta foi coberta por atestado), veio {target.get('absent')}"
+    )
+    assert target.get('medical') == 2, (
+        f"Esperado medical=2 (09/03 e 10/03 cobertos), veio {target.get('medical')}"
+    )
+    # 100% de frequência (P+J+A=2, total=2)
+    assert target.get('attendance_percentage') == 100.0, (
+        f"Esperado 100%, veio {target.get('attendance_percentage')}"
+    )
