@@ -149,3 +149,6 @@ def test_attendance_pdf_renders_A_for_certificate_days(super_token, setup_attend
     assert " A " in full_text or "\nA" in full_text or "A " in full_text, (
         f"Letra 'A' não encontrada no PDF (esperado para dias com atestado). Texto: {full_text[:1500]}"
     )
+    # Legenda no rodapé (Feb 2026)
+    assert "Legenda" in full_text, "Legenda não encontrada no PDF"
+    assert "Atestado" in full_text, "Texto 'Atestado' (legenda) não encontrado no PDF"

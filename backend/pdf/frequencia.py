@@ -320,7 +320,19 @@ def generate_relatorio_frequencia_bimestre_pdf(
     ]))
     
     elements.append(freq_table)
-    elements.append(Spacer(1, 15))
+    elements.append(Spacer(1, 6))
+
+    # Legenda das letras (Feb 2026)
+    legenda = ParagraphStyle(
+        'Legenda', parent=styles.get('Normal'), fontSize=7, alignment=0,
+        textColor=colors.Color(0.3, 0.3, 0.3)
+    )
+    elements.append(Paragraph(
+        "<b>Legenda:</b> P = Presente &nbsp;·&nbsp; F = Falta &nbsp;·&nbsp; "
+        "J = Justificada &nbsp;·&nbsp; A = Atestado Médico",
+        legenda
+    ))
+    elements.append(Spacer(1, 9))
     
     # Rodapé
     today = datetime.now()
