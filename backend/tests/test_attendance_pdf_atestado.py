@@ -152,6 +152,13 @@ def test_attendance_pdf_renders_A_for_certificate_days(super_token, setup_attend
     # Legenda no rodapé (Feb 2026)
     assert "Legenda" in full_text, "Legenda não encontrada no PDF"
     assert "Atestado" in full_text, "Texto 'Atestado' (legenda) não encontrado no PDF"
+    # Cabeçalho institucional (Feb 2026): nome da mantenedora + secretaria devem aparecer
+    assert "FLORESTA" in full_text.upper() or "PREFEITURA" in full_text.upper(), (
+        "Nome da mantenedora não apareceu no cabeçalho do PDF"
+    )
+    assert "EDUCA" in full_text.upper(), (
+        "'Secretaria... Educação' não apareceu no cabeçalho do PDF"
+    )
 
 
 def test_class_summary_excludes_certificate_days_from_absences(super_token, setup_attendance_with_certificate):

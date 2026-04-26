@@ -77,9 +77,9 @@ def generate_relatorio_frequencia_bimestre_pdf(
         alignment=0  # LEFT
     )
     
-    # Brasão da mantenedora (70% da largura anterior: 1.5cm * 0.7 = 1.05cm)
+    # Brasão da mantenedora (Feb 2026: aumentado para 2.2cm para melhor visibilidade)
     logo_url = mantenedora.get('brasao_url') or mantenedora.get('logotipo_url')
-    logo = get_logo_image(width=1.05*cm, height=0.7*cm, logo_url=logo_url)
+    logo = get_logo_image(width=2.2*cm, height=2.2*cm, logo_url=logo_url)
     
     # Meses abreviados em português
     meses_pt = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
@@ -109,6 +109,9 @@ def generate_relatorio_frequencia_bimestre_pdf(
     
     # Dados da turma
     mant_municipio = mantenedora.get('municipio', 'Floresta do Araguaia')
+    mant_nome = mantenedora.get('nome') or f'Prefeitura Municipal de {mant_municipio}'
+    mant_secretaria = mantenedora.get('secretaria', 'Secretaria Municipal de Educação')
+    mant_slogan = mantenedora.get('slogan', '') if mantenedora else ''
     periodo_texto = f"De {format_date_short(period_start)} a {format_date_short(period_end)}"
     
     turnos = {'morning': 'MATUTINO', 'afternoon': 'VESPERTINO', 'night': 'NOTURNO', 'full_time': 'INTEGRAL'}
@@ -142,24 +145,74 @@ def generate_relatorio_frequencia_bimestre_pdf(
         componente_nome = course_info.get('name', '')
     
     # === CABEÇALHO ===
+    # Feb 2026: brasão maior + bloco institucional (nome mantenedora + secretaria + slogan)
+    # à direita do brasão; nome da escola + título do relatório à direita.
+    institucional_style = ParagraphStyle(
+        'InstitucionalFreq', fontSize=9, alignment=0, leading=12, fontName='Helvetica'
+    )
+    slogan_html = (
+        f'<br/><font size="7" color="#666666"><i>"{mant_slogan}"</i></font>' if mant_slogan else ''
+    )
+    institucional_html = (
+        f'<font size="10"><b>{mant_nome.upper()}</b></font><br/>'
+        f'<font size="8"><i>{mant_secretaria}</i></font>'
+        f'{slogan_html}'
+    )
+
     header_data = []
-    col1 = logo if logo else Paragraph(mant_municipio.upper(), small_text)
-    header_row1 = [
-        col1,
-        Paragraph(f"<b>{school.get('name', 'ESCOLA').upper()}</b>", styles['CenterText']),
-        Paragraph(f"<b>{titulo_frequencia}</b>", styles['CenterText'])
-    ]
-    header_data.append(header_row1)
-    
-    header_row2 = ['', Paragraph(periodo_texto, small_text), '']
-    header_data.append(header_row2)
-    
-    header_table = Table(header_data, colWidths=[3*cm, 14*cm, 10*cm])
-    header_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('SPAN', (0, 0), (0, 1)),
-    ]))
+    if logo:
+        # Linha 1: [Brasão][Mantenedora/Sec/Slogan][Escola]
+        # Linha 2: [span][span][Título do relatório + período]
+        header_row1 = [
+            logo,
+            Paragraph(institucional_html, institucional_style),
+            Paragraph(f"<b>{school.get('name', 'ESCOLA').upper()}</b>", styles['CenterText']),
+        ]
+        header_data.append(header_row1)
+        header_row2 = [
+            '',
+            '',
+            Paragraph(
+                f"<b>{titulo_frequencia}</b><br/>"
+                f"<font size='8'>{periodo_texto}</font>",
+                styles['CenterText']
+            ),
+        ]
+        header_data.append(header_row2)
+        header_table = Table(header_data, colWidths=[2.6*cm, 9*cm, 15.4*cm])
+        header_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+            ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('SPAN', (0, 0), (0, 1)),
+            ('SPAN', (1, 0), (1, 1)),
+            ('LEFTPADDING', (1, 0), (1, -1), 8),
+            ('LINEAFTER', (0, 0), (0, -1), 0.5, colors.Color(0.7, 0.7, 0.7)),
+        ]))
+    else:
+        # Sem brasão: usa apenas bloco institucional + escola + título
+        header_row1 = [
+            Paragraph(institucional_html, institucional_style),
+            Paragraph(f"<b>{school.get('name', 'ESCOLA').upper()}</b>", styles['CenterText']),
+        ]
+        header_data.append(header_row1)
+        header_row2 = [
+            '',
+            Paragraph(
+                f"<b>{titulo_frequencia}</b><br/>"
+                f"<font size='8'>{periodo_texto}</font>",
+                styles['CenterText']
+            ),
+        ]
+        header_data.append(header_row2)
+        header_table = Table(header_data, colWidths=[10*cm, 17*cm])
+        header_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('SPAN', (0, 0), (0, 1)),
+        ]))
     elements.append(header_table)
     elements.append(Spacer(1, 5))
     

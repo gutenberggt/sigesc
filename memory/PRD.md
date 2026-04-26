@@ -266,6 +266,18 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 **Pytest adicional**: `test_class_summary_excludes_certificate_days_from_absences` valida que `/api/attendance/report/class/{class_id}` retorna `absent=0`, `medical=2`, `attendance_percentage=100.0` para um aluno com 2 sessões (P+F) ambas cobertas por atestado. 10/10 pytest verde.
 
+### Cabeçalho institucional no PDF de Frequência (Feb 2026)
+**Antes**: brasão minúsculo (1.05×0.7cm, quase invisível) e cabeçalho mostrava apenas o nome da escola + período.
+
+**Depois** (`pdf/frequencia.py`):
+- Brasão **aumentado para 2.2cm** (proporção quadrada).
+- Bloco institucional ao lado do brasão: **Nome da mantenedora** (10pt bold) → **Secretaria** (8pt itálico) → **Slogan** (7pt cinza, opcional) — usa o mesmo padrão do boletim/declaração para consistência visual.
+- Coluna direita centralizada: **nome da escola** (linha 1) + **título "FREQUÊNCIA - Xº BIMESTRE DE YYYY"** + **período** (linha 2).
+- Linha vertical sutil entre brasão e bloco institucional.
+- Fallback gracioso: se a mantenedora não tem brasão, layout colapsa para 2 colunas (institucional + escola/título).
+
+**Validação**: `test_attendance_pdf_renders_A_for_certificate_days` estendido para verificar a presença de "PREFEITURA"/"FLORESTA" e "EDUCAÇÃO" no texto extraído do PDF. Validação manual com curl em escola real (`ESCOLA TESTE MULTISSERIADA`) gerou PDF de 5MB com cabeçalho correto. 7/7 pytest verde.
+
 ## Current Backlog
 
 ### P1
