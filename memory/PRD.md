@@ -180,6 +180,28 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 - **Saída segura**: clique limpa localStorage diretamente (`accessToken`, `refreshToken`, `userData`, `lastActivityTime`) e usa `window.location.replace('/login')` — hard reload para resetar todo estado React, WebSockets e timers (semanticamente correto: sessão foi forçosamente encerrada). Evita travamento do `await logout()` no axios interceptor que tenta refresh com tokens revogados.
 - **Validação E2E (Playwright)**: aluno logado → super_admin revoga via API → modal aparece em ~3s → clique → redirect `/login` + localStorage limpo. ✅
 
+### 🚨 Fix Crítico: Vazamento Cross-Tenant em designar_gerente (Feb 2026)
+**Bug confirmado em produção:** gerente designado para Mantenedora B continuava vendo dados da Mantenedora A.
+
+**Causa raiz** (`/app/backend/routers/mantenedoras.py`): o endpoint `POST /api/mantenedoras/{mid}/gerente` apenas executava `$set: {role, mantenedora_id}`, sem:
+1. Revogar tokens ativos do usuário designado → JWT antigo continuava válido com `mantenedora_id` da mantenedora antiga, e `apply_tenant_filter` retornava dados da mantenedora errada (o filtro confia no payload do JWT, não no DB).
+2. Limpar `school_links`/`school_ids` que apontavam para escolas de outras mantenedoras → `verify_school_access` permite gerente em qualquer school da lista, criando bypass adicional.
+
+**Fix multi-camada:**
+- **Sanitização de school_links**: filtra para manter apenas escolas cuja `mantenedora_id == mid` (escolas estranhas são removidas em silêncio, contagem retornada no payload).
+- **Revogação de tokens**: `token_blacklist.revoke_all_user_tokens(user_id, reason='designar_gerente_to_mantenedora_{mid}')` força relogin → próximo JWT terá `mantenedora_id` correto.
+- **Audit log**: `action='designar_gerente'` registra old/new role, mantenedora_id e contagem de school_links antes/depois.
+- **Resposta enriquecida**: agora inclui `school_links_kept` e `school_links_removed_cross_tenant` para feedback ao admin.
+
+**Validação (curl + pytest, 100% verde):**
+1. User era admin de Floresta (mantenedora_id=A no DB+JWT) → vê 9 alunos da Floresta com seu token
+2. Super_admin promove para gerente de Pau Darco (B): resposta `{"school_links_removed_cross_tenant": 1, "school_links_kept": 0}`
+3. Token antigo → **HTTP 401 "Token revogado"** ✅
+4. Re-login: JWT novo tem `mantenedora_id=B`, `school_ids=[]`
+5. `/api/students` → 0 alunos (Pau Darco está vazia) ✅ (antes: 9 alunos da Floresta)
+6. `/api/schools` → apenas escolas de Pau Darco ✅
+- **Pytest**: `tests/test_designar_gerente_security.py::test_old_token_revoked_after_designar_gerente` PASSED.
+
 ## Current Backlog
 
 ### P1
