@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, MessageCircle, X, Check, ChevronRight } from 'lucide-react';
+import { Bell, MessageCircle, X, Check, ChevronRight, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { notificationsAPI, announcementsAPI, getWebSocketUrl } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +11,7 @@ export const NotificationBell = () => {
   const [counts, setCounts] = useState({ unread_messages: 0, unread_announcements: 0, total: 0 });
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [forceLogout, setForceLogout] = useState(null); // { message }
   const dropdownRef = useRef(null);
   const wsRef = useRef(null);
 
@@ -51,6 +52,10 @@ export const NotificationBell = () => {
         const data = JSON.parse(event.data);
         if (data.type === 'new_announcement' || data.type === 'new_message') {
           fetchCounts();
+        } else if (data.type === 'force_logout') {
+          setForceLogout({
+            message: data.message || 'Sua sessão foi encerrada pelo administrador.'
+          });
         }
       } catch (error) {
         // Ignorar erros de parsing
@@ -249,6 +254,53 @@ export const NotificationBell = () => {
               Ver todos os avisos
               <ChevronRight size={16} />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Force Logout — sessão encerrada por admin */}
+      {forceLogout && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4"
+          data-testid="force-logout-notice-modal"
+        >
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-lg flex-shrink-0">
+                <ShieldAlert size={28} className="text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">Sessão encerrada</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {forceLogout.message}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mb-4 bg-gray-50 rounded-lg p-3">
+              Por motivos de segurança, você precisará fazer login novamente para continuar.
+            </p>
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  setForceLogout(null);
+                  // Limpa estado de auth imediatamente (sem aguardar backend, que já revogou)
+                  try {
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('refreshToken');
+                    localStorage.removeItem('userData');
+                    localStorage.removeItem('lastActivityTime');
+                  } catch (e) {
+                    // ignora
+                  }
+                  // Hard reload para resetar todo o estado React, WebSockets e timers
+                  window.location.replace('/login');
+                }}
+                data-testid="force-logout-notice-confirm"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+              >
+                Ir para o login
+              </button>
+            </div>
           </div>
         </div>
       )}

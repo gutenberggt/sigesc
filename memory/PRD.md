@@ -174,6 +174,12 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
   - UI: modal abre, exibe alvo, botão Cancelar funcional
 - **Trade-off educacional**: revogação invalida sessões de TODOS os devices do alvo (mesmo padrão do logout próprio) — feature, não bug, em ambiente de salas compartilhadas.
 
+### Notificação em tempo real de Force Logout (Feb 2026)
+- **Frontend** (`/app/frontend/src/components/notifications/NotificationBell.js`): aproveita a conexão WebSocket já montada no Layout. Adicionado handler para `data.type === 'force_logout'` que exibe modal "Sessão encerrada" com a `data.message` enviada pelo backend (`"Sua sessão foi encerrada pelo administrador"`).
+- **Modal**: ícone `ShieldAlert`, título, mensagem, aviso de segurança e botão único "Ir para o login" (`data-testid="force-logout-notice-confirm"`).
+- **Saída segura**: clique limpa localStorage diretamente (`accessToken`, `refreshToken`, `userData`, `lastActivityTime`) e usa `window.location.replace('/login')` — hard reload para resetar todo estado React, WebSockets e timers (semanticamente correto: sessão foi forçosamente encerrada). Evita travamento do `await logout()` no axios interceptor que tenta refresh com tokens revogados.
+- **Validação E2E (Playwright)**: aluno logado → super_admin revoga via API → modal aparece em ~3s → clique → redirect `/login` + localStorage limpo. ✅
+
 ## Current Backlog
 
 ### P1
