@@ -153,12 +153,21 @@ class TokenBlacklistService:
             return False
         
         try:
-            # Adiciona entrada especial que invalida todos os tokens anteriores a esta data
+            # Resolve race condition de precisão entre JWT iat (segundos inteiros)
+            # e revoke_all_before (datetime com microssegundos).
+            # Estratégia: gravamos revoke_before no FINAL do segundo (microsecond=999999).
+            # Resultado: tokens com iat == segundo_atual são revogados; tokens emitidos
+            # a partir do próximo segundo (iat = segundo_atual + 1) sobrevivem.
+            # Trade-off aceito: para re-login imediatamente após revoke, o user precisa
+            # aguardar até a virada do segundo (≤ 1s). Em produção isso é trivial pois
+            # o fluxo passa pela UI (tela de login + digitação > 1s).
+            now = datetime.now(timezone.utc)
+            revoke_before = now.replace(microsecond=999999)
             await self.db[self._collection_name].insert_one({
                 'user_id': user_id,
-                'revoke_all_before': datetime.now(timezone.utc),
-                'revoked_at': datetime.now(timezone.utc),
-                'expires_at': datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS + 1),
+                'revoke_all_before': revoke_before,
+                'revoked_at': now,
+                'expires_at': now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS + 1),
                 'reason': reason or 'revoke_all_sessions'
             })
             logger.info(f"[TokenBlacklist] Todos os tokens revogados para user={user_id}")

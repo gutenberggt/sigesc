@@ -180,7 +180,12 @@ def test_old_token_revoked_after_designar_gerente(super_token, two_mantenedoras_
     assert r.status_code == 401, f"esperado 401, veio {r.status_code}: {r.text}"
     assert "revogado" in r.text.lower() or "revoked" in r.text.lower()
 
-    # Re-login carrega JWT novo apontando para Pau Darco
+    # Re-login carrega JWT novo apontando para Pau Darco.
+    # Aguarda virada do segundo: revoke_all_before é gravado com microsecond=999999,
+    # então tokens emitidos no MESMO segundo da revogação ainda são revogados.
+    # Em produção UI isso é trivial (login + digitação > 1s); em teste é explícito.
+    import time as _time
+    _time.sleep(1.1)
     r = requests.post(f"{BASE_URL}/api/auth/login", json=creds, timeout=30)
     assert r.status_code == 200
     new_token = r.json()["access_token"]

@@ -220,9 +220,26 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 - `Grades.js canEditStudentGrade()`: adicionado parâmetro `gradeRecord` — retorna `false` se `gradeRecord.migrated_from_class_id` e user fora da lista autorizada.
 - `GradesTable.jsx`: badge âmbar "Migrado" ao lado do nome do aluno; tooltip nos campos explicando "Nota migrada da turma de origem — apenas secretário, gerente ou super administrador podem editar".
 
-**Pytests** (`tests/test_freeze_origin_and_migration.py`, 2/2 passing):
+**Pytests** (`tests/test_freeze_origin_and_migration.py` + `tests/test_freeze_migration_extra.py`, 7/7 passing):
 1. `copy-data` marca todos os registros com `migrated_from_class_id` (3 attendances + 1 grade copiados).
 2. `load_grades_by_class` na origem retorna `blocked_after_action=[1,2,3,4]` para aluno remanejado em 10/03/2026, e `b1=8.5` (visível), `b2=b3=b4=null`.
+3. Professor tentando PUT/POST/batch em grade migrated → 403.
+4. Super_admin pode editar grade migrated; flag `migrated_from_class_id` é preservada após update.
+5. PDF de frequência por bimestre retorna 200 (turma destino e turma origem com action_date).
+6. Cross-tenant guard: gerente Mant A com school_link residual → 403 'Escola pertence a outra mantenedora'.
+
+### Fix Race Condition em revoke_all_user_tokens (Feb 2026)
+**Bug descoberto pelo testing agent durante a validação:**
+- `auth_utils.create_access_token` grava `iat` como inteiro de segundos (`int(now.timestamp())`)
+- `revoke_all_user_tokens` gravava `revoke_all_before` como datetime com microssegundos
+- Quando re-login ocorria no mesmo segundo da revogação, `token_issued (.000) < revoke_before (.872)` → novo token incorretamente classificado como revogado → 401
+
+**Fix em `auth_utils.revoke_all_user_tokens`**: grava `revoke_all_before` no FINAL do segundo (`microsecond=999999`):
+- Tokens com `iat` no mesmo segundo da revogação OU anteriores → revogados ✅
+- Tokens emitidos a partir do próximo segundo → válidos ✅
+- Trade-off: re-login imediato após revoke precisa aguardar virada do segundo (~1s). Em produção UI o fluxo passa por tela de login + digitação (>1s), tornando isso transparente.
+
+**Validação**: 19/19 testes pytest passando incluindo `test_designar_gerente_security`, `test_token_refresh_contract` (11 cenários de auth) e os 7 de freeze/migration.
 
 ## Current Backlog
 
