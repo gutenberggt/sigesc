@@ -242,12 +242,21 @@ def generate_relatorio_frequencia_bimestre_pdf(
         
         attendance_by_date = student.get('attendance_by_date', {})
         attendance_classes_by_date = student.get('attendance_classes_by_date', {})
+        # Feb 2026: dias amparados por atestado médico → célula 'A' (substitui P/F/J)
+        medical_days = set(student.get('medical_days') or [])
         faltas = 0
         presencas = 0
-        
+
         for day_str in attendance_days:
             status = attendance_by_date.get(day_str, '')
             num_classes = attendance_classes_by_date.get(day_str, 1)
+            # Extrai apenas a data (formato pode ser 'YYYY-MM-DD' ou 'YYYY-MM-DD#N')
+            day_only = day_str.split('#')[0]
+            if day_only in medical_days:
+                # Atestado: substitui qualquer status (P/F/J) e conta como presença
+                row.append('A')
+                presencas += num_classes
+                continue
             if status == 'present':
                 row.append('P')
                 presencas += num_classes

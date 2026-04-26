@@ -241,6 +241,16 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 **Validação**: 19/19 testes pytest passando incluindo `test_designar_gerente_security`, `test_token_refresh_contract` (11 cenários de auth) e os 7 de freeze/migration.
 
+### "A" de Atestado no PDF de Frequência (Feb 2026)
+**Regra de negócio:** dias amparados por atestado médico (registrados pelo secretário em `medical_certificates`) devem renderizar a letra **'A'** nas colunas correspondentes do PDF de frequência, **substituindo qualquer status (P/F/J)** que o professor tenha lançado. Atestado conta como **presença** nos totais (não-falta).
+
+**Backend:**
+- `/app/backend/routers/attendance_ext.py get_attendance_bimestre_pdf`: após buscar attendances, varre `medical_certificates` no intervalo do bimestre e monta `medical_days_by_student[student_id] = set(['YYYY-MM-DD'])`. Cada `students_attendance[i]` recebe a chave `medical_days` com a lista ordenada de datas amparadas por atestado.
+- `/app/backend/pdf/frequencia.py`: ao iterar `attendance_days`, antes de aplicar `status_map → P/F/J`, verifica `day_only in medical_days` → renderiza **'A'** e incrementa `presencas` (atestado é presença justificada).
+- Regra é completamente data-driven: o atestado pode ter sido inserido **antes ou depois** do registro de frequência pelo professor; no momento da geração do PDF, o atestado vence.
+
+**Pytest** (`tests/test_attendance_pdf_atestado.py`): cria turma + aluno + 2 sessões (P em 09/03 e F em 10/03) + atestado cobrindo 09/03 a 12/03 → gera PDF e valida que o texto extraído contém 'A' (independente do status original lançado pelo professor). PASSED.
+
 ## Current Backlog
 
 ### P1

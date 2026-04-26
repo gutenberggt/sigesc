@@ -365,6 +365,34 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # Coletar dias únicos com frequência registrada
         attendance_days = sorted(list(set([att['date'] for att in attendances])))
 
+        # Feb 2026: dias amparados por atestado médico — renderizam 'A' no PDF
+        # mesmo que o professor tenha lançado P/F/J. O atestado SUBSTITUI o status
+        # visual e conta como presença nos totais (não-falta).
+        medical_days_by_student = {}
+        if student_ids and attendance_days:
+            min_d = attendance_days[0]
+            max_d = attendance_days[-1]
+            certs = await db.medical_certificates.find(
+                {
+                    "student_id": {"$in": student_ids},
+                    "start_date": {"$lte": max_d},
+                    "end_date": {"$gte": min_d}
+                },
+                {"_id": 0, "student_id": 1, "start_date": 1, "end_date": 1}
+            ).to_list(None)
+            attendance_dates_set = set(attendance_days)
+            for c in certs:
+                sid = c.get('student_id')
+                start = (c.get('start_date') or '')[:10]
+                end = (c.get('end_date') or '')[:10]
+                if not start or not end:
+                    continue
+                bucket = medical_days_by_student.setdefault(sid, set())
+                for d in attendance_dates_set:
+                    d_only = d[:10]
+                    if start <= d_only <= end:
+                        bucket.add(d_only)
+
         # Montar dados de frequência por aluno
         # Para anos finais: cada registro de attendance é 1 aula separada (coluna no PDF)
         # Detectar se estamos no modelo novo (com aula_numero) ou legado
@@ -443,7 +471,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     'name': student['full_name'],
                     'enrollment_number': enrollment_numbers.get(student['id']) or student.get('enrollment_number'),
                     'attendance_by_date': attendance_by_date,
-                    'attendance_classes_by_date': attendance_classes_by_date
+                    'attendance_classes_by_date': attendance_classes_by_date,
+                    'medical_days': sorted(list(medical_days_by_student.get(student['id'], set())))
                 })
             
             # Substituir attendance_days por chaves expandidas
@@ -502,7 +531,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                     'name': student['full_name'],
                     'enrollment_number': enrollment_numbers.get(student['id']) or student.get('enrollment_number'),
                     'attendance_by_date': attendance_by_date,
-                    'attendance_classes_by_date': attendance_classes_by_date
+                    'attendance_classes_by_date': attendance_classes_by_date,
+                    'medical_days': sorted(list(medical_days_by_student.get(student['id'], set())))
                 })
 
             attendance_days = attendance_days_expanded
