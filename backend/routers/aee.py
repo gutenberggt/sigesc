@@ -190,19 +190,82 @@ def setup_aee_router(db, audit_service):
 
     @router.delete("/planos/{plano_id}")
     async def delete_plano_aee(plano_id: str, request: Request):
-        """Exclui Plano AEE (apenas rascunhos)"""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'secretario'])(request)
-        
+        """Exclui Plano AEE.
+
+        Apenas super_admin/gerente podem excluir planos ativos ou em revisão.
+        Demais roles administrativas podem excluir apenas rascunhos.
+        """
+        current_user = await AuthMiddleware.require_roles(['super_admin', 'gerente', 'admin', 'admin_teste', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'secretario'])(request)
+
         existing = await db.planos_aee.find_one({"id": plano_id}, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Plano AEE não encontrado")
-        
-        if existing.get('status') not in ['rascunho']:
-            raise HTTPException(status_code=400, detail="Apenas planos em rascunho podem ser excluídos")
-        
+
+        is_privileged = current_user.get('role') in ['super_admin', 'gerente']
+        if not is_privileged and existing.get('status') not in ['rascunho']:
+            raise HTTPException(
+                status_code=400,
+                detail="Apenas planos em rascunho podem ser excluídos (super_admin/gerente podem excluir planos ativos)"
+            )
+
+        # Conta atendimentos vinculados para log de auditoria
+        atend_count = await db.atendimentos_aee.count_documents({"plano_aee_id": plano_id})
+
         await db.planos_aee.delete_one({"id": plano_id})
-        
-        return {"message": "Plano AEE excluído com sucesso"}
+
+        # Audit log da exclusão
+        try:
+            await audit_service.log(
+                action='delete',
+                collection='planos_aee',
+                user=current_user,
+                request=request,
+                document_id=plano_id,
+                description=(
+                    f"Plano AEE excluído (status: {existing.get('status')}, "
+                    f"{atend_count} atendimento(s) vinculado(s) permanecem)"
+                ),
+                old_value=existing,
+            )
+        except Exception:
+            pass
+
+        return {
+            "message": "Plano AEE excluído com sucesso",
+            "atendimentos_vinculados": atend_count,
+        }
+
+    @router.get("/planos/{plano_id}/pdf")
+    async def generate_plano_aee_pdf(plano_id: str, request: Request):
+        """Gera PDF do Plano AEE para visualização/impressão."""
+        _user = await check_aee_access(request)
+
+        plano = await db.planos_aee.find_one({"id": plano_id}, {"_id": 0})
+        if not plano:
+            raise HTTPException(status_code=404, detail="Plano AEE não encontrado")
+
+        # Busca dados relacionados para enriquecer o PDF
+        student = await db.students.find_one(
+            {"id": plano.get('student_id')},
+            {"_id": 0, "full_name": 1, "enrollment_number": 1, "birthday": 1}
+        ) or {}
+        school = await db.schools.find_one(
+            {"id": plano.get('school_id')},
+            {"_id": 0, "name": 1, "mantenedora_id": 1}
+        ) or {}
+        mantenedora = await db.mantenedoras.find_one(
+            {"id": school.get('mantenedora_id')}, {"_id": 0}
+        ) or {}
+
+        from pdf.plano_aee import generate_plano_aee_pdf as _gen
+        from fastapi.responses import StreamingResponse
+        pdf_bytes = _gen(plano=plano, student=student, school=school, mantenedora=mantenedora)
+        filename = f"plano_aee_{(student.get('full_name') or 'aluno').replace(' ', '_')}.pdf"
+        return StreamingResponse(
+            iter([pdf_bytes]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{filename}"'}
+        )
 
     # ==================== ATENDIMENTOS AEE ====================
 

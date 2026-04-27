@@ -1,41 +1,23 @@
 <analysis>**original_problem_statement**: 
-PRODUCT REQUIREMENTS:
-Implement a Student Dashboard (Boletim Virtual) for students to log in and view their academic records. Requirements include:
-1. Login using email and password (student role).
-2. Display a report card (Boletim) containing school and student identification, bimonthly grades, recoveries, and absences.
-3. For 6th to 9th grade (or 3rd/4th stage), display absences per subject as well as the total.
-4. Calculate and present the average and final results based on the Ficha Individual PDF logic.
-5. Display a warning if absences exceed 25% of the school days up to the current date.
-6. Display a congratulatory message if attendance is over 95% of the school days up to the current date.
+Implementar e refinar o Student Dashboard (Boletim Virtual), relatórios AEE e criação de usuários em massa. Recentemente, foco em permissões, falhas no carregamento e salvamento de formulários do AEE, congelamento de registros e migração de dados ao transferir alunos (retenção de histórico na turma de origem), e ajustes lógicos e visuais rigorosos nos PDFs gerados pelo sistema (inclusão de atestados e cabeçalhos institucionais).
 
-**User's preferred language**: Portuguese (You MUST respond in Portuguese only)
+**User's preferred language**: Portuguese (You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and INSTRUCT next agent to respond in Portuguese only)
 
 **what currently exists?** 
-The system is a fully functional multi-tenant SaaS. In the previous session, the agent successfully deployed the PMPI-GE (School Monitoring, Prevention, and Intervention Policy) module in 3 waves. This includes a Semed Panel, Action Plans CRUD, an Alert Engine (with rules and automated monthly goals), and an Intelligence module (AI predictive analysis via Claude Sonnet, School Ranking, Manager Profiles, and daily Cron jobs). The agent also implemented self-healing logic to backfill legacy production data with multi-tenant IDs. The agent has just started scaffolding the new Student Dashboard (Boletim Virtual).
+A plataforma é um SaaS educacional multi-tenant funcional. Possui controle de acesso rígido e segurança contra vazamento de dados cross-tenant (resolvido bug na designação de gerentes). Implementou recentemente um sistema de revogação remota de sessão via WebSockets. Possui módulos consolidados de Frequência e Notas com capacidade de congelar dados de turmas de origem após a transferência de um aluno. O módulo Diário AEE está funcional, salvando dados complexos do plano e permitindo exportação em PDF.
 
 **Last working item**: 
-    - Last item agent was working: Building the Student Dashboard (Boletim Virtual). The agent created the backend router , the frontend page , and added the routes in .
-    - Status: IN PROGRESS
-    - Agent Testing Done: N
-    - Which testing method agent to use? both
+    - Last item agent was working: O agente finalizou a correção do bug onde Barreiras e Objetivos mostravam  no frontend do Plano AEE. Na mesma iteração, adicionou os botões de Visualização, Exclusão e Gerar PDF na tabela de Planos AEE (), incluindo o backend para geração do PDF ().
+    - Status: USER VERIFICATION PENDING
+    - Agent Testing Done: Y
+    - Which testing method agent to use? both (pytest para os endpoints e screenshot tool para os modais visuais no frontend).
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  Issue 1: (P0) Test and Validate the Student Dashboard
-     - Attempted fixes: The agent just generated the backend router and frontend component but didn't execute linters, didn't verify the frontend render, and didn't test the API logic.
-     - Next debug checklist: Review  and . Ensure the logic correctly handles the bimonthly grades (4 bimestres for regular, adapting if necessary for EJA), absence percentages (>25% warning, >95% congrats), and subject-specific absences for 6th-9th grades. Create or find a student user credential to test the login and dashboard rendering.
-     - Why fix this issue and what will be achieved with the fix? Completes the user's latest request for the student portal.
-     - Status: IN PROGRESS
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? both
+  Nenhuma issue pendente classificada como bloqueante no momento. Todas as issues recentes levantadas pelo usuário foram corrigidas e testadas.
 
 **In progress Task List**: 
-  Task 1: Student Dashboard (Boletim Virtual) Implementation
-     - Where to resume: Review the newly created  and . Adjust calculations to match the Ficha Individual PDF reference (calculating averages and final results). Ensure login routes users with  to this dashboard. 
-     - What will be achieved with this? Students will have autonomy to check their grades and attendance.
-     - Status: IN PROGRESS
-     - Should Test frontend/backend/both after fix? both
-     - Blocked on something: No
+  Nenhuma tarefa de código em andamento incompleta. O último pedido (AEE Visualização/PDF) foi concluído.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
@@ -45,93 +27,94 @@ The system is a fully functional multi-tenant SaaS. In the previous session, the
     
     Future Tasks:
     - (P3) Implementar envio de e-mail de confirmação na pré-matrícula.
+    - (Enhancement) Exportar credenciais em CSV na tela de criação em massa de alunos (gerar arquivo com e-mail + senha inicial).
     - (Enhancement) Adicionar tooltips explicativos para os KPIs no Painel do Secretário.
-    - (Enhancement) Envio automático de email/notificação para SEMED com a análise de IA diária para escolas com risco crítico (Nível 3).
+    - (Code Quality) Refatorar  para reduzir complexidade (Atualmente com 47x threshold de complexidade).
+    - (Code Quality) Securing localStorage: Migrar dados sensíveis (tokens) para httpOnly cookies para evitar ataques XSS.
+    - (Code Quality) Split do componente gigante  e modais inchados.
 
 **Completed work in this session**
-- Repositioning and spacing fixes for . (DONE)
-- Production DB self-healing endpoints (, ) to migrate legacy records to multi-tenant. (DONE)
-- PMPI-GE Wave 1: Semed Panel, Action Plans CRUD, KPI calculation engine. (DONE)
-- PMPI-GE Wave 2: Alert rules, alert inbox, automated monthly goals. (DONE)
-- PMPI-GE Wave 3: Predictive AI (Claude Sonnet), School Ranking, Manager Profiles, Daily Cron job (APScheduler). (DONE)
-- Fix Dockerfile build failing due to  package in . (DONE)
-- Fix KPI calculation bug where production  and  returned 0 because they only have , not . Implemented shared service  with fallback logic. (DONE)
-- Visual differentiation of the 5 KPIs in the frontend. (DONE)
+- Funcionalidade de Forçar Logout Remoto com notificação via WebSocket e tela de bloqueio (DONE).
+- Fix de Vazamento Cross-Tenant (Bug Crítico): Revogação de tokens ativos e limpeza de links ao promover gerentes de outras mantenedoras (DONE).
+- Funcionalidade de Congelamento de Origem e Cópia (Migração) de notas/frequência ao realizar transferências e progressões de alunos (DONE).
+- Renderização da letra A (Atestado Médico) no PDF de frequência e relatórios sintéticos em substituição aos lançamentos do professor (DONE).
+- Inserção de Cabeçalho Institucional padronizado (Mantenedora, Secretaria e Brasão ajustado) no PDF de Frequência (DONE).
+- Fix do salvamento do Diário AEE (Pydantic model sync, adequação de campos nulos) e correção da string  (DONE).
+- Adição das ações de Excluir, Visualizar e Exportar PDF na listagem de Planos AEE (DONE).
 
 **Earlier issues found/mentioned but not fixed**
-   - Issue 1: Carga horária prevista zerada na folha de pagamento (Paused by the user to focus on PMPI-GE. Needs business rules definition).
+   *Nota: O script de migração retroativa para transferências antigas foi discutido com o usuário, mas ele EXPLICITAMENTE abandonou a ideia (Abandonar projeto). Portanto, nenhuma ação é necessária e não é considerado um missed issue.*
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Production Database Schema Mismatch.
+  - Issue recurrence in previous fork: Tipos Literais no Pydantic incompatíveis devido a envio de strings com casing diferente pelo frontend. 
   - Recurrence count: 2
-  - Status: RESOLVED
-  Note: Legacy production documents for  and  do NOT contain a . When querying these collections, you must look up the  first and filter using that. This was solved by creating .
+  - Status: RESOLVED (Foi mitigado através do helper  e mapeamento rigoroso no frontend).
 
 **Code Architecture**
-
+React Frontend (App.js atuando como roteador global), Backend FastAPI, MongoDB multi-tenant gerenciado com helpers em . Relatórios complexos em PDF são construídos em memória usando a biblioteca  dentro de .
 
 **Key Technical Concepts**
-- APScheduler: Used for daily cron jobs executing PMPI analytics.
-- Emergent LLM Key (): Used to access Claude Sonnet 4.5 for AI predictive analysis on schools.
+- Os modelos **Pydantic** () operam com . Se o frontend enviar um campo com um nome levemente diferente ou o backend não tiver esse campo no modelo, o dado é descartado silenciosamente.
+- **Isolamento de Tenants**: Verificações obrigatórias via  ou .
+- O módulo **WebSockets** ( / ) é usado agora para receber triggers administrativos (ex: evento ).
 
 **key DB schema**
-  - , : Do NOT reliably contain . Always query these via .
-  - : Uses  (values like 'presente', 'falta').
+  - : Guarda os formulários com detalhes (barreiras, objetivos) salvos.
+  - : Armazena o histórico da turma de ORIGEM de onde o aluno saiu em uma transferência.
+  - : Documentos atestados (usados para sobrepor a frequência com a sigla A).
 
 **changes in tech stack**
-  - Added  for python background tasks.
-  - Added . 
+  - Nenhuma mudança estrutural. Importante notar que  não está em uso (e avisa depreciação) para geração, utiliza-se estritamente .
 
 **All files of reference** 
-  -  (Created in this session, untested)
-  -  (Created in this session, untested)
-  -  (Crucial for KPI logic)
-  - 
-  - 
+  - ,  (Forçar Logout)
+  - ,  (Fix de Tenant Leakage)
+  - , ,  (Regras de Congelamento)
+  - ,  (Letra A e Cabeçalho do PDF)
+  - , , ,  (Correções do Formulário e UI do AEE)
+  -  (Novo arquivo para PDF de plano AEE)
 
 **Areas that need refactoring**: 
--  and  were generated at the very end of the session. The agent did not test or refine them. Review their logic to ensure they meet the specific math requirements (averages, >25% absences, >95% attendance).
+-  - Complexidade cíclica muito alta.
+-  - Rotas gigantescas, necessita separação por módulos (admin, professor, relatórios, etc).
 
 **key api endpoints**
-  -  (New)
   - 
   - 
+  -  e 
 
 **Critical Info for New Agent** 
-- **DO NOT** add  to . It causes Coolify deployment builds to fail because it is an internal library. It has already been configured to install directly in the Dockerfile via . Never run  without removing it afterward.
-- For all PMPI KPI queries or metrics fetching  or , utilize the helper service  since it elegantly handles the fallback from  to  to avoid 0 count bugs on production data.
-- The new Student Dashboard (Boletim Virtual) must handle standard 4-bimestre school formats. EJA (Educação de Jovens e Adultos) uses 2 semesters with 3 evaluations. The agent planned to start with the 4-bimestre standard and adapt later.
-- Students must have  to access the dashboard.
+- Sempre que criar/editar formulários no frontend, certifique-se de que os nomes e estruturas casam 100% com os modelos  no backend para evitar descarte silencioso de dados (o Pydantic está com ).
+- Ao trabalhar com PDFs, use **ReportLab**. A biblioteca PyPDF2 foi evitada para geração original.
+- Para testes locais, as senhas estão em . Não crie rotinas de migração retroativas envolvendo histórico de turmas (já acordado como não-desejado pelo usuário).
 
 **documents and test reports created in this job** 
   - 
+  - 
+  - 
+  - 
+  - 
+  -  (Arquivo sempre atualizado com histórico de decisões)
 
 **Last 10 User Messages and any pending HUMAN messages** 
-- User requested to explain the 5 KPIs (Frequency, Classes Registered, Grades Registered, Delay, Workload). (Agent explained them).
-- User reported that the Intelligence tab worked, but the other 3 PMPI Engine tabs were empty. (Agent explained they needed to be run manually for the first time: Seed Rules, Run Engine, Generate Goals. User ran them via JS console and confirmed they worked).
-- User requested a new feature: **Student Dashboard (Boletim Virtual)**.
-- Agent used  to clarify login methods and PDF details.
-- User replied: 1. Login via email/password. 2. Use fields from Ficha Individual PDF. 3. Show average and final results based on PDF. (Agent generated the backend and frontend files but didn't finish testing). 
+1. *User*: Bug report: Erro ao salvar plano -> *Agent*: Descobre falhas de cast de tipos () vazios e corrige.
+2. *User*: Bug report contínuo do plano não salvando tudo. -> *Agent*: Descobre que o Pydantic model () não incluía 13 campos enviados pelo front; adiciona e corrige.
+3. *User*: Solicitações visuais:  ao salvar as barreiras no AEE, adicionar Exclusão/Visualização de Planos, e Botão de gerar PDF no modal de visualização. -> *Agent*: Corrige o mapeamento de array do frontend, cria as interfaces para ícones Eye/Trash na listagem e escreve endpoint gerador de PDF (). Tudo finalizado com sucesso.
 
 **Project Health Check:**
-- App is fully functional and stable. The PMPI-GE policy engine was deployed successfully. 
+- Nenhuma parte crítica quebrada (O pytest roda dezenas de testes perfeitamente e o smoke test não acusa console errors).
 
 **3rd Party Integrations** 
-- Claude Sonnet 4.5 — uses Emergent LLM Key (via  package).
+- Claude Sonnet 4.5 — uses Emergent LLM Key (via ).
 
 **Testing status**
-  - Testing agent used after significant changes: NO (New feature just started)
-  - Troubleshoot agent used after agent stuck in loop: NO
+  - Testing agent used after significant changes: YES (usado o  no meio da iteração para relatórios e congelamento, gerando o ).
+  - Troubleshoot agent used after agent stuck in loop: NO.
+  - Test files created: , , , 
+  - Known regressions: None.
 
 **Credentials to test flow:**
-Refer to . (You will need to create or identify a student account with  to test the new Boletim Virtual flow).
+Consultar senhas centralizadas no  (super_admin = ).
 
 **What agent forgot to execute**
-The agent generated  and  but completely stopped without testing, running linting, or verifying if the frontend correctly matched the specific math rules requested by the user (>25% absences warning, >95% attendance congratulations, per-subject absences for 6th-9th grade).
-
-**Debugging checklist for current issue**
-    Issue: Complete and Test the Student Dashboard (Boletim Virtual)
-    Frontend files to check: 
-    Backend files to check: 
-    Database to check: Ensure test student user has valid , , and .
-    Next Steps: Review the code for the specific >25% and >95% absence/presence logic. Create a test student account. Log in as the student and verify the UI. Run linting. Use the testing agent if necessary.</analysis>
+Nenhuma ação solicitada pelo usuário foi esquecida no fechamento da task de Planos AEE. Pode prosseguir questionando o usuário pela próxima prioridade listada sob o Backlog.</analysis>

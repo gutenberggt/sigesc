@@ -111,12 +111,39 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
   useEffect(() => {
     if (!show) return;
     if (editingPlano) {
+      // Converte arrays de objetos para multilinha legível ao reabrir para edição.
+      // Bug Feb 2026: simples .join('\n') em array de objetos gerava "[object Object]".
+      const barreiraToLine = (b) => {
+        if (!b) return '';
+        if (typeof b === 'string') return b;
+        const tipo = b.tipo ? `[${b.tipo}] ` : '';
+        const desc = b.descricao || '';
+        return `${tipo}${desc}`.trim();
+      };
+      const objetivoToLine = (o) => {
+        if (!o) return '';
+        if (typeof o === 'string') return o;
+        const prazo = o.prazo ? ` (${o.prazo})` : '';
+        return `${o.descricao || ''}${prazo}`.trim();
+      };
+      const recursoToLine = (r) => {
+        if (!r) return '';
+        if (typeof r === 'string') return r;
+        const tipo = r.tipo ? `[${r.tipo}] ` : '';
+        return `${tipo}${r.descricao || ''}`.trim();
+      };
+      const normalizeList = (arr, fn) => {
+        if (Array.isArray(arr)) {
+          return arr.map(fn).filter(Boolean).join('\n');
+        }
+        return arr || '';
+      };
       setForm({
         ...INITIAL_FORM,
         ...editingPlano,
-        barreiras: Array.isArray(editingPlano.barreiras) ? editingPlano.barreiras.join('\n') : (editingPlano.barreiras || ''),
-        objetivos: Array.isArray(editingPlano.objetivos) ? editingPlano.objetivos.join('\n') : (editingPlano.objetivos || ''),
-        recursos_acessibilidade: Array.isArray(editingPlano.recursos_acessibilidade) ? editingPlano.recursos_acessibilidade.join('\n') : (editingPlano.recursos_acessibilidade || ''),
+        barreiras: normalizeList(editingPlano.barreiras, barreiraToLine),
+        objetivos: normalizeList(editingPlano.objetivos, objetivoToLine),
+        recursos_acessibilidade: normalizeList(editingPlano.recursos_acessibilidade, recursoToLine),
       });
     } else {
       setForm({ ...INITIAL_FORM });

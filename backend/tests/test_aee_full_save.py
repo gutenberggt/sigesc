@@ -365,3 +365,75 @@ def test_plano_aee_minimal_save(super_token, setup_aee_data):
         json=plano_data, timeout=30,
     )
     assert r2.status_code == 200, f"PUT idempotente falhou: {r2.text[:400]}"
+
+
+def test_plano_aee_delete_and_pdf(super_token, setup_aee_data):
+    """Exclusão de plano + geração de PDF (Feb 2026)."""
+    d = setup_aee_data
+    # Cria rascunho (aluno 3 já pode ter plano — criamos outro em status 'rascunho')
+    from dotenv import load_dotenv
+    load_dotenv("/app/backend/.env")
+    from motor.motor_asyncio import AsyncIOMotorClient
+    from datetime import datetime, timezone
+    client = AsyncIOMotorClient(os.environ["MONGO_URL"])
+    db = client[os.environ["DB_NAME"]]
+
+    # Limpa planos prévios do aluno 3
+    asyncio.get_event_loop().run_until_complete(
+        db.planos_aee.delete_many({"student_id": d["student3_id"]})
+    )
+
+    plano_id = "test_plano_delete_" + str(uuid.uuid4())[:8]
+    asyncio.get_event_loop().run_until_complete(
+        db.planos_aee.insert_one({
+            "id": plano_id, "student_id": d["student3_id"], "school_id": d["school_id"],
+            "academic_year": 2026, "professor_aee_id": d["prof_id"],
+            "professor_aee_nome": "PROF TESTE PYTEST",
+            "publico_alvo": "deficiencia_intelectual",
+            "criterio_elegibilidade": "TEST_PYTEST_DELETE",
+            "modalidade": "individual", "frequencia_revisao": "bimestral",
+            "status": "rascunho", "dias_atendimento": ["segunda"],
+            "barreiras": [{"tipo": "comunicacao", "descricao": "Teste barreira", "estrategias": []}],
+            "objetivos": [{"descricao": "Teste objetivo", "prazo": "curto", "indicadores": [], "status": "nao_iniciado"}],
+            "recursos_acessibilidade": [],
+            "carga_horaria_semanal": "4 horas",
+            "linha_base_situacao_atual": "Teste situacao atual",
+            "indicadores_progresso": "Teste indicadores",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+    )
+
+    # GET PDF - retorna 200 + content-type application/pdf
+    r = requests.get(
+        f"{BASE_URL}/api/aee/planos/{plano_id}/pdf",
+        headers={"Authorization": f"Bearer {super_token}"}, timeout=30,
+    )
+    assert r.status_code == 200, r.text[:400]
+    assert r.headers.get("content-type", "").startswith("application/pdf")
+    assert len(r.content) > 2000, "PDF parece vazio"
+
+    # PDF contém campos-chave do plano
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        from PyPDF2 import PdfReader
+    from io import BytesIO
+    text = "".join(p.extract_text() or "" for p in PdfReader(BytesIO(r.content)).pages)
+    assert "PLANO DE ATENDIMENTO EDUCACIONAL ESPECIALIZADO" in text.upper()
+    assert "TESTE BARREIRA" in text.upper() or "TESTE_BARREIRA" in text.upper() or "COMUNICACAO" in text.upper()
+
+    # DELETE plano (rascunho pode ser excluído)
+    r = requests.delete(
+        f"{BASE_URL}/api/aee/planos/{plano_id}",
+        headers={"Authorization": f"Bearer {super_token}"}, timeout=30,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "sucesso" in body.get("message", "").lower()
+
+    # GET depois do delete → 404
+    r = requests.get(
+        f"{BASE_URL}/api/aee/planos/{plano_id}",
+        headers={"Authorization": f"Bearer {super_token}"}, timeout=30,
+    )
+    assert r.status_code == 404

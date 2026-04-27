@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, FileText, Calendar, Clock, Plus, Edit2, Trash2, Eye, Download,
+  Users, FileText, Calendar, Clock, Plus, Edit2, Trash2, Eye, Download, X,
   ChevronDown, ChevronRight, CheckCircle2, AlertCircle, Search, Filter,
   BookOpen, Target, Activity, UserCheck, ClipboardList, MessageSquare, Home
 } from 'lucide-react';
@@ -308,6 +308,55 @@ const DiarioAEE = () => {
     setShowPlanoModal(true);
   };
 
+  // === HANDLERS DE VISUALIZAÇÃO / EXCLUSÃO (Feb 2026) ===
+  const [viewingPlano, setViewingPlano] = useState(null);
+  const [deletingPlano, setDeletingPlano] = useState(null);
+
+  const handleVisualizarPlano = (plano) => {
+    setViewingPlano(plano);
+  };
+
+  const handleDeletePlano = (plano) => {
+    setDeletingPlano(plano);
+  };
+
+  const confirmDeletePlano = async () => {
+    if (!deletingPlano) return;
+    try {
+      const response = await fetch(
+        `${API_URL}/api/aee/planos/${deletingPlano.id}`,
+        { method: 'DELETE', headers }
+      );
+      if (!response.ok) {
+        throw new Error(await parseResponseError(response, 'Erro ao excluir plano'));
+      }
+      showAlert('success', 'Plano AEE excluído com sucesso');
+      setDeletingPlano(null);
+      await fetchPlanos();
+    } catch (error) {
+      showAlert('error', error.message);
+    }
+  };
+
+  const handleGerarPDFPlano = async (plano) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/aee/planos/${plano.id}/pdf`,
+        { headers }
+      );
+      if (!response.ok) {
+        throw new Error(await parseResponseError(response, 'Erro ao gerar PDF'));
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      // Revoke URL depois de 1min para liberar memória
+      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      showAlert('error', error.message);
+    }
+  };
+
   // === HANDLERS DE ATENDIMENTO ===
   const handleSaveAtendimento = async () => {
     if (!atendimentoForm.plano_aee_id || !atendimentoForm.data || !atendimentoForm.atividade_realizada) {
@@ -560,13 +609,22 @@ const DiarioAEE = () => {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <div className="flex justify-center gap-2">
+                    <div className="flex justify-center gap-1">
+                      <button
+                        onClick={() => handleVisualizarPlano(plano)}
+                        className="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
+                        title="Visualizar"
+                        data-testid={`btn-visualizar-plano-${plano.id}`}
+                      >
+                        <Eye size={16} />
+                      </button>
                       {canEdit && (
                       <>
                       <button
                         onClick={() => handleEditPlano(plano)}
                         className="p-1 text-blue-600 hover:bg-blue-50 rounded"
                         title="Editar"
+                        data-testid={`btn-editar-plano-${plano.id}`}
                       >
                         <Edit2 size={16} />
                       </button>
@@ -574,8 +632,17 @@ const DiarioAEE = () => {
                         onClick={() => handleNovoAtendimento(plano)}
                         className="p-1 text-green-600 hover:bg-green-50 rounded"
                         title="Novo Atendimento"
+                        data-testid={`btn-novo-atendimento-${plano.id}`}
                       >
                         <Plus size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeletePlano(plano)}
+                        className="p-1 text-red-600 hover:bg-red-50 rounded"
+                        title="Excluir"
+                        data-testid={`btn-excluir-plano-${plano.id}`}
+                      >
+                        <Trash2 size={16} />
                       </button>
                       </>
                       )}
@@ -1070,6 +1137,116 @@ const DiarioAEE = () => {
         canEdit={canEdit}
       />
       {showAtendimentoModal && atendimentoModalContent}
+
+      {/* Modal de Visualização do Plano AEE (Feb 2026) */}
+      {viewingPlano && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewingPlano(null)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="view-plano-modal">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900">Visualização do Plano AEE</h3>
+              <button onClick={() => setViewingPlano(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-4">
+                <div><span className="font-semibold text-gray-600">Aluno:</span> {estudantes.find(e => e.id === viewingPlano.student_id)?.full_name || '-'}</div>
+                <div><span className="font-semibold text-gray-600">Ano Letivo:</span> {viewingPlano.academic_year}</div>
+                <div><span className="font-semibold text-gray-600">Público-alvo:</span> {viewingPlano.publico_alvo?.replace(/_/g, ' ')}</div>
+                <div><span className="font-semibold text-gray-600">Status:</span> <span className="capitalize">{viewingPlano.status}</span></div>
+                <div><span className="font-semibold text-gray-600">Modalidade:</span> <span className="capitalize">{viewingPlano.modalidade || '-'}</span></div>
+                <div><span className="font-semibold text-gray-600">Carga Horária:</span> {viewingPlano.carga_horaria_semanal || '-'}</div>
+                <div><span className="font-semibold text-gray-600">Data Elaboração:</span> {viewingPlano.data_elaboracao || '-'}</div>
+                <div><span className="font-semibold text-gray-600">Período Vigência:</span> {viewingPlano.periodo_vigencia || '-'}</div>
+              </div>
+              {viewingPlano.linha_base_situacao_atual && (
+                <div><span className="font-semibold text-gray-600 block">Linha de Base - Situação Atual:</span> <div className="whitespace-pre-wrap">{viewingPlano.linha_base_situacao_atual}</div></div>
+              )}
+              {viewingPlano.linha_base_potencialidades && (
+                <div><span className="font-semibold text-gray-600 block">Potencialidades:</span> <div className="whitespace-pre-wrap">{viewingPlano.linha_base_potencialidades}</div></div>
+              )}
+              {Array.isArray(viewingPlano.barreiras) && viewingPlano.barreiras.length > 0 && (
+                <div><span className="font-semibold text-gray-600 block mb-1">Barreiras Identificadas:</span>
+                  <ul className="list-disc list-inside space-y-1">
+                    {viewingPlano.barreiras.map((b, i) => (
+                      <li key={b._key || `b-${i}`}>{typeof b === 'string' ? b : `[${(b.tipo || '').toUpperCase()}] ${b.descricao || ''}`}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {Array.isArray(viewingPlano.objetivos) && viewingPlano.objetivos.length > 0 && (
+                <div><span className="font-semibold text-gray-600 block mb-1">Objetivos:</span>
+                  <ul className="list-disc list-inside space-y-1">
+                    {viewingPlano.objetivos.map((o, i) => (
+                      <li key={o._key || `o-${i}`}>{typeof o === 'string' ? o : `${o.descricao || ''}${o.prazo ? ` (${o.prazo})` : ''}`}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {Array.isArray(viewingPlano.recursos_acessibilidade) && viewingPlano.recursos_acessibilidade.length > 0 && (
+                <div><span className="font-semibold text-gray-600 block mb-1">Recursos de Acessibilidade:</span>
+                  <ul className="list-disc list-inside space-y-1">
+                    {viewingPlano.recursos_acessibilidade.map((r, i) => (
+                      <li key={r._key || `r-${i}`}>{typeof r === 'string' ? r : `[${(r.tipo || '').toUpperCase()}] ${r.descricao || ''}`}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-3 flex justify-end gap-2">
+              <button
+                onClick={() => setViewingPlano(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >Fechar</button>
+              <button
+                onClick={() => handleGerarPDFPlano(viewingPlano)}
+                data-testid="btn-gerar-pdf-plano"
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 inline-flex items-center gap-2"
+              >
+                <Download size={14} />
+                Gerar PDF (Imprimir / Salvar)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Exclusão (Feb 2026) */}
+      {deletingPlano && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setDeletingPlano(null)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()} data-testid="delete-plano-modal">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <Trash2 size={24} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Excluir Plano AEE</h3>
+                <p className="text-sm text-gray-500 mt-1">Esta ação não pode ser desfeita.</p>
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm">
+              <div><b>Aluno:</b> {estudantes.find(e => e.id === deletingPlano.student_id)?.full_name || '-'}</div>
+              <div><b>Status:</b> <span className="capitalize">{deletingPlano.status}</span></div>
+              <div><b>Ano letivo:</b> {deletingPlano.academic_year}</div>
+            </div>
+            <p className="text-xs text-gray-600 mb-4">
+              Os atendimentos AEE vinculados permanecerão no sistema para fins de histórico,
+              mas perderão a referência a este plano.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeletingPlano(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >Cancelar</button>
+              <button
+                onClick={confirmDeletePlano}
+                data-testid="confirm-delete-plano"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+              >Excluir definitivamente</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
