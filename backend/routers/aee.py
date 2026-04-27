@@ -618,162 +618,131 @@ def setup_aee_router(db, audit_service):
         student_id: Optional[str] = None,
         professor_aee_id: Optional[str] = None
     ):
-        """Gera PDF do Diário AEE (individual ou completo)"""
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import cm
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
-        
+        """
+        Gera PDF do Diário AEE - Visão Consolidada (espelhando a tela):
+        cabeçalho institucional, KPIs, grade semanal e fichas individuais.
+        """
         current_user = await check_aee_access(request)
-        
-        # Busca dados do diário
-        filter_planos = {"school_id": school_id, "academic_year": academic_year}
+
+        # Busca planos
+        filter_planos = {
+            "school_id": school_id,
+            "academic_year": academic_year,
+            "status": {"$in": ["ativo", "rascunho"]},
+        }
         if student_id:
             filter_planos['student_id'] = student_id
         if professor_aee_id:
             filter_planos['professor_aee_id'] = professor_aee_id
         if current_user.get('role') == 'professor':
             filter_planos['professor_aee_id'] = current_user.get('id')
-        
+
         planos = await db.planos_aee.find(filter_planos, {"_id": 0}).to_list(100)
-        
         if not planos:
             raise HTTPException(status_code=404, detail="Nenhum plano AEE encontrado")
-        
-        # Busca escola
-        school = await db.schools.find_one({"id": school_id}, {"_id": 0, "name": 1})
-        
-        # Cria PDF
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=1.5*cm, bottomMargin=1.5*cm, leftMargin=1.5*cm, rightMargin=1.5*cm)
-        
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle('Title', parent=styles['Title'], fontSize=14, spaceAfter=12, alignment=TA_CENTER)
-        subtitle_style = ParagraphStyle('Subtitle', parent=styles['Heading2'], fontSize=11, spaceAfter=6, textColor=colors.darkblue)
-        normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontSize=9, spaceAfter=4)
-        small_style = ParagraphStyle('Small', parent=styles['Normal'], fontSize=8, spaceAfter=2)
-        
-        elements = []
-        
-        # Capa
-        elements.append(Paragraph("DIÁRIO DE AEE", title_style))
-        elements.append(Paragraph("Atendimento Educacional Especializado", styles['Heading3']))
-        elements.append(Spacer(1, 0.5*cm))
-        elements.append(Paragraph(f"<b>Escola/Polo:</b> {school.get('name') if school else 'N/A'}", normal_style))
-        elements.append(Paragraph(f"<b>Ano Letivo:</b> {academic_year}", normal_style))
-        elements.append(Spacer(1, 1*cm))
-        
-        # Para cada plano/aluno
+
+        # Busca escola e mantenedora
+        school = await db.schools.find_one(
+            {"id": school_id}, {"_id": 0, "name": 1, "mantenedora_id": 1}
+        ) or {}
+        mantenedora = await db.mantenedoras.find_one(
+            {"id": school.get('mantenedora_id')}, {"_id": 0}
+        ) or {}
+
+        # Resolve turma AEE e professor AEE a partir do primeiro aluno AEE da escola
+        turma_aee_nome = '-'
+        professor_aee_nome = '-'
+        aee_turma = await db.classes.find_one(
+            {"school_id": school_id, "atendimento_programa": {"$regex": "^aee$", "$options": "i"}},
+            {"_id": 0, "id": 1, "name": 1}
+        )
+        if aee_turma:
+            turma_aee_nome = aee_turma.get('name') or '-'
+            ta = await db.teacher_assignments.find_one(
+                {"class_id": aee_turma.get('id'), "status": {"$in": ["ativo", "active"]}},
+                {"_id": 0, "staff_id": 1}
+            )
+            if ta:
+                staff = await db.staff.find_one(
+                    {"id": ta.get('staff_id')}, {"_id": 0, "nome": 1}
+                )
+                if staff:
+                    professor_aee_nome = staff.get('nome') or '-'
+
+        # Monta fichas de cada aluno + agrega dados
+        fichas = []
+        grade_horarios: dict = {}
+        total_atendimentos_geral = 0
+        planos_ativos = 0
+        carga_total_minutos = 0
+
         for plano in planos:
-            # Dados do aluno
             student = await db.students.find_one(
                 {"id": plano.get('student_id')},
-                {"_id": 0, "full_name": 1, "birth_date": 1, "enrollment_number": 1}
-            )
-            
-            # Atendimentos
+                {"_id": 0, "full_name": 1, "birth_date": 1, "enrollment_number": 1,
+                 "class_id": 1, "atendimento_programa_class_id": 1}
+            ) or {}
             atendimentos = await db.atendimentos_aee.find(
-                {"plano_aee_id": plano['id']},
-                {"_id": 0}
+                {"plano_aee_id": plano['id']}, {"_id": 0}
             ).sort("data", 1).to_list(500)
-            
-            # Ficha do aluno
-            elements.append(PageBreak())
-            elements.append(Paragraph(f"FICHA INDIVIDUAL - {student.get('full_name', 'N/A').upper()}", title_style))
-            elements.append(Spacer(1, 0.3*cm))
-            
-            # Identificação
-            elements.append(Paragraph("1. IDENTIFICAÇÃO", subtitle_style))
-            id_data = [
-                ["Nome:", student.get('full_name', 'N/A'), "Data Nasc.:", student.get('birth_date', 'N/A')],
-                ["Matrícula:", student.get('enrollment_number', 'N/A'), "Público-Alvo:", plano.get('publico_alvo', 'N/A').replace('_', ' ').title()],
-                ["Turma Origem:", plano.get('turma_origem_nome', 'N/A'), "Prof. Regente:", plano.get('professor_regente_nome', 'N/A')]
-            ]
-            t = Table(id_data, colWidths=[2.5*cm, 6*cm, 2.5*cm, 6*cm])
-            t.setStyle(TableStyle([
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
-                ('BACKGROUND', (2, 0), (2, -1), colors.lightgrey),
-            ]))
-            elements.append(t)
-            elements.append(Spacer(1, 0.5*cm))
-            
-            # Cronograma
-            elements.append(Paragraph("2. CRONOGRAMA DE ATENDIMENTO", subtitle_style))
-            dias = ', '.join([d.title() for d in plano.get('dias_atendimento', [])])
-            elements.append(Paragraph(f"<b>Dias:</b> {dias or 'N/D'}", normal_style))
-            elements.append(Paragraph(f"<b>Horário:</b> {plano.get('horario_inicio', 'N/D')} às {plano.get('horario_fim', 'N/D')}", normal_style))
-            elements.append(Paragraph(f"<b>Modalidade:</b> {plano.get('modalidade', 'N/D').replace('_', ' ').title()}", normal_style))
-            elements.append(Paragraph(f"<b>Local:</b> {plano.get('local_atendimento', 'Sala de Recursos Multifuncionais')}", normal_style))
-            elements.append(Spacer(1, 0.5*cm))
-            
-            # Objetivos do Plano
-            elements.append(Paragraph("3. OBJETIVOS DO PLANO AEE", subtitle_style))
-            objetivos = plano.get('objetivos', [])
-            if objetivos:
-                for i, obj in enumerate(objetivos, 1):
-                    prazo_label = {'curto': 'Curto Prazo', 'medio': 'Médio Prazo', 'longo': 'Longo Prazo'}.get(obj.get('prazo', ''), '')
-                    elements.append(Paragraph(f"{i}. [{prazo_label}] {obj.get('descricao', '')}", small_style))
-            else:
-                elements.append(Paragraph("Nenhum objetivo registrado.", small_style))
-            elements.append(Spacer(1, 0.5*cm))
-            
-            # Registro de Atendimentos
-            elements.append(Paragraph("4. REGISTRO DE ATENDIMENTOS", subtitle_style))
-            if atendimentos:
-                atend_header = ["Data", "Horário", "Presença", "Atividade Realizada", "Nível Apoio"]
-                atend_data = [atend_header]
-                for atend in atendimentos[-20:]:  # Últimos 20 atendimentos
-                    presenca = "P" if atend.get('presente', True) else "F"
-                    nivel = atend.get('nivel_apoio', '-')
-                    if nivel:
-                        nivel = nivel.replace('_', ' ').title()[:15]
-                    atividade = atend.get('atividade_realizada', '-')[:50]
-                    atend_data.append([
-                        atend.get('data', '-'),
-                        f"{atend.get('horario_inicio', '-')} - {atend.get('horario_fim', '-')}",
-                        presenca,
-                        atividade,
-                        nivel
-                    ])
-                t = Table(atend_data, colWidths=[2*cm, 2.5*cm, 1.5*cm, 8*cm, 3*cm])
-                t.setStyle(TableStyle([
-                    ('FONTSIZE', (0, 0), (-1, -1), 7),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                    ('ALIGN', (2, 0), (2, -1), 'CENTER'),
-                ]))
-                elements.append(t)
-            else:
-                elements.append(Paragraph("Nenhum atendimento registrado.", small_style))
-            elements.append(Spacer(1, 0.5*cm))
-            
-            # Estatísticas
+
             total = len(atendimentos)
             presencas = sum(1 for a in atendimentos if a.get('presente', True))
-            carga = sum(a.get('duracao_minutos', 0) for a in atendimentos if a.get('presente', True))
-            elements.append(Paragraph("5. RESUMO DO PERÍODO", subtitle_style))
-            elements.append(Paragraph(f"Total de Atendimentos: {total} | Presenças: {presencas} | Ausências: {total - presencas}", normal_style))
-            elements.append(Paragraph(f"Carga Horária Realizada: {round(carga/60, 1)} horas", normal_style))
-        
-        # Gera PDF
-        doc.build(elements)
-        buffer.seek(0)
-        
-        filename = f"diario_aee_{school_id[:8]}_{academic_year}.pdf"
+            carga_min = sum(a.get('duracao_minutos', 0) for a in atendimentos if a.get('presente', True))
+
+            total_atendimentos_geral += total
+            carga_total_minutos += carga_min
+            if plano.get('status') == 'ativo':
+                planos_ativos += 1
+
+            # Grade semanal
+            for dia in plano.get('dias_atendimento', []):
+                grade_horarios.setdefault(dia, []).append({
+                    "student_name": student.get('full_name') or 'N/A',
+                    "horario_inicio": plano.get('horario_inicio'),
+                    "horario_fim": plano.get('horario_fim'),
+                })
+
+            fichas.append({
+                "plano": plano,
+                "student": student,
+                "atendimentos": atendimentos,
+                "estatisticas": {
+                    "total_atendimentos": total,
+                    "presencas": presencas,
+                    "ausencias": total - presencas,
+                    "frequencia_percentual": round((presencas / total * 100) if total > 0 else 0),
+                    "carga_horaria_realizada_horas": round(carga_min / 60, 1),
+                },
+            })
+
+        # Ordena grade por horário
+        for dia in grade_horarios:
+            grade_horarios[dia].sort(key=lambda x: x.get('horario_inicio') or '00:00')
+
+        # Gera PDF com o módulo dedicado
+        from pdf.diario_aee import generate_diario_aee_pdf
+        pdf_bytes = generate_diario_aee_pdf(
+            school=school,
+            mantenedora=mantenedora,
+            academic_year=academic_year,
+            turma_aee_nome=turma_aee_nome,
+            professor_aee_nome=professor_aee_nome,
+            fichas=fichas,
+            grade_horarios=grade_horarios,
+            total_atendimentos=total_atendimentos_geral,
+            planos_ativos=planos_ativos,
+            carga_horaria_horas=round(carga_total_minutos / 60, 1),
+        )
+
+        filename = f"diario_aee_{academic_year}.pdf"
         if student_id:
             filename = f"diario_aee_{student_id[:8]}_{academic_year}.pdf"
-        
+
         return StreamingResponse(
-            buffer,
+            iter([pdf_bytes]),
             media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
 
     # ==================== ESTUDANTES ATENDIDOS ====================
