@@ -1182,50 +1182,72 @@ class RecursoAcessibilidade(BaseModel):
 
 class PlanoAEEBase(BaseModel):
     """Plano de Atendimento Educacional Especializado"""
+    model_config = ConfigDict(extra="ignore")
+
     # Identificação
     student_id: str  # Aluno atendido
     school_id: str  # Escola/polo de AEE
     academic_year: int  # Ano letivo
-    
+
     # Professor de AEE responsável
     professor_aee_id: str
     professor_aee_nome: Optional[str] = None
-    
+
     # Elegibilidade (sem detalhar diagnóstico clínico)
     publico_alvo: Literal['deficiencia_fisica', 'deficiencia_intelectual', 'deficiencia_visual', 'deficiencia_auditiva', 'surdocegueira', 'transtorno_espectro_autista', 'altas_habilidades', 'deficiencia_multipla']
     criterio_elegibilidade: Optional[str] = None  # Breve descrição sem CID
-    
+
     # Informações da sala comum (articulação)
     turma_origem_id: Optional[str] = None
     turma_origem_nome: Optional[str] = None
+    escola_origem_nome: Optional[str] = None  # Feb 2026
     professor_regente_id: Optional[str] = None
     professor_regente_nome: Optional[str] = None
-    
+
+    # Datas e Vigência (Feb 2026)
+    data_elaboracao: Optional[str] = None  # YYYY-MM-DD ou dd/mm/aaaa
+    periodo_vigencia: Optional[str] = None  # Ex: "1º Semestre 2026"
+
+    # Linha de Base / Perfil do Estudante (Feb 2026)
+    linha_base_situacao_atual: Optional[str] = None
+    linha_base_potencialidades: Optional[str] = None
+    linha_base_dificuldades: Optional[str] = None
+    linha_base_comunicacao: Optional[str] = None
+
     # Cronograma de atendimento
     dias_atendimento: List[Literal['segunda', 'terca', 'quarta', 'quinta', 'sexta']] = []
     horario_inicio: Optional[str] = None  # Ex: "14:00"
     horario_fim: Optional[str] = None  # Ex: "15:30"
     modalidade: Literal['individual', 'pequeno_grupo', 'coensino', 'mista'] = 'individual'
-    carga_horaria_semanal: Optional[int] = None  # Em minutos
+    # Feb 2026: aceita texto livre ("4 horas", "240 min") ou número.
+    # Antes era int (minutos) — frontend enviava string e perdia o valor.
+    carga_horaria_semanal: Optional[str] = None
     local_atendimento: Optional[str] = None  # Ex: "Sala de Recursos Multifuncionais"
-    
+
     # Barreiras identificadas
     barreiras: List[BarreiraAEE] = []
-    
+
     # Objetivos
     objetivos: List[ObjetivoAEE] = []
-    
+
     # Recursos de acessibilidade
     recursos_acessibilidade: List[RecursoAcessibilidade] = []
-    
+
+    # Avaliação e Monitoramento (Feb 2026)
+    indicadores_progresso: Optional[str] = None
+    frequencia_revisao: Optional[Literal['mensal', 'bimestral', 'trimestral', 'semestral']] = 'bimestral'
+    criterios_ajuste: Optional[str] = None
+
     # Articulação com sala comum
     orientacoes_sala_comum: Optional[str] = None
+    combinados_professor_regente: Optional[str] = None  # Feb 2026
     adequacoes_curriculares: Optional[str] = None
-    
+    adaptacoes_por_componente: Optional[str] = None  # Feb 2026
+
     # Período de vigência
     data_inicio: Optional[str] = None  # dd/mm/aaaa
     data_revisao: Optional[str] = None  # Próxima revisão prevista
-    
+
     # Status
     status: Literal['rascunho', 'ativo', 'revisao', 'encerrado'] = 'rascunho'
 
@@ -1233,25 +1255,39 @@ class PlanoAEECreate(PlanoAEEBase):
     pass
 
 class PlanoAEEUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     professor_aee_id: Optional[str] = None
     professor_aee_nome: Optional[str] = None
     publico_alvo: Optional[Literal['deficiencia_fisica', 'deficiencia_intelectual', 'deficiencia_visual', 'deficiencia_auditiva', 'surdocegueira', 'transtorno_espectro_autista', 'altas_habilidades', 'deficiencia_multipla']] = None
     criterio_elegibilidade: Optional[str] = None
     turma_origem_id: Optional[str] = None
     turma_origem_nome: Optional[str] = None
+    escola_origem_nome: Optional[str] = None
     professor_regente_id: Optional[str] = None
     professor_regente_nome: Optional[str] = None
+    data_elaboracao: Optional[str] = None
+    periodo_vigencia: Optional[str] = None
+    linha_base_situacao_atual: Optional[str] = None
+    linha_base_potencialidades: Optional[str] = None
+    linha_base_dificuldades: Optional[str] = None
+    linha_base_comunicacao: Optional[str] = None
     dias_atendimento: Optional[List[Literal['segunda', 'terca', 'quarta', 'quinta', 'sexta']]] = None
     horario_inicio: Optional[str] = None
     horario_fim: Optional[str] = None
     modalidade: Optional[Literal['individual', 'pequeno_grupo', 'coensino', 'mista']] = None
-    carga_horaria_semanal: Optional[int] = None
+    carga_horaria_semanal: Optional[str] = None
     local_atendimento: Optional[str] = None
     barreiras: Optional[List[BarreiraAEE]] = None
     objetivos: Optional[List[ObjetivoAEE]] = None
     recursos_acessibilidade: Optional[List[RecursoAcessibilidade]] = None
+    indicadores_progresso: Optional[str] = None
+    frequencia_revisao: Optional[Literal['mensal', 'bimestral', 'trimestral', 'semestral']] = None
+    criterios_ajuste: Optional[str] = None
     orientacoes_sala_comum: Optional[str] = None
+    combinados_professor_regente: Optional[str] = None
     adequacoes_curriculares: Optional[str] = None
+    adaptacoes_por_componente: Optional[str] = None
     data_inicio: Optional[str] = None
     data_revisao: Optional[str] = None
     status: Optional[Literal['rascunho', 'ativo', 'revisao', 'encerrado']] = None

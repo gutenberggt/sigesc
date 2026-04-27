@@ -278,6 +278,24 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 **Validação**: `test_attendance_pdf_renders_A_for_certificate_days` estendido para verificar a presença de "PREFEITURA"/"FLORESTA" e "EDUCAÇÃO" no texto extraído do PDF. Validação manual com curl em escola real (`ESCOLA TESTE MULTISSERIADA`) gerou PDF de 5MB com cabeçalho correto. 7/7 pytest verde.
 
+### Diário AEE: persistência completa do Plano e Atendimento (Feb 2026)
+**Bug**: vários campos preenchidos no formulário do Plano AEE não eram salvos. Reabrir o plano para edição mostrava os campos vazios.
+
+**Causa raiz**: o frontend (`PlanoAEEModal.js`) coletava 13 campos que **não existiam** em `PlanoAEEBase`. Por causa de `extra="ignore"`, o Pydantic descartava silenciosamente todos esses campos no save, sem erro visível.
+
+**Campos adicionados ao `PlanoAEEBase` + `PlanoAEEUpdate`**: `escola_origem_nome`, `data_elaboracao`, `periodo_vigencia`, `linha_base_situacao_atual/potencialidades/dificuldades/comunicacao`, `indicadores_progresso`, `frequencia_revisao` (Literal mensal/bimestral/trimestral/semestral), `criterios_ajuste`, `combinados_professor_regente`, `adaptacoes_por_componente`.
+
+**Outros fixes:**
+- `carga_horaria_semanal` mudou de `int` (minutos) para `Optional[str]` — frontend envia "4 horas", "240 min".
+- `text_utils.LOWERCASE_FIELDS` recebeu `frequencia_revisao` (mesmo bug que `dias_atendimento`).
+- Frontend (`PlanoAEEModal.js handleSave`): não converte mais `carga_horaria_semanal` em int.
+
+**Pytests** (`tests/test_aee_full_save.py`, 2/2 passing):
+1. `test_plano_aee_saves_and_returns_all_fields`: cria plano com 13 novos campos → GET retorna todos preservados → PUT atualiza 3 campos → GET valida atualização e preservação dos outros.
+2. `test_atendimento_aee_full_save_and_edit`: atendimento completo com todos os campos → `duracao_minutos` calculado (60 min) → PUT recalcula (90 min) → demais campos preservados.
+
+**Validação total**: 12/12 pytest verde.
+
 ## Current Backlog
 
 ### P1

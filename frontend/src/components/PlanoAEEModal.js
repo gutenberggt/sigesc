@@ -167,16 +167,11 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
       return linesOf(v).map(descricao => ({ tipo: 'outro', descricao, disponivel: true }));
     };
 
-    // Converte string vazia para null em campos numéricos opcionais
-    const toIntOrNull = (v) => {
-      if (v === '' || v === null || v === undefined) return null;
-      const n = parseInt(v, 10);
-      return isNaN(n) ? null : n;
-    };
-
+    // Feb 2026: backend agora aceita carga_horaria_semanal como string livre.
+    // Mantemos o valor digitado pelo usuário ('Ex: 4 horas', '240 min', etc).
     const payload = {
       ...form,
-      carga_horaria_semanal: toIntOrNull(form.carga_horaria_semanal),
+      carga_horaria_semanal: form.carga_horaria_semanal || null,
       barreiras: toBarreiras(form.barreiras),
       objetivos: toObjetivos(form.objetivos),
       recursos_acessibilidade: toRecursos(form.recursos_acessibilidade),

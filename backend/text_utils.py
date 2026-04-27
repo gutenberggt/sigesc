@@ -34,6 +34,7 @@ LOWERCASE_FIELDS = {
     'form_pagamento', 'comunidade_tradicional',
     # Campos Literal do módulo AEE (Plano, Atendimento, Articulação)
     'dias_atendimento', 'prazo', 'tipo',
+    'frequencia_revisao',  # Feb 2026: 'mensal'/'bimestral'/'trimestral'/'semestral'
     # IDs referenciados
     'escola_id', 'student_id', 'class_id', 'teacher_id',
     'school_id', 'user_id', 'enrollment_id',
