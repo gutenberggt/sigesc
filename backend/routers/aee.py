@@ -237,12 +237,25 @@ def setup_aee_router(db, audit_service):
 
     @router.post("/planos/{plano_id}/duplicate", status_code=status.HTTP_201_CREATED)
     async def duplicate_plano_aee(plano_id: str, request: Request):
-        """Duplica um Plano AEE existente (cria nova cópia em rascunho)."""
+        """Duplica um Plano AEE existente (cria nova cópia em rascunho).
+
+        Body opcional (JSON):
+            {"target_student_id": "<uuid>"}  # duplica para outro aluno
+        Quando ausente: duplica para o mesmo aluno (cópia simples).
+        """
         current_user = await check_aee_write_access(request)
 
         original = await db.planos_aee.find_one({"id": plano_id}, {"_id": 0})
         if not original:
             raise HTTPException(status_code=404, detail="Plano AEE não encontrado")
+
+        # Body opcional com target_student_id
+        target_student_id = None
+        try:
+            body = await request.json()
+            target_student_id = (body or {}).get('target_student_id')
+        except Exception:
+            target_student_id = None
 
         from datetime import date
         novo = dict(original)
@@ -251,21 +264,70 @@ def setup_aee_router(db, audit_service):
         novo['data_elaboracao'] = date.today().strftime('%Y-%m-%d')
         novo['created_at'] = datetime.now(timezone.utc).isoformat()
         novo['updated_at'] = novo['created_at']
-        # Promove o usuário que duplicou como criador
         novo['created_by'] = current_user.get('id')
 
+        # Duplicação cruzada: ajusta dados do aluno e turma de origem
+        if target_student_id and target_student_id != original.get('student_id'):
+            target = await db.students.find_one(
+                {"id": target_student_id},
+                {"_id": 0, "id": 1, "full_name": 1, "school_id": 1, "class_id": 1}
+            )
+            if not target:
+                raise HTTPException(status_code=404, detail="Aluno alvo não encontrado")
+            if target.get('school_id') != original.get('school_id'):
+                raise HTTPException(
+                    status_code=400,
+                    detail="O aluno alvo deve pertencer à mesma escola do plano original"
+                )
+            existing = await db.planos_aee.find_one({
+                "student_id": target_student_id,
+                "academic_year": original.get('academic_year'),
+                "school_id": original.get('school_id'),
+            }, {"_id": 0, "id": 1})
+            if existing:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Já existe um Plano AEE para este aluno no mesmo ano letivo"
+                )
+            novo['student_id'] = target_student_id
+            new_class_id = target.get('class_id')
+            novo['turma_origem_id'] = new_class_id
+            if new_class_id:
+                turma = await db.classes.find_one({"id": new_class_id}, {"_id": 0, "name": 1})
+                novo['turma_origem_nome'] = turma.get('name') if turma else None
+                ta = await db.teacher_assignments.find_one(
+                    {"class_id": new_class_id, "status": {"$in": ["ativo", "active"]}},
+                    {"_id": 0, "staff_id": 1}
+                )
+                if ta:
+                    staff = await db.staff.find_one(
+                        {"id": ta.get('staff_id')}, {"_id": 0, "nome": 1, "id": 1}
+                    )
+                    if staff:
+                        novo['professor_regente_id'] = staff.get('id')
+                        novo['professor_regente_nome'] = staff.get('nome')
+                else:
+                    novo['professor_regente_id'] = None
+                    novo['professor_regente_nome'] = None
+            else:
+                novo['turma_origem_nome'] = None
+                novo['professor_regente_id'] = None
+                novo['professor_regente_nome'] = None
+
         await db.planos_aee.insert_one(novo)
-        # Garante que _id do Mongo não vaze para a resposta
         novo.pop('_id', None)
 
         try:
+            descr = f"Plano AEE duplicado a partir de {plano_id}"
+            if target_student_id and target_student_id != original.get('student_id'):
+                descr += f" (cruzado para aluno {target_student_id})"
             await audit_service.log(
                 action='create',
                 collection='planos_aee',
                 user=current_user,
                 request=request,
                 document_id=novo['id'],
-                description=f"Plano AEE duplicado a partir de {plano_id}",
+                description=descr,
                 school_id=novo.get('school_id'),
                 academic_year=novo.get('academic_year'),
                 new_value=novo,

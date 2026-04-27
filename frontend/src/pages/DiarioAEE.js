@@ -369,19 +369,39 @@ const DiarioAEE = () => {
     }
   };
 
-  const handleDuplicarPlano = async (plano) => {
-    if (!window.confirm(`Duplicar o Plano AEE de ${plano.student_name || 'aluno'}?\n\nUma cópia será criada em modo Rascunho com a data de hoje.`)) {
+  const [duplicatingPlano, setDuplicatingPlano] = useState(null);
+  const [duplicateTargetStudentId, setDuplicateTargetStudentId] = useState('');
+  const [duplicateMode, setDuplicateMode] = useState('same'); // 'same' | 'cross'
+
+  const handleDuplicarPlano = (plano) => {
+    setDuplicatingPlano(plano);
+    setDuplicateMode('same');
+    setDuplicateTargetStudentId('');
+  };
+
+  const confirmDuplicarPlano = async () => {
+    if (!duplicatingPlano) return;
+    if (duplicateMode === 'cross' && !duplicateTargetStudentId) {
+      showAlert('error', 'Selecione o aluno alvo para a duplicação cruzada');
       return;
     }
     try {
+      const body = duplicateMode === 'cross'
+        ? { target_student_id: duplicateTargetStudentId }
+        : {};
       const response = await fetch(
-        `${API_URL}/api/aee/planos/${plano.id}/duplicate`,
-        { method: 'POST', headers }
+        `${API_URL}/api/aee/planos/${duplicatingPlano.id}/duplicate`,
+        { method: 'POST', headers, body: JSON.stringify(body) }
       );
       if (!response.ok) {
         throw new Error(await parseResponseError(response, 'Erro ao duplicar plano'));
       }
-      showAlert('success', 'Plano AEE duplicado com sucesso (rascunho)');
+      showAlert('success', duplicateMode === 'cross'
+        ? 'Plano AEE duplicado para outro aluno (rascunho)'
+        : 'Plano AEE duplicado com sucesso (rascunho)');
+      setDuplicatingPlano(null);
+      setDuplicateTargetStudentId('');
+      setDuplicateMode('same');
       await fetchData();
     } catch (error) {
       showAlert('error', error.message);
@@ -1314,6 +1334,99 @@ const DiarioAEE = () => {
                 data-testid="confirm-delete-plano"
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
               >Excluir definitivamente</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Duplicação de Plano AEE (Feb 2026) */}
+      {duplicatingPlano && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setDuplicatingPlano(null)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()} data-testid="duplicate-plano-modal">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Copy size={24} className="text-purple-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">Duplicar Plano AEE</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Plano original: <b>{duplicatingPlano.student_name || '-'}</b>
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              <label className="flex items-start gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                     style={{ borderColor: duplicateMode === 'same' ? '#9333ea' : '#d1d5db' }}>
+                <input
+                  type="radio"
+                  name="dup-mode"
+                  checked={duplicateMode === 'same'}
+                  onChange={() => setDuplicateMode('same')}
+                  data-testid="duplicate-mode-same"
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <p className="font-medium text-sm text-gray-800">Para o mesmo aluno</p>
+                  <p className="text-xs text-gray-500">Cria uma cópia em rascunho do plano para o mesmo aluno (útil para revisões/novo período).</p>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
+                     style={{ borderColor: duplicateMode === 'cross' ? '#9333ea' : '#d1d5db' }}>
+                <input
+                  type="radio"
+                  name="dup-mode"
+                  checked={duplicateMode === 'cross'}
+                  onChange={() => setDuplicateMode('cross')}
+                  data-testid="duplicate-mode-cross"
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <p className="font-medium text-sm text-gray-800">Para outro aluno (duplicação cruzada)</p>
+                  <p className="text-xs text-gray-500">Copia objetivos, recursos e cronograma para outro aluno AEE da mesma escola. Turma e Prof. Regente são ajustados automaticamente.</p>
+                </div>
+              </label>
+            </div>
+
+            {duplicateMode === 'cross' && (
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Aluno alvo</label>
+                <select
+                  value={duplicateTargetStudentId}
+                  onChange={(e) => setDuplicateTargetStudentId(e.target.value)}
+                  data-testid="duplicate-target-student"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">Selecione...</option>
+                  {estudantes
+                    .filter(e => e.student_id !== duplicatingPlano.student_id)
+                    .map(e => (
+                      <option key={e.student_id} value={e.student_id}>
+                        {e.full_name}{e.turma_origem ? ` — ${e.turma_origem}` : ''}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  São listados apenas alunos AEE da escola atual.
+                  Se o aluno já tiver plano no mesmo ano letivo, a duplicação será bloqueada.
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDuplicatingPlano(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >Cancelar</button>
+              <button
+                onClick={confirmDuplicarPlano}
+                data-testid="confirm-duplicate-plano"
+                disabled={duplicateMode === 'cross' && !duplicateTargetStudentId}
+                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Copy size={16} />
+                Duplicar
+              </button>
             </div>
           </div>
         </div>
