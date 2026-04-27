@@ -135,7 +135,7 @@ function App() {
           <Route
             path="/admin/diario-aee"
             element={
-              <ProtectedRoute allowedRoles={['admin', 'admin_teste', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'secretario', 'diretor', 'semed1', 'semed2', 'semed3']}>
+              <ProtectedRoute allowedRoles={['super_admin', 'gerente', 'admin', 'admin_teste', 'coordenador', 'apoio_pedagogico', 'auxiliar_secretaria', 'professor', 'secretario', 'diretor', 'semed1', 'semed2', 'semed3']}>
                 <DiarioAEE />
               </ProtectedRoute>
             }

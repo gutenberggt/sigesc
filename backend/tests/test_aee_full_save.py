@@ -64,6 +64,7 @@ def setup_aee_data():
 
         student_id = "test_aee_aluno_" + str(uuid.uuid4())[:8]
         student2_id = "test_aee_aluno2_" + str(uuid.uuid4())[:8]
+        student3_id = "test_aee_aluno3_" + str(uuid.uuid4())[:8]
         await db.students.insert_many([
             {
                 "id": student_id, "full_name": "TEST_AEE_ALUNO_PYTEST_1",
@@ -72,6 +73,11 @@ def setup_aee_data():
             },
             {
                 "id": student2_id, "full_name": "TEST_AEE_ALUNO_PYTEST_2",
+                "school_id": school_id, "mantenedora_id": flo_id, "status": "active",
+                "academic_year": 2026,
+            },
+            {
+                "id": student3_id, "full_name": "TEST_AEE_ALUNO_PYTEST_3",
                 "school_id": school_id, "mantenedora_id": flo_id, "status": "active",
                 "academic_year": 2026,
             },
@@ -86,6 +92,7 @@ def setup_aee_data():
 
         return {
             "student_id": student_id, "student2_id": student2_id,
+            "student3_id": student3_id,
             "school_id": school_id, "prof_id": prof_id, "flo_id": flo_id,
         }
 
@@ -93,9 +100,9 @@ def setup_aee_data():
     yield data
 
     async def teardown():
-        await db.students.delete_many({"id": {"$in": [data["student_id"], data["student2_id"]]}})
+        await db.students.delete_many({"id": {"$in": [data["student_id"], data["student2_id"], data["student3_id"]]}})
         await db.users.delete_one({"id": data["prof_id"]})
-        await db.planos_aee.delete_many({"student_id": {"$in": [data["student_id"], data["student2_id"]]}})
+        await db.planos_aee.delete_many({"student_id": {"$in": [data["student_id"], data["student2_id"], data["student3_id"]]}})
 
     asyncio.get_event_loop().run_until_complete(teardown())
 
@@ -288,3 +295,73 @@ def test_atendimento_aee_full_save_and_edit(super_token, setup_aee_data):
     assert upd["evidencias"] is not None
     assert upd["recursos_utilizados"] is not None
     assert len(upd["recursos_utilizados"]) == 2
+
+
+def test_plano_aee_minimal_save(super_token, setup_aee_data):
+    """Cenário do usuário (Feb 2026): preencher só Aluno + Público-alvo e clicar Salvar.
+
+    Reproduz o payload exato que o frontend envia em INITIAL_FORM com strings
+    vazias '' nos campos textuais e arrays [] vazios nos campos de listas. Esse
+    era o cenário que retornava 'Erro ao salvar plano'.
+    """
+    d = setup_aee_data
+    payload = {
+        "student_id": d["student3_id"],
+        "publico_alvo": "transtorno_espectro_autista",
+        "criterio_elegibilidade": "",
+        "turma_origem_id": "",
+        "turma_origem_nome": "",
+        "escola_origem_nome": "",
+        "professor_regente_id": "",
+        "professor_regente_nome": "",
+        "dias_atendimento": [],
+        "horario_inicio": "",
+        "horario_fim": "",
+        "modalidade": "individual",
+        "carga_horaria_semanal": None,
+        "local_atendimento": "Sala de Recursos Multifuncionais",
+        "barreiras": [],
+        "objetivos": [],
+        "recursos_acessibilidade": [],
+        "orientacoes_sala_comum": "",
+        "adequacoes_curriculares": "",
+        "data_inicio": "",
+        "data_revisao": "",
+        "status": "rascunho",
+        "data_elaboracao": "",
+        "periodo_vigencia": "",
+        "linha_base_situacao_atual": "",
+        "linha_base_potencialidades": "",
+        "linha_base_dificuldades": "",
+        "linha_base_comunicacao": "",
+        "indicadores_progresso": "",
+        "frequencia_revisao": "bimestral",
+        "criterios_ajuste": "",
+        "combinados_professor_regente": "",
+        "adaptacoes_por_componente": "",
+        "school_id": d["school_id"],
+        "academic_year": 2026,
+        "professor_aee_id": d["prof_id"],
+        "professor_aee_nome": "TEST_AEE_PROF",
+    }
+    r = requests.post(
+        f"{BASE_URL}/api/aee/planos",
+        headers={"Authorization": f"Bearer {super_token}"},
+        json=payload, timeout=30,
+    )
+    assert r.status_code in (200, 201), (
+        f"Esperado 200/201, veio {r.status_code}: {r.text[:600]}"
+    )
+
+    # PUT idempotente do plano sem mudanças (simulando reabertura para edição)
+    plano_id = r.json()["id"]
+    plano_data = r.json()
+    plano_data.pop("id", None)
+    plano_data.pop("created_at", None)
+    plano_data.pop("updated_at", None)
+    r2 = requests.put(
+        f"{BASE_URL}/api/aee/planos/{plano_id}",
+        headers={"Authorization": f"Bearer {super_token}"},
+        json=plano_data, timeout=30,
+    )
+    assert r2.status_code == 200, f"PUT idempotente falhou: {r2.text[:400]}"
