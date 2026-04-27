@@ -332,7 +332,7 @@ const DiarioAEE = () => {
       }
       showAlert('success', 'Plano AEE excluído com sucesso');
       setDeletingPlano(null);
-      await fetchPlanos();
+      await fetchData();
     } catch (error) {
       showAlert('error', error.message);
     }
