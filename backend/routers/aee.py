@@ -235,6 +235,46 @@ def setup_aee_router(db, audit_service):
             "atendimentos_vinculados": atend_count,
         }
 
+    @router.post("/planos/{plano_id}/duplicate", status_code=status.HTTP_201_CREATED)
+    async def duplicate_plano_aee(plano_id: str, request: Request):
+        """Duplica um Plano AEE existente (cria nova cópia em rascunho)."""
+        current_user = await check_aee_write_access(request)
+
+        original = await db.planos_aee.find_one({"id": plano_id}, {"_id": 0})
+        if not original:
+            raise HTTPException(status_code=404, detail="Plano AEE não encontrado")
+
+        from datetime import date
+        novo = dict(original)
+        novo['id'] = str(uuid.uuid4())
+        novo['status'] = 'rascunho'
+        novo['data_elaboracao'] = date.today().strftime('%Y-%m-%d')
+        novo['created_at'] = datetime.now(timezone.utc).isoformat()
+        novo['updated_at'] = novo['created_at']
+        # Promove o usuário que duplicou como criador
+        novo['created_by'] = current_user.get('id')
+
+        await db.planos_aee.insert_one(novo)
+        # Garante que _id do Mongo não vaze para a resposta
+        novo.pop('_id', None)
+
+        try:
+            await audit_service.log(
+                action='create',
+                collection='planos_aee',
+                user=current_user,
+                request=request,
+                document_id=novo['id'],
+                description=f"Plano AEE duplicado a partir de {plano_id}",
+                school_id=novo.get('school_id'),
+                academic_year=novo.get('academic_year'),
+                new_value=novo,
+            )
+        except Exception:
+            pass
+
+        return novo
+
     @router.get("/planos/{plano_id}/pdf")
     async def generate_plano_aee_pdf(plano_id: str, request: Request):
         """Gera PDF do Plano AEE para visualização/impressão."""
@@ -616,13 +656,49 @@ def setup_aee_router(db, audit_service):
         school_id: str = Query(...),
         academic_year: int = Query(...),
         student_id: Optional[str] = None,
-        professor_aee_id: Optional[str] = None
+        professor_aee_id: Optional[str] = None,
+        data_inicio: Optional[str] = Query(None, description="Filtro: data inicial YYYY-MM-DD"),
+        data_fim: Optional[str] = Query(None, description="Filtro: data final YYYY-MM-DD"),
+        periodo_label: Optional[str] = Query(None, description="Rótulo do período (ex: '1º Bimestre')"),
     ):
         """
         Gera PDF do Diário AEE - Visão Consolidada (espelhando a tela):
         cabeçalho institucional, KPIs, grade semanal e fichas individuais.
+        Aceita filtro de período via data_inicio/data_fim (YYYY-MM-DD).
         """
         current_user = await check_aee_access(request)
+
+        # Parse das datas de filtro (datas dos atendimentos vêm em "dd/mm/aaaa")
+        from datetime import datetime as _dt
+        di = df = None
+        if data_inicio:
+            try:
+                di = _dt.strptime(data_inicio, '%Y-%m-%d').date()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="data_inicio inválida (use YYYY-MM-DD)")
+        if data_fim:
+            try:
+                df = _dt.strptime(data_fim, '%Y-%m-%d').date()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="data_fim inválida (use YYYY-MM-DD)")
+
+        def _in_range(data_str: str) -> bool:
+            """Aceita 'dd/mm/aaaa' ou 'YYYY-MM-DD'. Sem filtro = sempre True."""
+            if not (di or df):
+                return True
+            if not data_str:
+                return False
+            for fmt in ('%d/%m/%Y', '%Y-%m-%d'):
+                try:
+                    d = _dt.strptime(data_str, fmt).date()
+                    if di and d < di:
+                        return False
+                    if df and d > df:
+                        return False
+                    return True
+                except ValueError:
+                    continue
+            return False
 
         # Busca planos
         filter_planos = {
@@ -686,6 +762,10 @@ def setup_aee_router(db, audit_service):
                 {"plano_aee_id": plano['id']}, {"_id": 0}
             ).sort("data", 1).to_list(500)
 
+            # Filtra atendimentos pelo período se especificado
+            if di or df:
+                atendimentos = [a for a in atendimentos if _in_range(a.get('data', ''))]
+
             total = len(atendimentos)
             presencas = sum(1 for a in atendimentos if a.get('presente', True))
             carga_min = sum(a.get('duracao_minutos', 0) for a in atendimentos if a.get('presente', True))
@@ -733,6 +813,9 @@ def setup_aee_router(db, audit_service):
             total_atendimentos=total_atendimentos_geral,
             planos_ativos=planos_ativos,
             carga_horaria_horas=round(carga_total_minutos / 60, 1),
+            periodo_label=periodo_label,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
         )
 
         filename = f"diario_aee_{academic_year}.pdf"

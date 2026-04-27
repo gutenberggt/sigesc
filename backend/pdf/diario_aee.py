@@ -368,6 +368,9 @@ def generate_diario_aee_pdf(
     total_atendimentos: int,
     planos_ativos: int,
     carga_horaria_horas: float,
+    periodo_label: str = None,
+    data_inicio: str = None,
+    data_fim: str = None,
 ) -> bytes:
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -403,6 +406,25 @@ def generate_diario_aee_pdf(
     elements.append(Spacer(1, 10))
 
     # === Info geral ===
+    periodo_txt = '-'
+    if periodo_label and (data_inicio or data_fim):
+        di_fmt = data_inicio or ''
+        df_fmt = data_fim or ''
+        # YYYY-MM-DD -> dd/mm/aaaa
+        def _br(s):
+            try:
+                from datetime import datetime as _d
+                return _d.strptime(s, '%Y-%m-%d').strftime('%d/%m/%Y')
+            except Exception:
+                return s or '-'
+        periodo_txt = f"{periodo_label} ({_br(di_fmt)} a {_br(df_fmt)})"
+    elif periodo_label:
+        periodo_txt = periodo_label
+    elif data_inicio or data_fim:
+        periodo_txt = f"{data_inicio or '?'} a {data_fim or '?'}"
+    else:
+        periodo_txt = 'Ano completo'
+
     info = [
         [Paragraph('Escola/Polo:', label),
          Paragraph((school or {}).get('name') or '-', value),
@@ -412,6 +434,10 @@ def generate_diario_aee_pdf(
          Paragraph(turma_aee_nome or '-', value),
          Paragraph('Prof. AEE:', label),
          Paragraph(professor_aee_nome or '-', value)],
+        [Paragraph('Período:', label),
+         Paragraph(periodo_txt, value),
+         Paragraph('', label),
+         Paragraph('', value)],
     ]
     info_t = Table(info, colWidths=[2.8*cm, 7*cm, 2.5*cm, 6.3*cm])
     info_t.setStyle(TableStyle([
@@ -420,6 +446,7 @@ def generate_diario_aee_pdf(
         ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.Color(0.85, 0.85, 0.85)),
         ('BACKGROUND', (0, 0), (0, -1), colors.Color(0.96, 0.96, 0.96)),
         ('BACKGROUND', (2, 0), (2, -1), colors.Color(0.96, 0.96, 0.96)),
+        ('SPAN', (1, 2), (3, 2)),
         ('LEFTPADDING', (0, 0), (-1, -1), 5),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),

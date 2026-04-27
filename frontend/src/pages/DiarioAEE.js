@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, FileText, Calendar, Clock, Plus, Edit2, Trash2, Eye, Download, X,
+  Users, FileText, Calendar, Clock, Plus, Edit2, Trash2, Eye, Copy, Download, X,
   ChevronDown, ChevronRight, CheckCircle2, AlertCircle, Search, Filter,
   BookOpen, Target, Activity, UserCheck, ClipboardList, MessageSquare, Home
 } from 'lucide-react';
@@ -369,6 +369,25 @@ const DiarioAEE = () => {
     }
   };
 
+  const handleDuplicarPlano = async (plano) => {
+    if (!window.confirm(`Duplicar o Plano AEE de ${plano.student_name || 'aluno'}?\n\nUma cópia será criada em modo Rascunho com a data de hoje.`)) {
+      return;
+    }
+    try {
+      const response = await fetch(
+        `${API_URL}/api/aee/planos/${plano.id}/duplicate`,
+        { method: 'POST', headers }
+      );
+      if (!response.ok) {
+        throw new Error(await parseResponseError(response, 'Erro ao duplicar plano'));
+      }
+      showAlert('success', 'Plano AEE duplicado com sucesso (rascunho)');
+      await fetchData();
+    } catch (error) {
+      showAlert('error', error.message);
+    }
+  };
+
   // === HANDLERS DE ATENDIMENTO ===
   const handleSaveAtendimento = async () => {
     if (!atendimentoForm.plano_aee_id || !atendimentoForm.data || !atendimentoForm.atividade_realizada) {
@@ -447,24 +466,55 @@ const DiarioAEE = () => {
   };
 
   // === DOWNLOAD PDF ===
+  const [showPeriodoModal, setShowPeriodoModal] = useState(false);
+  const [periodoSelecionado, setPeriodoSelecionado] = useState('ano');
+  const [periodoDataInicio, setPeriodoDataInicio] = useState('');
+  const [periodoDataFim, setPeriodoDataFim] = useState('');
+
+  // Calcula intervalo de datas para presets de período
+  const getPeriodoRange = (preset, year) => {
+    const presets = {
+      'bim1': { ini: `${year}-02-01`, fim: `${year}-04-30`, label: '1º Bimestre' },
+      'bim2': { ini: `${year}-05-01`, fim: `${year}-07-31`, label: '2º Bimestre' },
+      'bim3': { ini: `${year}-08-01`, fim: `${year}-09-30`, label: '3º Bimestre' },
+      'bim4': { ini: `${year}-10-01`, fim: `${year}-12-31`, label: '4º Bimestre' },
+      'sem1': { ini: `${year}-02-01`, fim: `${year}-07-31`, label: '1º Semestre' },
+      'sem2': { ini: `${year}-08-01`, fim: `${year}-12-31`, label: '2º Semestre' },
+      'ano': { ini: '', fim: '', label: 'Ano completo' },
+      'custom': { ini: periodoDataInicio, fim: periodoDataFim, label: 'Personalizado' },
+    };
+    return presets[preset] || presets['ano'];
+  };
+
   const handleDownloadPDF = async (studentId = null) => {
     try {
+      const range = getPeriodoRange(periodoSelecionado, academicYear);
       let url = `${API_URL}/api/aee/diario/pdf?school_id=${selectedSchool}&academic_year=${academicYear}`;
       if (studentId) url += `&student_id=${studentId}`;
-      
+      if (range.ini) url += `&data_inicio=${range.ini}`;
+      if (range.fim) url += `&data_fim=${range.fim}`;
+      if (range.label) url += `&periodo_label=${encodeURIComponent(range.label)}`;
+
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (!response.ok) throw new Error('Erro ao gerar PDF');
-      
+
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
+      const pdfBlob = blob.type === 'application/pdf'
+        ? blob
+        : new Blob([blob], { type: 'application/pdf' });
+      const downloadUrl = window.URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `diario_aee_${academicYear}.pdf`;
+      const periodoSlug = (range.label || 'ano').toLowerCase().replace(/\s+/g, '_').replace(/[º°]/g, '');
+      link.download = `diario_aee_${academicYear}_${periodoSlug}.pdf`;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
+      setShowPeriodoModal(false);
     } catch (error) {
       showAlert('error', 'Erro ao gerar PDF');
     }
@@ -641,6 +691,14 @@ const DiarioAEE = () => {
                         <Edit2 size={16} />
                       </button>
                       <button
+                        onClick={() => handleDuplicarPlano(plano)}
+                        className="p-1 text-purple-600 hover:bg-purple-50 rounded"
+                        title="Duplicar Plano AEE"
+                        data-testid={`btn-duplicar-plano-${plano.id}`}
+                      >
+                        <Copy size={16} />
+                      </button>
+                      <button
                         onClick={() => handleNovoAtendimento(plano)}
                         className="p-1 text-green-600 hover:bg-green-50 rounded"
                         title="Novo Atendimento"
@@ -735,7 +793,8 @@ const DiarioAEE = () => {
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold text-gray-800">Diário AEE - Visão Consolidada</h3>
         <button
-          onClick={() => handleDownloadPDF()}
+          onClick={() => setShowPeriodoModal(true)}
+          data-testid="btn-baixar-pdf-completo"
           className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
         >
           <Download size={18} />
@@ -1255,6 +1314,87 @@ const DiarioAEE = () => {
                 data-testid="confirm-delete-plano"
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
               >Excluir definitivamente</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Filtro de Período para PDF (Feb 2026) */}
+      {showPeriodoModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowPeriodoModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()} data-testid="periodo-pdf-modal">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <Calendar size={24} className="text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">Período do PDF</h3>
+                <p className="text-sm text-gray-500 mt-1">Escolha o período de atendimentos a incluir no relatório.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {[
+                { v: 'ano', label: 'Ano completo' },
+                { v: 'sem1', label: '1º Semestre' },
+                { v: 'sem2', label: '2º Semestre' },
+                { v: 'bim1', label: '1º Bimestre' },
+                { v: 'bim2', label: '2º Bimestre' },
+                { v: 'bim3', label: '3º Bimestre' },
+                { v: 'bim4', label: '4º Bimestre' },
+                { v: 'custom', label: 'Personalizado' },
+              ].map((opt) => (
+                <button
+                  key={opt.v}
+                  onClick={() => setPeriodoSelecionado(opt.v)}
+                  data-testid={`periodo-opt-${opt.v}`}
+                  className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                    periodoSelecionado === opt.v
+                      ? 'bg-red-600 text-white border-red-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {periodoSelecionado === 'custom' && (
+              <div className="grid grid-cols-2 gap-3 mb-4 bg-gray-50 p-3 rounded-lg">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Data Início</label>
+                  <input
+                    type="date"
+                    value={periodoDataInicio}
+                    onChange={(e) => setPeriodoDataInicio(e.target.value)}
+                    data-testid="periodo-data-inicio"
+                    className="w-full border rounded px-2 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Data Fim</label>
+                  <input
+                    type="date"
+                    value={periodoDataFim}
+                    onChange={(e) => setPeriodoDataFim(e.target.value)}
+                    data-testid="periodo-data-fim"
+                    className="w-full border rounded px-2 py-1.5 text-sm"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowPeriodoModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >Cancelar</button>
+              <button
+                onClick={() => handleDownloadPDF()}
+                data-testid="confirm-download-pdf"
+                disabled={periodoSelecionado === 'custom' && (!periodoDataInicio || !periodoDataFim)}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Download size={16} />
+                Gerar PDF
+              </button>
             </div>
           </div>
         </div>
