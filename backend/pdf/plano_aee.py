@@ -9,8 +9,6 @@ Design simplificado e impressível:
   - Suporte a arrays de BarreiraAEE / ObjetivoAEE / RecursoAcessibilidade
 """
 import io
-import os
-import sys
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -20,9 +18,8 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
 )
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 try:
-    from pdf_generator import get_logo_image  # type: ignore
+    from pdf.utils import get_logo_image
 except ImportError:
     get_logo_image = None
 

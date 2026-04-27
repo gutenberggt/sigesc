@@ -348,8 +348,20 @@ const DiarioAEE = () => {
         throw new Error(await parseResponseError(response, 'Erro ao gerar PDF'));
       }
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      const pdfBlob = blob.type === 'application/pdf'
+        ? blob
+        : new Blob([blob], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(pdfBlob);
+      const studentName = (estudantes.find(e => e.student_id === plano.student_id)?.full_name || 'aluno')
+        .replace(/[^a-zA-Z0-9_-]/g, '_');
+      const filename = `plano_aee_${studentName}.pdf`;
+      // Força download com extensão .pdf para que o navegador ofereça "PDF" ao salvar
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       // Revoke URL depois de 1min para liberar memória
       setTimeout(() => window.URL.revokeObjectURL(url), 60000);
     } catch (error) {
@@ -1150,7 +1162,7 @@ const DiarioAEE = () => {
             </div>
             <div className="p-6 space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-4">
-                <div><span className="font-semibold text-gray-600">Aluno:</span> {estudantes.find(e => e.id === viewingPlano.student_id)?.full_name || '-'}</div>
+                <div><span className="font-semibold text-gray-600">Aluno:</span> {estudantes.find(e => e.student_id === viewingPlano.student_id)?.full_name || '-'}</div>
                 <div><span className="font-semibold text-gray-600">Ano Letivo:</span> {viewingPlano.academic_year}</div>
                 <div><span className="font-semibold text-gray-600">Público-alvo:</span> {viewingPlano.publico_alvo?.replace(/_/g, ' ')}</div>
                 <div><span className="font-semibold text-gray-600">Status:</span> <span className="capitalize">{viewingPlano.status}</span></div>
@@ -1225,7 +1237,7 @@ const DiarioAEE = () => {
               </div>
             </div>
             <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm">
-              <div><b>Aluno:</b> {estudantes.find(e => e.id === deletingPlano.student_id)?.full_name || '-'}</div>
+              <div><b>Aluno:</b> {estudantes.find(e => e.student_id === deletingPlano.student_id)?.full_name || '-'}</div>
               <div><b>Status:</b> <span className="capitalize">{deletingPlano.status}</span></div>
               <div><b>Ano letivo:</b> {deletingPlano.academic_year}</div>
             </div>

@@ -247,7 +247,7 @@ def setup_aee_router(db, audit_service):
         # Busca dados relacionados para enriquecer o PDF
         student = await db.students.find_one(
             {"id": plano.get('student_id')},
-            {"_id": 0, "full_name": 1, "enrollment_number": 1, "birthday": 1}
+            {"_id": 0, "full_name": 1, "enrollment_number": 1, "birthday": 1, "atendimento_programa_class_id": 1}
         ) or {}
         school = await db.schools.find_one(
             {"id": plano.get('school_id')},
@@ -257,6 +257,21 @@ def setup_aee_router(db, audit_service):
             {"id": school.get('mantenedora_id')}, {"_id": 0}
         ) or {}
 
+        # Resolve professor AEE a partir da turma AEE (Feb 2026)
+        # O professor AEE é o docente alocado à turma AEE onde o aluno está matriculado.
+        aee_class_id = student.get('atendimento_programa_class_id')
+        if aee_class_id:
+            ta = await db.teacher_assignments.find_one(
+                {"class_id": aee_class_id, "status": {"$in": ["ativo", "active"]}},
+                {"_id": 0, "staff_id": 1}
+            )
+            if ta:
+                staff = await db.staff.find_one(
+                    {"id": ta.get('staff_id')}, {"_id": 0, "nome": 1}
+                )
+                if staff and staff.get('nome'):
+                    plano['professor_aee_nome'] = staff.get('nome')
+
         from pdf.plano_aee import generate_plano_aee_pdf as _gen
         from fastapi.responses import StreamingResponse
         pdf_bytes = _gen(plano=plano, student=student, school=school, mantenedora=mantenedora)
@@ -264,7 +279,7 @@ def setup_aee_router(db, audit_service):
         return StreamingResponse(
             iter([pdf_bytes]),
             media_type="application/pdf",
-            headers={"Content-Disposition": f'inline; filename="{filename}"'}
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
 
     # ==================== ATENDIMENTOS AEE ====================
