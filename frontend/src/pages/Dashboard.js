@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity, Siren } from 'lucide-react';
+import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity, Siren, Layers, Wrench, Megaphone, MessageSquare, BookMarked } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI, analyticsAPI } from '@/services/api';
@@ -31,6 +31,78 @@ export const Dashboard = () => {
   }, [userSchoolIdsJson]);
   
   const { isAdmin, isSuperAdmin, isSecretario, isDiretor, isCoordenador, isProfessor, isSemed, isSchoolStaff, isAdminOrSecretary, isSemedFull, isAssistenteSocial, hasRole } = usePermissions();
+
+  // Feb 2026: Menu categorizado por área funcional. Cada item tem uma função `visible`
+  // que recebe os flags de permissão e retorna boolean. Categorias sem itens visíveis
+  // são suprimidas automaticamente.
+  const adminMenuCategories = useMemo(() => {
+    const ctx = { isAdmin, isSuperAdmin, isSecretario, isDiretor, isCoordenador, isProfessor, isSemed, isSchoolStaff, isSemedFull, isAssistenteSocial, hasRole };
+    return [
+      {
+        title: 'Gestão Institucional',
+        icon: Building2,
+        items: [
+          { label: 'Mantenedora', icon: School, color: 'indigo', route: '/admin/mantenedora', testId: 'nav-mantenedora-button', visible: c => c.isAdmin },
+          { label: 'Integração MEC', icon: GraduationCap, color: 'emerald', route: '/admin/mec', testId: 'nav-mec-button', visible: c => c.isAdmin },
+          { label: 'Auditoria', icon: Shield, color: 'blue', route: '/admin/audit-logs', testId: 'nav-audit-logs-button', visible: c => c.isAdmin || c.isSemedFull },
+          { label: 'Usuários Online', icon: Wifi, color: 'green', route: '/admin/online-users', testId: 'nav-online-users-button', visible: c => c.isAdmin || c.isSemedFull },
+          { label: 'Ferramentas', icon: Wrench, color: 'amber', route: '/admin/tools', testId: 'nav-admin-tools-button', visible: c => c.isAdmin },
+        ],
+      },
+      {
+        title: 'Gestão Escolar',
+        icon: School,
+        items: [
+          { label: 'Painel do Secretário', icon: Activity, color: 'blue', route: '/semed/panel', testId: 'nav-semed-panel-button', visible: c => c.isAdmin || c.isSemedFull || c.isSemed },
+          { label: 'Planos de Ação', icon: ClipboardList, color: 'orange', route: '/action-plans', testId: 'nav-action-plans-button', visible: c => c.isAdmin || c.isSemedFull || c.isSemed || c.isSchoolStaff },
+          { label: 'Motor PMPI-GE', icon: Siren, color: 'red', route: '/pmpi/engine', testId: 'nav-pmpi-engine-button', visible: c => c.isAdmin || c.isSemedFull },
+          { label: 'Componentes Curriculares', icon: BookOpen, color: 'orange', route: '/admin/courses', testId: 'nav-courses-button', visible: c => c.isAdmin },
+          { label: 'Pré-Matrículas', icon: UserPlus, color: 'pink', route: '/admin/pre-matriculas', testId: 'nav-pre-matriculas-button', visible: c => !c.hasRole('semed', 'semed1', 'semed2') },
+          { label: 'Livro de Promoção', icon: Award, color: 'emerald', route: '/admin/promotion', testId: 'nav-promotion-button', visible: c => c.isAdmin || c.isSchoolStaff || c.isSemed },
+        ],
+      },
+      {
+        title: 'Gestão Pedagógica',
+        icon: BookMarked,
+        items: [
+          { label: 'Registro de Conteúdos', icon: BookOpen, color: 'purple', route: '/admin/learning-objects', testId: 'nav-learning-objects-button', visible: () => true },
+          { label: 'Diário AEE', icon: BookOpen, color: 'blue', route: '/admin/diario-aee', testId: 'nav-diario-aee-button', visible: c => c.isAdmin || c.isCoordenador || c.isProfessor || c.isSecretario || c.isDiretor || c.hasRole('semed1', 'semed2', 'semed3') },
+          { label: 'Acompanhamento de Diários', icon: BarChart3, color: 'violet', route: '/admin/diary-dashboard', testId: 'nav-diary-dashboard-button', visible: c => c.isAdmin || c.isSchoolStaff || c.isSemed },
+          { label: 'Notas', icon: ClipboardList, color: 'teal', route: '/admin/grades', testId: 'nav-grades-button', visible: () => true },
+          { label: 'Frequência', icon: ClipboardCheck, color: 'cyan', route: '/admin/attendance', testId: 'nav-attendance-button', visible: () => true },
+        ],
+      },
+      {
+        title: 'Gestão Social e Comunitária',
+        icon: HeartHandshake,
+        items: [
+          { label: 'Avisos', icon: Megaphone, color: 'orange', route: '/avisos', testId: 'nav-avisos-button', visible: () => true },
+          { label: 'Calendário', icon: Calendar, color: 'indigo', route: '/admin/calendar', testId: 'nav-calendar-button', visible: () => true },
+          { label: 'Assistência Social', icon: HeartHandshake, color: 'pink', route: '/ass-social', testId: 'nav-ass-social-button', visible: c => c.isAdmin },
+          { label: 'Controle de Vacinas', icon: Syringe, color: 'teal', route: '/vacinas', testId: 'nav-vacinas-button', visible: c => c.isAdmin },
+          { label: 'Bolsa Família', icon: Users, color: 'amber', route: '/admin/bolsa-familia', testId: 'nav-bolsa-familia-button', visible: c => c.isAdmin },
+        ],
+      },
+      {
+        title: 'Monitoramento e Análise',
+        icon: BarChart3,
+        items: [
+          { label: 'Dashboard Analítico', icon: BarChart3, color: 'emerald', route: '/admin/analytics', testId: 'nav-analytics-button', visible: c => c.isAdmin || c.isSemedFull },
+          { label: 'Log de Conversas', icon: MessageSquare, color: 'red', route: '/admin/logs', testId: 'nav-logs-button', visible: c => c.isAdmin },
+        ],
+      },
+      {
+        title: 'Recursos Humanos',
+        icon: Briefcase,
+        items: [
+          { label: 'RH / Folha', icon: FileText, color: 'teal', route: '/admin/hr', testId: 'nav-hr-payroll-button', visible: c => c.isAdmin || c.hasRole('semed2', 'semed3', 'diretor', 'secretario') },
+        ],
+      },
+    ].map(cat => ({
+      ...cat,
+      items: cat.items.filter(i => i.visible(ctx)),
+    })).filter(cat => cat.items.length > 0);
+  }, [isAdmin, isSuperAdmin, isSecretario, isDiretor, isCoordenador, isProfessor, isSemed, isSchoolStaff, isSemedFull, isAssistenteSocial, hasRole]);
 
   useEffect(() => {
     // Não carrega stats se for professor (será redirecionado)
@@ -421,284 +493,61 @@ export const Dashboard = () => {
           </div>
         )}
 
-        {/* Menu de navegação completo - Admin/Secretário/SEMED */}
-        {(isAdmin || isAdminOrSecretary || isSemed) && (
+        {/* Menu de navegação completo - Admin/Secretário/SEMED (Feb 2026: categorizado) */}
+        {(isAdmin || isAdminOrSecretary || isSemed) && adminMenuCategories.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
               {isSemed ? 'Consultar Módulos' : 'Menu de Administração'}
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Mantenedora - admin/super_admin/gerente (edita a mantenedora ativa selecionada no switcher) */}
-              {isAdmin && (
-                <button
-                  onClick={() => navigate('/admin/mantenedora')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
-                  data-testid="nav-mantenedora-button"
-                >
-                  <School className="text-indigo-600" size={24} />
-                  <span className="font-medium text-gray-900">Mantenedora</span>
-                </button>
-              )}
-              
-              <button
-                onClick={() => navigate('/avisos')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all"
-                data-testid="nav-avisos-button"
-              >
-                <Bell className="text-orange-600" size={24} />
-                <span className="font-medium text-gray-900">Avisos</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/admin/calendar')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all"
-                data-testid="nav-calendar-button"
-              >
-                <Calendar className="text-indigo-600" size={24} />
-                <span className="font-medium text-gray-900">Calendário</span>
-              </button>
-              
-              {(isAdmin || isSemedFull) && (
-              <button
-                onClick={() => navigate('/admin/analytics')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 transition-all"
-                data-testid="nav-analytics-button"
-              >
-                <BarChart3 className="text-emerald-600" size={24} />
-                <span className="font-medium text-gray-900">Dashboard Analítico</span>
-              </button>
-              )}
-
-              {/* PMPI-GE - Painel do Secretário */}
-              {(isAdmin || isSemedFull || isSemed) && (
-                <button
-                  onClick={() => navigate('/semed/panel')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
-                  data-testid="nav-semed-panel-button"
-                >
-                  <Activity className="text-blue-600" size={24} />
-                  <span className="font-medium text-gray-900">Painel do Secretário</span>
-                </button>
-              )}
-
-              {/* PMPI-GE - Planos de Ação */}
-              {(isAdmin || isSemedFull || isSemed || isSchoolStaff) && (
-                <button
-                  onClick={() => navigate('/action-plans')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all"
-                  data-testid="nav-action-plans-button"
-                >
-                  <ClipboardList className="text-orange-600" size={24} />
-                  <span className="font-medium text-gray-900">Planos de Ação</span>
-                </button>
-              )}
-
-              {/* PMPI-GE - Motor (Alertas/Regras/Metas) */}
-              {(isAdmin || isSemedFull) && (
-                <button
-                  onClick={() => navigate('/pmpi/engine')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all"
-                  data-testid="nav-pmpi-engine-button"
-                >
-                  <Siren className="text-red-600" size={24} />
-                  <span className="font-medium text-gray-900">Motor PMPI-GE</span>
-                </button>
-              )}
-              
-              {/* Dashboard de Acompanhamento de Diários */}
-              {(isAdmin || isSchoolStaff || isSemed) && (
-                <button
-                  onClick={() => navigate('/admin/diary-dashboard')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-violet-50 hover:border-violet-300 transition-all"
-                  data-testid="nav-diary-dashboard-button"
-                >
-                  <BarChart3 className="text-violet-600" size={24} />
-                  <span className="font-medium text-gray-900">Acompanhamento de Diários</span>
-                </button>
-              )}
-              
-              {/* Diário AEE - visível para admin, coordenador, professor, semed3 */}
-              {(isAdmin || isCoordenador || isProfessor || isSecretario || isDiretor || hasRole('semed1', 'semed2', 'semed3')) && (
-                <button
-                  onClick={() => navigate('/admin/diario-aee')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
-                  data-testid="nav-diario-aee-button"
-                >
-                  <BookOpen className="text-blue-600" size={24} />
-                  <span className="font-medium text-gray-900">Diário AEE</span>
-                </button>
-              )}
-              
-              {/* Assistência Social - visível apenas para admin */}
-              {isAdmin && (
-                <button
-                  onClick={() => navigate('/ass-social')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-pink-50 hover:border-pink-300 transition-all"
-                  data-testid="nav-ass-social-button"
-                >
-                  <HeartHandshake className="text-pink-600" size={24} />
-                  <span className="font-medium text-gray-900">Assistência Social</span>
-                </button>
-              )}
-              
-              {/* Controle de Vacinas - visível apenas para admin */}
-              {isAdmin && (
-                <button
-                  onClick={() => navigate('/vacinas')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all"
-                  data-testid="nav-vacinas-button"
-                >
-                  <Syringe className="text-teal-600" size={24} />
-                  <span className="font-medium text-gray-900">Controle de Vacinas</span>
-                </button>
-              )}
-              
-              {/* Integração MEC - visível apenas para admin */}
-              {isAdmin && (
-                <button
-                  onClick={() => navigate('/admin/mec')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 transition-all"
-                  data-testid="nav-mec-button"
-                >
-                  <GraduationCap className="text-emerald-600" size={24} />
-                  <span className="font-medium text-gray-900">Integração MEC</span>
-                </button>
-              )}
-              
-              {/* Bolsa Família */}
-              {isAdmin && (
-                <button
-                  onClick={() => navigate('/admin/bolsa-familia')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 transition-all"
-                  data-testid="nav-bolsa-familia-button"
-                >
-                  <Users className="text-amber-600" size={24} />
-                  <span className="font-medium text-gray-900">Bolsa Família</span>
-                </button>
-              )}
-              
-              {isAdmin && (
-                <button
-                  onClick={() => navigate('/admin/courses')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all"
-                  data-testid="nav-courses-button"
-                >
-                  <BookOpen className="text-orange-600" size={24} />
-                  <span className="font-medium text-gray-900">Componentes Curriculares</span>
-                </button>
-              )}
-              
-              <button
-                onClick={() => navigate('/admin/grades')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all"
-                data-testid="nav-grades-button"
-              >
-                <ClipboardList className="text-teal-600" size={24} />
-                <span className="font-medium text-gray-900">Notas</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/admin/attendance')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-cyan-50 hover:border-cyan-300 transition-all"
-                data-testid="nav-attendance-button"
-              >
-                <ClipboardCheck className="text-cyan-600" size={24} />
-                <span className="font-medium text-gray-900">Frequência</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/admin/learning-objects')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-all"
-                data-testid="nav-learning-objects-button"
-              >
-                <BookOpen className="text-purple-600" size={24} />
-                <span className="font-medium text-gray-900">Registro de Conteúdos</span>
-              </button>
-              
-              {!hasRole('semed', 'semed1', 'semed2') && (
-              <button
-                onClick={() => navigate('/admin/pre-matriculas')}
-                className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-pink-50 hover:border-pink-300 transition-all"
-                data-testid="nav-pre-matriculas-button"
-              >
-                <UserPlus className="text-pink-600" size={24} />
-                <span className="font-medium text-gray-900">Pré-Matrículas</span>
-              </button>
-              )}
-              
-              {/* Livro de Promoção - admin, secretario, diretor, coordenador, semed, semed3 */}
-              {(isAdmin || isSchoolStaff || isSemed) && (
-                <button
-                  onClick={() => navigate('/admin/promotion')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 transition-all"
-                  data-testid="nav-promotion-button"
-                >
-                  <Award className="text-emerald-600" size={24} />
-                  <span className="font-medium text-gray-900">Livro de Promoção</span>
-                </button>
-              )}
-              
-              {/* Log de Conversas - apenas para admin */}
-              {isAdmin && (
-                <button
-                  onClick={() => navigate('/admin/logs')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all"
-                  data-testid="nav-logs-button"
-                >
-                  <FileText className="text-red-600" size={24} />
-                  <span className="font-medium text-gray-900">Log de Conversas</span>
-                </button>
-              )}
-              
-              {/* Logs de Auditoria - admin e SEMED 3 */}
-              {(isAdmin || isSemedFull) && (
-                <button
-                  onClick={() => navigate('/admin/audit-logs')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all"
-                  data-testid="nav-audit-logs-button"
-                >
-                  <Shield className="text-blue-600" size={24} />
-                  <span className="font-medium text-gray-900">Auditoria</span>
-                </button>
-              )}
-              
-              {/* Usuários Online - admin e semed3 */}
-              {(isAdmin || isSemedFull) && (
-                <button
-                  onClick={() => navigate('/admin/online-users')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-all"
-                  data-testid="nav-online-users-button"
-                >
-                  <Wifi className="text-green-600" size={24} />
-                  <span className="font-medium text-gray-900">Usuários Online</span>
-                </button>
-              )}
-              
-              {/* Ferramentas de Admin - apenas admin */}
-              {isAdmin && (
-                <button
-                  onClick={() => navigate('/admin/tools')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 transition-all"
-                  data-testid="nav-admin-tools-button"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600">
-                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-                  </svg>
-                  <span className="font-medium text-gray-900">Ferramentas</span>
-                </button>
-              )}
-              
-              {/* RH / Folha - admin, semed2 (analista), semed3 (viz), diretor, secretario */}
-              {(isAdmin || hasRole('semed2', 'semed3', 'diretor', 'secretario')) && (
-                <button
-                  onClick={() => navigate('/admin/hr')}
-                  className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-all"
-                  data-testid="nav-hr-payroll-button"
-                >
-                  <FileText className="text-teal-600" size={24} />
-                  <span className="font-medium text-gray-900">RH / Folha</span>
-                </button>
-              )}
+            <p className="text-sm text-gray-500 mb-6">
+              Funções organizadas por área. Você visualiza apenas os itens compatíveis com seu perfil.
+            </p>
+            <div className="space-y-6">
+              {adminMenuCategories.map((cat) => {
+                const CatIcon = cat.icon;
+                return (
+                  <section key={cat.title} data-testid={`menu-cat-${cat.title.toLowerCase().replace(/\s+/g, '-').replace(/[ãáàâéêíóôõúç]/g, '')}`}>
+                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
+                      <CatIcon size={18} className="text-gray-500" />
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600">
+                        {cat.title}
+                      </h3>
+                      <span className="text-xs text-gray-400 ml-auto">{cat.items.length} {cat.items.length === 1 ? 'item' : 'itens'}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {cat.items.map((item) => {
+                        const ItemIcon = item.icon;
+                        const styles = {
+                          indigo: { btn: 'hover:bg-indigo-50 hover:border-indigo-300', icon: 'text-indigo-600' },
+                          emerald: { btn: 'hover:bg-emerald-50 hover:border-emerald-300', icon: 'text-emerald-600' },
+                          blue: { btn: 'hover:bg-blue-50 hover:border-blue-300', icon: 'text-blue-600' },
+                          green: { btn: 'hover:bg-green-50 hover:border-green-300', icon: 'text-green-600' },
+                          amber: { btn: 'hover:bg-amber-50 hover:border-amber-300', icon: 'text-amber-600' },
+                          orange: { btn: 'hover:bg-orange-50 hover:border-orange-300', icon: 'text-orange-600' },
+                          red: { btn: 'hover:bg-red-50 hover:border-red-300', icon: 'text-red-600' },
+                          pink: { btn: 'hover:bg-pink-50 hover:border-pink-300', icon: 'text-pink-600' },
+                          teal: { btn: 'hover:bg-teal-50 hover:border-teal-300', icon: 'text-teal-600' },
+                          cyan: { btn: 'hover:bg-cyan-50 hover:border-cyan-300', icon: 'text-cyan-600' },
+                          purple: { btn: 'hover:bg-purple-50 hover:border-purple-300', icon: 'text-purple-600' },
+                          violet: { btn: 'hover:bg-violet-50 hover:border-violet-300', icon: 'text-violet-600' },
+                        };
+                        const s = styles[item.color] || styles.indigo;
+                        return (
+                          <button
+                            key={item.testId}
+                            onClick={() => navigate(item.route)}
+                            className={`flex items-center space-x-3 p-4 border border-gray-200 rounded-lg transition-all ${s.btn}`}
+                            data-testid={item.testId}
+                          >
+                            <ItemIcon className={s.icon} size={24} />
+                            <span className="font-medium text-gray-900">{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              })}
             </div>
           </div>
         )}
