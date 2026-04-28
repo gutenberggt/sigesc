@@ -334,6 +334,22 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Current Backlog
 
+### Bug fix Apr 2026: Plano AEE criado via Modelo invisível para Professor
+**Sintoma**: Professor clicava em "Novo a partir de Modelo", recebia mensagem de sucesso, mas o plano não aparecia na lista. Para super_admin aparecia normalmente.
+
+**Causa raiz**: Em `create_plano_from_template`, quando a turma AEE do aluno (`atendimento_programa_class_id`) tinha `teacher_assignment` ativo, o código sobrescrevia `professor_aee_id` com `staff.id`. Mas o filtro `list_planos_aee` para professor compara com `current_user.id` (user.id ≠ staff.id) → plano sumia.
+
+**Fix**:
+1. `create_plano_from_template` agora resolve o **user.id** vinculado ao staff (via email match em `db.users`). Só substitui `professor_aee_id` se houver usuário linkado; caso contrário mantém `current_user.id`.
+2. Filtro de professor em `list_planos_aee`, `get_diario_aee`, `get_diario_aee_pdf`, `list_estudantes_aee` agora usa `$or: [{professor_aee_id: uid}, {created_by: uid}]`. Garante visibilidade de planos antigos (criados antes do fix com staff.id) E continuará vendo planos onde foi explicitamente designado.
+
+**Validação curl** (6 cenários):
+- Cria plano via modelo: `professor_aee_id = user.id` ✅
+- Lista planos: aparece (1/1) ✅
+- PUT plano: 200 ✅
+- Diário Consolidado: aparece ✅
+- Plano histórico (`prof_aee_id=staff_id_fake`, `created_by=user.id`): visível via $or ✅
+
 ### P1
 - Regras de cálculo de carga horária prevista na folha de pagamento (aguarda regras de negócio do usuário)
 

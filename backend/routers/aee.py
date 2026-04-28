@@ -144,10 +144,16 @@ def setup_aee_router(db, audit_service):
         if professor_aee_id:
             filter_query['professor_aee_id'] = professor_aee_id
         
-        # Se for professor, filtra apenas seus planos
+        # Se for professor, filtra apenas seus planos (como professor AEE OU como criador).
+        # Isso garante visibilidade mesmo em planos criados antes do fix Apr 2026 onde
+        # `professor_aee_id` podia ser sobrescrito com `staff.id` em rotas from-template.
         if current_user.get('role') == 'professor':
-            filter_query['professor_aee_id'] = current_user.get('id')
-        
+            uid = current_user.get('id')
+            filter_query.setdefault('$or', []).extend([
+                {'professor_aee_id': uid},
+                {'created_by': uid},
+            ])
+
         planos = await db.planos_aee.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
         
         # Enriquecer com nome do aluno
@@ -605,7 +611,13 @@ def setup_aee_router(db, audit_service):
                     prof_regente_id = staff.get('id')
                     prof_regente_nome = staff.get('nome')
 
-        # Resolve professor AEE: preferência pelo professor da turma AEE do aluno
+        # Resolve professor AEE: preferência pelo professor da turma AEE do aluno.
+        # IMPORTANTE: `professor_aee_id` deve ser o **user.id** (não o staff.id),
+        # pois o filtro `list_planos_aee` para professor compara com `current_user.id`.
+        # Se sobrescrevermos com staff.id, o plano fica invisível para o professor que
+        # o criou (e também para o próprio professor AEE titular). Por isso resolvemos
+        # o usuário a partir do email do staff e só substituímos se houver um usuário
+        # válido linkado. Caso contrário, mantemos o criador (current_user) como dono.
         prof_aee_id = current_user.get('id')
         prof_aee_nome = current_user.get('full_name') or current_user.get('email')
         aee_class_id = student.get('atendimento_programa_class_id')
@@ -616,11 +628,17 @@ def setup_aee_router(db, audit_service):
             )
             if ta:
                 staff = await db.staff.find_one(
-                    {"id": ta.get('staff_id')}, {"_id": 0, "id": 1, "nome": 1}
+                    {"id": ta.get('staff_id')}, {"_id": 0, "id": 1, "nome": 1, "email": 1}
                 )
                 if staff:
-                    prof_aee_id = staff.get('id')
-                    prof_aee_nome = staff.get('nome')
+                    prof_aee_nome = staff.get('nome') or prof_aee_nome
+                    # Tenta resolver o user.id correspondente ao staff (via email)
+                    if staff.get('email'):
+                        linked_user = await db.users.find_one(
+                            {"email": staff.get('email')}, {"_id": 0, "id": 1}
+                        )
+                        if linked_user and linked_user.get('id'):
+                            prof_aee_id = linked_user.get('id')
 
         # Monta o plano novo a partir do modelo
         novo_id = str(uuid.uuid4())
@@ -919,9 +937,13 @@ def setup_aee_router(db, audit_service):
         if professor_aee_id:
             filter_planos['professor_aee_id'] = professor_aee_id
         
-        # Se for professor, filtra apenas seus planos
+        # Se for professor, filtra apenas seus planos (como professor AEE OU como criador)
         if current_user.get('role') == 'professor':
-            filter_planos['professor_aee_id'] = current_user.get('id')
+            uid = current_user.get('id')
+            filter_planos.setdefault('$or', []).extend([
+                {'professor_aee_id': uid},
+                {'created_by': uid},
+            ])
         
         # Busca planos
         planos = await db.planos_aee.find(filter_planos, {"_id": 0}).to_list(100)
@@ -1065,7 +1087,11 @@ def setup_aee_router(db, audit_service):
         if professor_aee_id:
             filter_planos['professor_aee_id'] = professor_aee_id
         if current_user.get('role') == 'professor':
-            filter_planos['professor_aee_id'] = current_user.get('id')
+            uid = current_user.get('id')
+            filter_planos.setdefault('$or', []).extend([
+                {'professor_aee_id': uid},
+                {'created_by': uid},
+            ])
 
         planos = await db.planos_aee.find(filter_planos, {"_id": 0}).to_list(100)
         if not planos:
@@ -1201,7 +1227,11 @@ def setup_aee_router(db, audit_service):
         }
         
         if current_user.get('role') == 'professor':
-            filter_query['professor_aee_id'] = current_user.get('id')
+            uid = current_user.get('id')
+            filter_query.setdefault('$or', []).extend([
+                {'professor_aee_id': uid},
+                {'created_by': uid},
+            ])
         
         planos = await db.planos_aee.find(filter_query, {"_id": 0, "student_id": 1, "publico_alvo": 1, "modalidade": 1, "dias_atendimento": 1}).to_list(100)
         
