@@ -13,7 +13,8 @@ from io import BytesIO
 from models import (
     PlanoAEE, PlanoAEECreate, PlanoAEEUpdate,
     AtendimentoAEE, AtendimentoAEECreate, AtendimentoAEEUpdate,
-    EvolucaoAEE, ArticulacaoSalaComum
+    EvolucaoAEE, ArticulacaoSalaComum,
+    PlanoAEETemplate, PlanoAEETemplateCreate, PlanoAEETemplateUpdate
 )
 from auth_middleware import AuthMiddleware
 from text_utils import format_data_uppercase
@@ -48,6 +49,16 @@ def setup_aee_router(db, audit_service):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Seu perfil permite apenas visualização no módulo AEE"
+            )
+        return user
+
+    async def check_template_admin_access(request: Request):
+        """Apenas super_admin/admin podem gerenciar Modelos de Plano AEE."""
+        user = await AuthMiddleware.get_current_user(request)
+        if user.get('role') not in ['super_admin', 'admin', 'admin_teste']:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Apenas super administradores e administradores podem gerenciar Modelos de Plano AEE"
             )
         return user
 
@@ -383,6 +394,225 @@ def setup_aee_router(db, audit_service):
             media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
+
+    # ==================== MODELOS (TEMPLATES) DE PLANO AEE ====================
+
+    @router.get("/templates")
+    async def list_templates(
+        request: Request,
+        publico_alvo: Optional[str] = None,
+        ativo: Optional[bool] = None,
+    ):
+        """Lista os modelos de Plano AEE disponíveis (todos os roles AEE podem ler)."""
+        await check_aee_access(request)
+        query = {}
+        if publico_alvo:
+            query['publico_alvo'] = publico_alvo
+        if ativo is not None:
+            query['ativo'] = ativo
+        items = await db.planos_aee_templates.find(query, {"_id": 0}).sort("nome", 1).to_list(200)
+        return {"items": items, "total": len(items)}
+
+    @router.get("/templates/{template_id}")
+    async def get_template(template_id: str, request: Request):
+        await check_aee_access(request)
+        tpl = await db.planos_aee_templates.find_one({"id": template_id}, {"_id": 0})
+        if not tpl:
+            raise HTTPException(status_code=404, detail="Modelo de Plano AEE não encontrado")
+        return tpl
+
+    @router.post("/templates", response_model=PlanoAEETemplate, status_code=status.HTTP_201_CREATED)
+    async def create_template(data: PlanoAEETemplateCreate, request: Request):
+        """Cria novo Modelo de Plano AEE (apenas super_admin/admin)."""
+        current_user = await check_template_admin_access(request)
+        tpl = PlanoAEETemplate(**data.model_dump(), created_by=current_user.get('id'))
+        doc = tpl.model_dump()
+        doc['created_at'] = doc['created_at'].isoformat() if hasattr(doc.get('created_at'), 'isoformat') else doc.get('created_at')
+        await db.planos_aee_templates.insert_one(doc)
+        try:
+            await audit_service.log(
+                action='create', collection='planos_aee_templates',
+                user=current_user, request=request, document_id=tpl.id,
+                description=f"Modelo AEE criado: {tpl.nome}",
+                new_value=doc,
+            )
+        except Exception:
+            pass
+        return tpl
+
+    @router.put("/templates/{template_id}")
+    async def update_template(template_id: str, data: PlanoAEETemplateUpdate, request: Request):
+        """Atualiza Modelo de Plano AEE (apenas super_admin/admin)."""
+        current_user = await check_template_admin_access(request)
+        existing = await db.planos_aee_templates.find_one({"id": template_id}, {"_id": 0})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Modelo de Plano AEE não encontrado")
+        update_data = data.model_dump(exclude_unset=True)
+        update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+        await db.planos_aee_templates.update_one({"id": template_id}, {"$set": update_data})
+        try:
+            await audit_service.log(
+                action='update', collection='planos_aee_templates',
+                user=current_user, request=request, document_id=template_id,
+                description=f"Modelo AEE atualizado: {existing.get('nome')}",
+                old_value=existing, new_value=update_data,
+            )
+        except Exception:
+            pass
+        return await db.planos_aee_templates.find_one({"id": template_id}, {"_id": 0})
+
+    @router.delete("/templates/{template_id}")
+    async def delete_template(template_id: str, request: Request):
+        """Remove Modelo de Plano AEE (apenas super_admin/admin)."""
+        current_user = await check_template_admin_access(request)
+        existing = await db.planos_aee_templates.find_one({"id": template_id}, {"_id": 0})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Modelo de Plano AEE não encontrado")
+        await db.planos_aee_templates.delete_one({"id": template_id})
+        try:
+            await audit_service.log(
+                action='delete', collection='planos_aee_templates',
+                user=current_user, request=request, document_id=template_id,
+                description=f"Modelo AEE excluído: {existing.get('nome')}",
+                old_value=existing,
+            )
+        except Exception:
+            pass
+        return {"message": "Modelo excluído com sucesso"}
+
+    @router.post("/planos/from-template", response_model=PlanoAEE, status_code=status.HTTP_201_CREATED)
+    async def create_plano_from_template(request: Request):
+        """Cria um novo Plano AEE a partir de um Modelo aplicado a um aluno.
+
+        Body JSON obrigatório:
+            {"template_id": "<uuid>", "student_id": "<uuid>"}
+        Roles permitidos: ROLES_AEE_WRITE (todos com permissão de escrita).
+        """
+        current_user = await check_aee_write_access(request)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        template_id = body.get('template_id')
+        student_id = body.get('student_id')
+        if not template_id or not student_id:
+            raise HTTPException(status_code=400, detail="template_id e student_id são obrigatórios")
+
+        tpl = await db.planos_aee_templates.find_one({"id": template_id}, {"_id": 0})
+        if not tpl:
+            raise HTTPException(status_code=404, detail="Modelo não encontrado")
+
+        student = await db.students.find_one(
+            {"id": student_id},
+            {"_id": 0, "id": 1, "full_name": 1, "school_id": 1, "class_id": 1,
+             "atendimento_programa_class_id": 1}
+        )
+        if not student:
+            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+
+        academic_year = body.get('academic_year') or datetime.now(timezone.utc).year
+        # Bloqueia duplicidade de plano para o aluno no mesmo ano letivo
+        existing = await db.planos_aee.find_one(
+            {"student_id": student_id, "academic_year": academic_year,
+             "school_id": student.get('school_id')},
+            {"_id": 0, "id": 1}
+        )
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail="Já existe um Plano AEE para este aluno no mesmo ano letivo"
+            )
+
+        # Resolve professor regente da turma de origem
+        prof_regente_id = None
+        prof_regente_nome = None
+        class_id = student.get('class_id')
+        turma_nome = None
+        if class_id:
+            turma = await db.classes.find_one({"id": class_id}, {"_id": 0, "name": 1})
+            turma_nome = turma.get('name') if turma else None
+            ta = await db.teacher_assignments.find_one(
+                {"class_id": class_id, "status": {"$in": ["ativo", "active"]}},
+                {"_id": 0, "staff_id": 1}
+            )
+            if ta:
+                staff = await db.staff.find_one(
+                    {"id": ta.get('staff_id')}, {"_id": 0, "id": 1, "nome": 1}
+                )
+                if staff:
+                    prof_regente_id = staff.get('id')
+                    prof_regente_nome = staff.get('nome')
+
+        # Resolve professor AEE: preferência pelo professor da turma AEE do aluno
+        prof_aee_id = current_user.get('id')
+        prof_aee_nome = current_user.get('full_name') or current_user.get('email')
+        aee_class_id = student.get('atendimento_programa_class_id')
+        if aee_class_id:
+            ta = await db.teacher_assignments.find_one(
+                {"class_id": aee_class_id, "status": {"$in": ["ativo", "active"]}},
+                {"_id": 0, "staff_id": 1}
+            )
+            if ta:
+                staff = await db.staff.find_one(
+                    {"id": ta.get('staff_id')}, {"_id": 0, "id": 1, "nome": 1}
+                )
+                if staff:
+                    prof_aee_id = staff.get('id')
+                    prof_aee_nome = staff.get('nome')
+
+        # Monta o plano novo a partir do modelo
+        novo_id = str(uuid.uuid4())
+        from datetime import date
+        plano = {
+            "id": novo_id,
+            "student_id": student_id,
+            "school_id": student.get('school_id'),
+            "academic_year": academic_year,
+            "professor_aee_id": prof_aee_id,
+            "professor_aee_nome": prof_aee_nome,
+            "publico_alvo": tpl.get('publico_alvo'),
+            "criterio_elegibilidade": tpl.get('criterio_elegibilidade'),
+            "turma_origem_id": class_id,
+            "turma_origem_nome": turma_nome,
+            "professor_regente_id": prof_regente_id,
+            "professor_regente_nome": prof_regente_nome,
+            "data_elaboracao": date.today().strftime('%Y-%m-%d'),
+            "linha_base_potencialidades": tpl.get('linha_base_potencialidades'),
+            "linha_base_dificuldades": tpl.get('linha_base_dificuldades'),
+            "linha_base_comunicacao": tpl.get('linha_base_comunicacao'),
+            "modalidade": tpl.get('modalidade') or 'individual',
+            "carga_horaria_semanal": tpl.get('carga_horaria_semanal'),
+            "local_atendimento": tpl.get('local_atendimento'),
+            "barreiras": tpl.get('barreiras') or [],
+            "objetivos": tpl.get('objetivos') or [],
+            "recursos_acessibilidade": tpl.get('recursos_acessibilidade') or [],
+            "indicadores_progresso": tpl.get('indicadores_progresso'),
+            "frequencia_revisao": tpl.get('frequencia_revisao') or 'bimestral',
+            "criterios_ajuste": tpl.get('criterios_ajuste'),
+            "orientacoes_sala_comum": tpl.get('orientacoes_sala_comum'),
+            "adequacoes_curriculares": tpl.get('adequacoes_curriculares'),
+            "dias_atendimento": [],
+            "status": "rascunho",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_by": current_user.get('id'),
+            "template_origin_id": template_id,
+        }
+        await db.planos_aee.insert_one(plano)
+        plano.pop('_id', None)
+
+        try:
+            await audit_service.log(
+                action='create', collection='planos_aee',
+                user=current_user, request=request, document_id=novo_id,
+                description=f"Plano AEE criado a partir do modelo '{tpl.get('nome')}' "
+                            f"para aluno {student.get('full_name')}",
+                school_id=student.get('school_id'),
+                academic_year=academic_year,
+                new_value=plano,
+            )
+        except Exception:
+            pass
+        return plano
 
     # ==================== ATENDIMENTOS AEE ====================
 

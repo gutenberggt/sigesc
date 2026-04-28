@@ -55,6 +55,9 @@ const DiarioAEE = () => {
 
   // Permissão de edição - semed3 é somente leitura
   const canEdit = user?.role !== 'semed3';
+
+  // Apenas super_admin/admin/admin_teste podem gerenciar Modelos de Plano AEE (Feb 2026)
+  const isTemplateAdmin = ['super_admin', 'admin', 'admin_teste'].includes(user?.role);
   
   // Estados principais
   const [loading, setLoading] = useState(true);
@@ -491,6 +494,171 @@ const DiarioAEE = () => {
   const [periodoDataInicio, setPeriodoDataInicio] = useState('');
   const [periodoDataFim, setPeriodoDataFim] = useState('');
 
+  // === MODELOS DE PLANO AEE (Feb 2026) ===
+  const [templates, setTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [showTemplateForm, setShowTemplateForm] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [templateForm, setTemplateForm] = useState({
+    nome: '', descricao: '', publico_alvo: '',
+    modalidade: 'individual', carga_horaria_semanal: '',
+    local_atendimento: 'Sala de Recursos Multifuncionais',
+    barreiras_text: '', objetivos_text: '', recursos_text: '',
+    indicadores_progresso: '', frequencia_revisao: 'bimestral',
+    criterios_ajuste: '', orientacoes_sala_comum: '',
+    adequacoes_curriculares: '', ativo: true,
+  });
+  const [showApplyTemplate, setShowApplyTemplate] = useState(false);
+  const [applyTemplateId, setApplyTemplateId] = useState('');
+  const [applyStudentId, setApplyStudentId] = useState('');
+  const [applyFilterPublico, setApplyFilterPublico] = useState('');
+
+  const fetchTemplates = async () => {
+    setLoadingTemplates(true);
+    try {
+      const res = await fetch(`${API_URL}/api/aee/templates`, { headers });
+      const d = res.ok ? await res.json() : { items: [] };
+      setTemplates(d.items || []);
+    } catch (e) {
+      setTemplates([]);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
+  useEffect(() => {
+    if (token) fetchTemplates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const openApplyTemplate = () => {
+    setApplyTemplateId('');
+    setApplyStudentId('');
+    setApplyFilterPublico('');
+    setShowApplyTemplate(true);
+  };
+
+  const handleApplyTemplate = async () => {
+    if (!applyTemplateId || !applyStudentId) {
+      showAlert('error', 'Selecione o modelo e o aluno');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/aee/planos/from-template`, {
+        method: 'POST', headers,
+        body: JSON.stringify({
+          template_id: applyTemplateId,
+          student_id: applyStudentId,
+          academic_year: academicYear,
+        }),
+      });
+      if (!res.ok) throw new Error(await parseResponseError(res, 'Erro ao aplicar modelo'));
+      showAlert('success', 'Plano AEE criado a partir do modelo (rascunho)');
+      setShowApplyTemplate(false);
+      await fetchData();
+    } catch (e) {
+      showAlert('error', e.message);
+    }
+  };
+
+  const openTemplateForm = (tpl = null) => {
+    if (tpl) {
+      setEditingTemplate(tpl);
+      setTemplateForm({
+        nome: tpl.nome || '',
+        descricao: tpl.descricao || '',
+        publico_alvo: tpl.publico_alvo || '',
+        modalidade: tpl.modalidade || 'individual',
+        carga_horaria_semanal: tpl.carga_horaria_semanal || '',
+        local_atendimento: tpl.local_atendimento || '',
+        barreiras_text: (tpl.barreiras || []).map(b => b.descricao).join('\n'),
+        objetivos_text: (tpl.objetivos || []).map(o => `[${o.prazo || 'medio'}] ${o.descricao}`).join('\n'),
+        recursos_text: (tpl.recursos_acessibilidade || []).map(r => r.descricao).join('\n'),
+        indicadores_progresso: tpl.indicadores_progresso || '',
+        frequencia_revisao: tpl.frequencia_revisao || 'bimestral',
+        criterios_ajuste: tpl.criterios_ajuste || '',
+        orientacoes_sala_comum: tpl.orientacoes_sala_comum || '',
+        adequacoes_curriculares: tpl.adequacoes_curriculares || '',
+        ativo: tpl.ativo !== false,
+      });
+    } else {
+      setEditingTemplate(null);
+      setTemplateForm({
+        nome: '', descricao: '', publico_alvo: '',
+        modalidade: 'individual', carga_horaria_semanal: '',
+        local_atendimento: 'Sala de Recursos Multifuncionais',
+        barreiras_text: '', objetivos_text: '', recursos_text: '',
+        indicadores_progresso: '', frequencia_revisao: 'bimestral',
+        criterios_ajuste: '', orientacoes_sala_comum: '',
+        adequacoes_curriculares: '', ativo: true,
+      });
+    }
+    setShowTemplateForm(true);
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!templateForm.nome || !templateForm.publico_alvo) {
+      showAlert('error', 'Preencha o nome e o público-alvo do modelo');
+      return;
+    }
+    const linesOf = (v) => (v || '').split('\n').map(s => s.trim()).filter(Boolean);
+    const parseObjetivos = (txt) => linesOf(txt).map(line => {
+      const m = line.match(/^\[(curto|medio|longo)\]\s*(.*)$/i);
+      return m
+        ? { prazo: m[1].toLowerCase(), descricao: m[2], status: 'nao_iniciado', indicadores: [] }
+        : { prazo: 'medio', descricao: line, status: 'nao_iniciado', indicadores: [] };
+    });
+    const payload = {
+      nome: templateForm.nome,
+      descricao: templateForm.descricao || null,
+      publico_alvo: templateForm.publico_alvo,
+      modalidade: templateForm.modalidade,
+      carga_horaria_semanal: templateForm.carga_horaria_semanal || null,
+      local_atendimento: templateForm.local_atendimento || null,
+      barreiras: linesOf(templateForm.barreiras_text)
+        .map(d => ({ tipo: 'outra', descricao: d, estrategias: [] })),
+      objetivos: parseObjetivos(templateForm.objetivos_text),
+      recursos_acessibilidade: linesOf(templateForm.recursos_text)
+        .map(d => ({ tipo: 'outro', descricao: d, disponivel: true })),
+      indicadores_progresso: templateForm.indicadores_progresso || null,
+      frequencia_revisao: templateForm.frequencia_revisao,
+      criterios_ajuste: templateForm.criterios_ajuste || null,
+      orientacoes_sala_comum: templateForm.orientacoes_sala_comum || null,
+      adequacoes_curriculares: templateForm.adequacoes_curriculares || null,
+      ativo: templateForm.ativo,
+    };
+    try {
+      const url = editingTemplate
+        ? `${API_URL}/api/aee/templates/${editingTemplate.id}`
+        : `${API_URL}/api/aee/templates`;
+      const res = await fetch(url, {
+        method: editingTemplate ? 'PUT' : 'POST',
+        headers, body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(await parseResponseError(res, 'Erro ao salvar modelo'));
+      showAlert('success', editingTemplate ? 'Modelo atualizado' : 'Modelo criado');
+      setShowTemplateForm(false);
+      setEditingTemplate(null);
+      await fetchTemplates();
+    } catch (e) {
+      showAlert('error', e.message);
+    }
+  };
+
+  const handleDeleteTemplate = async (tpl) => {
+    if (!window.confirm(`Excluir o modelo "${tpl.nome}"? Planos já criados a partir dele serão preservados.`)) return;
+    try {
+      const res = await fetch(`${API_URL}/api/aee/templates/${tpl.id}`, {
+        method: 'DELETE', headers,
+      });
+      if (!res.ok) throw new Error(await parseResponseError(res, 'Erro ao excluir modelo'));
+      showAlert('success', 'Modelo excluído');
+      await fetchTemplates();
+    } catch (e) {
+      showAlert('error', e.message);
+    }
+  };
+
   // Calcula intervalo de datas para presets de período
   const getPeriodoRange = (preset, year) => {
     const presets = {
@@ -643,15 +811,27 @@ const DiarioAEE = () => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold text-gray-800">Planos de AEE</h3>
-        {canEdit && (
-        <button
-          onClick={() => { setEditingPlano(null); setShowPlanoModal(true); }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus size={18} />
-          Novo Plano
-        </button>
-        )}
+        <div className="flex items-center gap-2">
+          {canEdit && (
+            <button
+              onClick={() => openApplyTemplate()}
+              data-testid="btn-novo-de-modelo"
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+            >
+              <BookOpen size={18} />
+              Novo a partir de Modelo
+            </button>
+          )}
+          {canEdit && (
+            <button
+              onClick={() => { setEditingPlano(null); setShowPlanoModal(true); }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Plus size={18} />
+              Novo Plano
+            </button>
+          )}
+        </div>
       </div>
       
       {filteredPlanos.length === 0 ? (
@@ -919,7 +1099,82 @@ const DiarioAEE = () => {
     </div>
   );
 
-  // === MODAL DE ATENDIMENTO ===
+  // === ABA: MODELOS DE PLANO AEE (apenas admin/super_admin) ===
+  const TabModelos = () => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800">Modelos de Plano AEE</h3>
+          <p className="text-xs text-gray-500 mt-1">Templates pré-prontos por público-alvo. Apenas administradores podem criar/editar.</p>
+        </div>
+        <button
+          onClick={() => openTemplateForm(null)}
+          data-testid="btn-novo-modelo"
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+        >
+          <Plus size={18} />
+          Novo Modelo
+        </button>
+      </div>
+      {loadingTemplates ? (
+        <div className="text-center py-8 text-gray-500">Carregando modelos...</div>
+      ) : templates.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <BookOpen size={48} className="mx-auto text-gray-300 mb-4" />
+          <p className="text-gray-500">Nenhum modelo cadastrado ainda</p>
+          <p className="text-xs text-gray-400 mt-1">Crie um modelo para acelerar o trabalho dos professores AEE.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white border rounded-lg">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Público-Alvo</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Modalidade</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Itens</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {templates.map(tpl => (
+                <tr key={tpl.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{tpl.nome}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{PUBLICO_ALVO_LABELS[tpl.publico_alvo] || tpl.publico_alvo}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{MODALIDADE_LABELS[tpl.modalidade] || tpl.modalidade}</td>
+                  <td className="px-4 py-3 text-xs text-center text-gray-500">
+                    B:{(tpl.barreiras || []).length} · O:{(tpl.objetivos || []).length} · R:{(tpl.recursos_acessibilidade || []).length}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`px-2 py-1 rounded text-xs ${tpl.ativo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {tpl.ativo ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex justify-center gap-1">
+                      <button
+                        onClick={() => openTemplateForm(tpl)}
+                        data-testid={`btn-editar-modelo-${tpl.id}`}
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        title="Editar"
+                      ><Edit2 size={16} /></button>
+                      <button
+                        onClick={() => handleDeleteTemplate(tpl)}
+                        data-testid={`btn-excluir-modelo-${tpl.id}`}
+                        className="p-1 text-red-600 hover:bg-red-50 rounded"
+                        title="Excluir"
+                      ><Trash2 size={16} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
   const atendimentoModalContent = (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -1173,11 +1428,13 @@ const DiarioAEE = () => {
             { id: 'estudantes', label: 'Estudantes', icon: Users },
             { id: 'planos', label: 'Planos de AEE', icon: FileText },
             { id: 'atendimentos', label: 'Atendimentos', icon: ClipboardList },
-            { id: 'diario', label: 'Diário Consolidado', icon: BookOpen }
+            { id: 'diario', label: 'Diário Consolidado', icon: BookOpen },
+            ...(isTemplateAdmin ? [{ id: 'modelos', label: 'Modelos', icon: BookOpen }] : []),
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              data-testid={`tab-${tab.id}`}
               className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
                 activeTab === tab.id
                   ? 'text-blue-600 border-b-2 border-blue-600'
@@ -1213,6 +1470,7 @@ const DiarioAEE = () => {
               {activeTab === 'planos' && <TabPlanos />}
               {activeTab === 'atendimentos' && <TabAtendimentos />}
               {activeTab === 'diario' && <TabDiario />}
+              {activeTab === 'modelos' && isTemplateAdmin && <TabModelos />}
             </>
           )}
         </div>
@@ -1508,6 +1766,279 @@ const DiarioAEE = () => {
                 <Download size={16} />
                 Gerar PDF
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Aplicar Modelo a um Aluno (Feb 2026) */}
+      {showApplyTemplate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowApplyTemplate(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()} data-testid="apply-template-modal">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <BookOpen size={24} className="text-emerald-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">Novo Plano a partir de Modelo</h3>
+                <p className="text-sm text-gray-500 mt-1">Selecione um modelo validado e o aluno alvo. O plano será criado em rascunho.</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Filtrar por público-alvo</label>
+                <select
+                  value={applyFilterPublico}
+                  onChange={(e) => setApplyFilterPublico(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">Todos</option>
+                  {Object.entries(PUBLICO_ALVO_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Modelo</label>
+                <select
+                  value={applyTemplateId}
+                  onChange={(e) => setApplyTemplateId(e.target.value)}
+                  data-testid="apply-template-select"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">Selecione um modelo...</option>
+                  {templates
+                    .filter(t => t.ativo !== false)
+                    .filter(t => !applyFilterPublico || t.publico_alvo === applyFilterPublico)
+                    .map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.nome} — {PUBLICO_ALVO_LABELS[t.publico_alvo] || t.publico_alvo}
+                      </option>
+                    ))}
+                </select>
+                {templates.length === 0 && (
+                  <p className="text-xs text-yellow-600 mt-1">Nenhum modelo cadastrado. Peça a um administrador para criar.</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Aluno alvo</label>
+                <select
+                  value={applyStudentId}
+                  onChange={(e) => setApplyStudentId(e.target.value)}
+                  data-testid="apply-student-select"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">Selecione um aluno...</option>
+                  {estudantes.map(e => (
+                    <option key={e.student_id} value={e.student_id}>
+                      {e.full_name}{e.turma_origem ? ` — ${e.turma_origem}` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Se o aluno já tiver plano no mesmo ano letivo, a criação será bloqueada.</p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setShowApplyTemplate(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >Cancelar</button>
+              <button
+                onClick={handleApplyTemplate}
+                data-testid="confirm-apply-template"
+                disabled={!applyTemplateId || !applyStudentId}
+                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >Aplicar e Criar Plano</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Criar/Editar Modelo de Plano AEE (Feb 2026) */}
+      {showTemplateForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowTemplateForm(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} data-testid="template-form-modal">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {editingTemplate ? 'Editar Modelo' : 'Novo Modelo de Plano AEE'}
+              </h2>
+              <button onClick={() => setShowTemplateForm(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Nome <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={templateForm.nome}
+                    onChange={(e) => setTemplateForm({ ...templateForm, nome: e.target.value })}
+                    data-testid="template-nome"
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    placeholder="Ex: Modelo TEA - Anos Iniciais"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Público-alvo <span className="text-red-500">*</span></label>
+                  <select
+                    value={templateForm.publico_alvo}
+                    onChange={(e) => setTemplateForm({ ...templateForm, publico_alvo: e.target.value })}
+                    data-testid="template-publico-alvo"
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  >
+                    <option value="">Selecione...</option>
+                    {Object.entries(PUBLICO_ALVO_LABELS).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Descrição</label>
+                <textarea
+                  value={templateForm.descricao}
+                  onChange={(e) => setTemplateForm({ ...templateForm, descricao: e.target.value })}
+                  rows={2}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  placeholder="Contexto/uso recomendado"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Modalidade</label>
+                  <select
+                    value={templateForm.modalidade}
+                    onChange={(e) => setTemplateForm({ ...templateForm, modalidade: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  >
+                    {Object.entries(MODALIDADE_LABELS).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Carga horária</label>
+                  <input
+                    type="text"
+                    value={templateForm.carga_horaria_semanal}
+                    onChange={(e) => setTemplateForm({ ...templateForm, carga_horaria_semanal: e.target.value })}
+                    placeholder="Ex: 4 horas"
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Frequência de revisão</label>
+                  <select
+                    value={templateForm.frequencia_revisao}
+                    onChange={(e) => setTemplateForm({ ...templateForm, frequencia_revisao: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  >
+                    <option value="mensal">Mensal</option>
+                    <option value="bimestral">Bimestral</option>
+                    <option value="trimestral">Trimestral</option>
+                    <option value="semestral">Semestral</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Local de atendimento</label>
+                <input
+                  type="text"
+                  value={templateForm.local_atendimento}
+                  onChange={(e) => setTemplateForm({ ...templateForm, local_atendimento: e.target.value })}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Barreiras (uma por linha)</label>
+                <textarea
+                  value={templateForm.barreiras_text}
+                  onChange={(e) => setTemplateForm({ ...templateForm, barreiras_text: e.target.value })}
+                  rows={3}
+                  className="w-full border rounded-lg px-3 py-2 text-sm font-mono"
+                  placeholder={'Dificuldade de comunicação verbal\nFalta de interação com pares'}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Objetivos (uma por linha; prefixe [curto], [medio] ou [longo])
+                </label>
+                <textarea
+                  value={templateForm.objetivos_text}
+                  onChange={(e) => setTemplateForm({ ...templateForm, objetivos_text: e.target.value })}
+                  rows={4}
+                  className="w-full border rounded-lg px-3 py-2 text-sm font-mono"
+                  placeholder={'[curto] Reconhecer figuras de PECS\n[medio] Comunicar necessidades básicas\n[longo] Engajar em conversa simples'}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Recursos de acessibilidade (um por linha)</label>
+                <textarea
+                  value={templateForm.recursos_text}
+                  onChange={(e) => setTemplateForm({ ...templateForm, recursos_text: e.target.value })}
+                  rows={3}
+                  className="w-full border rounded-lg px-3 py-2 text-sm font-mono"
+                  placeholder={'Pranchas PECS\nTablet com app de comunicação alternativa'}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Indicadores de progresso</label>
+                  <textarea
+                    value={templateForm.indicadores_progresso}
+                    onChange={(e) => setTemplateForm({ ...templateForm, indicadores_progresso: e.target.value })}
+                    rows={2}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Critérios de ajuste</label>
+                  <textarea
+                    value={templateForm.criterios_ajuste}
+                    onChange={(e) => setTemplateForm({ ...templateForm, criterios_ajuste: e.target.value })}
+                    rows={2}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Orientações à sala comum</label>
+                  <textarea
+                    value={templateForm.orientacoes_sala_comum}
+                    onChange={(e) => setTemplateForm({ ...templateForm, orientacoes_sala_comum: e.target.value })}
+                    rows={2}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Adequações curriculares</label>
+                  <textarea
+                    value={templateForm.adequacoes_curriculares}
+                    onChange={(e) => setTemplateForm({ ...templateForm, adequacoes_curriculares: e.target.value })}
+                    rows={2}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={templateForm.ativo}
+                  onChange={(e) => setTemplateForm({ ...templateForm, ativo: e.target.checked })}
+                />
+                Modelo ativo (disponível para uso)
+              </label>
+            </div>
+            <div className="sticky bottom-0 bg-white border-t px-6 py-3 flex justify-end gap-2">
+              <button
+                onClick={() => setShowTemplateForm(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >Cancelar</button>
+              <button
+                onClick={handleSaveTemplate}
+                data-testid="save-template-btn"
+                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"
+              >{editingTemplate ? 'Atualizar Modelo' : 'Criar Modelo'}</button>
             </div>
           </div>
         </div>

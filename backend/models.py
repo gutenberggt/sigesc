@@ -1251,6 +1251,9 @@ class PlanoAEEBase(BaseModel):
     # Status
     status: Literal['rascunho', 'ativo', 'revisao', 'encerrado'] = 'rascunho'
 
+    # Origem (Feb 2026): se foi criado a partir de um Modelo
+    template_origin_id: Optional[str] = None
+
 class PlanoAEECreate(PlanoAEEBase):
     pass
 
@@ -1296,6 +1299,86 @@ class PlanoAEE(PlanoAEEBase):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+
+# ===== Modelos (Templates) de Plano AEE — Feb 2026 =====
+class PlanoAEETemplateBase(BaseModel):
+    """Modelo (template) de Plano AEE.
+    Apenas super_admin/admin podem criar/editar; demais roles AEE podem aplicar.
+    """
+    model_config = ConfigDict(extra="ignore")
+
+    nome: str  # Nome curto do modelo (ex: "Modelo TEA - Anos Iniciais")
+    descricao: Optional[str] = None  # Descrição do uso/contexto
+    publico_alvo: Literal[
+        'deficiencia_fisica', 'deficiencia_intelectual', 'deficiencia_visual',
+        'deficiencia_auditiva', 'surdocegueira', 'transtorno_espectro_autista',
+        'altas_habilidades', 'deficiencia_multipla'
+    ]
+    criterio_elegibilidade: Optional[str] = None
+
+    # Linha de base sugerida
+    linha_base_potencialidades: Optional[str] = None
+    linha_base_dificuldades: Optional[str] = None
+    linha_base_comunicacao: Optional[str] = None
+
+    # Cronograma sugerido (apenas defaults)
+    modalidade: Literal['individual', 'pequeno_grupo', 'coensino', 'mista'] = 'individual'
+    carga_horaria_semanal: Optional[str] = None
+    local_atendimento: Optional[str] = None
+
+    # Conteúdo principal
+    barreiras: List[BarreiraAEE] = []
+    objetivos: List[ObjetivoAEE] = []
+    recursos_acessibilidade: List[RecursoAcessibilidade] = []
+
+    # Avaliação e articulação
+    indicadores_progresso: Optional[str] = None
+    frequencia_revisao: Optional[Literal['mensal', 'bimestral', 'trimestral', 'semestral']] = 'bimestral'
+    criterios_ajuste: Optional[str] = None
+    orientacoes_sala_comum: Optional[str] = None
+    adequacoes_curriculares: Optional[str] = None
+
+    ativo: bool = True
+
+
+class PlanoAEETemplateCreate(PlanoAEETemplateBase):
+    pass
+
+
+class PlanoAEETemplateUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    nome: Optional[str] = None
+    descricao: Optional[str] = None
+    publico_alvo: Optional[Literal[
+        'deficiencia_fisica', 'deficiencia_intelectual', 'deficiencia_visual',
+        'deficiencia_auditiva', 'surdocegueira', 'transtorno_espectro_autista',
+        'altas_habilidades', 'deficiencia_multipla'
+    ]] = None
+    criterio_elegibilidade: Optional[str] = None
+    linha_base_potencialidades: Optional[str] = None
+    linha_base_dificuldades: Optional[str] = None
+    linha_base_comunicacao: Optional[str] = None
+    modalidade: Optional[Literal['individual', 'pequeno_grupo', 'coensino', 'mista']] = None
+    carga_horaria_semanal: Optional[str] = None
+    local_atendimento: Optional[str] = None
+    barreiras: Optional[List[BarreiraAEE]] = None
+    objetivos: Optional[List[ObjetivoAEE]] = None
+    recursos_acessibilidade: Optional[List[RecursoAcessibilidade]] = None
+    indicadores_progresso: Optional[str] = None
+    frequencia_revisao: Optional[Literal['mensal', 'bimestral', 'trimestral', 'semestral']] = None
+    criterios_ajuste: Optional[str] = None
+    orientacoes_sala_comum: Optional[str] = None
+    adequacoes_curriculares: Optional[str] = None
+    ativo: Optional[bool] = None
+
+
+class PlanoAEETemplate(PlanoAEETemplateBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_by: Optional[str] = None
     updated_at: Optional[datetime] = None
 
 
