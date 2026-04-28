@@ -52,13 +52,21 @@ def setup_aee_router(db, audit_service):
             )
         return user
 
-    async def check_template_admin_access(request: Request):
-        """Apenas super_admin/admin podem gerenciar Modelos de Plano AEE."""
+    async def check_template_manage_access(request: Request):
+        """Permite gerenciamento de Modelos de Plano AEE para todos os usuários
+        com acesso ao Diário AEE, exceto roles somente-leitura (semed3).
+
+        Feb 2026: regra ampliada conforme alinhamento institucional — Professor,
+        Coordenador, Diretor, Apoio Pedagógico, Auxiliar Secretaria, Secretário,
+        Administrador, Gerente e Super Administrador podem criar/editar/excluir
+        modelos.
+        """
         user = await AuthMiddleware.get_current_user(request)
-        if user.get('role') not in ['super_admin', 'admin', 'admin_teste']:
+        role = user.get('role')
+        if role not in ROLES_AEE or role == 'semed3':
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Apenas super administradores e administradores podem gerenciar Modelos de Plano AEE"
+                detail="Seu perfil permite apenas visualização de Modelos de Plano AEE"
             )
         return user
 
@@ -424,7 +432,7 @@ def setup_aee_router(db, audit_service):
     @router.post("/templates", response_model=PlanoAEETemplate, status_code=status.HTTP_201_CREATED)
     async def create_template(data: PlanoAEETemplateCreate, request: Request):
         """Cria novo Modelo de Plano AEE (apenas super_admin/admin)."""
-        current_user = await check_template_admin_access(request)
+        current_user = await check_template_manage_access(request)
         tpl = PlanoAEETemplate(**data.model_dump(), created_by=current_user.get('id'))
         doc = tpl.model_dump()
         doc['created_at'] = doc['created_at'].isoformat() if hasattr(doc.get('created_at'), 'isoformat') else doc.get('created_at')
@@ -443,7 +451,7 @@ def setup_aee_router(db, audit_service):
     @router.put("/templates/{template_id}")
     async def update_template(template_id: str, data: PlanoAEETemplateUpdate, request: Request):
         """Atualiza Modelo de Plano AEE (apenas super_admin/admin)."""
-        current_user = await check_template_admin_access(request)
+        current_user = await check_template_manage_access(request)
         existing = await db.planos_aee_templates.find_one({"id": template_id}, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Modelo de Plano AEE não encontrado")
@@ -464,7 +472,7 @@ def setup_aee_router(db, audit_service):
     @router.delete("/templates/{template_id}")
     async def delete_template(template_id: str, request: Request):
         """Remove Modelo de Plano AEE (apenas super_admin/admin)."""
-        current_user = await check_template_admin_access(request)
+        current_user = await check_template_manage_access(request)
         existing = await db.planos_aee_templates.find_one({"id": template_id}, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Modelo de Plano AEE não encontrado")

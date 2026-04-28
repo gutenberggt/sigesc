@@ -56,8 +56,10 @@ const DiarioAEE = () => {
   // Permissão de edição - semed3 é somente leitura
   const canEdit = user?.role !== 'semed3';
 
-  // Apenas super_admin/admin/admin_teste podem gerenciar Modelos de Plano AEE (Feb 2026)
-  const isTemplateAdmin = ['super_admin', 'admin', 'admin_teste'].includes(user?.role);
+  // Feb 2026: Modelos de Plano AEE — disponível para todos os usuários com acesso
+  // ao Diário AEE (Professor, Coordenador, Diretor, Apoio, Secretaria, Admins...).
+  // Apenas semed3 (somente leitura) fica restrito.
+  const isTemplateAdmin = canEdit;
   
   // Estados principais
   const [loading, setLoading] = useState(true);
