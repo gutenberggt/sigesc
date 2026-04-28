@@ -36,10 +36,10 @@ def generate_relatorio_frequencia_bimestre_pdf(
     doc = SimpleDocTemplate(
         buffer,
         pagesize=landscape(A4),
-        rightMargin=1*cm,
-        leftMargin=1*cm,
-        topMargin=1*cm,
-        bottomMargin=1*cm
+        rightMargin=0.7*cm,
+        leftMargin=0.7*cm,
+        topMargin=0.7*cm,
+        bottomMargin=0.7*cm
     )
     
     styles = get_styles()
