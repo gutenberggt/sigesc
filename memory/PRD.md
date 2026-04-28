@@ -308,6 +308,30 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 6. `GET /api/aee/planos` — lista filtrada automaticamente por `professor_aee_id == current_user.id`.
 7. UI: Tab "Modelos" + botão "Novo a partir de Modelo" visíveis (`canEdit = role !== 'semed3'`).
 
+### Permissões finais da Biblioteca de Modelos AEE para Professor (Apr 2026)
+**Regra institucional SEMED**: Professor recebe TODAS as ações da Biblioteca **EXCETO exclusão** de modelos ou planos.
+
+**Backend (`/app/backend/routers/aee.py`)**:
+- `delete_template` agora retorna 403 quando `current_user.role == 'professor'` (mesmo para templates próprios).
+- `delete_plano_aee` já não permitia professor (lista de roles autorizadas inclui apenas admins/secretário/coordenador/auxiliar/apoio_pedagogico/super_admin/gerente).
+
+**Frontend (`/app/frontend/src/pages/DiarioAEE.js`)**:
+- Nova flag `canDelete = canEdit && !isProfessor`.
+- Botão "Excluir Modelo" e "Excluir Plano" agora renderizam apenas quando `canDelete === true`.
+
+**Validação curl** (8 cenários, todos verde):
+- Professor cria template: 200 ✅
+- Professor exclui próprio template: 403 ✅
+- Professor exclui template institucional: 403 ✅
+- Professor exclui plano: 403 ✅
+- Professor duplica template institucional: 200 ✅
+- Professor edita template duplicado: 200 ✅
+- Admin exclui templates (cleanup): 200 ✅
+
+**Validação UI screenshot**:
+- Aba Modelos: 8 templates listados, ações apenas {duplicar, editar} — sem ícone de lixeira.
+- Aba Planos: ações {visualizar, editar, duplicar, novo atendimento} — sem ícone de lixeira.
+
 ## Current Backlog
 
 ### P1

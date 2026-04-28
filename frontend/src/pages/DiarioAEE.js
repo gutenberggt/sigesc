@@ -56,6 +56,11 @@ const DiarioAEE = () => {
   // Permissão de edição - semed3 é somente leitura
   const canEdit = user?.role !== 'semed3';
 
+  // Apr 2026: Professor tem todas as ações da Biblioteca de Modelos
+  // (criar/editar/duplicar/criar plano via modelo) **EXCETO excluir**
+  // modelos ou planos. Regra institucional da SEMED.
+  const canDelete = canEdit && !isProfessor;
+
   // Feb 2026: Modelos de Plano AEE — disponível para todos os usuários com acesso
   // ao Diário AEE (Professor, Coordenador, Diretor, Apoio, Secretaria, Admins...).
   // Apenas semed3 (somente leitura) fica restrito.
@@ -924,6 +929,7 @@ const DiarioAEE = () => {
                       >
                         <Plus size={16} />
                       </button>
+                      {canDelete && (
                       <button
                         onClick={() => handleDeletePlano(plano)}
                         className="p-1 text-red-600 hover:bg-red-50 rounded"
@@ -932,6 +938,7 @@ const DiarioAEE = () => {
                       >
                         <Trash2 size={16} />
                       </button>
+                      )}
                       </>
                       )}
                     </div>
@@ -1200,6 +1207,7 @@ const DiarioAEE = () => {
                         title={isInst ? 'Modelo institucional — protegido contra edição' : 'Editar'}
                         disabled={isInst}
                       ><Edit2 size={16} /></button>
+                      {canDelete && (
                       <button
                         onClick={() => handleDeleteTemplate(tpl)}
                         data-testid={`btn-excluir-modelo-${tpl.id}`}
@@ -1207,6 +1215,7 @@ const DiarioAEE = () => {
                         title={isInst ? 'Modelo institucional — protegido contra exclusão' : 'Excluir'}
                         disabled={isInst}
                       ><Trash2 size={16} /></button>
+                      )}
                     </div>
                   </td>
                 </tr>

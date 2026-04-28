@@ -483,8 +483,15 @@ def setup_aee_router(db, audit_service):
         """Remove Modelo de Plano AEE.
 
         Modelos institucionais (created_by="system_seed") são protegidos.
+        Professores **não podem excluir** modelos (regra institucional Apr 2026):
+        somente duplicar, criar e editar modelos não institucionais.
         """
         current_user = await check_template_manage_access(request)
+        if current_user.get('role') == 'professor':
+            raise HTTPException(
+                status_code=403,
+                detail="Professores não têm permissão para excluir modelos da Biblioteca AEE."
+            )
         existing = await db.planos_aee_templates.find_one({"id": template_id}, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Modelo de Plano AEE não encontrado")
