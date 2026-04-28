@@ -62,9 +62,9 @@ TEMPLATES_INSTITUCIONAIS = [
         carga="2 horas",
         local="Sala de Recursos Multifuncionais",
         barreiras=[
-            ("arquitetonica", "Acesso restrito a espaços escolares (rampas, banheiros, mobiliário inadequado)"),
-            ("comunicacional", "Dificuldade de manuseio de materiais escolares convencionais"),
-            ("atitudinal", "Superproteção familiar/escolar limitando autonomia"),
+            ("mobilidade", "Acesso restrito a espaços escolares (rampas, banheiros, mobiliário inadequado)"),
+            ("comunicacao", "Dificuldade de manuseio de materiais escolares convencionais"),
+            ("social", "Superproteção familiar/escolar limitando autonomia"),
         ],
         objetivos=[
             ("curto", "Adaptar postura e mobiliário para participação adequada nas aulas"),
@@ -92,9 +92,9 @@ TEMPLATES_INSTITUCIONAIS = [
         carga="4 horas",
         local="Sala de Recursos Multifuncionais",
         barreiras=[
-            ("comunicacional", "Dificuldade de compreensão de instruções complexas e abstratas"),
-            ("pedagogica", "Defasagem na aquisição de leitura, escrita e raciocínio lógico-matemático"),
-            ("atitudinal", "Baixa autoestima e expectativas reduzidas do entorno"),
+            ("comunicacao", "Dificuldade de compreensão de instruções complexas e abstratas"),
+            ("acesso_curriculo", "Defasagem na aquisição de leitura, escrita e raciocínio lógico-matemático"),
+            ("social", "Baixa autoestima e expectativas reduzidas do entorno"),
         ],
         objetivos=[
             ("curto", "Desenvolver atenção e concentração em atividades de 15 a 20 minutos"),
@@ -123,9 +123,9 @@ TEMPLATES_INSTITUCIONAIS = [
         carga="4 horas",
         local="Sala de Recursos Multifuncionais",
         barreiras=[
-            ("comunicacional", "Inacessibilidade de materiais impressos convencionais"),
-            ("pedagogica", "Falta de descrição verbal de imagens e gráficos em sala comum"),
-            ("arquitetonica", "Sinalização tátil ausente; obstáculos no fluxo escolar"),
+            ("comunicacao", "Inacessibilidade de materiais impressos convencionais"),
+            ("acesso_curriculo", "Falta de descrição verbal de imagens e gráficos em sala comum"),
+            ("mobilidade", "Sinalização tátil ausente; obstáculos no fluxo escolar"),
         ],
         objetivos=[
             ("curto", "Desenvolver percepção tátil e auditiva (cegueira) ou treinar funcionalidade visual residual (baixa visão)"),
@@ -154,9 +154,9 @@ TEMPLATES_INSTITUCIONAIS = [
         carga="4 horas",
         local="Sala de Recursos Multifuncionais",
         barreiras=[
-            ("comunicacional", "Ausência de comunicação em Libras no ambiente escolar"),
-            ("pedagogica", "Conteúdos pedagógicos sem mediação visual/sinalizada"),
-            ("atitudinal", "Pouca convivência com pares surdos / falta de modelo linguístico"),
+            ("comunicacao", "Ausência de comunicação em Libras no ambiente escolar"),
+            ("acesso_curriculo", "Conteúdos pedagógicos sem mediação visual/sinalizada"),
+            ("social", "Pouca convivência com pares surdos / falta de modelo linguístico"),
         ],
         objetivos=[
             ("curto", "Ampliar vocabulário em Libras (sinais cotidianos e escolares)"),
@@ -184,9 +184,9 @@ TEMPLATES_INSTITUCIONAIS = [
         carga="6 horas",
         local="Sala de Recursos Multifuncionais",
         barreiras=[
-            ("comunicacional", "Acesso à informação dependente de mediação contínua"),
-            ("atitudinal", "Despreparo da comunidade escolar para interação tátil"),
-            ("pedagogica", "Currículo padrão sem adaptação tátil/cinestésica"),
+            ("comunicacao", "Acesso à informação dependente de mediação contínua"),
+            ("social", "Despreparo da comunidade escolar para interação tátil"),
+            ("acesso_curriculo", "Currículo padrão sem adaptação tátil/cinestésica"),
         ],
         objetivos=[
             ("curto", "Estabelecer vínculo seguro com mediador (guia-intérprete)"),
@@ -214,9 +214,9 @@ TEMPLATES_INSTITUCIONAIS = [
         carga="4 horas",
         local="Sala de Recursos Multifuncionais",
         barreiras=[
-            ("comunicacional", "Dificuldade na comunicação social e uso pragmático da linguagem"),
-            ("pedagogica", "Hipersensibilidade sensorial impedindo permanência em sala"),
-            ("atitudinal", "Interpretação errônea de comportamentos repetitivos como indisciplina"),
+            ("comunicacao", "Dificuldade na comunicação social e uso pragmático da linguagem"),
+            ("sensorial", "Hipersensibilidade sensorial impedindo permanência em sala"),
+            ("autorregulacao", "Interpretação errônea de comportamentos repetitivos como indisciplina"),
         ],
         objetivos=[
             ("curto", "Aceitar e seguir rotina visual diária (chegada → atividades → saída)"),
@@ -245,9 +245,9 @@ TEMPLATES_INSTITUCIONAIS = [
         carga="3 horas",
         local="Sala de Recursos Multifuncionais",
         barreiras=[
-            ("pedagogica", "Currículo regular insuficiente para o ritmo/profundidade de aprendizagem"),
-            ("atitudinal", "Estereótipos sobre o aluno superdotado (rotulação, isolamento)"),
-            ("pedagogica", "Falta de desafios cognitivos e oportunidades de aprofundamento"),
+            ("acesso_curriculo", "Currículo regular insuficiente para o ritmo/profundidade de aprendizagem"),
+            ("social", "Estereótipos sobre o aluno superdotado (rotulação, isolamento)"),
+            ("acesso_curriculo", "Falta de desafios cognitivos e oportunidades de aprofundamento"),
         ],
         objetivos=[
             ("curto", "Mapear áreas de interesse e talento (Modelo de Renzulli)"),
@@ -275,9 +275,9 @@ TEMPLATES_INSTITUCIONAIS = [
         carga="6 horas",
         local="Sala de Recursos Multifuncionais",
         barreiras=[
-            ("comunicacional", "Comunicação restrita ou ausente, exigindo alternativas"),
-            ("pedagogica", "Necessidade de currículo profundamente individualizado"),
-            ("atitudinal", "Expectativas reduzidas do entorno, limitando oportunidades"),
+            ("comunicacao", "Comunicação restrita ou ausente, exigindo alternativas"),
+            ("acesso_curriculo", "Necessidade de currículo profundamente individualizado"),
+            ("social", "Expectativas reduzidas do entorno, limitando oportunidades"),
         ],
         objetivos=[
             ("curto", "Estabelecer rotina previsível com sinais/objetos de referência"),
@@ -305,9 +305,29 @@ async def seed_aee_templates(db) -> int:
     Critério de unicidade: campo `nome`. Não sobrescreve modelos existentes
     (preserva edições feitas por administradores).
 
+    Feb 2026: limpa templates seedados com schema antigo (created_by='system_seed'
+    com tipos de barreira inválidos) antes de inserir versão corrigida.
+
     Returns:
         Quantidade de modelos novos inseridos.
     """
+    # Cleanup: remove templates seedados com tipos de barreira inválidos.
+    # Tipos válidos atuais: comunicacao, mobilidade, acesso_curriculo, autorregulacao, social, sensorial, outra.
+    valid_tipos = {'comunicacao', 'mobilidade', 'acesso_curriculo',
+                   'autorregulacao', 'social', 'sensorial', 'outra'}
+    seeded = await db.planos_aee_templates.find(
+        {"created_by": "system_seed"}, {"_id": 0, "id": 1, "barreiras": 1}
+    ).to_list(50)
+    invalid_ids = []
+    for t in seeded:
+        for b in (t.get('barreiras') or []):
+            if b.get('tipo') not in valid_tipos:
+                invalid_ids.append(t['id'])
+                break
+    if invalid_ids:
+        await db.planos_aee_templates.delete_many({"id": {"$in": invalid_ids}})
+        logger.info(f"Seed AEE: removidos {len(invalid_ids)} modelo(s) com schema antigo.")
+
     inserted = 0
     for tpl in TEMPLATES_INSTITUCIONAIS:
         existing = await db.planos_aee_templates.find_one(
