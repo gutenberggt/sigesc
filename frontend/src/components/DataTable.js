@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { normalizeForSearch } from '../utils/searchUtils';
 
 export const DataTable = ({ 
   columns, 
@@ -17,14 +18,14 @@ export const DataTable = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filtrar dados pelo termo de busca
+  // Filtrar dados pelo termo de busca (Feb 2026: insensível a acentos)
   const filteredData = data.filter(row => {
     if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
+    const searchLower = normalizeForSearch(searchTerm);
     return columns.some(col => {
       const value = row[col.accessor];
       if (value === null || value === undefined) return false;
-      return String(value).toLowerCase().includes(searchLower);
+      return normalizeForSearch(value).includes(searchLower);
     });
   });
 

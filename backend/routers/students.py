@@ -220,12 +220,13 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if status:
             filter_query['status'] = status
         
-        # Busca por nome ou CPF
+        # Busca por nome ou CPF (Feb 2026: insensível a acentos)
         if search and len(search) >= 3:
-            search_escaped = re.escape(search.upper())
+            from utils.search_utils import accent_insensitive_regex
+            search_pattern = accent_insensitive_regex(search)
             search_clean = re.escape(search.replace('.', '').replace('-', '').replace('/', ''))
             search_or = [
-                {'full_name': {'$regex': search_escaped, '$options': 'i'}},
+                {'full_name': {'$regex': search_pattern, '$options': 'i'}},
                 {'cpf': {'$regex': search_clean}}
             ]
             # Se já tem $or (turma especial), combina com $and

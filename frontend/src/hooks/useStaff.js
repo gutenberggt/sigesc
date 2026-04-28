@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { hasRole } from '@/utils/permissions';
 import { staffAPI, schoolAssignmentAPI, teacherAssignmentAPI, schoolsAPI, classesAPI, coursesAPI } from '@/services/api';
 import { INITIAL_STAFF_FORM, INITIAL_LOTACAO_FORM, INITIAL_ALOCACAO_FORM } from '@/components/staff/constants';
+import { normalizeForSearch } from '@/utils/searchUtils';
 
 // Função pura, sem dependência de state/props/hook — fica estável fora do componente.
 // Antes estava redefinida a cada render do hook, causando referência stale nos useCallback
@@ -289,10 +290,11 @@ export const useStaff = () => {
   // ========== MEMOS ==========
   
   const filteredStaff = useMemo(() => {
+    const search = normalizeForSearch(searchTerm);
     return staffList.filter(s => {
-      const matchesSearch = !searchTerm || 
-        s.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.matricula?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = !searchTerm ||
+        normalizeForSearch(s.nome).includes(search) ||
+        normalizeForSearch(s.matricula).includes(search);
       const matchesCargo = !filterCargo || s.cargo === filterCargo;
       const matchesStatus = !filterStatus || s.status === filterStatus;
       return matchesSearch && matchesCargo && matchesStatus;
