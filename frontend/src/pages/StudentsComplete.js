@@ -760,7 +760,8 @@ export function StudentsComplete() {
     }
     try {
       setCancellingEnrollment(true);
-      const response = await fetch(`${API}/api/enrollments/cancel-enrollment`, {
+      const API_URL = process.env.REACT_APP_BACKEND_URL;
+      const response = await fetch(`${API_URL}/api/enrollments/cancel-enrollment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
         body: JSON.stringify({
