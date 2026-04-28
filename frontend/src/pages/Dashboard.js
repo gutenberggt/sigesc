@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity, Siren, Layers, Wrench, Megaphone, MessageSquare, BookMarked } from 'lucide-react';
+import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity, Siren, Layers, Wrench, Megaphone, MessageSquare, BookMarked, Search } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI, analyticsAPI } from '@/services/api';
@@ -47,15 +47,13 @@ export const Dashboard = () => {
           { label: 'Auditoria', icon: Shield, color: 'blue', route: '/admin/audit-logs', testId: 'nav-audit-logs-button', visible: c => c.isAdmin || c.isSemedFull },
           { label: 'Usuários Online', icon: Wifi, color: 'green', route: '/admin/online-users', testId: 'nav-online-users-button', visible: c => c.isAdmin || c.isSemedFull },
           { label: 'Ferramentas', icon: Wrench, color: 'amber', route: '/admin/tools', testId: 'nav-admin-tools-button', visible: c => c.isAdmin },
+          { label: 'Log de Conversas', icon: MessageSquare, color: 'red', route: '/admin/logs', testId: 'nav-logs-button', visible: c => c.isAdmin },
         ],
       },
       {
         title: 'Gestão Escolar',
         icon: School,
         items: [
-          { label: 'Painel do Secretário', icon: Activity, color: 'blue', route: '/semed/panel', testId: 'nav-semed-panel-button', visible: c => c.isAdmin || c.isSemedFull || c.isSemed },
-          { label: 'Planos de Ação', icon: ClipboardList, color: 'orange', route: '/action-plans', testId: 'nav-action-plans-button', visible: c => c.isAdmin || c.isSemedFull || c.isSemed || c.isSchoolStaff },
-          { label: 'Motor PMPI-GE', icon: Siren, color: 'red', route: '/pmpi/engine', testId: 'nav-pmpi-engine-button', visible: c => c.isAdmin || c.isSemedFull },
           { label: 'Componentes Curriculares', icon: BookOpen, color: 'orange', route: '/admin/courses', testId: 'nav-courses-button', visible: c => c.isAdmin },
           { label: 'Pré-Matrículas', icon: UserPlus, color: 'pink', route: '/admin/pre-matriculas', testId: 'nav-pre-matriculas-button', visible: c => !c.hasRole('semed', 'semed1', 'semed2') },
           { label: 'Livro de Promoção', icon: Award, color: 'emerald', route: '/admin/promotion', testId: 'nav-promotion-button', visible: c => c.isAdmin || c.isSchoolStaff || c.isSemed },
@@ -65,11 +63,10 @@ export const Dashboard = () => {
         title: 'Gestão Pedagógica',
         icon: BookMarked,
         items: [
-          { label: 'Registro de Conteúdos', icon: BookOpen, color: 'purple', route: '/admin/learning-objects', testId: 'nav-learning-objects-button', visible: () => true },
-          { label: 'Diário AEE', icon: BookOpen, color: 'blue', route: '/admin/diario-aee', testId: 'nav-diario-aee-button', visible: c => c.isAdmin || c.isCoordenador || c.isProfessor || c.isSecretario || c.isDiretor || c.hasRole('semed1', 'semed2', 'semed3') },
-          { label: 'Acompanhamento de Diários', icon: BarChart3, color: 'violet', route: '/admin/diary-dashboard', testId: 'nav-diary-dashboard-button', visible: c => c.isAdmin || c.isSchoolStaff || c.isSemed },
-          { label: 'Notas', icon: ClipboardList, color: 'teal', route: '/admin/grades', testId: 'nav-grades-button', visible: () => true },
           { label: 'Frequência', icon: ClipboardCheck, color: 'cyan', route: '/admin/attendance', testId: 'nav-attendance-button', visible: () => true },
+          { label: 'Registro de Conteúdos', icon: BookOpen, color: 'purple', route: '/admin/learning-objects', testId: 'nav-learning-objects-button', visible: () => true },
+          { label: 'Notas', icon: ClipboardList, color: 'teal', route: '/admin/grades', testId: 'nav-grades-button', visible: () => true },
+          { label: 'Diário AEE', icon: BookOpen, color: 'blue', route: '/admin/diario-aee', testId: 'nav-diario-aee-button', visible: c => c.isAdmin || c.isCoordenador || c.isProfessor || c.isSecretario || c.isDiretor || c.hasRole('semed1', 'semed2', 'semed3') },
         ],
       },
       {
@@ -87,8 +84,11 @@ export const Dashboard = () => {
         title: 'Monitoramento e Análise',
         icon: BarChart3,
         items: [
+          { label: 'Acompanhamento de Diários', icon: BarChart3, color: 'violet', route: '/admin/diary-dashboard', testId: 'nav-diary-dashboard-button', visible: c => c.isAdmin || c.isSchoolStaff || c.isSemed },
           { label: 'Dashboard Analítico', icon: BarChart3, color: 'emerald', route: '/admin/analytics', testId: 'nav-analytics-button', visible: c => c.isAdmin || c.isSemedFull },
-          { label: 'Log de Conversas', icon: MessageSquare, color: 'red', route: '/admin/logs', testId: 'nav-logs-button', visible: c => c.isAdmin },
+          { label: 'Painel do Secretário', icon: Activity, color: 'blue', route: '/semed/panel', testId: 'nav-semed-panel-button', visible: c => c.isAdmin || c.isSemedFull || c.isSemed },
+          { label: 'Planos de Ação', icon: ClipboardList, color: 'orange', route: '/action-plans', testId: 'nav-action-plans-button', visible: c => c.isAdmin || c.isSemedFull || c.isSemed || c.isSchoolStaff },
+          { label: 'Motor PMPI-GE', icon: Siren, color: 'red', route: '/pmpi/engine', testId: 'nav-pmpi-engine-button', visible: c => c.isAdmin || c.isSemedFull },
         ],
       },
       {
@@ -103,6 +103,21 @@ export const Dashboard = () => {
       items: cat.items.filter(i => i.visible(ctx)),
     })).filter(cat => cat.items.length > 0);
   }, [isAdmin, isSuperAdmin, isSecretario, isDiretor, isCoordenador, isProfessor, isSemed, isSchoolStaff, isSemedFull, isAssistenteSocial, hasRole]);
+
+  // Feb 2026: busca rápida — filtra itens por label/categoria
+  const [menuSearch, setMenuSearch] = useState('');
+  const filteredAdminMenu = useMemo(() => {
+    const q = menuSearch.trim().toLowerCase();
+    if (!q) return adminMenuCategories;
+    const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const nq = norm(q);
+    return adminMenuCategories
+      .map(cat => ({
+        ...cat,
+        items: cat.items.filter(i => norm(i.label).includes(nq) || norm(cat.title).includes(nq)),
+      }))
+      .filter(cat => cat.items.length > 0);
+  }, [adminMenuCategories, menuSearch]);
 
   useEffect(() => {
     // Não carrega stats se for professor (será redirecionado)
@@ -496,14 +511,35 @@ export const Dashboard = () => {
         {/* Menu de navegação completo - Admin/Secretário/SEMED (Feb 2026: categorizado) */}
         {(isAdmin || isAdminOrSecretary || isSemed) && adminMenuCategories.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              {isSemed ? 'Consultar Módulos' : 'Menu de Administração'}
-            </h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Funções organizadas por área. Você visualiza apenas os itens compatíveis com seu perfil.
-            </p>
-            <div className="space-y-6">
-              {adminMenuCategories.map((cat) => {
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-2">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {isSemed ? 'Consultar Módulos' : 'Menu de Administração'}
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Funções organizadas por área. Você visualiza apenas os itens compatíveis com seu perfil.
+                </p>
+              </div>
+              <div className="relative w-full md:w-72">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={menuSearch}
+                  onChange={(e) => setMenuSearch(e.target.value)}
+                  placeholder="Buscar funcionalidade..."
+                  data-testid="menu-search-input"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            {filteredAdminMenu.length === 0 ? (
+              <div className="text-center py-12 text-gray-500" data-testid="menu-search-empty">
+                <Search size={36} className="mx-auto text-gray-300 mb-2" />
+                <p className="text-sm">Nenhum item encontrado para "<span className="font-medium">{menuSearch}</span>"</p>
+              </div>
+            ) : (
+            <div className="space-y-6 mt-4">
+              {filteredAdminMenu.map((cat) => {
                 const CatIcon = cat.icon;
                 return (
                   <section key={cat.title} data-testid={`menu-cat-${cat.title.toLowerCase().replace(/\s+/g, '-').replace(/[ãáàâéêíóôõúç]/g, '')}`}>
@@ -549,6 +585,7 @@ export const Dashboard = () => {
                 );
               })}
             </div>
+            )}
           </div>
         )}
 
