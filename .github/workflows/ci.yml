@@ -1,0 +1,63 @@
+name: CI - Build & Lint
+
+# Roda em todo push para main e em pull requests para main.
+# Objetivo: pegar erros que quebrariam o deploy no Coolify (yarn build, lint Python).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend-build:
+    name: Frontend - yarn build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build production bundle
+        # Mesmo comando que o Coolify executa no Dockerfile.
+        # Se quebrar aqui, quebraria no deploy.
+        run: yarn build
+        env:
+          # Stub para satisfazer o build (variável real é injetada pelo Coolify).
+          REACT_APP_BACKEND_URL: https://placeholder.example.com
+          CI: 'true'
+
+  backend-lint:
+    name: Backend - ruff lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Lint (ruff check)
+        # Falha em qualquer erro de sintaxe / import quebrado.
+        # Aviso: não falha em warnings de qualidade já existentes (E722, F841 etc).
+        run: ruff check . --select E9,F63,F7,F82
+
+      - name: Compile check (sintaxe Python de todos os módulos)
+        run: python -m compileall -q .
