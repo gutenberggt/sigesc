@@ -350,6 +350,15 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 - Diário Consolidado: aparece ✅
 - Plano histórico (`prof_aee_id=staff_id_fake`, `created_by=user.id`): visível via $or ✅
 
+### Hot fix Apr 2026: Plano criado via Modelo continuava sumindo no UI mesmo após backend OK
+**Sintoma**: backend agora retornava o plano corretamente para professor (filter $or), mas no UI a lista ainda mostrava 0 linhas após criar via Modelo.
+
+**Causa raiz**: filtro **frontend** (`filteredPlanos` em `DiarioAEE.js`) restringe planos por `selectedTurma` (turma AEE auto-selecionada do professor). Quando o aluno escolhido no modal "Aplicar Modelo" pertencia a outra turma AEE, o plano era criado mas o `filteredPlanos` o escondia.
+
+**Fix frontend** (`handleApplyTemplate` em `pages/DiarioAEE.js`): após sucesso da chamada `/from-template`, antes de chamar `fetchData()`, realinha `selectedTurma` para a `atendimento_programa_class_id` do aluno escolhido (ou limpa se o aluno não tem turma AEE). Garante que o novo plano apareça na lista filtrada do professor instantaneamente.
+
+**Validação UI**: rows_before=0 → criar via UI → rows_after=1, plano "ANA OLIVEIRA - Deficiência Intelectual - Rascunho" visível imediatamente.
+
 ### P1
 - Regras de cálculo de carga horária prevista na folha de pagamento (aguarda regras de negócio do usuário)
 

@@ -559,6 +559,18 @@ const DiarioAEE = () => {
         }),
       });
       if (!res.ok) throw new Error(await parseResponseError(res, 'Erro ao aplicar modelo'));
+      // Apr 2026: realinhar `selectedTurma` para a turma AEE do aluno escolhido,
+      // garantindo que o novo plano apareça imediatamente na lista filtrada do
+      // professor (evita o sumiço quando o aluno pertence a outra turma AEE).
+      const targetStudent = students.find(s => s.id === applyStudentId)
+        || estudantes.find(e => e.student_id === applyStudentId);
+      const targetClassId = targetStudent?.atendimento_programa_class_id
+        || targetStudent?.atendimento_programa_class_id /* fallback redundante */;
+      if (targetClassId && targetClassId !== selectedTurma) {
+        setSelectedTurma(targetClassId);
+      } else if (!targetClassId) {
+        setSelectedTurma('');
+      }
       showAlert('success', 'Plano AEE criado a partir do modelo (rascunho)');
       setShowApplyTemplate(false);
       await fetchData();
