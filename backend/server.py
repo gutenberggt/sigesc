@@ -393,6 +393,13 @@ async def create_indexes():
         # PATCH 3.3: Inicializa o serviço de blacklist de tokens
         token_blacklist.set_db(db)
         await token_blacklist.ensure_index()
+
+        # Feb 2026: Seed idempotente dos 8 modelos institucionais de Plano AEE.
+        try:
+            from seeds.aee_templates_seed import seed_aee_templates
+            await seed_aee_templates(db)
+        except Exception as exc:
+            logger.warning(f"Seed AEE templates: ignorado por erro: {exc}")
         
     except Exception as e:
         logger.error(f"Erro ao criar índices MongoDB: {e}")
