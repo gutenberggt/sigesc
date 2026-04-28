@@ -450,11 +450,20 @@ def setup_aee_router(db, audit_service):
 
     @router.put("/templates/{template_id}")
     async def update_template(template_id: str, data: PlanoAEETemplateUpdate, request: Request):
-        """Atualiza Modelo de Plano AEE (apenas super_admin/admin)."""
+        """Atualiza Modelo de Plano AEE.
+
+        Modelos institucionais (created_by="system_seed") são protegidos contra
+        edição/exclusão. Use o botão "Duplicar" para criar uma cópia editável.
+        """
         current_user = await check_template_manage_access(request)
         existing = await db.planos_aee_templates.find_one({"id": template_id}, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Modelo de Plano AEE não encontrado")
+        if existing.get('created_by') == 'system_seed':
+            raise HTTPException(
+                status_code=400,
+                detail="Modelo institucional não pode ser editado. Duplique-o para criar uma versão personalizada."
+            )
         update_data = data.model_dump(exclude_unset=True)
         update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
         await db.planos_aee_templates.update_one({"id": template_id}, {"$set": update_data})
@@ -471,11 +480,19 @@ def setup_aee_router(db, audit_service):
 
     @router.delete("/templates/{template_id}")
     async def delete_template(template_id: str, request: Request):
-        """Remove Modelo de Plano AEE (apenas super_admin/admin)."""
+        """Remove Modelo de Plano AEE.
+
+        Modelos institucionais (created_by="system_seed") são protegidos.
+        """
         current_user = await check_template_manage_access(request)
         existing = await db.planos_aee_templates.find_one({"id": template_id}, {"_id": 0})
         if not existing:
             raise HTTPException(status_code=404, detail="Modelo de Plano AEE não encontrado")
+        if existing.get('created_by') == 'system_seed':
+            raise HTTPException(
+                status_code=400,
+                detail="Modelo institucional não pode ser excluído. Ele é mantido como referência da SEMED."
+            )
         await db.planos_aee_templates.delete_one({"id": template_id})
         try:
             await audit_service.log(
@@ -487,6 +504,36 @@ def setup_aee_router(db, audit_service):
         except Exception:
             pass
         return {"message": "Modelo excluído com sucesso"}
+
+    @router.post("/templates/{template_id}/duplicate", response_model=PlanoAEETemplate, status_code=status.HTTP_201_CREATED)
+    async def duplicate_template(template_id: str, request: Request):
+        """Duplica um Modelo de Plano AEE (institucional ou personalizado).
+
+        Cria uma cópia editável atribuída ao usuário atual, com o nome sufixado
+        por "(cópia)". Útil para adaptar modelos institucionais sem alterar a base.
+        """
+        current_user = await check_template_manage_access(request)
+        original = await db.planos_aee_templates.find_one({"id": template_id}, {"_id": 0})
+        if not original:
+            raise HTTPException(status_code=404, detail="Modelo não encontrado")
+        novo = dict(original)
+        novo['id'] = str(uuid.uuid4())
+        novo['nome'] = f"{original.get('nome')} (cópia)"
+        novo['created_by'] = current_user.get('id')
+        novo['created_at'] = datetime.now(timezone.utc).isoformat()
+        novo.pop('updated_at', None)
+        await db.planos_aee_templates.insert_one(novo)
+        novo.pop('_id', None)
+        try:
+            await audit_service.log(
+                action='create', collection='planos_aee_templates',
+                user=current_user, request=request, document_id=novo['id'],
+                description=f"Modelo AEE duplicado a partir de '{original.get('nome')}'",
+                new_value=novo,
+            )
+        except Exception:
+            pass
+        return novo
 
     @router.post("/planos/from-template", response_model=PlanoAEE, status_code=status.HTTP_201_CREATED)
     async def create_plano_from_template(request: Request):

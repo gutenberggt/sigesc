@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users, FileText, Calendar, Clock, Plus, Edit2, Trash2, Eye, Copy, Download, X,
   ChevronDown, ChevronRight, CheckCircle2, AlertCircle, Search, Filter,
-  BookOpen, Target, Activity, UserCheck, ClipboardList, MessageSquare, Home
+  BookOpen, Target, Activity, UserCheck, ClipboardList, MessageSquare, Home, Shield
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import PlanoAEEModal from '@/components/PlanoAEEModal';
@@ -647,6 +647,10 @@ const DiarioAEE = () => {
   };
 
   const handleDeleteTemplate = async (tpl) => {
+    if (tpl.created_by === 'system_seed') {
+      showAlert('error', 'Modelo institucional não pode ser excluído. Use "Duplicar" para criar uma versão personalizada.');
+      return;
+    }
     if (!window.confirm(`Excluir o modelo "${tpl.nome}"? Planos já criados a partir dele serão preservados.`)) return;
     try {
       const res = await fetch(`${API_URL}/api/aee/templates/${tpl.id}`, {
@@ -654,6 +658,19 @@ const DiarioAEE = () => {
       });
       if (!res.ok) throw new Error(await parseResponseError(res, 'Erro ao excluir modelo'));
       showAlert('success', 'Modelo excluído');
+      await fetchTemplates();
+    } catch (e) {
+      showAlert('error', e.message);
+    }
+  };
+
+  const handleDuplicateTemplate = async (tpl) => {
+    try {
+      const res = await fetch(`${API_URL}/api/aee/templates/${tpl.id}/duplicate`, {
+        method: 'POST', headers,
+      });
+      if (!res.ok) throw new Error(await parseResponseError(res, 'Erro ao duplicar modelo'));
+      showAlert('success', 'Modelo duplicado. Edite a cópia para personalizar.');
       await fetchTemplates();
     } catch (e) {
       showAlert('error', e.message);
@@ -1139,9 +1156,25 @@ const DiarioAEE = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {templates.map(tpl => (
+              {templates.map(tpl => {
+                const isInst = tpl.created_by === 'system_seed';
+                return (
                 <tr key={tpl.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{tpl.nome}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                    <div className="flex items-center gap-2">
+                      {isInst && (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200"
+                          title="Modelo institucional da SEMED — protegido contra edição/exclusão"
+                          data-testid={`tpl-inst-badge-${tpl.id}`}
+                        >
+                          <Shield size={10} />
+                          INSTITUCIONAL
+                        </span>
+                      )}
+                      <span>{tpl.nome}</span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{PUBLICO_ALVO_LABELS[tpl.publico_alvo] || tpl.publico_alvo}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{MODALIDADE_LABELS[tpl.modalidade] || tpl.modalidade}</td>
                   <td className="px-4 py-3 text-xs text-center text-gray-500">
@@ -1155,21 +1188,30 @@ const DiarioAEE = () => {
                   <td className="px-4 py-3 text-center">
                     <div className="flex justify-center gap-1">
                       <button
-                        onClick={() => openTemplateForm(tpl)}
+                        onClick={() => handleDuplicateTemplate(tpl)}
+                        data-testid={`btn-duplicar-modelo-${tpl.id}`}
+                        className="p-1 text-purple-600 hover:bg-purple-50 rounded"
+                        title="Duplicar modelo (criar cópia editável)"
+                      ><Copy size={16} /></button>
+                      <button
+                        onClick={() => isInst ? showAlert('error', 'Modelo institucional não pode ser editado. Use "Duplicar" para criar uma versão personalizada.') : openTemplateForm(tpl)}
                         data-testid={`btn-editar-modelo-${tpl.id}`}
-                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                        title="Editar"
+                        className={`p-1 rounded ${isInst ? 'text-gray-300 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50'}`}
+                        title={isInst ? 'Modelo institucional — protegido contra edição' : 'Editar'}
+                        disabled={isInst}
                       ><Edit2 size={16} /></button>
                       <button
                         onClick={() => handleDeleteTemplate(tpl)}
                         data-testid={`btn-excluir-modelo-${tpl.id}`}
-                        className="p-1 text-red-600 hover:bg-red-50 rounded"
-                        title="Excluir"
+                        className={`p-1 rounded ${isInst ? 'text-gray-300 cursor-not-allowed' : 'text-red-600 hover:bg-red-50'}`}
+                        title={isInst ? 'Modelo institucional — protegido contra exclusão' : 'Excluir'}
+                        disabled={isInst}
                       ><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
