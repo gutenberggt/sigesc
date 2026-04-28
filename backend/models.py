@@ -1859,6 +1859,9 @@ class LearningObject(BaseModel):
     resources: Optional[str] = None
     number_of_classes: int = 1
     recorded_by: Optional[str] = None  # ID do usuário que registrou
+    # Feb 2026: Rastreabilidade de cópia entre turmas
+    copied_from_id: Optional[str] = None  # ID do registro original quando este foi copiado
+    copied_at: Optional[datetime] = None  # Timestamp da cópia
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
 

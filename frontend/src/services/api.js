@@ -747,6 +747,12 @@ export const learningObjectsAPI = {
     return response.data;
   },
   
+  // Adiciona método de cópia ao learningObjectsAPI ao final
+  copyToClass: async (id, payload) => {
+    const response = await axios.post(`${API}/learning-objects/${id}/copy-to-class`, payload);
+    return response.data;
+  },
+
   // Verifica se existe registro para uma data
   checkDate: async (classId, courseId, date) => {
     const response = await axios.get(`${API}/learning-objects/check-date/${classId}/${courseId}/${date}`);

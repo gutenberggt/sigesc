@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from typing import Optional
 from datetime import datetime, timezone
+import uuid
 import logging
 
 from models import *
@@ -214,6 +215,139 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         await db.learning_objects.delete_one({"id": object_id})
 
         return {"message": "Registro excluído com sucesso"}
+
+
+    @router.post("/learning-objects/{object_id}/copy-to-class")
+    async def copy_learning_object_to_class(object_id: str, request: Request):
+        """Copia um registro de conteúdo (Objetos de Conhecimento) para outra turma.
+
+        O registro original permanece intacto. A cópia armazena `copied_from_id`
+        para rastreabilidade.
+
+        Body JSON obrigatório:
+            {"target_class_id": str, "target_course_id": str,
+             "target_date": str (opcional, default = data do original)}
+
+        Validações:
+        - Para professor: precisa ter teacher_assignment ativo na turma+componente alvo
+        - Para outros roles autorizados: validação por mantenedora (multi-tenant)
+        - Conflito: se já houver registro na mesma turma+componente+data, retorna 400
+        """
+        current_user = await AuthMiddleware.require_roles(
+            ['admin', 'admin_teste', 'super_admin', 'secretario', 'diretor',
+             'coordenador', 'auxiliar_secretaria', 'professor', 'gerente']
+        )(request)
+        user_role = current_user.get('role', '')
+
+        original = await db.learning_objects.find_one({"id": object_id}, {"_id": 0})
+        if not original:
+            raise HTTPException(status_code=404, detail="Registro original não encontrado")
+
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        target_class_id = (body or {}).get('target_class_id')
+        target_course_id = (body or {}).get('target_course_id')
+        target_date = (body or {}).get('target_date') or original.get('date')
+
+        if not target_class_id or not target_course_id:
+            raise HTTPException(
+                status_code=400,
+                detail="target_class_id e target_course_id são obrigatórios"
+            )
+
+        # Não permitir cópia para a mesma turma+componente+data (seria igual ao original)
+        if (target_class_id == original.get('class_id')
+                and target_course_id == original.get('course_id')
+                and target_date == original.get('date')):
+            raise HTTPException(
+                status_code=400,
+                detail="A turma/componente/data alvo é igual ao registro original"
+            )
+
+        # Valida vínculo do professor com a turma+componente alvo
+        if user_role == 'professor':
+            staff = await db.staff.find_one(
+                {"user_id": current_user['id']}, {"_id": 0, "id": 1}
+            )
+            if not staff:
+                staff = await db.staff.find_one(
+                    {"email": current_user['email']}, {"_id": 0, "id": 1}
+                )
+            if not staff:
+                raise HTTPException(status_code=403, detail="Perfil de professor não encontrado")
+            assignment = await db.teacher_assignments.find_one({
+                "staff_id": staff['id'],
+                "class_id": target_class_id,
+                "course_id": target_course_id,
+                "status": {"$in": ["ativo", "active"]},
+            })
+            if not assignment:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Você não tem vínculo ativo com a turma/componente alvo"
+                )
+
+        # Valida tenant (mesma mantenedora) para outros roles
+        target_class = await db.classes.find_one(
+            {"id": target_class_id},
+            {"_id": 0, "school_id": 1, "academic_year": 1, "mantenedora_id": 1}
+        )
+        if not target_class:
+            raise HTTPException(status_code=404, detail="Turma alvo não encontrada")
+        if user_role not in ['admin', 'super_admin', 'admin_teste']:
+            if (target_class.get('mantenedora_id')
+                    and original.get('mantenedora_id')
+                    and target_class.get('mantenedora_id') != original.get('mantenedora_id')):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Cópia entre mantenedoras não é permitida"
+                )
+
+        # Verifica conflito (mesmo class+course+date)
+        conflict = await db.learning_objects.find_one({
+            "class_id": target_class_id,
+            "course_id": target_course_id,
+            "date": target_date,
+        }, {"_id": 0, "id": 1})
+        if conflict:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Já existe um registro para a turma/componente alvo na data {target_date}. "
+                       f"Edite o registro existente ou escolha outra data."
+            )
+
+        # Verifica se o ano letivo está aberto (para não-admins)
+        target_academic_year = target_class.get('academic_year') or original.get('academic_year')
+        if user_role not in ['admin', 'admin_teste', 'super_admin']:
+            await verify_academic_year_open_or_raise(
+                target_class['school_id'], target_academic_year
+            )
+
+        # Cria a cópia
+        novo_id = str(uuid.uuid4())
+        agora = datetime.now(timezone.utc)
+        copia = {
+            "id": novo_id,
+            "class_id": target_class_id,
+            "course_id": target_course_id,
+            "date": target_date,
+            "academic_year": target_academic_year,
+            "content": original.get('content'),
+            "observations": original.get('observations'),
+            "methodology": original.get('methodology'),
+            "resources": original.get('resources'),
+            "number_of_classes": original.get('number_of_classes', 1),
+            "recorded_by": current_user['id'],
+            "copied_from_id": object_id,
+            "copied_at": agora.isoformat(),
+            "created_at": agora.isoformat(),
+            "mantenedora_id": target_class.get('mantenedora_id') or original.get('mantenedora_id'),
+        }
+        await db.learning_objects.insert_one(copia)
+        copia.pop('_id', None)
+        return copia
 
 
     @router.get("/learning-objects/check-date/{class_id}/{course_id}/{date}")

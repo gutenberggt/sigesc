@@ -16,6 +16,7 @@ import {
   Edit,
   Trash2,
   Save,
+  Copy,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -121,6 +122,89 @@ export const LearningObjects = () => {
 
   // Alert
   const [alert, setAlert] = useState(null);
+
+  // Feb 2026: Modal "Copiar para outra turma"
+  const [copyModalOpen, setCopyModalOpen] = useState(false);
+  const [copyTargetSchool, setCopyTargetSchool] = useState('');
+  const [copyTargetClass, setCopyTargetClass] = useState('');
+  const [copyTargetCourse, setCopyTargetCourse] = useState('');
+  const [copyTargetDate, setCopyTargetDate] = useState('');
+  const [copying, setCopying] = useState(false);
+  const [availableClasses, setAvailableClasses] = useState([]);
+
+  // Carrega turmas do professor uma vez (para uso no modal de cópia)
+  useEffect(() => {
+    if (isProfessor) {
+      professorAPI.getTurmas(currentYear)
+        .then(setAvailableClasses)
+        .catch(() => setAvailableClasses([]));
+    } else {
+      // Para outros roles, usa as turmas já carregadas em `classes`
+      setAvailableClasses([]);
+    }
+    // eslint-disable-next-line
+  }, [isProfessor, currentYear]);
+
+  const openCopyModal = () => {
+    if (!editingRecord) {
+      showAlert('error', 'Salve o registro antes de copiar para outra turma');
+      return;
+    }
+    setCopyTargetSchool('');
+    setCopyTargetClass('');
+    setCopyTargetCourse('');
+    setCopyTargetDate(editingRecord.date || selectedDate || '');
+    setCopyModalOpen(true);
+  };
+
+  const copyTargetClasses = (() => {
+    if (isProfessor) {
+      return availableClasses.filter(t =>
+        (!copyTargetSchool || t.school_id === copyTargetSchool) &&
+        // Excluir a própria turma+componente atual (a regra de mesma data fica no backend)
+        !(t.id === selectedClass)
+      );
+    }
+    return classes.filter(c => !copyTargetSchool || c.school_id === copyTargetSchool)
+                  .filter(c => c.id !== selectedClass);
+  })();
+
+  const copyTargetCourseList = (() => {
+    if (isProfessor) {
+      const turma = availableClasses.find(t => t.id === copyTargetClass);
+      return turma?.componentes || [];
+    }
+    return courses.filter(c => !c.school_id || c.school_id === copyTargetSchool);
+  })();
+
+  const handleCopyToClass = async () => {
+    if (!copyTargetClass) {
+      showAlert('error', 'Selecione a turma alvo');
+      return;
+    }
+    // Componente é obrigatório SEMPRE (mesmo que para infantil seja único)
+    const targetCourse = copyTargetCourse || (copyTargetCourseList.length === 1 ? copyTargetCourseList[0].id : '');
+    if (!targetCourse) {
+      showAlert('error', 'Selecione o componente curricular');
+      return;
+    }
+    setCopying(true);
+    try {
+      await learningObjectsAPI.copyToClass(editingRecord.id, {
+        target_class_id: copyTargetClass,
+        target_course_id: targetCourse,
+        target_date: copyTargetDate || editingRecord.date,
+      });
+      const turma = (isProfessor ? availableClasses : classes).find(c => c.id === copyTargetClass);
+      showAlert('success', `Registro copiado com sucesso para a turma ${turma?.name || ''}`);
+      setCopyModalOpen(false);
+    } catch (err) {
+      const msg = err.response?.data?.detail || err.message || 'Erro ao copiar registro';
+      showAlert('error', msg);
+    } finally {
+      setCopying(false);
+    }
+  };
   
   const showAlert = (type, message) => {
     setAlert({ type, message });
@@ -1237,6 +1321,19 @@ export const LearningObjects = () => {
                         <Save size={16} className="mr-1" />
                         {saving ? 'Salvando...' : 'Salvar'}
                       </Button>
+                      {editingRecord && (
+                        <Button
+                          variant="outline"
+                          onClick={openCopyModal}
+                          disabled={saving}
+                          data-testid="btn-copiar-outra-turma"
+                          title="Copiar este registro para outra turma sem mover o original"
+                          className="text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                        >
+                          <Copy size={16} className="mr-1" />
+                          Copiar para outra turma
+                        </Button>
+                      )}
                       {(editingRecord || (isMultiSelectMode && records.some(r => r.date === selectedDate))) && (
                         <Button 
                           variant="destructive" 
@@ -1356,6 +1453,134 @@ export const LearningObjects = () => {
                 data-testid="btn-confirmar-pdf-lo"
               >
                 {generatingPdf ? 'Gerando...' : 'Gerar PDF'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feb 2026: Modal "Copiar para outra turma" */}
+      {copyModalOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setCopyModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+            data-testid="copy-class-modal"
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <Copy size={24} className="text-emerald-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">Copiar para outra turma</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  O registro original permanece intacto. Será criada uma cópia na turma escolhida.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {/* Escola — só aparece se houver mais de uma escola disponível */}
+              {(() => {
+                const list = isProfessor ? availableClasses : classes;
+                const escolas = Array.from(new Map(list.map(c => [c.school_id, { id: c.school_id, name: c.school_name || schools.find(s => s.id === c.school_id)?.name || c.school_id }])).values());
+                if (escolas.length <= 1) return null;
+                return (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Escola</label>
+                    <select
+                      value={copyTargetSchool}
+                      onChange={(e) => { setCopyTargetSchool(e.target.value); setCopyTargetClass(''); setCopyTargetCourse(''); }}
+                      data-testid="copy-target-school"
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                    >
+                      <option value="">Selecione...</option>
+                      {escolas.map(e => (
+                        <option key={e.id} value={e.id}>{e.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })()}
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Turma alvo *</label>
+                <select
+                  value={copyTargetClass}
+                  onChange={(e) => { setCopyTargetClass(e.target.value); setCopyTargetCourse(''); }}
+                  data-testid="copy-target-class"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">Selecione uma turma...</option>
+                  {copyTargetClasses.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}{t.school_name ? ` — ${t.school_name}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {copyTargetClasses.length === 0 && (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    Nenhuma outra turma disponível. {isProfessor ? 'Você só está vinculado(a) a esta turma.' : ''}
+                  </p>
+                )}
+              </div>
+
+              {copyTargetClass && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Componente curricular *</label>
+                  <select
+                    value={copyTargetCourse}
+                    onChange={(e) => setCopyTargetCourse(e.target.value)}
+                    data-testid="copy-target-course"
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                  >
+                    <option value="">Selecione um componente...</option>
+                    {copyTargetCourseList.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {isProfessor
+                      ? 'Apenas componentes em que você tem vínculo ativo.'
+                      : 'Componentes da escola selecionada.'}
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Data alvo</label>
+                <input
+                  type="date"
+                  value={copyTargetDate}
+                  onChange={(e) => setCopyTargetDate(e.target.value)}
+                  data-testid="copy-target-date"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Por padrão usa a mesma data do registro original. Se já houver registro na data alvo, escolha outra.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-5">
+              <Button
+                variant="outline"
+                onClick={() => setCopyModalOpen(false)}
+                disabled={copying}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleCopyToClass}
+                disabled={copying || !copyTargetClass || !copyTargetCourse}
+                data-testid="confirm-copy-class"
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                <Copy size={16} className="mr-1" />
+                {copying ? 'Copiando...' : 'Copiar'}
               </Button>
             </div>
           </div>
