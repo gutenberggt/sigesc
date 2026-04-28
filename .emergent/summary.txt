@@ -1,23 +1,30 @@
 <analysis>**original_problem_statement**: 
-Implementar e refinar o Student Dashboard (Boletim Virtual), relatórios AEE e criação de usuários em massa. Recentemente, foco em permissões, falhas no carregamento e salvamento de formulários do AEE, congelamento de registros e migração de dados ao transferir alunos (retenção de histórico na turma de origem), e ajustes lógicos e visuais rigorosos nos PDFs gerados pelo sistema (inclusão de atestados e cabeçalhos institucionais).
+Implementar e refinar o Student Dashboard, relatórios AEE e criação de usuários. O projeto evoluiu para o aprofundamento do módulo AEE (com criação de Biblioteca de Modelos/Templates Institucionais, duplicação cruzada de planos), aprimoramento pedagógico (cópia de Objetos de Conhecimento entre turmas), reorganização visual completa do Menu de Administração por categorias com busca rápida, e implementação de buscas acento-insensíveis.
 
 **User's preferred language**: Portuguese (You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and INSTRUCT next agent to respond in Portuguese only)
 
 **what currently exists?** 
-A plataforma é um SaaS educacional multi-tenant funcional. Possui controle de acesso rígido e segurança contra vazamento de dados cross-tenant (resolvido bug na designação de gerentes). Implementou recentemente um sistema de revogação remota de sessão via WebSockets. Possui módulos consolidados de Frequência e Notas com capacidade de congelar dados de turmas de origem após a transferência de um aluno. O módulo Diário AEE está funcional, salvando dados complexos do plano e permitindo exportação em PDF.
+Um SaaS educacional multi-tenant robusto com controle de acesso rígido. Inclui um ecossistema AEE completo (planos, atendimentos, modelos de templates institucionais protegidos da SEMED, e geração de PDFs espelhados da UI). O módulo de registros de conteúdo (Objetos de Conhecimento) permite duplicação inteligente de registros entre turmas do mesmo professor. A interface administrativa foi categorizada para melhor UX, contando com buscas acento-insensíveis globais. Há também CI/CD via GitHub Actions para evitar quebras de build no deploy.
 
 **Last working item**: 
-    - Last item agent was working: O agente finalizou a correção do bug onde Barreiras e Objetivos mostravam  no frontend do Plano AEE. Na mesma iteração, adicionou os botões de Visualização, Exclusão e Gerar PDF na tabela de Planos AEE (), incluindo o backend para geração do PDF ().
-    - Status: USER VERIFICATION PENDING
-    - Agent Testing Done: Y
-    - Which testing method agent to use? both (pytest para os endpoints e screenshot tool para os modais visuais no frontend).
+    - Last item agent was working: O usuário levantou uma questão final: *Os Planos AEE a partir de um modelo podem ser criados, salvos e visualizados pelo professor*. O agente começou a verificar as permissões no backend ( e a rota ) para confirmar se o fluxo ponta-a-ponta para o papel  funciona sem interrupções após as mudanças recentes.
+    - Status: IN PROGRESS
+    - Agent Testing Done: N
+    - Which testing method agent to use? both (curl para testar o backend com um token de professor, e screenshot para confirmar no frontend se os botões e os modais aparecem corretamente).
     - User Testing Done: N
 
 **All Pending/In progress Issue list**: 
-  Nenhuma issue pendente classificada como bloqueante no momento. Todas as issues recentes levantadas pelo usuário foram corrigidas e testadas.
+  Issue 1: Confirmar fluxo de Professor para Planos AEE a partir de modelos (Prioridade: P0)
+     - Attempted fixes: O agente estava checando o código () para confirmar as regras.
+     - Next debug checklist: Logar como professor (credenciais em ), tentar criar um Plano AEE a partir de um modelo institucional, preencher, salvar e visualizar o PDF.
+     - Why fix this issue and what will be achieved with the fix? Garantir que o professor tenha total autonomia no fluxo de AEE recém-criado, que foi o pedido expresso do usuário.
+     - Status: IN PROGRESS
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? both
+     - Blocked on other issue: N/A
 
 **In progress Task List**: 
-  Nenhuma tarefa de código em andamento incompleta. O último pedido (AEE Visualização/PDF) foi concluído.
+  Nenhuma tarefa longa pendente, exceto a verificação de permissões descrita acima.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
@@ -29,92 +36,98 @@ A plataforma é um SaaS educacional multi-tenant funcional. Possui controle de a
     - (P3) Implementar envio de e-mail de confirmação na pré-matrícula.
     - (Enhancement) Exportar credenciais em CSV na tela de criação em massa de alunos (gerar arquivo com e-mail + senha inicial).
     - (Enhancement) Adicionar tooltips explicativos para os KPIs no Painel do Secretário.
-    - (Code Quality) Refatorar  para reduzir complexidade (Atualmente com 47x threshold de complexidade).
+    - (Code Quality) Refatorar  para reduzir complexidade.
     - (Code Quality) Securing localStorage: Migrar dados sensíveis (tokens) para httpOnly cookies para evitar ataques XSS.
     - (Code Quality) Split do componente gigante  e modais inchados.
 
 **Completed work in this session**
-- Funcionalidade de Forçar Logout Remoto com notificação via WebSocket e tela de bloqueio (DONE).
-- Fix de Vazamento Cross-Tenant (Bug Crítico): Revogação de tokens ativos e limpeza de links ao promover gerentes de outras mantenedoras (DONE).
-- Funcionalidade de Congelamento de Origem e Cópia (Migração) de notas/frequência ao realizar transferências e progressões de alunos (DONE).
-- Renderização da letra A (Atestado Médico) no PDF de frequência e relatórios sintéticos em substituição aos lançamentos do professor (DONE).
-- Inserção de Cabeçalho Institucional padronizado (Mantenedora, Secretaria e Brasão ajustado) no PDF de Frequência (DONE).
-- Fix do salvamento do Diário AEE (Pydantic model sync, adequação de campos nulos) e correção da string  (DONE).
-- Adição das ações de Excluir, Visualizar e Exportar PDF na listagem de Planos AEE (DONE).
+- Correção do bug  (DONE).
+- Adicionado Filtro de Período no PDF do Diário AEE e Botão de Duplicação simples (DONE).
+- Feature de Duplicação Cruzada (para outro aluno) no Plano AEE (DONE).
+- Feature de Biblioteca de Modelos/Templates de Plano AEE com 8 seeds institucionais da SEMED (DONE).
+- Ampliadas as permissões da Biblioteca de Modelos para todos os papéis do AEE (DONE).
+- Adicionada Proteção nos modelos institucionais contra exclusão/edição, permitindo apenas duplicação (DONE).
+- Implementação de CI via GitHub Actions () para verificar builds do React (DONE).
+- Feature Copiar para outra turma nos Objetos de Conhecimento (DONE).
+- Reorganização do Menu de Administração do Frontend em Categorias + Input de Busca Rápida (DONE).
+- Implementada Busca Acento-insensível Global (backend e frontend) para Alunos, Servidores e Usuários (DONE).
+- Ajuste das margens do PDF de frequência para 7mm (DONE).
+- Bug fix API is not defined ao desvincular aluno; chamadas centralizadas via  (DONE).
 
 **Earlier issues found/mentioned but not fixed**
-   *Nota: O script de migração retroativa para transferências antigas foi discutido com o usuário, mas ele EXPLICITAMENTE abandonou a ideia (Abandonar projeto). Portanto, nenhuma ação é necessária e não é considerado um missed issue.*
+  - Nenhum. Todas as falhas relatadas pelo usuário foram corrigidas e validadas na mesma sessão.
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Tipos Literais no Pydantic incompatíveis devido a envio de strings com casing diferente pelo frontend. 
-  - Recurrence count: 2
-  - Status: RESOLVED (Foi mitigado através do helper  e mapeamento rigoroso no frontend).
+  - Issue recurrence in previous fork: Tipos Literais no Pydantic incompatíveis.
+  - Recurrence count: 3 (Nesta sessão, o seed dos modelos AEE inseriu dados como , enquanto o Literal exigia , resultando em Failed to fetch no frontend e Erro 500 no backend). 
+  - Status: RESOLVED. O mapeamento foi corrigido, mas **atenção redobrada** a campos  no backend () em futuras modificações.
 
 **Code Architecture**
-React Frontend (App.js atuando como roteador global), Backend FastAPI, MongoDB multi-tenant gerenciado com helpers em . Relatórios complexos em PDF são construídos em memória usando a biblioteca  dentro de .
+React Frontend atuando com  (Roteamento). Backend FastAPI. MongoDB (Motor nativo). Relatórios e PDFs customizados gerados em  usando . Automação de CI simples configurada em .
 
 **Key Technical Concepts**
-- Os modelos **Pydantic** () operam com . Se o frontend enviar um campo com um nome levemente diferente ou o backend não tiver esse campo no modelo, o dado é descartado silenciosamente.
-- **Isolamento de Tenants**: Verificações obrigatórias via  ou .
-- O módulo **WebSockets** ( / ) é usado agora para receber triggers administrativos (ex: evento ).
+- **Idempotência de Seeds**: Seeds de banco (como ) rodam no startup do FastAPI, porém validam existência antes de inserir.
+- **Accent-Insensitive Search**: No backend, é utilizado o helper  para criar expressões regulares na camada do MongoDB.
+- **Pydantic**: Utilizado com . Descarte silencioso em caso de mismatch de chaves.
 
 **key DB schema**
-  - : Guarda os formulários com detalhes (barreiras, objetivos) salvos.
-  - : Armazena o histórico da turma de ORIGEM de onde o aluno saiu em uma transferência.
-  - : Documentos atestados (usados para sobrepor a frequência com a sigla A).
+  - : Armazena os modelos base para planos AEE ().
+  - : Recebeu os novos campos  e  para rastreabilidade de cópias entre turmas.
 
 **changes in tech stack**
-  - Nenhuma mudança estrutural. Importante notar que  não está em uso (e avisa depreciação) para geração, utiliza-se estritamente .
+  - Adicionado workflow do **GitHub Actions** () para validar a build do frontend (yarn run v1.22.22
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.) após problemas com deploy via Coolify.
 
 **All files of reference** 
-  - ,  (Forçar Logout)
-  - ,  (Fix de Tenant Leakage)
-  - , ,  (Regras de Congelamento)
-  - ,  (Letra A e Cabeçalho do PDF)
-  - , , ,  (Correções do Formulário e UI do AEE)
-  -  (Novo arquivo para PDF de plano AEE)
+  -  (Novos esquemas de template e rastreabilidade de Objetos de Conhecimento)
+  - ,  (Lógica de modelos AEE e seeds)
+  -  (UI da biblioteca de templates e duplicação)
+  - ,  (Duplicação de registros pedagógicos)
+  -  (Menu categorizado e barra de busca)
+  - ,  (Helpers de regex para acentuação)
+  -  (Centralização de )
+  -  (Pipeline de build)
 
 **Areas that need refactoring**: 
--  - Complexidade cíclica muito alta.
--  - Rotas gigantescas, necessita separação por módulos (admin, professor, relatórios, etc).
+-  - Arquivo muito extenso com todas as rotas da aplicação.
+-  - Complexidade ciclomática elevada.
 
 **key api endpoints**
-  - 
-  - 
-  -  e 
+  -  (Criação de plano via modelo)
+  -  (Duplicação livre)
+  -  (Cópia de conteúdo para outra turma)
 
 **Critical Info for New Agent** 
-- Sempre que criar/editar formulários no frontend, certifique-se de que os nomes e estruturas casam 100% com os modelos  no backend para evitar descarte silencioso de dados (o Pydantic está com ).
-- Ao trabalhar com PDFs, use **ReportLab**. A biblioteca PyPDF2 foi evitada para geração original.
-- Para testes locais, as senhas estão em . Não crie rotinas de migração retroativas envolvendo histórico de turmas (já acordado como não-desejado pelo usuário).
+- **Roles e Permissões:** O sistema baseia o controle visual na função  do frontend e validação RBAC no backend. Certifique-se de testar mudanças simulando um professor, não apenas o Admin.
+- **Tipos Literais (Pydantic):** O FastAPI pode lançar erro 500 ou descartar inputs caso o dado do frontend não case milimetricamente com os Literals em . Valide sempre os enums ao adicionar dados simulados.
+- Os modelos institucionais do AEE () **NÃO** podem ser editados ou apagados, sendo este um travamento intencional da API.
 
 **documents and test reports created in this job** 
-  - 
-  - 
-  - 
-  - 
-  - 
-  -  (Arquivo sempre atualizado com histórico de decisões)
+  -  (Novo script de CI criado)
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1. *User*: Bug report: Erro ao salvar plano -> *Agent*: Descobre falhas de cast de tipos () vazios e corrige.
-2. *User*: Bug report contínuo do plano não salvando tudo. -> *Agent*: Descobre que o Pydantic model () não incluía 13 campos enviados pelo front; adiciona e corrige.
-3. *User*: Solicitações visuais:  ao salvar as barreiras no AEE, adicionar Exclusão/Visualização de Planos, e Botão de gerar PDF no modal de visualização. -> *Agent*: Corrige o mapeamento de array do frontend, cria as interfaces para ícones Eye/Trash na listagem e escreve endpoint gerador de PDF (). Tudo finalizado com sucesso.
+1. *User*: Aplique a sugestão e dê uma reorganizada no menu na seguinte ordem... -> *Agent*: Implementa Menu Categorizado com campo de Busca e Normalização (DONE).
+2. *User*: Não estou vendo isso! (Envia print) -> *Agent*: Explica que é cache no navegador e demonstra via screenshot que o menu renderizou corretamente na URL (DONE).
+3. *User*: Quero que nos filtros de busca por aluno, servidor e usuário, Filtre com acentos ignorados. -> *Agent*: Cria helpers globais de regex insensível a acento para back/front e aplica nos 3 módulos (DONE).
+4. *User*: Faça um ajuste nas margens (todas) do PDF de frequência, reduza para 7 milímetros -> *Agent*: Altera margens no  para 0.7cm (DONE).
+5. *User*: Ao tentar desvinculação do aluno da turma (API is not defined) -> *Agent*: Centraliza rotas em  e conserta  (DONE).
+6. *User*: Os Planos AEE a partir de um modelo podem ser criados, salvos e visualizados pelo professor -> *Agent*: Pede confirmação/clarificação, o usuário responde a. O agente estava validando isso no código antes do encerramento. **(PENDING: Validar/Testar se o Professor consegue fazer tudo isso normalmente no AEE)**.
 
 **Project Health Check:**
-- Nenhuma parte crítica quebrada (O pytest roda dezenas de testes perfeitamente e o smoke test não acusa console errors).
+- Saudável. Lint limpo e yarn run v1.22.22
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command. executando sem erros.
 
 **3rd Party Integrations** 
 - Claude Sonnet 4.5 — uses Emergent LLM Key (via ).
 
 **Testing status**
-  - Testing agent used after significant changes: YES (usado o  no meio da iteração para relatórios e congelamento, gerando o ).
-  - Troubleshoot agent used after agent stuck in loop: NO.
-  - Test files created: , , , 
-  - Known regressions: None.
+  - Testing agent used after significant changes: NO (O agente fez múltiplos testes E2E usando Curl, Python e a ferramenta de screenshot ao longo da sessão).
+  - Troubleshoot agent used after agent stuck in loop: NO
+  - Test files created: None
+  - Known regressions: None
 
 **Credentials to test flow:**
-Consultar senhas centralizadas no  (super_admin = ).
+Consulte senhas centralizadas no  (super_admin = , professor = ).
 
 **What agent forgot to execute**
-Nenhuma ação solicitada pelo usuário foi esquecida no fechamento da task de Planos AEE. Pode prosseguir questionando o usuário pela próxima prioridade listada sob o Backlog.</analysis>
+O agente estava prestes a confirmar a pergunta final do usuário garantindo o fluxo inteiro para a conta de Professor nos modelos de Plano AEE. O próximo agente deve validar se a criação de Planos AEE via Modelo funciona 100% para o professor e responder ao usuário. Além disso, verifique o Upcoming Tasks para seguir com o roadmap (ex: Correção de Carga horária na folha).</analysis>

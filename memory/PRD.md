@@ -296,6 +296,18 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 **Validação total**: 12/12 pytest verde.
 
+### Validação E2E: Professor → Plano AEE via Modelo (Apr 2026)
+**Pergunta do usuário**: "Os Planos AEE a partir de um modelo podem ser criados, salvos e visualizados pelo professor?"
+
+**Resultado**: SIM ✅. Fluxo validado ponta-a-ponta com conta `professor.teste@sigesc.com` (role efetivo `professor`):
+1. `GET /api/aee/templates` — 8 modelos institucionais visíveis.
+2. `POST /api/aee/planos/from-template` — cria plano em rascunho (HTTP 201) com `professor_aee_id` correto.
+3. `GET /api/aee/planos/{id}` — leitura permitida (`check_aee_access`).
+4. `PUT /api/aee/planos/{id}` — atualização permitida (`check_aee_write_access`).
+5. `GET /api/aee/planos/{id}/pdf` — PDF gerado (HTTP 200, ~5MB).
+6. `GET /api/aee/planos` — lista filtrada automaticamente por `professor_aee_id == current_user.id`.
+7. UI: Tab "Modelos" + botão "Novo a partir de Modelo" visíveis (`canEdit = role !== 'semed3'`).
+
 ## Current Backlog
 
 ### P1
