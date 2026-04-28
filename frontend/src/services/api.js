@@ -293,6 +293,27 @@ export const enrollmentsAPI = {
   
   delete: async (id) => {
     await axios.delete(`${API}/enrollments/${id}`);
+  },
+
+  /**
+   * Feb 2026: Cancela uma matrícula ativa (desvincula aluno da turma).
+   * Centraliza chamada antes espalhada como `fetch()` em StudentsComplete.
+   * @param {object} payload - { student_id, class_id, reason }
+   */
+  cancel: async (payload) => {
+    const response = await axios.post(`${API}/enrollments/cancel-enrollment`, payload);
+    return response.data;
+  },
+
+  /**
+   * Feb 2026: Copia notas/frequência do aluno para nova turma após remanejamento,
+   * progressão ou reclassificação (congelamento + cópia para turma destino).
+   * @param {string} studentId
+   * @param {object} payload - { source_class_id, target_class_id, copy_type, academic_year }
+   */
+  copyData: async (studentId, payload) => {
+    const response = await axios.post(`${API}/students/${studentId}/copy-data`, payload);
+    return response.data;
   }
 };
 

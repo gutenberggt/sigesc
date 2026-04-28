@@ -4,7 +4,7 @@ import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
 import { Tabs } from '@/components/Tabs';
-import { studentsAPI, schoolsAPI, classesAPI, uploadAPI, documentsAPI, medicalCertificatesAPI, cpfAPI } from '@/services/api';
+import { studentsAPI, schoolsAPI, classesAPI, uploadAPI, documentsAPI, medicalCertificatesAPI, cpfAPI, enrollmentsAPI } from '@/services/api';
 import { formatPhone, formatCEP, formatCPF, formatNIS, formatSUS, isValidEmail, isValidCPF } from '@/utils/formatters';
 import { extractErrorMessage } from '@/utils/errorHandler';
 import { useAuth } from '@/contexts/AuthContext';
@@ -760,24 +760,18 @@ export function StudentsComplete() {
     }
     try {
       setCancellingEnrollment(true);
-      const API_URL = process.env.REACT_APP_BACKEND_URL;
-      const response = await fetch(`${API_URL}/api/enrollments/cancel-enrollment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
-        body: JSON.stringify({
-          student_id: cancelModal.student.id,
-          class_id: filterClassId,
-          reason: cancelReason.trim()
-        })
+      const data = await enrollmentsAPI.cancel({
+        student_id: cancelModal.student.id,
+        class_id: filterClassId,
+        reason: cancelReason.trim()
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Erro ao cancelar vínculo');
       showAlert('success', data.message || 'Vínculo cancelado com sucesso');
       setCancelModal({ open: false, student: null });
       setCancelReason('');
       reloadData();
     } catch (error) {
-      showAlert('error', error.message);
+      const msg = error.response?.data?.detail || error.message || 'Erro ao cancelar vínculo';
+      showAlert('error', msg);
     } finally {
       setCancellingEnrollment(false);
     }
@@ -1094,21 +1088,12 @@ export function StudentsComplete() {
           const copyType = selectedAction === 'remanejar' ? 'remanejamento'
             : selectedAction === 'reclassificar' ? 'reclassificacao'
             : 'progressao';
-          const API_URL = process.env.REACT_APP_BACKEND_URL;
-          const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-          
-          await fetch(`${API_URL}/api/students/${editingStudent.id}/copy-data`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              source_class_id: formData.class_id,
-              target_class_id: actionData.targetClassId,
-              copy_type: copyType,
-              academic_year: new Date().getFullYear()
-            })
+
+          await enrollmentsAPI.copyData(editingStudent.id, {
+            source_class_id: formData.class_id,
+            target_class_id: actionData.targetClassId,
+            copy_type: copyType,
+            academic_year: new Date().getFullYear()
           });
           console.log(`Dados copiados (${copyType}) da turma ${formData.class_id} para ${actionData.targetClassId}`);
         } catch (copyError) {
