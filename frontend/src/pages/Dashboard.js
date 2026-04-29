@@ -7,6 +7,73 @@ import { useState, useEffect, useMemo } from 'react';
 import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI, analyticsAPI } from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 
+// Apr 2026: estrutura do menu administrativo extraída como constante exportada
+// para que a página /admin/permission-matrix possa renderizar a matriz fiel
+// sem duplicar regras. Cada `visible` é puro (recebe contexto e retorna bool).
+export const DASHBOARD_MENU_GROUPS = [
+  {
+    title: 'Gestão Institucional',
+    icon: Building2,
+    items: [
+      { label: 'Mantenedora', icon: School, color: 'indigo', route: '/admin/mantenedora', testId: 'nav-mantenedora-button', visible: c => c.isSuperAdmin },
+      { label: 'Integração MEC', icon: GraduationCap, color: 'emerald', route: '/admin/mec', testId: 'nav-mec-button', visible: c => c.isSuperAdmin },
+      { label: 'Auditoria', icon: Shield, color: 'blue', route: '/admin/audit-logs', testId: 'nav-audit-logs-button', visible: c => c.isSuperAdmin },
+      { label: 'Usuários Online', icon: Wifi, color: 'green', route: '/admin/online-users', testId: 'nav-online-users-button', visible: c => c.isAdmin },
+      { label: 'Ferramentas', icon: Wrench, color: 'amber', route: '/admin/tools', testId: 'nav-admin-tools-button', visible: c => c.isSuperAdmin },
+      { label: 'Log de Conversas', icon: MessageSquare, color: 'red', route: '/admin/logs', testId: 'nav-logs-button', visible: c => c.isSuperAdmin },
+      { label: 'Matriz de Permissões', icon: Layers, color: 'slate', route: '/admin/permission-matrix', testId: 'nav-permission-matrix-button', visible: c => c.isSuperAdmin },
+    ],
+  },
+  {
+    title: 'Gestão Escolar',
+    icon: School,
+    items: [
+      { label: 'Componentes Curriculares', icon: BookOpen, color: 'orange', route: '/admin/courses', testId: 'nav-courses-button', visible: c => c.isSuperAdmin },
+      { label: 'Pré-Matrículas', icon: UserPlus, color: 'pink', route: '/admin/pre-matriculas', testId: 'nav-pre-matriculas-button', visible: c => !c.hasRole('semed', 'semed1', 'semed2') },
+      { label: 'Livro de Promoção', icon: Award, color: 'emerald', route: '/admin/promotion', testId: 'nav-promotion-button', visible: c => c.isAdmin || c.isSchoolStaff || c.isSemed },
+    ],
+  },
+  {
+    title: 'Gestão Pedagógica',
+    icon: BookMarked,
+    items: [
+      { label: 'Frequência', icon: ClipboardCheck, color: 'cyan', route: '/admin/attendance', testId: 'nav-attendance-button', visible: () => true },
+      { label: 'Registro de Conteúdos', icon: BookOpen, color: 'purple', route: '/admin/learning-objects', testId: 'nav-learning-objects-button', visible: () => true },
+      { label: 'Notas', icon: ClipboardList, color: 'teal', route: '/admin/grades', testId: 'nav-grades-button', visible: () => true },
+      { label: 'Diário AEE', icon: BookOpen, color: 'blue', route: '/admin/diario-aee', testId: 'nav-diario-aee-button', visible: c => c.isAdmin || c.isCoordenador || c.isProfessor || c.isSecretario || c.isDiretor || c.hasRole('semed1', 'semed2', 'semed3') },
+    ],
+  },
+  {
+    title: 'Gestão Social e Comunitária',
+    icon: HeartHandshake,
+    items: [
+      { label: 'Avisos', icon: Megaphone, color: 'orange', route: '/avisos', testId: 'nav-avisos-button', visible: () => true },
+      { label: 'Calendário', icon: Calendar, color: 'indigo', route: '/admin/calendar', testId: 'nav-calendar-button', visible: () => true },
+      { label: 'Assistência Social', icon: HeartHandshake, color: 'pink', route: '/ass-social', testId: 'nav-ass-social-button', visible: c => c.isAdmin },
+      { label: 'Controle de Vacinas', icon: Syringe, color: 'teal', route: '/vacinas', testId: 'nav-vacinas-button', visible: c => c.isAdmin },
+      { label: 'Bolsa Família', icon: Users, color: 'amber', route: '/admin/bolsa-familia', testId: 'nav-bolsa-familia-button', visible: c => c.isAdmin },
+    ],
+  },
+  {
+    title: 'Monitoramento e Análise',
+    icon: BarChart3,
+    items: [
+      { label: 'Acompanhamento de Diários', icon: BarChart3, color: 'violet', route: '/admin/diary-dashboard', testId: 'nav-diary-dashboard-button', visible: c => c.isAdmin || c.isSchoolStaff || c.isSemed },
+      { label: 'Dashboard Analítico', icon: BarChart3, color: 'emerald', route: '/admin/analytics', testId: 'nav-analytics-button', visible: c => c.isAdmin },
+      { label: 'Painel do Secretário', icon: Activity, color: 'blue', route: '/semed/panel', testId: 'nav-semed-panel-button', visible: c => c.isAdmin },
+      { label: 'Planos de Ação', icon: ClipboardList, color: 'orange', route: '/action-plans', testId: 'nav-action-plans-button', visible: c => c.isAdmin },
+      { label: 'Motor PMPI-GE', icon: Siren, color: 'red', route: '/pmpi/engine', testId: 'nav-pmpi-engine-button', visible: c => c.isAdmin },
+    ],
+  },
+  {
+    title: 'Recursos Humanos',
+    icon: Briefcase,
+    items: [
+      { label: 'RH / Folha', icon: FileText, color: 'teal', route: '/admin/hr', testId: 'nav-hr-payroll-button', visible: c => c.isAdmin || c.hasRole('semed2', 'semed3', 'diretor', 'secretario') },
+    ],
+  },
+];
+
 export const Dashboard = () => {
   const { user, switchRole, getAvailableRoles } = useAuth();
   const navigate = useNavigate();
@@ -34,71 +101,11 @@ export const Dashboard = () => {
 
   // Feb 2026: Menu categorizado por área funcional. Cada item tem uma função `visible`
   // que recebe os flags de permissão e retorna boolean. Categorias sem itens visíveis
-  // são suprimidas automaticamente.
+  // são suprimidas automaticamente. A estrutura está em `DASHBOARD_MENU_GROUPS`
+  // (constante exportada acima) para reuso na Matriz de Permissões.
   const adminMenuCategories = useMemo(() => {
     const ctx = { isAdmin, isSuperAdmin, isSecretario, isDiretor, isCoordenador, isProfessor, isSemed, isSchoolStaff, isSemedFull, isAssistenteSocial, hasRole };
-    return [
-      {
-        title: 'Gestão Institucional',
-        icon: Building2,
-        items: [
-          { label: 'Mantenedora', icon: School, color: 'indigo', route: '/admin/mantenedora', testId: 'nav-mantenedora-button', visible: c => c.isSuperAdmin },
-          { label: 'Integração MEC', icon: GraduationCap, color: 'emerald', route: '/admin/mec', testId: 'nav-mec-button', visible: c => c.isSuperAdmin },
-          { label: 'Auditoria', icon: Shield, color: 'blue', route: '/admin/audit-logs', testId: 'nav-audit-logs-button', visible: c => c.isSuperAdmin },
-          { label: 'Usuários Online', icon: Wifi, color: 'green', route: '/admin/online-users', testId: 'nav-online-users-button', visible: c => c.isAdmin },
-          { label: 'Ferramentas', icon: Wrench, color: 'amber', route: '/admin/tools', testId: 'nav-admin-tools-button', visible: c => c.isSuperAdmin },
-          { label: 'Log de Conversas', icon: MessageSquare, color: 'red', route: '/admin/logs', testId: 'nav-logs-button', visible: c => c.isSuperAdmin },
-        ],
-      },
-      {
-        title: 'Gestão Escolar',
-        icon: School,
-        items: [
-          { label: 'Componentes Curriculares', icon: BookOpen, color: 'orange', route: '/admin/courses', testId: 'nav-courses-button', visible: c => c.isSuperAdmin },
-          { label: 'Pré-Matrículas', icon: UserPlus, color: 'pink', route: '/admin/pre-matriculas', testId: 'nav-pre-matriculas-button', visible: c => !c.hasRole('semed', 'semed1', 'semed2') },
-          { label: 'Livro de Promoção', icon: Award, color: 'emerald', route: '/admin/promotion', testId: 'nav-promotion-button', visible: c => c.isAdmin || c.isSchoolStaff || c.isSemed },
-        ],
-      },
-      {
-        title: 'Gestão Pedagógica',
-        icon: BookMarked,
-        items: [
-          { label: 'Frequência', icon: ClipboardCheck, color: 'cyan', route: '/admin/attendance', testId: 'nav-attendance-button', visible: () => true },
-          { label: 'Registro de Conteúdos', icon: BookOpen, color: 'purple', route: '/admin/learning-objects', testId: 'nav-learning-objects-button', visible: () => true },
-          { label: 'Notas', icon: ClipboardList, color: 'teal', route: '/admin/grades', testId: 'nav-grades-button', visible: () => true },
-          { label: 'Diário AEE', icon: BookOpen, color: 'blue', route: '/admin/diario-aee', testId: 'nav-diario-aee-button', visible: c => c.isAdmin || c.isCoordenador || c.isProfessor || c.isSecretario || c.isDiretor || c.hasRole('semed1', 'semed2', 'semed3') },
-        ],
-      },
-      {
-        title: 'Gestão Social e Comunitária',
-        icon: HeartHandshake,
-        items: [
-          { label: 'Avisos', icon: Megaphone, color: 'orange', route: '/avisos', testId: 'nav-avisos-button', visible: () => true },
-          { label: 'Calendário', icon: Calendar, color: 'indigo', route: '/admin/calendar', testId: 'nav-calendar-button', visible: () => true },
-          { label: 'Assistência Social', icon: HeartHandshake, color: 'pink', route: '/ass-social', testId: 'nav-ass-social-button', visible: c => c.isAdmin },
-          { label: 'Controle de Vacinas', icon: Syringe, color: 'teal', route: '/vacinas', testId: 'nav-vacinas-button', visible: c => c.isAdmin },
-          { label: 'Bolsa Família', icon: Users, color: 'amber', route: '/admin/bolsa-familia', testId: 'nav-bolsa-familia-button', visible: c => c.isAdmin },
-        ],
-      },
-      {
-        title: 'Monitoramento e Análise',
-        icon: BarChart3,
-        items: [
-          { label: 'Acompanhamento de Diários', icon: BarChart3, color: 'violet', route: '/admin/diary-dashboard', testId: 'nav-diary-dashboard-button', visible: c => c.isAdmin || c.isSchoolStaff || c.isSemed },
-          { label: 'Dashboard Analítico', icon: BarChart3, color: 'emerald', route: '/admin/analytics', testId: 'nav-analytics-button', visible: c => c.isAdmin },
-          { label: 'Painel do Secretário', icon: Activity, color: 'blue', route: '/semed/panel', testId: 'nav-semed-panel-button', visible: c => c.isAdmin },
-          { label: 'Planos de Ação', icon: ClipboardList, color: 'orange', route: '/action-plans', testId: 'nav-action-plans-button', visible: c => c.isAdmin },
-          { label: 'Motor PMPI-GE', icon: Siren, color: 'red', route: '/pmpi/engine', testId: 'nav-pmpi-engine-button', visible: c => c.isAdmin },
-        ],
-      },
-      {
-        title: 'Recursos Humanos',
-        icon: Briefcase,
-        items: [
-          { label: 'RH / Folha', icon: FileText, color: 'teal', route: '/admin/hr', testId: 'nav-hr-payroll-button', visible: c => c.isAdmin || c.hasRole('semed2', 'semed3', 'diretor', 'secretario') },
-        ],
-      },
-    ].map(cat => ({
+    return DASHBOARD_MENU_GROUPS.map(cat => ({
       ...cat,
       items: cat.items.filter(i => i.visible(ctx)),
     })).filter(cat => cat.items.length > 0);
