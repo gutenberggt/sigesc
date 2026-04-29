@@ -555,9 +555,10 @@ def setup_router(db, audit_service):
                     {"$set": {"status": "send_failed",
                               "send_error": send_result.get('error')}}
                 )
+                send_err = send_result.get('error') or 'erro desconhecido'
                 raise HTTPException(
                     status_code=502,
-                    detail="Não foi possível enviar o e-mail de confirmação. Verifique o endereço e tente novamente."
+                    detail=f"Falha ao enviar e-mail de confirmação via Resend: {send_err}"
                 )
 
         return {
@@ -744,9 +745,10 @@ def setup_router(db, audit_service):
                 {"$set": {"status": "send_failed",
                           "send_error": send_result.get('error')}}
             )
+            send_err = send_result.get('error') or 'erro desconhecido'
             raise HTTPException(
                 status_code=502,
-                detail="Não foi possível reenviar o e-mail. Tente novamente em alguns minutos."
+                detail=f"Falha ao reenviar e-mail via Resend: {send_err}"
             )
 
         return {"message": "E-mail de confirmação reenviado", "new_email": new_email}
