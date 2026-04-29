@@ -5,6 +5,7 @@ Endpoints relacionados a login, logout, tokens e perfil de usuário.
 
 from fastapi import APIRouter, HTTPException, status, Request
 from datetime import datetime, timezone, timedelta
+import os
 import uuid
 
 from models import (
@@ -377,20 +378,16 @@ def setup_router(db, audit_service):
     async def change_account(request: Request):
         """Altera o email e/ou senha do próprio usuário autenticado.
 
-        Body JSON:
-            {
-                "current_password": "<obrigatório>",
-                "new_email": "<opcional>",
-                "new_password": "<opcional>"
-            }
+        Fluxo:
+        - Senha sempre exigida (re-autenticação).
+        - Mudança de **senha** é aplicada imediatamente.
+        - Mudança de **email** dispara confirmação por e-mail (token 30 min).
+          O email só é trocado quando o usuário clicar no link.
+        - Se ambos forem enviados: senha aplicada na hora; email pendente
+          de confirmação.
 
-        Regras:
-        - Senha atual sempre exigida (re-autenticação).
-        - Pelo menos um dos campos `new_email` / `new_password` deve ser enviado.
-        - Novo email não pode estar em uso por outro usuário.
-        - **Se o usuário tem registro de servidor (Staff) vinculado pelo email**
-          atual, o `email` do servidor é atualizado automaticamente para o novo
-          email — garantindo o pareamento `users.email == staff.email`.
+        Body JSON:
+            {"current_password": "...", "new_email": "...", "new_password": "..."}
         """
         current_user = await AuthMiddleware.get_current_user(request)
         try:
@@ -410,12 +407,10 @@ def setup_router(db, audit_service):
                 detail="Informe novo email e/ou nova senha"
             )
 
-        # Carrega usuário com hash
         user_doc = await db.users.find_one({"id": current_user['id']}, {"_id": 0})
         if not user_doc:
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-        # Verifica senha atual
         if not verify_password(current_password, user_doc.get('password_hash', '')):
             await audit_service.log(
                 action='change_account_failed',
@@ -428,11 +423,10 @@ def setup_router(db, audit_service):
             raise HTTPException(status_code=401, detail="Senha atual incorreta")
 
         old_email = (user_doc.get('email') or '').lower()
-        update_data = {}
 
-        # Validações e montagem do update
+        # ---------- Validação do email novo (se houver) ----------
+        email_will_request_confirmation = False
         if new_email and new_email != old_email:
-            # Validação básica de formato (Pydantic)
             from pydantic import EmailStr, BaseModel, ValidationError
             class _EmailCheck(BaseModel):
                 e: EmailStr
@@ -441,87 +435,320 @@ def setup_router(db, audit_service):
             except ValidationError:
                 raise HTTPException(status_code=400, detail="Novo email inválido")
 
-            # Único
             existing = await db.users.find_one(
                 {"email": new_email, "id": {"$ne": current_user['id']}},
                 {"_id": 0, "id": 1}
             )
             if existing:
                 raise HTTPException(status_code=400, detail="Este email já está em uso")
-            update_data['email'] = new_email
 
+            # Bloqueio: não permite duas solicitações pendentes simultaneamente
+            # para o mesmo new_email de outro usuário.
+            existing_req = await db.email_change_requests.find_one(
+                {"new_email": new_email, "user_id": {"$ne": current_user['id']},
+                 "status": "pending"},
+                {"_id": 0, "id": 1}
+            )
+            if existing_req:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Este email já tem uma solicitação pendente de confirmação"
+                )
+            email_will_request_confirmation = True
+
+        # ---------- Aplica troca de SENHA imediatamente ----------
+        password_changed = False
         if new_password:
             if len(new_password) < 6:
                 raise HTTPException(
                     status_code=400,
                     detail="Nova senha deve ter pelo menos 6 caracteres"
                 )
-            update_data['password_hash'] = hash_password(new_password)
-
-        if not update_data:
-            return {"message": "Nada a alterar"}
-
-        # Atualiza usuário
-        await db.users.update_one(
-            {"id": current_user['id']},
-            {"$set": update_data}
-        )
-
-        # Sincroniza email no Staff (servidor) vinculado
-        staff_synced = False
-        if 'email' in update_data and old_email:
-            staff_match = await db.staff.find_one(
-                {"email": old_email}, {"_id": 0, "id": 1, "nome": 1}
+            await db.users.update_one(
+                {"id": current_user['id']},
+                {"$set": {"password_hash": hash_password(new_password)}}
             )
-            if staff_match:
+            password_changed = True
+            try:
+                await audit_service.log(
+                    action='change_account', collection='users',
+                    user=current_user, request=request,
+                    document_id=current_user['id'],
+                    description="Senha alterada pelo próprio usuário",
+                )
+            except Exception:
+                pass
+
+        # ---------- Cria token e envia e-mail de confirmação ----------
+        email_pending = False
+        if email_will_request_confirmation:
+            from services.email_service import send_email, render_email_change_confirmation
+            from datetime import datetime, timezone, timedelta
+
+            # Invalida solicitações pendentes anteriores deste usuário
+            await db.email_change_requests.update_many(
+                {"user_id": current_user['id'], "status": "pending"},
+                {"$set": {"status": "superseded"}}
+            )
+
+            token = uuid.uuid4().hex
+            now = datetime.now(timezone.utc)
+            expires_at = now + timedelta(minutes=30)
+            ip = (request.client.host if request.client else '-')
+            ua = request.headers.get('user-agent', '-')[:200]
+
+            req_doc = {
+                "id": str(uuid.uuid4()),
+                "user_id": current_user['id'],
+                "old_email": old_email,
+                "new_email": new_email,
+                "token": token,
+                "status": "pending",
+                "ip": ip,
+                "user_agent": ua,
+                "created_at": now.isoformat(),
+                "expires_at": expires_at.isoformat(),
+            }
+            await db.email_change_requests.insert_one(req_doc)
+
+            # URL que o frontend trata
+            frontend_url = os.environ.get(
+                'APP_FRONTEND_URL',
+                'https://professor-aee-criar.preview.emergentagent.com'
+            ).rstrip('/')
+            confirm_url = f"{frontend_url}/confirm-email-change?token={token}"
+
+            human_dt = now.strftime("%d/%m/%Y %H:%M UTC")
+            html, text = render_email_change_confirmation(
+                full_name=user_doc.get('full_name') or '',
+                new_email=new_email,
+                confirm_url=confirm_url,
+                requested_at_human=human_dt,
+                ip=ip,
+            )
+            send_result = await send_email(
+                to=new_email,
+                subject="Confirme a alteração do seu e-mail no SIGESC",
+                html=html,
+                text=text,
+            )
+            email_pending = bool(send_result.get('success'))
+            try:
+                await audit_service.log(
+                    action='request_email_change', collection='users',
+                    user=current_user, request=request,
+                    document_id=current_user['id'],
+                    description=(
+                        f"Solicitação de troca de email para {new_email} enviada "
+                        f"({'sucesso' if email_pending else 'falha no envio'})."
+                    ),
+                    new_value={'new_email': new_email, 'sent': email_pending,
+                               'send_error': send_result.get('error')},
+                )
+            except Exception:
+                pass
+
+            if not email_pending:
+                # Reverte registro pendente para evitar lixo
+                await db.email_change_requests.update_one(
+                    {"id": req_doc['id']},
+                    {"$set": {"status": "send_failed",
+                              "send_error": send_result.get('error')}}
+                )
+                raise HTTPException(
+                    status_code=502,
+                    detail="Não foi possível enviar o e-mail de confirmação. Verifique o endereço e tente novamente."
+                )
+
+        return {
+            "message": "Solicitação processada",
+            "password_changed": password_changed,
+            "email_pending_confirmation": email_pending,
+            "new_email": new_email if email_pending else None,
+        }
+
+    @router.post("/confirm-email-change")
+    async def confirm_email_change(request: Request):
+        """Confirma a troca de email via token enviado por e-mail.
+
+        Body JSON: {"token": "<hex>"}
+        """
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        token = (body or {}).get('token') or ''
+        if not token:
+            raise HTTPException(status_code=400, detail="Token ausente")
+
+        from datetime import datetime, timezone
+        req = await db.email_change_requests.find_one({"token": token}, {"_id": 0})
+        if not req:
+            raise HTTPException(status_code=404, detail="Token inválido")
+        if req.get('status') != 'pending':
+            raise HTTPException(
+                status_code=400,
+                detail=f"Este link já foi usado ou cancelado (status: {req.get('status')})"
+            )
+        try:
+            exp = datetime.fromisoformat(req.get('expires_at'))
+        except Exception:
+            exp = datetime.now(timezone.utc)
+        if datetime.now(timezone.utc) > exp:
+            await db.email_change_requests.update_one(
+                {"id": req['id']}, {"$set": {"status": "expired"}}
+            )
+            raise HTTPException(status_code=400, detail="Link expirado")
+
+        new_email = req['new_email']
+        old_email = req.get('old_email') or ''
+        user_id = req['user_id']
+
+        # Reconfere unicidade no momento da confirmação
+        clash = await db.users.find_one(
+            {"email": new_email, "id": {"$ne": user_id}},
+            {"_id": 0, "id": 1}
+        )
+        if clash:
+            await db.email_change_requests.update_one(
+                {"id": req['id']}, {"$set": {"status": "conflict"}}
+            )
+            raise HTTPException(status_code=400, detail="Este email já está em uso")
+
+        # Aplica
+        await db.users.update_one({"id": user_id}, {"$set": {"email": new_email}})
+
+        # Sincroniza staff por email antigo
+        staff_synced = False
+        if old_email:
+            staff = await db.staff.find_one({"email": old_email}, {"_id": 0, "id": 1})
+            if staff:
                 await db.staff.update_one(
-                    {"id": staff_match['id']},
-                    {"$set": {"email": update_data['email']}}
+                    {"id": staff['id']}, {"$set": {"email": new_email}}
                 )
                 staff_synced = True
-                try:
-                    await audit_service.log(
-                        action='update',
-                        collection='staff',
-                        user=current_user,
-                        request=request,
-                        document_id=staff_match['id'],
-                        description=(
-                            f"Email do servidor sincronizado automaticamente "
-                            f"({old_email} → {update_data['email']}) após "
-                            f"alteração de conta do usuário."
-                        ),
-                        old_value={'email': old_email},
-                        new_value={'email': update_data['email']},
-                    )
-                except Exception:
-                    pass
 
-        # Auditoria principal
+        await db.email_change_requests.update_one(
+            {"id": req['id']},
+            {"$set": {"status": "confirmed",
+                      "confirmed_at": datetime.now(timezone.utc).isoformat(),
+                      "staff_synced": staff_synced}}
+        )
+
         try:
+            user_doc = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "email": 1, "role": 1})
             await audit_service.log(
-                action='change_account',
-                collection='users',
-                user=current_user,
+                action='confirm_email_change', collection='users',
+                user=user_doc or {'id': user_id, 'email': new_email, 'role': 'unknown'},
                 request=request,
-                document_id=current_user['id'],
+                document_id=user_id,
                 description=(
-                    f"Usuário alterou {'email ' if 'email' in update_data else ''}"
-                    f"{'e ' if len(update_data) == 2 else ''}"
-                    f"{'senha' if 'password_hash' in update_data else ''}".strip()
+                    f"Email confirmado e alterado de {old_email} para {new_email}"
                     + (" (staff sincronizado)" if staff_synced else "")
                 ),
                 old_value={'email': old_email},
-                new_value={k: ('***' if k == 'password_hash' else v) for k, v in update_data.items()},
+                new_value={'email': new_email, 'staff_synced': staff_synced},
             )
         except Exception:
             pass
 
         return {
-            "message": "Conta atualizada com sucesso",
-            "email_changed": 'email' in update_data,
-            "password_changed": 'password_hash' in update_data,
+            "message": "Email atualizado com sucesso",
+            "new_email": new_email,
             "staff_synced": staff_synced,
         }
+
+    @router.post("/resend-email-change")
+    async def resend_email_change(request: Request):
+        """Reenvia o e-mail de confirmação (gera novo token de 30min)
+        para a solicitação pendente do usuário autenticado."""
+        current_user = await AuthMiddleware.get_current_user(request)
+
+        from datetime import datetime, timezone, timedelta
+        # Busca a última solicitação pendente OU expirada do usuário
+        req = await db.email_change_requests.find_one(
+            {"user_id": current_user['id'],
+             "status": {"$in": ["pending", "expired", "send_failed"]}},
+            {"_id": 0},
+            sort=[("created_at", -1)]
+        )
+        if not req:
+            raise HTTPException(
+                status_code=404,
+                detail="Nenhuma solicitação de troca de email para reenviar"
+            )
+
+        new_email = req['new_email']
+
+        # Reconfere unicidade
+        clash = await db.users.find_one(
+            {"email": new_email, "id": {"$ne": current_user['id']}},
+            {"_id": 0, "id": 1}
+        )
+        if clash:
+            await db.email_change_requests.update_one(
+                {"id": req['id']}, {"$set": {"status": "conflict"}}
+            )
+            raise HTTPException(status_code=400, detail="Este email já está em uso")
+
+        # Marca a antiga como superseded e cria nova
+        await db.email_change_requests.update_one(
+            {"id": req['id']}, {"$set": {"status": "superseded"}}
+        )
+
+        token = uuid.uuid4().hex
+        now = datetime.now(timezone.utc)
+        expires_at = now + timedelta(minutes=30)
+        ip = (request.client.host if request.client else '-')
+        ua = request.headers.get('user-agent', '-')[:200]
+
+        new_req = {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user['id'],
+            "old_email": req.get('old_email'),
+            "new_email": new_email,
+            "token": token,
+            "status": "pending",
+            "ip": ip,
+            "user_agent": ua,
+            "created_at": now.isoformat(),
+            "expires_at": expires_at.isoformat(),
+            "resent_from": req['id'],
+        }
+        await db.email_change_requests.insert_one(new_req)
+
+        from services.email_service import send_email, render_email_change_confirmation
+        frontend_url = os.environ.get(
+            'APP_FRONTEND_URL',
+            'https://professor-aee-criar.preview.emergentagent.com'
+        ).rstrip('/')
+        confirm_url = f"{frontend_url}/confirm-email-change?token={token}"
+
+        user_doc = await db.users.find_one({"id": current_user['id']}, {"_id": 0, "full_name": 1})
+        html, text = render_email_change_confirmation(
+            full_name=(user_doc or {}).get('full_name') or '',
+            new_email=new_email,
+            confirm_url=confirm_url,
+            requested_at_human=now.strftime("%d/%m/%Y %H:%M UTC"),
+            ip=ip,
+        )
+        send_result = await send_email(
+            to=new_email,
+            subject="Confirme a alteração do seu e-mail no SIGESC",
+            html=html,
+            text=text,
+        )
+        if not send_result.get('success'):
+            await db.email_change_requests.update_one(
+                {"id": new_req['id']},
+                {"$set": {"status": "send_failed",
+                          "send_error": send_result.get('error')}}
+            )
+            raise HTTPException(
+                status_code=502,
+                detail="Não foi possível reenviar o e-mail. Tente novamente em alguns minutos."
+            )
+
+        return {"message": "E-mail de confirmação reenviado", "new_email": new_email}
 
     return router

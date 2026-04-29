@@ -304,18 +304,14 @@ export const UserProfile = () => {
         showAlert('error', data.detail || 'Não foi possível alterar a conta');
         return;
       }
-      const parts = [];
-      if (data.email_changed) parts.push('email');
-      if (data.password_changed) parts.push('senha');
-      const synced = data.staff_synced ? ' Cadastro de servidor sincronizado.' : '';
-      showAlert('success', `Conta atualizada: ${parts.join(' e ')}.${synced}`);
+      const msgs = [];
+      if (data.password_changed) msgs.push('Senha alterada.');
+      if (data.email_pending_confirmation && data.new_email) {
+        msgs.push(`Enviamos um link de confirmação para ${data.new_email}. Verifique sua caixa de entrada (válido por 30 min).`);
+      }
+      showAlert('success', msgs.join(' ') || 'Solicitação processada.');
       setShowAccountModal(false);
       setAccountForm({ current_password: '', new_email: '', new_password: '', confirm_new_password: '' });
-      // Se email mudou, JWT atual ainda é válido mas o claim email ficou defasado.
-      // Recarrega a página para o /auth/me sincronizar user state.
-      if (data.email_changed) {
-        setTimeout(() => window.location.reload(), 800);
-      }
     } catch (error) {
       showAlert('error', 'Erro de rede ao alterar a conta');
     } finally {
@@ -1407,9 +1403,11 @@ export const UserProfile = () => {
         >
           <div className="space-y-4">
             <div className="bg-blue-50 border-l-4 border-blue-400 p-3 text-xs text-blue-900">
-              Por segurança, informe sua <strong>senha atual</strong> e altere apenas
-              o que desejar (email, senha ou ambos). Se você for servidor cadastrado, o
-              email do seu cadastro será sincronizado automaticamente.
+              Por segurança, informe sua <strong>senha atual</strong>. Para trocar o
+              <strong> e-mail</strong>, enviaremos um link de confirmação para o novo
+              endereço (válido por 30 min). A <strong>senha</strong> é alterada
+              imediatamente. Se você for servidor cadastrado, o e-mail do seu cadastro
+              será sincronizado após a confirmação.
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
