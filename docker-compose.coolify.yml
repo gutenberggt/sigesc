@@ -30,6 +30,12 @@ services:
       - FTP_HOST=${FTP_HOST:-}
       - FTP_USER=${FTP_USER:-}
       - FTP_PASSWORD=${FTP_PASSWORD:-}
+      - FTP_BASE_PATH=${FTP_BASE_PATH:-}
+      - FTP_BASE_URL=${FTP_BASE_URL:-}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - RESEND_SENDER_EMAIL=${RESEND_SENDER_EMAIL:-}
+      - RESEND_SENDER_NAME=${RESEND_SENDER_NAME:-SIGESC}
+      - APP_FRONTEND_URL=${APP_FRONTEND_URL:-}
     restart: unless-stopped
     depends_on:
       mongo:
