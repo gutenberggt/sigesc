@@ -114,6 +114,43 @@ class AuthMiddleware:
         return role_checker
     
     @staticmethod
+    def require_permission(db, menu_item_key: str, default_roles: List[str]):
+        """Apr 2026: Verificação de permissão sensível à Matriz de Permissões.
+
+        Consulta `db.permission_overrides` para o par (menu_item_key, role) do
+        usuário autenticado:
+        - Se houver override `visible=True`  → libera acesso (mesmo se papel não está em default_roles).
+        - Se houver override `visible=False` → bloqueia (mesmo que papel esteja em default_roles).
+        - Se não houver override → cai no `require_roles(default_roles)` tradicional.
+
+        Isso faz da Matriz de Permissões a fonte de verdade tanto para visibilidade
+        no menu quanto para acesso na API, sem precisar editar código a cada mudança.
+        """
+        async def permission_checker(request: Request):
+            user = await AuthMiddleware.get_current_user(request)
+            role = user.get('role')
+            try:
+                override = await db.permission_overrides.find_one(
+                    {"item_key": menu_item_key, "role": role},
+                    {"_id": 0, "visible": 1}
+                )
+            except Exception:
+                override = None
+
+            if override is not None:
+                if override.get('visible'):
+                    return user
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Acesso negado pela Matriz de Permissões ({menu_item_key} × {role})"
+                )
+
+            # Fallback: aplica regra padrão do código
+            return await AuthMiddleware.require_roles(default_roles)(request)
+
+        return permission_checker
+
+    @staticmethod
     def require_roles_with_coordinator_edit(allowed_roles: List[str], resource_area: str):
         """
         Verifica se o usuário pode EDITAR um recurso específico.

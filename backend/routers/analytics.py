@@ -26,10 +26,10 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         return {'$in': [str(year), year]}
 
     async def _require_admin_tier(request: Request):
-        """Apr 2026: Dashboard Analítico e Painel do Secretário restritos a
-        Super Administrador + Administração (admin/admin_teste/gerente).
-        super_admin é auto-passado por `require_roles`."""
-        return await AuthMiddleware.require_roles(['admin'])(request)
+        """Apr 2026: Dashboard Analítico - respeita Matriz de Permissões."""
+        return await AuthMiddleware.require_permission(
+            db, 'nav-analytics-button', ['admin']
+        )(request)
     
     @router.get("/overview")
     async def get_analytics_overview(
