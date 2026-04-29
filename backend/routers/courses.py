@@ -21,7 +21,7 @@ def setup_router(db, audit_service):
     @router.post("", response_model=Course, status_code=status.HTTP_201_CREATED)
     async def create_course(course_data: CourseCreate, request: Request):
         """Cria novo componente curricular (por mantenedora)"""
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
         
         # Converte dados para maiúsculas
         course_dict = format_data_uppercase(course_data.model_dump())
@@ -82,7 +82,7 @@ def setup_router(db, audit_service):
     @router.put("/{course_id}", response_model=Course)
     async def update_course(course_id: str, course_update: CourseUpdate, request: Request):
         """Atualiza componente curricular"""
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
         
         # Busca componente
         course_doc = await db.courses.find_one({"id": course_id}, {"_id": 0})
@@ -112,7 +112,7 @@ def setup_router(db, audit_service):
     @router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_course(course_id: str, request: Request):
         """Deleta componente curricular"""
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
         
         # Valida tenant antes de deletar
         existing = await db.courses.find_one({"id": course_id}, {"_id": 0, "mantenedora_id": 1})

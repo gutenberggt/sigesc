@@ -31,7 +31,7 @@ def setup_router(db, **kwargs):
     @router.get("/mec/config")
     async def get_config(request: Request):
         """Retorna configuração atual da integração MEC."""
-        await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+        await AuthMiddleware.require_roles(['super_admin'])(request)
         config = await get_mec_config()
         if not config:
             return {
@@ -57,7 +57,7 @@ def setup_router(db, **kwargs):
     @router.put("/mec/config")
     async def update_config(request: Request):
         """Atualiza configuração da integração MEC."""
-        await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+        await AuthMiddleware.require_roles(['super_admin'])(request)
         body = await request.json()
 
         update_data = {}
@@ -95,7 +95,7 @@ def setup_router(db, **kwargs):
         page_size: int = 50
     ):
         """Consulta elegibilidades de estudantes no MEC."""
-        await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+        await AuthMiddleware.require_roles(['super_admin'])(request)
 
         config = await get_mec_config()
         if not config or not config.get("api_key"):
@@ -148,7 +148,7 @@ def setup_router(db, **kwargs):
         school_id: Optional[str] = None
     ):
         """Retorna mapeamento de alunos SIGESC → MEC (campos necessários)."""
-        await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+        await AuthMiddleware.require_roles(['super_admin'])(request)
 
         query = {"status": {"$in": ["active", "Ativo"]}}
         if school_id:
@@ -203,7 +203,7 @@ def setup_router(db, **kwargs):
     @router.get("/mec/sync/status")
     async def get_sync_status(request: Request):
         """Status geral da integração."""
-        await AuthMiddleware.require_roles(['admin', 'admin_teste'])(request)
+        await AuthMiddleware.require_roles(['super_admin'])(request)
 
         config = await get_mec_config()
 

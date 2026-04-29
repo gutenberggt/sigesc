@@ -72,10 +72,15 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         links = user.get("school_links") or []
         return [link.get("school_id") for link in links if link.get("school_id")]
 
+    async def _require_admin_tier(request: Request):
+        """Apr 2026: Planos de Ação restritos a Super Administrador + Administração
+        (admin/admin_teste/gerente). super_admin é auto-passado por require_roles."""
+        return await AuthMiddleware.require_roles(['admin'])(request)
+
     def _can_write(user: dict) -> bool:
+        # Apr 2026: somente Super Admin + Administração editam Planos de Ação
         role = user.get("role")
-        if role in ("super_admin", "semed", "semed1", "semed2", "semed3",
-                    "gerente", "admin", "admin_teste", "diretor", "coordenador"):
+        if role in ("super_admin", "gerente", "admin", "admin_teste"):
             return True
         return False
 
@@ -86,6 +91,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         status: Optional[str] = None,
     ):
         """Lista planos. Filtra por escola (se informado) e por status."""
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         current_db = _get_db(user)
         query = apply_tenant_filter({}, user, request)
@@ -109,6 +115,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.post("")
     async def create_plan(payload: ActionPlanCreate, request: Request):
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         if not _can_write(user):
             raise HTTPException(status_code=403, detail="Sem permissão para criar planos")
@@ -152,6 +159,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.get("/{plan_id}")
     async def get_plan(plan_id: str, request: Request):
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         current_db = _get_db(user)
         query = apply_tenant_filter({"id": plan_id}, user, request)
@@ -165,6 +173,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.put("/{plan_id}")
     async def update_plan(plan_id: str, payload: ActionPlanUpdate, request: Request):
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         if not _can_write(user):
             raise HTTPException(status_code=403, detail="Sem permissão para editar")
@@ -196,6 +205,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.delete("/{plan_id}")
     async def delete_plan(plan_id: str, request: Request):
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         if not _can_write(user):
             raise HTTPException(status_code=403, detail="Sem permissão para excluir")

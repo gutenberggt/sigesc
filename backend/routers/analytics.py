@@ -24,6 +24,12 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
     def year_filter(year):
         """Retorna filtro que aceita ano como int ou string"""
         return {'$in': [str(year), year]}
+
+    async def _require_admin_tier(request: Request):
+        """Apr 2026: Dashboard Analítico e Painel do Secretário restritos a
+        Super Administrador + Administração (admin/admin_teste/gerente).
+        super_admin é auto-passado por `require_roles`."""
+        return await AuthMiddleware.require_roles(['admin'])(request)
     
     @router.get("/overview")
     async def get_analytics_overview(
@@ -304,6 +310,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         """
         Retorna tendência de matrículas por ano letivo
         """
+        await _require_admin_tier(request)
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
         
@@ -375,6 +382,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         """
         Retorna frequência mensal
         """
+        await _require_admin_tier(request)
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
         
@@ -458,6 +466,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         """
         Retorna média de notas por componente curricular
         """
+        await _require_admin_tier(request)
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
         
@@ -539,6 +548,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         """
         Retorna média de notas por bimestre/período
         """
+        await _require_admin_tier(request)
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
         
@@ -644,6 +654,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         """
         from datetime import timedelta
         
+        await _require_admin_tier(request)
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
         user_role = user.get('role', '').lower()
@@ -1107,6 +1118,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         - Coordenador/Diretor/Secretário: apenas alunos da escola vinculada
         - Admin/SEMED: acesso global
         """
+        await _require_admin_tier(request)
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
         user_role = user.get('role', '').lower()
@@ -1326,6 +1338,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         limit: int = Query(10)
     ):
         """Top 10 professores por desempenho: preenchimento de diários, aprovação e faltas"""
+        await _require_admin_tier(request)
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
         is_global = user.get('role') in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3']
@@ -1577,6 +1590,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         """
         Retorna distribuição de notas por faixa
         """
+        await _require_admin_tier(request)
         current_db = get_current_db(request)
         user = await AuthMiddleware.get_current_user(request)
         

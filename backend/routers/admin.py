@@ -19,7 +19,7 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
     @router.post("/admin/migrate-uppercase")
     async def migrate_to_uppercase(request: Request):
         """Converte todos os campos de texto para CAIXA ALTA no banco de dados."""
-        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'super_admin', 'gerente'])(request)
+        current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
 
         COLLECTIONS_CONFIG = {
             'students': [
@@ -82,8 +82,8 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
 
     @router.get("/admin/online-users")
     async def get_online_users(request: Request):
-        """Retorna lista de usuários online (apenas admin/super_admin/semed3)"""
-        current_user = await AuthMiddleware.require_roles(['super_admin', 'admin', 'admin_teste', 'semed3'])(request)
+        """Retorna lista de usuários online (Super Administrador + Administração)"""
+        current_user = await AuthMiddleware.require_roles(['admin'])(request)
         current_db = get_db_for_user(current_user) if get_db_for_user else db
 
         online = active_sessions.get_online(threshold_minutes=5) if active_sessions else {}
@@ -144,7 +144,7 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
         sem saber a senha.
         """
         from auth_utils import token_blacklist
-        current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['admin'])(request)
 
         # Carrega dados do alvo para audit (com escopo correto se multi-tenant)
         current_db = get_db_for_user(current_user) if get_db_for_user else db
@@ -208,7 +208,7 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
         Fórmula antiga: carga_horaria_semanal * 4.33
         Fórmula nova: carga_horaria_semanal * 5
         """
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
         current_db = get_db_for_user(current_user) if get_db_for_user else db
 
         items_cursor = current_db.payroll_items.find({}, {"_id": 1, "employee_id": 1, "expected_hours": 1, "worked_hours": 1})
@@ -270,7 +270,7 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
 
         Idempotente: lotações que já têm carga_horaria > 0 definida não são sobrescritas.
         """
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
         current_db = get_db_for_user(current_user) if get_db_for_user else db
 
         total = 0
@@ -313,7 +313,7 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
         Remove itens da folha de pagamento onde o servidor possui lotação 'anexa' naquela escola.
         Busca por combinação employee_id + school_id, não depende de assignment_id.
         """
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
         current_db = get_db_for_user(current_user) if get_db_for_user else db
 
         # Buscar todas as lotações "anexa" ativas: mapear (staff_id, school_id)
@@ -367,7 +367,7 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
         Define data de matrícula como 15/01/2026 para todos os registros.
         Atualiza: student_history, students e enrollments.
         """
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
         current_db = get_db_for_user(current_user) if get_db_for_user else db
 
         target_date = "2026-01-15"

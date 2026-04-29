@@ -82,8 +82,7 @@ def _compare(value: Optional[float], operator: str, threshold: float) -> bool:
 
 # =========== Router setup ===========
 
-def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
-    # Import atrasado para evitar ciclo
+def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):    # Import atrasado para evitar ciclo
     from routers.pmpi import setup_router as _pmpi_setup  # noqa: F401
 
     def _get_db(user: dict):
@@ -91,16 +90,22 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             return sandbox_db if sandbox_db else db
         return db
 
+    async def _require_admin_tier(request: Request):
+        """Apr 2026: Motor PMPI-GE restrito a Super Administrador + Administração
+        (admin/admin_teste/gerente). super_admin é auto-passado por require_roles."""
+        return await AuthMiddleware.require_roles(['admin'])(request)
+
     def _can_manage(user: dict) -> bool:
+        # Apr 2026: somente Super Admin + Administração editam regras/alertas PMPI
         return user.get("role") in (
             "super_admin", "admin", "admin_teste", "gerente",
-            "semed", "semed1", "semed2", "semed3",
         )
 
     # ============= ALERT RULES CRUD =============
 
     @router.get("/alert-rules")
     async def list_rules(request: Request):
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         current_db = _get_db(user)
         query = apply_tenant_filter({}, user, request)
@@ -109,6 +114,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.post("/alert-rules")
     async def create_rule(payload: AlertRuleCreate, request: Request):
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         if not _can_manage(user):
             raise HTTPException(status_code=403, detail="Sem permissão para criar regras")
@@ -134,6 +140,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.put("/alert-rules/{rule_id}")
     async def update_rule(rule_id: str, payload: AlertRuleUpdate, request: Request):
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         if not _can_manage(user):
             raise HTTPException(status_code=403, detail="Sem permissão")
@@ -155,6 +162,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.delete("/alert-rules/{rule_id}")
     async def delete_rule(rule_id: str, request: Request):
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         if not _can_manage(user):
             raise HTTPException(status_code=403, detail="Sem permissão")
@@ -169,6 +177,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.post("/alert-rules/seed-defaults")
     async def seed_defaults(request: Request):
         """Semeia 5 regras padrão (1 por KPI) se ainda não existirem."""
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         if not _can_manage(user):
             raise HTTPException(status_code=403, detail="Sem permissão")
@@ -220,6 +229,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                           school_id: Optional[str] = None,
                           severity: Optional[str] = None,
                           limit: int = 200):
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         current_db = _get_db(user)
         query = apply_tenant_filter({}, user, request)
@@ -249,6 +259,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     @router.put("/alerts/{alert_id}")
     async def update_alert(alert_id: str, payload: AlertUpdate, request: Request):
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         if payload.status not in ALERT_STATUS:
             raise HTTPException(status_code=400, detail="Status inválido")
@@ -282,6 +293,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         - Senão, cria novo alerta
         Para alertas 'open' que deixaram de estar violados, marca como 'resolved'.
         """
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         if not _can_manage(user):
             raise HTTPException(status_code=403, detail="Sem permissão para executar motor")
@@ -385,6 +397,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/monthly-goals")
     async def list_goals(request: Request, month: Optional[str] = None):
         """Lista metas. Se `month` (YYYY-MM) não informado, retorna do mês atual."""
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         current_db = _get_db(user)
         if not month:
@@ -405,6 +418,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         - Se value ≥ 85 → meta = value
         - atrasos_dias: meta = max(2, floor(value * 0.8))
         """
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         if not _can_manage(user):
             raise HTTPException(status_code=403, detail="Sem permissão")

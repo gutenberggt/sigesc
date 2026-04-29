@@ -115,9 +115,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         """Atualiza a Unidade Mantenedora ATIVA"""
         current_user = await AuthMiddleware.get_current_user(request)
 
-        # Verificar permissão (apenas admin, super_admin, gerente e semed podem editar)
-        if current_user.get('role') not in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed']:
-            raise HTTPException(status_code=403, detail="Sem permissão para editar a mantenedora")
+        # Verificar permissão (apenas Super Administrador pode editar a mantenedora)
+        if current_user.get('role') != 'super_admin':
+            raise HTTPException(status_code=403, detail="Apenas Super Administrador pode editar a mantenedora")
 
         _, current_db, doc, tenant_id = await _resolve_active(request)
         if not doc:

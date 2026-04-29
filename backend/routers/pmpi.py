@@ -80,6 +80,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             return sandbox_db if sandbox_db else db
         return db
 
+    async def _require_admin_tier(request: Request):
+        """Apr 2026: Painel do Secretário (rotas /pmpi/*) restrito a
+        Super Administrador + Administração (admin/admin_teste/gerente)."""
+        return await AuthMiddleware.require_roles(['admin'])(request)
+
     def _user_school_ids(user: dict) -> Optional[list]:
         """Retorna IDs de escolas do usuário para escopo, ou None se acesso total."""
         role = user.get("role")
@@ -334,6 +339,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         """Retorna lista de escolas com KPIs resumidos e risco global.
         Resposta: [{ school_id, school_name, kpis, risk }]
         """
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         current_db = _get_db(user)
         base_filter = apply_tenant_filter({}, user, request)
@@ -369,6 +375,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/kpis/{school_id}")
     async def school_kpis(school_id: str, request: Request, days: int = 30):
         """KPIs detalhados de uma escola específica."""
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         current_db = _get_db(user)
         base_filter = apply_tenant_filter({}, user, request)
@@ -395,12 +402,14 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/thresholds")
     async def get_thresholds(request: Request):
         """Retorna os thresholds usados para classificar verde/amarelo/vermelho."""
+        await _require_admin_tier(request)
         await AuthMiddleware.get_current_user(request)
         return THRESHOLDS
 
     @router.get("/_diag/{school_id}")
     async def diag_school(school_id: str, request: Request):
         """Diagnóstico completo dos dados de uma escola para debug de KPIs."""
+        await _require_admin_tier(request)
         user = await AuthMiddleware.get_current_user(request)
         current_db = user and _get_db(user)
         if current_db is None:

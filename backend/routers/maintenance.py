@@ -287,7 +287,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         Seta o aluno como 'inactive' sem escola/turma.
         Use dry_run=false para executar a limpeza real.
         """
-        current_user = await AuthMiddleware.require_roles(['admin'])(request)
+        current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
 
         cancelled_students = await db.students.find(
             {"status": {"$in": ["cancelled", "cancelado"]}},

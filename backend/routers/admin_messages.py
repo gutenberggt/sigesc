@@ -24,20 +24,18 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
 
 
-    # Apr 2026: aceitar super_admin/admin/admin_teste/gerente nos logs de conversas
-    # (alinhado com `isAdmin` do frontend usePermissions).
-    ADMIN_ROLES = {'super_admin', 'admin', 'admin_teste', 'gerente'}
-
-    def _is_admin(user: dict) -> bool:
-        return user.get('role') in ADMIN_ROLES
+    # Apr 2026: Log de Conversas é visível APENAS para Super Administrador
+    # (ajuste de matriz de permissões por papel solicitado pelo usuário).
+    def _is_super_admin(user: dict) -> bool:
+        return user.get('role') == 'super_admin'
 
     @router.get("/admin/message-logs")
     async def list_message_logs(request: Request, user_id: str = None, limit: int = 100):
-        """Lista logs de mensagens (apenas admin)"""
+        """Lista logs de mensagens (apenas Super Administrador)"""
         current_user = await AuthMiddleware.get_current_user(request)
 
-        if not _is_admin(current_user):
-            raise HTTPException(status_code=403, detail="Apenas administradores podem acessar os logs")
+        if not _is_super_admin(current_user):
+            raise HTTPException(status_code=403, detail="Apenas Super Administrador pode acessar os logs de conversa")
 
         # Filtrar por usuário se especificado
         query = {}
@@ -57,8 +55,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         """Lista usuários que têm logs de mensagens (apenas admin)"""
         current_user = await AuthMiddleware.get_current_user(request)
 
-        if not _is_admin(current_user):
-            raise HTTPException(status_code=403, detail="Apenas administradores podem acessar os logs")
+        if not _is_super_admin(current_user):
+            raise HTTPException(status_code=403, detail="Apenas Super Administrador pode acessar os logs de conversa")
 
         # Agregar usuários únicos dos logs
         pipeline = [
@@ -118,8 +116,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         """Obtém logs de todas as conversas de um usuário específico (apenas admin)"""
         current_user = await AuthMiddleware.get_current_user(request)
 
-        if not _is_admin(current_user):
-            raise HTTPException(status_code=403, detail="Apenas administradores podem acessar os logs")
+        if not _is_super_admin(current_user):
+            raise HTTPException(status_code=403, detail="Apenas Super Administrador pode acessar os logs de conversa")
 
         # Buscar dados do usuário
         target_user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
@@ -183,8 +181,8 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         """Remove logs expirados (mais de 30 dias após exclusão) - apenas admin"""
         current_user = await AuthMiddleware.get_current_user(request)
 
-        if not _is_admin(current_user):
-            raise HTTPException(status_code=403, detail="Apenas administradores podem executar esta ação")
+        if not _is_super_admin(current_user):
+            raise HTTPException(status_code=403, detail="Apenas Super Administrador pode executar esta ação")
 
         # Remover logs expirados
         now = datetime.now(timezone.utc).isoformat()
