@@ -24,12 +24,19 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
 
 
+    # Apr 2026: aceitar super_admin/admin/admin_teste/gerente nos logs de conversas
+    # (alinhado com `isAdmin` do frontend usePermissions).
+    ADMIN_ROLES = {'super_admin', 'admin', 'admin_teste', 'gerente'}
+
+    def _is_admin(user: dict) -> bool:
+        return user.get('role') in ADMIN_ROLES
+
     @router.get("/admin/message-logs")
     async def list_message_logs(request: Request, user_id: str = None, limit: int = 100):
         """Lista logs de mensagens (apenas admin)"""
         current_user = await AuthMiddleware.get_current_user(request)
 
-        if current_user['role'] != 'admin':
+        if not _is_admin(current_user):
             raise HTTPException(status_code=403, detail="Apenas administradores podem acessar os logs")
 
         # Filtrar por usuário se especificado
@@ -50,7 +57,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         """Lista usuários que têm logs de mensagens (apenas admin)"""
         current_user = await AuthMiddleware.get_current_user(request)
 
-        if current_user['role'] != 'admin':
+        if not _is_admin(current_user):
             raise HTTPException(status_code=403, detail="Apenas administradores podem acessar os logs")
 
         # Agregar usuários únicos dos logs
@@ -111,7 +118,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         """Obtém logs de todas as conversas de um usuário específico (apenas admin)"""
         current_user = await AuthMiddleware.get_current_user(request)
 
-        if current_user['role'] != 'admin':
+        if not _is_admin(current_user):
             raise HTTPException(status_code=403, detail="Apenas administradores podem acessar os logs")
 
         # Buscar dados do usuário
@@ -176,7 +183,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         """Remove logs expirados (mais de 30 dias após exclusão) - apenas admin"""
         current_user = await AuthMiddleware.get_current_user(request)
 
-        if current_user['role'] != 'admin':
+        if not _is_admin(current_user):
             raise HTTPException(status_code=403, detail="Apenas administradores podem executar esta ação")
 
         # Remover logs expirados
