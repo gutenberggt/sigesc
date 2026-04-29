@@ -57,7 +57,7 @@ const SafeImage = ({ src, alt, className, fallback }) => {
 };
 
 export const UserProfile = () => {
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
   const navigate = useNavigate();
   const { userId } = useParams();
   
@@ -73,6 +73,14 @@ export const UserProfile = () => {
   
   // Modals
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [accountForm, setAccountForm] = useState({
+    current_password: '',
+    new_email: '',
+    new_password: '',
+    confirm_new_password: '',
+  });
+  const [accountSaving, setAccountSaving] = useState(false);
   const [showExperienceModal, setShowExperienceModal] = useState(false);
   const [showEducationModal, setShowEducationModal] = useState(false);
   const [showSkillModal, setShowSkillModal] = useState(false);
@@ -247,6 +255,71 @@ export const UserProfile = () => {
       showAlert('success', `Perfil agora é ${updatedProfile.is_public ? 'público' : 'privado'}`);
     } catch (error) {
       showAlert('error', 'Erro ao alterar visibilidade');
+    }
+  };
+
+  // Alterar email e/ou senha (com sincronização do email do servidor)
+  const handleSaveAccount = async () => {
+    const currentEmail = (user?.email || profile?.email || '').toLowerCase().trim();
+    const newEmail = (accountForm.new_email || '').toLowerCase().trim();
+    const emailChanged = newEmail && newEmail !== currentEmail;
+    const passwordChanged = !!accountForm.new_password;
+
+    if (!accountForm.current_password) {
+      showAlert('error', 'Informe sua senha atual');
+      return;
+    }
+    if (!emailChanged && !passwordChanged) {
+      showAlert('error', 'Informe um novo email ou uma nova senha');
+      return;
+    }
+    if (passwordChanged) {
+      if (accountForm.new_password.length < 6) {
+        showAlert('error', 'Nova senha deve ter pelo menos 6 caracteres');
+        return;
+      }
+      if (accountForm.new_password !== accountForm.confirm_new_password) {
+        showAlert('error', 'A confirmação da nova senha não confere');
+        return;
+      }
+    }
+
+    setAccountSaving(true);
+    try {
+      const API_URL = process.env.REACT_APP_BACKEND_URL;
+      const payload = { current_password: accountForm.current_password };
+      if (emailChanged) payload.new_email = newEmail;
+      if (passwordChanged) payload.new_password = accountForm.new_password;
+
+      const res = await fetch(`${API_URL}/api/auth/change-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showAlert('error', data.detail || 'Não foi possível alterar a conta');
+        return;
+      }
+      const parts = [];
+      if (data.email_changed) parts.push('email');
+      if (data.password_changed) parts.push('senha');
+      const synced = data.staff_synced ? ' Cadastro de servidor sincronizado.' : '';
+      showAlert('success', `Conta atualizada: ${parts.join(' e ')}.${synced}`);
+      setShowAccountModal(false);
+      setAccountForm({ current_password: '', new_email: '', new_password: '', confirm_new_password: '' });
+      // Se email mudou, JWT atual ainda é válido mas o claim email ficou defasado.
+      // Recarrega a página para o /auth/me sincronizar user state.
+      if (data.email_changed) {
+        setTimeout(() => window.location.reload(), 800);
+      }
+    } catch (error) {
+      showAlert('error', 'Erro de rede ao alterar a conta');
+    } finally {
+      setAccountSaving(false);
     }
   };
 
@@ -654,6 +727,24 @@ export const UserProfile = () => {
               >
                 {profile.is_public ? <Unlock size={16} className="mr-1" /> : <Lock size={16} className="mr-1" />}
                 {profile.is_public ? 'Público' : 'Privado'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setAccountForm({
+                    current_password: '',
+                    new_email: profile?.email || user?.email || '',
+                    new_password: '',
+                    confirm_new_password: '',
+                  });
+                  setShowAccountModal(true);
+                }}
+                data-testid="btn-conta-perfil"
+                className="bg-white/90"
+              >
+                <Lock size={16} className="mr-1" />
+                Conta
               </Button>
               <Button 
                 size="sm"
@@ -1303,6 +1394,81 @@ export const UserProfile = () => {
               <Button onClick={handleSaveProfile} disabled={saving}>
                 <Save size={16} className="mr-1" />
                 {saving ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Modal - Alterar Conta (Email e/ou Senha) */}
+        <Modal
+          isOpen={showAccountModal}
+          onClose={() => setShowAccountModal(false)}
+          title="Alterar Email e/ou Senha"
+        >
+          <div className="space-y-4">
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-3 text-xs text-blue-900">
+              Por segurança, informe sua <strong>senha atual</strong> e altere apenas
+              o que desejar (email, senha ou ambos). Se você for servidor cadastrado, o
+              email do seu cadastro será sincronizado automaticamente.
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Senha atual <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={accountForm.current_password}
+                onChange={(e) => setAccountForm({ ...accountForm, current_password: e.target.value })}
+                data-testid="account-current-password"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Digite sua senha atual"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Novo email (opcional)</label>
+              <input
+                type="email"
+                autoComplete="email"
+                value={accountForm.new_email}
+                onChange={(e) => setAccountForm({ ...accountForm, new_email: e.target.value })}
+                data-testid="account-new-email"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="novo@email.com"
+              />
+              <p className="text-xs text-gray-500 mt-1">Email atual: <strong>{user?.email || profile?.email}</strong></p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nova senha (opcional)</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={accountForm.new_password}
+                  onChange={(e) => setAccountForm({ ...accountForm, new_password: e.target.value })}
+                  data-testid="account-new-password"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Mín. 6 caracteres"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar nova senha</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={accountForm.confirm_new_password}
+                  onChange={(e) => setAccountForm({ ...accountForm, confirm_new_password: e.target.value })}
+                  data-testid="account-confirm-new-password"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Repita a nova senha"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowAccountModal(false)}>Cancelar</Button>
+              <Button onClick={handleSaveAccount} disabled={accountSaving} data-testid="btn-save-account">
+                <Save size={16} className="mr-1" />
+                {accountSaving ? 'Salvando...' : 'Salvar alterações'}
               </Button>
             </div>
           </div>

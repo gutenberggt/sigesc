@@ -373,4 +373,155 @@ def setup_router(db, audit_service):
         
         return permissions
 
+    @router.post("/change-account")
+    async def change_account(request: Request):
+        """Altera o email e/ou senha do próprio usuário autenticado.
+
+        Body JSON:
+            {
+                "current_password": "<obrigatório>",
+                "new_email": "<opcional>",
+                "new_password": "<opcional>"
+            }
+
+        Regras:
+        - Senha atual sempre exigida (re-autenticação).
+        - Pelo menos um dos campos `new_email` / `new_password` deve ser enviado.
+        - Novo email não pode estar em uso por outro usuário.
+        - **Se o usuário tem registro de servidor (Staff) vinculado pelo email**
+          atual, o `email` do servidor é atualizado automaticamente para o novo
+          email — garantindo o pareamento `users.email == staff.email`.
+        """
+        current_user = await AuthMiddleware.get_current_user(request)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+
+        current_password = (body or {}).get('current_password') or ''
+        new_email = ((body or {}).get('new_email') or '').strip().lower()
+        new_password = (body or {}).get('new_password') or ''
+
+        if not current_password:
+            raise HTTPException(status_code=400, detail="Senha atual é obrigatória")
+        if not new_email and not new_password:
+            raise HTTPException(
+                status_code=400,
+                detail="Informe novo email e/ou nova senha"
+            )
+
+        # Carrega usuário com hash
+        user_doc = await db.users.find_one({"id": current_user['id']}, {"_id": 0})
+        if not user_doc:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+        # Verifica senha atual
+        if not verify_password(current_password, user_doc.get('password_hash', '')):
+            await audit_service.log(
+                action='change_account_failed',
+                collection='users',
+                user=current_user,
+                request=request,
+                document_id=current_user['id'],
+                description="Tentativa de alterar conta com senha atual incorreta"
+            )
+            raise HTTPException(status_code=401, detail="Senha atual incorreta")
+
+        old_email = (user_doc.get('email') or '').lower()
+        update_data = {}
+
+        # Validações e montagem do update
+        if new_email and new_email != old_email:
+            # Validação básica de formato (Pydantic)
+            from pydantic import EmailStr, BaseModel, ValidationError
+            class _EmailCheck(BaseModel):
+                e: EmailStr
+            try:
+                _EmailCheck(e=new_email)
+            except ValidationError:
+                raise HTTPException(status_code=400, detail="Novo email inválido")
+
+            # Único
+            existing = await db.users.find_one(
+                {"email": new_email, "id": {"$ne": current_user['id']}},
+                {"_id": 0, "id": 1}
+            )
+            if existing:
+                raise HTTPException(status_code=400, detail="Este email já está em uso")
+            update_data['email'] = new_email
+
+        if new_password:
+            if len(new_password) < 6:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Nova senha deve ter pelo menos 6 caracteres"
+                )
+            update_data['password_hash'] = hash_password(new_password)
+
+        if not update_data:
+            return {"message": "Nada a alterar"}
+
+        # Atualiza usuário
+        await db.users.update_one(
+            {"id": current_user['id']},
+            {"$set": update_data}
+        )
+
+        # Sincroniza email no Staff (servidor) vinculado
+        staff_synced = False
+        if 'email' in update_data and old_email:
+            staff_match = await db.staff.find_one(
+                {"email": old_email}, {"_id": 0, "id": 1, "nome": 1}
+            )
+            if staff_match:
+                await db.staff.update_one(
+                    {"id": staff_match['id']},
+                    {"$set": {"email": update_data['email']}}
+                )
+                staff_synced = True
+                try:
+                    await audit_service.log(
+                        action='update',
+                        collection='staff',
+                        user=current_user,
+                        request=request,
+                        document_id=staff_match['id'],
+                        description=(
+                            f"Email do servidor sincronizado automaticamente "
+                            f"({old_email} → {update_data['email']}) após "
+                            f"alteração de conta do usuário."
+                        ),
+                        old_value={'email': old_email},
+                        new_value={'email': update_data['email']},
+                    )
+                except Exception:
+                    pass
+
+        # Auditoria principal
+        try:
+            await audit_service.log(
+                action='change_account',
+                collection='users',
+                user=current_user,
+                request=request,
+                document_id=current_user['id'],
+                description=(
+                    f"Usuário alterou {'email ' if 'email' in update_data else ''}"
+                    f"{'e ' if len(update_data) == 2 else ''}"
+                    f"{'senha' if 'password_hash' in update_data else ''}".strip()
+                    + (" (staff sincronizado)" if staff_synced else "")
+                ),
+                old_value={'email': old_email},
+                new_value={k: ('***' if k == 'password_hash' else v) for k, v in update_data.items()},
+            )
+        except Exception:
+            pass
+
+        return {
+            "message": "Conta atualizada com sucesso",
+            "email_changed": 'email' in update_data,
+            "password_changed": 'password_hash' in update_data,
+            "staff_synced": staff_synced,
+        }
+
     return router
