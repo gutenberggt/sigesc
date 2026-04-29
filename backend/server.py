@@ -75,6 +75,7 @@ from routers import pmpi_ai as pmpi_ai_mod
 from routers import action_plans as action_plans_mod
 from routers import student_portal as student_portal_mod
 from routers import admin_student_users as admin_student_users_mod
+from routers import permission_overrides as permission_overrides_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
@@ -615,6 +616,8 @@ app.include_router(pmpi_ai_mod.router, prefix="/api")
 app.include_router(action_plans_mod.router, prefix="/api")
 app.include_router(student_portal_mod.router, prefix="/api")
 app.include_router(admin_student_users_mod.router, prefix="/api")
+permission_overrides_mod.setup_router(db, audit_service)
+app.include_router(permission_overrides_mod.router, prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)

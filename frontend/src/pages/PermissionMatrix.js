@@ -7,14 +7,15 @@
  * contexto de permissão por papel. Isso garante que a tabela é sempre o
  * espelho fiel do que cada papel realmente vê no menu.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import {
-  ArrowLeft, Check, X, Search, Shield,
+  ArrowLeft, Check, X, Search, Shield, RotateCcw,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { permissionOverridesAPI } from '@/services/api';
 import { DASHBOARD_MENU_GROUPS } from './Dashboard';
 
 // Papéis observáveis (linhas vivas em produção)
@@ -59,22 +60,59 @@ function makePermissionContext(role) {
   };
 }
 
-const Cell = ({ visible }) => (
-  visible ? (
-    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-50 text-emerald-700">
-      <Check size={16} strokeWidth={3} />
-    </span>
-  ) : (
-    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-50 text-gray-300">
-      <X size={14} />
-    </span>
-  )
-);
+/** Célula clicável: aplica/remover override.
+ *  - default visível + nenhum override → ✅ neutro (cinza/verde claro)
+ *  - default oculto + override visible=true → ✅ azul (override permite)
+ *  - default visível + override visible=false → ❌ rosa (override bloqueia)
+ *  - default oculto + nenhum override → ❌ neutro
+ *  Clique alterna o estado. Botão de reset aparece quando há override.
+ */
+const Cell = ({ defaultVisible, override, onClick, onReset, saving }) => {
+  const hasOverride = override !== undefined;
+  const effective = hasOverride ? override : defaultVisible;
+  let bg = effective ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-300';
+  if (hasOverride) {
+    bg = effective
+      ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400'
+      : 'bg-rose-100 text-rose-700 ring-2 ring-rose-400';
+  }
+  return (
+    <div className="inline-flex items-center gap-1">
+      <button
+        type="button"
+        disabled={saving}
+        onClick={onClick}
+        title={
+          hasOverride
+            ? `Override: ${effective ? 'visível' : 'oculto'} (clique para inverter)`
+            : `Default: ${effective ? 'visível' : 'oculto'} (clique para sobrescrever)`
+        }
+        className={`inline-flex items-center justify-center w-7 h-7 rounded-full transition-all ${bg} ${saving ? 'opacity-50 cursor-wait' : 'hover:scale-110 cursor-pointer'}`}
+      >
+        {effective ? <Check size={16} strokeWidth={3} /> : <X size={14} />}
+      </button>
+      {hasOverride && (
+        <button
+          type="button"
+          disabled={saving}
+          onClick={onReset}
+          title="Reverter ao default (remover override)"
+          className="text-gray-300 hover:text-gray-700 transition-colors"
+        >
+          <RotateCcw size={11} />
+        </button>
+      )}
+    </div>
+  );
+};
 
 export default function PermissionMatrix() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [hideEmpty, setHideEmpty] = useState(false);
+  const [overrides, setOverrides] = useState({}); // chave: `${item_key}|${role}`
+  const [savingCell, setSavingCell] = useState(null); // chave da célula em salvamento
+  const [toast, setToast] = useState(null);
 
   // Memoiza contextos por papel para evitar recriar a cada render
   const contexts = useMemo(
@@ -82,31 +120,96 @@ export default function PermissionMatrix() {
     []
   );
 
+  const loadOverrides = useCallback(async () => {
+    try {
+      const data = await permissionOverridesAPI.list();
+      const map = {};
+      (data?.items || []).forEach(o => {
+        map[`${o.item_key}|${o.role}`] = o.visible;
+      });
+      setOverrides(map);
+    } catch (e) {
+      // silencioso
+    }
+  }, []);
+
+  useEffect(() => { loadOverrides(); }, [loadOverrides]);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 2200);
+  };
+
+  const handleToggle = async (itemKey, role, defaultVisible, currentOverride) => {
+    const cellKey = `${itemKey}|${role}`;
+    setSavingCell(cellKey);
+    try {
+      // Determina o NOVO valor desejado
+      // - Se já há override, inverte
+      // - Se não há, vira o oposto do default
+      const nextVisible = currentOverride !== undefined ? !currentOverride : !defaultVisible;
+      await permissionOverridesAPI.set(itemKey, role, nextVisible);
+      setOverrides(prev => ({ ...prev, [cellKey]: nextVisible }));
+      showToast(`Override aplicado: ${role} → ${nextVisible ? 'visível' : 'oculto'}`);
+    } catch (e) {
+      showToast('Falha ao salvar override', 'error');
+    } finally {
+      setSavingCell(null);
+    }
+  };
+
+  const handleReset = async (itemKey, role) => {
+    const cellKey = `${itemKey}|${role}`;
+    setSavingCell(cellKey);
+    try {
+      await permissionOverridesAPI.remove(itemKey, role);
+      setOverrides(prev => {
+        const next = { ...prev };
+        delete next[cellKey];
+        return next;
+      });
+      showToast('Override removido (volta ao default)');
+    } catch (e) {
+      showToast('Falha ao remover override', 'error');
+    } finally {
+      setSavingCell(null);
+    }
+  };
+
   // Achata todas as categorias × itens em uma única lista anotada
   const rows = useMemo(() => {
     const out = [];
     DASHBOARD_MENU_GROUPS.forEach(group => {
       group.items.forEach(item => {
         const visibilityByRole = {};
+        const defaultByRole = {};
+        const overrideByRole = {};
         let count = 0;
         ROLES.forEach(r => {
-          let v = false;
-          try { v = !!item.visible(contexts[r.key]); } catch { v = false; }
-          visibilityByRole[r.key] = v;
-          if (v) count++;
+          let defVisible = false;
+          try { defVisible = !!item.visible(contexts[r.key]); } catch { defVisible = false; }
+          defaultByRole[r.key] = defVisible;
+          const ov = overrides[`${item.testId}|${r.key}`];
+          overrideByRole[r.key] = ov;
+          const effective = ov !== undefined ? ov : defVisible;
+          visibilityByRole[r.key] = effective;
+          if (effective) count++;
         });
         out.push({
           category: group.title,
           label: item.label,
           route: item.route,
           testId: item.testId,
+          itemKey: item.testId,
           visibilityByRole,
+          defaultByRole,
+          overrideByRole,
           visibleCount: count,
         });
       });
     });
     return out;
-  }, [contexts]);
+  }, [contexts, overrides]);
 
   const filteredRows = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -188,9 +291,37 @@ export default function PermissionMatrix() {
               {rows.filter(r => r.visibleCount === ROLES.length).length}
             </div>
           </CardContent></Card>
+          <Card><CardContent className="py-3 text-center">
+            <div className="text-xs text-gray-500">Overrides ativos</div>
+            <div className="text-2xl font-bold text-blue-700" data-testid="kpi-overrides-count">
+              {Object.keys(overrides).length}
+            </div>
+          </CardContent></Card>
         </div>
 
-        {/* Tabela */}
+        {/* Legenda */}
+        <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600 px-1">
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-50 text-emerald-700"><Check size={12} strokeWidth={3} /></span>
+            <span>Default visível</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-50 text-gray-300"><X size={11} /></span>
+            <span>Default oculto</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-700 ring-2 ring-blue-400"><Check size={12} strokeWidth={3} /></span>
+            <span>Override → visível</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-100 text-rose-700 ring-2 ring-rose-400"><X size={11} /></span>
+            <span>Override → oculto</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <RotateCcw size={11} className="text-gray-400" />
+            <span>Reverter ao default</span>
+          </div>
+        </div>
         <Card>
           <CardHeader className="border-b">
             <CardTitle className="text-base">
@@ -224,11 +355,20 @@ export default function PermissionMatrix() {
                       <div className="text-[10px] text-gray-400 font-normal">{row.route}</div>
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{row.category}</td>
-                    {ROLES.map(r => (
-                      <td key={r.key} className="px-2 py-2 text-center">
-                        <Cell visible={row.visibilityByRole[r.key]} />
-                      </td>
-                    ))}
+                    {ROLES.map(r => {
+                      const cellKey = `${row.itemKey}|${r.key}`;
+                      return (
+                        <td key={r.key} className="px-2 py-2 text-center">
+                          <Cell
+                            defaultVisible={row.defaultByRole[r.key]}
+                            override={row.overrideByRole[r.key]}
+                            saving={savingCell === cellKey}
+                            onClick={() => handleToggle(row.itemKey, r.key, row.defaultByRole[r.key], row.overrideByRole[r.key])}
+                            onReset={() => handleReset(row.itemKey, r.key)}
+                          />
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
                 {filteredRows.length === 0 && (
@@ -243,9 +383,24 @@ export default function PermissionMatrix() {
 
         <p className="text-xs text-gray-500 text-center pb-4">
           Esta tabela é gerada dinamicamente a partir do menu em <code>Dashboard.js</code>.
-          Para alterar visibilidade, edite o callback <code>visible</code> do item correspondente.
-          Restrições de backend são aplicadas separadamente em <code>routers/*.py</code>.
+          Para alterar visibilidade, clique em qualquer célula. Os overrides são persistidos
+          em <code>permission_overrides</code> e aplicados sobre o default sem precisar editar código.
+          <br />
+          ⚠️ Restrições de backend (RBAC nas APIs) são aplicadas separadamente em <code>routers/*.py</code>
+          — ao liberar visibilidade de um item, valide se o backend correspondente também aceita o papel.
         </p>
+
+        {/* Toast */}
+        {toast && (
+          <div
+            className={`fixed bottom-6 right-6 px-4 py-3 rounded-lg shadow-lg text-sm font-medium z-50 transition-opacity ${
+              toast.type === 'error' ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
+            }`}
+            data-testid="permission-matrix-toast"
+          >
+            {toast.message}
+          </div>
+        )}
       </div>
     </div>
   );

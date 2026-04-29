@@ -4,7 +4,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity, Siren, Layers, Wrench, Megaphone, MessageSquare, BookMarked, Search } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
-import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI, analyticsAPI } from '@/services/api';
+import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI, analyticsAPI, permissionOverridesAPI } from '@/services/api';
 import { Card, CardContent } from '@/components/ui/card';
 
 // Apr 2026: estrutura do menu administrativo extraída como constante exportada
@@ -103,13 +103,34 @@ export const Dashboard = () => {
   // que recebe os flags de permissão e retorna boolean. Categorias sem itens visíveis
   // são suprimidas automaticamente. A estrutura está em `DASHBOARD_MENU_GROUPS`
   // (constante exportada acima) para reuso na Matriz de Permissões.
+  // Apr 2026: Aplica `permission_overrides` por cima do default, permitindo que o
+  // super_admin altere visibilidade pela UI sem mexer em código.
+  const [permissionOverrides, setPermissionOverrides] = useState({});
+  useEffect(() => {
+    permissionOverridesAPI.list().then(data => {
+      const map = {};
+      (data?.items || []).forEach(o => {
+        map[`${o.item_key}|${o.role}`] = o.visible;
+      });
+      setPermissionOverrides(map);
+    }).catch(() => { /* silencioso: overrides são opcionais */ });
+  }, []);
+
   const adminMenuCategories = useMemo(() => {
     const ctx = { isAdmin, isSuperAdmin, isSecretario, isDiretor, isCoordenador, isProfessor, isSemed, isSchoolStaff, isSemedFull, isAssistenteSocial, hasRole };
+    const myRole = user?.role;
+    const isVisible = (item) => {
+      const overrideKey = `${item.testId}|${myRole}`;
+      if (Object.prototype.hasOwnProperty.call(permissionOverrides, overrideKey)) {
+        return permissionOverrides[overrideKey];
+      }
+      try { return !!item.visible(ctx); } catch { return false; }
+    };
     return DASHBOARD_MENU_GROUPS.map(cat => ({
       ...cat,
-      items: cat.items.filter(i => i.visible(ctx)),
+      items: cat.items.filter(isVisible),
     })).filter(cat => cat.items.length > 0);
-  }, [isAdmin, isSuperAdmin, isSecretario, isDiretor, isCoordenador, isProfessor, isSemed, isSchoolStaff, isSemedFull, isAssistenteSocial, hasRole]);
+  }, [isAdmin, isSuperAdmin, isSecretario, isDiretor, isCoordenador, isProfessor, isSemed, isSchoolStaff, isSemedFull, isAssistenteSocial, hasRole, user?.role, permissionOverrides]);
 
   // Feb 2026: busca rápida — filtra itens por label/categoria
   const [menuSearch, setMenuSearch] = useState('');

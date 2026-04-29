@@ -1258,6 +1258,26 @@ export const pmpiAPI = {
   }
 };
 
+// ============= Permission Overrides (Matriz de Permissões) =============
+export const permissionOverridesAPI = {
+  list: async () => {
+    const response = await axios.get(`${API}/admin/permissions/overrides`);
+    return response.data;
+  },
+  set: async (item_key, role, visible) => {
+    const response = await axios.put(`${API}/admin/permissions/override`, {
+      item_key, role, visible,
+    });
+    return response.data;
+  },
+  remove: async (item_key, role) => {
+    const response = await axios.delete(`${API}/admin/permissions/override`, {
+      params: { item_key, role },
+    });
+    return response.data;
+  },
+};
+
 // ============= ACTION PLANS =============
 export const actionPlansAPI = {
   list: async (filters = {}) => {
