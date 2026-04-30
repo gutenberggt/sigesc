@@ -73,9 +73,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         return [link.get("school_id") for link in links if link.get("school_id")]
 
     async def _require_admin_tier(request: Request):
-        """Apr 2026: Planos de Ação restritos a Super Administrador + Administração
-        (admin/admin_teste/gerente). super_admin é auto-passado por require_roles."""
-        return await AuthMiddleware.require_roles(['admin'])(request)
+        """Apr 2026: Planos de Ação respeitam Matriz de Permissões
+        (nav-action-plans-button). super_admin sempre passa."""
+        return await AuthMiddleware.require_permission(
+            db, 'nav-action-plans-button', ['admin']
+        )(request)
 
     def _can_write(user: dict) -> bool:
         # Apr 2026: somente Super Admin + Administração editam Planos de Ação

@@ -32,10 +32,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/admin/message-logs")
     async def list_message_logs(request: Request, user_id: str = None, limit: int = 100):
         """Lista logs de mensagens (apenas Super Administrador)"""
-        current_user = await AuthMiddleware.get_current_user(request)
-
-        if not _is_super_admin(current_user):
-            raise HTTPException(status_code=403, detail="Apenas Super Administrador pode acessar os logs de conversa")
+        current_user = await AuthMiddleware.require_permission(
+            db, 'nav-logs-button', ['super_admin']
+        )(request)
 
         # Filtrar por usuário se especificado
         query = {}
@@ -53,10 +52,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/admin/message-logs/users")
     async def list_users_with_logs(request: Request):
         """Lista usuários que têm logs de mensagens (apenas admin)"""
-        current_user = await AuthMiddleware.get_current_user(request)
-
-        if not _is_super_admin(current_user):
-            raise HTTPException(status_code=403, detail="Apenas Super Administrador pode acessar os logs de conversa")
+        current_user = await AuthMiddleware.require_permission(
+            db, 'nav-logs-button', ['super_admin']
+        )(request)
 
         # Agregar usuários únicos dos logs
         pipeline = [
@@ -114,10 +112,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/admin/message-logs/user/{user_id}")
     async def get_user_conversation_logs(user_id: str, request: Request):
         """Obtém logs de todas as conversas de um usuário específico (apenas admin)"""
-        current_user = await AuthMiddleware.get_current_user(request)
-
-        if not _is_super_admin(current_user):
-            raise HTTPException(status_code=403, detail="Apenas Super Administrador pode acessar os logs de conversa")
+        current_user = await AuthMiddleware.require_permission(
+            db, 'nav-logs-button', ['super_admin']
+        )(request)
 
         # Buscar dados do usuário
         target_user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
@@ -179,10 +176,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.delete("/admin/message-logs/expired")
     async def cleanup_expired_logs(request: Request):
         """Remove logs expirados (mais de 30 dias após exclusão) - apenas admin"""
-        current_user = await AuthMiddleware.get_current_user(request)
-
-        if not _is_super_admin(current_user):
-            raise HTTPException(status_code=403, detail="Apenas Super Administrador pode executar esta ação")
+        current_user = await AuthMiddleware.require_permission(
+            db, 'nav-logs-button', ['super_admin']
+        )(request)
 
         # Remover logs expirados
         now = datetime.now(timezone.utc).isoformat()

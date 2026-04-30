@@ -24,11 +24,10 @@ def create_diary_dashboard_router():
     ALLOWED_ROLES = ['admin', 'admin_teste', 'diretor', 'coordenador', 'auxiliar_secretaria', 'secretario', 'semed', 'semed1', 'semed2', 'semed3']
 
     async def check_access(request: Request):
-        """Verifica se o usuário tem acesso ao dashboard"""
-        user = await AuthMiddleware.get_current_user(request)
-        if user.get('role') not in ALLOWED_ROLES:
-            raise HTTPException(status_code=403, detail="Acesso não autorizado")
-        return user
+        """Verifica acesso ao dashboard respeitando Matriz de Permissões (nav-diary-dashboard-button)."""
+        return await AuthMiddleware.require_permission(
+            db, 'nav-diary-dashboard-button', ALLOWED_ROLES
+        )(request)
 
     @router.get("/attendance")
     async def get_attendance_stats(

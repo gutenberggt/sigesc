@@ -55,7 +55,9 @@ def create_mantenedoras_router(db):
 
     @router.post("/mantenedoras")
     async def create_mantenedora(data: MantenedoraBase, request: Request):
-        user = await AuthMiddleware.get_current_user(request)
+        user = await AuthMiddleware.require_permission(
+            db, 'nav-mantenedora-button', ['super_admin']
+        )(request)
         if not is_super_admin(user):
             raise HTTPException(status_code=403, detail="Apenas super_admin pode criar mantenedoras")
         nova = Mantenedora(**data.model_dump())
@@ -78,7 +80,9 @@ def create_mantenedoras_router(db):
 
     @router.delete("/mantenedoras/{mid}")
     async def delete_mantenedora(mid: str, request: Request):
-        user = await AuthMiddleware.get_current_user(request)
+        user = await AuthMiddleware.require_permission(
+            db, 'nav-mantenedora-button', ['super_admin']
+        )(request)
         if not is_super_admin(user):
             raise HTTPException(status_code=403, detail="Apenas super_admin pode excluir")
         # Só permitir exclusão se não houver escolas vinculadas
@@ -106,7 +110,9 @@ def create_mantenedoras_router(db):
              apply_tenant_filter retornar dados da mantenedora errada.
         """
         from auth_utils import token_blacklist
-        user = await AuthMiddleware.get_current_user(request)
+        user = await AuthMiddleware.require_permission(
+            db, 'nav-mantenedora-button', ['super_admin']
+        )(request)
         if not is_super_admin(user):
             raise HTTPException(status_code=403, detail="Apenas super_admin pode designar gerente")
         body = await request.json()

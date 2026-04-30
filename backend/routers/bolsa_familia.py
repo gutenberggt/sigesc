@@ -178,7 +178,9 @@ def setup_router(db, **kwargs):
         academic_year: Optional[int] = None
     ):
         """Lista alunos com Bolsa Família de uma escola."""
-        current_user = await AuthMiddleware.require_roles(VIEW_ROLES)(request)
+        current_user = await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', VIEW_ROLES
+        )(request)
 
         if not academic_year:
             academic_year = datetime.now().year
@@ -298,7 +300,9 @@ def setup_router(db, **kwargs):
     @router.put("/bolsa-familia/tracking")
     async def save_tracking(request: Request):
         """Salva dados de acompanhamento (motivo). Apenas secretários e admins."""
-        await AuthMiddleware.require_roles(EDIT_ROLES)(request)
+        await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', EDIT_ROLES
+        )(request)
 
         body = await request.json()
         student_id = body.get("student_id")
@@ -336,7 +340,9 @@ def setup_router(db, **kwargs):
         month_end: int = Query(3, description="Mês final")
     ):
         """Gera PDF de Acompanhamento de Frequência - Bolsa Família."""
-        await AuthMiddleware.require_roles(VIEW_ROLES)(request)
+        await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', VIEW_ROLES
+        )(request)
 
         if not academic_year:
             academic_year = datetime.now().year

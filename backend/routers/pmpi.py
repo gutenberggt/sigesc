@@ -81,9 +81,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         return db
 
     async def _require_admin_tier(request: Request):
-        """Apr 2026: Painel do Secretário (rotas /pmpi/*) restrito a
-        Super Administrador + Administração (admin/admin_teste/gerente)."""
-        return await AuthMiddleware.require_roles(['admin'])(request)
+        """Apr 2026: Painel do Secretário (rotas /pmpi/*) respeita
+        Matriz de Permissões (nav-semed-panel-button)."""
+        return await AuthMiddleware.require_permission(
+            db, 'nav-semed-panel-button', ['admin']
+        )(request)
 
     def _user_school_ids(user: dict) -> Optional[list]:
         """Retorna IDs de escolas do usuário para escopo, ou None se acesso total."""

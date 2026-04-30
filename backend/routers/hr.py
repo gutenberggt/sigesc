@@ -157,7 +157,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/enums")
     async def get_hr_enums(request: Request):
         """Retorna listas parametrizáveis do módulo RH"""
-        await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ALL_HR_ROLES)(request)
         return {
             "complementary_motives": COMPLEMENTARY_MOTIVES,
             "leave_subtypes": LEAVE_SUBTYPES,
@@ -170,7 +170,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.post("/upload")
     async def upload_hr_document(request: Request, file: UploadFile = File(...)):
         """Upload de documento comprobatório (atestado, portaria, etc.)"""
-        user = await AuthMiddleware.require_roles(HR_WRITE_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', HR_WRITE_ROLES)(request)
 
         allowed_ext = ['.pdf', '.jpg', '.jpeg', '.png', '.webp']
         file_ext = Path(file.filename).suffix.lower() if file.filename else ''
@@ -199,7 +199,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         status: Optional[str] = None
     ):
         """Lista competências mensais (apenas admin/semed)"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER)(request)
         current_db = get_db_for_user(user)
 
         query = {}
@@ -216,7 +216,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.post("/competencies")
     async def create_competency(data: PayrollCompetencyCreate, request: Request):
         """Abre uma nova competência mensal"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ADMIN_ROLES + SEMED_ANALISTA)(request)
         current_db = get_db_for_user(user)
 
         # Verifica duplicata
@@ -245,7 +245,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.put("/competencies/{competency_id}/close")
     async def close_competency(competency_id: str, request: Request):
         """Fecha uma competência (bloqueia edições)"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ADMIN_ROLES + SEMED_ANALISTA)(request)
         current_db = get_db_for_user(user)
 
         comp = await current_db.payroll_competencies.find_one({"id": competency_id})
@@ -272,7 +272,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.put("/competencies/{competency_id}/reopen")
     async def reopen_competency(competency_id: str, request: Request):
         """Reabre uma competência fechada (com justificativa obrigatória e log)"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ADMIN_ROLES + SEMED_ANALISTA)(request)
         current_db = get_db_for_user(user)
 
         try:
@@ -320,7 +320,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         status: Optional[str] = None
     ):
         """Lista folhas de escola. Diretor/Secretário vê apenas da sua escola."""
-        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ALL_HR_ROLES)(request)
         current_db = get_db_for_user(user)
 
         query = {}
@@ -370,7 +370,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/school-payrolls/{payroll_id}")
     async def get_school_payroll(payroll_id: str, request: Request):
         """Retorna detalhes de uma folha de escola"""
-        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ALL_HR_ROLES)(request)
         current_db = get_db_for_user(user)
 
         payroll = await current_db.school_payrolls.find_one({"id": payroll_id}, {"_id": 0})
@@ -442,7 +442,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.put("/school-payrolls/{payroll_id}/submit")
     async def submit_payroll(payroll_id: str, request: Request):
         """Escola envia a folha para análise da Secretaria"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SCHOOL_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ADMIN_ROLES + SCHOOL_ROLES)(request)
         current_db = get_db_for_user(user)
 
         payroll = await current_db.school_payrolls.find_one({"id": payroll_id})
@@ -513,7 +513,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.put("/school-payrolls/{payroll_id}/approve")
     async def approve_payroll(payroll_id: str, request: Request):
         """Secretaria aprova a folha"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ADMIN_ROLES + SEMED_ANALISTA)(request)
         current_db = get_db_for_user(user)
 
         payroll = await current_db.school_payrolls.find_one({"id": payroll_id})
@@ -535,7 +535,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.put("/school-payrolls/{payroll_id}/return")
     async def return_payroll(payroll_id: str, request: Request):
         """Secretaria devolve a folha para correção e notifica a escola"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ADMIN_ROLES + SEMED_ANALISTA)(request)
         current_db = get_db_for_user(user)
 
         body = await request.json()
@@ -568,7 +568,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.put("/payroll-items/{item_id}")
     async def update_payroll_item(item_id: str, data: PayrollItemUpdate, request: Request):
         """Atualiza dados de um servidor na folha"""
-        user = await AuthMiddleware.require_roles(HR_WRITE_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', HR_WRITE_ROLES)(request)
         current_db = get_db_for_user(user)
 
         item = await current_db.payroll_items.find_one({"id": item_id})
@@ -618,7 +618,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/payroll-items/{item_id}/history")
     async def get_item_history(item_id: str, request: Request):
         """Retorna histórico de alterações de um item"""
-        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ALL_HR_ROLES)(request)
         current_db = get_db_for_user(user)
 
         logs = await current_db.hr_audit_logs.find(
@@ -648,7 +648,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         school_payroll_id: Optional[str] = None
     ):
         """Lista ocorrências de um item ou folha"""
-        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ALL_HR_ROLES)(request)
         current_db = get_db_for_user(user)
 
         query = {"status": "active"}
@@ -683,7 +683,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.post("/occurrences")
     async def create_occurrence(data: PayrollOccurrenceCreate, request: Request):
         """Registra uma ocorrência para um servidor"""
-        user = await AuthMiddleware.require_roles(HR_WRITE_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', HR_WRITE_ROLES)(request)
         current_db = get_db_for_user(user)
 
         item = await current_db.payroll_items.find_one({"id": data.payroll_item_id})
@@ -759,7 +759,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.put("/occurrences/{occurrence_id}")
     async def update_occurrence(occurrence_id: str, data: PayrollOccurrenceUpdate, request: Request):
         """Atualiza uma ocorrência"""
-        user = await AuthMiddleware.require_roles(HR_WRITE_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', HR_WRITE_ROLES)(request)
         current_db = get_db_for_user(user)
 
         occ = await current_db.payroll_occurrences.find_one({"id": occurrence_id})
@@ -780,7 +780,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.delete("/occurrences/{occurrence_id}")
     async def cancel_occurrence(occurrence_id: str, request: Request):
         """Cancela uma ocorrência (soft delete)"""
-        user = await AuthMiddleware.require_roles(HR_WRITE_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', HR_WRITE_ROLES)(request)
         current_db = get_db_for_user(user)
 
         occ = await current_db.payroll_occurrences.find_one({"id": occurrence_id})
@@ -801,7 +801,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/school-employees/{school_payroll_id}")
     async def list_school_employees(school_payroll_id: str, request: Request):
         """Lista servidores de uma folha (para seletor de substituição)"""
-        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ALL_HR_ROLES)(request)
         current_db = get_db_for_user(user)
 
         items = await current_db.payroll_items.find(
@@ -833,7 +833,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         month: Optional[int] = None
     ):
         """Dashboard do módulo RH"""
-        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ALL_HR_ROLES)(request)
         current_db = get_db_for_user(user)
 
         comp_query = {}
@@ -901,7 +901,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         competency_id: str = Query(...)
     ):
         """Retorna dados analíticos para gráficos do dashboard RH"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER)(request)
         current_db = get_db_for_user(user)
 
         comp = await current_db.payroll_competencies.find_one({"id": competency_id}, {"_id": 0})
@@ -1009,7 +1009,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/reports/espelho/{item_id}")
     async def report_espelho_individual(item_id: str, request: Request):
         """Gera PDF do espelho individual do servidor"""
-        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ALL_HR_ROLES)(request)
         current_db = get_db_for_user(user)
 
         item = await current_db.payroll_items.find_one({"id": item_id}, {"_id": 0})
@@ -1055,7 +1055,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/reports/folha-escola/{payroll_id}")
     async def report_folha_escola(payroll_id: str, request: Request):
         """Gera PDF da folha consolidada por escola"""
-        user = await AuthMiddleware.require_roles(ALL_HR_ROLES)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ALL_HR_ROLES)(request)
         current_db = get_db_for_user(user)
 
         payroll = await current_db.school_payrolls.find_one({"id": payroll_id}, {"_id": 0})
@@ -1114,7 +1114,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/reports/consolidado-rede/{competency_id}")
     async def report_consolidado_rede(competency_id: str, request: Request):
         """Gera PDF consolidado de toda a rede"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER)(request)
         current_db = get_db_for_user(user)
 
         comp = await current_db.payroll_competencies.find_one({"id": competency_id}, {"_id": 0})
@@ -1151,7 +1151,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
     @router.get("/reports/auditoria/{competency_id}")
     async def report_auditoria(competency_id: str, request: Request):
         """Gera PDF do relatório de auditoria"""
-        user = await AuthMiddleware.require_roles(ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER)(request)
+        user = await AuthMiddleware.require_permission(db, 'nav-hr-payroll-button', ADMIN_ROLES + SEMED_ANALISTA + SEMED_VIEWER)(request)
         current_db = get_db_for_user(user)
 
         comp = await current_db.payroll_competencies.find_one({"id": competency_id}, {"_id": 0})

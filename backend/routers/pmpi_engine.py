@@ -91,9 +91,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):    # Import
         return db
 
     async def _require_admin_tier(request: Request):
-        """Apr 2026: Motor PMPI-GE restrito a Super Administrador + Administração
-        (admin/admin_teste/gerente). super_admin é auto-passado por require_roles."""
-        return await AuthMiddleware.require_roles(['admin'])(request)
+        """Apr 2026: Motor PMPI-GE respeita Matriz de Permissões
+        (nav-pmpi-engine-button). super_admin sempre passa."""
+        return await AuthMiddleware.require_permission(
+            db, 'nav-pmpi-engine-button', ['admin']
+        )(request)
 
     def _can_manage(user: dict) -> bool:
         # Apr 2026: somente Super Admin + Administração editam regras/alertas PMPI

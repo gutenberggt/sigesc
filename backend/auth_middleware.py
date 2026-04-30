@@ -129,6 +129,9 @@ class AuthMiddleware:
         async def permission_checker(request: Request):
             user = await AuthMiddleware.get_current_user(request)
             role = user.get('role')
+            # super_admin SEMPRE passa: evita lock-out acidental via Matriz.
+            if role == 'super_admin':
+                return user
             try:
                 override = await db.permission_overrides.find_one(
                     {"item_key": menu_item_key, "role": role},

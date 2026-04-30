@@ -357,15 +357,26 @@ export default function PermissionMatrix() {
                     <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{row.category}</td>
                     {ROLES.map(r => {
                       const cellKey = `${row.itemKey}|${r.key}`;
+                      const isSuperAdmin = r.key === 'super_admin';
                       return (
                         <td key={r.key} className="px-2 py-2 text-center">
-                          <Cell
-                            defaultVisible={row.defaultByRole[r.key]}
-                            override={row.overrideByRole[r.key]}
-                            saving={savingCell === cellKey}
-                            onClick={() => handleToggle(row.itemKey, r.key, row.defaultByRole[r.key], row.overrideByRole[r.key])}
-                            onReset={() => handleReset(row.itemKey, r.key)}
-                          />
+                          {isSuperAdmin ? (
+                            <span
+                              title="Super Admin sempre tem acesso (bloqueio aqui é ignorado pelo backend por segurança)"
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300"
+                              data-testid={`cell-${row.itemKey}-super_admin`}
+                            >
+                              <Check size={16} strokeWidth={3} />
+                            </span>
+                          ) : (
+                            <Cell
+                              defaultVisible={row.defaultByRole[r.key]}
+                              override={row.overrideByRole[r.key]}
+                              saving={savingCell === cellKey}
+                              onClick={() => handleToggle(row.itemKey, r.key, row.defaultByRole[r.key], row.overrideByRole[r.key])}
+                              onReset={() => handleReset(row.itemKey, r.key)}
+                            />
+                          )}
                         </td>
                       );
                     })}
@@ -386,8 +397,12 @@ export default function PermissionMatrix() {
           Para alterar visibilidade, clique em qualquer célula. Os overrides são persistidos
           em <code>permission_overrides</code> e aplicados sobre o default sem precisar editar código.
           <br />
-          ⚠️ Restrições de backend (RBAC nas APIs) são aplicadas separadamente em <code>routers/*.py</code>
-          — ao liberar visibilidade de um item, valide se o backend correspondente também aceita o papel.
+          ✅ A partir de Apr/2026, o <strong>backend também respeita</strong> estes overrides
+          (camada dinâmica via <code>AuthMiddleware.require_permission</code>). Bloquear uma célula
+          também nega a API correspondente para aquele papel.
+          <br />
+          🔒 <strong>Super Admin</strong> sempre tem acesso — o backend ignora bloqueios desta coluna
+          para evitar lock-out acidental.
         </p>
 
         {/* Toast */}

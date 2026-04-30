@@ -334,6 +334,38 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Current Backlog
 
+### Matriz de Permissões — Camada Dinâmica no Backend (Apr 2026)
+**Problema**: a Matriz (`/admin/permission-matrix`) controlava apenas a visibilidade do menu no frontend. Usuários podiam burlar a UI e chamar as APIs via curl.
+
+**Solução**: helper `AuthMiddleware.require_permission(db, item_key, default_roles)` em `auth_middleware.py` consulta `permission_overrides` a cada requisição:
+- Override `visible=True`  → libera (mesmo se papel fora dos defaults).
+- Override `visible=False` → bloqueia com 403 "Acesso negado pela Matriz de Permissões".
+- Sem override → fallback para `require_roles(default_roles)`.
+- **`super_admin` sempre passa** (evita lock-out acidental).
+
+**Routers migrados** (testId do Dashboard → endpoint):
+- `nav-analytics-button` → `routers/analytics.py` (detail endpoints via `_require_admin_tier`)
+- `nav-semed-panel-button` → `routers/pmpi.py` (Painel do Secretário)
+- `nav-pmpi-engine-button` → `routers/pmpi_engine.py`
+- `nav-action-plans-button` → `routers/action_plans.py`
+- `nav-mec-button` → `routers/mec_integration.py` (5 rotas)
+- `nav-audit-logs-button` → `routers/audit_logs.py` (5 rotas)
+- `nav-online-users-button` → `routers/admin.py` (online-users, sessions/revoke)
+- `nav-admin-tools-button` → `routers/admin.py` (migrate-*, cleanup-*)
+- `nav-logs-button` → `routers/admin_messages.py` (4 rotas, log de conversas)
+- `nav-hr-payroll-button` → `routers/hr.py` (24 rotas via replace_all)
+- `nav-bolsa-familia-button` → `routers/bolsa_familia.py` (3 rotas)
+- `nav-diary-dashboard-button` → `routers/diary_dashboard.py` (via `check_access`)
+- `nav-mantenedora-button` → `routers/mantenedoras.py` (create/delete/designar_gerente)
+
+**UI** (`PermissionMatrix.js`): coluna `super_admin` agora é read-only (badge verde "sempre visível") para refletir a lógica do backend e evitar confusão. Rodapé atualizado com aviso.
+
+**Pytest suite** (`tests/test_permission_matrix_backend.py`, 4/4 passing):
+1. `test_super_admin_bypasses_matrix_deny` — super_admin ignora override deny.
+2. `test_default_deny_without_override_returns_403` — papel fora do default → 403.
+3. `test_override_grants_access_to_non_default_role` — override True libera.
+4. `test_override_denies_default_role` — override False bloqueia default-allow.
+
 ### Bug fix Apr 2026: Plano AEE criado via Modelo invisível para Professor
 **Sintoma**: Professor clicava em "Novo a partir de Modelo", recebia mensagem de sucesso, mas o plano não aparecia na lista. Para super_admin aparecia normalmente.
 
@@ -361,6 +393,7 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ### P1
 - Regras de cálculo de carga horária prevista na folha de pagamento (aguarda regras de negócio do usuário)
+- **Módulo de Currículo (BNCC/DCM)** — Sprint A: models `CurriculumSkill`/`CurriculumMethod`/`CurriculumComponent` + router CRUD `/api/curriculum/` + seed idempotente "Computação". Sprint B: página `/admin/curriculo` + combobox "Habilidade BNCC" em `LearningObjects.js`. Sprint C: endpoint de cobertura curricular + widget dashboard coordenador.
 
 ### P2
 - Carga horária fracionada em componentes curriculares
