@@ -10,6 +10,7 @@ import { hasRole } from '@/utils/permissions';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/Modal';
+import SpellCheckButton from '@/components/SpellCheckButton';
 
 const Announcements = () => {
   const { user } = useAuth();
@@ -508,9 +509,16 @@ const Announcements = () => {
 
           {/* Content */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Conteúdo *
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Conteúdo *
+              </label>
+              <SpellCheckButton
+                text={formData.content}
+                onApply={(t) => setFormData({ ...formData, content: t })}
+                compact
+              />
+            </div>
             <textarea
               value={formData.content}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}

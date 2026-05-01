@@ -334,6 +334,32 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Current Backlog
 
+### Corretor Ortográfico PT-BR (LanguageTool, May 2026)
+**Feature**: corretor ortográfico + gramatical em português (Brasil), 100% gratuito, integrado a 3 telas de alta escrita.
+
+**Backend** (`/app/backend/routers/spellcheck.py`):
+- `POST /api/spellcheck` — proxy autenticado para `https://api.languagetool.org/v2/check`.
+- Env opcional `LANGUAGETOOL_URL` permite apontar para self-host futuro sem mudar código.
+- Body: `{text: str, language: "pt-BR"}`. Limites: texto ≤ 20k chars, 20 req/min por IP (limite da API pública).
+- Normaliza payload: `matches: [{message, offset, length, replacements: [str], rule_id, category, issue_type, context}]`.
+- Tratamento de 429/504/502 com mensagens amigáveis em PT-BR.
+- Desabilita regras pedantes (`WHITESPACE_RULE`, `UPPERCASE_SENTENCE_START`) para reduzir ruído em textos escolares.
+
+**Frontend** (`/app/frontend/src/components/SpellCheckButton.jsx`):
+- Componente reutilizável com dois modos: `compact` (ícone) ou botão com label "Revisar".
+- Modal lista cada sugestão com: badge do tipo (Ortografia/Gramática/Estilo), contexto com trecho em destaque, mensagem explicativa, botões "Aplicar" por sugestão, botão "Ignorar", e "Aplicar todas as principais" (1ª sugestão de cada erro).
+- Após cada aplicação, re-executa o check — offsets sempre consistentes.
+- Integração pronta: basta passar `text` + `onApply(newText)`.
+
+**Integrações**:
+- `pages/Announcements.js` — campo Conteúdo.
+- `pages/LearningObjects.js` — Conteúdo/Objeto e Observações.
+- `components/PlanoAEEModal.js` — 11 textareas (Situação Atual, Potencialidades, Dificuldades, Comunicação, Barreiras, Objetivos, Recursos, Indicadores, Orientações Sala Comum, Combinados, Adequações, Adaptações) via helper local `LabelWithSpell`.
+
+**Pytest** (`tests/test_spellcheck.py`, 4/4 verde): detecta erros conhecidos ("vai na" → "à", "otimo" → "ótimo"), retorna vazio para texto correto, exige autenticação, rejeita texto vazio (422).
+
+**Custo operacional**: R$ 0 até 20 req/min por IP. Se a prefeitura crescer, basta subir container LanguageTool no Coolify e apontar `LANGUAGETOOL_URL`.
+
 ### Matriz de Permissões — Camada Dinâmica no Backend (Apr 2026)
 **Problema**: a Matriz (`/admin/permission-matrix`) controlava apenas a visibilidade do menu no frontend. Usuários podiam burlar a UI e chamar as APIs via curl.
 
