@@ -32,6 +32,7 @@ export default function SkillPicker({
   value = [],
   onChange,
   ano,
+  bimestre,
   componenteCodigo,
   onAppendDescription,
   disabled = false,
@@ -42,6 +43,7 @@ export default function SkillPicker({
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showAllBimestres, setShowAllBimestres] = useState(false);
   const [selectedCache, setSelectedCache] = useState({}); // codigo → skill (para mostrar chip rico)
   const inputRef = useRef(null);
   const containerRef = useRef(null);
@@ -69,8 +71,15 @@ export default function SkillPicker({
       setLoading(true);
       try {
         const params = { limit: 10 };
-        if (query.trim()) params.q = query.trim();
+        const hasQuery = !!query.trim();
+        if (hasQuery) params.q = query.trim();
         if (ano) params.ano = ano;
+        // Filtra por bimestre apenas quando NÃO há texto de busca e o usuário
+        // não optou por "todos". Isso evita esconder resultados quando o
+        // professor procura algo específico.
+        if (bimestre && !hasQuery && !showAllBimestres) {
+          params.bimestre = bimestre;
+        }
         const r = await curriculumAPI.skills(params);
         // Filtra por componente se passado e backend não fizer
         let items = r.items || [];
@@ -87,7 +96,7 @@ export default function SkillPicker({
       }
     }, 300);
     return () => clearTimeout(id);
-  }, [query, open, ano, componenteCodigo, value, disabled]);
+  }, [query, open, ano, bimestre, showAllBimestres, componenteCodigo, value, disabled]);
 
   /** Fecha dropdown ao clicar fora. */
   useEffect(() => {
@@ -191,6 +200,25 @@ export default function SkillPicker({
         )}
       </div>
 
+      {/* Indicador de filtro por bimestre */}
+      {bimestre && !query.trim() && (
+        <div className="mt-1 flex items-center justify-between text-[10px]">
+          <span className="text-purple-700" data-testid="skill-picker-bimestre-info">
+            {showAllBimestres
+              ? 'Mostrando habilidades de todos os bimestres'
+              : `Filtrando pelo ${bimestre}º bimestre da turma`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowAllBimestres(s => !s)}
+            className="text-purple-600 hover:text-purple-800 underline"
+            data-testid="skill-picker-toggle-bimestre"
+          >
+            {showAllBimestres ? `Filtrar pelo ${bimestre}º bim.` : 'Mostrar todos'}
+          </button>
+        </div>
+      )}
+
       {/* Dropdown de resultados */}
       {open && (results.length > 0 || loading) && (
         <div
@@ -217,6 +245,18 @@ export default function SkillPicker({
                   <span className={`text-[9px] px-1 rounded border ${badge.color}`}>{badge.label}</span>
                   {s.ano != null && (
                     <span className="text-[10px] text-gray-500">{s.ano}º ano</span>
+                  )}
+                  {s.bimestre != null && (
+                    <span
+                      className={`text-[10px] px-1 rounded ${
+                        bimestre && s.bimestre === bimestre
+                          ? 'bg-purple-100 text-purple-700 font-semibold'
+                          : 'text-gray-500'
+                      }`}
+                      data-testid={`skill-option-bimestre-${s.codigo}`}
+                    >
+                      {s.bimestre}º bim.
+                    </span>
                   )}
                   {s.componente_codigo && (
                     <span className="text-[10px] text-gray-400">· {s.componente_codigo}</span>

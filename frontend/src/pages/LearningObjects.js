@@ -342,7 +342,7 @@ export const LearningObjects = () => {
             for (let b = 1; b <= 4; b++) {
               const start = (cal[`bimestre_${b}_inicio`] || '')?.substring?.(0, 10) || String(cal[`bimestre_${b}_inicio`] || '').substring(0, 10);
               const end = (cal[`bimestre_${b}_fim`] || '')?.substring?.(0, 10) || String(cal[`bimestre_${b}_fim`] || '').substring(0, 10);
-              if (start && end) periods.push({ start, end });
+              if (start && end) periods.push({ b, start, end });
             }
             setBimestrePeriods(periods);
           }
@@ -709,9 +709,15 @@ export const LearningObjects = () => {
     setHasChanges(false);
   };
 
-  // Função para determinar o bimestre de uma data
+  // Função para determinar o bimestre de uma data (usa calendário letivo
+  // configurado, com fallback para janela trimestral por mês).
   const getBimestreFromDate = (dateStr) => {
     if (!dateStr) return null;
+    const ymd = String(dateStr).substring(0, 10);
+    if (bimestrePeriods && bimestrePeriods.length > 0) {
+      const hit = bimestrePeriods.find(p => ymd >= p.start && ymd <= p.end);
+      if (hit?.b) return hit.b;
+    }
     const month = new Date(dateStr).getMonth() + 1; // 1-12
     if (month <= 3) return 1;
     if (month <= 6) return 2;
@@ -1245,6 +1251,7 @@ export const LearningObjects = () => {
                         const m = g.match(/\d+/);
                         return m ? parseInt(m[0], 10) : undefined;
                       })()}
+                      bimestre={getBimestreFromDate(selectedDate)}
                       onAppendDescription={(text) => {
                         setFormData(p => ({
                           ...p,

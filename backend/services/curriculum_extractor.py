@@ -200,13 +200,25 @@ def _merge_multiline_cells(table: list, hab_col: int) -> list:
     return merged
 
 
-def _extract_via_tables(pdf_path: str, only: Optional[Set[str]], fonte: str) -> List[dict]:
-    """Fase A — extração estruturada (confidence='high')."""
+def _extract_via_tables(
+    pdf_path: str, only: Optional[Set[str]], fonte: str,
+    text_by_page: Optional[dict] = None,
+) -> List[dict]:
+    """Fase A — extração estruturada (confidence='high').
+
+    Se `text_by_page` dict for fornecido (mutável), também coleta o texto puro
+    de cada página em uma única passada — evita reabrir o PDF nas Fases B/C.
+    """
     import pdfplumber
 
     candidates: List[dict] = []
     with pdfplumber.open(pdf_path) as pdf:
         for page_num, page in enumerate(pdf.pages, start=1):
+            if text_by_page is not None:
+                try:
+                    text_by_page[page_num] = page.extract_text() or ''
+                except Exception:
+                    text_by_page[page_num] = ''
             try:
                 tables = page.extract_tables()
             except Exception:
@@ -275,79 +287,69 @@ def _extract_via_tables(pdf_path: str, only: Optional[Set[str]], fonte: str) -> 
 
 
 def _extract_via_regex_fallback(
-    pdf_path: str,
+    text_by_page: dict,
     missing_codes: Set[str],
     fonte: str,
 ) -> List[dict]:
-    """Fase C — fallback para códigos não capturados via tabela (confidence='low')."""
-    import pdfplumber
+    """Fase C — fallback para códigos não capturados via tabela (confidence='low').
 
+    Usa o texto já coletado na Fase A (dict {page_num: text}).
+    """
     out: List[dict] = []
     found: Set[str] = set()
-    with pdfplumber.open(pdf_path) as pdf:
-        for page_num, page in enumerate(pdf.pages, start=1):
-            try:
-                text = page.extract_text() or ''
-            except Exception:
+    for page_num in sorted(text_by_page.keys()):
+        text = text_by_page.get(page_num) or ''
+        if not text:
+            continue
+        matches = list(BNCC_CODE_RE.finditer(text))
+        for i, m in enumerate(matches):
+            codigo = f"{m.group(1)}{m.group(2)}{m.group(3)}{m.group(4)}"
+            if codigo in found or codigo not in missing_codes:
                 continue
-            if not text:
+            found.add(codigo)
+            prefix = m.group(1)
+            ano_str = m.group(2)
+            comp_from_code = m.group(3)
+            start = m.end()
+            end = matches[i + 1].start() if i + 1 < len(matches) else min(start + 500, len(text))
+            desc = text[start:end].strip()
+            desc = re.sub(r'^[\s\-:.)\]]+', '', desc)
+            desc = re.sub(r'-\s*\n\s*', '', desc)
+            desc = re.sub(r'\s+', ' ', desc)
+            desc = desc[:500].strip()
+            if len(desc) < 10:
                 continue
-            matches = list(BNCC_CODE_RE.finditer(text))
-            for i, m in enumerate(matches):
-                codigo = f"{m.group(1)}{m.group(2)}{m.group(3)}{m.group(4)}"
-                if codigo in found or codigo not in missing_codes:
-                    continue
-                found.add(codigo)
-                prefix = m.group(1)
-                ano_str = m.group(2)
-                comp_from_code = m.group(3)
-                start = m.end()
-                end = matches[i + 1].start() if i + 1 < len(matches) else min(start + 500, len(text))
-                desc = text[start:end].strip()
-                desc = re.sub(r'^[\s\-:.)\]]+', '', desc)
-                desc = re.sub(r'-\s*\n\s*', '', desc)
-                desc = re.sub(r'\s+', ' ', desc)
-                desc = desc[:500].strip()
-                if len(desc) < 10:
-                    continue
-                ano_int = int(ano_str) if ano_str.isdigit() else None
-                ano = ano_int if (ano_int is not None and 1 <= ano_int <= 9) else None
-                etapa = _classify_etapa(prefix, ano)
-                out.append({
-                    'codigo': codigo,
-                    'descricao': desc,
-                    'ano': ano,
-                    'ano_range': ano_str if (ano_int and (ano_int < 1 or ano_int > 9)) else None,
-                    'bimestre': None,
-                    'componente_codigo': comp_from_code,
-                    'componente_nome': COMPONENT_MAP.get(comp_from_code, (comp_from_code, etapa))[0],
-                    'eixo_estruturante': None,
-                    'etapa': etapa,
-                    'page': page_num,
-                    'fonte': fonte,
-                    'confidence': 'low',
-                    'suspeito': True,
-                })
+            ano_int = int(ano_str) if ano_str.isdigit() else None
+            ano = ano_int if (ano_int is not None and 1 <= ano_int <= 9) else None
+            etapa = _classify_etapa(prefix, ano)
+            out.append({
+                'codigo': codigo,
+                'descricao': desc,
+                'ano': ano,
+                'ano_range': ano_str if (ano_int and (ano_int < 1 or ano_int > 9)) else None,
+                'bimestre': None,
+                'componente_codigo': comp_from_code,
+                'componente_nome': COMPONENT_MAP.get(comp_from_code, (comp_from_code, etapa))[0],
+                'eixo_estruturante': None,
+                'etapa': etapa,
+                'page': page_num,
+                'fonte': fonte,
+                'confidence': 'low',
+                'suspeito': True,
+            })
     return out
 
 
-def _all_codes_in_pdf(pdf_path: str, only: Optional[Set[str]]) -> Set[str]:
-    """Fase B — todos os códigos do PDF, para comparar com os capturados na Fase A."""
-    import pdfplumber
-
+def _all_codes_from_text(text_by_page: dict, only: Optional[Set[str]]) -> Set[str]:
+    """Fase B — todos os códigos do PDF a partir do texto já coletado."""
     codes: Set[str] = set()
-    with pdfplumber.open(pdf_path) as pdf:
-        for page in pdf.pages:
-            try:
-                text = page.extract_text() or ''
-            except Exception:
+    for text in text_by_page.values():
+        for m in BNCC_CODE_RE.finditer(text or ''):
+            codigo = f"{m.group(1)}{m.group(2)}{m.group(3)}{m.group(4)}"
+            comp = m.group(3)
+            if only and comp not in only:
                 continue
-            for m in BNCC_CODE_RE.finditer(text):
-                codigo = f"{m.group(1)}{m.group(2)}{m.group(3)}{m.group(4)}"
-                comp = m.group(3)
-                if only and comp not in only:
-                    continue
-                codes.add(codigo)
+            codes.add(codigo)
     return codes
 
 
@@ -359,11 +361,12 @@ def extract_skills_from_pdf(
     """Entrada principal — pipeline híbrido."""
     only = set(only_components) if only_components else None
 
-    structured = _extract_via_tables(pdf_path, only, fonte)
+    text_by_page: dict = {}
+    structured = _extract_via_tables(pdf_path, only, fonte, text_by_page=text_by_page)
     captured = {s['codigo'] for s in structured}
-    all_codes = _all_codes_in_pdf(pdf_path, only)
+    all_codes = _all_codes_from_text(text_by_page, only)
     missing = all_codes - captured
-    fallback = _extract_via_regex_fallback(pdf_path, missing, fonte) if missing else []
+    fallback = _extract_via_regex_fallback(text_by_page, missing, fonte) if missing else []
 
     # Dedup: HIGH sempre ganha; entre mesmos níveis, descrição mais longa vence.
     by_code: dict = {}

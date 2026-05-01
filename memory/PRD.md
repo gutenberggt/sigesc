@@ -561,3 +561,30 @@ Distribuição balanceada: 4 anos × 4 bimestres com 1-9 habilidades cada.
 
 ## Credentials
 Ver `/app/memory/test_credentials.md` — super_admin primário: `gutenberg@sigesc.com`
+
+
+---
+
+## 2026-02 — Currículo: Extrator Híbrido validado + Filtro por Bimestre no SkillPicker
+
+### Validação Issue #1 (Extrator Híbrido V3)
+- Rodados `pytest backend/tests/test_curriculum_import.py` (3 testes) + `test_curriculum_sprint_a.py` (8) + `test_learning_objects_skills.py` (2): **13/13 PASS**.
+- PDF DCM Floresta (4.6MB, 148 habilidades LP): extração agora cobre **148/148 códigos** (138 high-confidence via tabela + 10 fallback regex), **138 com bimestre** capturado dos metadados da tabela.
+- **Otimização single-pass**: `_extract_via_tables` agora coleta `extract_text()` por página dentro da mesma passagem que faz `extract_tables()`, e as Fases B (todos códigos) e C (fallback regex) reutilizam esse cache. Resultado: 101s → 36s (≈3× mais rápido).
+
+### Issue #2 — Filtro `bimestre` no SkillPicker (P1)
+**Backend** (`/app/backend/routers/curriculum.py`):
+- `GET /api/curriculum/skills?bimestre=N` agora aplica filtro inclusivo: retorna habilidades do bimestre `N` **ou** sem bimestre definido (transversais/anuais como BNCC_COMPUTACAO).
+- Combinação `q + bimestre` usa `$and` para evitar conflito de `$or`.
+- Cobertura: `tests/test_curriculum_skills_bimestre.py` (3 testes) PASS.
+
+**Frontend**:
+- `SkillPicker.jsx` aceita prop `bimestre`. Aplica filtro automático quando o usuário **não** está pesquisando texto, com botão inline "Mostrar todos / Filtrar pelo Nº bim.".
+- Cada resultado exibe badge `Nº bim.` (destacado em roxo quando casa com o bimestre da turma).
+- `LearningObjects.js`: `getBimestreFromDate(selectedDate)` agora consulta primeiro `bimestrePeriods` (calendário letivo configurado pelo secretário), com fallback para janela trimestral por mês. Bimestre detectado é injetado no `<SkillPicker bimestre={...} />`.
+
+### Backlog atualizado
+- (P0) Sprint C — Cobertura Curricular: endpoint analytics + widget dashboard Coordenação.
+- (P1) Sugestão "habilidades mais usadas na turma" no topo do dropdown (cache).
+- (P2) Carga horária zerada folha de pagamento, botão "Baixar em segundo plano" PDFs pesados, CSV estudantes via Resend, tooltips KPI Secretário, refactor `grade_calculator.py`, `App.js` lazy-load, HttpOnly cookies.
+

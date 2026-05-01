@@ -146,20 +146,38 @@ def setup_router(db):
             filt['componente_id'] = componente_id
         if ano is not None:
             filt['ano'] = ano
+        bimestre_clauses = None
         if bimestre is not None:
-            filt['bimestre'] = bimestre
+            # Inclui também habilidades sem bimestre (transversais ao ano), para
+            # não esconder seeds genéricos como BNCC_COMPUTACAO.
+            bimestre_clauses = [
+                {'bimestre': bimestre},
+                {'bimestre': None},
+                {'bimestre': {'$exists': False}},
+            ]
         if fonte:
             filt['fonte'] = fonte
         if ativo is not None:
             filt['ativo'] = ativo
+        q_clauses = None
         if q:
-            # Busca insensível por código (prefixo) OU descrição (substring)
             import re
             pattern = re.escape(q)
-            filt['$or'] = [
+            q_clauses = [
                 {'codigo': {'$regex': f'^{pattern}', '$options': 'i'}},
                 {'descricao': {'$regex': pattern, '$options': 'i'}},
             ]
+
+        # Combina cláusulas $or sem conflito
+        and_clauses = []
+        if bimestre_clauses:
+            and_clauses.append({'$or': bimestre_clauses})
+        if q_clauses:
+            and_clauses.append({'$or': q_clauses})
+        if len(and_clauses) == 1:
+            filt.update(and_clauses[0])
+        elif len(and_clauses) >= 2:
+            filt['$and'] = and_clauses
 
         # Filtro derivado: etapa via componente
         if etapa and 'componente_id' not in filt:
