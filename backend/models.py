@@ -1825,6 +1825,7 @@ class LearningObjectBase(BaseModel):
     methodology: Optional[str] = None  # Metodologia utilizada
     resources: Optional[str] = None  # Recursos utilizados
     number_of_classes: int = 1  # Número de aulas
+    skill_codigos: List[str] = Field(default_factory=list)  # Códigos BNCC/DCM (ex.: ['EF03MA02','EF03MA05'])
 
 class LearningObjectCreate(BaseModel):
     class_id: str
@@ -1836,6 +1837,7 @@ class LearningObjectCreate(BaseModel):
     methodology: Optional[str] = None
     resources: Optional[str] = None
     number_of_classes: int = 1
+    skill_codigos: List[str] = Field(default_factory=list)
 
 class LearningObjectUpdate(BaseModel):
     content: Optional[str] = None
@@ -1844,6 +1846,7 @@ class LearningObjectUpdate(BaseModel):
     resources: Optional[str] = None
     number_of_classes: Optional[int] = None
     course_id: Optional[str] = None
+    skill_codigos: Optional[List[str]] = None
 
 class LearningObject(BaseModel):
     """Modelo completo do registro de objetos de conhecimento"""
@@ -1858,6 +1861,7 @@ class LearningObject(BaseModel):
     methodology: Optional[str] = None
     resources: Optional[str] = None
     number_of_classes: int = 1
+    skill_codigos: List[str] = Field(default_factory=list)
     recorded_by: Optional[str] = None  # ID do usuário que registrou
     # Feb 2026: Rastreabilidade de cópia entre turmas
     copied_from_id: Optional[str] = None  # ID do registro original quando este foi copiado

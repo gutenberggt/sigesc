@@ -1301,3 +1301,34 @@ export const actionPlansAPI = {
     return response.data;
   }
 };
+
+
+// =================== Currículo (BNCC/DCM) — May 2026 ===================
+export const curriculumAPI = {
+  components: async (params = {}) => {
+    const response = await axios.get(`${API}/curriculum/components`, { params });
+    return response.data;
+  },
+  skills: async (params = {}) => {
+    const response = await axios.get(`${API}/curriculum/skills`, { params });
+    return response.data;
+  },
+  skillByCodigo: async (codigo) => {
+    const response = await axios.get(`${API}/curriculum/skills/${encodeURIComponent(codigo)}`);
+    return response.data;
+  },
+  methods: async (params = {}) => {
+    const response = await axios.get(`${API}/curriculum/methods`, { params });
+    return response.data;
+  },
+  stats: async () => {
+    const response = await axios.get(`${API}/curriculum/stats`);
+    return response.data;
+  },
+  createComponent: async (data) => (await axios.post(`${API}/curriculum/components`, data)).data,
+  updateComponent: async (id, data) => (await axios.put(`${API}/curriculum/components/${id}`, data)).data,
+  deleteComponent: async (id) => (await axios.delete(`${API}/curriculum/components/${id}`)).data,
+  createSkill: async (data) => (await axios.post(`${API}/curriculum/skills`, data)).data,
+  updateSkill: async (id, data) => (await axios.put(`${API}/curriculum/skills/${id}`, data)).data,
+  deleteSkill: async (id) => (await axios.delete(`${API}/curriculum/skills/${id}`)).data,
+};

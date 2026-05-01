@@ -1,0 +1,45 @@
+{
+  "summary": "Frontend-only validation of SkillPicker (Habilidade BNCC/DCM) integration in /admin/learning-objects. Componente renderiza ANTES do textarea, busca remota (debounce 300ms) funciona, dropdown abre com data-testid esperados, chip aparece ao selecionar, contador mostra '1 selecionada', botão append (+) insere descrição no Conteúdo. Salvamento foi bloqueado por validação de campo NÃO-relacionado ('Práticas Pedagógicas é obrigatório'), portanto a persistência end-to-end (reabrir e ver chip) não pôde ser fechada via UI; backend já está coberto por pytest 2/2 verde.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Salvar registro com skill_codigos via UI",
+        "issue": "Submit retorna validação 'Práticas Pedagógicas é obrigatório' que bloqueia o cenário ponta-a-ponta descrito no review_request (que mencionava apenas Conteúdo + Skill). Esta validação é existente/legada, NÃO regressão introduzida pela Sprint B; mas impede validar via UI o passo 11 (reabrir dia → chip persiste). Recomenda-se incluir 'preencher Práticas Pedagógicas' no script de teste do main agent OU revisar se este campo deve ser opcional.",
+        "affected_selectors": ["button: Salvar", "[data-testid=skill-chip-*]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_validation_evidence": {
+    "skill_picker_renders_before_textarea": true,
+    "skill_picker_input_present": true,
+    "search_remote_debounced_returns_results": "4 opções para query 'EF02' (turma 2 ANO → ano=2 filtro automático funcionou)",
+    "skill_picker_dropdown_visible": true,
+    "skill_option_testids_correct": ["skill-option-EF02CO01", "skill-option-EF02CO02", "skill-option-EF02CO03", "skill-option-EF02CO04"],
+    "chip_appears_after_select": "skill-chip-EF02CO01 visível",
+    "skill_picker_count_text": "1 selecionada",
+    "skill_append_inserts_description": "Textarea recebeu: 'EF02CO01 — Decompor problemas simples em partes menores para resolvê-los passo a passo.'",
+    "console_errors_during_flow": 0,
+    "search_query_uppercased_visually": "Input mostra 'ALGORITMO' / 'EF02' em uppercase devido a CSS — comportamento visual apenas; valor enviado ao backend permanece minúsculo (resultados retornaram corretamente)."
+  },
+  "persistence_check": "NÃO concluída via UI (save bloqueado por validação não-relacionada). Backend persistência já validada por pytest test_learning_objects_skills.py 2/2 verde (mencionado no review_request).",
+  "test_report_links": [],
+  "action_items": [
+    "OPCIONAL: para o cenário de teste descrito no review_request funcionar fim-a-fim na UI, o script precisa preencher também o campo 'Práticas Pedagógicas' (obrigatório por validação existente do form, independente do SkillPicker).",
+    "Considerar avaliar se 'Práticas Pedagógicas' deveria ser opcional ou se o review_request deveria mencioná-lo (decisão de produto)."
+  ],
+  "critical_code_review_comments": [
+    "SkillPicker.jsx: useEffect depende de [value, selectedCache] para carregar detalhes — pode causar loop sutil pois setSelectedCache atualiza selectedCache. O guard 'missing.length === 0 → return' previne, mas seria mais seguro depender só de [value] ou usar ref. Não vi loops em prática.",
+    "SkillPicker.jsx: filtra dropdown por value (já selecionados). OK.",
+    "Input em maiúsculo pode confundir (parece text-transform CSS herdado do form). Verificar UX se intencional."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (não testado por solicitação)", "frontend": "100% do SkillPicker UI; persistência via UI 0% (bloqueada por validação não-relacionada)"},
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 — usado com sucesso",
+  "seed_data_creation": "Nenhuma. Usei turma '2 ANO' / ESCOLA TESTE MULTISSERIADA / ARTE / dia 06/05/2026.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Escolha turma '2 ANO' (tem grade_level=2 → filtra ano=2 com 4 skills EF02CO01-04) ou 'TURMA MULTI 1-2-3'/'AEE'/'PRE-ESCOLA I' para evitar filtro de ano. Lembre de selecionar Componente Curricular via [data-testid=campo-experiencia-toggle] (clique no toggle, marque um checkbox tipo 'ARTE', clique novamente para fechar) ANTES de clicar no dia. Para teste de save, adicione fill em 'Práticas Pedagógicas' (input visível abaixo do textarea Conteúdo)."
+}

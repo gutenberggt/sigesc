@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
 import { BimestreBlockedAlert, BimestreDeadlineAlert } from '@/components/BimestreStatus';
 import SpellCheckTextarea from '@/components/SpellCheckTextarea';
+import SkillPicker from '@/components/SkillPicker';
 import { 
   BookOpen, 
   Calendar, 
@@ -114,7 +115,8 @@ export const LearningObjects = () => {
     observations: '',
     methodology: '',
     resources: '',
-    number_of_classes: 1
+    number_of_classes: 1,
+    skill_codigos: []
   });
   
   // Tracking de alterações não salvas
@@ -648,7 +650,8 @@ export const LearningObjects = () => {
           observations: dayRecords[0].observations || '',
           methodology: dayRecords[0].methodology || '',
           resources: dayRecords[0].resources || '',
-          number_of_classes: dayRecords[0].number_of_classes || 1
+          number_of_classes: dayRecords[0].number_of_classes || 1,
+          skill_codigos: dayRecords[0].skill_codigos || []
         });
       } else {
         // Novo registro: manter seleção atual
@@ -658,7 +661,8 @@ export const LearningObjects = () => {
           observations: '',
           methodology: '',
           resources: '',
-          number_of_classes: defaultNumberOfClasses
+          number_of_classes: defaultNumberOfClasses,
+          skill_codigos: []
         });
       }
     } else {
@@ -671,7 +675,8 @@ export const LearningObjects = () => {
           observations: dayInfo.record.observations || '',
           methodology: dayInfo.record.methodology || '',
           resources: dayInfo.record.resources || '',
-          number_of_classes: dayInfo.record.number_of_classes || 1
+          number_of_classes: dayInfo.record.number_of_classes || 1,
+          skill_codigos: dayInfo.record.skill_codigos || []
         });
       } else {
         setEditingRecord(null);
@@ -695,7 +700,8 @@ export const LearningObjects = () => {
           observations: '',
           methodology: '',
           resources: '',
-          number_of_classes: numClasses
+          number_of_classes: numClasses,
+          skill_codigos: []
         });
       }
     }
@@ -1230,6 +1236,24 @@ export const LearningObjects = () => {
                       </div>
                     )}
 
+                    {/* Habilidade BNCC / DCM */}
+                    <SkillPicker
+                      value={formData.skill_codigos || []}
+                      onChange={(codigos) => { setFormData(p => ({ ...p, skill_codigos: codigos })); setHasChanges(true); }}
+                      ano={(() => {
+                        const g = String(selectedClassInfo?.grade_level || '');
+                        const m = g.match(/\d+/);
+                        return m ? parseInt(m[0], 10) : undefined;
+                      })()}
+                      onAppendDescription={(text) => {
+                        setFormData(p => ({
+                          ...p,
+                          content: p.content ? `${p.content}\n${text}` : text,
+                        }));
+                        setHasChanges(true);
+                      }}
+                    />
+
                     {/* Conteúdo */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1239,7 +1263,7 @@ export const LearningObjects = () => {
                         value={formData.content}
                         onChange={(e) => { setFormData({ ...formData, content: e.target.value }); setHasChanges(true); }}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 h-24 resize-none"
-                        placeholder="Descreva o conteúdo ministrado..."
+                        placeholder="Descreva o conteúdo ministrado ou clique no '+' de uma habilidade selecionada para inserir a descrição."
                       />
                     </div>
 
