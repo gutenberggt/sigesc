@@ -334,6 +334,28 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Current Backlog
 
+### Importador de Currículo PDF → Extração → Revisão → Importação (May 2026) ✅
+**Pipeline completo** para escalar ingestão de BNCC/DCM com qualidade.
+
+**Backend**:
+- `services/curriculum_extractor.py`: regex `E[FIM]\d{2}[A-Z]{2}\d{2}[A-Z]?` + pdfplumber. Deduplica por código (mantém descrição mais longa), classifica etapa por ano (1-5 iniciais, 6-9 finais), suporta códigos de faixa (EF15, EF89, etc.) marcando `ano=None` e `ano_range="15"`.
+- `routers/curriculum_import.py`: 7 endpoints (upload, list, get, update item, bulk-status, commit, cancel). Todos super_admin via Matriz `nav-curriculum-button`.
+- Models `CurriculumImportBatch` + `CurriculumImportItem` com status workflow: `pending → edited/approved/rejected → imported/duplicate`.
+- Commit cria componente novo se necessário, verifica duplicidade em tempo real (caso outro batch tenha importado), preserva itens já imported entre re-uploads do mesmo PDF.
+
+**Frontend** (`pages/CurriculumImport.jsx` em `/admin/curriculo/importar`):
+- Card de upload (file + select componente + select fonte).
+- Lista dos lotes recentes (cards clicáveis).
+- Tabela revisional com: filtros por status (pending/approved/rejected/imported/duplicate/edited), busca por código/descrição, seleção múltipla, edição inline (código/descrição/ano), ações em lote (aprovar/rejeitar/reset), botão "Importar N aprovadas" (commit).
+- Menu do Dashboard ganhou entrada "Importar Currículo (PDF)" com testId `nav-curriculum-import-button` (super_admin).
+
+**Pytest** (`tests/test_curriculum_import.py`, 3/3 verde em 106s):
+1. `test_full_pipeline` — upload do DCM real (148 LP) → edit item → bulk-approve 3 → commit (3 inserted, 1 component created) → re-upload marca 3 como duplicate.
+2. `test_upload_rejects_non_pdf` — .txt rejeitado 400.
+3. `test_commit_without_approved_returns_400` — commit sem aprovar → 400 com mensagem.
+
+**Teste real com PDF do usuário**: `DOCUMENTO-CURRICULAR-DO-MUNICIPIO-DE-FLORESTA DO ARAGUAIA.pdf` → 148 habilidades de Língua Portuguesa extraídas. Qualidade: códigos BNCC 100% corretos, descrições capturadas (algumas com ruído de layout de colunas — revisão inline resolve).
+
 ### Sprint B parcial — Campo Habilidade BNCC/DCM em LearningObjects (May 2026)
 **Componente novo** (`/app/frontend/src/components/SkillPicker.jsx`):
 - Combobox multi-select com busca remota (`/api/curriculum/skills?q=...`), debounce 300ms.

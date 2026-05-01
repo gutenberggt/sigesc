@@ -78,6 +78,7 @@ from routers import admin_student_users as admin_student_users_mod
 from routers import permission_overrides as permission_overrides_mod
 from routers import spellcheck as spellcheck_mod
 from routers import curriculum as curriculum_mod
+from routers import curriculum_import as curriculum_import_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
@@ -631,6 +632,7 @@ app.include_router(permission_overrides_mod.router, prefix="/api")
 spellcheck_mod.setup_router()
 app.include_router(spellcheck_mod.router, prefix="/api")
 app.include_router(curriculum_mod.setup_router(db), prefix="/api")
+app.include_router(curriculum_import_mod.setup_router(db), prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)

@@ -2708,3 +2708,64 @@ class CurriculumMethodUpdate(BaseModel):
     descricao: Optional[str] = None
     tags: Optional[List[str]] = None
     ativo: Optional[bool] = None
+
+
+
+# ============= CURRICULUM IMPORT BATCHES (May 2026) =============
+# Pipeline: PDF → extract → review → commit. Cada upload gera um batch de
+# candidatos editáveis pelo super_admin antes de virarem habilidades reais.
+
+CURRICULUM_IMPORT_ITEM_STATUS = Literal[
+    'pending',     # extraído, aguardando revisão
+    'approved',    # aprovado para importar
+    'rejected',    # descartado
+    'imported',    # já virou CurriculumSkill
+    'duplicate',   # código já existia em curriculum_skills
+    'edited',      # editado mas ainda não aprovado
+]
+
+
+class CurriculumImportItem(BaseModel):
+    """Uma habilidade-candidata extraída de um PDF do DCM/BNCC."""
+    idx: int  # posição no batch (estável; não é id global)
+    codigo: str
+    descricao: str
+    ano: Optional[int] = None
+    ano_range: Optional[str] = None  # ex.: "15", "89" para códigos de faixa
+    bimestre: Optional[int] = None
+    componente_codigo: Optional[str] = None
+    componente_nome: Optional[str] = None
+    etapa: Optional[str] = None
+    page: Optional[int] = None
+    fonte: str = 'DCM_FA'
+    status: CURRICULUM_IMPORT_ITEM_STATUS = 'pending'
+    note: Optional[str] = None  # comentário do revisor
+
+
+class CurriculumImportBatch(BaseModel):
+    """Lote de importação curricular — agrupa todos os candidatos de um PDF."""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    filename: str
+    only_components: List[str] = Field(default_factory=list)
+    fonte: str = 'DCM_FA'
+    items: List[CurriculumImportItem] = Field(default_factory=list)
+    total_items: int = 0
+    status: Literal['extracting', 'pending_review', 'partially_committed', 'committed', 'cancelled'] = 'pending_review'
+    created_by: Optional[str] = None
+    created_by_name: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    committed_at: Optional[str] = None
+    summary: Optional[Dict] = None  # estatísticas pós-commit
+
+
+class CurriculumImportItemUpdate(BaseModel):
+    codigo: Optional[str] = None
+    descricao: Optional[str] = None
+    ano: Optional[int] = None
+    bimestre: Optional[int] = None
+    componente_codigo: Optional[str] = None
+    componente_nome: Optional[str] = None
+    etapa: Optional[str] = None
+    fonte: Optional[str] = None
+    status: Optional[CURRICULUM_IMPORT_ITEM_STATUS] = None
+    note: Optional[str] = None

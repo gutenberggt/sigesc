@@ -19,6 +19,7 @@ const PreMatricula = lazy(() => import('@/pages/PreMatricula'));
 const PreMatriculaManagement = lazy(() => import('@/pages/PreMatriculaManagement'));
 const ConfirmEmailChange = lazy(() => import('@/pages/ConfirmEmailChange'));
 const PermissionMatrix = lazy(() => import('@/pages/PermissionMatrix'));
+const CurriculumImport = lazy(() => import('@/pages/CurriculumImport'));
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Schools = lazy(() => import('@/pages/SchoolsComplete').then(m => ({ default: m.SchoolsComplete })));
 const Users = lazy(() => import('@/pages/Users').then(m => ({ default: m.Users })));
@@ -488,6 +489,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['super_admin']}>
                 <PermissionMatrix />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Importador de Currículo (BNCC/DCM) — apenas Super Administrador */}
+          <Route
+            path="/admin/curriculo/importar"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin']}>
+                <CurriculumImport />
               </ProtectedRoute>
             }
           />
