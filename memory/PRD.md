@@ -334,6 +334,24 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Current Backlog
 
+### Sprint B parcial — Campo Habilidade BNCC/DCM em LearningObjects (May 2026)
+**Componente novo** (`/app/frontend/src/components/SkillPicker.jsx`):
+- Combobox multi-select com busca remota (`/api/curriculum/skills?q=...`), debounce 300ms.
+- Filtro automático por `ano` da turma (extrai dígito de `grade_level`) e por `componenteCodigo` opcional.
+- Chips removíveis (X) com badge da fonte (BNCC/Computação/DCM/Municipal), código + descrição, e botão `+` para inserir descrição no campo Conteúdo.
+- Cache local das habilidades selecionadas para não refazer queries.
+- Cobre retrocompatibilidade: registros antigos sem `skill_codigos` continuam funcionando.
+
+**Backend**:
+- `LearningObjectBase/Create/Update/Model` agora têm `skill_codigos: List[str] = []`.
+- Mongo persiste array de códigos BNCC; pytest `tests/test_learning_objects_skills.py` (2/2 verde) valida CRUD + retrocompatibilidade.
+
+**Frontend**:
+- `services/api.js` ganhou `curriculumAPI` (components, skills, methods, stats, CRUD).
+- `pages/LearningObjects.js` integra o `SkillPicker` ANTES do textarea Conteúdo, propaga `skill_codigos` em `formData` e nas operações de load/save/reset.
+
+**Validação E2E (testing agent, iteration_68)**: render, busca remota debounced, dropdown, chips, contador "X selecionada", botão `+` para inserir descrição — todos OK.
+
 ### Módulo de Currículo BNCC/DCM — Sprint A (May 2026) ✅
 **Catálogo curricular vivo**: SIGESC agora indexa Componentes, Habilidades (com código BNCC tipo `EF03MA02`) e Metodologias.
 
