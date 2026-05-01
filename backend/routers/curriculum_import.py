@@ -100,6 +100,7 @@ def setup_router(db):
                 descricao=raw['descricao'],
                 ano=raw.get('ano'),
                 ano_range=raw.get('ano_range'),
+                bimestre=raw.get('bimestre'),
                 componente_codigo=raw.get('componente_codigo'),
                 componente_nome=raw.get('componente_nome'),
                 etapa=raw.get('etapa'),

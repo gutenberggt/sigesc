@@ -334,6 +334,28 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Current Backlog
 
+### Importador de Currículo — Extração V2 estruturada por tabela (May 2026) ✅
+**Problema reportado**: descrições extraídas vinham com "ruído de colunas" (texto de "Propostas de Atividades" vazando em "Habilidades"), porque pdfplumber `extract_text()` lê em ordem de layout físico, misturando colunas.
+
+**Solução V2** (`services/curriculum_extractor.py` reescrito):
+- Passou a usar `page.extract_tables()` em vez de `extract_text()`.
+- Detecta automaticamente a estrutura de cabeçalho do DCM:
+  - Linha 0: `[EIXOS ESTRUTURANTES, COMPONENTE, ETAPA, ANO, BIMESTRE]`
+  - Linha 1: valores (ex.: LÍNGUA PORTUGUESA, 3º, 1º)
+  - Linha 2: sub-headers `[OBJETOS, HABILIDADES, PROPOSTAS, Nº DE]`
+- Identifica a coluna "HABILIDADES" e extrai SOMENTE ela, eliminando vazamento.
+- Agora preenche **automaticamente**: `ano`, `bimestre`, `componente_codigo`, `etapa`, `eixo_estruturante` diretamente dos cabeçalhos da tabela.
+- Trade-off: ~10 códigos perdidos em páginas com estrutura atípica (138 vs 148 antes), mas **qualidade massivamente superior**.
+
+**Fix complementar**: `routers/curriculum_import.py` agora propaga `bimestre` e `eixo_estruturante` do extractor → `CurriculumImportItem` → `CurriculumSkill` no commit.
+
+**Re-importação concluída**: 138 habilidades de LP extraídas do DCM Floresta do Araguaia, todas com `ano` E `bimestre` preenchidos. Exemplo validado:
+```
+EF03LP01 | Ano: 3 | Bimestre: 1
+Descrição: "Ler e escrever palavras com correspondências regulares contextuais entre grafemas e fonemas – c/qu; g/gu; r/rr; s/ss; o (e não u) e e (e não i) em sílaba átona em final de palavra – e com marcas de nasalidade (til, m, n)."
+```
+Distribuição balanceada: 4 anos × 4 bimestres com 1-9 habilidades cada.
+
 ### Importador de Currículo PDF → Extração → Revisão → Importação (May 2026) ✅
 **Pipeline completo** para escalar ingestão de BNCC/DCM com qualidade.
 
