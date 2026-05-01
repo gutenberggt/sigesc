@@ -150,6 +150,22 @@ export default function SpellCheckTextarea({
     setActiveMatchIdx(idx);
   }, [matches, value]);
 
+  /** Alt+Enter dentro de um erro → aplica a 1ª sugestão (atalho estilo Google Docs). */
+  const handleKeyDown = useCallback((e) => {
+    if (!(e.altKey && e.key === 'Enter')) return;
+    if (!textareaRef.current || matches.length === 0) return;
+    const caret = textareaRef.current.selectionStart;
+    const idx = matches.findIndex(m => caret >= m.offset && caret <= m.offset + m.length);
+    if (idx === -1) return;
+    const m = matches[idx];
+    if (!m.replacements || m.replacements.length === 0) return;
+    e.preventDefault();
+    const replacement = m.replacements[0];
+    const newValue = value.slice(0, m.offset) + replacement + value.slice(m.offset + m.length);
+    onChange?.({ target: { value: newValue } });
+    setActiveMatchIdx(-1);
+  }, [matches, value, onChange]);
+
   /** Aplica uma sugestão ao valor e dispara onChange. */
   const applySuggestion = (matchIdx, replacement) => {
     const m = matches[matchIdx];
@@ -214,6 +230,7 @@ export default function SpellCheckTextarea({
         onScroll={handleScroll}
         onClick={handleSelect}
         onKeyUp={handleSelect}
+        onKeyDown={handleKeyDown}
         onBlur={() => setTimeout(() => setActiveMatchIdx(-1), 150)}
         placeholder={placeholder}
         disabled={disabled}
@@ -274,14 +291,21 @@ export default function SpellCheckTextarea({
           ) : (
             <div className="text-[11px] text-gray-400 italic">Sem sugestão — revise manualmente.</div>
           )}
-          <button
-            type="button"
-            onMouseDown={(e) => { e.preventDefault(); ignoreActive(); }}
-            className="mt-2 text-[10px] text-gray-500 hover:text-gray-800"
-            data-testid="spellcheck-popover-ignore"
-          >
-            Ignorar
-          </button>
+          <div className="flex items-center justify-between mt-2 gap-2">
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); ignoreActive(); }}
+              className="text-[10px] text-gray-500 hover:text-gray-800"
+              data-testid="spellcheck-popover-ignore"
+            >
+              Ignorar
+            </button>
+            {matches[activeMatchIdx].replacements.length > 0 && (
+              <span className="text-[10px] text-gray-400 italic">
+                Alt+Enter aplica a 1ª sugestão
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import axios from 'axios';
-import SpellCheckButton from '@/components/SpellCheckButton';
+import SpellCheckTextarea from '@/components/SpellCheckTextarea';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -498,15 +498,8 @@ export default function PreMatricula() {
           
           {/* Observações */}
           <div className="bg-white rounded-lg border p-6">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="observacoes">Observações (opcional)</Label>
-              <SpellCheckButton
-                text={formData.observacoes}
-                onApply={(t) => updateFormData('observacoes', t)}
-                compact
-              />
-            </div>
-            <textarea
+            <Label htmlFor="observacoes">Observações (opcional)</Label>
+            <SpellCheckTextarea
               id="observacoes"
               value={formData.observacoes}
               onChange={(e) => updateFormData('observacoes', e.target.value)}
