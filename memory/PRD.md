@@ -334,6 +334,38 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Current Backlog
 
+### Módulo de Currículo BNCC/DCM — Sprint A (May 2026) ✅
+**Catálogo curricular vivo**: SIGESC agora indexa Componentes, Habilidades (com código BNCC tipo `EF03MA02`) e Metodologias.
+
+**Models** (`models.py`):
+- `CurriculumComponent` — Língua Portuguesa, Matemática, Computação, Estudos Amazônicos (DCM Floresta do Araguaia), etc. Campo `eixo_estruturante` para os 4 eixos do DCM ("Linguagem e suas Formas Comunicativas", etc.). `etapa` ∈ infantil/anos_iniciais/anos_finais/eja/medio. `fonte` ∈ BNCC/BNCC_COMPUTACAO/DCM_FA/MUNICIPAL.
+- `CurriculumSkill` — `codigo` único (ex.: EF03MA02), `descricao`, `ano` (1-9), `bimestre` (1-4 — DCM organiza por bimestre), `objeto_conhecimento`, `unidade_tematica`, `metodos_recomendados[]`.
+- `CurriculumMethod` — biblioteca de metodologias reutilizáveis (Sequência didática, Resolução de problemas, etc.).
+
+**Router** (`/api/curriculum/`):
+- `GET /components`, `GET /skills?componente_id&ano&bimestre&fonte&etapa&q&limit&offset`, `GET /skills/{codigo}`, `GET /methods`, `GET /stats`.
+- `POST/PUT/DELETE` em components/skills/methods restritos a super_admin via `nav-curriculum-button` (Matriz de Permissões).
+- Soft-delete de componente com skills vinculadas (não destrói dados); hard-delete se vazio.
+- Atualização de código de componente repropaga `componente_codigo` em skills.
+
+**Seed** (`seeds/seed_computacao_bncc.py`):
+- BNCC complementar de Computação (Resolução CNE/CP nº 1/2022) — 41 habilidades cobrindo os 3 eixos (Pensamento Computacional, Mundo Digital, Cultura Digital) × Educação Infantil + Anos Iniciais (1º-5º) + Anos Finais (6º-9º).
+- 8 metodologias-base (Programação em blocos, Robótica, etc.).
+- Idempotência forte via IDs determinísticos (`hashlib.sha1`) — rodar 2x não duplica.
+- Executa automaticamente no startup do FastAPI (`@app.on_event("startup")`).
+
+**Pytest** (`tests/test_curriculum_sprint_a.py`, 8/8 verde):
+1. `test_stats_after_seed` — totais corretos (41 skills BNCC_COMPUTACAO).
+2. `test_get_skill_by_codigo` — EF03CO01 retorna skill + componente aninhado.
+3. `test_filter_skills_by_ano` — `?ano=4` retorna 4 habilidades.
+4. `test_text_search` — `?q=algoritmo` encontra resultados.
+5. `test_get_skill_404_unknown` — código inexistente → 404.
+6. `test_component_crud_super_admin` — POST/PUT/DELETE completo.
+7. `test_seed_idempotency` — segunda execução não duplica.
+8. `test_skills_pagination` — limit/offset funcionam.
+
+**Próximo (Sprint B)**: página `/admin/curriculo` (UI editável) + combobox "Habilidade BNCC" no `LearningObjects.js` que pré-preenche o conteúdo a partir do código.
+
 ### Migração Total para Inline + Atalho Alt+Enter (May 2026)
 - **17 campos restantes** migrados de `SpellCheckButton` (modal) para `SpellCheckTextarea` (sublinhado inline): ActionPlans (descrição), PreMatricula (observações), StudentsComplete (8 campos), DiarioAEE atendimento (3) + templates (4).
 - **Atalho Alt+Enter** dentro de palavra sublinhada aplica automaticamente a 1ª sugestão (estilo Google Docs). Implementado via `handleKeyDown` em `SpellCheckTextarea.jsx`.

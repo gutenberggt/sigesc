@@ -2586,3 +2586,121 @@ class PayrollOccurrenceUpdate(BaseModel):
     document_url: Optional[str] = None
     document_number: Optional[str] = None
     status: Optional[Literal['active', 'cancelled']] = None
+
+
+# ============= CURRICULUM MODELS (BNCC / DCM Floresta do Araguaia) =============
+# Sprint A — May 2026: catálogo curricular vivo no SIGESC.
+#
+# Hierarquia: Eixo Estruturante → Componente Curricular → Habilidade (BNCC/DCM)
+#                                                       ↘ Atividade sugerida
+#                                                       ↘ Método pedagógico
+#
+# Fontes suportadas:
+#   - "BNCC"            : Base Nacional Comum Curricular (regular)
+#   - "BNCC_COMPUTACAO" : BNCC complementar de Computação (Resolução CNE/CP nº 1/2022)
+#   - "DCM_FA"          : Documento Curricular Municipal de Floresta do Araguaia
+#   - "MUNICIPAL"       : adaptações específicas adicionadas pelo super_admin via UI
+
+CURRICULUM_FONTE = Literal['BNCC', 'BNCC_COMPUTACAO', 'DCM_FA', 'MUNICIPAL']
+CURRICULUM_ETAPA = Literal['infantil', 'anos_iniciais', 'anos_finais', 'eja', 'medio']
+
+
+class CurriculumComponent(BaseModel):
+    """Componente curricular (Matemática, Língua Portuguesa, Estudos Amazônicos, Computação...)."""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    codigo: str  # ex.: "LP", "MA", "EA" (Estudos Amazônicos), "CO" (Computação)
+    nome: str
+    eixo_estruturante: Optional[str] = None  # ex.: "Linguagem e suas Formas Comunicativas"
+    etapa: CURRICULUM_ETAPA
+    fonte: CURRICULUM_FONTE = 'BNCC'
+    descricao: Optional[str] = None
+    ordem: int = 0
+    ativo: bool = True
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: Optional[str] = None
+
+
+class CurriculumComponentCreate(BaseModel):
+    codigo: str
+    nome: str
+    eixo_estruturante: Optional[str] = None
+    etapa: CURRICULUM_ETAPA
+    fonte: CURRICULUM_FONTE = 'MUNICIPAL'
+    descricao: Optional[str] = None
+    ordem: int = 0
+
+
+class CurriculumComponentUpdate(BaseModel):
+    codigo: Optional[str] = None
+    nome: Optional[str] = None
+    eixo_estruturante: Optional[str] = None
+    etapa: Optional[CURRICULUM_ETAPA] = None
+    descricao: Optional[str] = None
+    ordem: Optional[int] = None
+    ativo: Optional[bool] = None
+
+
+class CurriculumSkill(BaseModel):
+    """Habilidade BNCC/DCM. O `codigo` (ex.: EF03MA02) é a chave de negócio."""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    codigo: str  # ex.: "EF01LP02", "EF03MA05", "DCM_EA_01_01" (próprio)
+    descricao: str
+    componente_id: str
+    componente_codigo: Optional[str] = None  # denormalizado para queries rápidas
+    ano: Optional[int] = None  # 1-9; None para Ed. Infantil
+    bimestre: Optional[int] = None  # 1-4 (DCM organiza por bimestre)
+    objeto_conhecimento: Optional[str] = None
+    unidade_tematica: Optional[str] = None
+    fonte: CURRICULUM_FONTE = 'BNCC'
+    metodos_recomendados: List[str] = Field(default_factory=list)  # ids de CurriculumMethod
+    ativo: bool = True
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: Optional[str] = None
+
+
+class CurriculumSkillCreate(BaseModel):
+    codigo: str
+    descricao: str
+    componente_id: str
+    ano: Optional[int] = None
+    bimestre: Optional[int] = None
+    objeto_conhecimento: Optional[str] = None
+    unidade_tematica: Optional[str] = None
+    fonte: CURRICULUM_FONTE = 'MUNICIPAL'
+    metodos_recomendados: List[str] = Field(default_factory=list)
+
+
+class CurriculumSkillUpdate(BaseModel):
+    codigo: Optional[str] = None
+    descricao: Optional[str] = None
+    componente_id: Optional[str] = None
+    ano: Optional[int] = None
+    bimestre: Optional[int] = None
+    objeto_conhecimento: Optional[str] = None
+    unidade_tematica: Optional[str] = None
+    metodos_recomendados: Optional[List[str]] = None
+    ativo: Optional[bool] = None
+
+
+class CurriculumMethod(BaseModel):
+    """Metodologia/proposta pedagógica reutilizável."""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    nome: str  # ex.: "Sequência didática", "Resolução de problemas"
+    descricao: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)  # ex.: ["leitura", "escrita"]
+    ativo: bool = True
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: Optional[str] = None
+
+
+class CurriculumMethodCreate(BaseModel):
+    nome: str
+    descricao: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+
+
+class CurriculumMethodUpdate(BaseModel):
+    nome: Optional[str] = None
+    descricao: Optional[str] = None
+    tags: Optional[List[str]] = None
+    ativo: Optional[bool] = None

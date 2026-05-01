@@ -77,6 +77,7 @@ from routers import student_portal as student_portal_mod
 from routers import admin_student_users as admin_student_users_mod
 from routers import permission_overrides as permission_overrides_mod
 from routers import spellcheck as spellcheck_mod
+from routers import curriculum as curriculum_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
@@ -402,6 +403,14 @@ async def create_indexes():
             await seed_aee_templates(db)
         except Exception as exc:
             logger.warning(f"Seed AEE templates: ignorado por erro: {exc}")
+
+        # May 2026: Seed idempotente do Currículo (BNCC complementar de Computação).
+        try:
+            from seeds.seed_computacao_bncc import seed_computacao
+            stats = await seed_computacao(db)
+            logger.info(f"Seed Currículo Computação: {stats}")
+        except Exception as exc:
+            logger.warning(f"Seed Currículo Computação: ignorado por erro: {exc}")
         
     except Exception as e:
         logger.error(f"Erro ao criar índices MongoDB: {e}")
@@ -621,6 +630,7 @@ permission_overrides_mod.setup_router(db, audit_service)
 app.include_router(permission_overrides_mod.router, prefix="/api")
 spellcheck_mod.setup_router()
 app.include_router(spellcheck_mod.router, prefix="/api")
+app.include_router(curriculum_mod.setup_router(db), prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)
