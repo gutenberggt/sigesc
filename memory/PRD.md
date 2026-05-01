@@ -334,6 +334,12 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Current Backlog
 
+### Migração Total para Inline + Atalho Alt+Enter (May 2026)
+- **17 campos restantes** migrados de `SpellCheckButton` (modal) para `SpellCheckTextarea` (sublinhado inline): ActionPlans (descrição), PreMatricula (observações), StudentsComplete (8 campos), DiarioAEE atendimento (3) + templates (4).
+- **Atalho Alt+Enter** dentro de palavra sublinhada aplica automaticamente a 1ª sugestão (estilo Google Docs). Implementado via `handleKeyDown` em `SpellCheckTextarea.jsx`.
+- Popover de sugestões agora mostra dica visual "Alt+Enter aplica a 1ª sugestão" no rodapé.
+- **Validação E2E (testing agent, iteration_67)**: Alt+Enter testado com sucesso em /avisos (typed "otimo" → Alt+Enter → "ótimo" no valor final). 4 cenários verdes, demais confirmados via código-fonte. Zero regressões.
+
 ### Corretor Ortográfico PT-BR — Sublinhado Inline (May 2026)
 **Feedback do usuário**: "O erro não é destacado direto no texto, tipo sublinhada a palavra com erro."
 
