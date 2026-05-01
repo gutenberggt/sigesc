@@ -12,6 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from '@/components/ui/dialog';
 import { actionPlansAPI, schoolsAPI } from '@/services/api';
+import SpellCheckButton from '@/components/SpellCheckButton';
 
 const PRIORITY_LABELS = { low: 'Baixa', medium: 'Média', high: 'Alta', critical: 'Crítica' };
 const STATUS_LABELS = {
@@ -360,7 +361,14 @@ export default function ActionPlans() {
               />
             </div>
             <div>
-              <Label>Descrição</Label>
+              <div className="flex items-center justify-between">
+                <Label>Descrição</Label>
+                <SpellCheckButton
+                  text={form.description}
+                  onApply={(t) => setForm(f => ({ ...f, description: t }))}
+                  compact
+                />
+              </div>
               <textarea
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm min-h-[80px]"
                 value={form.description}

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
+import SpellCheckButton from '@/components/SpellCheckButton';
 import { Tabs } from '@/components/Tabs';
 import { studentsAPI, schoolsAPI, classesAPI, uploadAPI, documentsAPI, medicalCertificatesAPI, cpfAPI, enrollmentsAPI } from '@/services/api';
 import { formatPhone, formatCEP, formatCPF, formatNIS, formatSUS, isValidEmail, isValidCPF } from '@/utils/formatters';
@@ -2042,6 +2043,9 @@ export function StudentsComplete() {
       </div>
 
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-6">Justificativa de Ausência de Documentos</h3>
+      <div className="flex justify-end -mb-2">
+        <SpellCheckButton text={formData.no_documents_justification || ''} onApply={(t) => updateFormData('no_documents_justification', t)} compact disabled={viewMode} />
+      </div>
       <textarea
         value={formData.no_documents_justification}
         onChange={(e) => updateFormData('no_documents_justification', e.target.value)}
@@ -2513,7 +2517,10 @@ export function StudentsComplete() {
             ))}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Detalhes / Necessidades Especiais</label>
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Detalhes / Necessidades Especiais</label>
+              <SpellCheckButton text={formData.disability_details || ''} onApply={(t) => updateFormData('disability_details', t)} compact disabled={viewMode} />
+            </div>
             <textarea
               value={formData.disability_details}
               onChange={(e) => updateFormData('disability_details', e.target.value)}
@@ -3175,6 +3182,9 @@ export function StudentsComplete() {
       )}
 
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mt-8">Observações</h3>
+      <div className="flex justify-end -mb-2">
+        <SpellCheckButton text={formData.observations || ''} onApply={(t) => updateFormData('observations', t)} compact disabled={viewMode} />
+      </div>
       <textarea
         value={formData.observations}
         onChange={(e) => updateFormData('observations', e.target.value)}
@@ -3942,7 +3952,10 @@ export function StudentsComplete() {
               </p>
             </div>
             <div>
-              <label className="text-sm font-medium">Motivo do cancelamento *</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Motivo do cancelamento *</label>
+                <SpellCheckButton text={cancelReason} onApply={setCancelReason} compact />
+              </div>
               <textarea
                 className="w-full mt-1 border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 rows={3}
@@ -4222,7 +4235,10 @@ export function StudentsComplete() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                <SpellCheckButton text={certificateForm.notes || ''} onApply={(t) => setCertificateForm(prev => ({ ...prev, notes: t }))} compact />
+              </div>
               <textarea
                 value={certificateForm.notes}
                 onChange={(e) => setCertificateForm(prev => ({ ...prev, notes: e.target.value }))}
@@ -4364,9 +4380,12 @@ export function StudentsComplete() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Motivo do Cancelamento
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Motivo do Cancelamento
+                    </label>
+                    <SpellCheckButton text={actionData.reason || ''} onApply={(t) => setActionData(prev => ({ ...prev, reason: t }))} compact />
+                  </div>
                   <textarea
                     value={actionData.reason || ''}
                     onChange={(e) => setActionData(prev => ({ ...prev, reason: e.target.value }))}
@@ -4654,9 +4673,12 @@ export function StudentsComplete() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Motivo da Reclassificação
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Motivo da Reclassificação
+                    </label>
+                    <SpellCheckButton text={actionData.reason || ''} onApply={(t) => setActionData(prev => ({ ...prev, reason: t }))} compact />
+                  </div>
                   <textarea
                     value={actionData.reason || ''}
                     onChange={(e) => setActionData(prev => ({ ...prev, reason: e.target.value }))}
@@ -4697,9 +4719,12 @@ export function StudentsComplete() {
 
             {/* Observações (comum a todas as ações) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Observações
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Observações
+                </label>
+                <SpellCheckButton text={actionData.notes || ''} onApply={(t) => setActionData(prev => ({ ...prev, notes: t }))} compact />
+              </div>
               <textarea
                 value={actionData.notes}
                 onChange={(e) => setActionData(prev => ({ ...prev, notes: e.target.value }))}

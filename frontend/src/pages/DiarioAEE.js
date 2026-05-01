@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import PlanoAEEModal from '@/components/PlanoAEEModal';
+import SpellCheckButton from '@/components/SpellCheckButton';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -1343,7 +1344,10 @@ const DiarioAEE = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Atividade/Estratégia Realizada *</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Atividade/Estratégia Realizada *</label>
+                <SpellCheckButton text={atendimentoForm.atividade_realizada || ''} onApply={(t) => setAtendimentoForm({ ...atendimentoForm, atividade_realizada: t })} compact />
+              </div>
               <textarea
                 value={atendimentoForm.atividade_realizada}
                 onChange={(e) => setAtendimentoForm({ ...atendimentoForm, atividade_realizada: e.target.value })}
@@ -1366,7 +1370,10 @@ const DiarioAEE = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Resposta do Estudante</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Resposta do Estudante</label>
+                <SpellCheckButton text={atendimentoForm.resposta_estudante || ''} onApply={(t) => setAtendimentoForm({ ...atendimentoForm, resposta_estudante: t })} compact />
+              </div>
               <textarea
                 value={atendimentoForm.resposta_estudante}
                 onChange={(e) => setAtendimentoForm({ ...atendimentoForm, resposta_estudante: e.target.value })}
@@ -1376,7 +1383,10 @@ const DiarioAEE = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Encaminhamento Próximo Encontro</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Encaminhamento Próximo Encontro</label>
+                <SpellCheckButton text={atendimentoForm.encaminhamento_proximo || ''} onApply={(t) => setAtendimentoForm({ ...atendimentoForm, encaminhamento_proximo: t })} compact />
+              </div>
               <textarea
                 value={atendimentoForm.encaminhamento_proximo}
                 onChange={(e) => setAtendimentoForm({ ...atendimentoForm, encaminhamento_proximo: e.target.value })}
@@ -1957,7 +1967,10 @@ const DiarioAEE = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Descrição</label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Descrição</label>
+                  <SpellCheckButton text={templateForm.descricao || ''} onApply={(t) => setTemplateForm({ ...templateForm, descricao: t })} compact />
+                </div>
                 <textarea
                   value={templateForm.descricao}
                   onChange={(e) => setTemplateForm({ ...templateForm, descricao: e.target.value })}
@@ -2013,7 +2026,10 @@ const DiarioAEE = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Barreiras (uma por linha)</label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Barreiras (uma por linha)</label>
+                  <SpellCheckButton text={templateForm.barreiras_text || ''} onApply={(t) => setTemplateForm({ ...templateForm, barreiras_text: t })} compact />
+                </div>
                 <textarea
                   value={templateForm.barreiras_text}
                   onChange={(e) => setTemplateForm({ ...templateForm, barreiras_text: e.target.value })}
@@ -2023,9 +2039,12 @@ const DiarioAEE = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Objetivos (uma por linha; prefixe [curto], [medio] ou [longo])
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Objetivos (uma por linha; prefixe [curto], [medio] ou [longo])
+                  </label>
+                  <SpellCheckButton text={templateForm.objetivos_text || ''} onApply={(t) => setTemplateForm({ ...templateForm, objetivos_text: t })} compact />
+                </div>
                 <textarea
                   value={templateForm.objetivos_text}
                   onChange={(e) => setTemplateForm({ ...templateForm, objetivos_text: e.target.value })}
@@ -2035,7 +2054,10 @@ const DiarioAEE = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Recursos de acessibilidade (um por linha)</label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Recursos de acessibilidade (um por linha)</label>
+                  <SpellCheckButton text={templateForm.recursos_text || ''} onApply={(t) => setTemplateForm({ ...templateForm, recursos_text: t })} compact />
+                </div>
                 <textarea
                   value={templateForm.recursos_text}
                   onChange={(e) => setTemplateForm({ ...templateForm, recursos_text: e.target.value })}
