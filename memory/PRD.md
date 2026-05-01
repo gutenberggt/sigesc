@@ -334,6 +334,28 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Current Backlog
 
+### Corretor Ortográfico PT-BR — Sublinhado Inline (May 2026)
+**Feedback do usuário**: "O erro não é destacado direto no texto, tipo sublinhada a palavra com erro."
+
+**Solução**: novo componente `SpellCheckTextarea` (`/app/frontend/src/components/SpellCheckTextarea.jsx`) substitui o `<textarea>` nativo com técnica de **overlay espelhado**:
+- Uma `<div>` absoluta atrás do textarea, com o mesmo `className` (padding, font, line-height), renderiza o texto quebrado em `<span>`s. Spans de erro recebem `underline decoration-wavy` com cores por tipo (rosa=ortografia, âmbar=gramática, azul=estilo, violeta=pontuação).
+- Textarea fica visível por cima com `spellCheck={false}` (para não duplicar com o corretor nativo do browser).
+- Overlay recebe `textTransform: uppercase` inline para alinhar com a regra global do SIGESC (`index.css` L107-122).
+- Scroll do textarea é espelhado no overlay.
+- Debounce de 800ms após cada edição; chamada a `/api/spellcheck` é abortada se o usuário continuar digitando (AbortController).
+- **Popover de sugestões**: ao posicionar cursor dentro de uma palavra sublinhada (`onClick`/`onKeyUp`), abre popover com a mensagem + 4 melhores sugestões. Clique em "Aplicar" substitui o trecho e reexecuta o check.
+- Badge vermelho no canto superior direito mostra contagem total de erros `[data-testid=spellcheck-indicator]`.
+
+**Migração** (textareas nativos → SpellCheckTextarea):
+- `pages/Announcements.js` — Conteúdo
+- `pages/LearningObjects.js` — Conteúdo e Observações
+- `components/PlanoAEEModal.js` — helper local `SpellTextField` encapsula label + SpellCheckTextarea em 11 campos livres
+
+**Validação E2E (testing agent, iteration_66)**: 100% dos 2 cenários testados verdes. Confirmado: indicador aparece, sublinhados ondulados renderizam sob as palavras erradas com alinhamento pixel-perfect mesmo com `text-transform: uppercase`, popover abre ao clicar/posicionar cursor na palavra, sugestão é aplicada e valor final correto. `pointer-events-none` no overlay preserva 100% das interações do textarea (digitação, cursor, scroll).
+
+**Trade-offs**:
+- O componente `SpellCheckButton` (modal com lista completa) continua disponível para uso secundário onde inline não faz sentido (ex.: forms compactos, quando user quer "revisar tudo de uma vez"). Os 17 campos migrados na rodada anterior ainda usam o botão — se você quiser trocar todos para o overlay inline, é 1 rodada de search_replace.
+
 ### Corretor Ortográfico PT-BR (LanguageTool, May 2026)
 **Feature**: corretor ortográfico + gramatical em português (Brasil), 100% gratuito, integrado a 3 telas de alta escrita.
 
