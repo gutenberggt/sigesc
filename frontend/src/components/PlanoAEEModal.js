@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Users, Target, Activity, BookOpen, Clock, Calendar, ChevronDown } from 'lucide-react';
-import SpellCheckButton from '@/components/SpellCheckButton';
+import SpellCheckTextarea from '@/components/SpellCheckTextarea';
 
-/** Label de campo com botão de revisão ortográfica embutido. */
-const LabelWithSpell = ({ label, text, onApply }) => (
-  <div className="flex items-center justify-between mb-1">
-    <label className="block text-sm font-medium text-gray-700">{label}</label>
-    <SpellCheckButton text={text} onApply={onApply} compact />
+/** Textarea com corretor PT-BR + label — substitui o padrão label + textarea em todos os campos livres. */
+const SpellTextField = ({ label, value, onChange, rows = 2, placeholder, className = '' }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <SpellCheckTextarea
+      value={value || ''}
+      onChange={(e) => onChange(e.target.value)}
+      rows={rows}
+      placeholder={placeholder}
+      className={`w-full border rounded-lg px-3 py-2 ${className}`}
+    />
   </div>
 );
 
@@ -296,22 +302,34 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
               <Activity size={18} /> Linha de Base / Perfil do Estudante
             </h3>
             <div className="space-y-4">
-              <div>
-                <LabelWithSpell label="Situação Atual" text={form.linha_base_situacao_atual} onApply={(t) => handleChange('linha_base_situacao_atual', t)} />
-                <textarea value={form.linha_base_situacao_atual} onChange={(e) => handleChange('linha_base_situacao_atual', e.target.value)} className="w-full border rounded-lg px-3 py-2" rows={3} placeholder="Descreva a situação atual do estudante..." />
-              </div>
-              <div>
-                <LabelWithSpell label="Potencialidades" text={form.linha_base_potencialidades} onApply={(t) => handleChange('linha_base_potencialidades', t)} />
-                <textarea value={form.linha_base_potencialidades} onChange={(e) => handleChange('linha_base_potencialidades', e.target.value)} className="w-full border rounded-lg px-3 py-2" rows={2} placeholder="Pontos fortes e habilidades..." />
-              </div>
-              <div>
-                <LabelWithSpell label="Dificuldades Observadas" text={form.linha_base_dificuldades} onApply={(t) => handleChange('linha_base_dificuldades', t)} />
-                <textarea value={form.linha_base_dificuldades} onChange={(e) => handleChange('linha_base_dificuldades', e.target.value)} className="w-full border rounded-lg px-3 py-2" rows={2} placeholder="Desafios e áreas que necessitam de apoio..." />
-              </div>
-              <div>
-                <LabelWithSpell label="Formas de Comunicação e Participação" text={form.linha_base_comunicacao} onApply={(t) => handleChange('linha_base_comunicacao', t)} />
-                <textarea value={form.linha_base_comunicacao} onChange={(e) => handleChange('linha_base_comunicacao', e.target.value)} className="w-full border rounded-lg px-3 py-2" rows={2} placeholder="Como o estudante se comunica e participa..." />
-              </div>
+              <SpellTextField
+                label="Situação Atual"
+                value={form.linha_base_situacao_atual}
+                onChange={(t) => handleChange('linha_base_situacao_atual', t)}
+                rows={3}
+                placeholder="Descreva a situação atual do estudante..."
+              />
+              <SpellTextField
+                label="Potencialidades"
+                value={form.linha_base_potencialidades}
+                onChange={(t) => handleChange('linha_base_potencialidades', t)}
+                rows={2}
+                placeholder="Pontos fortes e habilidades..."
+              />
+              <SpellTextField
+                label="Dificuldades Observadas"
+                value={form.linha_base_dificuldades}
+                onChange={(t) => handleChange('linha_base_dificuldades', t)}
+                rows={2}
+                placeholder="Desafios e áreas que necessitam de apoio..."
+              />
+              <SpellTextField
+                label="Formas de Comunicação e Participação"
+                value={form.linha_base_comunicacao}
+                onChange={(t) => handleChange('linha_base_comunicacao', t)}
+                rows={2}
+                placeholder="Como o estudante se comunica e participa..."
+              />
             </div>
           </div>
 
@@ -321,18 +339,9 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
               <Target size={18} /> Barreiras, Objetivos e Recursos
             </h3>
             <div className="space-y-4">
-              <div>
-                <LabelWithSpell label="Barreiras Identificadas" text={form.barreiras} onApply={(t) => handleChange('barreiras', t)} />
-                <textarea value={form.barreiras} onChange={(e) => handleChange('barreiras', e.target.value)} className="w-full border rounded-lg px-3 py-2" rows={3} placeholder="Uma barreira por linha (ex: Comunicação, Mobilidade, Aprendizagem...)" />
-              </div>
-              <div>
-                <LabelWithSpell label="Objetivos do Plano" text={form.objetivos} onApply={(t) => handleChange('objetivos', t)} />
-                <textarea value={form.objetivos} onChange={(e) => handleChange('objetivos', e.target.value)} className="w-full border rounded-lg px-3 py-2" rows={3} placeholder="Um objetivo por linha" />
-              </div>
-              <div>
-                <LabelWithSpell label="Recursos de Acessibilidade" text={form.recursos_acessibilidade} onApply={(t) => handleChange('recursos_acessibilidade', t)} />
-                <textarea value={form.recursos_acessibilidade} onChange={(e) => handleChange('recursos_acessibilidade', e.target.value)} className="w-full border rounded-lg px-3 py-2" rows={3} placeholder="Um recurso por linha (ex: Software de leitura, Prancha de comunicação...)" />
-              </div>
+              <SpellTextField label="Barreiras Identificadas" value={form.barreiras} onChange={(t) => handleChange('barreiras', t)} rows={3} placeholder="Uma barreira por linha (ex: Comunicação, Mobilidade, Aprendizagem...)" />
+              <SpellTextField label="Objetivos do Plano" value={form.objetivos} onChange={(t) => handleChange('objetivos', t)} rows={3} placeholder="Um objetivo por linha" />
+              <SpellTextField label="Recursos de Acessibilidade" value={form.recursos_acessibilidade} onChange={(t) => handleChange('recursos_acessibilidade', t)} rows={3} placeholder="Um recurso por linha (ex: Software de leitura, Prancha de comunicação...)" />
             </div>
           </div>
 
@@ -390,10 +399,7 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
               <BookOpen size={18} /> Avaliação e Monitoramento
             </h3>
             <div className="space-y-4">
-              <div>
-                <LabelWithSpell label="Indicadores de Progresso" text={form.indicadores_progresso} onApply={(t) => handleChange('indicadores_progresso', t)} />
-                <textarea value={form.indicadores_progresso} onChange={(e) => handleChange('indicadores_progresso', e.target.value)} className="w-full border rounded-lg px-3 py-2" rows={2} placeholder="Indicadores para avaliar o progresso do estudante..." />
-              </div>
+              <SpellTextField label="Indicadores de Progresso" value={form.indicadores_progresso} onChange={(t) => handleChange('indicadores_progresso', t)} rows={2} placeholder="Indicadores para avaliar o progresso do estudante..." />
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Frequência de Revisão</label>
@@ -418,22 +424,10 @@ export default function PlanoAEEModal({ show, onClose, onSave, editingPlano, est
               <BookOpen size={18} /> Articulação com a Sala Comum
             </h3>
             <div className="space-y-4">
-              <div>
-                <LabelWithSpell label="Orientações para Sala Comum" text={form.orientacoes_sala_comum} onApply={(t) => handleChange('orientacoes_sala_comum', t)} />
-                <textarea value={form.orientacoes_sala_comum} onChange={(e) => handleChange('orientacoes_sala_comum', e.target.value)} className="w-full border rounded-lg px-3 py-2" rows={3} placeholder="Orientações e estratégias para o professor da sala regular..." />
-              </div>
-              <div>
-                <LabelWithSpell label="Combinados com o Professor Regente" text={form.combinados_professor_regente} onApply={(t) => handleChange('combinados_professor_regente', t)} />
-                <textarea value={form.combinados_professor_regente} onChange={(e) => handleChange('combinados_professor_regente', e.target.value)} className="w-full border rounded-lg px-3 py-2" rows={2} placeholder="Acordos e combinados com o professor da sala regular..." />
-              </div>
-              <div>
-                <LabelWithSpell label="Adequações Curriculares" text={form.adequacoes_curriculares} onApply={(t) => handleChange('adequacoes_curriculares', t)} />
-                <textarea value={form.adequacoes_curriculares} onChange={(e) => handleChange('adequacoes_curriculares', e.target.value)} className="w-full border rounded-lg px-3 py-2" rows={2} placeholder="Adaptações curriculares necessárias por componente..." />
-              </div>
-              <div>
-                <LabelWithSpell label="Adaptações por Componente Curricular" text={form.adaptacoes_por_componente} onApply={(t) => handleChange('adaptacoes_por_componente', t)} />
-                <textarea value={form.adaptacoes_por_componente} onChange={(e) => handleChange('adaptacoes_por_componente', e.target.value)} className="w-full border rounded-lg px-3 py-2" rows={2} placeholder="Adaptações específicas para cada componente curricular..." />
-              </div>
+              <SpellTextField label="Orientações para Sala Comum" value={form.orientacoes_sala_comum} onChange={(t) => handleChange('orientacoes_sala_comum', t)} rows={3} placeholder="Orientações e estratégias para o professor da sala regular..." />
+              <SpellTextField label="Combinados com o Professor Regente" value={form.combinados_professor_regente} onChange={(t) => handleChange('combinados_professor_regente', t)} rows={2} placeholder="Acordos e combinados com o professor da sala regular..." />
+              <SpellTextField label="Adequações Curriculares" value={form.adequacoes_curriculares} onChange={(t) => handleChange('adequacoes_curriculares', t)} rows={2} placeholder="Adaptações curriculares necessárias por componente..." />
+              <SpellTextField label="Adaptações por Componente Curricular" value={form.adaptacoes_por_componente} onChange={(t) => handleChange('adaptacoes_por_componente', t)} rows={2} placeholder="Adaptações específicas para cada componente curricular..." />
             </div>
           </div>
 

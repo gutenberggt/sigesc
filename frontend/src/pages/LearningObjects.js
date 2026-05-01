@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useBimestreEditStatus } from '@/hooks/useBimestreEditStatus';
 import { BimestreBlockedAlert, BimestreDeadlineAlert } from '@/components/BimestreStatus';
-import SpellCheckButton from '@/components/SpellCheckButton';
+import SpellCheckTextarea from '@/components/SpellCheckTextarea';
 import { 
   BookOpen, 
   Calendar, 
@@ -1232,17 +1232,10 @@ export const LearningObjects = () => {
 
                     {/* Conteúdo */}
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Conteúdo/Objeto de Conhecimento *
-                        </label>
-                        <SpellCheckButton
-                          text={formData.content}
-                          onApply={(t) => { setFormData({ ...formData, content: t }); setHasChanges(true); }}
-                          compact
-                        />
-                      </div>
-                      <textarea
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Conteúdo/Objeto de Conhecimento *
+                      </label>
+                      <SpellCheckTextarea
                         value={formData.content}
                         onChange={(e) => { setFormData({ ...formData, content: e.target.value }); setHasChanges(true); }}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 h-24 resize-none"
@@ -1307,17 +1300,10 @@ export const LearningObjects = () => {
                     {/* Observações — oculto para Ed. Infantil, Anos Iniciais e Anos Finais */}
                     {!isDiasLevel && !isAnosFinais && (
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Observações
-                        </label>
-                        <SpellCheckButton
-                          text={formData.observations}
-                          onApply={(t) => { setFormData({ ...formData, observations: t }); setHasChanges(true); }}
-                          compact
-                        />
-                      </div>
-                      <textarea
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Observações
+                      </label>
+                      <SpellCheckTextarea
                         value={formData.observations}
                         onChange={(e) => { setFormData({ ...formData, observations: e.target.value }); setHasChanges(true); }}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 h-16 resize-none"

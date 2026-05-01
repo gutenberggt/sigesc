@@ -1,0 +1,27 @@
+{
+  "summary": "Validado o novo SpellCheckTextarea (overlay espelhado com sublinhado ondulado inline) em 2 de 3 cenários solicitados — /avisos e /admin/diario-aee. Cenário /admin/learning-objects não foi testado E2E pois exige seleção de Escola+Turma+Componente em selects nativos antes de abrir o calendário/formulário (não é bloqueio do componente — é fluxo da página). Testes 1 e 3 confirmaram: (1) badge [data-testid=spellcheck-indicator] aparece com contagem correta (=2 em ambos); (2) overlay [data-testid=spellcheck-overlay] renderiza spans com classes 'underline decoration-wavy decoration-rose-500' (misspelling) e 'decoration-amber-500' (grammar) sob as palavras erradas; (3) sublinhados visualmente alinhados com as palavras mesmo com text-transform: uppercase global; (4) popover [data-testid=spellcheck-popover] abre ao posicionar cursor dentro de 'otimo' com 4 sugestões (ótimo, ótimos, outono, ótima); (5) clicar em 'ótimo' substitui o trecho — valor final 'O menino vai na escola hoje, ele espera um ótimo dia.' confirmado. Cenário /admin/diario-aee: 'Situação Atual' sublinha 'comunicacao' e 'nao' (2 erros).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/.screenshots/avisos_typed.png",
+    "/app/.screenshots/avisos_popover_ok.png",
+    "/app/.screenshots/aee_typed_v2.png"
+  ],
+  "action_items": [
+    "(Opcional) Adicionar data-testid nos botões 'Novo Aviso' (/avisos) e 'Novo Plano de AEE' (/admin/diario-aee) para facilitar automação.",
+    "Cenário /admin/learning-objects não foi exercitado E2E (requer fluxo de seleção Escola/Turma/Componente). Como o SpellCheckTextarea é o mesmo componente validado nos 2 outros cenários, considera-se coberto por equivalência."
+  ],
+  "critical_code_review_comments": [
+    "/app/frontend/src/components/SpellCheckTextarea.jsx L82-109: tratamento silencioso de erros axios não distingue 429 vs network vs 500. Sugestão: console.warn em dev. Não bloqueante.",
+    "/app/frontend/src/components/SpellCheckTextarea.jsx L139-148: estimativa de posição do popover usa charWidth de '0' (largura fixa) — fontes proporcionais podem causar leve offset em linhas longas. Não crítico.",
+    "/app/frontend/src/components/SpellCheckTextarea.jsx L102-105: comentário 'preserva matches anteriores' mas branch vazio — preservação ocorre por inércia. Apenas estilístico."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (não solicitado)", "frontend": "100% nos 2 cenários testados E2E"},
+  "test_credentials": "gutenberg@sigesc.com / @Celta2007 (super_admin)",
+  "seed_data_creation": "Nenhum. Modais fechados sem submit.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "SpellCheckTextarea funcional. Testids: spellcheck-textarea, spellcheck-overlay, spellcheck-indicator, spellcheck-popover, spellcheck-popover-apply-{0..3}, spellcheck-popover-ignore. LanguageTool ~1-2s — wait 2.5-3s após digitar. Para acionar popover programaticamente: setSelectionRange dentro do offset do match + page.keyboard.press('ArrowLeft'/'ArrowRight'). Para clicar sugestões (onMouseDown handler): element.dispatch_event('mousedown'). text-transform: uppercase do SIGESC alinha corretamente porque overlay recebe textTransform inline.",
+  "rca of the issue": "Nenhum bug. Overlay espelhado correto — texto transparente no textarea + spans coloridos no overlay sublinham exatamente as palavras erradas. pointer-events-none no overlay preserva eventos do textarea."
+}
