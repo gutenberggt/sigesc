@@ -672,3 +672,56 @@ Em "Gestão Institucional":
 - (P2) Relatório CSV de migração skill_codigos → adaptation_ids para ops.
 - (P2) Deprecação oficial de `skill_codigos` após 30 dias.
 - (P3) Extração BNCC nacional completa via CSV oficial MEC.
+
+
+---
+
+## 2026-02 — Sprint C: Feed de Intervenções Necessárias (gestão ativa)
+
+### Diretriz do usuário
+"O sistema deixa de ser painel e vira mecanismo de gestão ativa. Controle > estética."
+
+### Arquitetura (híbrido in-app + e-mail, fallback automático)
+- **Collection `intervention_alerts`**: um alerta por (school_id, class_id, component_id, ano, bimestre). Campos: `status` (em_risco|nao_cumpre|fechado_critico), `escalation_level` (1|2|3), `first_detected_at`, `last_notified_at`, `last_coverage_pct`, `resolved_at`.
+- **Collection `intervention_notifications`**: inbox in-app por usuário, com `link` profundo para o slot em `/admin/curriculo/cobertura?class_id&component&ano&bim`.
+- **Detecção semanal**: APScheduler `CronTrigger(day_of_week='mon', hour=7, minute=0, timezone='UTC')` roda `services/intervention_detector.py`.
+- **Gatilho**: `status == em_risco || nao_cumpre || (bim fechado && <90%)`.
+- **Escalonamento por tempo sem resolver**: 0–1 sem → Nível 1 (coord) · 2–3 sem → Nível 2 (diretor + coord) · ≥4 sem → Nível 3 (secretaria + diretor + coord).
+- **Anti-spam**: novo e-mail/in-app só dispara se `last_notified_at > 7 dias`.
+- **Fallback automático**: sem `RESEND_API_KEY` → in-app sozinho + warning log. Sistema NÃO trava por dependência externa.
+- **Auto-resolução**: se cobertura ≥ 90% na próxima rodada, alerta é marcado como `resolved_at` automaticamente (e sai do feed).
+
+### Backend entregue
+- `/app/backend/services/intervention_detector.py` — detecção por turma, upsert idempotente, cálculo de escalonamento, envio híbrido.
+- `/app/backend/routers/interventions.py` — endpoints:
+  - `GET  /api/intervencoes` — feed ordenado por severidade+antiguidade (escopo por escola se não super_admin)
+  - `GET  /api/intervencoes/notifications` — inbox do usuário + contador `unread`
+  - `POST /api/intervencoes/notifications/{id}/read` + `/read-all`
+  - `POST /api/intervencoes/{id}/resolve` — resolve manual
+  - `POST /api/intervencoes/run-detection` — trigger manual (admin/debug)
+- Scheduler inicializado no setup_router (singleton).
+
+### Frontend entregue
+- **Página `/admin/intervencoes`**: resumo (ativas/críticas/nível 3), lista com badge de status, nível de escalonamento (Coord→Direção→Secretaria), semanas sem resolver, botões "Resolver agora" (link direto com query params) + "✓" (marcar resolvido).
+- **Dashboard**: novo item "Intervenções Necessárias" (ícone Siren vermelho) visível para super_admin/admin/coord/diretor/secretário.
+
+### E-mail (Resend)
+- Template HTML com assunto "⚠️ Intervenção necessária — Cobertura curricular em risco", corpo curto (Turma + Componente + Bimestre + Status + % cobertura + Previsão), CTA "Resolver agora" com link direto.
+- Disparo somente se `RESEND_API_KEY` E `RESEND_SENDER_EMAIL` configurados.
+
+### Testes (3 PASS em `test_interventions.py`)
+1. `run-detection` cria alertas `nao_cumpre` com pct=0 e nível 1 — PASS.
+2. Idempotência: 2ª rodada não duplica — PASS.
+3. Resolve manual: alerta sai do feed ativo, aparece em `include_resolved=true` — PASS.
+
+### E2E manual
+- POST `/run-detection` criou 60 alertas para dados reais do sistema.
+- Página `/admin/intervencoes` renderiza com resumo 66/66, cards de escalonamento, botão "Resolver agora" linkando ao slot em Cobertura.
+
+### Próximos passos (Sprint D se solicitado)
+- 🟠 (P1) Bell icon no header exibindo `/notifications` com badge de unread.
+- 🟠 (P1) Plano de ação automático por escola (gerado a partir dos alertas) — fecha ciclo detectar → alertar → orientar → cobrar → medir.
+- 🟠 (P1) Ranking de gestores por taxa de resolução (accountability real).
+- ⚪ (P2) Cards "habilidades mais usadas na turma" no topo do SkillPicker (UX).
+- ⚪ (P3) Deprecação oficial de `skill_codigos` após 30 dias.
+
