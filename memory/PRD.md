@@ -588,3 +588,46 @@ Ver `/app/memory/test_credentials.md` — super_admin primário: `gutenberg@sige
 - (P1) Sugestão "habilidades mais usadas na turma" no topo do dropdown (cache).
 - (P2) Carga horária zerada folha de pagamento, botão "Baixar em segundo plano" PDFs pesados, CSV estudantes via Resend, tooltips KPI Secretário, refactor `grade_calculator.py`, `App.js` lazy-load, HttpOnly cookies.
 
+
+
+---
+
+## 2026-02 — Currículo v2: Arquitetura Multi-Camadas (BNCC + DCM + Municipal)
+
+### Decisões de produto (Sprint A ajustada)
+- Máx 3 habilidades por registro de aula (UX + indicadores de cobertura limpos).
+- Retrocompat: `skill_codigos` coexiste com `adaptation_ids` por 30 dias + script de migração automático converte por match de código.
+- Obrigatoriedade **condicional**: `adaptation_id` obrigatório apenas quando existe ≥1 adaptation para (componente + ano + bimestre). Fluxos sem base DCM permanecem em texto livre.
+- Seed BNCC inicial: Computação (41) + núcleo LP/MA vindo do commit dos batches DCM (criado automaticamente na importação).
+
+### Novos modelos normalizados (3NF)
+- `bncc_skills`: núcleo nacional canônico, único por `codigo_bncc`. Sem bimestre.
+- `curriculum_components`: agora com `escopo` (NACIONAL|MUNICIPAL), `mantenedora_id`, `area_conhecimento`.
+- `curriculum_adaptations`: FK → bncc_skills + FK → component + `ano/bimestre/ordem` + `codigo_local` + `descricao_local`. Unique composto `(mantenedora_id, component_id, bncc_skill_id, codigo_local, ano, bimestre)`.
+- `curriculum_adaptation_methods`: 1:N com adaptation.
+- `learning_objects.adaptation_ids[]` (máx 3) + campos novos `evidencia_aprendizagem` + `pratica_pedagogica`.
+
+### Backend entregue
+- `/app/backend/services/curriculum_v2_migration.py` — migração idempotente (índices, backfill escopo em components, BNCC_COMPUTACAO → bncc_skills + adaptations, skill_codigos → adaptation_ids em learning_objects).
+- `/app/backend/routers/curriculum_v2.py` — endpoints: `/bncc`, `/adaptations` (catálogo flattened), `/adaptations/{id}` (joined BNCC+methods), `/adaptations/availability` (obrigatoriedade condicional), `POST /v2/migrate`, `/coverage`.
+- `/app/backend/routers/curriculum_import.py` — commit reescrito: cria `bncc_skills` (quando código BNCC), cria `curriculum_adaptations` (upsert por slot único), mantém `curriculum_skills` legado 30d.
+- `LearningObjectCreate` com validator: máximo de 3 `adaptation_ids`.
+
+### Frontend entregue
+- `SkillPicker.jsx` (v2): consome `/api/curriculum/adaptations`, emite `adaptation_ids`, limite de 3 com aviso, badge de bimestre destacado quando bate com o bimestre corrente da turma.
+- `LearningObjects.js`: `adaptation_ids` no formData, inferência de `componente_codigo` a partir do nome do curso selecionado, bimestre via `bimestrePeriods` do calendário letivo.
+- `api.js`: `curriculumAPI.{bncc, adaptations, adaptationById, adaptationAvailability, createAdaptation, updateAdaptation, deleteAdaptation, runMigration, coverage}`.
+
+### Cobertura de testes (25 PASS)
+- `tests/test_curriculum_v2.py` (6): migração idempotente, listar BNCC, listar adaptations flattened, detalhe com join, availability condicional.
+- `tests/test_learning_objects_v2.py` (3): criação com adaptation_ids, rejeição 422 para >3, coverage reportando adaptations usadas.
+- `tests/test_curriculum_import.py` (3): pipeline PDF→extract→review→commit agora grava em bncc+adaptations+legacy.
+- Outros já existentes seguem PASS (19): sprint_a (8), skills_bimestre (3), learning_objects_skills (2), curriculum_import cleanup.
+
+### Próximos passos
+- (P0) Script one-shot de migração manual para `adaptation_ids` em massa (rodar em produção com relatório CSV de conversões/faltas).
+- (P0) UI `/admin/curriculo` refatorada para CRUD direto de `adaptations` (componentes + filtros mantenedora + ano + bimestre).
+- (P0) Widget dashboard Coordenação com `/api/curriculum/coverage` — barras % concluído por componente/ano/bimestre + drill-down em pendências.
+- (P1) Cards de "habilidades mais usadas na turma" no topo do SkillPicker (cache em `learning_objects`).
+- (P1) Conditional required no handleSave: chamar `/availability` antes de salvar para exibir aviso.
+

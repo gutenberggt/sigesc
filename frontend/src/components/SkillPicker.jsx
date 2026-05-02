@@ -1,28 +1,25 @@
 /**
- * SkillPicker — selector de Habilidades BNCC / DCM com autocomplete.
+ * SkillPicker v2 — selector de habilidades via `curriculum_adaptations`.
  *
  * Uso:
  *   <SkillPicker
- *     value={['EF03MA02', 'EF03MA05']}
- *     onChange={(codigos) => setForm({ ...form, skill_codigos: codigos })}
- *     ano={3}                          // pré-filtro opcional por ano da turma
- *     componenteCodigo="MA"            // pré-filtro opcional por componente
+ *     value={['adapt_abc123', 'adapt_def456']}   // adaptation_ids
+ *     onChange={(ids) => setForm(p => ({ ...p, adaptation_ids: ids }))}
+ *     ano={3}
+ *     bimestre={2}
+ *     componenteCodigo="LP"
  *     onAppendDescription={(text) => setContent(c => c + '\n' + text)}
+ *     maxSelections={3}
  *   />
  *
- * Comportamento:
- *   - Cada habilidade aparece como chip removível (X) com seu código + tooltip da descrição.
- *   - Campo de busca + dropdown com até 10 resultados; debounce 300ms.
- *   - Ao selecionar, se `onAppendDescription` for passado, mostra ícone "+" para
- *     o usuário inserir a descrição da habilidade no campo de conteúdo.
- *   - Vazio = aceita registro sem habilidade (retrocompatível com texto livre).
+ * Diferente da v1: emite adaptation_ids (não codigos BNCC), com máx 3 itens,
+ * filtro inclusivo por bimestre (matching OR null), e badges com origem.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, X, BookOpen, Plus, Loader2 } from 'lucide-react';
+import { Search, X, BookOpen, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { curriculumAPI } from '@/services/api';
 
 const FONTE_BADGE = {
-  BNCC: { label: 'BNCC', color: 'bg-blue-50 text-blue-700 border-blue-200' },
   BNCC_COMPUTACAO: { label: 'Computação', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   DCM_FA: { label: 'DCM', color: 'bg-amber-50 text-amber-700 border-amber-200' },
   MUNICIPAL: { label: 'Municipal', color: 'bg-violet-50 text-violet-700 border-violet-200' },
@@ -36,28 +33,35 @@ export default function SkillPicker({
   componenteCodigo,
   onAppendDescription,
   disabled = false,
+  maxSelections = 3,
   label = 'Habilidades BNCC / DCM',
-  placeholder = 'Buscar por código (ex.: EF03MA02) ou descrição...',
+  placeholder = 'Buscar por código (ex.: EF03LP02) ou descrição...',
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showAllBimestres, setShowAllBimestres] = useState(false);
-  const [selectedCache, setSelectedCache] = useState({}); // codigo → skill (para mostrar chip rico)
+  const [selectedCache, setSelectedCache] = useState({}); // id → adaptation
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
-  /** Carrega detalhe das habilidades já selecionadas (para mostrar descrição no chip). */
+  /** Carrega detalhe das adaptações selecionadas (para mostrar chip rico). */
   useEffect(() => {
-    const missing = value.filter(c => !selectedCache[c]);
+    const missing = value.filter(id => !selectedCache[id]);
     if (missing.length === 0) return;
-    Promise.all(missing.map(c =>
-      curriculumAPI.skillByCodigo(c).catch(() => null)
-    )).then(skills => {
+    Promise.all(missing.map(id =>
+      curriculumAPI.adaptationById(id).then(d => ({
+        id,
+        ...d.adaptation,
+        codigo: (d.bncc && d.bncc.codigo_bncc) || d.adaptation?.codigo_local,
+        descricao: d.adaptation?.descricao_local || (d.bncc && d.bncc.descricao_bncc) || '',
+        componente_codigo: d.componente?.codigo,
+      })).catch(() => null)
+    )).then(adapts => {
       setSelectedCache(prev => {
         const next = { ...prev };
-        skills.forEach(s => { if (s) next[s.codigo] = s; });
+        adapts.forEach(a => { if (a) next[a.id] = a; });
         return next;
       });
     });
@@ -70,24 +74,17 @@ export default function SkillPicker({
     const id = setTimeout(async () => {
       setLoading(true);
       try {
-        const params = { limit: 10 };
+        const params = { limit: 15 };
         const hasQuery = !!query.trim();
         if (hasQuery) params.q = query.trim();
         if (ano) params.ano = ano;
-        // Filtra por bimestre apenas quando NÃO há texto de busca e o usuário
-        // não optou por "todos". Isso evita esconder resultados quando o
-        // professor procura algo específico.
+        if (componenteCodigo) params.componente_codigo = componenteCodigo;
         if (bimestre && !hasQuery && !showAllBimestres) {
           params.bimestre = bimestre;
         }
-        const r = await curriculumAPI.skills(params);
-        // Filtra por componente se passado e backend não fizer
+        const r = await curriculumAPI.adaptations(params);
         let items = r.items || [];
-        if (componenteCodigo) {
-          items = items.filter(s => s.componente_codigo === componenteCodigo);
-        }
-        // Não mostra os já selecionados
-        items = items.filter(s => !value.includes(s.codigo));
+        items = items.filter(a => !value.includes(a.adaptation_id));
         setResults(items);
       } catch (e) {
         setResults([]);
@@ -98,7 +95,6 @@ export default function SkillPicker({
     return () => clearTimeout(id);
   }, [query, open, ano, bimestre, showAllBimestres, componenteCodigo, value, disabled]);
 
-  /** Fecha dropdown ao clicar fora. */
   useEffect(() => {
     const onDocClick = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
@@ -109,55 +105,60 @@ export default function SkillPicker({
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
-  const addSkill = useCallback((skill) => {
-    if (!skill || value.includes(skill.codigo)) return;
-    setSelectedCache(prev => ({ ...prev, [skill.codigo]: skill }));
-    onChange?.([...value, skill.codigo]);
+  const addAdaptation = useCallback((a) => {
+    if (!a || value.includes(a.adaptation_id)) return;
+    if (value.length >= maxSelections) return;
+    setSelectedCache(prev => ({ ...prev, [a.adaptation_id]: a }));
+    onChange?.([...value, a.adaptation_id]);
     setQuery('');
     inputRef.current?.focus();
+  }, [value, onChange, maxSelections]);
+
+  const removeAdaptation = useCallback((id) => {
+    onChange?.(value.filter(v => v !== id));
   }, [value, onChange]);
 
-  const removeSkill = useCallback((codigo) => {
-    onChange?.(value.filter(c => c !== codigo));
-  }, [value, onChange]);
+  const atLimit = value.length >= maxSelections;
 
   return (
     <div ref={containerRef} className="relative" data-testid="skill-picker">
       <div className="flex items-center justify-between mb-1">
         <label className="block text-sm font-medium text-gray-700">{label}</label>
-        {value.length > 0 && (
-          <span className="text-[10px] text-gray-500" data-testid="skill-picker-count">
-            {value.length} selecionada{value.length === 1 ? '' : 's'}
-          </span>
-        )}
+        <span
+          className={`text-[10px] ${atLimit ? 'text-amber-700 font-semibold' : 'text-gray-500'}`}
+          data-testid="skill-picker-count"
+        >
+          {value.length}/{maxSelections} {value.length === 1 ? 'selecionada' : 'selecionadas'}
+        </span>
       </div>
 
-      {/* Chips das habilidades selecionadas */}
+      {/* Chips das adaptações selecionadas */}
       {value.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2">
-          {value.map((codigo) => {
-            const skill = selectedCache[codigo];
-            const fonte = skill?.fonte || 'BNCC';
-            const badge = FONTE_BADGE[fonte] || FONTE_BADGE.BNCC;
+          {value.map((id) => {
+            const a = selectedCache[id];
+            const fonte = a?.fonte || 'MUNICIPAL';
+            const badge = FONTE_BADGE[fonte] || FONTE_BADGE.MUNICIPAL;
+            const codigo = a?.codigo || id.slice(0, 8);
             return (
               <span
-                key={codigo}
+                key={id}
                 className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 border border-purple-200 rounded-full text-xs"
-                title={skill?.descricao || codigo}
+                title={a?.descricao || codigo}
                 data-testid={`skill-chip-${codigo}`}
               >
                 <BookOpen className="h-3 w-3 text-purple-600" />
                 <span className="font-mono font-semibold text-purple-700">{codigo}</span>
-                {skill?.descricao && (
+                {a?.descricao && (
                   <span className="text-gray-600 max-w-[280px] truncate hidden sm:inline">
-                    — {skill.descricao}
+                    — {a.descricao}
                   </span>
                 )}
                 <span className={`text-[9px] px-1 rounded border ${badge.color}`}>{badge.label}</span>
-                {onAppendDescription && skill?.descricao && (
+                {onAppendDescription && a?.descricao && (
                   <button
                     type="button"
-                    onClick={() => onAppendDescription(`${codigo} — ${skill.descricao}`)}
+                    onClick={() => onAppendDescription(`${codigo} — ${a.descricao}`)}
                     className="text-purple-500 hover:text-purple-800"
                     title="Inserir descrição no campo Conteúdo"
                     data-testid={`skill-append-${codigo}`}
@@ -167,7 +168,7 @@ export default function SkillPicker({
                 )}
                 <button
                   type="button"
-                  onClick={() => removeSkill(codigo)}
+                  onClick={() => removeAdaptation(id)}
                   disabled={disabled}
                   className="text-purple-500 hover:text-red-600"
                   title="Remover habilidade"
@@ -181,6 +182,14 @@ export default function SkillPicker({
         </div>
       )}
 
+      {/* Aviso limite */}
+      {atLimit && (
+        <div className="mb-2 flex items-center gap-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded">
+          <AlertCircle className="h-3 w-3" />
+          Máximo de {maxSelections} habilidades por registro — remova uma para adicionar outra.
+        </div>
+      )}
+
       {/* Input de busca */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -190,8 +199,8 @@ export default function SkillPicker({
           value={query}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          disabled={disabled}
-          placeholder={placeholder}
+          disabled={disabled || atLimit}
+          placeholder={atLimit ? `Limite de ${maxSelections} atingido` : placeholder}
           className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm disabled:bg-gray-100"
           data-testid="skill-picker-input"
         />
@@ -201,7 +210,7 @@ export default function SkillPicker({
       </div>
 
       {/* Indicador de filtro por bimestre */}
-      {bimestre && !query.trim() && (
+      {bimestre && !query.trim() && !atLimit && (
         <div className="mt-1 flex items-center justify-between text-[10px]">
           <span className="text-purple-700" data-testid="skill-picker-bimestre-info">
             {showAllBimestres
@@ -220,7 +229,7 @@ export default function SkillPicker({
       )}
 
       {/* Dropdown de resultados */}
-      {open && (results.length > 0 || loading) && (
+      {open && !atLimit && (results.length > 0 || loading) && (
         <div
           className="absolute z-30 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto"
           data-testid="skill-picker-dropdown"
@@ -230,41 +239,42 @@ export default function SkillPicker({
               Nenhuma habilidade encontrada
             </div>
           )}
-          {results.map((s) => {
-            const badge = FONTE_BADGE[s.fonte] || FONTE_BADGE.BNCC;
+          {results.map((a) => {
+            const fonte = a.fonte || 'MUNICIPAL';
+            const badge = FONTE_BADGE[fonte] || FONTE_BADGE.MUNICIPAL;
             return (
               <button
                 type="button"
-                key={s.id}
-                onClick={() => addSkill(s)}
+                key={a.adaptation_id}
+                onClick={() => addAdaptation(a)}
                 className="w-full text-left px-3 py-2 hover:bg-purple-50 border-b last:border-b-0 transition-colors"
-                data-testid={`skill-option-${s.codigo}`}
+                data-testid={`skill-option-${a.codigo}`}
               >
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="font-mono text-xs font-semibold text-purple-700">{s.codigo}</span>
+                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                  <span className="font-mono text-xs font-semibold text-purple-700">{a.codigo}</span>
                   <span className={`text-[9px] px-1 rounded border ${badge.color}`}>{badge.label}</span>
-                  {s.ano != null && (
-                    <span className="text-[10px] text-gray-500">{s.ano}º ano</span>
+                  {a.ano != null && (
+                    <span className="text-[10px] text-gray-500">{a.ano}º ano</span>
                   )}
-                  {s.bimestre != null && (
+                  {a.bimestre != null && (
                     <span
                       className={`text-[10px] px-1 rounded ${
-                        bimestre && s.bimestre === bimestre
+                        bimestre && a.bimestre === bimestre
                           ? 'bg-purple-100 text-purple-700 font-semibold'
                           : 'text-gray-500'
                       }`}
-                      data-testid={`skill-option-bimestre-${s.codigo}`}
+                      data-testid={`skill-option-bimestre-${a.codigo}`}
                     >
-                      {s.bimestre}º bim.
+                      {a.bimestre}º bim.
                     </span>
                   )}
-                  {s.componente_codigo && (
-                    <span className="text-[10px] text-gray-400">· {s.componente_codigo}</span>
+                  {a.componente_codigo && (
+                    <span className="text-[10px] text-gray-400">· {a.componente_codigo}</span>
                   )}
                 </div>
-                <div className="text-xs text-gray-700 line-clamp-2">{s.descricao}</div>
-                {s.objeto_conhecimento && (
-                  <div className="text-[10px] text-gray-400 mt-0.5">📘 {s.objeto_conhecimento}</div>
+                <div className="text-xs text-gray-700 line-clamp-2">{a.descricao}</div>
+                {a.objeto_conhecimento && (
+                  <div className="text-[10px] text-gray-400 mt-0.5">📘 {a.objeto_conhecimento}</div>
                 )}
               </button>
             );

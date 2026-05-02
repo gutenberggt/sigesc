@@ -116,7 +116,8 @@ export const LearningObjects = () => {
     methodology: '',
     resources: '',
     number_of_classes: 1,
-    skill_codigos: []
+    skill_codigos: [],       // legado
+    adaptation_ids: []       // v2 multi-camadas
   });
   
   // Tracking de alterações não salvas
@@ -651,7 +652,8 @@ export const LearningObjects = () => {
           methodology: dayRecords[0].methodology || '',
           resources: dayRecords[0].resources || '',
           number_of_classes: dayRecords[0].number_of_classes || 1,
-          skill_codigos: dayRecords[0].skill_codigos || []
+          skill_codigos: dayRecords[0].skill_codigos || [],
+          adaptation_ids: dayRecords[0].adaptation_ids || []
         });
       } else {
         // Novo registro: manter seleção atual
@@ -662,7 +664,8 @@ export const LearningObjects = () => {
           methodology: '',
           resources: '',
           number_of_classes: defaultNumberOfClasses,
-          skill_codigos: []
+          skill_codigos: [],
+          adaptation_ids: []
         });
       }
     } else {
@@ -676,7 +679,8 @@ export const LearningObjects = () => {
           methodology: dayInfo.record.methodology || '',
           resources: dayInfo.record.resources || '',
           number_of_classes: dayInfo.record.number_of_classes || 1,
-          skill_codigos: dayInfo.record.skill_codigos || []
+          skill_codigos: dayInfo.record.skill_codigos || [],
+          adaptation_ids: dayInfo.record.adaptation_ids || []
         });
       } else {
         setEditingRecord(null);
@@ -701,7 +705,8 @@ export const LearningObjects = () => {
           methodology: '',
           resources: '',
           number_of_classes: numClasses,
-          skill_codigos: []
+          skill_codigos: [],
+          adaptation_ids: []
         });
       }
     }
@@ -1244,14 +1249,34 @@ export const LearningObjects = () => {
 
                     {/* Habilidade BNCC / DCM */}
                     <SkillPicker
-                      value={formData.skill_codigos || []}
-                      onChange={(codigos) => { setFormData(p => ({ ...p, skill_codigos: codigos })); setHasChanges(true); }}
+                      value={formData.adaptation_ids || []}
+                      onChange={(ids) => { setFormData(p => ({ ...p, adaptation_ids: ids })); setHasChanges(true); }}
                       ano={(() => {
                         const g = String(selectedClassInfo?.grade_level || '');
                         const m = g.match(/\d+/);
                         return m ? parseInt(m[0], 10) : undefined;
                       })()}
                       bimestre={getBimestreFromDate(selectedDate)}
+                      componenteCodigo={(() => {
+                        const courseId = isMultiSelectMode
+                          ? (selectedCourses[0] || null)
+                          : selectedCourse;
+                        const c = courses.find(x => x.id === courseId);
+                        // tenta identificar o componente por nome
+                        const name = String(c?.name || '').toLowerCase();
+                        if (name.includes('portuguesa') || name.includes('português')) return 'LP';
+                        if (name.includes('matemática') || name.includes('matematica')) return 'MA';
+                        if (name.includes('ciência') || name.includes('ciencia')) return 'CI';
+                        if (name.includes('geografia')) return 'GE';
+                        if (name.includes('história') || name.includes('historia')) return 'HI';
+                        if (name.includes('arte')) return 'AR';
+                        if (name.includes('inglês') || name.includes('ingles')) return 'LI';
+                        if (name.includes('educação física') || name.includes('educacao fisica')) return 'EF';
+                        if (name.includes('computa')) return 'CO';
+                        if (name.includes('religioso')) return 'ER';
+                        if (name.includes('amazô') || name.includes('amazo')) return 'EA';
+                        return undefined;
+                      })()}
                       onAppendDescription={(text) => {
                         setFormData(p => ({
                           ...p,

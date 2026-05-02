@@ -1825,7 +1825,8 @@ class LearningObjectBase(BaseModel):
     methodology: Optional[str] = None  # Metodologia utilizada
     resources: Optional[str] = None  # Recursos utilizados
     number_of_classes: int = 1  # Número de aulas
-    skill_codigos: List[str] = Field(default_factory=list)  # Códigos BNCC/DCM (ex.: ['EF03MA02','EF03MA05'])
+    skill_codigos: List[str] = Field(default_factory=list)  # Códigos BNCC/DCM (ex.: ['EF03MA02','EF03MA05']) — legado
+    adaptation_ids: List[str] = Field(default_factory=list)  # FK → curriculum_adaptations (novo modelo multi-camadas, máx 3)
 
 class LearningObjectCreate(BaseModel):
     class_id: str
@@ -1838,6 +1839,15 @@ class LearningObjectCreate(BaseModel):
     resources: Optional[str] = None
     number_of_classes: int = 1
     skill_codigos: List[str] = Field(default_factory=list)
+    adaptation_ids: List[str] = Field(default_factory=list)
+    evidencia_aprendizagem: Optional[str] = None  # texto curto (novo)
+    pratica_pedagogica: Optional[str] = None  # texto curto (novo)
+
+    @model_validator(mode='after')
+    def _cap_adaptations(self):
+        if self.adaptation_ids and len(self.adaptation_ids) > 3:
+            raise ValueError("Máximo de 3 habilidades (adaptation_ids) por registro.")
+        return self
 
 class LearningObjectUpdate(BaseModel):
     content: Optional[str] = None
@@ -1847,6 +1857,9 @@ class LearningObjectUpdate(BaseModel):
     number_of_classes: Optional[int] = None
     course_id: Optional[str] = None
     skill_codigos: Optional[List[str]] = None
+    adaptation_ids: Optional[List[str]] = None
+    evidencia_aprendizagem: Optional[str] = None
+    pratica_pedagogica: Optional[str] = None
 
 class LearningObject(BaseModel):
     """Modelo completo do registro de objetos de conhecimento"""
@@ -1861,7 +1874,10 @@ class LearningObject(BaseModel):
     methodology: Optional[str] = None
     resources: Optional[str] = None
     number_of_classes: int = 1
-    skill_codigos: List[str] = Field(default_factory=list)
+    skill_codigos: List[str] = Field(default_factory=list)  # legado (mantido 30d)
+    adaptation_ids: List[str] = Field(default_factory=list)  # novo — máx 3
+    evidencia_aprendizagem: Optional[str] = None
+    pratica_pedagogica: Optional[str] = None
     recorded_by: Optional[str] = None  # ID do usuário que registrou
     # Feb 2026: Rastreabilidade de cópia entre turmas
     copied_from_id: Optional[str] = None  # ID do registro original quando este foi copiado
@@ -2607,16 +2623,24 @@ class PayrollOccurrenceUpdate(BaseModel):
 
 CURRICULUM_FONTE = Literal['BNCC', 'BNCC_COMPUTACAO', 'DCM_FA', 'MUNICIPAL']
 CURRICULUM_ETAPA = Literal['infantil', 'anos_iniciais', 'anos_finais', 'eja', 'medio']
+CURRICULUM_ESCOPO = Literal['NACIONAL', 'MUNICIPAL']
 
 
 class CurriculumComponent(BaseModel):
-    """Componente curricular (Matemática, Língua Portuguesa, Estudos Amazônicos, Computação...)."""
+    """Componente curricular (Matemática, Língua Portuguesa, Estudos Amazônicos, Computação...).
+
+    Um componente pode ser NACIONAL (LP, MAT, COMP) ou MUNICIPAL (Estudos Amazônicos,
+    extensões locais). Quando MUNICIPAL, `mantenedora_id` identifica o tenant dono.
+    """
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     codigo: str  # ex.: "LP", "MA", "EA" (Estudos Amazônicos), "CO" (Computação)
     nome: str
     eixo_estruturante: Optional[str] = None  # ex.: "Linguagem e suas Formas Comunicativas"
     etapa: CURRICULUM_ETAPA
-    fonte: CURRICULUM_FONTE = 'BNCC'
+    area_conhecimento: Optional[str] = None  # ex.: "Linguagens", "Matemática"
+    escopo: CURRICULUM_ESCOPO = 'NACIONAL'
+    mantenedora_id: Optional[str] = None  # obrigatório quando escopo='MUNICIPAL'
+    fonte: CURRICULUM_FONTE = 'BNCC'  # legado — mantido para compat
     descricao: Optional[str] = None
     ordem: int = 0
     ativo: bool = True
@@ -2629,6 +2653,9 @@ class CurriculumComponentCreate(BaseModel):
     nome: str
     eixo_estruturante: Optional[str] = None
     etapa: CURRICULUM_ETAPA
+    area_conhecimento: Optional[str] = None
+    escopo: CURRICULUM_ESCOPO = 'MUNICIPAL'
+    mantenedora_id: Optional[str] = None
     fonte: CURRICULUM_FONTE = 'MUNICIPAL'
     descricao: Optional[str] = None
     ordem: int = 0
@@ -2769,3 +2796,128 @@ class CurriculumImportItemUpdate(BaseModel):
     fonte: Optional[str] = None
     status: Optional[CURRICULUM_IMPORT_ITEM_STATUS] = None
     note: Optional[str] = None
+
+
+# ============= MODELO MULTI-CAMADAS v2 (Feb 2026) =============
+# Arquitetura normalizada que separa BNCC (nacional canônica) de adaptações
+# locais. Substitui gradualmente o `CurriculumSkill` acima.
+#
+# Fluxo:
+#   bncc_skills (1 linha por código BNCC canônico, sem bimestre)
+#           ↑
+#   curriculum_adaptations (N linhas por código — adapta para mantenedora,
+#       ano, bimestre, descricao_local opcional, ordem de sequência)
+#           ↑
+#   learning_objects.adaptation_ids[] (máx 3)
+
+BNCC_ETAPA = Literal['EI', 'EF_AI', 'EF_AF', 'EJA', 'EM']  # granular
+ADAPTATION_FONTE = Literal['DCM_FA', 'MUNICIPAL', 'BNCC_COMPUTACAO']
+
+
+class BnccSkill(BaseModel):
+    """Habilidade BNCC canônica — núcleo nacional, único por `codigo_bncc`."""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    codigo_bncc: str  # ex.: "EF03LP02" — único global
+    descricao_bncc: str
+    eixo: Optional[str] = None  # ex.: "Análise Linguística/Semiótica"
+    etapa: BNCC_ETAPA  # granular: EI, EF_AI, EF_AF, EJA, EM
+    ano: Optional[int] = None  # 1-9 quando aplicável
+    ano_range: Optional[str] = None  # ex.: "15" para EF15LP*, "EI03" para infantil
+    area_conhecimento: Optional[str] = None  # ex.: "Linguagens", "Ciências Humanas"
+    componente_codigo: Optional[str] = None  # denormalizado — LP, MA, CO, GE etc.
+    ativo: bool = True
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: Optional[str] = None
+
+
+class BnccSkillCreate(BaseModel):
+    codigo_bncc: str
+    descricao_bncc: str
+    eixo: Optional[str] = None
+    etapa: BNCC_ETAPA
+    ano: Optional[int] = None
+    ano_range: Optional[str] = None
+    area_conhecimento: Optional[str] = None
+    componente_codigo: Optional[str] = None
+
+
+class BnccSkillUpdate(BaseModel):
+    descricao_bncc: Optional[str] = None
+    eixo: Optional[str] = None
+    area_conhecimento: Optional[str] = None
+    ano: Optional[int] = None
+    ativo: Optional[bool] = None
+
+
+class CurriculumAdaptation(BaseModel):
+    """Adaptação local (DCM ou município) de uma habilidade.
+
+    Regras:
+      - `bncc_skill_id` + `codigo_local` não podem ser ambos None.
+      - `codigo_local` é obrigatório quando `bncc_skill_id` é None.
+      - Múltiplas adaptações para a mesma `bncc_skill_id` são permitidas
+        (diferentes ano/bimestre/mantenedora).
+    """
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    mantenedora_id: Optional[str] = None  # None para adaptações cross-tenant (raras)
+    component_id: str  # FK → curriculum_components.id
+    bncc_skill_id: Optional[str] = None  # FK → bncc_skills.id (None para MUNICIPAL puro)
+    codigo_local: Optional[str] = None  # obrigatório quando bncc_skill_id=None
+    descricao_local: Optional[str] = None  # sobrescreve descricao_bncc quando presente
+    eixo_local: Optional[str] = None
+    objeto_conhecimento: Optional[str] = None
+    ano: int  # obrigatório: 1-9 ou 0 para infantil
+    bimestre: Optional[int] = None  # 1-4; None = transversal ao ano
+    ordem_sequencia: int = 0
+    fonte: ADAPTATION_FONTE = 'DCM_FA'
+    ativo: bool = True
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: Optional[str] = None
+
+    @model_validator(mode='after')
+    def _require_at_least_one_code(self):
+        if not self.bncc_skill_id and not self.codigo_local:
+            raise ValueError("Adaptation precisa ter bncc_skill_id OU codigo_local.")
+        return self
+
+
+class CurriculumAdaptationCreate(BaseModel):
+    mantenedora_id: Optional[str] = None
+    component_id: str
+    bncc_skill_id: Optional[str] = None
+    codigo_local: Optional[str] = None
+    descricao_local: Optional[str] = None
+    eixo_local: Optional[str] = None
+    objeto_conhecimento: Optional[str] = None
+    ano: int
+    bimestre: Optional[int] = None
+    ordem_sequencia: int = 0
+    fonte: ADAPTATION_FONTE = 'MUNICIPAL'
+
+
+class CurriculumAdaptationUpdate(BaseModel):
+    component_id: Optional[str] = None
+    descricao_local: Optional[str] = None
+    eixo_local: Optional[str] = None
+    objeto_conhecimento: Optional[str] = None
+    ano: Optional[int] = None
+    bimestre: Optional[int] = None
+    ordem_sequencia: Optional[int] = None
+    ativo: Optional[bool] = None
+
+
+class CurriculumAdaptationMethod(BaseModel):
+    """Metodologia/prática associada a uma adaptação (1:N)."""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    adaptation_id: str  # FK → curriculum_adaptations.id
+    descricao: str
+    tipo: Literal['pratica', 'projeto', 'avaliacao', 'recurso', 'outro'] = 'pratica'
+    ativo: bool = True
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class CurriculumAdaptationMethodCreate(BaseModel):
+    adaptation_id: str
+    descricao: str
+    tipo: Literal['pratica', 'projeto', 'avaliacao', 'recurso', 'outro'] = 'pratica'
+

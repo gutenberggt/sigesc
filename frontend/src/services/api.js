@@ -1331,4 +1331,16 @@ export const curriculumAPI = {
   createSkill: async (data) => (await axios.post(`${API}/curriculum/skills`, data)).data,
   updateSkill: async (id, data) => (await axios.put(`${API}/curriculum/skills/${id}`, data)).data,
   deleteSkill: async (id) => (await axios.delete(`${API}/curriculum/skills/${id}`)).data,
+
+  // =================== v2 Multi-camadas ===================
+  bncc: async (params = {}) => (await axios.get(`${API}/curriculum/bncc`, { params })).data,
+  adaptations: async (params = {}) => (await axios.get(`${API}/curriculum/adaptations`, { params })).data,
+  adaptationById: async (id) => (await axios.get(`${API}/curriculum/adaptations/${id}`)).data,
+  adaptationAvailability: async (params = {}) =>
+    (await axios.get(`${API}/curriculum/adaptations/availability`, { params })).data,
+  createAdaptation: async (data) => (await axios.post(`${API}/curriculum/adaptations`, data)).data,
+  updateAdaptation: async (id, data) => (await axios.put(`${API}/curriculum/adaptations/${id}`, data)).data,
+  deleteAdaptation: async (id) => (await axios.delete(`${API}/curriculum/adaptations/${id}`)).data,
+  runMigration: async () => (await axios.post(`${API}/curriculum/v2/migrate`)).data,
+  coverage: async (params = {}) => (await axios.get(`${API}/curriculum/coverage`, { params })).data,
 };

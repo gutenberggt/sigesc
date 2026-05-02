@@ -26,6 +26,11 @@ from models import (
     CurriculumImportBatch, CurriculumImportItem, CurriculumImportItemUpdate,
 )
 from services.curriculum_extractor import extract_skills_from_pdf, COMPONENT_MAP
+from services.curriculum_v2_migration import (
+    BNCC_CODE_RE, AREA_BY_COMPONENT, hash_id as _hash_id,
+    etapa_bncc_from_codigo as _etapa_bncc_from_codigo,
+    escopo_from_fonte as _escopo_from_fonte,
+)
 
 router = APIRouter(prefix="/curriculum/import", tags=["Currículo - Importação"])
 
@@ -192,7 +197,10 @@ def setup_router(db):
 
     @router.post("/batches/{batch_id}/commit")
     async def commit_batch(batch_id: str, request: Request):
-        """Persiste os items aprovados como CurriculumSkill (criando componente se necessário)."""
+        """Persiste os items aprovados no modelo v2 (bncc_skills + curriculum_adaptations).
+
+        Também mantém escrita em `curriculum_skills` (legado, retrocompat 30 dias).
+        """
         user = await _require_super(request)
         batch = await db.curriculum_import_batches.find_one({"id": batch_id}, {"_id": 0})
         if not batch:
@@ -204,26 +212,36 @@ def setup_router(db):
         if not approved:
             raise HTTPException(400, "Nenhum item aprovado para importar.")
 
-        # Cache de components (componente_codigo, etapa, fonte) → component_id
+        batch_fonte = batch.get('fonte', 'DCM_FA')
+        # Mantenedora-alvo do batch: fallback do usuário ou "floresta_araguaia" para DCM_FA
+        mantenedora_id = user.get('mantenedora_id') or (
+            'floresta_araguaia' if batch_fonte == 'DCM_FA' else None
+        )
+
+        # Cache de components por (codigo, etapa, fonte) → component_id
         comp_cache: dict = {}
-        skills_inserted = 0
+        skills_inserted = 0  # legado
         skills_skipped_dup = 0
         components_created = 0
+        bncc_inserted = 0
+        bncc_existed = 0
+        adaptations_inserted = 0
+        adaptations_existed = 0
 
         for item in approved:
             comp_codigo = (item.get('componente_codigo') or 'XX').upper()
             etapa = item.get('etapa') or 'anos_iniciais'
-            fonte = item.get('fonte') or batch.get('fonte', 'DCM_FA')
+            fonte = item.get('fonte') or batch_fonte
+            codigo = item['codigo']
             cache_key = (comp_codigo, etapa, fonte)
 
+            # --- 1. Componente v2 (escopo + area) ---
             if cache_key not in comp_cache:
-                # Tenta achar componente existente
                 comp = await db.curriculum_components.find_one(
                     {"codigo": comp_codigo, "etapa": etapa, "fonte": fonte},
                     {"_id": 0}
                 )
                 if not comp:
-                    # Cria
                     nome = item.get('componente_nome') or COMPONENT_MAP.get(
                         comp_codigo, (comp_codigo, etapa)
                     )[0]
@@ -234,6 +252,9 @@ def setup_router(db):
                         "eixo_estruturante": None,
                         "etapa": etapa,
                         "fonte": fonte,
+                        "escopo": _escopo_from_fonte(fonte),
+                        "area_conhecimento": AREA_BY_COMPONENT.get(comp_codigo),
+                        "mantenedora_id": mantenedora_id if _escopo_from_fonte(fonte) == 'MUNICIPAL' else None,
                         "descricao": f"Importado via batch {batch['id']}.",
                         "ordem": 50,
                         "ativo": True,
@@ -246,13 +267,63 @@ def setup_router(db):
                 else:
                     comp_cache[cache_key] = comp['id']
 
-            # Verifica novamente duplicidade no momento do commit
-            exists = await db.curriculum_skills.find_one(
-                {"codigo": item['codigo']}, {"_id": 0, "id": 1}
+            component_id = comp_cache[cache_key]
+            is_bncc_code = bool(BNCC_CODE_RE.match(codigo))
+
+            # --- 2. BNCC skill canônica (se código BNCC e ainda não existe) ---
+            bncc_id = None
+            if is_bncc_code:
+                existing_bncc = await db.bncc_skills.find_one(
+                    {"codigo_bncc": codigo}, {"_id": 0, "id": 1}
+                )
+                if existing_bncc:
+                    bncc_id = existing_bncc['id']
+                    bncc_existed += 1
+                else:
+                    m = BNCC_CODE_RE.match(codigo)
+                    comp_from_code = m.group(3) if m else comp_codigo
+                    bncc_etapa = _etapa_bncc_from_codigo(codigo, item.get('ano'))
+                    bncc_id = _hash_id("bncc", codigo)
+                    bncc_doc = {
+                        "id": bncc_id,
+                        "codigo_bncc": codigo,
+                        "descricao_bncc": item['descricao'],
+                        "eixo": None,
+                        "etapa": bncc_etapa,
+                        "ano": item.get('ano'),
+                        "ano_range": None,
+                        "area_conhecimento": AREA_BY_COMPONENT.get(comp_from_code),
+                        "componente_codigo": comp_from_code,
+                        "ativo": True,
+                        "created_at": _now(),
+                        "updated_at": None,
+                    }
+                    try:
+                        await db.bncc_skills.insert_one(bncc_doc)
+                        bncc_inserted += 1
+                    except Exception:
+                        existing_bncc = await db.bncc_skills.find_one(
+                            {"codigo_bncc": codigo}, {"_id": 0, "id": 1}
+                        )
+                        if existing_bncc:
+                            bncc_id = existing_bncc['id']
+                            bncc_existed += 1
+
+            # --- 3. Adaptation (upsert pela tupla única) ---
+            adapt_filt = {
+                "mantenedora_id": mantenedora_id,
+                "component_id": component_id,
+                "bncc_skill_id": bncc_id,
+                "codigo_local": None if is_bncc_code else codigo,
+                "ano": item.get('ano') or 0,
+                "bimestre": item.get('bimestre'),
+            }
+            existing_adapt = await db.curriculum_adaptations.find_one(
+                adapt_filt, {"_id": 0, "id": 1}
             )
-            if exists:
-                skills_skipped_dup += 1
-                # Marca item como duplicate
+            if existing_adapt:
+                adaptations_existed += 1
+                # Marca como duplicate no batch
                 await db.curriculum_import_batches.update_one(
                     {"id": batch_id},
                     {"$set": {"items.$[elem].status": "duplicate"}},
@@ -260,24 +331,59 @@ def setup_router(db):
                 )
                 continue
 
-            skill_doc = {
-                "id": f"skill_imp_{batch_id[:8]}_{item['idx']}",
-                "codigo": item['codigo'],
-                "descricao": item['descricao'],
-                "componente_id": comp_cache[cache_key],
-                "componente_codigo": comp_codigo,
-                "ano": item.get('ano'),
-                "bimestre": item.get('bimestre'),
+            adapt_id = _hash_id(
+                "adapt", codigo, mantenedora_id or "_",
+                item.get('ano') or 0, item.get('bimestre') or 0
+            )
+            adapt_doc = {
+                "id": adapt_id,
+                "mantenedora_id": mantenedora_id,
+                "component_id": component_id,
+                "bncc_skill_id": bncc_id,
+                "codigo_local": None if is_bncc_code else codigo,
+                "descricao_local": None if is_bncc_code else item['descricao'],
+                "eixo_local": None,
                 "objeto_conhecimento": None,
-                "unidade_tematica": None,
-                "fonte": fonte,
-                "metodos_recomendados": [],
+                "ano": item.get('ano') or 0,
+                "bimestre": item.get('bimestre'),
+                "ordem_sequencia": 0,
+                "fonte": fonte if fonte in ('DCM_FA', 'MUNICIPAL', 'BNCC_COMPUTACAO') else 'MUNICIPAL',
                 "ativo": True,
                 "created_at": _now(),
                 "updated_at": None,
             }
-            await db.curriculum_skills.insert_one(skill_doc)
-            skills_inserted += 1
+            try:
+                await db.curriculum_adaptations.insert_one(adapt_doc)
+                adaptations_inserted += 1
+            except Exception:
+                adaptations_existed += 1
+
+            # --- 4. Legado (curriculum_skills) para retro-compat ---
+            exists_legacy = await db.curriculum_skills.find_one(
+                {"codigo": codigo}, {"_id": 0, "id": 1}
+            )
+            if not exists_legacy:
+                skill_doc = {
+                    "id": f"skill_imp_{batch_id[:8]}_{item['idx']}",
+                    "codigo": codigo,
+                    "descricao": item['descricao'],
+                    "componente_id": component_id,
+                    "componente_codigo": comp_codigo,
+                    "ano": item.get('ano'),
+                    "bimestre": item.get('bimestre'),
+                    "objeto_conhecimento": None,
+                    "unidade_tematica": None,
+                    "fonte": fonte,
+                    "metodos_recomendados": [],
+                    "ativo": True,
+                    "created_at": _now(),
+                    "updated_at": None,
+                }
+                await db.curriculum_skills.insert_one(skill_doc)
+                skills_inserted += 1
+            else:
+                skills_skipped_dup += 1
+
             await db.curriculum_import_batches.update_one(
                 {"id": batch_id},
                 {"$set": {"items.$[elem].status": "imported"}},
@@ -296,6 +402,10 @@ def setup_router(db):
             "skills_inserted": skills_inserted,
             "skills_skipped_duplicate": skills_skipped_dup,
             "components_created": components_created,
+            "bncc_inserted": bncc_inserted,
+            "bncc_existed": bncc_existed,
+            "adaptations_inserted": adaptations_inserted,
+            "adaptations_existed": adaptations_existed,
             "committed_by": user.get('email'),
         }
         await db.curriculum_import_batches.update_one(

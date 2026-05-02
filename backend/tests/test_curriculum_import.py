@@ -51,6 +51,9 @@ def _cleanup(token):
         db = c[os.environ.get("DB_NAME", "sigesc_db")]
         await db.curriculum_skills.delete_many({"fonte": "DCM_FA"})
         await db.curriculum_components.delete_many({"fonte": "DCM_FA"})
+        await db.curriculum_adaptations.delete_many({"fonte": "DCM_FA"})
+        # BNCC LP gerados pelo DCM_FA devem ser limpos para reisolamento
+        await db.bncc_skills.delete_many({"componente_codigo": "LP"})
         await db.curriculum_import_batches.delete_many({})
 
     asyncio.run(run())
