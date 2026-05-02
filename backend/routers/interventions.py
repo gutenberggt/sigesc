@@ -239,6 +239,273 @@ def setup_router(db, **_kwargs):
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
+    # =================== PLANO DE AÇÃO AUTOMÁTICO (Sprint E) ===================
+
+    async def _coverage_pending_summary(school_id: Optional[str]) -> dict:
+        """Retorna pendências agregadas por componente×bimestre p/ uma escola."""
+        filt_classes: dict = {}
+        if school_id:
+            filt_classes["school_id"] = school_id
+        class_ids = [c['id'] async for c in db.classes.find(filt_classes, {"_id": 0, "id": 1})]
+        if not class_ids:
+            return {"pct": 100.0, "total": 0, "covered": 0, "missing": [], "critico_components": []}
+        # adaptations
+        adapts = await db.curriculum_adaptations.find(
+            {"ativo": True}, {"_id": 0, "id": 1, "component_id": 1, "ano": 1, "bimestre": 1, "codigo_local": 1}
+        ).to_list(length=5000)
+        used_ids: set = set()
+        async for lo in db.learning_objects.find(
+            {"class_id": {"$in": class_ids}},
+            {"_id": 0, "adaptation_ids": 1}
+        ):
+            for aid in (lo.get("adaptation_ids") or []):
+                used_ids.add(aid)
+        total = len(adapts)
+        covered = sum(1 for a in adapts if a['id'] in used_ids)
+        pct = round((covered / total * 100) if total else 100.0, 1)
+        # Missing por (componente, bimestre)
+        comp_map: dict = {}
+        async for c in db.curriculum_components.find({}, {"_id": 0, "id": 1, "codigo": 1}):
+            comp_map[c['id']] = c.get('codigo')
+        from collections import defaultdict
+        buckets = defaultdict(list)
+        for a in adapts:
+            if a['id'] not in used_ids:
+                key = (comp_map.get(a['component_id'], '?'), a.get('bimestre'))
+                buckets[key].append(a)
+        critical = []
+        for (comp, bim), lst in buckets.items():
+            if not comp:
+                continue
+            critical.append({
+                "componente_codigo": comp,
+                "bimestre": bim,
+                "missing_count": len(lst),
+                "samples": [it.get('codigo_local') for it in lst[:5] if it.get('codigo_local')],
+            })
+        critical.sort(key=lambda x: -x["missing_count"])
+        return {"pct": pct, "total": total, "covered": covered, "critico_components": critical[:5]}
+
+    async def _lancamento_rate(school_id: Optional[str]) -> float:
+        """Estimativa simples: registros dos últimos 30 dias / dias úteis * turmas.
+
+        Retorna pct [0–1]. Quando não há dados suficientes retorna 1.0 (não pune).
+        """
+        filt: dict = {}
+        if school_id:
+            filt["school_id"] = school_id
+        class_ids = [c['id'] async for c in db.classes.find(filt, {"_id": 0, "id": 1})]
+        if not class_ids:
+            return 1.0
+        from datetime import timedelta
+        d0 = (datetime.now(timezone.utc) - timedelta(days=30)).date().isoformat()
+        lanzados = await db.learning_objects.count_documents(
+            {"class_id": {"$in": class_ids}, "date": {"$gte": d0}}
+        )
+        # Meta heurística: 3 aulas/turma/semana × 4 semanas = 12 por turma em 30d
+        expected = max(len(class_ids) * 12, 1)
+        return min(lanzados / expected, 1.0)
+
+    @router.get("/plano-acao")
+    async def plan_of_action(
+        request: Request,
+        school_id: Optional[str] = None,
+        period: str = Query("30d", pattern="^(7d|30d|60d|90d|all)$"),
+    ):
+        """Gera plano de ação priorizado (máx 5 ações) baseado em regras fixas.
+
+        Motor determinístico — não depende de IA. Transparente e auditável.
+        """
+        user = await _auth_manager(request)
+        # Se não super, força escola do usuário
+        if user.get('role') not in ('super_admin', 'admin', 'admin_teste', 'secretario'):
+            user_schools = [s.get('school_id') for s in user.get('school_links') or []]
+            if not user_schools:
+                raise HTTPException(403, "Usuário sem escola vinculada")
+            if school_id and school_id not in user_schools:
+                raise HTTPException(403, "Fora do seu escopo")
+            school_id = school_id or user_schools[0]
+
+        if not school_id:
+            raise HTTPException(400, "school_id obrigatório para gerar plano")
+
+        school = await db.schools.find_one({"id": school_id}, {"_id": 0})
+        if not school:
+            raise HTTPException(404, "Escola não encontrada")
+
+        # 1. Métricas do ranking (reaproveita lógica)
+        from datetime import timedelta
+        window = {"7d": 7, "30d": 30, "60d": 60, "90d": 90, "all": None}[period]
+        filt: dict = {"school_id": school_id}
+        if window:
+            filt["first_detected_at"] = {
+                "$gte": (datetime.now(timezone.utc) - timedelta(days=window)).isoformat()
+            }
+        alerts = await db.intervention_alerts.find(filt, {"_id": 0}).to_list(length=5000)
+        received = len(alerts)
+        resolved_list = [a for a in alerts if a.get('resolved_at')]
+        active_list = [a for a in alerts if not a.get('resolved_at')]
+        level_3_active = [a for a in active_list if a.get('escalation_level') == 3]
+        # tempo médio
+        avg_days = None
+        if resolved_list:
+            soma = 0.0
+            n = 0
+            for a in resolved_list:
+                try:
+                    d1 = datetime.fromisoformat(a['first_detected_at'])
+                    d2 = datetime.fromisoformat(a['resolved_at'])
+                    if d1.tzinfo is None:
+                        d1 = d1.replace(tzinfo=timezone.utc)
+                    if d2.tzinfo is None:
+                        d2 = d2.replace(tzinfo=timezone.utc)
+                    soma += (d2 - d1).total_seconds() / 86400
+                    n += 1
+                except Exception:
+                    pass
+            if n:
+                avg_days = round(soma / n, 1)
+        resolution_rate = round(len(resolved_list) / received, 3) if received else 1.0
+
+        # 2. Cobertura
+        cov = await _coverage_pending_summary(school_id)
+
+        # 3. Lançamentos
+        lancamento_rate = round(await _lancamento_rate(school_id), 3)
+
+        # 4. Classificação
+        # score inline
+        adj_time = 100 - ((avg_days or 0) * 5)
+        score = max(min(max(0, min(adj_time, 100)) * 0.5 + resolution_rate * 100 * 0.4
+                        - len(active_list) * 2, 100), 0)
+        score = round(score, 1)
+        if score >= 80:
+            classif = "Adequado"
+        elif score >= 60:
+            classif = "Atenção"
+        else:
+            classif = "Crítico"
+
+        # 5. Geração de ações (regras fixas)
+        acoes = []
+
+        # Regra 1 — Cobertura baixa
+        if cov["pct"] < 70 and cov["critico_components"]:
+            top = cov["critico_components"][0]
+            samples = ', '.join(top.get('samples') or []) or '—'
+            acoes.append({
+                "categoria": "cobertura",
+                "prioridade": 1,
+                "titulo": f"Regularizar habilidades pendentes — {top['componente_codigo']} / {top.get('bimestre') or '—'}º bim.",
+                "descricao": (
+                    f"{top['missing_count']} habilidades ainda não foram trabalhadas. "
+                    f"Exemplos: {samples}."
+                ),
+                "impacto": "alto",
+                "prazo_dias": 7,
+                "responsavel": "coordenador",
+                "metrica_sucesso": f"Elevar cobertura de {top['componente_codigo']} a ≥90% no bimestre",
+                "link": f"/admin/curriculo/cobertura?component={top['componente_codigo']}",
+            })
+
+        # Regra 2 — Muitos alertas N3
+        if len(level_3_active) >= 3:
+            turmas = list({a.get('class_name') for a in level_3_active if a.get('class_name')})[:5]
+            acoes.append({
+                "categoria": "nivel_3",
+                "prioridade": 1,
+                "titulo": "Intervenção imediata em turmas críticas (Nível 3)",
+                "descricao": (
+                    f"{len(level_3_active)} alertas estão há ≥4 semanas sem resolução. "
+                    f"Turmas envolvidas: {', '.join(turmas) or '—'}."
+                ),
+                "impacto": "alto",
+                "prazo_dias": 3,
+                "responsavel": "diretor",
+                "metrica_sucesso": "Zerar alertas Nível 3 em 7 dias",
+                "link": "/admin/intervencoes",
+            })
+
+        # Regra 3 — Baixa execução do professor (lançamentos)
+        if lancamento_rate < 0.7:
+            acoes.append({
+                "categoria": "lancamentos",
+                "prioridade": 2,
+                "titulo": "Cobrar regularização de lançamentos no diário",
+                "descricao": (
+                    f"Taxa de lançamentos em 30 dias: {round(lancamento_rate * 100)}% da meta. "
+                    f"Professores podem estar atrasando registros."
+                ),
+                "impacto": "alto",
+                "prazo_dias": 5,
+                "responsavel": "coordenador",
+                "metrica_sucesso": "Atingir ≥90% da meta de lançamentos em 2 semanas",
+                "link": "/admin/learning-objects",
+            })
+
+        # Regra 4 — Baixa taxa de resolução
+        if received >= 3 and resolution_rate < 0.6:
+            acoes.append({
+                "categoria": "fluxo_resposta",
+                "prioridade": 3,
+                "titulo": "Revisar fluxo de resposta a alertas",
+                "descricao": (
+                    f"Taxa de resolução: {round(resolution_rate * 100)}% "
+                    f"({len(resolved_list)}/{received}). Reveja o procedimento de triagem."
+                ),
+                "impacto": "medio",
+                "prazo_dias": 14,
+                "responsavel": "coordenador",
+                "metrica_sucesso": "Atingir ≥80% de taxa de resolução em 30 dias",
+                "link": "/admin/intervencoes",
+            })
+
+        # Regra 5 — Tempo médio alto
+        if avg_days is not None and avg_days > 5:
+            acoes.append({
+                "categoria": "tempo_resposta",
+                "prioridade": 3,
+                "titulo": "Implantar rotina semanal de acompanhamento",
+                "descricao": (
+                    f"Tempo médio de resolução: {avg_days} dias. "
+                    f"Sugestão: reunião semanal de 30 minutos para triagem de alertas."
+                ),
+                "impacto": "medio",
+                "prazo_dias": 14,
+                "responsavel": "diretor",
+                "metrica_sucesso": "Reduzir tempo médio para ≤3 dias em 30 dias",
+                "link": "/admin/ranking-gestores",
+            })
+
+        # Ordenar e limitar
+        acoes.sort(key=lambda a: (a["prioridade"],
+                                  {"alto": 0, "medio": 1, "baixo": 2}.get(a.get("impacto"), 3)))
+        acoes = acoes[:5]
+        # reposicionar numeração final
+        for i, a in enumerate(acoes, start=1):
+            a["ordem"] = i
+
+        return {
+            "school_id": school_id,
+            "school_name": school.get("name"),
+            "period": period,
+            "score": score,
+            "classificacao": classif,
+            "contexto": {
+                "received": received,
+                "resolved": len(resolved_list),
+                "active": len(active_list),
+                "level_3_active": len(level_3_active),
+                "avg_resolution_days": avg_days,
+                "resolution_rate": resolution_rate,
+                "coverage_pct": cov["pct"],
+                "coverage_missing_total": cov["total"] - cov["covered"],
+                "lancamento_rate": lancamento_rate,
+            },
+            "acoes": acoes,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
     # =================== INBOX IN-APP ===================
 
     @router.get("/notifications")

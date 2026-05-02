@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity, Siren, Layers, Wrench, Megaphone, MessageSquare, BookMarked, Search, Trophy } from 'lucide-react';
+import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity, Siren, Layers, Wrench, Megaphone, MessageSquare, BookMarked, Search, Trophy, Zap } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI, analyticsAPI, permissionOverridesAPI } from '@/services/api';
@@ -27,6 +27,7 @@ export const DASHBOARD_MENU_GROUPS = [
       { label: 'Cobertura Curricular', icon: ClipboardList, color: 'emerald', route: '/admin/curriculo/cobertura', testId: 'nav-curriculum-coverage-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isCoordenador || c.isDiretor || c.isSecretario },
       { label: 'Intervenções Necessárias', icon: Siren, color: 'red', route: '/admin/intervencoes', testId: 'nav-interventions-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isCoordenador || c.isDiretor || c.isSecretario },
       { label: 'Ranking de Gestão', icon: Trophy, color: 'amber', route: '/admin/ranking-gestores', testId: 'nav-ranking-gestores-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isSecretario || c.isDiretor || c.isCoordenador },
+      { label: 'Plano de Ação', icon: Zap, color: 'amber', route: '/admin/plano-acao', testId: 'nav-plano-acao-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isSecretario || c.isDiretor || c.isCoordenador },
     ],
   },
   {

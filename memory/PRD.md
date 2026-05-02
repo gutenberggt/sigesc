@@ -786,3 +786,66 @@ score = max(0, min(100,
 - ⚪ (P2) Exportar ranking em CSV/PDF para reuniões da SEMED.
 - ⚪ (P2) Gráfico de evolução mensal do score (linha temporal por escola).
 
+
+
+---
+
+## 2026-02 — Sprint E: Plano de Ação Automático (orientação operacional)
+
+### Objetivo (diretriz do usuário)
+"Hoje você detecta e cobra, agora precisa **orientar com precisão operacional**. Sem isso, o gestor sabe que está mal, mas não sabe o que fazer primeiro."
+
+### Fecha o ciclo: detectar → alertar → **orientar** → cobrar → medir
+
+### Motor determinístico (regras fixas, não-IA)
+5 regras em ordem de prioridade:
+
+| # | Trigger | Ação | Prio | Prazo | Responsável |
+|---|---------|------|------|-------|-------------|
+| 1 | `coverage_pct < 70%` | Regularizar habilidades pendentes (top 5 da componente pior) | 1 | 7d | coordenador |
+| 2 | `level_3_active >= 3` | Intervenção imediata nas turmas críticas | 1 | 3d | diretor |
+| 3 | `lancamento_rate < 0.7` | Cobrar regularização de lançamentos no diário | 2 | 5d | coordenador |
+| 4 | `resolution_rate < 0.6` (com ≥3 recebidos) | Revisar fluxo de resposta a alertas | 3 | 14d | coordenador |
+| 5 | `avg_resolution_days > 5` | Implantar rotina semanal de acompanhamento | 3 | 14d | diretor |
+
+**Limite**: máx. 5 ações. **Ordem**: (prioridade, impacto alto→medio→baixo).
+
+### Estrutura de cada ação
+- `ordem`, `prioridade`, `categoria`, `titulo`, `descricao` (com números concretos), `impacto`, `prazo_dias`, `responsavel`, `metrica_sucesso`, `link` (1 clique → ação no sistema).
+
+### Backend (`/app/backend/routers/interventions.py`)
+- `GET /api/intervencoes/plano-acao?school_id=&period=(7d|30d|60d|90d|all)`
+- Reaproveita dados de: `intervention_alerts`, `curriculum_adaptations`, `learning_objects`.
+- Contexto completo retornado: score, classificação (Adequado/Atenção/Crítico), métricas crus.
+- Escopo: super_admin/admin/secretario → qualquer escola. Diretor/coord → apenas sua(s) escola(s).
+
+### Frontend (`/admin/plano-acao`)
+- Dropdown de escola + filtro de período.
+- Header colorido com nome da escola + contexto (cobertura / alertas / N3 / tempo médio / lançamentos) + score grande.
+- Cards de ação com prioridade numerada (#1, #2...), badge de impacto, ícone de prazo, responsável, título, descrição operacional com **números reais**, métrica de sucesso destacada, botão "Agir agora" (link direto).
+- Estado vazio: badge verde "Nenhuma ação recomendada".
+- Legenda com as 5 regras determinísticas.
+
+### Testes (4 PASS em `test_plano_acao.py`, 32 PASS no eixo v2+C+D+E)
+1. Plano gera múltiplas categorias (cobertura + N3 + lançamentos).
+2. Ação de cobertura tem link para `/admin/curriculo/cobertura` e métrica.
+3. Ação de N3 é urgente (prazo ≤3 dias, impacto alto, responsável=diretor).
+4. Contexto retornado tem level_3_active=4, received=5, coverage_pct=0, score<60.
+
+### Navegação (Dashboard → Gestão Institucional)
+Novo item "Plano de Ação" (ícone Zap amber) para super_admin/admin/secretario/diretor/coordenador.
+
+### Ciclo completo entregue
+```
+1. /admin/curriculo/cobertura   — diagnóstico
+2. /admin/intervencoes          — alertas com escalonamento
+3. /admin/plano-acao            — orientação operacional (NOVO)
+4. /admin/ranking-gestores      — accountability mensurável
+```
+
+### Próximos passos (quando quiser continuar)
+- 🟠 (P1) Bell icon no header com badge de unread (`/intervencoes/notifications`).
+- 🟠 (P2) Evolução mensal do score por escola (gráfico linha).
+- 🟠 (P2) Exportar plano de ação em PDF para reuniões pedagógicas.
+- ⚪ (P3) IA gerando descrição adaptativa por histórico (evolução do motor de regras).
+
