@@ -23,6 +23,8 @@ export const DASHBOARD_MENU_GROUPS = [
       { label: 'Log de Conversas', icon: MessageSquare, color: 'red', route: '/admin/logs', testId: 'nav-logs-button', visible: c => c.isSuperAdmin },
       { label: 'Matriz de Permissões', icon: Layers, color: 'slate', route: '/admin/permission-matrix', testId: 'nav-permission-matrix-button', visible: c => c.isSuperAdmin },
       { label: 'Importar Currículo (PDF)', icon: BookOpen, color: 'purple', route: '/admin/curriculo/importar', testId: 'nav-curriculum-import-button', visible: c => c.isSuperAdmin },
+      { label: 'Adaptações Curriculares', icon: BookMarked, color: 'violet', route: '/admin/curriculo/adaptacoes', testId: 'nav-curriculum-adaptations-button', visible: c => c.isSuperAdmin || c.isCoordenador },
+      { label: 'Cobertura Curricular', icon: ClipboardList, color: 'emerald', route: '/admin/curriculo/cobertura', testId: 'nav-curriculum-coverage-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isCoordenador || c.isDiretor || c.isSecretario },
     ],
   },
   {

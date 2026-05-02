@@ -358,13 +358,20 @@ def setup_router(db):
         academic_year: Optional[int] = None,
         component_id: Optional[str] = None,
     ):
-        """Cobertura curricular: % de adaptations cobertas pelas aulas registradas.
+        """Cobertura curricular com forecasting por ritmo semanal.
 
-        Retorna totais por (componente, ano, bimestre) + lista de pendências.
+        Retorna, para cada (componente, ano, bimestre):
+          - total / covered / pct
+          - status: 'ok' (≥90%), 'atencao' (70-89%), 'critico' (<70%), 'nao_iniciado'
+          - forecast: 'no_ritmo' | 'em_risco' | 'nao_cumpre' | 'fechado_critico'
+          - bimestre_state: 'futuro' | 'em_andamento' | 'fechado'
+          - pending_count + lista (top 20).
         """
+        from datetime import date, datetime as dt, timezone as tz
         user = await _require_any_auth(request)
         user_mant = user.get('mantenedora_id')
-        # 1. Base de adaptações (denominador)
+
+        # 1. Denominador
         filt_a: dict = {"ativo": True}
         if user_mant:
             filt_a["$or"] = [{"mantenedora_id": user_mant}, {"mantenedora_id": None}]
@@ -372,21 +379,95 @@ def setup_router(db):
             filt_a["component_id"] = component_id
         all_adaptations = await db.curriculum_adaptations.find(filt_a, {"_id": 0}).to_list(length=5000)
 
-        # 2. IDs usados em learning_objects (numerador)
+        # 2. Numerador
         filt_lo: dict = {}
         if class_id:
             filt_lo["class_id"] = class_id
         if academic_year is not None:
             filt_lo["academic_year"] = academic_year
         used_ids: set = set()
+        used_with_date: dict = {}  # adaptation_id → set of dates
         cursor = db.learning_objects.find(
-            filt_lo, {"_id": 0, "adaptation_ids": 1}
+            filt_lo, {"_id": 0, "adaptation_ids": 1, "date": 1}
         )
         async for lo in cursor:
             for aid in (lo.get("adaptation_ids") or []):
                 used_ids.add(aid)
+                used_with_date.setdefault(aid, set()).add(lo.get("date"))
 
-        # 3. Agrega por (componente, ano, bimestre)
+        # 3. Bimestre windows (calendário letivo)
+        bimestre_windows: dict = {}  # bim → (start_ymd, end_ymd)
+        if academic_year:
+            cal = await db.calendario_letivo.find_one(
+                {"ano_letivo": academic_year}, {"_id": 0}
+            )
+            if cal:
+                for b in (1, 2, 3, 4):
+                    start = str(cal.get(f"bimestre_{b}_inicio") or '')[:10]
+                    end = str(cal.get(f"bimestre_{b}_fim") or '')[:10]
+                    if start and end:
+                        bimestre_windows[b] = (start, end)
+
+        today_ymd = date.today().isoformat()
+
+        def bim_state(b: Optional[int]) -> str:
+            if not b or b not in bimestre_windows:
+                return 'em_andamento'
+            s, e = bimestre_windows[b]
+            if today_ymd < s:
+                return 'futuro'
+            if today_ymd > e:
+                return 'fechado'
+            return 'em_andamento'
+
+        def days_between(a: str, b: str) -> int:
+            try:
+                d1 = dt.fromisoformat(a).date()
+                d2 = dt.fromisoformat(b).date()
+                return max((d2 - d1).days, 0)
+            except Exception:
+                return 0
+
+        def forecast(total: int, covered: int, b: Optional[int]) -> str:
+            if total == 0:
+                return 'nao_iniciado'
+            pct = covered / total
+            state = bim_state(b)
+            if state == 'futuro':
+                return 'nao_iniciado'
+            if state == 'fechado':
+                return 'no_ritmo' if pct >= 0.9 else 'fechado_critico'
+            # em andamento
+            if b not in bimestre_windows:
+                # Sem janela: aplica simples threshold atual
+                if pct >= 0.9:
+                    return 'no_ritmo'
+                if pct >= 0.5:
+                    return 'em_risco'
+                return 'nao_cumpre'
+            s, e = bimestre_windows[b]
+            total_days = max(days_between(s, e), 1)
+            elapsed = min(days_between(s, today_ymd), total_days)
+            if elapsed <= 0:
+                return 'no_ritmo'
+            # Projeção linear: se mantivermos este ritmo, qual a cobertura ao fim do bimestre?
+            projected = pct * (total_days / elapsed) if elapsed > 0 else pct
+            if projected >= 1.0:
+                return 'no_ritmo'
+            if projected >= 0.7:
+                return 'em_risco'
+            return 'nao_cumpre'
+
+        def status_by_pct(pct: float, state: str) -> str:
+            if state == 'futuro':
+                return 'nao_iniciado'
+            if pct >= 90:
+                return 'ok'
+            if pct >= 70:
+                return 'atencao'
+            return 'critico'
+
+        # 4. Agregação
         from collections import defaultdict
         comp_map: dict = {}
         async for c in db.curriculum_components.find({}, {"_id": 0, "id": 1, "codigo": 1, "nome": 1}):
@@ -407,22 +488,29 @@ def setup_router(db):
                 })
 
         rows = []
-        for (codigo, ano, bimestre), b in sorted(buckets.items()):
+        for (codigo, ano, bimestre), b in sorted(buckets.items(), key=lambda x: (x[0][0] or '', x[0][1] or 0, x[0][2] or 0)):
+            state = bim_state(bimestre)
+            pct = round((b["covered"] / b["total"] * 100) if b["total"] else 0, 1)
             rows.append({
                 "componente_codigo": codigo,
                 "ano": ano,
                 "bimestre": bimestre,
                 "total": b["total"],
                 "covered": b["covered"],
-                "pct": round((b["covered"] / b["total"] * 100) if b["total"] else 0, 1),
+                "pct": pct,
+                "status": status_by_pct(pct, state),
+                "forecast": forecast(b["total"], b["covered"], bimestre),
+                "bimestre_state": state,
                 "pending": b["pending"][:20],
                 "pending_count": len(b["pending"]),
             })
         totals = {
             "total": sum(r["total"] for r in rows),
             "covered": sum(r["covered"] for r in rows),
+            "critical_rows": sum(1 for r in rows if r["status"] == "critico" and r["bimestre_state"] != "futuro"),
+            "closed_critical": sum(1 for r in rows if r["forecast"] == "fechado_critico"),
         }
         totals["pct"] = round((totals["covered"] / totals["total"] * 100) if totals["total"] else 0, 1)
-        return {"totals": totals, "rows": rows}
+        return {"totals": totals, "rows": rows, "bimestre_windows": bimestre_windows}
 
     return router

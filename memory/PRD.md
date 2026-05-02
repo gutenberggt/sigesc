@@ -631,3 +631,44 @@ Ver `/app/memory/test_credentials.md` — super_admin primário: `gutenberg@sige
 - (P1) Cards de "habilidades mais usadas na turma" no topo do SkillPicker (cache em `learning_objects`).
 - (P1) Conditional required no handleSave: chamar `/availability` antes de salvar para exibir aviso.
 
+
+
+
+---
+
+## 2026-02 — Sprint B v2: CRUD Adaptações + Validação + Widget Cobertura
+
+### Ordem entregue (conforme diretriz final)
+1. 🔴 **UI `/admin/curriculo/adaptacoes`** — CRUD completo
+2. 🔴 **Validação obrigatória condicional** — bloqueia salvar sem `adaptation_id` quando há base
+3. 🔴 **Widget Cobertura** — thresholds 90/70 + forecasting por ritmo semanal
+
+### UI Adaptações (CurriculumAdaptations.jsx)
+- Filtros sticky (Componente/Ano/Bimestre/Busca), tabela paginada 30/pg, modal edição com auto-fill BNCC informativo + campos editáveis, ação Sincronizar BNCC (`/v2/migrate`), integração com importador PDF.
+- Delete inteligente: soft-delete se adaptation em uso por `learning_objects`; hard delete caso contrário.
+
+### Validação Obrigatória (LearningObjects.js)
+- `handleSave` chama `/api/curriculum/adaptations/availability` antes de submeter quando `adaptation_ids=[]`. Se `required=true` → bloqueia com alerta informativo direcionando à seleção.
+- Inferência automática do `componente_codigo` por nome do curso.
+
+### Widget Cobertura (`/admin/curriculo/cobertura`)
+**Thresholds ajustados**: ≥90% verde · 70-89% âmbar · <70% vermelho · futuro cinza sem %.
+**Forecasting por ritmo semanal (backend)**: projeção linear `pct × total_days/elapsed_days` → No ritmo / Em risco / Não cumpre. Bimestre fechado <90% → Fechado crítico.
+**Banner de alerta**: "⚠️ Cobertura crítica detectada: intervenção necessária" quando `closed_critical>0` ou `critical_rows>0`.
+**Drill-down**: cada bimestre expande lista de pendências.
+**Backend**: `GET /api/curriculum/coverage?academic_year&class_id&component_id` retorna `{totals, rows, bimestre_windows}`.
+
+### Cobertura de testes (26 PASS)
+- `tests/test_curriculum_coverage.py` — seed sintético com b1 fechado 10%, b2 em andamento 70%, b3 futuro; valida status e forecast.
+- 25 testes anteriores permanecem PASS (import pipeline, v2 CRUD, availability, learning_objects v2, sprint_a, skills bimestre).
+
+### Navegação (Dashboard.js)
+Em "Gestão Institucional":
+- "Adaptações Curriculares" (super_admin + coordenador)
+- "Cobertura Curricular" (super_admin + admin + coordenador + diretor + secretário)
+
+### Próximos passos
+- (P1) Cards "habilidades mais usadas na turma" no topo do SkillPicker (cache em aggregation pipeline).
+- (P2) Relatório CSV de migração skill_codigos → adaptation_ids para ops.
+- (P2) Deprecação oficial de `skill_codigos` após 30 dias.
+- (P3) Extração BNCC nacional completa via CSV oficial MEC.

@@ -29,7 +29,7 @@ import {
   Lock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI, teacherAssignmentAPI, attendanceAPI, calendarAPI } from '@/services/api';
+import { learningObjectsAPI, schoolsAPI, classesAPI, coursesAPI, professorAPI, teacherAssignmentAPI, attendanceAPI, calendarAPI, curriculumAPI } from '@/services/api';
 
 
 // Infere o nível de ensino da turma a partir de education_level, nivel_ensino, grade_level ou name
@@ -760,7 +760,44 @@ export const LearningObjects = () => {
       showAlert('error', `O ${bimestre}º Bimestre está bloqueado para edição. Data limite: ${info?.dataLimite || 'N/A'}`);
       return;
     }
-    
+
+    // Validação obrigatória condicional (v2): se houver adaptations disponíveis
+    // para o slot (componente+ano+bimestre), o registro precisa de ≥1 adaptation_id.
+    if (!editingRecord && (!formData.adaptation_ids || formData.adaptation_ids.length === 0)) {
+      try {
+        const courseId = isMultiSelectMode ? selectedCourses[0] : selectedCourse;
+        const course = courses.find(x => x.id === courseId);
+        const name = String(course?.name || '').toLowerCase();
+        let componenteCodigo = '';
+        if (name.includes('portuguesa') || name.includes('português')) componenteCodigo = 'LP';
+        else if (name.includes('matemática') || name.includes('matematica')) componenteCodigo = 'MA';
+        else if (name.includes('ciência') || name.includes('ciencia')) componenteCodigo = 'CI';
+        else if (name.includes('geografia')) componenteCodigo = 'GE';
+        else if (name.includes('história') || name.includes('historia')) componenteCodigo = 'HI';
+        else if (name.includes('computa')) componenteCodigo = 'CO';
+        else if (name.includes('inglês') || name.includes('ingles')) componenteCodigo = 'LI';
+        else if (name.includes('arte')) componenteCodigo = 'AR';
+        else if (name.includes('educação física') || name.includes('educacao fisica')) componenteCodigo = 'EF';
+        else if (name.includes('religioso')) componenteCodigo = 'ER';
+        else if (name.includes('amazô') || name.includes('amazo')) componenteCodigo = 'EA';
+        if (componenteCodigo) {
+          const gradeStr = String(selectedClassInfo?.grade_level || '');
+          const gm = gradeStr.match(/\d+/);
+          const ano = gm ? parseInt(gm[0], 10) : undefined;
+          const params = { componente_codigo: componenteCodigo };
+          if (ano) params.ano = ano;
+          if (bimestre) params.bimestre = bimestre;
+          const r = await curriculumAPI.adaptationAvailability(params);
+          if (r?.required) {
+            showAlert('error', `Este componente (${componenteCodigo}) tem currículo cadastrado para este bimestre — selecione ao menos 1 habilidade BNCC/DCM.`);
+            return;
+          }
+        }
+      } catch {
+        // Falha silenciosa: não trava salvamento se o endpoint der erro.
+      }
+    }
+
     try {
       setSaving(true);
       

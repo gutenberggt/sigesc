@@ -20,6 +20,8 @@ const PreMatriculaManagement = lazy(() => import('@/pages/PreMatriculaManagement
 const ConfirmEmailChange = lazy(() => import('@/pages/ConfirmEmailChange'));
 const PermissionMatrix = lazy(() => import('@/pages/PermissionMatrix'));
 const CurriculumImport = lazy(() => import('@/pages/CurriculumImport'));
+const CurriculumAdaptations = lazy(() => import('@/pages/CurriculumAdaptations'));
+const CurriculumCoverage = lazy(() => import('@/pages/CurriculumCoverage'));
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Schools = lazy(() => import('@/pages/SchoolsComplete').then(m => ({ default: m.SchoolsComplete })));
 const Users = lazy(() => import('@/pages/Users').then(m => ({ default: m.Users })));
@@ -499,6 +501,26 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['super_admin']}>
                 <CurriculumImport />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* CRUD de Adaptações Curriculares (v2) — Super Admin / Coordenação */}
+          <Route
+            path="/admin/curriculo/adaptacoes"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'coordenador', 'apoio_pedagogico']}>
+                <CurriculumAdaptations />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Widget de Cobertura Curricular — Coordenação / Direção / Secretaria */}
+          <Route
+            path="/admin/curriculo/cobertura"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'coordenador', 'apoio_pedagogico', 'diretor', 'secretario', 'admin']}>
+                <CurriculumCoverage />
               </ProtectedRoute>
             }
           />
