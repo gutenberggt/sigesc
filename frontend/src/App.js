@@ -23,6 +23,7 @@ const CurriculumImport = lazy(() => import('@/pages/CurriculumImport'));
 const CurriculumAdaptations = lazy(() => import('@/pages/CurriculumAdaptations'));
 const CurriculumCoverage = lazy(() => import('@/pages/CurriculumCoverage'));
 const Interventions = lazy(() => import('@/pages/Interventions'));
+const RankingGestores = lazy(() => import('@/pages/RankingGestores'));
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Schools = lazy(() => import('@/pages/SchoolsComplete').then(m => ({ default: m.SchoolsComplete })));
 const Users = lazy(() => import('@/pages/Users').then(m => ({ default: m.Users })));
@@ -532,6 +533,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['super_admin', 'admin', 'coordenador', 'apoio_pedagogico', 'diretor', 'secretario']}>
                 <Interventions />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Ranking de Gestão Curricular — accountability real */}
+          <Route
+            path="/admin/ranking-gestores"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'secretario', 'diretor', 'coordenador']}>
+                <RankingGestores />
               </ProtectedRoute>
             }
           />

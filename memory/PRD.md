@@ -725,3 +725,64 @@ Em "Gestão Institucional":
 - ⚪ (P2) Cards "habilidades mais usadas na turma" no topo do SkillPicker (UX).
 - ⚪ (P3) Deprecação oficial de `skill_codigos` após 30 dias.
 
+
+
+---
+
+## 2026-02 — Sprint D: Ranking de Gestão Curricular (accountability real)
+
+### Diretriz do usuário
+"Você está criando transparência de desempenho dentro da rede. Se fizer certo, vira ferramenta de gestão oficial."
+
+### Mitigação política aplicada
+- **Escopo por papel**: `super_admin/admin/secretario` veem ranking completo. `diretor/coordenador` veem apenas a própria escola (`self`), nunca comparação com pares.
+- **Contexto obrigatório exibido**: nº de turmas da escola, nº de alertas recebidos, taxa de resolução ponderada, nível crítico 3 destacado. Evita leitura sem contexto.
+- **Transparência do score**: tooltip/legenda oficial explica fórmula e que o ranking considera apenas alertas reais gerados pelo sistema (não subjetividade).
+
+### Score (0–100)
+```
+score = max(0, min(100,
+    max(0, min(100, 100 - avg_resolution_days * 5)) * 0.5
+    + resolution_rate * 100 * 0.4
+    - active_alerts * 2
+))
+```
+
+### Peso por nível de escalonamento
+`LEVEL_WEIGHT = {1: 1, 2: 2, 3: 3}` — um alerta Nível 3 (secretaria) pesa 3× mais que um Nível 1 (coord) no cálculo de taxa. Evita gestores "esconderem" problemas graves.
+
+### Métricas por escola
+- `received` / `resolved` / `active` (recebidos, resolvidos, pendentes)
+- `resolution_rate` (% ponderada por nível)
+- `avg_resolution_days` (tempo médio entre first_detected_at e resolved_at)
+- `critical_level_3` (backlog Nível 3)
+- `weighted_score` + `rank`
+
+### Backend (`/app/backend/routers/interventions.py`)
+- `GET /api/intervencoes/ranking?period=(7d|30d|60d|90d|all)&only_mine=bool`
+- Agrega intervention_alerts por `school_id`, resolve `school.name` + coordenador ativo vinculado.
+- Auto-escopo: roles não-admin recebem apenas `self`, `rows=[]`, `full_access=false`.
+
+### Frontend (`/admin/ranking-gestores`)
+- Filtro de período (7/30/60/90/todo).
+- Cartão "Seu desempenho" para gestor (role limitado).
+- Tabela com medalha 🥇🥈🥉 para top 3, fundo vermelho suave para últimos 3 (quando >5 escolas).
+- Colunas: #, Escola, Gestor, Turmas, Alertas, Taxa, Tempo médio, Pendentes (com N3 destacado), Score.
+- Legenda oficial explicando fórmula.
+
+### Testes (2 PASS em `test_ranking_gestores.py`, 28 total no suite v2+C+D)
+1. Ordenação descendente por score: Escola A (5/5 resolvidos, 2d médio) ranqueia acima de Escola B (1/6 resolvidos + 5 ativos + 2 N3) — PASS.
+2. Período `all` engloba alertas antigos — PASS.
+
+### Impacto estratégico desbloqueado
+- Base para bônus por desempenho (KPI oficial defensável).
+- Identificação automática de escolas críticas (últimos 3 vermelhos).
+- Relatórios oficiais de gestão pedagógica.
+- Intervenção automática mais agressiva (nos baixos scores).
+
+### Próximos passos (Sprint E opcional)
+- 🟠 (P1) Plano de ação automático por escola: usando ranking + pendências, gerar checklist priorizado para a escola com menor score.
+- 🟠 (P1) Bell icon no header com badge de unread (`/intervencoes/notifications`).
+- ⚪ (P2) Exportar ranking em CSV/PDF para reuniões da SEMED.
+- ⚪ (P2) Gráfico de evolução mensal do score (linha temporal por escola).
+

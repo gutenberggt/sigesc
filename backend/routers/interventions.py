@@ -99,6 +99,146 @@ def setup_router(db, **_kwargs):
         stats = await run_intervention_detection(db, academic_year=academic_year)
         return {"ok": True, **stats}
 
+    # =================== RANKING (Sprint D) ===================
+
+    LEVEL_WEIGHT = {1: 1, 2: 2, 3: 3}
+
+    def _score(avg_days: Optional[float], rate: float, active: int) -> float:
+        """Score simples 0–100: premia velocidade, taxa e backlog baixo."""
+        adj_time = 100 - ((avg_days or 0) * 5)
+        s = max(min(adj_time, 100), 0) * 0.5 + rate * 100 * 0.4 - active * 2
+        return round(max(min(s, 100), 0), 1)
+
+    @router.get("/ranking")
+    async def ranking(
+        request: Request,
+        period: str = Query("30d", pattern="^(7d|30d|60d|90d|all)$"),
+        only_mine: bool = False,
+    ):
+        """Ranking por escola com peso por nível de escalonamento.
+
+        Mitigação política:
+          - Por padrão, só super_admin/admin/secretario enxergam ranking completo.
+          - Diretor/coordenador recebem apenas a sua escola (?only_mine=true
+            forçado automaticamente).
+        """
+        user = await _auth_manager(request)
+        role = user.get('role')
+        full_access = role in ('super_admin', 'admin', 'admin_teste', 'secretario')
+        if not full_access:
+            only_mine = True
+
+        from datetime import timedelta
+        window_days = {"7d": 7, "30d": 30, "60d": 60, "90d": 90, "all": None}[period]
+        since_iso = None
+        if window_days is not None:
+            since_iso = (datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat()
+
+        # 1. Carrega alerts dentro da janela (criado ≥ since)
+        filt: dict = {}
+        if since_iso:
+            filt["first_detected_at"] = {"$gte": since_iso}
+        if only_mine:
+            user_schools = [s.get('school_id') for s in user.get('school_links') or []]
+            if not user_schools:
+                return {"period": period, "rows": [], "self": None}
+            filt["school_id"] = {"$in": user_schools}
+
+        alerts = await db.intervention_alerts.find(filt, {"_id": 0}).to_list(length=5000)
+
+        # 2. School + class counts (contexto)
+        school_map: dict = {}
+        async for s in db.schools.find({}, {"_id": 0, "id": 1, "name": 1}):
+            school_map[s['id']] = s
+        class_counts: dict = {}
+        async for c in db.classes.find({}, {"_id": 0, "school_id": 1}):
+            sid = c.get('school_id')
+            if sid:
+                class_counts[sid] = class_counts.get(sid, 0) + 1
+
+        # 3. Coord/diretor responsável por escola (primeiro coordenador ativo)
+        coord_map: dict = {}
+        async for u in db.users.find(
+            {"status": "active", "role": {"$in": ["coordenador", "diretor"]}},
+            {"_id": 0, "id": 1, "full_name": 1, "role": 1, "school_links": 1}
+        ):
+            for link in (u.get('school_links') or []):
+                sid = link.get('school_id')
+                if sid and sid not in coord_map:
+                    coord_map[sid] = u
+
+        # 4. Agrega por escola
+        from collections import defaultdict
+        bucket = defaultdict(lambda: {
+            "received": 0, "resolved": 0, "active": 0,
+            "resolution_days_sum": 0.0, "resolution_days_n": 0,
+            "weighted_received": 0.0, "weighted_resolved": 0.0,
+            "level_3": 0, "level_2": 0, "level_1": 0,
+        })
+        for a in alerts:
+            sid = a.get('school_id') or '_sem_escola_'
+            b = bucket[sid]
+            level = a.get('escalation_level') or 1
+            weight = LEVEL_WEIGHT.get(level, 1)
+            b["received"] += 1
+            b["weighted_received"] += weight
+            b[f"level_{level}"] = b.get(f"level_{level}", 0) + 1
+            if a.get('resolved_at'):
+                b["resolved"] += 1
+                b["weighted_resolved"] += weight
+                try:
+                    d1 = datetime.fromisoformat(a['first_detected_at'])
+                    d2 = datetime.fromisoformat(a['resolved_at'])
+                    if d1.tzinfo is None:
+                        d1 = d1.replace(tzinfo=timezone.utc)
+                    if d2.tzinfo is None:
+                        d2 = d2.replace(tzinfo=timezone.utc)
+                    days = (d2 - d1).total_seconds() / 86400.0
+                    b["resolution_days_sum"] += days
+                    b["resolution_days_n"] += 1
+                except Exception:
+                    pass
+            else:
+                b["active"] += 1
+
+        rows = []
+        for sid, b in bucket.items():
+            avg_days = (b["resolution_days_sum"] / b["resolution_days_n"]) if b["resolution_days_n"] else None
+            rate = (b["weighted_resolved"] / b["weighted_received"]) if b["weighted_received"] else 0.0
+            school = school_map.get(sid) or {"name": "—", "id": sid}
+            coord = coord_map.get(sid) or {}
+            rows.append({
+                "school_id": sid,
+                "school_name": school.get("name"),
+                "num_classes": class_counts.get(sid, 0),
+                "gestor_nome": coord.get("full_name") or "—",
+                "gestor_role": coord.get("role") or "—",
+                "received": b["received"],
+                "resolved": b["resolved"],
+                "active": b["active"],
+                "resolution_rate": round(rate * 100, 1),
+                "avg_resolution_days": round(avg_days, 1) if avg_days is not None else None,
+                "weighted_score": _score(avg_days, rate, b["active"]),
+                "critical_level_3": b.get("level_3", 0),
+            })
+        rows.sort(key=lambda r: (-r["weighted_score"], r["school_name"] or ""))
+        for i, r in enumerate(rows, start=1):
+            r["rank"] = i
+
+        # Self (gestor vê apenas o próprio)
+        self_row = None
+        if not full_access and rows:
+            self_row = rows[0]
+
+        return {
+            "period": period,
+            "rows": rows if full_access else [],
+            "self": self_row,
+            "full_access": full_access,
+            "total_schools": len(rows),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
     # =================== INBOX IN-APP ===================
 
     @router.get("/notifications")
