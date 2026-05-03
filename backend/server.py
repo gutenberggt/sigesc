@@ -84,6 +84,7 @@ from routers import interventions as interventions_mod
 from routers import tenant_admin as tenant_admin_mod
 from routers import snapshots as snapshots_mod
 from routers import verifiable_docs as verifiable_docs_mod
+from routers import school_documents as school_docs_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
@@ -651,6 +652,7 @@ app.include_router(snapshots_mod.setup_router(db), prefix="/api")
 _vd_public, _vd_admin = verifiable_docs_mod.setup_router(db, limiter=limiter)
 app.include_router(_vd_public, prefix="/api")
 app.include_router(_vd_admin, prefix="/api")
+app.include_router(school_docs_mod.setup_router(db), prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)

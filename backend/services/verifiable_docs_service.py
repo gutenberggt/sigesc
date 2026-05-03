@@ -227,9 +227,8 @@ async def revoke_document(
 def build_portal_response(doc: Optional[dict]) -> dict:
     """Constrói a resposta LGPD-safe do portal público.
 
-    3 estados claros: "valido" | "invalido" | "revogado".
-    ZERO payload, ZERO dados operacionais. Só o suficiente para
-    conferência institucional visual.
+    4 estados claros: "valido" | "expirado" | "revogado" | "invalido".
+    ZERO payload, ZERO dados operacionais.
     """
     if not doc:
         return {
@@ -254,15 +253,49 @@ def build_portal_response(doc: Optional[dict]) -> dict:
             "mensagem": "Este documento foi revogado e não possui validade institucional.",
         }
 
+    # Verifica expiração (escolar: validade limitada por tipo)
+    expires_at = doc.get("expires_at")
+    if expires_at:
+        try:
+            exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+            if exp_dt.tzinfo is None:
+                exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) > exp_dt:
+                meta = doc.get("public_metadata") or {}
+                return {
+                    "status": "expirado",
+                    "codigo": doc.get("code"),
+                    "tipo": meta.get("tipo"),
+                    "tipo_label": meta.get("tipo_label"),
+                    "emitido_em": meta.get("emitido_em"),
+                    "emitido_por": meta.get("emitido_por"),
+                    "escopo": meta.get("escopo"),
+                    "valido_ate": exp_dt.date().isoformat(),
+                    "integridade": "confirmada",
+                    "assinatura_valida": bool(doc.get("server_signature")),
+                    "mensagem": (
+                        "Este documento perdeu a validade institucional. "
+                        "Solicite uma nova emissão à secretaria da escola."
+                    ),
+                }
+        except Exception:
+            pass
+
     # Verifica hash e assinatura se há snapshot associado
     hash_valid = True
     sig_valid = bool(doc.get("server_signature"))
     if doc.get("snapshot_id"):
-        # signature check (reproduzível sem I/O)
         recomputed_sig = snap_svc.compute_signature(doc.get("public_hash") or "")
         sig_valid = bool(recomputed_sig) and recomputed_sig == doc.get("server_signature")
 
     meta = doc.get("public_metadata") or {}
+    # expires_at convertido para exibição (pode não estar expirado ainda)
+    valido_ate = None
+    if expires_at:
+        try:
+            valido_ate = datetime.fromisoformat(expires_at.replace("Z", "+00:00")).date().isoformat()
+        except Exception:
+            pass
     return {
         "status": "valido" if (hash_valid and sig_valid) else "invalido",
         "codigo": doc.get("code"),
@@ -271,6 +304,7 @@ def build_portal_response(doc: Optional[dict]) -> dict:
         "emitido_em": meta.get("emitido_em"),
         "emitido_por": meta.get("emitido_por"),
         "escopo": meta.get("escopo"),
+        "valido_ate": valido_ate,
         "integridade": "confirmada" if hash_valid else "alterada",
         "assinatura_valida": sig_valid,
         "mensagem": (
