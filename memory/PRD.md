@@ -969,3 +969,66 @@ Complementar o motor determinístico de 5 regras fixas com uma camada de IA que:
 - ⚪ (P3) Isolamento de auth (HttpOnly cookies).
 - ⚪ (P3) Tooltips explicativos nos KPIs do Secretário.
 - ⚪ (P3) Botão "Baixar em segundo plano" para PDFs pesados.
+
+---
+
+## Sprint G2 — HttpOnly Cookies + CSRF + Session Rotation [03/Fev/2026]
+
+### Objetivo
+Migrar autenticação de `localStorage + Authorization: Bearer` (vulnerável a XSS) para **HttpOnly cookies** com CSRF protection via double-submit pattern + rotação de refresh token a cada uso.
+
+### Implementação
+
+**Backend**
+- `auth_utils.py` — helpers:
+  - `set_auth_cookies(response, access, refresh, csrf)` — seta os 3 cookies
+  - `clear_auth_cookies(response)` — clear em logout
+  - `generate_csrf_token()` — `secrets.token_urlsafe(32)`
+  - Cookies: `sigesc_access` (HttpOnly, 15min, path=/), `sigesc_refresh` (HttpOnly, 7d, path=/api/auth), `sigesc_csrf` (não-HttpOnly, 15min, path=/)
+  - Flags: `Secure=True` + `SameSite=Lax` por padrão
+- `auth_middleware.py` — `get_current_user`: ordem de leitura `cookie → Bearer → query ?token=`
+- `routers/auth.py`:
+  - `/login` seta cookies + retorna tokens no body (retrocompat)
+  - `/refresh` lê de cookie OU body + **rotaciona jti** (revoga antigo ao emitir novo)
+  - `/logout` lê refresh do cookie + clear cookies + blacklist
+  - `GET /auth/csrf-token` (novo) emite novo CSRF sem invalidar sessão
+- `server.py` — `CSRFMiddleware`:
+  - Só valida POST/PUT/PATCH/DELETE em `/api/*`
+  - **Só exige CSRF quando auth vem por cookie** (Bearer não é vulnerável a CSRF)
+  - Pula endpoints públicos: `/login`, `/register`, `/refresh`, `/forgot-password`, `/reset-password`, `/confirm-email-change`, `/resend-email-change`, `/tenant/branding/public`, `/pre-matricula`
+  - Double-submit: `X-CSRF-Token` header == `sigesc_csrf` cookie
+
+**Frontend** (`services/api.js`)
+- `axios.defaults.withCredentials = true` (cookies em todas requests)
+- Interceptor lê `sigesc_csrf` cookie e injeta `X-CSRF-Token` em POST/PUT/PATCH/DELETE
+- Bearer continua sendo enviado (retrocompat — backend dá prioridade ao cookie)
+
+### Testes (`tests/test_auth_cookies.py`) — 9/9 pass
+1. Login seta 3 cookies com flags corretas (HttpOnly, Secure, SameSite=Lax)
+2. `GET /me` funciona só com cookie (sem Bearer)
+3. Retrocompat: `GET /me` continua OK com Bearer header
+4. Refresh rotaciona: refresh token antigo vira 401 após 1º uso
+5. CSRF bloqueia POST de escrita sem header quando auth via cookie
+6. CSRF libera com header correto
+7. CSRF não é exigido se auth vem via Bearer
+8. Logout limpa cookies e invalida tokens
+9. `GET /auth/csrf-token` rotaciona o cookie CSRF
+
+### Validação E2E
+- Screenshot do browser: cookies visíveis com flags corretas (`sigesc_access: httpOnly=True, secure=True, sameSite=Lax`)
+- Dashboard e PlanoAcao funcionando normalmente após migração
+- **Regressão: 34/34 testes passando** (17 legados + 8 IA + 9 cookies)
+
+### Segurança — ganhos concretos
+- ✅ Access token imune a XSS (não acessível via JS)
+- ✅ Refresh token escopado a `/api/auth/*` (mínima superfície)
+- ✅ CSRF double-submit em rotas mutadoras
+- ✅ Refresh token rotation (detecção de reuso = compromisso)
+- ✅ Secure=True garante cookie só via HTTPS
+- ✅ SameSite=Lax mitiga CSRF cross-site
+
+### Próximas evoluções (backlog)
+- (P2) Remover suporte a Bearer header após período de transição (2-3 semanas)
+- (P3) Idle timeout: auto-refresh do access token antes de expirar via interceptor 401 → `/refresh` → retry
+- (P3) Alerta visual quando CSRF falhar (mostrar que sessão precisa ser renovada)
+

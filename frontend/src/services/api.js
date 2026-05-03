@@ -3,14 +3,29 @@ import axios from 'axios';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// G2 (Fev/2026): envia cookies HttpOnly em todas as requests.
+// Indispensável para auth via cookie `sigesc_access` + CSRF double-submit.
+axios.defaults.withCredentials = true;
+
 // Configura interceptor para incluir token
 export const getToken = () => localStorage.getItem('accessToken');
 
 // Multi-tenancy: super_admin pode selecionar uma mantenedora ativa
 export const getActiveTenantId = () => localStorage.getItem('activeMantenedoraId');
 
+// Lê cookie (usado para CSRF double-submit). Não-HttpOnly por design.
+function readCookie(name) {
+  const match = document.cookie.match(new RegExp('(^|;\\s*)' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+const CSRF_COOKIE_NAME = 'sigesc_csrf';
+const CSRF_WRITE_METHODS = new Set(['post', 'put', 'patch', 'delete']);
+
 axios.interceptors.request.use(
   (config) => {
+    // Retrocompat: continua enviando Bearer se token em localStorage.
+    // Backend lê cookie primeiro, fallback Bearer — migração gradual.
     const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -19,6 +34,14 @@ axios.interceptors.request.use(
     const tenantId = getActiveTenantId();
     if (tenantId) {
       config.headers['X-Mantenedora-Id'] = tenantId;
+    }
+    // CSRF: envia header em requests de escrita quando o cookie existe.
+    const method = (config.method || 'get').toLowerCase();
+    if (CSRF_WRITE_METHODS.has(method)) {
+      const csrf = readCookie(CSRF_COOKIE_NAME);
+      if (csrf) {
+        config.headers['X-CSRF-Token'] = csrf;
+      }
     }
     return config;
   },

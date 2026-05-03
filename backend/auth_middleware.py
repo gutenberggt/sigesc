@@ -1,7 +1,7 @@
 from fastapi import Request, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Optional
-from auth_utils import decode_token, token_blacklist
+from auth_utils import decode_token, token_blacklist, ACCESS_COOKIE_NAME
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,22 +19,31 @@ class AuthMiddleware:
     
     @staticmethod
     async def get_current_user(request: Request) -> dict:
-        """Extrai e valida usuário do token JWT"""
-        auth_header = request.headers.get('Authorization')
-        
-        if not auth_header or not auth_header.startswith('Bearer '):
-            # Fallback: aceitar token via query param (para window.open em PDFs)
+        """Extrai e valida usuário do token JWT.
+
+        Ordem de leitura (G2 — Fev/2026):
+          1. Cookie HttpOnly `sigesc_access` (novo padrão seguro).
+          2. Header `Authorization: Bearer ...` (retrocompat durante migração).
+          3. Query param `?token=...` (necessário p/ window.open em PDFs).
+        """
+        token = request.cookies.get(ACCESS_COOKIE_NAME)
+
+        if not token:
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+
+        if not token:
             query_token = request.query_params.get('token')
             if query_token:
                 token = query_token
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail='Token de autenticação não fornecido',
-                    headers={'WWW-Authenticate': 'Bearer'},
-                )
-        else:
-            token = auth_header.split(' ')[1]
+
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Token de autenticação não fornecido',
+                headers={'WWW-Authenticate': 'Bearer'},
+            )
         payload = decode_token(token)
         
         if not payload:

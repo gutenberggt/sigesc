@@ -726,6 +726,56 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Erro interno do servidor"}
     )
 
+# G2 (Fev/2026) — CSRF protection (double-submit cookie pattern).
+# Só valida quando auth veio via cookie (Authorization Bearer não é vulnerável a CSRF).
+# Pula endpoints públicos de autenticação e rotas não-API.
+from starlette.middleware.base import BaseHTTPMiddleware
+from auth_utils import ACCESS_COOKIE_NAME, CSRF_COOKIE_NAME, CSRF_HEADER_NAME
+
+_CSRF_EXEMPT_PREFIXES = (
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/auth/refresh',  # refresh só precisa do refresh_token cookie válido
+    '/api/auth/forgot-password',
+    '/api/auth/reset-password',
+    '/api/auth/confirm-email-change',
+    '/api/auth/resend-email-change',
+    '/api/tenant/branding/public',
+    '/api/pre-matricula',
+)
+_CSRF_PROTECTED_METHODS = ('POST', 'PUT', 'PATCH', 'DELETE')
+
+
+class CSRFMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.method not in _CSRF_PROTECTED_METHODS:
+            return await call_next(request)
+
+        path = request.url.path
+        if not path.startswith('/api/'):
+            return await call_next(request)
+
+        # Pula endpoints públicos/preflight/migração
+        if any(path.startswith(p) for p in _CSRF_EXEMPT_PREFIXES):
+            return await call_next(request)
+
+        # Só exige CSRF quando auth vem por COOKIE (Bearer não é vulnerável)
+        has_access_cookie = bool(request.cookies.get(ACCESS_COOKIE_NAME))
+        if not has_access_cookie:
+            return await call_next(request)
+
+        cookie_token = request.cookies.get(CSRF_COOKIE_NAME)
+        header_token = request.headers.get(CSRF_HEADER_NAME)
+        if not cookie_token or not header_token or cookie_token != header_token:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "CSRF token inválido ou ausente"},
+            )
+        return await call_next(request)
+
+
+app.add_middleware(CSRFMiddleware)
+
 # CORS middleware (deve ser o último middleware adicionado)
 app.add_middleware(
     CORSMiddleware,

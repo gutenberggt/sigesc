@@ -5,6 +5,7 @@ from typing import Optional, Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import secrets
 import uuid
 import logging
 
@@ -23,6 +24,78 @@ ALGORITHM = 'HS256'
 # PATCH 3.1: Configurações de expiração com valores seguros
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES', 15))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get('REFRESH_TOKEN_EXPIRE_DAYS', 7))
+
+# G2 (Fev/2026): HttpOnly cookies config
+# COOKIE_SECURE=true em produção (HTTPS). No preview emergentagent.com é HTTPS, OK.
+# SAMESITE=lax é o padrão recomendado para sessões web tradicionais.
+# Domínio inherido do request (host-only) — multi-tenant funciona naturalmente
+# pois cada domínio do tenant recebe seus próprios cookies.
+COOKIE_SECURE = os.environ.get('COOKIE_SECURE', 'true').lower() == 'true'
+COOKIE_SAMESITE = os.environ.get('COOKIE_SAMESITE', 'lax')
+
+ACCESS_COOKIE_NAME = 'sigesc_access'
+REFRESH_COOKIE_NAME = 'sigesc_refresh'
+CSRF_COOKIE_NAME = 'sigesc_csrf'
+CSRF_HEADER_NAME = 'X-CSRF-Token'
+
+
+def _access_cookie_kwargs() -> Dict[str, Any]:
+    return {
+        'httponly': True,
+        'secure': COOKIE_SECURE,
+        'samesite': COOKIE_SAMESITE,
+        'max_age': ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        'path': '/',
+    }
+
+
+def _refresh_cookie_kwargs() -> Dict[str, Any]:
+    return {
+        'httponly': True,
+        'secure': COOKIE_SECURE,
+        'samesite': COOKIE_SAMESITE,
+        'max_age': REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        # Escopa o refresh_token apenas às rotas de auth que o usam.
+        # Minimiza superfície de ataque: não é enviado em toda requisição.
+        'path': '/api/auth',
+    }
+
+
+def _csrf_cookie_kwargs() -> Dict[str, Any]:
+    # CSRF cookie é lido por JS (double-submit) → httponly=False.
+    # Secure e SameSite continuam valendo.
+    return {
+        'httponly': False,
+        'secure': COOKIE_SECURE,
+        'samesite': COOKIE_SAMESITE,
+        'max_age': ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        'path': '/',
+    }
+
+
+def generate_csrf_token() -> str:
+    """Gera um token CSRF criptograficamente forte (32 bytes = 43 chars url-safe)."""
+    return secrets.token_urlsafe(32)
+
+
+def set_auth_cookies(response, *, access_token: str, refresh_token: str, csrf_token: str) -> None:
+    """Seta os 3 cookies de autenticação na resposta HTTP.
+
+    access_token: HttpOnly, 15min, path=/
+    refresh_token: HttpOnly, 7d, path=/api/auth (minimiza exposição)
+    csrf_token: NOT HttpOnly, 15min, path=/ (JS lê e envia via X-CSRF-Token)
+    """
+    response.set_cookie(ACCESS_COOKIE_NAME, access_token, **_access_cookie_kwargs())
+    response.set_cookie(REFRESH_COOKIE_NAME, refresh_token, **_refresh_cookie_kwargs())
+    response.set_cookie(CSRF_COOKIE_NAME, csrf_token, **_csrf_cookie_kwargs())
+
+
+def clear_auth_cookies(response) -> None:
+    """Remove os 3 cookies de auth (logout)."""
+    response.delete_cookie(ACCESS_COOKIE_NAME, path='/')
+    response.delete_cookie(REFRESH_COOKIE_NAME, path='/api/auth')
+    response.delete_cookie(CSRF_COOKIE_NAME, path='/')
+
 
 def hash_password(password: str) -> str:
     """Gera hash da senha usando bcrypt diretamente"""

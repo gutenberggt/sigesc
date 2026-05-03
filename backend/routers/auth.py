@@ -3,8 +3,9 @@ Router de Autenticação - SIGESC
 Endpoints relacionados a login, logout, tokens e perfil de usuário.
 """
 
-from fastapi import APIRouter, HTTPException, status, Request
+from fastapi import APIRouter, HTTPException, status, Request, Response
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 import os
 import uuid
 
@@ -14,7 +15,9 @@ from models import (
 )
 from auth_utils import (
     hash_password, verify_password, create_access_token,
-    create_refresh_token, decode_token, token_blacklist
+    create_refresh_token, decode_token, token_blacklist,
+    set_auth_cookies, clear_auth_cookies, generate_csrf_token,
+    REFRESH_COOKIE_NAME, REFRESH_TOKEN_EXPIRE_DAYS,
 )
 from auth_middleware import AuthMiddleware
 from text_utils import format_data_uppercase
@@ -70,8 +73,8 @@ def setup_router(db, audit_service):
         return highest_role, school_links
 
     @router.post("/login", response_model=TokenResponse)
-    async def login(credentials: LoginRequest, request: Request):
-        """Autentica usuário e retorna tokens"""
+    async def login(credentials: LoginRequest, request: Request, response: Response):
+        """Autentica usuário, retorna tokens no body E seta cookies HttpOnly."""
         user_doc = await db.users.find_one({"email": credentials.email}, {"_id": 0})
         
         if not user_doc:
@@ -131,6 +134,13 @@ def setup_router(db, audit_service):
         
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token({"sub": user.id})
+        csrf_token = generate_csrf_token()
+        set_auth_cookies(
+            response,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            csrf_token=csrf_token,
+        )
         
         await audit_service.log(
             action='login',
@@ -152,11 +162,24 @@ def setup_router(db, audit_service):
         )
 
     @router.post("/refresh")
-    async def refresh_token(request_data: RefreshTokenRequest):
-        """Renova o access token usando o refresh token"""
+    async def refresh_token(request: Request, response: Response, request_data: Optional[RefreshTokenRequest] = None):
+        """Renova access + refresh tokens (rotation).
+
+        Lê refresh de (1) cookie HttpOnly `sigesc_refresh`, (2) body legado.
+        Ao sucesso: revoga o jti antigo (rotação) e emite novos tokens com novo jti.
+        Seta cookies atualizados na resposta.
+        """
         try:
-            payload = decode_token(request_data.refresh_token)
-            if payload.get('type') != 'refresh':
+            incoming_refresh = request.cookies.get(REFRESH_COOKIE_NAME)
+            if not incoming_refresh and request_data is not None:
+                incoming_refresh = request_data.refresh_token
+            if not incoming_refresh:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Refresh token ausente"
+                )
+            payload = decode_token(incoming_refresh)
+            if not payload or payload.get('type') != 'refresh':
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Token inválido"
@@ -195,10 +218,10 @@ def setup_router(db, audit_service):
                     effective_school_links = lotacao_school_links
             
             school_ids = [
-            (link['school_id'] if isinstance(link, dict) else link.school_id)
-            for link in effective_school_links
-            if (link.get('school_id') if isinstance(link, dict) else getattr(link, 'school_id', None))
-        ]
+                (link['school_id'] if isinstance(link, dict) else link.school_id)
+                for link in effective_school_links
+                if (link.get('school_id') if isinstance(link, dict) else getattr(link, 'school_id', None))
+            ]
             token_data = {
                 "sub": user.id,
                 "email": user.email,
@@ -209,6 +232,32 @@ def setup_router(db, audit_service):
             new_access_token = create_access_token(token_data)
             new_refresh_token = create_refresh_token({"sub": user.id})
             
+            # Rotação: revoga o jti antigo para impedir reuso.
+            if refresh_jti:
+                try:
+                    token_exp = payload.get('exp')
+                    exp_dt = (
+                        datetime.fromtimestamp(token_exp, tz=timezone.utc)
+                        if token_exp else
+                        datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+                    )
+                    await token_blacklist.revoke_token(
+                        jti=refresh_jti,
+                        user_id=user.id,
+                        expires_at=exp_dt,
+                        reason='refresh_rotation'
+                    )
+                except Exception:
+                    pass
+            
+            csrf_token = generate_csrf_token()
+            set_auth_cookies(
+                response,
+                access_token=new_access_token,
+                refresh_token=new_refresh_token,
+                csrf_token=csrf_token,
+            )
+            
             user_response_data = user.model_dump(exclude={'password_hash'})
             user_response_data['role'] = effective_role
             user_response_data['school_links'] = effective_school_links
@@ -218,7 +267,9 @@ def setup_router(db, audit_service):
                 refresh_token=new_refresh_token,
                 user=UserResponse(**user_response_data)
             )
-        except Exception as e:
+        except HTTPException:
+            raise
+        except Exception:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token inválido ou expirado"
@@ -295,22 +346,28 @@ def setup_router(db, audit_service):
         return UserResponse(**user_obj.model_dump(exclude={'password_hash'}))
 
     @router.post("/logout")
-    async def logout(request: Request):
+    async def logout(request: Request, response: Response):
         """
         Revoga o refresh token atual + todos os access tokens emitidos antes
-        do logout (via revoke_all_before).
+        do logout (via revoke_all_before) + limpa cookies HttpOnly.
         Em ambiente educacional (multi-device, salas compartilhadas), logout
         invalida todas as sessões do usuário — comportamento mais seguro que
         deixar access_tokens válidos até expirarem naturalmente (15min).
         """
         current_user = await AuthMiddleware.get_current_user(request)
         
-        # Revoga refresh_token específico (se enviado)
-        try:
-            body = await request.json()
-            refresh_token = body.get('refresh_token')
-            
-            if refresh_token:
+        # Lê refresh_token do cookie primeiro, fallback body (retrocompat)
+        refresh_token = request.cookies.get(REFRESH_COOKIE_NAME)
+        if not refresh_token:
+            try:
+                body = await request.json()
+                refresh_token = (body or {}).get('refresh_token')
+            except Exception:
+                refresh_token = None
+
+        # Revoga refresh_token específico (se existir)
+        if refresh_token:
+            try:
                 payload = decode_token(refresh_token)
                 if payload and payload.get('jti'):
                     token_exp = payload.get('exp')
@@ -322,8 +379,8 @@ def setup_router(db, audit_service):
                         expires_at=exp_datetime,
                         reason='user_logout'
                     )
-        except Exception:
-            pass
+            except Exception:
+                pass
         
         # Revoga TODOS os access_tokens emitidos antes deste momento
         # (auth_middleware consulta is_token_revoked com user_id+iat).
@@ -331,6 +388,8 @@ def setup_router(db, audit_service):
             user_id=current_user['id'],
             reason='user_logout'
         )
+        
+        clear_auth_cookies(response)
         
         await audit_service.log(
             action='logout',
@@ -373,6 +432,20 @@ def setup_router(db, audit_service):
         permissions['school_ids'] = current_user.get('school_ids', [])
         
         return permissions
+
+    @router.get("/csrf-token")
+    async def get_csrf_token(request: Request, response: Response):
+        """Emite um novo CSRF token (cookie não-HttpOnly + body).
+
+        Usado pelo frontend no bootstrap antes de rotas de escrita,
+        ou quando o cookie CSRF expira mas a sessão ainda é válida
+        (ex.: após refresh silencioso do access token).
+        """
+        current_user = await AuthMiddleware.get_current_user(request)
+        from auth_utils import _csrf_cookie_kwargs, CSRF_COOKIE_NAME
+        token = generate_csrf_token()
+        response.set_cookie(CSRF_COOKIE_NAME, token, **_csrf_cookie_kwargs())
+        return {"csrf_token": token, "user_id": current_user['id']}
 
     @router.post("/change-account")
     async def change_account(request: Request):
