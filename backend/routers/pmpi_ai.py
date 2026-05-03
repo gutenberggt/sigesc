@@ -265,16 +265,60 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         now = datetime.now(timezone.utc)
         cutoff = (now - timedelta(days=60)).isoformat()
 
-        # Busca diretores + coordenadores do tenant
-        managers = [u async for u in current_db.users.find(
-            {**base, "role": {"$in": ["diretor", "coordenador"]}},
-            {"_id": 0, "id": 1, "email": 1, "full_name": 1, "role": 1, "school_links": 1},
+        # Fonte da verdade: school_assignments (Gestão de Servidores).
+        # Gestores reais são lotados como diretor/coordenador no ano corrente.
+        # Em users.role muitos aparecem como "professor" pois é o cadastro base.
+        assignments = [a async for a in current_db.school_assignments.find(
+            {
+                **base,
+                "status": "ativo",
+                "academic_year": now.year,
+                "funcao": {"$in": ["diretor", "coordenador"]},
+            },
+            {"_id": 0, "staff_id": 1, "school_id": 1, "funcao": 1},
         )]
+
+        # Agrupa lotações por staff_id (um diretor pode atender múltiplas escolas)
+        from collections import defaultdict
+        schools_by_staff: dict = defaultdict(list)
+        funcao_by_staff: dict = {}
+        for a in assignments:
+            sid = a.get("staff_id")
+            if not sid:
+                continue
+            schools_by_staff[sid].append(a.get("school_id"))
+            # Mantém prioridade: diretor > coordenador
+            current_f = funcao_by_staff.get(sid)
+            if current_f != "diretor":
+                funcao_by_staff[sid] = a.get("funcao")
+
+        if not schools_by_staff:
+            return {"items": []}
+
+        # Resolve nome/email + user_id direto via campo `staff.user_id`
+        staff_ids = list(schools_by_staff.keys())
+        staff_docs = await current_db.staff.find(
+            {"id": {"$in": staff_ids}},
+            {"_id": 0, "id": 1, "email": 1, "nome": 1, "user_id": 1},
+        ).to_list(length=len(staff_ids))
+
+        managers = []
+        for sdoc in staff_docs:
+            sid = sdoc["id"]
+            school_ids = [s for s in schools_by_staff.get(sid, []) if s]
+            if not school_ids:
+                continue
+            managers.append({
+                "id": sdoc.get("user_id") or sid,  # user_id se já logou; senão staff_id
+                "email": sdoc.get("email"),
+                "full_name": sdoc.get("nome") or sdoc.get("email") or "Gestor",
+                "role": funcao_by_staff.get(sid, "diretor"),
+                "school_ids": school_ids,
+            })
 
         results = []
         for m in managers:
-            school_ids = [link.get("school_id") for link in (m.get("school_links") or [])
-                          if link.get("school_id")]
+            school_ids = m["school_ids"]
             if not school_ids:
                 continue
 

@@ -221,7 +221,7 @@ export default function PermissionMatrix() {
   }, [rows, search, hideEmpty]);
 
   if (user?.role !== 'super_admin') {
-    return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
@@ -230,7 +230,7 @@ export default function PermissionMatrix() {
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <Link to="/admin/dashboard">
+            <Link to="/dashboard">
               <Button variant="ghost" size="sm" data-testid="btn-back-dashboard">
                 <ArrowLeft size={16} className="mr-1" /> Voltar
               </Button>

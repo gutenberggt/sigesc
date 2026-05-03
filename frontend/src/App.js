@@ -371,7 +371,7 @@ function App() {
           <Route
             path="/admin/logs"
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente']}>
                 <MessageLogs />
               </ProtectedRoute>
             }
