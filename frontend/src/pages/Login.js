@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Mail, Lock, AlertCircle, UserPlus, WifiOff, Info } from 'lucide-react';
 import { mantenedoraAPI } from '@/services/api';
+import useTenantBranding from '@/hooks/useTenantBranding';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
@@ -14,6 +15,7 @@ export const Login = () => {
   const [exibirPreMatricula, setExibirPreMatricula] = useState(true);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { branding } = useTenantBranding();
 
   // Monitora status de conexão
   useEffect(() => {
@@ -79,13 +81,23 @@ export const Login = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <img
-            src="https://aprenderdigital.top/imagens/logotipo/logosigesc.png"
-            alt="SIGESC Logo"
-            className="h-24 mx-auto mb-4"
+            src={branding.logo_url || "https://aprenderdigital.top/imagens/logotipo/logosigesc.png"}
+            alt={branding.name || "SIGESC"}
+            className="h-24 mx-auto mb-4 object-contain"
             data-testid="login-logo"
+            onError={(e) => { e.target.src = "https://aprenderdigital.top/imagens/logotipo/logosigesc.png"; }}
           />
-          <h1 className="text-3xl font-bold text-gray-900">SIGESC</h1>
-          <p className="text-gray-600 mt-2">Sistema Integrado de Gestão Escolar</p>
+          <h1
+            className="text-3xl font-bold"
+            style={{ color: branding.primary_color || '#111827' }}
+            data-testid="login-tenant-name"
+          >
+            {branding.name || 'SIGESC'}
+          </h1>
+          <p className="text-gray-600 mt-2">{branding.slogan || 'Sistema Integrado de Gestão Escolar'}</p>
+          {branding.secretaria && (
+            <p className="text-xs text-gray-500 mt-1">{branding.secretaria}</p>
+          )}
         </div>
 
         {/* Card de Login */}

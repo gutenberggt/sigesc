@@ -1,21 +1,21 @@
-"""Multi-Tenant Toolkit — Auditoria + Branding Público + Onboarding (Sprint F).
+"""Multi-Tenant Toolkit — Auditoria + Branding por Domínio + Onboarding (Sprint F+G).
 
 Endpoints:
-  GET  /api/tenant/audit                    — super_admin: lista coleções com
-                                              registros sem mantenedora_id
-  POST /api/tenant/audit/backfill           — super_admin: tenta auto-derivar
-                                              mantenedora_id via parent (school)
-  GET  /api/tenant/branding/public          — público: retorna logo+cor+nome
-                                              da mantenedora (login screen)
+  GET  /api/tenant/audit                    — super_admin: lacunas mantenedora_id
+  POST /api/tenant/audit/backfill           — super_admin: auto-derivar via parent
+  GET  /api/tenant/branding/public          — público: resolve via Host header
+                                              (sem query param de tenant!)
+  GET  /api/tenant/domains                  — super_admin: lista vínculos
+  POST /api/tenant/domains                  — super_admin: vincular domínio
+  DELETE /api/tenant/domains/{id}           — super_admin: desvincular
   POST /api/tenant/onboard                  — super_admin: cria nova mantenedora
-                                              completa (wizard rápido)
 """
 from __future__ import annotations
 import re
 import uuid
 from datetime import datetime, timezone
 from typing import Optional, List
-from fastapi import APIRouter, Request, HTTPException, Query
+from fastapi import APIRouter, Request, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from auth_middleware import AuthMiddleware
@@ -34,6 +34,13 @@ class OnboardPayload(BaseModel):
     primary_color: Optional[str] = None
     logotipo_url: Optional[str] = None
     escola_inicial_nome: Optional[str] = None
+    domain: Optional[str] = None  # vincula domínio inicial
+
+
+class DomainPayload(BaseModel):
+    mantenedora_id: str
+    domain: str
+    is_primary: bool = False
 
 
 # Coleções com escopo OBRIGATÓRIO + qual campo "parent" pode derivar mantenedora_id
@@ -167,46 +174,71 @@ def setup_router(db):
             })
         return {"dry_run": dry_run, "results": results}
 
-    # =================== BRANDING PÚBLICO ===================
+    # =================== BRANDING PÚBLICO (POR DOMÍNIO) ===================
 
     @router.get("/branding/public")
-    async def public_branding(
-        mantenedora_id: Optional[str] = None,
-        host: Optional[str] = None,
-    ):
-        """Retorna branding (logo + cor + nome) sem precisar de autenticação.
+    async def public_branding(request: Request, response: Response):
+        """Resolve mantenedora pelo `Host` header — sem confiar em query params.
 
-        Resolução: por mantenedora_id explícito > host (subdomain) > primeira mantenedora.
-        Para login customizado por município.
+        Headers de cache:
+          - `Cache-Control: private, max-age=300` (5 min)
+          - `Vary: Host` (CDN deve segregar por host)
+
+        Resolução:
+          1. Host bate com `tenant_domains.domain` → tenant resolvido
+          2. Senão, primeiro segmento do host bate com `mantenedora.slug` ou `codigo_inep`
+          3. Senão, retorna `default=true` (frontend exibe branding genérico, sem
+             erro silencioso)
         """
+        host = (request.headers.get('host') or '').split(':')[0].lower().strip()
+        response.headers['Cache-Control'] = 'private, max-age=300'
+        response.headers['Vary'] = 'Host'
+
         target = None
-        if mantenedora_id:
-            target = await db.mantenedoras.find_one({"id": mantenedora_id}, {"_id": 0})
-        if not target and host:
-            # Tenta extrair "subdomain" como mantenedora codigo_inep ou slug
-            sub = host.split('.')[0] if '.' in host else host
-            target = await db.mantenedoras.find_one(
-                {"$or": [
-                    {"codigo_inep": sub},
-                    {"slug": sub},
-                ]},
-                {"_id": 0},
+        resolved_via = None
+
+        if host:
+            link = await db.tenant_domains.find_one(
+                {"domain": host, "ativo": True}, {"_id": 0}
             )
+            if link:
+                target = await db.mantenedoras.find_one(
+                    {"id": link['mantenedora_id'], "ativa": {"$ne": False}},
+                    {"_id": 0}
+                )
+                resolved_via = "domain_exact"
+
+            if not target:
+                sub = host.split('.')[0]
+                if sub and sub not in ('www', 'app', 'api'):
+                    target = await db.mantenedoras.find_one(
+                        {"$or": [{"slug": sub}, {"codigo_inep": sub}]},
+                        {"_id": 0},
+                    )
+                    if target:
+                        resolved_via = "subdomain_match"
+
         if not target:
-            target = await db.mantenedoras.find_one({}, {"_id": 0})
-        if not target:
+            # Fallback explícito — não inventa branding silencioso
             return {
+                "default": True,
+                "resolved_via": "fallback_default",
+                "host": host,
                 "name": "SIGESC",
                 "logo_url": None,
+                "brasao_url": None,
                 "primary_color": "#7c3aed",
                 "secondary_color": "#a855f7",
                 "secretaria": None,
-                "slogan": None,
+                "slogan": "Sistema Integrado de Gestão Escolar",
                 "exibir_pre_matricula": False,
                 "destaque_mensagem": None,
                 "destaque_cor": None,
             }
         return {
+            "default": False,
+            "resolved_via": resolved_via,
+            "host": host,
             "id": target.get("id"),
             "name": target.get("nome"),
             "logo_url": target.get("logotipo_url"),
@@ -219,6 +251,59 @@ def setup_router(db):
             "destaque_mensagem": target.get("mensagem_destaque"),
             "destaque_cor": target.get("mensagem_destaque_cor"),
         }
+
+    # =================== TENANT DOMAINS (CRUD) ===================
+
+    @router.get("/domains")
+    async def list_domains(request: Request, mantenedora_id: Optional[str] = None):
+        await _require_super(request)
+        filt: dict = {}
+        if mantenedora_id:
+            filt["mantenedora_id"] = mantenedora_id
+        items = await db.tenant_domains.find(filt, {"_id": 0}).to_list(length=500)
+        # Enriquece com nome da mantenedora
+        ids = list({d['mantenedora_id'] for d in items})
+        names: dict = {}
+        async for m in db.mantenedoras.find({"id": {"$in": ids}}, {"_id": 0, "id": 1, "nome": 1}):
+            names[m['id']] = m['nome']
+        for d in items:
+            d['mantenedora_nome'] = names.get(d['mantenedora_id'])
+        return {"items": items}
+
+    @router.post("/domains", status_code=201)
+    async def create_domain(payload: DomainPayload, request: Request):
+        user = await _require_super(request)
+        domain = (payload.domain or '').lower().strip()
+        if not re.match(r'^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$', domain):
+            raise HTTPException(400, "Domínio inválido (use formato: tenant.sigesc.com.br)")
+        # mantenedora deve existir
+        m = await db.mantenedoras.find_one({"id": payload.mantenedora_id}, {"_id": 0, "id": 1})
+        if not m:
+            raise HTTPException(404, "Mantenedora não encontrada")
+        existing = await db.tenant_domains.find_one({"domain": domain}, {"_id": 0, "id": 1})
+        if existing:
+            raise HTTPException(409, "Domínio já vinculado")
+        doc = {
+            "id": str(uuid.uuid4()),
+            "mantenedora_id": payload.mantenedora_id,
+            "domain": domain,
+            "is_primary": payload.is_primary,
+            "ativo": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_by": user.get('email'),
+        }
+        await db.tenant_domains.insert_one(doc)
+        # Garante índice único (idempotente)
+        await db.tenant_domains.create_index("domain", unique=True)
+        return {k: v for k, v in doc.items() if k != "_id"}
+
+    @router.delete("/domains/{domain_id}")
+    async def delete_domain(domain_id: str, request: Request):
+        await _require_super(request)
+        r = await db.tenant_domains.delete_one({"id": domain_id})
+        if r.deleted_count == 0:
+            raise HTTPException(404, "Domínio não encontrado")
+        return {"ok": True}
 
     # =================== ONBOARDING (WIZARD) ===================
 
@@ -294,12 +379,32 @@ def setup_router(db):
                 {"$set": {"school_links": [{"school_id": school_id, "role": "gerente"}]}}
             )
 
+        # Domínio inicial (opcional)
+        domain_linked = None
+        if payload.domain:
+            dom = payload.domain.lower().strip()
+            if re.match(r'^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$', dom):
+                exists_d = await db.tenant_domains.find_one({"domain": dom}, {"_id": 0, "id": 1})
+                if not exists_d:
+                    await db.tenant_domains.insert_one({
+                        "id": str(uuid.uuid4()),
+                        "mantenedora_id": mantenedora_id,
+                        "domain": dom,
+                        "is_primary": True,
+                        "ativo": True,
+                        "created_at": now,
+                        "created_by": user.get('email'),
+                    })
+                    await db.tenant_domains.create_index("domain", unique=True)
+                    domain_linked = dom
+
         return {
             "ok": True,
             "mantenedora_id": mantenedora_id,
             "admin_user_id": admin_id,
             "admin_temp_password": "Mudar@2026",
             "school_id": school_id,
+            "domain_linked": domain_linked,
             "message": "Mantenedora criada. Admin local recebeu senha temporária 'Mudar@2026' (deve ser trocada no primeiro login).",
         }
 

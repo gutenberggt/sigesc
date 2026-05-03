@@ -3,7 +3,7 @@ import asyncio
 import os
 from playwright.async_api import async_playwright
 
-BASE_URL = "https://learning-skills-hub.preview.emergentagent.com"
+BASE_URL = "https://intervencoes-feed.preview.emergentagent.com"
 OUTPUT_DIR = "/app/frontend/public/tutorials"
 
 async def main():
