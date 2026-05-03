@@ -14,6 +14,39 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Sprint G3 — Relatório Executivo Mensal **[03/Mai/2026]**
+**Produto dentro do produto**: secretário/gestor recebe TODO MÊS um diagnóstico forensicamente auditável da rede que força DECISÃO (não descreve).
+- Backend:
+  - `services/monthly_report_service.py`: agregação mensal por mantenedora (escolas, alunos, frequência, cobertura curricular, alertas, aulas lançadas) + Claude Sonnet 4.5 com prompt forçando JSON estruturado (resumo executivo, ranking Top5/Bottom3, diagnóstico causal, 3 ações prioritárias com prazo e responsável, indicador de risco baixo/médio/alto, evidências numéricas)
+  - `_stub_report()` fallback determinístico se IA indisponível — relatório SEMPRE pode ser gerado
+  - Snapshot imutável (G1.5: hash SHA256 + HMAC) + Verifiable Document (G1.6: código `SIGESC-XXXX-XXXX`) com **validade de 30 dias** do link público
+  - Idempotente por `(mantenedora_id, year, month)` via index unique → chamadas repetidas retornam o mesmo snapshot
+  - `services/monthly_report_email.py`: gerador HTML/text de email-gatilho (não relatório passivo) com assunto que força ação: `[AÇÃO URGENTE] X escolas em risco alto — janeiro/2026`
+  - `services/monthly_report_scheduler.py`: APScheduler dia 1º 06:00 UTC para cada mantenedora ativa, gera relatório do mês ANTERIOR e envia gatilho aos gestores (admin/gerente/secretario com email cadastrado)
+  - Router `routers/monthly_reports.py`: POST `/generate`, GET listagem, GET `/{id}`, GET `/{id}/pdf?mode=executive|auditor` (reusa `snapshot_pdf`), POST `/{id}/send-email`
+  - Index unique em `monthly_reports` por `(mantenedora_id, year, month)`
+- Frontend: `pages/MonthlyReports.jsx` em `/admin/relatorios-mensais` (super_admin/admin/gerente/secretario)
+  - Painel de geração (mês/ano com regerar via force=true)
+  - Cards por mês com pílula de risco (alto/médio/baixo), KPIs principais, código SIGESC visível
+  - Expansão inline mostra Resumo Executivo, Top5/Bottom3 com score 0-100, Diagnóstico Causal, 3 Ações Prioritárias com prazo e impacto
+  - Botões: PDF Executivo · PDF Auditor · Enviar Email · Verificar publicamente
+  - Modal de envio de email com lista de destinatários
+- Email-gatilho: assunto adaptativo (`[AÇÃO URGENTE]` para risco alto, `[Atenção]` para médio, `[OK]` para baixo) + lista de bottom3 + 3 ações com prazo/responsável + código de verificação institucional
+- Cron mensal idempotente: dia 1º 06:00 UTC para todos os tenants ativos
+- Tests: `/app/backend/tests/test_monthly_reports.py` (18 cenários: validação período, sanitização IA, stub fallback, agregação, idempotência, validade 30 dias)
+
+### Sprint G1.7 — Emissão de Declarações Escolares **[03/Mai/2026]**
+- 3 tipos: Matrícula (90d), Frequência (30d), Escolaridade (180d)
+- Backend: `services/school_docs_service.py` + `services/school_doc_templates.py`
+  - PDF gerado via `reportlab` com cabeçalho oficial + QR Code dinâmico (`segno`)
+  - Cada emissão gera código `SIGESC-XXXX-XXXX` (G1.6) e está em `verifiable_documents`
+  - Status dinâmicos: válido / expirado (data) / revogado
+  - Log de emissão em `school_documents_log` com `student_id`, tipo, finalidade, emitido_por, IP
+- Router `routers/school_documents.py`: POST emit, GET list, POST revoke, GET PDF
+- Frontend: `pages/SchoolDocuments.jsx` em `/admin/declaracoes`
+- Tests: `/app/backend/tests/test_school_documents.py` (13 cenários)
+
+
 ### Fase 1 - Multi-Tenancy base
 - `super_admin` desbloqueado em todas as rotas
 - `mantenedora_id` injetado em todos os modelos

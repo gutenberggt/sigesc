@@ -85,6 +85,7 @@ from routers import tenant_admin as tenant_admin_mod
 from routers import snapshots as snapshots_mod
 from routers import verifiable_docs as verifiable_docs_mod
 from routers import school_documents as school_docs_mod
+from routers import monthly_reports as monthly_reports_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
@@ -150,6 +151,12 @@ async def create_indexes():
         # G1.6: índices para verifiable_documents (code único, lookups)
         from services.verifiable_docs_service import ensure_indexes as _ensure_vd_idx
         await _ensure_vd_idx(db)
+        # G3: índices para monthly_reports (unique por mantenedora+período)
+        from services.monthly_report_service import ensure_indexes as _ensure_mr_idx
+        await _ensure_mr_idx(db)
+        # G3: scheduler do Relatório Mensal (idempotente)
+        from services.monthly_report_scheduler import start_scheduler as _start_mr_sched
+        _start_mr_sched(db)
         # Índices para students
         await db.students.create_index("id", unique=True)
         await db.students.create_index("cpf", sparse=True)
@@ -653,6 +660,7 @@ _vd_public, _vd_admin = verifiable_docs_mod.setup_router(db, limiter=limiter)
 app.include_router(_vd_public, prefix="/api")
 app.include_router(_vd_admin, prefix="/api")
 app.include_router(school_docs_mod.setup_router(db), prefix="/api")
+app.include_router(monthly_reports_mod.setup_router(db), prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)
