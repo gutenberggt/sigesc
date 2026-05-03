@@ -753,6 +753,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Pula endpoints públicos de autenticação e rotas não-API.
 from starlette.middleware.base import BaseHTTPMiddleware
 from auth_utils import ACCESS_COOKIE_NAME, CSRF_COOKIE_NAME, CSRF_HEADER_NAME
+from typing import Optional
 
 _CSRF_EXEMPT_PREFIXES = (
     '/api/auth/login',
@@ -768,6 +769,22 @@ _CSRF_EXEMPT_PREFIXES = (
 _CSRF_PROTECTED_METHODS = ('POST', 'PUT', 'PATCH', 'DELETE')
 
 
+def _csrf_from_jwt(token_str: str) -> Optional[str]:
+    """Extrai o claim 'csrf' de um JWT sem validar assinatura/expiração.
+
+    Validação completa é feita pelo auth middleware downstream — aqui só
+    queremos comparar o claim com o header. Se o JWT for inválido, o
+    auth middleware rejeita depois com 401.
+    """
+    try:
+        from jose import jwt as _jwt
+        payload = _jwt.get_unverified_claims(token_str)
+        val = payload.get('csrf')
+        return str(val) if val else None
+    except Exception:
+        return None
+
+
 class CSRFMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.method not in _CSRF_PROTECTED_METHODS:
@@ -781,19 +798,37 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if any(path.startswith(p) for p in _CSRF_EXEMPT_PREFIXES):
             return await call_next(request)
 
-        # Só exige CSRF quando auth vem por COOKIE (Bearer não é vulnerável)
-        has_access_cookie = bool(request.cookies.get(ACCESS_COOKIE_NAME))
-        if not has_access_cookie:
+        # Identifica o access token: cookie OU Authorization Bearer
+        # (qualquer um dos dois ativa proteção CSRF)
+        access_token_str = request.cookies.get(ACCESS_COOKIE_NAME)
+        auth_header = request.headers.get('Authorization', '')
+        if not access_token_str and auth_header.startswith('Bearer '):
+            access_token_str = auth_header[7:].strip()
+        if not access_token_str:
+            # Sem auth → não é alvo de CSRF (será rejeitado por 401 depois)
             return await call_next(request)
 
-        cookie_token = request.cookies.get(CSRF_COOKIE_NAME)
         header_token = request.headers.get(CSRF_HEADER_NAME)
-        if not cookie_token or not header_token or cookie_token != header_token:
+        if not header_token:
             return JSONResponse(
                 status_code=403,
                 content={"detail": "CSRF token inválido ou ausente"},
             )
-        return await call_next(request)
+
+        # Source of truth: claim 'csrf' embutido no JWT (cross-domain safe).
+        # Fallback: cookie sigesc_csrf (double-submit clássico).
+        jwt_csrf = _csrf_from_jwt(access_token_str)
+        cookie_csrf = request.cookies.get(CSRF_COOKIE_NAME)
+
+        if jwt_csrf and header_token == jwt_csrf:
+            return await call_next(request)
+        if cookie_csrf and header_token == cookie_csrf:
+            return await call_next(request)
+
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "CSRF token inválido ou ausente"},
+        )
 
 
 app.add_middleware(CSRFMiddleware)

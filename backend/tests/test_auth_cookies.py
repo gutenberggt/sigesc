@@ -136,9 +136,31 @@ def test_csrf_allows_write_with_correct_header():
     assert r.status_code == 200, r.text
 
 
-def test_csrf_not_required_for_bearer_auth():
-    """POST autenticado só via Bearer (sem cookies) NÃO exige CSRF."""
-    # Ultrapassa borda de segundo do logout-all do teste anterior
+def test_csrf_validates_via_jwt_claim_when_no_cookie():
+    """Mai/2026: em deploys cross-domain o cookie CSRF não chega ao backend.
+    O middleware deve aceitar o header X-CSRF-Token validado via claim 'csrf'
+    embutido no JWT — bastando access_token + header correto.
+    """
+    time.sleep(1.2)  # garante JWT iat > revoke_all_before
+    r = httpx.post(f"{BACKEND}/api/auth/login", json=SUPER_ADMIN, timeout=20)
+    body = r.json()
+    access = body["access_token"]
+    csrf = body.get("csrf_token")
+    assert csrf, "csrf_token deve vir no body do /login"
+    # Bearer + header CSRF (sem cookies de sessão)
+    r2 = httpx.post(
+        f"{BACKEND}/api/auth/logout-all",
+        headers={
+            "Authorization": f"Bearer {access}",
+            "X-CSRF-Token": csrf,
+        },
+        timeout=20,
+    )
+    assert r2.status_code == 200, r2.text
+
+
+def test_csrf_rejects_bearer_without_token():
+    """Bearer auth sem header CSRF deve falhar (proteção mantida)."""
     time.sleep(1.2)
     r = httpx.post(f"{BACKEND}/api/auth/login", json=SUPER_ADMIN, timeout=20)
     access = r.json()["access_token"]
@@ -147,7 +169,7 @@ def test_csrf_not_required_for_bearer_auth():
         headers={"Authorization": f"Bearer {access}"},
         timeout=20,
     )
-    assert r2.status_code == 200, r2.text
+    assert r2.status_code == 403
 
 
 def test_logout_clears_cookies_and_revokes():

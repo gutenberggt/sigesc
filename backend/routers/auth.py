@@ -132,9 +132,9 @@ def setup_router(db, audit_service):
             "mantenedora_id": getattr(user, 'mantenedora_id', None),
         }
         
-        access_token = create_access_token(token_data)
-        refresh_token = create_refresh_token({"sub": user.id})
         csrf_token = generate_csrf_token()
+        access_token = create_access_token(token_data, csrf=csrf_token)
+        refresh_token = create_refresh_token({"sub": user.id})
         set_auth_cookies(
             response,
             access_token=access_token,
@@ -230,7 +230,8 @@ def setup_router(db, audit_service):
                 "school_ids": school_ids
             }
             
-            new_access_token = create_access_token(token_data)
+            csrf_token = generate_csrf_token()
+            new_access_token = create_access_token(token_data, csrf=csrf_token)
             new_refresh_token = create_refresh_token({"sub": user.id})
             
             # Rotação: revoga o jti antigo para impedir reuso.
@@ -251,7 +252,7 @@ def setup_router(db, audit_service):
                 except Exception:
                     pass
             
-            csrf_token = generate_csrf_token()
+            csrf_token = csrf_token  # já gerado acima e embutido no JWT
             set_auth_cookies(
                 response,
                 access_token=new_access_token,

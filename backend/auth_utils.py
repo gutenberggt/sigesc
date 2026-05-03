@@ -109,8 +109,18 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     except Exception:
         return False
 
-def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
-    """Cria token de acesso JWT - PATCH 3.1: TTL reduzido + iat para suportar revogação via revoke_all"""
+def create_access_token(
+    data: Dict[str, Any],
+    expires_delta: Optional[timedelta] = None,
+    *,
+    csrf: Optional[str] = None,
+) -> str:
+    """Cria token de acesso JWT - PATCH 3.1: TTL reduzido + iat para suportar revogação via revoke_all.
+
+    Mai/2026: aceita opcionalmente `csrf` claim que será validado pelo
+    CSRFMiddleware. Permite double-submit funcionar mesmo em deploys
+    cross-domain onde o cookie sigesc_csrf não chega ao backend.
+    """
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -124,6 +134,8 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
         'type': 'access',
         'iat': int(datetime.now(timezone.utc).timestamp())
     })
+    if csrf:
+        to_encode['csrf'] = csrf
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
