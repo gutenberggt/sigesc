@@ -147,12 +147,11 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         freq_prev = round(100.0 * pres_p / total_p, 2) if total_p else None
 
         # Chama LLM
-        api_key = os.environ.get("EMERGENT_LLM_KEY")
-        if not api_key:
-            raise HTTPException(status_code=500, detail="EMERGENT_LLM_KEY não configurada")
+        from services.llm_client import chat_with_claude, llm_provider
+        if llm_provider() == "none":
+            raise HTTPException(status_code=500, detail="Nenhuma LLM key configurada (ANTHROPIC_API_KEY ou EMERGENT_LLM_KEY)")
 
         try:
-            from emergentintegrations.llm.chat import LlmChat, UserMessage
             payload = {
                 "escola": school.get("name"),
                 "periodo_analise": "ultimos 30 dias",
@@ -174,15 +173,15 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 "Considere que atrasos_dias é quanto menor melhor; demais KPIs são percentuais (0-100%). "
                 "Níveis de risco: alto se algum KPI < 65%, médio se entre 65-80%, baixo se >= 80%."
             )
-            chat = LlmChat(
-                api_key=api_key,
+            raw = await chat_with_claude(
+                system_prompt=system_prompt,
+                user_text=f"Analise esta escola e retorne o JSON conforme o formato. DADOS:\n{json.dumps(payload, ensure_ascii=False, indent=2)}",
                 session_id=f"pmpi-ai-{school_id}-{now.isoformat()}",
-                system_message=system_prompt,
-            ).with_model("anthropic", "claude-sonnet-4-5-20250929")
-            user_msg = UserMessage(
-                text=f"Analise esta escola e retorne o JSON conforme o formato. DADOS:\n{json.dumps(payload, ensure_ascii=False, indent=2)}"
+                model="claude-sonnet-4-5-20250929",
+                timeout_s=45,
             )
-            raw = await chat.send_message(user_msg)
+            if not raw:
+                raise HTTPException(status_code=502, detail="LLM indisponível ou timeout")
             # Tenta extrair JSON do response
             text = str(raw).strip()
             if text.startswith("```"):

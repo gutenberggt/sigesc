@@ -168,32 +168,30 @@ async def _gestor_history(db, school_id: str) -> dict:
 
 
 async def _call_claude(payload: dict, timeout_s: int = 45) -> Optional[dict]:
-    api_key = os.environ.get("EMERGENT_LLM_KEY")
-    if not api_key:
-        logger.warning("[plano_acao_ai] EMERGENT_LLM_KEY ausente — skipando IA")
+    from services.llm_client import chat_with_claude, llm_provider, DEFAULT_MODEL
+
+    if llm_provider() == "none":
+        logger.warning("[plano_acao_ai] sem LLM key (ANTHROPIC ou EMERGENT) — skipando IA")
         return None
 
     session_id = f"plano-acao-{payload.get('school_id', 'x')}-{int(datetime.now().timestamp())}"
-    chat = (
-        LlmChat(api_key=api_key, session_id=session_id, system_message=_SYSTEM_PROMPT)
-        .with_model(_MODEL_PROVIDER, _MODEL_NAME)
-    )
-    user_msg = UserMessage(text=(
+    user_text = (
         "Dados operacionais da escola e histórico do gestor (90 dias). "
-        "Gere a análise no JSON especificado:\n\n" + json.dumps(payload, ensure_ascii=False, indent=2)
-    ))
-    try:
-        response = await asyncio.wait_for(chat.send_message(user_msg), timeout=timeout_s)
-    except asyncio.TimeoutError:
-        logger.warning("[plano_acao_ai] timeout chamando Claude")
+        "Gere a análise no JSON especificado:\n\n"
+        + json.dumps(payload, ensure_ascii=False, indent=2)
+    )
+    response = await chat_with_claude(
+        system_prompt=_SYSTEM_PROMPT,
+        user_text=user_text,
+        session_id=session_id,
+        model=_MODEL_NAME if _MODEL_NAME else DEFAULT_MODEL,
+        timeout_s=timeout_s,
+    )
+    if not response:
         return None
-    except Exception as e:
-        logger.warning("[plano_acao_ai] erro Claude: %s", e)
-        return None
-
-    parsed = _parse_json(response or "")
+    parsed = _parse_json(response)
     if not parsed:
-        logger.warning("[plano_acao_ai] resposta não-JSON: %s", (response or "")[:200])
+        logger.warning("[plano_acao_ai] resposta não-JSON: %s", response[:200])
         return None
     return parsed
 

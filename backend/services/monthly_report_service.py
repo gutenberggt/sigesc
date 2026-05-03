@@ -29,8 +29,6 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
-
 from services import snapshot_service as snap_svc
 
 logger = logging.getLogger(__name__)
@@ -393,30 +391,28 @@ def _validate_report(data: dict) -> dict:
 
 
 async def _call_claude(payload: dict, timeout_s: int = 60) -> Optional[dict]:
-    api_key = os.environ.get("EMERGENT_LLM_KEY")
-    if not api_key:
-        logger.warning("[monthly_report] EMERGENT_LLM_KEY ausente — skipando IA")
+    from services.llm_client import chat_with_claude, llm_provider
+
+    if llm_provider() == "none":
+        logger.warning("[monthly_report] sem LLM key (ANTHROPIC ou EMERGENT) — skipando IA")
         return None
     sid = f"monthly-report-{payload['rede'].get('mantenedora_id', 'x')}-{payload['rede']['ano']}-{payload['rede']['mes']}"
-    chat = (
-        LlmChat(api_key=api_key, session_id=sid, system_message=_SYSTEM_PROMPT)
-        .with_model(_MODEL_PROVIDER, _MODEL_NAME)
-    )
-    msg = UserMessage(text=(
+    user_text = (
         "Dados consolidados do mês da rede municipal. Gere o relatório no JSON especificado:\n\n"
         + json.dumps(payload, ensure_ascii=False, indent=2)
-    ))
-    try:
-        resp = await asyncio.wait_for(chat.send_message(msg), timeout=timeout_s)
-    except asyncio.TimeoutError:
-        logger.warning("[monthly_report] timeout Claude")
+    )
+    response = await chat_with_claude(
+        system_prompt=_SYSTEM_PROMPT,
+        user_text=user_text,
+        session_id=sid,
+        model=_MODEL_NAME,
+        timeout_s=timeout_s,
+    )
+    if not response:
         return None
-    except Exception as e:
-        logger.warning("[monthly_report] erro Claude: %s", e)
-        return None
-    parsed = _parse_json(resp or "")
+    parsed = _parse_json(response)
     if not parsed:
-        logger.warning("[monthly_report] resposta não-JSON: %s", (resp or "")[:200])
+        logger.warning("[monthly_report] resposta não-JSON: %s", response[:200])
         return None
     return parsed
 
