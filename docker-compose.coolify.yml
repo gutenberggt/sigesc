@@ -27,6 +27,10 @@ services:
       - MONGO_URL=${MONGO_URL}
       - DB_NAME=${DB_NAME:-sigesc}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - EMERGENT_LLM_KEY=${EMERGENT_LLM_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://sigesc.aprenderdigital.top}
+      - COOKIE_SECURE=${COOKIE_SECURE:-true}
+      - COOKIE_SAMESITE=${COOKIE_SAMESITE:-lax}
       - FTP_HOST=${FTP_HOST:-}
       - FTP_USER=${FTP_USER:-}
       - FTP_PASSWORD=${FTP_PASSWORD:-}
