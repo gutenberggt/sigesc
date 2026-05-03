@@ -10,9 +10,10 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   ChevronLeft, AlertTriangle, Clock, Zap, CheckCircle2, ExternalLink, Info,
-  Sparkles, RefreshCw, Brain, TrendingUp,
+  Sparkles, RefreshCw, Brain, TrendingUp, Lock, ShieldCheck, ShieldAlert,
+  FileDown, Hash, X,
 } from 'lucide-react';
-import { schoolsAPI } from '@/services/api';
+import { schoolsAPI, authAPI } from '@/services/api';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -36,6 +37,14 @@ export default function PlanoAcao() {
   const [loading, setLoading] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
+  const [showAuditor, setShowAuditor] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+
+  useEffect(() => {
+    authAPI.getMe?.().then(u => setUserRole(u?.role)).catch(() => {});
+  }, []);
+
+  const isAuditor = ['super_admin', 'admin', 'admin_teste', 'gerente', 'secretario', 'diretor'].includes(userRole);
 
   useEffect(() => {
     schoolsAPI.list().then(d => {
@@ -140,6 +149,18 @@ export default function PlanoAcao() {
               Regenerar IA
             </button>
           )}
+          {isAuditor && plan?.ai_enriched && plan?.snapshot_id && (
+            <button
+              type="button"
+              onClick={() => setShowAuditor(true)}
+              className="px-3 py-2 text-sm rounded border bg-indigo-950 text-white border-indigo-900 hover:bg-indigo-900 inline-flex items-center gap-1.5"
+              data-testid="plano-auditor-btn"
+              title="Modo Auditor: verificar integridade, baixar PDF auditável"
+            >
+              <Lock className="h-4 w-4" />
+              Modo Auditor
+            </button>
+          )}
         </div>
       </div>
 
@@ -226,10 +247,21 @@ export default function PlanoAcao() {
                   {plan.ai_from_cache ? ` (cache ${plan.ai_cache_age_hours}h)` : ''}.
                 </>
               )}
+              {plan.snapshot_id && (
+                <> · <Hash className="h-3 w-3 inline" /> Snapshot {plan.snapshot_id.slice(0, 8)}.</>
+              )}
               <Link to="/admin/ranking-gestores" className="text-purple-700 underline ml-1">Ver ranking</Link>.
             </div>
           </div>
         </>
+      )}
+      {showAuditor && plan?.snapshot_id && (
+        <AuditorModal
+          snapshotId={plan.snapshot_id}
+          publicHash={plan.public_hash}
+          serverSignature={plan.server_signature}
+          onClose={() => setShowAuditor(false)}
+        />
       )}
     </div>
   );
@@ -416,6 +448,222 @@ function ExtraRecommendationCard({ rec, index }) {
           <span><strong>Métrica de sucesso:</strong> {rec.metrica_sucesso}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+function AuditorModal({ snapshotId, publicHash, serverSignature, onClose }) {
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState(null);
+  const [loadingPdf, setLoadingPdf] = useState(false);
+  const [history, setHistory] = useState([]);
+
+  const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+  const doVerify = useCallback(async () => {
+    setVerifying(true);
+    setVerifyResult(null);
+    try {
+      const r = await axios.get(`${API}/snapshots/${snapshotId}/verify`);
+      setVerifyResult(r.data);
+    } catch (e) {
+      setVerifyResult({ valid: false, error: e.response?.data?.detail || e.message });
+    } finally {
+      setVerifying(false);
+    }
+  }, [snapshotId, API]);
+
+  const downloadPdf = async (mode) => {
+    setLoadingPdf(true);
+    try {
+      const r = await axios.get(`${API}/snapshots/${snapshotId}/pdf?mode=${mode}`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sigesc-snapshot-${snapshotId.slice(0, 8)}-${mode}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setLoadingPdf(false);
+    }
+  };
+
+  useEffect(() => {
+    axios.get(`${API}/snapshots?limit=10`).then(r => {
+      setHistory(r.data?.items || []);
+    }).catch(() => {});
+    // Verificação automática ao abrir
+    doVerify();
+  }, [API, doVerify]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+      onClick={onClose}
+      data-testid="auditor-modal-overlay"
+    >
+      <div
+        className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[92vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+        data-testid="auditor-modal"
+      >
+        <div className="border-b border-gray-200 px-5 py-3 flex items-center justify-between sticky top-0 bg-white">
+          <div className="flex items-center gap-2">
+            <Lock className="h-5 w-5 text-indigo-900" />
+            <h2 className="text-lg font-bold text-gray-900">Modo Auditor</h2>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 border border-indigo-200 uppercase font-semibold">
+              Documento institucional
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-900"
+            data-testid="auditor-close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Snapshot atual */}
+          <div className="bg-gray-50 border border-gray-200 rounded p-3">
+            <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
+              <Hash className="h-3 w-3" /> Snapshot atual
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-gray-500">ID:</span>{' '}
+                <code className="text-[11px] bg-white px-1 py-0.5 rounded border border-gray-200">
+                  {snapshotId}
+                </code>
+              </div>
+              <div className="break-all">
+                <span className="text-gray-500">Hash público:</span>{' '}
+                <code className="text-[10px] text-gray-700 font-mono">
+                  {publicHash || '—'}
+                </code>
+              </div>
+              <div className="break-all md:col-span-2">
+                <span className="text-gray-500">Assinatura do servidor (HMAC):</span>{' '}
+                <code className="text-[10px] text-gray-700 font-mono">
+                  {serverSignature || 'não disponível'}
+                </code>
+              </div>
+            </div>
+          </div>
+
+          {/* Resultado verificação */}
+          <div
+            className={`border rounded p-3 ${
+              !verifyResult ? 'bg-gray-50 border-gray-200' :
+              verifyResult.valid ? 'bg-emerald-50 border-emerald-200' :
+              'bg-red-50 border-red-200'
+            }`}
+            data-testid="auditor-verify-result"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              {verifying ? (
+                <RefreshCw className="h-4 w-4 animate-spin text-gray-600" />
+              ) : verifyResult?.valid ? (
+                <ShieldCheck className="h-5 w-5 text-emerald-700" />
+              ) : (
+                <ShieldAlert className="h-5 w-5 text-red-700" />
+              )}
+              <span className="text-sm font-semibold">
+                {verifying ? 'Verificando integridade...' :
+                 verifyResult?.valid ? 'Documento íntegro e autêntico' :
+                 verifyResult ? 'Documento comprometido ou assinatura inválida' :
+                 'Aguardando verificação'}
+              </span>
+              <button
+                onClick={doVerify}
+                disabled={verifying}
+                className="ml-auto text-xs text-indigo-700 hover:underline disabled:opacity-50"
+                data-testid="auditor-verify-btn"
+              >
+                Verificar novamente
+              </button>
+            </div>
+            {verifyResult && (
+              <div className="text-xs text-gray-700 grid grid-cols-2 gap-1">
+                <div>Hash válido: <strong className={verifyResult.hash_valid ? 'text-emerald-700' : 'text-red-700'}>{verifyResult.hash_valid ? 'sim' : 'não'}</strong></div>
+                <div>Assinatura válida: <strong className={verifyResult.signature_valid ? 'text-emerald-700' : 'text-red-700'}>{verifyResult.signature_valid ? 'sim' : 'não'}</strong></div>
+                {verifyResult.recomputed_hash && verifyResult.recomputed_hash !== verifyResult.public_hash && (
+                  <div className="col-span-2 text-red-700 text-[11px] font-mono break-all mt-1">
+                    Hash recomputado: {verifyResult.recomputed_hash}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Download PDF */}
+          <div className="border border-gray-200 rounded p-3">
+            <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
+              <FileDown className="h-3 w-3" /> Exportar como PDF auditável
+            </div>
+            <div className="text-xs text-gray-600 mb-3">
+              Dois formatos: <strong>Executivo</strong> (gestor) e <strong>Auditor</strong> (inclui anexo técnico com payload completo para reprodutibilidade do hash).
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => downloadPdf('executive')}
+                disabled={loadingPdf}
+                className="px-3 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 inline-flex items-center gap-1 disabled:opacity-50"
+                data-testid="auditor-pdf-executive"
+              >
+                <FileDown className="h-4 w-4" />
+                PDF Executivo
+              </button>
+              <button
+                onClick={() => downloadPdf('auditor')}
+                disabled={loadingPdf}
+                className="px-3 py-2 text-sm bg-indigo-950 text-white rounded hover:bg-indigo-900 inline-flex items-center gap-1 disabled:opacity-50"
+                data-testid="auditor-pdf-auditor"
+              >
+                <FileDown className="h-4 w-4" />
+                PDF Auditor (completo)
+              </button>
+            </div>
+          </div>
+
+          {/* Histórico */}
+          {history.length > 0 && (
+            <div className="border border-gray-200 rounded p-3">
+              <div className="text-xs font-semibold text-gray-700 mb-2">
+                Histórico de snapshots ({history.length})
+              </div>
+              <div className="max-h-48 overflow-y-auto divide-y divide-gray-100">
+                {history.map(h => (
+                  <div key={h.id} className="py-1.5 flex items-center gap-2 text-[11px]">
+                    <code className="text-gray-500">{h.id.slice(0, 8)}</code>
+                    <span className="text-gray-600">{h.analysis_type}</span>
+                    <span className="text-gray-500 ml-auto">
+                      {new Date(h.created_at).toLocaleString('pt-BR')}
+                    </span>
+                    {h.id === snapshotId && (
+                      <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 uppercase font-semibold">
+                        atual
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="text-[11px] text-gray-500 leading-relaxed bg-gray-50 rounded p-2 border border-gray-200">
+            <strong>Como validar externamente:</strong> recalcule SHA256 do JSON canônico (sorted keys)
+            contendo {'{payload_snapshot, ai_output, created_at, model, entity_type, entity_id, analysis_type, version}'}.
+            Confira se bate com o hash público acima. Para confirmar autenticidade, verifique o
+            HMAC no endpoint <code>/api/snapshots/{snapshotId.slice(0, 8)}.../verify</code>.
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

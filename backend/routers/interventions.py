@@ -533,6 +533,7 @@ def setup_router(db, **_kwargs):
                     contexto=contexto,
                     acoes=acoes,
                     force=force_refresh,
+                    user=user,
                 )
                 if enrich and enrich.get("ai"):
                     result["ai_enriched"] = True
@@ -542,6 +543,10 @@ def setup_router(db, **_kwargs):
                     result["ai_generated_at"] = enrich.get("generated_at")
                     result["ai_model"] = enrich.get("model")
                     result["gestor_historico"] = enrich.get("gestor")
+                    # G1.5: metadados de auditoria
+                    result["snapshot_id"] = enrich.get("snapshot_id")
+                    result["public_hash"] = enrich.get("public_hash")
+                    result["server_signature"] = enrich.get("server_signature")
                     # Aplica descrições enriquecidas nas ações determinísticas
                     enr_map = enrich["ai"].get("acoes_enriquecidas") or {}
                     for a in result["acoes"]:

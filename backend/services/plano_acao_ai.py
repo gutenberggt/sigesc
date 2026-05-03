@@ -283,10 +283,12 @@ async def enrich_plan_with_ai(
     contexto: dict,
     acoes: list[dict],
     force: bool = False,
+    user: Optional[dict] = None,
 ) -> Optional[dict]:
     """Gera (ou usa cache de) enriquecimento IA para um plano de ação.
 
     Returns None em caso de falha / IA indisponível — caller deve tratar.
+    Quando o user é fornecido, cria snapshot imutável (Sprint G1.5).
     """
     period = _normalize_period(period)
     key = _cache_key(mantenedora_id, school_id, period)
@@ -334,6 +336,32 @@ async def enrich_plan_with_ai(
         return None
     safe = _validate_ai_response(raw)
 
+    # 3.5 G1.5: snapshot imutável (payload congelado + hash + HMAC)
+    snapshot_id = None
+    public_hash = None
+    server_signature = None
+    if user is not None:
+        try:
+            from services.snapshot_service import create_snapshot
+            # Payload congelado: inclui ações determinísticas para reprodutibilidade
+            frozen_payload = {**payload, "acoes": acoes}
+            snap = await create_snapshot(
+                db,
+                mantenedora_id=mantenedora_id,
+                entity_type="escola",
+                entity_id=school_id,
+                analysis_type="plano_acao",
+                payload_snapshot=frozen_payload,
+                ai_output=safe,
+                model=f"{_MODEL_PROVIDER}/{_MODEL_NAME}",
+                user=user,
+            )
+            snapshot_id = snap["id"]
+            public_hash = snap["public_hash"]
+            server_signature = snap["server_signature"]
+        except Exception as e:
+            logger.warning("[plano_acao_ai] falha ao criar snapshot: %s", e)
+
     # 4. Persistir cache
     doc = {
         "key": key,
@@ -344,6 +372,9 @@ async def enrich_plan_with_ai(
         "ai": safe,
         "generated_at": now.isoformat(),
         "model": f"{_MODEL_PROVIDER}/{_MODEL_NAME}",
+        "snapshot_id": snapshot_id,
+        "public_hash": public_hash,
+        "server_signature": server_signature,
     }
     await db.ai_plans.update_one({"key": key}, {"$set": doc}, upsert=True)
     doc.pop("_id", None)

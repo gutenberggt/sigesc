@@ -1085,3 +1085,91 @@ Na tela real, a Claude gerou:
 ### Status: ✅ PRODUÇÃO-READY
 Base consolidada para Sprint G3 (Relatório Executivo Mensal) — o prompt agora gera output rastreável que pode ser enviado por e-mail para Secretários sem risco reputacional.
 
+
+---
+
+## Sprint G1.5 — Snapshot + Integridade + Modo Auditor [03/Fev/2026]
+
+### Problema resolvido
+G1 entregou **evidência auditável** (rastreabilidade do payload). Faltava **prova defensável**: congelamento imutável dos dados no momento da análise + integridade criptográfica. Sem isso, um relatório de abril poderia "mudar" em maio conforme o estado do sistema evoluísse. Inaceitável para uso institucional (Tribunal de Contas, Conselho Municipal, secretaria).
+
+### Implementação
+
+**Backend — `services/snapshot_service.py`**
+- Schema `ai_analysis_snapshots`: `{id, version, mantenedora_id, entity_type, entity_id, analysis_type, payload_snapshot, ai_output, model, public_hash, server_signature, created_at, expires_at, created_by, retention_policy}`
+- **Hash público SHA256**: JSON canônico determinístico (sort_keys=True, ensure_ascii=False) sobre payload + output + timestamp + model + version → qualquer alteração invalida.
+- **Assinatura HMAC-SHA256**: com `SNAPSHOT_HMAC_SECRET` (gerado automaticamente no .env) → prova de origem, impede forjar snapshots externamente.
+- **Retenção configurável por mantenedora**: default 5 anos, mínimo 2 anos (LGPD), opção "forever" opt-in. Index TTL no Mongo (`expires_at_dt`).
+- **Access control por scope**:
+  - `super_admin` → global
+  - `admin/gerente/secretario` → sua mantenedora
+  - `diretor` → apenas snapshots de suas escolas
+  - `professor/aluno/coordenador` → 403
+
+**Backend — `services/snapshot_pdf.py`**
+- Gera PDFs institucionais via `reportlab`:
+  - **Executivo**: resumo + análise + evidências (inline) + ações + selo de integridade (hash + HMAC + URL de verificação + timestamp + modelo + versão + criado por)
+  - **Auditor**: tudo acima + tabelas completas de evidências em cada recomendação + **Anexo A** com payload_snapshot em JSON canônico para reprodutibilidade externa do hash
+- Header institucional SIGESC, paleta indigo (aligned com app theme)
+
+**Backend — `routers/snapshots.py`**
+- `GET /api/snapshots` — lista com escopo aplicado por role
+- `GET /api/snapshots/{id}` — detalhes completos
+- `GET /api/snapshots/{id}/verify` — retorna `{valid, hash_valid, signature_valid, public_hash, recomputed_hash, server_signature, recomputed_signature, model, version, created_at, snapshot_id, entity_id}` — endpoint forense
+- `GET /api/snapshots/{id}/pdf?mode=executive|auditor` — binário PDF
+- `GET /api/snapshots/retention-policy` — política vigente
+- `PUT /api/snapshots/retention-policy` — super_admin/admin altera
+
+**Integração automática**
+- `enrich_plan_with_ai` agora aceita `user` e **sempre cria snapshot** após validação da resposta IA, antes de persistir o cache. Resposta do endpoint `/plano-acao?ai=true` inclui `snapshot_id`, `public_hash`, `server_signature`.
+
+**Frontend — `PlanoAcao.jsx`**
+- Botão **"🔒 Modo Auditor"** (só visível para roles autorizados: super_admin/admin/admin_teste/gerente/secretario/diretor)
+- Modal auditor com:
+  - Snapshot atual (ID + hash público + HMAC) em monospace
+  - Verificação automática ao abrir → banner verde (Documento íntegro) ou vermelho (comprometido) com hash_valid/signature_valid explícitos
+  - Botões **"PDF Executivo"** e **"PDF Auditor (completo)"** com download direto
+  - **Histórico de snapshots** (até 10 últimos) com badge "ATUAL" no atual
+  - Explicação de como validar externamente + referência ao endpoint `/verify`
+
+### Testes (`tests/test_snapshots.py`) — 17/17 pass
+1. Hash determinístico (mesmo input → mesmo hash)
+2. Hash muda com qualquer alteração (payload, output, timestamp)
+3. HMAC computa corretamente com secret dado
+4. HMAC retorna None quando secret ausente
+5. `verify_snapshot_integrity` detecta tampering (payload alterado ou secret diferente)
+6. `create_snapshot` persiste doc com TTL default (5 anos)
+7. `get_scope_for_user` bloqueia professor/aluno
+8. `get_scope_for_user` escopa diretor em suas escolas
+9. `get_scope_for_user` escopa secretario em sua mantenedora
+10. `get_scope_for_user` retorna {} (global) para super_admin
+11. `set_retention_policy` rejeita custom < 2 anos
+12. `set_retention_policy` aceita "forever"
+13. Endpoint `/snapshots` lista para super_admin sem escopo
+14. Endpoint `/verify` retorna schema rico com todos os campos
+15. Endpoint `/pdf` gera PDF válido (executive < auditor em tamanho)
+16. Endpoint `/snapshots` bloqueia professor (403)
+17. `enrich_plan_with_ai` cria snapshot automaticamente e retorna metadados
+
+### Regressão completa — 57/57 testes passando
+- 17 legados + 8 IA + 9 cookies + 6 evidências + 17 snapshots.
+
+### Validação E2E (screenshot)
+Modal auditor renderizado com:
+- Snapshot ID `c052267c-162a-47c0-bd02-02a225cde17e`
+- Hash público `sha256:3061ea2b7ea4fd1ccd81505e532731429d0cb0...`
+- HMAC `hmac-sha256:48d69662901943785...`
+- Banner verde: "Documento íntegro e autêntico" · Hash válido: sim · Assinatura válida: sim
+- Histórico de 3 snapshots anteriores com timestamps
+- Instrução completa de como validar externamente
+
+### Impacto estratégico
+Saída de *"sistema com IA"* para *"sistema com evidência verificável + trilha de decisão institucional"*. Cada análise agora pode ser:
+- Defendida em reunião pública
+- Impressa como PDF com selo de integridade
+- Validada por um terceiro sem acesso ao banco
+- Usada como justificativa em tribunal de contas
+
+### Status: ✅ PRODUÇÃO-READY
+Base consolidada para Sprint G3 (Relatório Mensal) que herdará snapshots desde o dia 1.
+

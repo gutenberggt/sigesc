@@ -82,6 +82,7 @@ from routers import curriculum_import as curriculum_import_mod
 from routers import curriculum_v2 as curriculum_v2_mod
 from routers import interventions as interventions_mod
 from routers import tenant_admin as tenant_admin_mod
+from routers import snapshots as snapshots_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
@@ -141,6 +142,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 async def create_indexes():
     """Cria índices otimizados no MongoDB durante o startup"""
     try:
+        # G1.5: índices TTL e unique para snapshots auditáveis
+        from services.snapshot_service import ensure_ttl_index as _ensure_snap_ttl
+        await _ensure_snap_ttl(db)
         # Índices para students
         await db.students.create_index("id", unique=True)
         await db.students.create_index("cpf", sparse=True)
@@ -639,6 +643,7 @@ app.include_router(curriculum_import_mod.setup_router(db), prefix="/api")
 app.include_router(curriculum_v2_mod.setup_router(db), prefix="/api")
 app.include_router(interventions_mod.setup_router(db), prefix="/api")
 app.include_router(tenant_admin_mod.setup_router(db), prefix="/api")
+app.include_router(snapshots_mod.setup_router(db), prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)
