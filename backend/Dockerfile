@@ -11,12 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copia requirements primeiro (melhor cache)
 COPY requirements.txt .
 
-# Instala dependências Python
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Instala emergentintegrations (lib interna do Emergent, precisa de index extra)
-RUN pip install --no-cache-dir emergentintegrations==0.1.1 \
-    --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/
+# Instala dependências Python (inclui emergentintegrations via index extra do Emergent)
+RUN pip install --no-cache-dir \
+    --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/ \
+    -r requirements.txt
 
 # Copia o código
 COPY . .
