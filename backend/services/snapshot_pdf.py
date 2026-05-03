@@ -14,15 +14,16 @@ import os
 from datetime import datetime
 from typing import Literal
 
+import segno
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    PageBreak, Preformatted,
+    PageBreak, Preformatted, Image,
 )
-from reportlab.lib.enums import TA_JUSTIFY
+from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER
 
 FrontendURL = os.environ.get("APP_FRONTEND_URL", "https://sigesc.app").rstrip("/")
 
@@ -109,17 +110,81 @@ def _action_block(action, styles):
     return lines
 
 
+def _qr_png_bytes(url: str, size_cm: float = 3.0) -> io.BytesIO:
+    """Gera QR code PNG a partir de uma URL. Retorna BytesIO pronto p/ reportlab."""
+    qr = segno.make(url, error="H")
+    buf = io.BytesIO()
+    qr.save(buf, kind="png", scale=8, border=2)
+    buf.seek(0)
+    return buf
+
+
 def _integrity_block(doc, styles):
-    verify_url = f"{FrontendURL}/api/snapshots/{doc['id']}/verify"
-    bits = [
+    code = doc.get("verification_code") or ""
+    verify_url_public = (
+        f"{FrontendURL}/verificar/{code}" if code
+        else f"{FrontendURL}/api/snapshots/{doc['id']}/verify"
+    )
+
+    # QR Code (se tiver código público)
+    qr_image = None
+    if code:
+        try:
+            qr_png = _qr_png_bytes(verify_url_public)
+            qr_image = Image(qr_png, width=3 * cm, height=3 * cm)
+        except Exception:
+            qr_image = None
+
+    header_bits = [
         Paragraph("<b>Selo de integridade</b>", styles["SigescH2"]),
         Paragraph(
-            "Este documento pode ser validado externamente recalculando o hash "
-            "SHA256 do payload + análise + metadados. A assinatura HMAC-SHA256 "
-            "comprova que foi emitido pelo servidor SIGESC.",
+            "Este documento pode ser validado publicamente sem login. "
+            "Escaneie o QR Code ou digite o código no portal oficial.",
             styles["SigescMeta"],
         ),
         Spacer(1, 4),
+    ]
+
+    if code:
+        # Bloco destacado com código + QR lado a lado
+        verify_box = Table(
+            [[
+                [
+                    Paragraph("<b>Código de verificação</b>", styles["SigescMeta"]),
+                    Paragraph(
+                        f'<font name="Courier-Bold" size="14" color="#3730A3">{code}</font>',
+                        styles["SigescMeta"],
+                    ),
+                    Spacer(1, 6),
+                    Paragraph("<b>Portal:</b>", styles["SigescMeta"]),
+                    Paragraph(
+                        f'<font name="Courier" size="9">{FrontendURL}/verificar</font>',
+                        styles["SigescMeta"],
+                    ),
+                    Spacer(1, 4),
+                    Paragraph(
+                        "Digite o código acima ou escaneie o QR Code ao lado "
+                        "para confirmar a autenticidade e integridade deste documento.",
+                        styles["SigescMeta"],
+                    ),
+                ],
+                qr_image or Paragraph("—", styles["SigescMeta"]),
+            ]],
+            colWidths=[10 * cm, 3.5 * cm],
+        )
+        verify_box.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EEF2FF")),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#6366F1")),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ]))
+        header_bits.append(verify_box)
+        header_bits.append(Spacer(1, 8))
+
+    detail_bits = [
         Paragraph(f"<b>ID do snapshot:</b> {doc.get('id')}", styles["SigescMeta"]),
         Paragraph(f"<b>Emitido em:</b> {_format_iso(doc.get('created_at') or '')}", styles["SigescMeta"]),
         Paragraph(f"<b>Modelo:</b> {doc.get('model') or '—'}", styles["SigescMeta"]),
@@ -132,11 +197,8 @@ def _integrity_block(doc, styles):
         Preformatted(doc.get("public_hash") or "—", styles["SigescHash"]),
         Paragraph("<b>Assinatura do servidor (HMAC-SHA256):</b>", styles["SigescMeta"]),
         Preformatted(doc.get("server_signature") or "não disponível", styles["SigescHash"]),
-        Spacer(1, 4),
-        Paragraph("<b>Endpoint de verificação:</b>", styles["SigescMeta"]),
-        Preformatted(verify_url, styles["SigescHash"]),
     ]
-    return bits
+    return header_bits + detail_bits
 
 
 def build_pdf(doc: dict, *, mode: Literal["executive", "auditor"] = "executive") -> bytes:

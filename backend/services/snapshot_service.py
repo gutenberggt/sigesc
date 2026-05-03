@@ -215,6 +215,32 @@ async def create_snapshot(
     if expires_at is not None:
         doc_for_db["expires_at_dt"] = expires_at
     await db.ai_analysis_snapshots.insert_one(doc_for_db)
+
+    # G1.6: emite automaticamente um código público verificável
+    # (falha silenciosamente — snapshot continua válido mesmo se doc falhar)
+    try:
+        from services import verifiable_docs_service as vsvc
+        scope_label = None
+        if entity_type == "escola":
+            sch = await db.schools.find_one({"id": entity_id}, {"_id": 0, "name": 1})
+            if sch:
+                scope_label = sch.get("name")
+        vdoc = await vsvc.create_verifiable_document(
+            db,
+            type=analysis_type,
+            public_hash=public_hash,
+            server_signature=signature,
+            mantenedora_id=mantenedora_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            snapshot_id=doc["id"],
+            issued_by=doc["created_by"],
+            scope_label=scope_label,
+        )
+        doc["verification_code"] = vdoc["code"]
+    except Exception as e:
+        logger.warning("[snapshot] falha ao emitir verification_code: %s", e)
+        doc["verification_code"] = None
     return doc
 
 

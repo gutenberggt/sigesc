@@ -83,6 +83,7 @@ from routers import curriculum_v2 as curriculum_v2_mod
 from routers import interventions as interventions_mod
 from routers import tenant_admin as tenant_admin_mod
 from routers import snapshots as snapshots_mod
+from routers import verifiable_docs as verifiable_docs_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
@@ -145,6 +146,9 @@ async def create_indexes():
         # G1.5: índices TTL e unique para snapshots auditáveis
         from services.snapshot_service import ensure_ttl_index as _ensure_snap_ttl
         await _ensure_snap_ttl(db)
+        # G1.6: índices para verifiable_documents (code único, lookups)
+        from services.verifiable_docs_service import ensure_indexes as _ensure_vd_idx
+        await _ensure_vd_idx(db)
         # Índices para students
         await db.students.create_index("id", unique=True)
         await db.students.create_index("cpf", sparse=True)
@@ -644,6 +648,9 @@ app.include_router(curriculum_v2_mod.setup_router(db), prefix="/api")
 app.include_router(interventions_mod.setup_router(db), prefix="/api")
 app.include_router(tenant_admin_mod.setup_router(db), prefix="/api")
 app.include_router(snapshots_mod.setup_router(db), prefix="/api")
+_vd_public, _vd_admin = verifiable_docs_mod.setup_router(db, limiter=limiter)
+app.include_router(_vd_public, prefix="/api")
+app.include_router(_vd_admin, prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)

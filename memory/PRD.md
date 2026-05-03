@@ -1173,3 +1173,89 @@ Saída de *"sistema com IA"* para *"sistema com evidência verificável + trilha
 ### Status: ✅ PRODUÇÃO-READY
 Base consolidada para Sprint G3 (Relatório Mensal) que herdará snapshots desde o dia 1.
 
+
+---
+
+## Sprint G1.6 — Portal Público de Verificação + Verifiable Documents [03/Fev/2026]
+
+### Problema resolvido
+G1.5 entregou **prova auditável** restrita a usuários autenticados. Para transformar isso em argumento de venda institucional (prestação de contas pública, reuniões com conselho, tribunal de contas), era necessário um **portal público sem auth** onde qualquer cidadão pudesse validar um documento impresso sem login — **mas sem expor dados sensíveis (LGPD)**.
+
+### Arquitetura desacoplada (decisão crítica)
+Em vez de acoplar a validação ao snapshot de IA, criamos a coleção genérica `verifiable_documents` — qualquer documento institucional pode ser emitido com código público: plano_acao, relatorio_mensal, certificado, declaracao, historico, ata, generico.
+
+### Implementação
+
+**Backend — `services/verifiable_docs_service.py`**
+- **Código amigável** `SIGESC-XXXX-XXXX` (8 chars de alfabeto seguro — sem 0/O/1/I/L para evitar erro humano)
+- **Entropia**: 28^8 ≈ 3.8×10^11 combinações por 8 chars, unicidade garantida por índice único + retry em até 5 colisões
+- **Normalização de input** (LGPD-UX real): aceita `"sigescabcd2345"`, `"ABCD-2345"`, `"  abcd2345  "`, `"sigesc-abcd-2345"` — tudo resolve para o mesmo documento canônico
+- **Revogação** com motivo + usuário + timestamp — definitivo, sem reversão (mantém simples)
+- **Metadata pública mínima**: `{tipo, tipo_label, emitido_em, emitido_por, escopo}` — ZERO payload, ZERO ai_output
+- **Integração automática com snapshots**: `create_snapshot()` agora emite código público automaticamente via `create_verifiable_document()` — rastreabilidade unificada
+
+**Backend — `routers/verifiable_docs.py`**
+- **Público (SEM AUTH)**: `GET /api/public/verify/{code}` com rate limit **20/min por IP** via slowapi
+  - Response LGPD-safe em **3 estados claros**: `"valido" | "invalido" | "revogado"`
+  - Valida hash + HMAC do snapshot vinculado quando existe (integridade real, não só "existe")
+  - Schema: `{status, codigo, tipo, tipo_label, emitido_em, emitido_por, escopo, integridade, assinatura_valida, mensagem}`
+- **Autenticado**:
+  - `GET /api/documents` — lista com escopo (super_admin global / admin+secretario mantenedora / diretor suas escolas)
+  - `GET /api/documents/{code}` — detalhes
+  - `POST /api/documents/{code}/revoke` — revogação com motivo
+  - `POST /api/documents/ensure-for-snapshot/{snapshot_id}` — geração **retroativa sob demanda** para snapshots pré-G1.6 (opção C escolhida: evita migração pesada)
+
+**PDF com QR Code + código legível** (`services/snapshot_pdf.py` + `segno`)
+- QR Code (correção ISO alta, ~3cm) gerado via `segno` (biblioteca leve, zero deps externas) apontando para `{FRONTEND}/verificar/{code}`
+- Bloco destacado em indigo com:
+  - Código `SIGESC-XXXX-XXXX` em Courier-Bold 14pt
+  - URL do portal: `{FRONTEND}/verificar`
+  - QR Code ao lado
+  - Instrução: "Digite o código acima ou escaneie o QR Code ao lado para confirmar a autenticidade e integridade deste documento"
+
+**Frontend — `pages/VerifyPublic.jsx` + rotas `/verificar` e `/verificar/:code`**
+- Rota **PÚBLICA** (sem autenticação) — nova seção no App.js ao lado de /pre-matricula e /login
+- UX moderno: gradient indigo-950 → slate-900, glass-morphism no card, tipografia grande e legível
+- **Normalização client-side** espelhando backend — evita chamadas inválidas
+- Input com autoFocus, placeholder `SIGESC-ABCD-1234`, monospace
+- 3 estados visuais distintos:
+  - **Válido**: badge verde `ShieldCheck` + "Documento autêntico e íntegro"
+  - **Revogado**: badge âmbar `ShieldAlert` + "Documento revogado" + data da revogação
+  - **Inválido**: badge vermelho `ShieldX` + "Documento inválido"
+- URL compartilhável após verificação (`navigate` replace)
+- Tratamento de 429 (rate limit) com mensagem clara
+- Rodapé institucional: "Infraestrutura de Confiança SIGESC · Verificação pública baseada em SHA256 + HMAC-SHA256"
+
+### Testes (`tests/test_verifiable_docs.py`) — 27/27 pass
+- **Formato código**: 50 rodadas de regex match, 200 códigos únicos em lote
+- **Normalização**: parametrizado com 7 variações aceitas + 7 inválidas
+- **Persistência**: create + resolve com input não-canônico + revoke + idempotência
+- **LGPD crítico**: `build_portal_response` recebe doc com `"DADO_PESSOAL_SENSIVEL"` embutido e retorna resposta sem vazar nenhum campo sensível (assert negativo explícito)
+- **3 estados do portal**: validação individual
+- **E2E público**: endpoint SEM auth retorna 200, schema mínimo, bloqueia `ai_output/payload_snapshot/public_hash/server_signature` no response
+- **Normalização no endpoint**: código lowercase sem prefix/hífen resolve corretamente
+- **Revogação via endpoint**: super_admin revoga → portal público retorna `"revogado"`
+- **Integração**: `create_snapshot` emite automaticamente `verification_code`
+- **Retroativo**: `ensure-for-snapshot` gera código para snapshot antigo + idempotência
+
+### Regressão completa — 84/84 testes passando
+- 17 legados + 8 IA + 6 evidências + 9 cookies + 17 snapshots + 27 verifiable docs.
+
+### Validação E2E (screenshots)
+Portal renderizado com `SIGESC-5NJP-XG93` (snapshot real com HMAC) → banner verde "Documento autêntico e íntegro" · Integridade: **confirmada** · Assinatura: **válida**.
+Portal renderizado com `SIGESC-MK5B-6UH6` (doc de teste sem HMAC) → banner vermelho "Documento inválido" · Integridade: confirmada · Assinatura: **inválida / ausente** — comportamento correto.
+Input normaliza: `sigescabcd2345` → resolve para `SIGESC-ABCD-2345`.
+
+### Impacto estratégico
+**Saída de** *"sistema com IA"* **para** *"infraestrutura de autenticação documental da rede municipal"*.
+Qualquer documento institucional emitido pelo SIGESC agora pode ser:
+- Validado publicamente em 2 segundos via QR Code (sem login)
+- Defendido em reunião pública com evidência técnica reproduzível
+- Revogado centralmente se for emitido por erro
+- Estendido para qualquer outro tipo documental futuro (certificados, declarações) sem reformar infraestrutura
+
+Isso **não é mais feature**. É **base para vender transparência como padrão** em redes que precisam cumprir Lei de Acesso à Informação.
+
+### Status: ✅ PRODUÇÃO-READY
+Ciclo completo: G1 (explicação) → G1.5 (prova privada) → G1.6 (verificação pública). Base consolidada para Sprint G3.
+

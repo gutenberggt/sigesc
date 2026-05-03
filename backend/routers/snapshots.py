@@ -189,6 +189,13 @@ def setup_router(db, **_kwargs):
         if "entity_ids" in scope and doc.get("entity_id") not in scope["entity_ids"]:
             raise HTTPException(403, "Fora do seu escopo")
 
+        # G1.6: busca código público verificável (pode não existir se retroativo)
+        vdoc = await db.verifiable_documents.find_one(
+            {"snapshot_id": snapshot_id}, {"_id": 0, "code": 1}
+        )
+        if vdoc:
+            doc["verification_code"] = vdoc["code"]
+
         pdf_bytes = build_pdf(doc, mode=mode)
         filename = f"sigesc-snapshot-{snapshot_id[:8]}-{mode}.pdf"
         return Response(

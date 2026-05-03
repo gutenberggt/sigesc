@@ -17,6 +17,7 @@ const TutorialAcesso = lazy(() => import('@/pages/tutorials/TutorialAcesso'));
 const TutorialDiarioAEE = lazy(() => import('@/pages/tutorials/TutorialDiarioAEE'));
 const PreMatricula = lazy(() => import('@/pages/PreMatricula'));
 const PreMatriculaManagement = lazy(() => import('@/pages/PreMatriculaManagement'));
+const VerifyPublic = lazy(() => import('@/pages/VerifyPublic'));
 const ConfirmEmailChange = lazy(() => import('@/pages/ConfirmEmailChange'));
 const PermissionMatrix = lazy(() => import('@/pages/PermissionMatrix'));
 const CurriculumImport = lazy(() => import('@/pages/CurriculumImport'));
@@ -110,6 +111,9 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
           <Route path="/pre-matricula" element={<PreMatricula />} />
+          {/* G1.6 — Portal público de verificação (sem auth) */}
+          <Route path="/verificar" element={<VerifyPublic />} />
+          <Route path="/verificar/:code" element={<VerifyPublic />} />
           
           {/* Rotas protegidas */}
           <Route
