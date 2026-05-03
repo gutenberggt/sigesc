@@ -20,7 +20,28 @@ function readCookie(name) {
 }
 
 const CSRF_COOKIE_NAME = 'sigesc_csrf';
+const CSRF_STORAGE_KEY = 'sigesc_csrf_token';
 const CSRF_WRITE_METHODS = new Set(['post', 'put', 'patch', 'delete']);
+
+// G2 fix Mai/2026: em deploys cross-domain (frontend ≠ backend) o cookie CSRF
+// fica vinculado ao domínio do backend e o JS não consegue lê-lo via
+// document.cookie. O backend agora retorna o csrf_token no body do /login e
+// /refresh — guardamos em sessionStorage e usamos como fonte primária.
+export function setCsrfToken(token) {
+  if (token) {
+    try { sessionStorage.setItem(CSRF_STORAGE_KEY, token); } catch { /* ignore */ }
+  }
+}
+export function clearCsrfToken() {
+  try { sessionStorage.removeItem(CSRF_STORAGE_KEY); } catch { /* ignore */ }
+}
+function getCsrfToken() {
+  try {
+    const stored = sessionStorage.getItem(CSRF_STORAGE_KEY);
+    if (stored) return stored;
+  } catch { /* ignore */ }
+  return readCookie(CSRF_COOKIE_NAME);
+}
 
 axios.interceptors.request.use(
   (config) => {
@@ -35,10 +56,11 @@ axios.interceptors.request.use(
     if (tenantId) {
       config.headers['X-Mantenedora-Id'] = tenantId;
     }
-    // CSRF: envia header em requests de escrita quando o cookie existe.
+    // CSRF: envia header em requests de escrita.
+    // Prioridade: sessionStorage (cross-domain) → cookie (mesmo domínio).
     const method = (config.method || 'get').toLowerCase();
     if (CSRF_WRITE_METHODS.has(method)) {
-      const csrf = readCookie(CSRF_COOKIE_NAME);
+      const csrf = getCsrfToken();
       if (csrf) {
         config.headers['X-CSRF-Token'] = csrf;
       }

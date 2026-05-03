@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
+import { setCsrfToken, clearCsrfToken } from '@/services/api';
 
 const AuthContext = createContext(null);
 
@@ -119,7 +120,7 @@ export const AuthProvider = ({ children }) => {
         refresh_token: currentRefreshToken
       });
       
-      const { access_token, refresh_token: newRefreshToken, user: userData } = response.data;
+      const { access_token, refresh_token: newRefreshToken, csrf_token, user: userData } = response.data;
       
       // Atualiza tokens
       setAccessToken(access_token);
@@ -128,6 +129,11 @@ export const AuthProvider = ({ children }) => {
       if (newRefreshToken) {
         setRefreshToken(newRefreshToken);
         localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
+      }
+
+      // G2 Mai/2026: atualiza CSRF em sessionStorage após rotação
+      if (csrf_token) {
+        setCsrfToken(csrf_token);
       }
       
       if (userData) {
@@ -315,7 +321,7 @@ export const AuthProvider = ({ children }) => {
     if (isOnline()) {
       try {
         const response = await axios.post(`${API}/auth/login`, { email, password });
-        const { access_token, refresh_token, user: userData } = response.data;
+        const { access_token, refresh_token, csrf_token, user: userData } = response.data;
 
         // Garante que userData tenha o email para validação offline
         const userDataWithEmail = userData ? { ...userData, email } : { email };
@@ -327,6 +333,11 @@ export const AuthProvider = ({ children }) => {
 
         localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access_token);
         localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refresh_token);
+        // G2 Mai/2026: armazena CSRF em sessionStorage para deploys cross-domain
+        // (frontend ≠ backend) onde JS não consegue ler o cookie via document.cookie
+        if (csrf_token) {
+          setCsrfToken(csrf_token);
+        }
         saveUserDataLocally(userDataWithEmail);
         
         console.log('[Auth] Dados salvos para offline:', userDataWithEmail);
@@ -437,6 +448,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.LAST_ACTIVITY);
+    clearCsrfToken();
     // Mantém USER_DATA e LAST_LOGIN para permitir login offline futuro
   };
 

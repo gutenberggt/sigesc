@@ -158,6 +158,7 @@ def setup_router(db, audit_service):
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
+            csrf_token=csrf_token,
             user=UserResponse(**user_response_data)
         )
 
@@ -265,6 +266,7 @@ def setup_router(db, audit_service):
             return TokenResponse(
                 access_token=new_access_token,
                 refresh_token=new_refresh_token,
+                csrf_token=csrf_token,
                 user=UserResponse(**user_response_data)
             )
         except HTTPException:
