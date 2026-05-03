@@ -20,19 +20,19 @@ import { DASHBOARD_MENU_GROUPS } from './Dashboard';
 
 // Papéis observáveis (linhas vivas em produção)
 const ROLES = [
-  { key: 'super_admin', label: 'Super Admin' },
-  { key: 'admin', label: 'Administrador' },
-  { key: 'gerente', label: 'Gerente' },
-  { key: 'admin_teste', label: 'Admin Teste' },
-  { key: 'secretario', label: 'Secretário' },
-  { key: 'diretor', label: 'Diretor' },
-  { key: 'coordenador', label: 'Coordenador' },
-  { key: 'apoio_pedagogico', label: 'Apoio Pedag.' },
-  { key: 'auxiliar_secretaria', label: 'Aux. Secretaria' },
-  { key: 'professor', label: 'Professor' },
-  { key: 'ass_social', label: 'Ass. Social' },
-  { key: 'aluno', label: 'Aluno' },
-  { key: 'responsavel', label: 'Responsável' },
+  { key: 'super_admin', label: 'S. Adm.', fullLabel: 'Super Admin' },
+  { key: 'admin', label: 'Adm.', fullLabel: 'Administrador' },
+  { key: 'gerente', label: 'Ger.', fullLabel: 'Gerente' },
+  { key: 'admin_teste', label: 'Adm. T', fullLabel: 'Admin Teste' },
+  { key: 'secretario', label: 'Sec.', fullLabel: 'Secretário' },
+  { key: 'diretor', label: 'Dir.', fullLabel: 'Diretor' },
+  { key: 'coordenador', label: 'Coord.', fullLabel: 'Coordenador' },
+  { key: 'apoio_pedagogico', label: 'Ap. Pd.', fullLabel: 'Apoio Pedagógico' },
+  { key: 'auxiliar_secretaria', label: 'A. Sec.', fullLabel: 'Aux. Secretaria' },
+  { key: 'professor', label: 'Prof.', fullLabel: 'Professor' },
+  { key: 'ass_social', label: 'A. Soc.', fullLabel: 'Assistente Social' },
+  { key: 'aluno', label: 'Alu.', fullLabel: 'Aluno' },
+  { key: 'responsavel', label: 'Resp.', fullLabel: 'Responsável' },
 ];
 
 // Simula o objeto retornado por `usePermissions()` para um dado papel
@@ -335,7 +335,7 @@ export default function PermissionMatrix() {
                   <th className="text-left font-semibold text-gray-700 px-3 py-2 w-56 sticky left-0 bg-white">Item</th>
                   <th className="text-left font-semibold text-gray-500 px-3 py-2 w-40">Categoria</th>
                   {ROLES.map(r => (
-                    <th key={r.key} className="px-2 py-2 text-center" title={r.key}>
+                    <th key={r.key} className="px-2 py-2 text-center" title={`${r.fullLabel} (${r.key})`}>
                       <div className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold whitespace-nowrap">
                         {r.label}
                       </div>
