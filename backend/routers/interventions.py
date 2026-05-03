@@ -20,6 +20,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from auth_middleware import AuthMiddleware
 from services.intervention_detector import run_intervention_detection
+from services.plano_acao_ai import enrich_plan_with_ai
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/intervencoes", tags=["Intervenções"])
@@ -311,10 +312,14 @@ def setup_router(db, **_kwargs):
         request: Request,
         school_id: Optional[str] = None,
         period: str = Query("30d", pattern="^(7d|30d|60d|90d|all)$"),
+        ai: bool = Query(False, description="Enriquecer com IA (Claude Sonnet 4.5)"),
+        force_refresh: bool = Query(False, description="Ignorar cache de IA (24h)"),
     ):
         """Gera plano de ação priorizado (máx 5 ações) baseado em regras fixas.
 
         Motor determinístico — não depende de IA. Transparente e auditável.
+        Se `ai=true`, enriquece com análise executiva + insight do histórico
+        do gestor via Claude Sonnet 4.5. Cache de 24h por (school_id, period).
         """
         user = await _auth_manager(request)
         # Se não super, força escola do usuário
@@ -485,26 +490,60 @@ def setup_router(db, **_kwargs):
         for i, a in enumerate(acoes, start=1):
             a["ordem"] = i
 
-        return {
+        contexto = {
+            "received": received,
+            "resolved": len(resolved_list),
+            "active": len(active_list),
+            "level_3_active": len(level_3_active),
+            "avg_resolution_days": avg_days,
+            "resolution_rate": resolution_rate,
+            "coverage_pct": cov["pct"],
+            "coverage_missing_total": cov["total"] - cov["covered"],
+            "lancamento_rate": lancamento_rate,
+        }
+        result = {
             "school_id": school_id,
             "school_name": school.get("name"),
             "period": period,
             "score": score,
             "classificacao": classif,
-            "contexto": {
-                "received": received,
-                "resolved": len(resolved_list),
-                "active": len(active_list),
-                "level_3_active": len(level_3_active),
-                "avg_resolution_days": avg_days,
-                "resolution_rate": resolution_rate,
-                "coverage_pct": cov["pct"],
-                "coverage_missing_total": cov["total"] - cov["covered"],
-                "lancamento_rate": lancamento_rate,
-            },
+            "contexto": contexto,
             "acoes": acoes,
             "generated_at": datetime.now(timezone.utc).isoformat(),
+            "ai_enriched": False,
         }
+
+        # 6. Enriquecer com IA (Claude Sonnet 4.5) se solicitado
+        if ai:
+            try:
+                enrich = await enrich_plan_with_ai(
+                    db,
+                    mantenedora_id=user.get("mantenedora_id"),
+                    school_id=school_id,
+                    school_name=school.get("name") or "",
+                    period=period,
+                    contexto=contexto,
+                    acoes=acoes,
+                    force=force_refresh,
+                )
+                if enrich and enrich.get("ai"):
+                    result["ai_enriched"] = True
+                    result["ai"] = enrich["ai"]
+                    result["ai_from_cache"] = enrich.get("from_cache", False)
+                    result["ai_cache_age_hours"] = enrich.get("cache_age_hours")
+                    result["ai_generated_at"] = enrich.get("generated_at")
+                    result["ai_model"] = enrich.get("model")
+                    result["gestor_historico"] = enrich.get("gestor")
+                    # Aplica descrições enriquecidas nas ações determinísticas
+                    enr_map = enrich["ai"].get("acoes_enriquecidas") or {}
+                    for a in result["acoes"]:
+                        key = str(a.get("ordem"))
+                        if enr_map.get(key):
+                            a["descricao_ia"] = enr_map[key]
+            except Exception as e:
+                logger.warning("[plano-acao] IA falhou (fallback determinístico): %s", e)
+
+        return result
 
     # =================== INBOX IN-APP ===================
 

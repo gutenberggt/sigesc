@@ -916,3 +916,56 @@ Dashboard → Gestão Institucional → "Multi-Tenant" (ícone ShieldCheck verde
 - ⚪ (P3) Convite Resend automático para o admin local recém-criado.
 - ⚪ (P3) Export LGPD por mantenedora (direito ao esquecimento + portabilidade).
 
+
+
+---
+
+## Sprint F final — Branding por domínio (Multi-Tenant) [03/Fev/2026]
+
+- Endpoint `GET /api/tenant/branding/public` resolve o tenant via `Request.headers.host` (sem query param — evita domain spoofing e garante cache HTTP correto).
+- CRUD de `tenant_domains` (super_admin only) em `/api/tenant/domains`.
+- Hook `useTenantBranding.js` consome o endpoint automaticamente a partir do host atual.
+- `Login.js` refatorado para aplicar logo + cores via CSS variables dinamicamente.
+- Quando o domínio não está mapeado, fallback para branding padrão SIGESC.
+- Status: ✅ Concluído, validado (screenshot), 40/40 testes legados + 7 novos passando.
+
+## Fase 2 — Planos de Ação enriquecidos por IA (Claude Sonnet 4.5) [03/Fev/2026]
+
+### Objetivo
+Complementar o motor determinístico de 5 regras fixas com uma camada de IA que:
+- Gera **análise executiva** contextual em linguagem natural.
+- Produz **insight histórico do gestor** baseado nos últimos 90 dias de alertas (taxa de resolução, tempo médio, categoria mais negligenciada).
+- Sugere até 2 **recomendações extras** não cobertas pelas regras.
+- Enriquece cada ação determinística com uma **descrição mais humana**.
+
+### Implementação
+- **Backend**: `services/plano_acao_ai.py` usando `emergentintegrations` + `EMERGENT_LLM_KEY` + `anthropic/claude-sonnet-4-5-20250929`.
+- **System prompt** pedagógico (contexto BNCC/DCM, escopo operacional, 1-clique para ação).
+- **Output JSON puro** validado e sanitizado (limits de string, cap de extras em 2).
+- **Cache 24h** em coleção `ai_plans` por `(mantenedora_id, school_id, period)`.
+- **Graceful fallback**: sem chave / timeout / parse fail → endpoint retorna plano determinístico normalmente, `ai_enriched=false`.
+- **Endpoint**: `GET /api/intervencoes/plano-acao?ai=true&force_refresh=true`.
+- **Frontend** (`PlanoAcao.jsx`): toggle "IA ligada/desligada", card de análise executiva (gradient indigo), bloco de histórico do gestor, cards de recomendações extras com badge "IA", descrição enriquecida (+ details/summary para a descrição técnica original), botão "Regenerar IA".
+
+### Testes
+- `backend/tests/test_plano_acao_ai.py` com 8 cenários, 100% pass:
+  1. Fallback sem EMERGENT_LLM_KEY.
+  2. Enriquecimento OK com mock.
+  3. Cache de 24h (segunda chamada não chama Claude).
+  4. `force_refresh=true` bypassa cache.
+  5. Validação / cap de extras em 2.
+  6. Parse de JSON embrulhado em markdown.
+  7. Endpoint default mantém retrocompat.
+  8. Endpoint com `ai=true` real usando EMERGENT_LLM_KEY (smoke test E2E).
+- Validação visual: screenshot exibe análise executiva, histórico de 90d, 5 ações com badges "IA".
+
+### Status
+✅ Concluído, 25/25 testes passando (17 legados + 8 novos), sem regressão.
+
+### Próximos passos (backlog atualizado)
+- 🟡 (P2) Selo de Conclusão Curricular em PDF — adiado pelo usuário até gestão ativa virar rotina.
+- 🟡 (P2) Refatoração `grade_calculator.py` (dívida técnica).
+- ⚪ (P3) CSV de importação com convites automáticos via Resend.
+- ⚪ (P3) Isolamento de auth (HttpOnly cookies).
+- ⚪ (P3) Tooltips explicativos nos KPIs do Secretário.
+- ⚪ (P3) Botão "Baixar em segundo plano" para PDFs pesados.

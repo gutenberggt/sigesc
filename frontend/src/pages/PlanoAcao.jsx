@@ -1,14 +1,16 @@
 /**
  * Plano de Ação Automático — /admin/plano-acao
  *
- * Gerado por regras fixas a partir do score + cobertura + alertas + lançamentos.
- * Cada ação tem link direto para a página onde o gestor age em 1 clique.
+ * Base determinística (5 regras fixas) + camada opcional de IA
+ * (Claude Sonnet 4.5) que gera análise executiva, insight do histórico
+ * do gestor nos últimos 90d e até 2 recomendações extras.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   ChevronLeft, AlertTriangle, Clock, Zap, CheckCircle2, ExternalLink, Info,
+  Sparkles, RefreshCw, Brain, TrendingUp,
 } from 'lucide-react';
 import { schoolsAPI } from '@/services/api';
 
@@ -32,6 +34,8 @@ export default function PlanoAcao() {
   const [period, setPeriod] = useState('30d');
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     schoolsAPI.list().then(d => {
@@ -40,22 +44,29 @@ export default function PlanoAcao() {
     }).catch(() => {});
   }, [schoolId]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (forceRefresh = false) => {
     if (!schoolId) return;
     setLoading(true);
+    if (aiEnabled) setAiLoading(true);
     try {
       const r = await axios.get(`${API}/intervencoes/plano-acao`, {
-        params: { school_id: schoolId, period },
+        params: {
+          school_id: schoolId,
+          period,
+          ai: aiEnabled ? 'true' : 'false',
+          force_refresh: forceRefresh ? 'true' : 'false',
+        },
       });
       setPlan(r.data);
     } catch (e) {
       setPlan(null);
     } finally {
       setLoading(false);
+      setAiLoading(false);
     }
-  }, [schoolId, period]);
+  }, [schoolId, period, aiEnabled]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(false); }, [load]);
 
   const ctx = plan?.contexto || {};
   const classif = plan?.classificacao;
@@ -73,10 +84,10 @@ export default function PlanoAcao() {
             Plano de Ação Automático
           </h1>
           <p className="text-sm text-gray-500 max-w-3xl">
-            Gerado por regras objetivas a partir dos dados reais do sistema. Máx. 5 ações priorizadas, executáveis e mensuráveis.
+            Base determinística (5 regras) + camada de IA (Claude Sonnet 4.5) com insight histórico do gestor. Máx. 5 ações priorizadas, executáveis e mensuráveis.
           </p>
         </div>
-        <div className="flex gap-2 items-end">
+        <div className="flex gap-2 items-end flex-wrap">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Escola</label>
             <select
@@ -102,11 +113,40 @@ export default function PlanoAcao() {
               <option value="90d">90 dias</option>
             </select>
           </div>
+          <button
+            type="button"
+            onClick={() => setAiEnabled(v => !v)}
+            className={`px-3 py-2 text-sm rounded border inline-flex items-center gap-1.5 ${
+              aiEnabled
+                ? 'bg-indigo-600 text-white border-indigo-700 hover:bg-indigo-700'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+            data-testid="plano-ai-toggle"
+            title="Ativar/desativar enriquecimento com Claude Sonnet 4.5"
+          >
+            <Sparkles className="h-4 w-4" />
+            IA {aiEnabled ? 'ligada' : 'desligada'}
+          </button>
+          {aiEnabled && plan?.ai_enriched && (
+            <button
+              type="button"
+              onClick={() => load(true)}
+              disabled={aiLoading}
+              className="px-3 py-2 text-sm rounded border bg-white text-gray-700 border-gray-300 hover:bg-gray-50 inline-flex items-center gap-1.5 disabled:opacity-50"
+              data-testid="plano-ai-refresh"
+              title="Forçar nova análise IA (ignora cache de 24h)"
+            >
+              <RefreshCw className={`h-4 w-4 ${aiLoading ? 'animate-spin' : ''}`} />
+              Regenerar IA
+            </button>
+          )}
         </div>
       </div>
 
       {loading && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6 text-center text-gray-500">Gerando plano...</div>
+        <div className="bg-white border border-gray-200 rounded-lg p-6 text-center text-gray-500" data-testid="plano-loading">
+          {aiEnabled ? 'Gerando plano + análise IA...' : 'Gerando plano...'}
+        </div>
       )}
 
       {!loading && plan && (
@@ -117,7 +157,7 @@ export default function PlanoAcao() {
               <div>
                 <div className="text-xs uppercase opacity-70">Escola</div>
                 <div className="text-xl font-bold">{plan.school_name}</div>
-                <div className="mt-2 flex items-center gap-4 text-xs">
+                <div className="mt-2 flex items-center gap-4 text-xs flex-wrap">
                   <span>Cobertura: <strong>{ctx.coverage_pct ?? 0}%</strong></span>
                   <span>Alertas: <strong>{ctx.received ?? 0}</strong> recebidos · <strong>{ctx.resolved ?? 0}</strong> resolvidos · <strong>{ctx.active ?? 0}</strong> ativos</span>
                   {ctx.level_3_active > 0 && <span className="text-red-700 font-semibold">⚠ {ctx.level_3_active} Nível 3 ativos</span>}
@@ -133,7 +173,18 @@ export default function PlanoAcao() {
             </div>
           </div>
 
-          {/* Ações */}
+          {/* Análise IA (se habilitada e disponível) */}
+          {plan.ai_enriched && plan.ai && (
+            <AiAnalysisCard plan={plan} />
+          )}
+          {aiEnabled && !plan.ai_enriched && !loading && (
+            <div className="mb-4 border border-dashed border-gray-300 rounded-lg p-3 text-xs text-gray-500 flex items-center gap-2" data-testid="plano-ai-fallback">
+              <Brain className="h-4 w-4" />
+              IA indisponível no momento — exibindo apenas plano determinístico.
+            </div>
+          )}
+
+          {/* Ações determinísticas */}
           {plan.acoes.length === 0 ? (
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6 flex items-center gap-3" data-testid="plano-empty">
               <CheckCircle2 className="h-8 w-8 text-emerald-600" />
@@ -145,8 +196,23 @@ export default function PlanoAcao() {
           ) : (
             <div className="space-y-3">
               {plan.acoes.map(a => (
-                <ActionCard key={a.ordem} action={a} />
+                <ActionCard key={a.ordem} action={a} aiEnabled={plan.ai_enriched} />
               ))}
+            </div>
+          )}
+
+          {/* Recomendações extras da IA */}
+          {plan.ai_enriched && plan.ai?.recomendacoes_extra?.length > 0 && (
+            <div className="mt-4" data-testid="plano-ai-extras">
+              <div className="text-sm font-semibold text-indigo-800 mb-2 flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4" />
+                Recomendações adicionais da IA
+              </div>
+              <div className="space-y-3">
+                {plan.ai.recomendacoes_extra.map((r, i) => (
+                  <ExtraRecommendationCard key={i} rec={r} index={i} />
+                ))}
+              </div>
             </div>
           )}
 
@@ -155,6 +221,11 @@ export default function PlanoAcao() {
             <div>
               Regras determinísticas (não-IA): cobertura &lt; 70% / Nível 3 ≥ 3 / taxa &lt; 60% / tempo &gt; 5d / lançamentos &lt; 70%.
               Plano gerado em {plan.generated_at ? new Date(plan.generated_at).toLocaleString('pt-BR') : '—'}.
+              {plan.ai_enriched && plan.ai_generated_at && (
+                <> · IA ({plan.ai_model}) em {new Date(plan.ai_generated_at).toLocaleString('pt-BR')}
+                  {plan.ai_from_cache ? ` (cache ${plan.ai_cache_age_hours}h)` : ''}.
+                </>
+              )}
               <Link to="/admin/ranking-gestores" className="text-purple-700 underline ml-1">Ver ranking</Link>.
             </div>
           </div>
@@ -164,7 +235,53 @@ export default function PlanoAcao() {
   );
 }
 
-function ActionCard({ action }) {
+function AiAnalysisCard({ plan }) {
+  const ai = plan.ai || {};
+  const gestor = plan.gestor_historico;
+  return (
+    <div className="mb-4 rounded-lg border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-4" data-testid="plano-ai-analysis">
+      <div className="flex items-center gap-2 text-indigo-800 text-sm font-semibold mb-2">
+        <Brain className="h-4 w-4" />
+        Análise executiva · Claude Sonnet 4.5
+        {plan.ai_from_cache && (
+          <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
+            cache · {plan.ai_cache_age_hours}h
+          </span>
+        )}
+      </div>
+      {ai.analise_executiva && (
+        <p className="text-sm text-gray-800 leading-relaxed mb-3" data-testid="plano-ai-summary">
+          {ai.analise_executiva}
+        </p>
+      )}
+      {ai.insight_historico && (
+        <div className="bg-white/60 border border-indigo-100 rounded p-3 text-xs text-gray-700 flex items-start gap-2" data-testid="plano-ai-insight">
+          <TrendingUp className="h-4 w-4 text-indigo-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <div className="font-semibold text-indigo-900 mb-0.5">
+              Histórico do gestor (90 dias){gestor?.nome && gestor.nome !== 'Não definido' ? ` — ${gestor.nome}` : ''}
+            </div>
+            <div>{ai.insight_historico}</div>
+            {gestor && gestor.received_90d > 0 && (
+              <div className="mt-1.5 text-[11px] text-gray-500 flex gap-3 flex-wrap">
+                <span>Alertas recebidos: <strong>{gestor.received_90d}</strong></span>
+                <span>Resolvidos: <strong>{gestor.resolved_90d}</strong></span>
+                {gestor.avg_resolution_days_90d != null && (
+                  <span>Tempo médio próprio: <strong>{gestor.avg_resolution_days_90d}d</strong></span>
+                )}
+                {gestor.most_neglected_component && gestor.most_neglected_active_count > 0 && (
+                  <span>Categoria + negligenciada: <strong>{gestor.most_neglected_component}</strong> ({gestor.most_neglected_active_count})</span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActionCard({ action, aiEnabled }) {
   const impactClass = IMPACT_BADGE[action.impacto] || IMPACT_BADGE.baixo;
   const prioClass = action.prioridade === 1
     ? 'border-red-300 bg-red-50/30'
@@ -192,11 +309,24 @@ function ActionCard({ action }) {
             <span className="text-[11px] text-gray-500">
               Responsável: <strong className="text-gray-700 capitalize">{action.responsavel}</strong>
             </span>
+            {aiEnabled && action.descricao_ia && (
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 border border-indigo-200 uppercase font-semibold">
+                <Sparkles className="h-3 w-3" /> IA
+              </span>
+            )}
           </div>
           <div className="text-base font-semibold text-gray-900 mb-0.5">
             {action.titulo}
           </div>
-          <div className="text-sm text-gray-700 mb-2">{action.descricao}</div>
+          <div className="text-sm text-gray-700 mb-2">
+            {action.descricao_ia || action.descricao}
+          </div>
+          {action.descricao_ia && action.descricao !== action.descricao_ia && (
+            <details className="text-[11px] text-gray-500 mb-2">
+              <summary className="cursor-pointer">Ver descrição técnica original</summary>
+              <div className="mt-1 pl-2 border-l-2 border-gray-200">{action.descricao}</div>
+            </details>
+          )}
           <div className="text-xs text-gray-500 flex items-start gap-1">
             <AlertTriangle className="h-3 w-3 mt-0.5 text-amber-600 flex-shrink-0" />
             <span><strong>Métrica de sucesso:</strong> {action.metrica_sucesso}</span>
@@ -212,6 +342,42 @@ function ActionCard({ action }) {
           </Link>
         )}
       </div>
+    </div>
+  );
+}
+
+function ExtraRecommendationCard({ rec, index }) {
+  const impactClass = IMPACT_BADGE[rec.impacto] || IMPACT_BADGE.baixo;
+  return (
+    <div
+      className="border rounded-lg p-4 border-indigo-300 bg-indigo-50/40"
+      data-testid={`plano-ai-extra-${index}`}
+    >
+      <div className="flex items-center gap-2 flex-wrap mb-1">
+        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 border border-indigo-200 uppercase font-semibold">
+          <Sparkles className="h-3 w-3" /> IA · Extra
+        </span>
+        <span className="text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-full px-2 py-0.5">
+          Prioridade {rec.prioridade}
+        </span>
+        <span className={`text-[10px] px-2 py-0.5 rounded border ${impactClass} uppercase`}>
+          Impacto {rec.impacto}
+        </span>
+        <span className="inline-flex items-center gap-1 text-[11px] text-gray-600">
+          <Clock className="h-3 w-3" /> {rec.prazo_dias} dias
+        </span>
+        <span className="text-[11px] text-gray-500">
+          Responsável: <strong className="text-gray-700 capitalize">{rec.responsavel}</strong>
+        </span>
+      </div>
+      <div className="text-base font-semibold text-gray-900 mb-0.5">{rec.titulo}</div>
+      <div className="text-sm text-gray-700 mb-2">{rec.descricao}</div>
+      {rec.metrica_sucesso && (
+        <div className="text-xs text-gray-500 flex items-start gap-1">
+          <AlertTriangle className="h-3 w-3 mt-0.5 text-amber-600 flex-shrink-0" />
+          <span><strong>Métrica de sucesso:</strong> {rec.metrica_sucesso}</span>
+        </div>
+      )}
     </div>
   );
 }
