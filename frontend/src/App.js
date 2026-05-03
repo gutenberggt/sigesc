@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
+import { Toaster as SonnerToaster } from 'sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { MantenedoraProvider } from '@/contexts/MantenedoraContext';
 import { OfflineProvider } from '@/contexts/OfflineContext';
@@ -96,6 +97,12 @@ function App() {
       <MantenedoraProvider>
       <BrowserRouter>
         <UnsavedChangesProvider>
+        <SonnerToaster
+          position="top-right"
+          richColors
+          closeButton
+          toastOptions={{ duration: 5000 }}
+        />
         <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Página inicial = Login */}
