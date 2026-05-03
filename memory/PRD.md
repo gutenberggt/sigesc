@@ -849,3 +849,70 @@ Novo item "Plano de Ação" (ícone Zap amber) para super_admin/admin/secretario
 - 🟠 (P2) Exportar plano de ação em PDF para reuniões pedagógicas.
 - ⚪ (P3) IA gerando descrição adaptativa por histórico (evolução do motor de regras).
 
+
+
+---
+
+## 2026-02 — Sprint F: Multi-Tenant Toolkit (auditoria + branding + onboarding)
+
+### Diretriz do usuário
+"Vamos blindar as lacunas. SIGESC é multi-tenant — uma só plataforma para N municípios."
+
+### Confirmação de arquitetura
+- A infraestrutura `tenant_scope.py` (filtros automáticos `apply_tenant_filter`) **já existia** e é usada nas rotas de currículo, intervenções, action_plans, students, users, etc.
+- Sprint F entrega **transparência operacional sobre as lacunas** + **onboarding rápido** + **branding por mantenedora**.
+
+### Backend novo (`/app/backend/routers/tenant_admin.py`)
+
+**Auditoria** — `GET /api/tenant/audit?sample_size=N`
+- Mapeia cada coleção crítica (17): `total`, `with_tenant`, `without_tenant`, `coverage_pct`, `sample`, `parent_for_backfill`.
+- Resultado real do sistema: schools/classes/courses/students/staff/enrollments/grades/learning_objects/calendar_events/etc → **100% cobertos**.
+- Lacunas legítimas: `intervention_alerts` (cross-tenant para BNCC nacional), `curriculum_adaptations` (BNCC_COMPUTACAO), `curriculum_components` (NACIONAL).
+
+**Backfill** — `POST /api/tenant/audit/backfill?dry_run=bool`
+- Deriva `mantenedora_id` automaticamente a partir do parent (`school_id` ou `class_id`).
+- Modo seguro com `dry_run=true` (padrão): apenas conta o que seria atualizado.
+- Modo escrita explícito (`dry_run=false`): aplica e retorna contagem.
+
+**Branding público** — `GET /api/tenant/branding/public?mantenedora_id=&host=`
+- Endpoint **sem autenticação** (consumido pelo login screen).
+- Resolução: por `mantenedora_id` → por `host`/subdomain (codigo_inep/slug) → primeira mantenedora → fallback default.
+- Retorna: `name`, `logo_url`, `brasao_url`, `primary_color`, `secondary_color`, `secretaria`, `slogan`, `exibir_pre_matricula`, `destaque_mensagem`.
+
+**Onboarding wizard** — `POST /api/tenant/onboard`
+- Cria nova mantenedora completa em 1 chamada: mantenedora + admin local (role=gerente) + escola inicial opcional.
+- Senha temporária `Mudar@2026` com `must_change_password=true`.
+- Validação de e-mail único.
+
+### Frontend (`/admin/tenant`)
+
+Página dedicada para super_admin:
+- **Banner de status**: amarelo se há órfãos, verde se 100% íntegro.
+- **Tabela de auditoria**: coleção por coleção, com barra de progresso colorida (verde/amarelo/vermelho), órfãos destacados, parent disponível para backfill.
+- **Botão "Rodar backfill"**: aplica derivação automática de mantenedora_id (com confirmação).
+- **Botão "Nova Mantenedora"**: modal wizard com nome + CNPJ + município/estado + cor primária (color picker) + URL logotipo + admin (nome+email) + escola inicial opcional. Mostra senha temporária no toast de sucesso.
+
+### Testes (6 PASS em `test_tenant_admin.py`, 38 PASS no eixo total)
+1. Branding público responde sem auth.
+2. Audit lista coleções esperadas.
+3. Audit protegido (401 sem token).
+4. Backfill dry_run não escreve.
+5. Onboard cria mantenedora + admin + escola completos.
+6. Onboard rejeita e-mail duplicado (409).
+
+### Navegação
+Dashboard → Gestão Institucional → "Multi-Tenant" (ícone ShieldCheck verde, super_admin only).
+
+### Status pós-Sprint F
+- Schools/classes/courses/students/staff/enrollments/grades/learning_objects: **100% blindados** ✅
+- BNCC nacional permanece intencionalmente cross-tenant (compartilhada por todas as redes) ✅
+- Onboarding de nova mantenedora: **5 cliques / <2 minutos** ✅
+- Branding por mantenedora: dados disponíveis via endpoint público ✅
+
+### Próximos passos (quando quiser)
+- 🟠 (P1) Aplicar `branding/public` no LoginScreen (logo + cor + nome dinâmicos).
+- 🟠 (P2) Whitelabel completo no header da aplicação (logo no topo, tema CSS vars).
+- 🟠 (P2) Bell icon com `/intervencoes/notifications` no header.
+- ⚪ (P3) Convite Resend automático para o admin local recém-criado.
+- ⚪ (P3) Export LGPD por mantenedora (direito ao esquecimento + portabilidade).
+

@@ -25,6 +25,7 @@ const CurriculumCoverage = lazy(() => import('@/pages/CurriculumCoverage'));
 const Interventions = lazy(() => import('@/pages/Interventions'));
 const RankingGestores = lazy(() => import('@/pages/RankingGestores'));
 const PlanoAcao = lazy(() => import('@/pages/PlanoAcao'));
+const TenantAdmin = lazy(() => import('@/pages/TenantAdmin'));
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Schools = lazy(() => import('@/pages/SchoolsComplete').then(m => ({ default: m.SchoolsComplete })));
 const Users = lazy(() => import('@/pages/Users').then(m => ({ default: m.Users })));
@@ -554,6 +555,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['super_admin', 'admin', 'secretario', 'diretor', 'coordenador']}>
                 <PlanoAcao />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Multi-Tenant Admin — auditoria + onboarding */}
+          <Route
+            path="/admin/tenant"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
+                <TenantAdmin />
               </ProtectedRoute>
             }
           />
