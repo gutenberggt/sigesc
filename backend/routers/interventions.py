@@ -20,7 +20,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from auth_middleware import AuthMiddleware
 from services.intervention_detector import run_intervention_detection
-from services.plano_acao_ai import enrich_plan_with_ai
+from services.plano_acao_ai import enrich_plan_with_ai, invalidate_ai_plans_for_school
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/intervencoes", tags=["Intervenções"])
@@ -82,6 +82,11 @@ def setup_router(db, **_kwargs):
     @router.post("/{alert_id}/resolve")
     async def resolve_intervention(alert_id: str, request: Request):
         user = await _auth_manager(request)
+        # Pega a escola do alert antes de resolver (p/ invalidar cache IA)
+        alert = await db.intervention_alerts.find_one(
+            {"id": alert_id, "resolved_at": None},
+            {"_id": 0, "school_id": 1},
+        )
         r = await db.intervention_alerts.update_one(
             {"id": alert_id, "resolved_at": None},
             {"$set": {
@@ -91,6 +96,9 @@ def setup_router(db, **_kwargs):
         )
         if r.matched_count == 0:
             raise HTTPException(404, "Alerta não encontrado ou já resolvido")
+        # G1: invalida cache IA da escola — próxima análise reflete a resolução
+        if alert and alert.get("school_id"):
+            await invalidate_ai_plans_for_school(db, school_id=alert["school_id"])
         return {"ok": True}
 
     @router.post("/run-detection")

@@ -41,11 +41,19 @@ Seu papel é analisar indicadores reais de uma escola (cobertura curricular, ale
 3. RECOMENDAÇÕES EXTRAS (0 a 2) — ações que complementam as regras automáticas já geradas, sem repetir.
 4. Para cada ação já gerada por regra fixa, uma DESCRIÇÃO ENRIQUECIDA (1-2 frases) que humanize a linguagem e dê contexto.
 
+**EXPLAINABILITY OBRIGATÓRIA (regra inegociável)**: cada afirmação forte DEVE ser lastreada em evidências numéricas extraídas do payload. Para cada campo principal, inclua um array paralelo de evidências com os dados que embasaram a inferência. Nunca afirme algo que não possa ser confirmado por um número no payload.
+
 Responda SEMPRE em português do Brasil, em JSON puro (sem markdown, sem ```), com a seguinte estrutura:
 
 {
   "analise_executiva": "string",
+  "analise_evidencias": [
+    {"metrica": "nome curto", "valor": "valor literal", "fonte": "contexto_atual.<chave>"}
+  ],
   "insight_historico": "string",
+  "insight_evidencias": [
+    {"metrica": "nome curto", "valor": "valor literal", "fonte": "gestor.<chave>"}
+  ],
   "recomendacoes_extra": [
     {
       "titulo": "string",
@@ -54,7 +62,10 @@ Responda SEMPRE em português do Brasil, em JSON puro (sem markdown, sem ```), c
       "impacto": "alto"|"medio"|"baixo",
       "prazo_dias": 3|7|14|30,
       "responsavel": "diretor"|"coordenador"|"apoio_pedagogico",
-      "metrica_sucesso": "string"
+      "metrica_sucesso": "string",
+      "baseado_em": [
+        {"metrica": "nome curto", "valor": "valor literal", "fonte": "contexto_atual.<chave> ou gestor.<chave>"}
+      ]
     }
   ],
   "acoes_enriquecidas": {
@@ -62,7 +73,10 @@ Responda SEMPRE em português do Brasil, em JSON puro (sem markdown, sem ```), c
   }
 }
 
-Regras:
+Regras absolutas:
+- Cada `analise_evidencias` DEVE ter 2 a 4 itens. Cada `insight_evidencias` DEVE ter 1 a 3 itens. Cada recomendação extra DEVE ter `baseado_em` com pelo menos 1 item.
+- "fonte" é o caminho literal no payload (ex.: "contexto_atual.coverage_pct", "gestor.avg_resolution_days_90d").
+- "valor" deve ser a representação literal do número/string (ex.: "0%", "66", "null", "CO").
 - Nunca minta ou maquiê dados — baseie-se apenas no que foi passado.
 - Se os indicadores forem bons, diga isso em vez de inventar problemas.
 - Use o tom de um coordenador experiente conversando com o gestor, não de relatório formal.
@@ -184,11 +198,29 @@ async def _call_claude(payload: dict, timeout_s: int = 45) -> Optional[dict]:
     return parsed
 
 
+def _sanitize_evidencias(raw: Any, max_items: int = 5) -> list:
+    """Valida/limita array de evidências (metrica/valor/fonte)."""
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for e in raw[:max_items]:
+        if not isinstance(e, dict):
+            continue
+        out.append({
+            "metrica": str(e.get("metrica") or "")[:60],
+            "valor": str(e.get("valor") if e.get("valor") is not None else "")[:80],
+            "fonte": str(e.get("fonte") or "")[:80],
+        })
+    return [e for e in out if e["metrica"] and e["valor"]]
+
+
 def _validate_ai_response(data: dict) -> dict:
     """Sanitiza a resposta (tipos, limites) para não confiar cegamente."""
     safe: dict[str, Any] = {
         "analise_executiva": str(data.get("analise_executiva") or "").strip()[:600],
+        "analise_evidencias": _sanitize_evidencias(data.get("analise_evidencias"), max_items=4),
         "insight_historico": str(data.get("insight_historico") or "").strip()[:400],
+        "insight_evidencias": _sanitize_evidencias(data.get("insight_evidencias"), max_items=3),
         "recomendacoes_extra": [],
         "acoes_enriquecidas": {},
     }
@@ -205,6 +237,7 @@ def _validate_ai_response(data: dict) -> dict:
                 "prazo_dias": int(r.get("prazo_dias") or 14) if str(r.get("prazo_dias") or "").isdigit() else 14,
                 "responsavel": r.get("responsavel") if r.get("responsavel") in ("diretor", "coordenador", "apoio_pedagogico") else "coordenador",
                 "metrica_sucesso": str(r.get("metrica_sucesso") or "")[:200],
+                "baseado_em": _sanitize_evidencias(r.get("baseado_em"), max_items=3),
             })
     enr = data.get("acoes_enriquecidas") or {}
     if isinstance(enr, dict):
@@ -214,6 +247,30 @@ def _validate_ai_response(data: dict) -> dict:
             except Exception:
                 continue
     return safe
+
+
+async def invalidate_ai_plans_for_school(db, *, school_id: str) -> int:
+    """Invalida cache de planos IA de uma escola.
+
+    Chamado quando há mudança operacional relevante (novo alerta, resolução,
+    criação de learning_object). Garante que a próxima chamada ao plano-acao
+    com ai=true regere a análise com os dados frescos, sem esperar 24h.
+
+    Retorna o número de documentos removidos.
+    """
+    if not school_id:
+        return 0
+    try:
+        r = await db.ai_plans.delete_many({"school_id": school_id})
+        if r.deleted_count > 0:
+            logger.info(
+                "[plano_acao_ai] cache invalidado p/ school=%s (%d docs)",
+                school_id, r.deleted_count,
+            )
+        return r.deleted_count
+    except Exception as e:
+        logger.warning("[plano_acao_ai] falha na invalidação: %s", e)
+        return 0
 
 
 async def enrich_plan_with_ai(

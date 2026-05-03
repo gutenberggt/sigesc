@@ -250,18 +250,26 @@ function AiAnalysisCard({ plan }) {
         )}
       </div>
       {ai.analise_executiva && (
-        <p className="text-sm text-gray-800 leading-relaxed mb-3" data-testid="plano-ai-summary">
+        <p className="text-sm text-gray-800 leading-relaxed mb-2" data-testid="plano-ai-summary">
           {ai.analise_executiva}
         </p>
       )}
+      {ai.analise_evidencias?.length > 0 && (
+        <EvidenceList items={ai.analise_evidencias} label="Baseado em" testIdPrefix="plano-ai-analise-evid" />
+      )}
       {ai.insight_historico && (
-        <div className="bg-white/60 border border-indigo-100 rounded p-3 text-xs text-gray-700 flex items-start gap-2" data-testid="plano-ai-insight">
+        <div className="bg-white/60 border border-indigo-100 rounded p-3 text-xs text-gray-700 flex items-start gap-2 mt-3" data-testid="plano-ai-insight">
           <TrendingUp className="h-4 w-4 text-indigo-600 flex-shrink-0 mt-0.5" />
-          <div>
+          <div className="flex-1">
             <div className="font-semibold text-indigo-900 mb-0.5">
               Histórico do gestor (90 dias){gestor?.nome && gestor.nome !== 'Não definido' ? ` — ${gestor.nome}` : ''}
             </div>
             <div>{ai.insight_historico}</div>
+            {ai.insight_evidencias?.length > 0 && (
+              <div className="mt-2">
+                <EvidenceList items={ai.insight_evidencias} label="Baseado em" testIdPrefix="plano-ai-insight-evid" />
+              </div>
+            )}
             {gestor && gestor.received_90d > 0 && (
               <div className="mt-1.5 text-[11px] text-gray-500 flex gap-3 flex-wrap">
                 <span>Alertas recebidos: <strong>{gestor.received_90d}</strong></span>
@@ -277,6 +285,31 @@ function AiAnalysisCard({ plan }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function EvidenceList({ items, label, testIdPrefix }) {
+  if (!items?.length) return null;
+  return (
+    <div
+      className="flex flex-wrap gap-1.5 items-center"
+      data-testid={`${testIdPrefix}-wrap`}
+    >
+      <span className="text-[10px] uppercase tracking-wide text-indigo-700 font-semibold">
+        {label}:
+      </span>
+      {items.map((e, i) => (
+        <span
+          key={i}
+          className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-white border border-indigo-200 text-gray-700"
+          title={e.fonte || ''}
+          data-testid={`${testIdPrefix}-${i}`}
+        >
+          <span className="font-semibold text-indigo-900">{e.metrica}:</span>
+          <span className="text-gray-800">{e.valor}</span>
+        </span>
+      ))}
     </div>
   );
 }
@@ -372,6 +405,11 @@ function ExtraRecommendationCard({ rec, index }) {
       </div>
       <div className="text-base font-semibold text-gray-900 mb-0.5">{rec.titulo}</div>
       <div className="text-sm text-gray-700 mb-2">{rec.descricao}</div>
+      {rec.baseado_em?.length > 0 && (
+        <div className="mb-2">
+          <EvidenceList items={rec.baseado_em} label="Baseado em" testIdPrefix={`plano-ai-extra-${index}-evid`} />
+        </div>
+      )}
       {rec.metrica_sucesso && (
         <div className="text-xs text-gray-500 flex items-start gap-1">
           <AlertTriangle className="h-3 w-3 mt-0.5 text-amber-600 flex-shrink-0" />

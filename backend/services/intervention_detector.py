@@ -135,12 +135,16 @@ async def run_intervention_detection(db, academic_year: Optional[int] = None) ->
     Retorna estatísticas: created / updated / resolved / notified_inapp / notified_email.
     """
     from routers.curriculum_v2 import setup_router  # noqa (reuse)
+    from services.plano_acao_ai import invalidate_ai_plans_for_school
 
     # Usa diretamente a lógica do endpoint /coverage: replicamos aqui para rodar
     # sem contexto HTTP e por turma.
     stats = {"classes_scanned": 0, "created": 0, "updated": 0, "resolved": 0,
-             "notified_inapp": 0, "notified_email": 0}
+             "notified_inapp": 0, "notified_email": 0, "ai_cache_invalidated": 0}
     academic_year = academic_year or date.today().year
+
+    # G1: coleta school_ids tocados para invalidar o cache IA ao final.
+    touched_schools: set = set()
 
     class_map = await _build_class_map(db)
     if not class_map:
@@ -237,6 +241,8 @@ async def run_intervention_detection(db, academic_year: Optional[int] = None) ->
                         {"$set": {"resolved_at": _now_iso(), "last_coverage_pct": pct}}
                     )
                     stats["resolved"] += 1
+                    if existing.get('school_id'):
+                        touched_schools.add(existing['school_id'])
                 continue
 
             # Upsert
@@ -266,6 +272,8 @@ async def run_intervention_detection(db, academic_year: Optional[int] = None) ->
                 doc_base["last_notified_channel"] = None
                 await db.intervention_alerts.insert_one(doc_base)
                 stats["created"] += 1
+                if cls.get('school_id'):
+                    touched_schools.add(cls['school_id'])
             else:
                 await db.intervention_alerts.update_one(
                     {"id": alert_id},
@@ -273,6 +281,9 @@ async def run_intervention_detection(db, academic_year: Optional[int] = None) ->
                               "first_detected_at": existing.get('first_detected_at') or _now_iso()}}
                 )
                 stats["updated"] += 1
+                # Só invalida se o nível de escalonamento mudou
+                if existing.get('escalation_level') != level and cls.get('school_id'):
+                    touched_schools.add(cls['school_id'])
 
             # Anti-spam: enviar somente se last_notified_at é None ou > 7 dias
             last_notified = (existing or {}).get('last_notified_at')

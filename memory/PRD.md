@@ -1032,3 +1032,56 @@ Migrar autenticação de `localStorage + Authorization: Bearer` (vulnerável a X
 - (P3) Idle timeout: auto-refresh do access token antes de expirar via interceptor 401 → `/refresh` → retry
 - (P3) Alerta visual quando CSRF falhar (mostrar que sessão precisa ser renovada)
 
+
+---
+
+## Sprint G1 — Explainability IA + Cache Invalidation Reativa [03/Fev/2026]
+
+### Problema resolvido
+Fase 2 entregava análises fortes ("abandono operacional — não há gestor ativo") sem transparência sobre quais dados embasaram a inferência. Risco de "caixa preta opinativa" com consequências políticas em secretarias.
+
+### Implementação
+
+**Backend — `services/plano_acao_ai.py`**
+- System prompt reescrito: Claude agora é **obrigado** a produzir campos paralelos de evidências para cada afirmação forte.
+- Schema enriquecido:
+  - `analise_evidencias: [{metrica, valor, fonte}]` (2-4 itens)
+  - `insight_evidencias: [{metrica, valor, fonte}]` (1-3 itens)
+  - `recomendacoes_extra[].baseado_em: [{metrica, valor, fonte}]` (1+ item)
+- `_sanitize_evidencias()` — valida, trunca strings, remove entradas sem `metrica` ou `valor`.
+- `invalidate_ai_plans_for_school(db, school_id)` — nova função para invalidação reativa do cache.
+
+**Cache Invalidation Reativa**
+- `POST /api/intervencoes/{alert_id}/resolve` → invalida cache IA da escola após resolver
+- `services/intervention_detector.run_intervention_detection()` → coleta `touched_schools` (novo alert OU mudança de nível de escalonamento) e invalida o cache dessas escolas no final.
+- Evita o pior cenário: IA gerar análise defasada de 24h enquanto o operacional já mudou.
+
+**Frontend (`PlanoAcao.jsx`)**
+- Novo componente `<EvidenceList>` — pills com formato `metrica: valor` em fundo branco com borda indigo.
+- Renderiza `analise_evidencias` abaixo da análise executiva.
+- Renderiza `insight_evidencias` abaixo do insight histórico.
+- Renderiza `baseado_em` em cada recomendação extra da IA.
+- Tooltip com `fonte` (caminho literal do payload) no hover de cada pill.
+
+### Testes (`tests/test_plano_acao_evidencias.py`) — 6/6 pass
+1. Sanitização filtra entradas inválidas (vazias, tipo errado, sem valor).
+2. `max_items` é respeitado no corte do array.
+3. Resposta IA enriquecida contém `analise_evidencias`, `insight_evidencias`, `baseado_em`.
+4. `invalidate_ai_plans_for_school` remove docs apenas da escola alvo.
+5. Endpoint `/resolve` dispara invalidação de cache da escola.
+6. Endpoint `/plano-acao?ai=true` retorna schema com arrays de evidências.
+
+### Regressão completa — 40/40 testes passando
+- 17 legados + 8 IA + 9 cookies + 6 evidências.
+
+### Validação E2E (screenshot)
+Na tela real, a Claude gerou:
+- Análise: "A escola registra paralisia operacional total: 66 alertas recebidos nos últimos 30 dias, zero resolvidos, 0% de cobertura curricular e 0% de lançamentos no diário..."
+- Pills: "Alertas ativos: 66 · Taxa de resolução: 0.0 · Cobertura curricular: 0.0% · Taxa de lançamentos: 0.0"
+- Insight: "...Componente mais negligenciado: CO"
+
+**Cada afirmação agora é auditável.** Se o gestor duvidar de um número, basta bater o olho no pill que referencia a fonte exata no payload.
+
+### Status: ✅ PRODUÇÃO-READY
+Base consolidada para Sprint G3 (Relatório Executivo Mensal) — o prompt agora gera output rastreável que pode ser enviado por e-mail para Secretários sem risco reputacional.
+
