@@ -1,4 +1,17 @@
 """
+⛔ MÓDULO BLOQUEADO — Diário AEE (backend)
+
+Este router e os modelos PlanoAEE* em models.py são parte do módulo Diário AEE,
+travado pelo usuário. NÃO altere endpoints, schemas, validações, regras de
+negócio ou auditoria sem AUTORIZAÇÃO EXPLÍCITA do usuário.
+
+Para bug fixes:
+  1. Reproduza, identifique a causa raiz, descreva o fix proposto.
+  2. Peça confirmação ao usuário ANTES de editar.
+  3. Aplique apenas o mínimo necessário.
+
+Ver /app/memory/PRD.md → seção "MÓDULOS BLOQUEADOS".
+
 Router de AEE (Atendimento Educacional Especializado)
 Endpoints para gestão de Planos AEE, Atendimentos e Diário AEE
 """

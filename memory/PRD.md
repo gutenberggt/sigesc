@@ -1,5 +1,23 @@
 # SIGESC - Product Requirements Document
 
+## ⛔ MÓDULOS BLOQUEADOS (NÃO ALTERAR SEM PERMISSÃO EXPLÍCITA DO USUÁRIO)
+
+> **AVISO PARA AGENTES E DESENVOLVEDORES**: Os módulos abaixo foram travados pelo
+> usuário (proprietário do produto). Qualquer alteração — visual, funcional,
+> refatoração, "melhoria" estética, mudança de campos, props, modelos Pydantic,
+> rotas, validações, fluxos de salvamento, modais, etc. — **EXIGE autorização
+> explícita do usuário ANTES de qualquer edição**. Não pergunte "posso refatorar?"
+> de forma genérica; descreva o que pretende mudar e aguarde o "sim" literal.
+>
+> | Módulo | Caminhos protegidos |
+> |---|---|
+> | **Diário AEE** | `/app/frontend/src/pages/DiarioAEE.js`, `/app/frontend/src/components/PlanoAEEModal.js`, `/app/frontend/src/pages/tutorials/TutorialDiarioAEE.jsx`, `/app/backend/routers/aee.py`, models `PlanoAEE*` em `/app/backend/models.py` (linhas ~1184-1305), tests em `/app/backend/tests/test_aee*.py` |
+>
+> Se um bug surgir nesses arquivos, o ÚNICO procedimento permitido é:
+> 1. Reproduzir, identificar a causa raiz e descrever o fix proposto (sem aplicar).
+> 2. Pedir confirmação ao usuário antes de tocar no código.
+> 3. Após o "sim" do usuário, fazer somente o fix mínimo necessário — nada além.
+
 ## Original Problem Statement
 Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com isolamento de dados entre mantenedoras, gestão de escolas, turmas, alunos, servidores e folha de pagamento.
 

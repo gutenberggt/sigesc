@@ -1,3 +1,20 @@
+/**
+ * ⛔ MÓDULO BLOQUEADO — DIÁRIO AEE
+ *
+ * Este arquivo, o backend (/app/backend/routers/aee.py), o modal
+ * (/app/frontend/src/components/PlanoAEEModal.js) e o tutorial
+ * (/app/frontend/src/pages/tutorials/TutorialDiarioAEE.jsx) NÃO podem ser
+ * alterados sem AUTORIZAÇÃO EXPLÍCITA do usuário (proprietário do produto).
+ *
+ * Regras para qualquer agente/desenvolvedor:
+ *   1. Não refatore, não "limpe", não mude visual/UX, não renomeie campos,
+ *      não modifique payload, modais, validações ou rotas.
+ *   2. Se houver bug: reproduza, descreva a causa raiz e o fix proposto,
+ *      e PEÇA CONFIRMAÇÃO antes de editar. Aplique apenas o fix mínimo.
+ *   3. Em dúvida → pergunte ao usuário primeiro.
+ *
+ * Ver /app/memory/PRD.md (seção "MÓDULOS BLOQUEADOS") para detalhes.
+ */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {

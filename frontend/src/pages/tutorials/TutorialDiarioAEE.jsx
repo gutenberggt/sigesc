@@ -1,3 +1,9 @@
+/**
+ * ⛔ MÓDULO BLOQUEADO — Tutorial Diário AEE
+ *
+ * Faz parte do módulo Diário AEE (bloqueado). NÃO altere sem autorização
+ * explícita do usuário. Veja /app/memory/PRD.md → "MÓDULOS BLOQUEADOS".
+ */
 import { Link } from 'react-router-dom';
 import { 
   ArrowLeft, 

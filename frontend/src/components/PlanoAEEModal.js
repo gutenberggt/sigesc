@@ -1,3 +1,9 @@
+/**
+ * ⛔ MÓDULO BLOQUEADO — Modal de Plano AEE
+ *
+ * Faz parte do módulo Diário AEE (bloqueado). NÃO altere sem autorização
+ * explícita do usuário. Veja /app/memory/PRD.md → "MÓDULOS BLOQUEADOS".
+ */
 import React, { useState, useEffect, useRef } from 'react';
 import { Users, Target, Activity, BookOpen, Clock, Calendar, ChevronDown } from 'lucide-react';
 import SpellCheckTextarea from '@/components/SpellCheckTextarea';
