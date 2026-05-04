@@ -14,6 +14,14 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Sprint G4.1 — Upload Direto de Logotipo **[04/Mai/2026]**
+- Drag & drop + click-to-select de imagens (PNG, JPG, SVG, WebP) no `BrandingPanel.jsx`
+- Validação client-side: tipo `image/*`, máx 2MB
+- Backend: reutiliza `POST /api/upload?file_type=branding` (FTP externo + fallback local), aceita SVG agora (`.svg` adicionado em `ALLOWED_EXTENSIONS`)
+- Após upload, URL pública é injetada em `form.logo_url` automaticamente e refletida tanto no slot do dropzone quanto no preview card em tempo real
+- "ou colar URL manualmente" disponível como fallback (collapsible) para quem prefere link externo
+- Botão X para remover logo selecionado antes de salvar
+
 ### Sprint G4 — Live Preview de Branding Multi-Tenant **[04/Mai/2026]**
 **UX para super_admin configurar identidade visual de cada tenant em tempo real.**
 - Backend: `routers/tenant_admin.py` — `PUT /api/tenant/branding` aceita {name, slogan, logo_url, primary_color, secondary_color}, valida hex `#RRGGBB`, super_admin pode passar `X-Mantenedora-Id` para editar tenant alvo (admin/gerente/secretario só editam o próprio tenant). Retorna o snapshot atualizado.

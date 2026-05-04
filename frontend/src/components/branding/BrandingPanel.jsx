@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Save, RotateCcw, Palette, Upload, Eye, ImageOff } from 'lucide-react';
+import { Save, RotateCcw, Palette, Eye, ImageOff, X, Loader2 } from 'lucide-react';
 import { useBranding } from '@/contexts/BrandingContext';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -64,6 +64,49 @@ export default function BrandingPanel() {
   });
   const [original, setOriginal] = useState(null);
   const [logoError, setLogoError] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleUpload = useCallback(async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Selecione uma imagem (PNG, JPG, SVG, WebP)');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Arquivo muito grande (máx 2MB)');
+      return;
+    }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await axios.post(`${API}/upload?file_type=branding`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const url = r.data?.url;
+      if (!url) throw new Error('URL não retornada');
+      // Se for path relativo (/api/uploads/...), prefixa com BACKEND_URL
+      const fullUrl = url.startsWith('http')
+        ? url
+        : `${process.env.REACT_APP_BACKEND_URL}${url}`;
+      setForm(f => ({ ...f, logo_url: fullUrl }));
+      setLogoError(false);
+      toast.success('Logotipo enviado!');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Falha no upload');
+    } finally {
+      setUploading(false);
+    }
+  }, []);
+
+  const onDrop = useCallback((e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) handleUpload(file);
+  }, [handleUpload]);
 
   // Snapshot das CSS vars atuais (para restaurar em cleanup/cancel)
   const initialVarsRef = useRef(null);
@@ -251,20 +294,85 @@ export default function BrandingPanel() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">URL do logotipo</label>
-            <div className="flex gap-2">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Logotipo</label>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={onDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`relative border-2 border-dashed rounded-lg p-4 cursor-pointer transition-colors ${
+                dragOver
+                  ? 'border-purple-500 bg-purple-50'
+                  : 'border-gray-300 hover:border-purple-400 hover:bg-gray-50'
+              }`}
+              data-testid="branding-logo-dropzone"
+            >
               <input
-                className="flex-1 border border-gray-300 rounded px-2 py-2 text-sm"
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                className="hidden"
+                onChange={(e) => handleUpload(e.target.files?.[0])}
+                data-testid="branding-logo-fileinput"
+              />
+              <div className="flex items-center gap-3">
+                <div className="h-14 w-14 rounded bg-white border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {form.logo_url && !logoError ? (
+                    <img
+                      src={form.logo_url}
+                      alt="logo"
+                      className="h-full w-full object-contain"
+                      onError={() => setLogoError(true)}
+                    />
+                  ) : (
+                    <ImageOff className="h-5 w-5 text-gray-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  {uploading ? (
+                    <div className="flex items-center gap-2 text-sm text-purple-700">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Enviando...
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-sm font-medium text-gray-700">
+                        Arraste e solte ou <span className="text-purple-700 underline">selecione um arquivo</span>
+                      </div>
+                      <div className="text-[11px] text-gray-500 mt-0.5">
+                        PNG, JPG, SVG ou WebP · máx 2MB · proporção 4:1 ou 1:1
+                      </div>
+                    </>
+                  )}
+                </div>
+                {form.logo_url && !uploading && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setForm(f => ({ ...f, logo_url: '' }));
+                      setLogoError(false);
+                    }}
+                    className="text-gray-400 hover:text-red-600 p-1"
+                    title="Remover logo"
+                    data-testid="branding-logo-remove"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <details className="mt-2">
+              <summary className="text-[11px] text-gray-500 cursor-pointer hover:text-gray-700">
+                ou colar URL manualmente
+              </summary>
+              <input
+                className="mt-1 w-full border border-gray-300 rounded px-2 py-2 text-sm"
                 placeholder="https://exemplo.com/logo.png"
                 value={form.logo_url}
                 onChange={e => { set('logo_url', e.target.value); setLogoError(false); }}
                 data-testid="branding-logo-input"
               />
-              <Upload className="h-4 w-4 text-gray-400 self-center" title="Cole o link público do logo" />
-            </div>
-            <p className="text-[11px] text-gray-500 mt-1">
-              Recomendado: PNG/SVG transparente, máx 2MB, proporção 4:1 ou 1:1.
-            </p>
+            </details>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

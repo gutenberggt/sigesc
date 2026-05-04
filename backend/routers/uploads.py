@@ -18,7 +18,7 @@ from ftp_upload import upload_to_ftp
 logger = logging.getLogger(__name__)
 
 # Constantes
-ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.webp'}
+ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.webp', '.svg'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 ROOT_DIR = Path(__file__).parent.parent  # /app/backend no dev, /app no Docker
 UPLOADS_DIR = ROOT_DIR / "uploads"
