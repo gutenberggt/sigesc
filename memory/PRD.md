@@ -32,7 +32,25 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
-### Busca Indexada por nome_busca (case + accent insensitive) **[04/Mai/2026]**
+### Página Interna de Validação de Documentos **[04/Mai/2026]**
+- Nova rota autenticada: `/admin/document-validator` (`pages/DocumentValidator.jsx`)
+- Botão no Menu de Administração → Gestão Institucional → "Validar Documentos" (visível para super_admin, admin, secretario, diretor, coordenador, auxiliar_secretaria)
+- **Catálogo dos 9 tipos de documentos verificáveis** do SIGESC (mantido em sync com `backend/services/verifiable_docs_service.DOC_TYPES`):
+  1. Plano de Ação Automático (`plano_acao`) → /admin/plano-acao
+  2. Relatório Executivo Mensal (`relatorio_mensal`) → /admin/relatorios-mensais
+  3. Declaração de Matrícula (`matricula`) → /admin/students
+  4. Declaração de Frequência (`frequencia`) → /admin/students
+  5. Declaração de Escolaridade (`escolaridade`) → /admin/students
+  6. Histórico Escolar (`historico`) → /admin/promotion
+  7. Certificado de Conclusão (`certificado`) → /admin/promotion
+  8. Ata / Documento Administrativo (`ata`)
+  9. Documento Institucional genérico (`generico`)
+- Cada card mostra ícone, descrição, módulo emissor e link "Ir →"
+- **Validador embutido**: campo `SIGESC-XXXX-XXXX` que consulta `/api/public/verify/{code}` e exibe status (válido/inválido/revogado) com metadados LGPD-safe (tipo, emitido em, emitido por, escopo, hash truncado)
+- **Atalho para o portal público externo** (URL copiável + abrir em nova aba) para compartilhar com vereadores/conselheiros/cidadãos
+- Seção "Como funciona" explicando snapshot imutável + SHA-256 + HMAC + QR + revogação
+
+
 - Helpers em `backend/text_utils.py`: `strip_accents`, `normalize_for_search` (lowercase + sem acentos), `normalize_for_sort` (lowercase preservando acentos), `compute_name_indexes(doc, primary_field)`.
 - **Routers atualizados** (`students`, `staff`):
   - **Create/Update** preenchem automaticamente `nome_normalizado` e `nome_busca` a partir de `full_name` (students) / `nome` (staff).

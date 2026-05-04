@@ -28,6 +28,7 @@ const CurriculumCoverage = lazy(() => import('@/pages/CurriculumCoverage'));
 const Interventions = lazy(() => import('@/pages/Interventions'));
 const RankingGestores = lazy(() => import('@/pages/RankingGestores'));
 const PlanoAcao = lazy(() => import('@/pages/PlanoAcao'));
+const DocumentValidator = lazy(() => import('@/pages/DocumentValidator'));
 const SchoolDocuments = lazy(() => import('@/pages/SchoolDocuments'));
 const MonthlyReports = lazy(() => import('@/pages/MonthlyReports'));
 const TenantAdmin = lazy(() => import('@/pages/TenantAdmin'));
@@ -603,7 +604,17 @@ function App() {
               </ProtectedRoute>
             }
           />
-          
+
+          {/* Validação de Documentos — apoio interno (Mai/2026) */}
+          <Route
+            path="/admin/document-validator"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'secretario', 'auxiliar_secretaria', 'diretor', 'coordenador']}>
+                <DocumentValidator />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Ferramentas de Admin */}
           <Route
             path="/admin/tools"
