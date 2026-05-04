@@ -1,6 +1,6 @@
-// SIGESC Service Worker - Versão 2.6.0
-// Corrigido: Removido tema dark, forçado light mode
-const CACHE_NAME = 'sigesc-cache-v7';
+// SIGESC Service Worker - Versão 2.7.0
+// [Mai/2026] Bump após remoção do CAPS lock global + busca por nome_busca
+const CACHE_NAME = 'sigesc-cache-v8';
 const OFFLINE_URL = '/offline.html';
 const DB_NAME = 'SigescOfflineDB';
 
