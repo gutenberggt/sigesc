@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { Toaster as SonnerToaster } from 'sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { BrandingProvider } from '@/contexts/BrandingContext';
 import { MantenedoraProvider } from '@/contexts/MantenedoraContext';
 import { OfflineProvider } from '@/contexts/OfflineContext';
 import { MessagingProvider } from '@/contexts/MessagingContext';
@@ -91,6 +92,7 @@ const DIARY_DASHBOARD_ROLES = ['admin', 'admin_teste', 'secretario', 'diretor', 
 
 function App() {
   return (
+    <BrandingProvider>
     <AuthProvider>
       <OfflineProvider>
       <MessagingProvider>
@@ -676,6 +678,7 @@ function App() {
       </MessagingProvider>
       </OfflineProvider>
     </AuthProvider>
+    </BrandingProvider>
   );
 }
 

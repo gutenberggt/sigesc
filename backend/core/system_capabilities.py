@@ -41,12 +41,13 @@ SYSTEM_CAPABILITIES: dict[str, bool] = {
     # Comunicação
     "messaging": True,
     "email_resend": True,
+    "branding_per_tenant": True,     # G4 — branding por mantenedora (Mai/2026)
 
     # NÃO IMPLEMENTADO (IA não deve sugerir)
     "alert_config": False,           # /admin/configuracoes/alertas — não existe
     "alert_rules_per_etapa": False,  # Regras por Educação Infantil/Fund I/II
     "ai_settings_panel": False,      # Configurações de IA por usuário
-    "branding_per_school": False,    # Branding individual por escola (G4 não pronto)
+    "branding_per_school": False,    # Branding individual por ESCOLA (não mantenedora)
     "calendar_integration": False,   # Google Calendar etc.
     "sso_external": False,           # SSO terceiro
     "exports_lgpd_per_mantenedora": False,  # Backlog

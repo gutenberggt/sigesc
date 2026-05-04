@@ -4,6 +4,7 @@ import { LogOut, Menu, X, HelpCircle } from 'lucide-react';
 import { useState } from 'react';
 import { NotificationBell, MessagesBadge } from '@/components/notifications';
 import { useMantenedora } from '@/contexts/MantenedoraContext';
+import { useBranding } from '@/contexts/BrandingContext';
 import { ConnectionStatusBadge, OfflineBanner, FloatingStatusIndicator } from '@/components/OfflineStatus';
 import { useMessaging } from '@/contexts/MessagingContext';
 import { ChatBox } from '@/components/messaging';
@@ -15,6 +16,7 @@ import { TenantSyncBoundary } from '@/components/TenantSyncBoundary';
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
   const { mantenedora } = useMantenedora();
+  const { branding } = useBranding();
   const { activeChat, closeChat } = useMessaging();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -65,16 +67,25 @@ export const Layout = ({ children }) => {
                 {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
               
-              {/* Logo SIGESC */}
+              {/* Logo do Tenant (G4 — fallback ao SIGESC se default) */}
               <img
-                src="https://aprenderdigital.top/imagens/logotipo/logosigesc.png"
-                alt="SIGESC Logo"
-                className="h-10"
-                data-testid="sigesc-logo"
+                src={branding?.logo_url || "https://aprenderdigital.top/imagens/logotipo/logosigesc.png"}
+                alt={branding?.name ? `Logo ${branding.name}` : "SIGESC Logo"}
+                className="h-10 w-auto object-contain"
+                onError={(e) => { e.target.src = "https://aprenderdigital.top/imagens/logotipo/logosigesc.png"; }}
+                data-testid="brand-logo"
               />
               <div className="hidden sm:block border-r border-gray-200 pr-4">
-                <h1 className="text-xl font-bold text-blue-600 leading-tight">SIGESC</h1>
-                <p className="text-[10px] text-gray-500 leading-tight">SISTEMA INTEGRADO DE GESTÃO ESCOLAR</p>
+                <h1
+                  className="text-xl font-bold leading-tight"
+                  style={{ color: branding?.primary_color || '#2563eb' }}
+                  data-testid="brand-name"
+                >
+                  {branding?.name || 'SIGESC'}
+                </h1>
+                <p className="text-[10px] text-gray-500 leading-tight uppercase tracking-wide">
+                  {branding?.slogan || 'Sistema Integrado de Gestão Escolar'}
+                </p>
               </div>
               
               {/* Brasão da Mantenedora */}
