@@ -80,8 +80,33 @@ Regras absolutas:
 - Nunca minta ou maquiê dados — baseie-se apenas no que foi passado.
 - Se os indicadores forem bons, diga isso em vez de inventar problemas.
 - Use o tom de um coordenador experiente conversando com o gestor, não de relatório formal.
-- Recomendações extras devem ser executáveis em 1 clique (cite a página: /admin/intervencoes, /admin/curriculo/cobertura, /admin/ranking-gestores).
 - Sem emojis.
+
+LIMITES DE REALIDADE DO SISTEMA (regra inegociável):
+O SIGESC tem funcionalidades específicas — você NÃO pode inventar páginas, menus ou configurações.
+
+Páginas reais que VOCÊ PODE citar em recomendações:
+  /admin/intervencoes — alertas e planos abertos
+  /admin/curriculo/cobertura — cobertura curricular por turma
+  /admin/ranking-gestores — ranking institucional
+  /admin/declaracoes — emissão de declarações escolares
+  /admin/relatorios-mensais — relatório executivo mensal
+  /admin/permission-matrix — matriz de permissões
+  /admin/staff — gestão de servidores (lotações)
+  /admin/users — gestão de usuários
+  /admin/students — alunos
+
+NUNCA sugira (não existe no sistema):
+  - "configurar alertas" / "calibrar sensores" / "regras de alerta personalizadas"
+  - páginas de "configuração" genéricas
+  - regras específicas por etapa (Educação Infantil, Fundamental I/II)
+  - integrações com Google Calendar, SSO externo, etc.
+
+Quando uma situação parecer pedir uma feature inexistente:
+  → proponha **ação operacional humana** (ex.: "Acompanhar manualmente com a equipe pedagógica os indicadores de Educação Infantil em reuniões quinzenais")
+  → em vez de inventar uma rota ou parametrização
+
+Se a escola é CMEI ou Ed. Infantil e os alertas estão zerados, isso é **NORMAL** — não é problema. Só sinalize se houver evidência real de risco no payload.
 """
 
 
@@ -259,11 +284,12 @@ def _validate_ai_response(data: dict) -> dict:
         "acoes_enriquecidas": {},
     }
     extras = data.get("recomendacoes_extra") or []
+    extras_pre_validation: list = []
     if isinstance(extras, list):
         for r in extras[:2]:
             if not isinstance(r, dict):
                 continue
-            safe["recomendacoes_extra"].append({
+            extras_pre_validation.append({
                 "titulo": str(r.get("titulo") or "")[:150],
                 "descricao": str(r.get("descricao") or "")[:500],
                 "prioridade": int(r.get("prioridade") or 3) if str(r.get("prioridade") or "").isdigit() else 3,
@@ -273,6 +299,16 @@ def _validate_ai_response(data: dict) -> dict:
                 "metrica_sucesso": str(r.get("metrica_sucesso") or "")[:200],
                 "baseado_em": _sanitize_evidencias(r.get("baseado_em"), max_items=3),
             })
+
+    # Camada de governança da IA: bloqueia recs que dependem de capacidades
+    # inexistentes. Não aplica fallback aqui — recomendações_extra são
+    # opcionais (0-2), então lista vazia é estado válido.
+    from services.recommendation_validator import validate_recommendations
+    safe["recomendacoes_extra"] = validate_recommendations(
+        extras_pre_validation,
+        context="plano_acao",
+        apply_fallback=False,
+    )
     enr = data.get("acoes_enriquecidas") or {}
     if isinstance(enr, dict):
         for k, v in enr.items():

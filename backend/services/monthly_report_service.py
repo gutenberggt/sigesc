@@ -87,6 +87,24 @@ Restrições:
     * "baixo": cobertura média ≥ 85%, alertas ativos < 10% das escolas.
     * "medio": cobertura média 70-84% OU alertas ativos 10-25% das escolas.
     * "alto": cobertura média < 70% OU alertas ativos > 25% das escolas.
+
+LIMITES DE REALIDADE DO SISTEMA (regra inegociável):
+NUNCA sugira ações que dependam de funcionalidades que o SIGESC não tem hoje.
+
+Páginas reais que VOCÊ PODE referenciar:
+  /admin/intervencoes — gestão de alertas e planos abertos
+  /admin/curriculo/cobertura — cobertura curricular
+  /admin/ranking-gestores — ranking institucional
+  /admin/declaracoes — emissão de declarações
+  /admin/relatorios-mensais — esta tela
+  /admin/staff — gestão de servidores
+
+NUNCA sugira:
+  - "configurar alertas / sensores / regras personalizadas"
+  - regras específicas por etapa (Educação Infantil, Fund I/II)
+  - integrações externas (Google Calendar, SSO, etc.)
+
+Quando faltar feature técnica, proponha **ação operacional humana** (visita, reunião, capacitação, monitoramento manual com a coordenação).
 """
 
 
@@ -363,6 +381,7 @@ def _validate_report(data: dict) -> dict:
             })
 
     extras = data.get("acoes_prioritarias") or []
+    pre_validation: list = []
     if isinstance(extras, list):
         for r in extras[:3]:
             if not isinstance(r, dict):
@@ -378,7 +397,7 @@ def _validate_report(data: dict) -> dict:
                 escolas_alvo = [str(x)[:200] for x in escolas_alvo[:10] if x]
             else:
                 escolas_alvo = []
-            safe["acoes_prioritarias"].append({
+            pre_validation.append({
                 "acao": str(r.get("acao") or "")[:300],
                 "justificativa": str(r.get("justificativa") or "")[:400],
                 "responsavel": r.get("responsavel") if r.get("responsavel") in
@@ -387,6 +406,15 @@ def _validate_report(data: dict) -> dict:
                 "escolas_alvo": escolas_alvo,
                 "impacto": r.get("impacto") if r.get("impacto") in ("alto", "medio", "baixo") else "medio",
             })
+
+    # Camada de governança: bloqueia recs que dependem de capacidades inexistentes.
+    # Aplica fallback porque o G3 EXIGE 3 ações — lista vazia não é estado válido.
+    from services.recommendation_validator import validate_recommendations
+    safe["acoes_prioritarias"] = validate_recommendations(
+        pre_validation,
+        context="g3_monthly",
+        apply_fallback=True,
+    )
     return safe
 
 
