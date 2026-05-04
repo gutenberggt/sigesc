@@ -11,6 +11,20 @@ import SpellCheckTextarea from '@/components/SpellCheckTextarea';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+/** Lê o CSRF token do sessionStorage (fonte primária pós refactor de Mai/2026)
+ *  ou do cookie sigesc_csrf como fallback. Sem ele, o middleware CSRF
+ *  rejeita POST/PUT/PATCH/DELETE com 403. */
+function readCsrfToken() {
+  try {
+    const stored = sessionStorage.getItem('sigesc_csrf_token');
+    if (stored) return stored;
+  } catch { /* ignore */ }
+  const m = typeof document !== 'undefined'
+    ? document.cookie.match(/(?:^|;\s*)sigesc_csrf=([^;]+)/)
+    : null;
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
 // Labels para campos
 const PUBLICO_ALVO_LABELS = {
   'deficiencia_fisica': 'Deficiência Física',
@@ -117,9 +131,12 @@ const DiarioAEE = () => {
   const [turmasAEE, setTurmasAEE] = useState([]);
 
   // Headers para requisições
+  // CSRF: pós refactor Mai/2026 todas as escritas precisam carregar X-CSRF-Token
+  // (validado contra o claim 'csrf' embutido no JWT pelo backend).
   const headers = {
     'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    ...(readCsrfToken() ? { 'X-CSRF-Token': readCsrfToken() } : {}),
   };
 
   // Busca escolas

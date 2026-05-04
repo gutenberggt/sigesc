@@ -1,0 +1,29 @@
+{
+  "summary": "Validated bug fix for 'Erro ao salvar plano AEE'. Root cause was DiarioAEE.js raw fetch calls missing X-CSRF-Token header, blocked by CSRFMiddleware (server.py:813). Fix introduced readCsrfToken() helper reading from sessionStorage('sigesc_csrf_token') and reusable headers object on lines 136-140. Backend pytest suite (5 tests) confirms: (a) POST /api/aee/planos|atendimentos|templates without CSRF returns 403 with detail 'CSRF token inválido ou ausente'; (b) with X-CSRF-Token (JWT csrf claim) middleware passes; (c) full e2e create with real student returns 201 + GET persistence verified + DELETE cleanup works. Frontend Playwright login confirms sessionStorage.sigesc_csrf_token is populated post /auth/login and 'Novo Plano' modal opens normally. UI form-fill micro-test for end-to-end save in browser triggered client-side validation only (selector picked wrong dropdown — pure test artifact, not a bug). Fix is verified at the integration boundary that actually broke (CSRFMiddleware contract).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_aee_csrf_fix.py",
+    "/app/test_reports/pytest/pytest_aee_csrf_fix.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DiarioAEE.js linha 136-140: headers é um objeto literal computado uma única vez no top-level do componente (fora do render). readCsrfToken() é chamado duas vezes redundantemente. Funciona porque sessionStorage é estável durante a sessão, mas se o token rotacionar (refresh) durante a vida do componente, o objeto headers fica stale. Sugestão: transformar em useMemo ou função getHeaders() chamada por requisição. Não bloqueante para o fix atual.",
+    "DiarioAEE.js handleDownloadPDF (linha 740) ainda usa apenas Authorization Bearer sem X-CSRF-Token; é GET, então não cai na CSRFMiddleware. OK.",
+    "Arquivo DiarioAEE.js está com >1500 linhas — recomenda-se splitting em sub-componentes (TabPlanos, TabAtendimentos, TabModelos, atendimentoModalContent). Fora do escopo deste bug-fix."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_aee_csrf_fix.py (novo)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Super Admin gutenberg@sigesc.com / @Celta2007 (CSRF token observado em sessionStorage.sigesc_csrf_token após login)",
+  "seed_data_creation": "Test cria/deleta plano AEE temporário (academic_year=2099, professor_aee_id=00000000-0000-0000-0000-000000000001) e limpa após si mesmo",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "CSRF fix do Diário AEE está validado. Backend regression em /app/backend/tests/test_aee_csrf_fix.py cobre: 403 sem CSRF (planos/atendimentos/templates), pass-through com CSRF, e2e create+get+delete. Frontend lê sessionStorage('sigesc_csrf_token') (set pelo /auth/login response.csrf_token). Mesmo padrão deve ser aplicado a outros componentes que ainda usem raw fetch para escritas — buscar por `fetch(` com método POST/PUT/DELETE sem 'X-CSRF-Token'.",
+  "rca of the issue": "RCA: CSRFMiddleware (server.py:788-831) bloqueia POST/PUT/PATCH/DELETE em /api/* quando há access token (cookie ou Bearer) mas falta o header X-CSRF-Token, retornando 403 'CSRF token inválido ou ausente'. DiarioAEE.js usa raw fetch (não axios interceptor de api.js) e antes do fix montava headers só com Authorization+Content-Type. Resultado: TODO POST/PUT/DELETE de plano/atendimento/modelo retornava 403 → frontend mostrava 'Erro ao salvar plano'. Fix: helper readCsrfToken() lê o token de sessionStorage('sigesc_csrf_token', set pelo /auth/login.csrf_token) com fallback para cookie sigesc_csrf, e injeta no objeto headers compartilhado (linhas 136-140). Reproduzido e validado: GET /api/auth/login → access_token+csrf_token → POST /api/aee/planos sem header = 403; com header = 201 Created + persistência verificada via GET."
+}
