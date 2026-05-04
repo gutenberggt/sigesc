@@ -14,6 +14,12 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Bug Fix — "Erro ao salvar plano AEE" (CSRF) **[04/Mai/2026]**
+- **Root cause**: `pages/DiarioAEE.js` usa raw `fetch` (não axios) e o objeto `headers` só carregava Authorization+Content-Type. A `CSRFMiddleware` (server.py:788) rejeitava todo POST/PUT/DELETE em /api/aee/* com 403 "CSRF token inválido ou ausente". Resultado: nenhum plano/atendimento/modelo AEE conseguia ser salvo, editado, excluído ou duplicado pelo frontend.
+- **Fix**: helper `readCsrfToken()` lê o token de `sessionStorage('sigesc_csrf_token')` (setado pelo response do `/auth/login`) com fallback para cookie `sigesc_csrf`, injetando-o como header `X-CSRF-Token` em todas as escritas do Diário AEE.
+- **Tests**: `/app/backend/tests/test_aee_csrf_fix.py` (5 cenários: 403 sem CSRF, 201 com CSRF, e2e create+get+delete).
+- **Status**: 100% backend + 100% frontend (validado pelo testing agent — iteration_70).
+
 ### Sprint G4.1 — Upload Direto de Logotipo **[04/Mai/2026]**
 - Drag & drop + click-to-select de imagens (PNG, JPG, SVG, WebP) no `BrandingPanel.jsx`
 - Validação client-side: tipo `image/*`, máx 2MB
