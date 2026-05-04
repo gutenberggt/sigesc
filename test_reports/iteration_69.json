@@ -1,0 +1,54 @@
+{
+  "summary": "Sprint G4 (Live Preview de Branding Multi-Tenant) — testagem backend (pytest) + frontend (Playwright) totalmente bem-sucedida. Todos os critérios da review_request validados.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_branding_g4.py",
+    "/app/test_reports/pytest/pytest_branding_g4.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BrandingPanel.jsx — handleReset() restaura para `original` (last saved), o que é o comportamento correto após salvar. Pode confundir usuário que espera 'reset = valor pre-edicao': considerar adicionar texto explicativo no botao 'Descartar'.",
+    "BrandingPanel.jsx — applyVars() é chamado no useEffect de form.primary_color/secondary_color. Quando o usuário digita um hex inválido temporariamente, applyVars apenas ignora (HEX_RE.test). Bom.",
+    "tenant_admin.py — PUT /branding aceita admin/gerente/secretario para alterar a propria mantenedora; super_admin via X-Mantenedora-Id. Cobertura adequada.",
+    "tenant_admin.py — GET de mantenedora individual usado em loadDetail(/api/mantenedoras/{id}) não está nesse router, presumivelmente em outro. Funcionando OK em produção (testado).",
+    "BrandingPanel: o snapshot inicial das CSS vars é capturado uma vez no mount. Se usuário trocar tenants e sair sem salvar, vai restaurar para o tenant ATIVO original (não para o tenant que estava editando). Isso é um comportamento aceitável, mas vale documentar."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_branding_g4.py (novo arquivo)"
+  ],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% (5/5 fluxos)"},
+  "test_credentials": "Super Admin: gutenberg@sigesc.com / @Celta2007",
+  "seed_data_creation": "Tests criam tenants 'G4 Test Branding {timestamp}' e fazem cleanup automático via fixture (delete mantenedora + user). Não polui o banco.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Sprint G4 fechado e validado. Backend test_branding_g4.py é regressivo e idempotente. Frontend tabs (audit + branding) confirmados sem regressão. CSRF é injetado automaticamente pelo axios via interceptor (não precisa setar manualmente em chamadas autenticadas do frontend).",
+  "tests_executed": {
+    "backend_pytest": [
+      "test_branding_requires_auth — PASS (401/403 sem token)",
+      "test_branding_rejects_invalid_hex — PASS (400 'red')",
+      "test_branding_rejects_invalid_secondary_hex — PASS (400 '#zzzzzz')",
+      "test_branding_updates_with_valid_payload — PASS (200, X-Mantenedora-Id override)",
+      "test_branding_persistence_via_mantenedora_get — PASS (cor_primaria/cor_secundaria/nome persistidos)",
+      "test_mantenedoras_list_super_admin — PASS (lista não vazia)",
+      "test_branding_empty_payload_rejected — PASS (400)",
+      "test_branding_invalid_tenant_returns_404 — PASS"
+    ],
+    "frontend_playwright": [
+      "Login super_admin → /admin/tenant — OK",
+      "Click tab-branding → BrandingPanel renderiza, select carrega 4 mantenedoras, primeira selecionada automaticamente — OK",
+      "Edição de branding-primary-hex para #dc2626 → preview-card header gradient atualiza para rgb(220,38,38) em tempo real — OK",
+      "Click branding-save-btn → PUT /api/tenant/branding 200 com X-Mantenedora-Id=773e0c29... + toast 'Branding atualizado!' — OK",
+      "Edita campo + click branding-reset-btn → form restaura para último valor salvo (#dc2626) — OK",
+      "Validação client-side: hex inválido 'notahex' → toast 'Cor primária inválida (use #RRGGBB)' — OK",
+      "Click tab-audit pós-G4 → audit-summary/audit-table visíveis, sem regressão — OK"
+    ]
+  }
+}

@@ -20,7 +20,7 @@ import httpx
 
 BACKEND = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://sigesc-docs.preview.emergentagent.com",
+    "https://color-picker-sprint.preview.emergentagent.com",
 ).rstrip("/")
 
 SUPER_ADMIN = {

@@ -1,17 +1,21 @@
 /**
  * Tenant Admin — /admin/tenant
  *
- * Super_admin: Audit + Backfill + Onboard wizard.
+ * Super_admin: Audit + Backfill + Onboard wizard + Branding Live Preview (G4).
  */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { ChevronLeft, ShieldCheck, Plus, AlertTriangle, RefreshCw } from 'lucide-react';
+import {
+  ChevronLeft, ShieldCheck, Plus, AlertTriangle, RefreshCw, Palette,
+} from 'lucide-react';
+import BrandingPanel from '@/components/branding/BrandingPanel';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function TenantAdmin() {
+  const [tab, setTab] = useState('audit');
   const [audit, setAudit] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showOnboard, setShowOnboard] = useState(false);
@@ -35,7 +39,9 @@ export default function TenantAdmin() {
     }
   };
 
-  useEffect(() => { loadAudit(); }, []);
+  useEffect(() => {
+    if (tab === 'audit') loadAudit();
+  }, [tab]);
 
   const runBackfill = async () => {
     if (!window.confirm('Rodar backfill REAL (escreve no banco)? Modo seguro: deriva mantenedora_id apenas a partir do parent já vinculado.')) return;
@@ -82,109 +88,150 @@ export default function TenantAdmin() {
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <ShieldCheck className="h-6 w-6 text-emerald-600" />
-            Multi-Tenant — Auditoria & Onboarding
+            Multi-Tenant — Auditoria, Onboarding & Branding
           </h1>
           <p className="text-sm text-gray-500 max-w-3xl">
             Garanta isolamento de dados entre mantenedoras. Adicione novas redes em &lt; 5 minutos.
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={loadAudit}
-            disabled={loading}
-            className="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50 inline-flex items-center gap-1 disabled:opacity-50"
-            data-testid="btn-refresh-audit"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
-          </button>
-          <button
-            onClick={runBackfill}
-            disabled={loading}
-            className="px-3 py-2 bg-emerald-600 text-white rounded text-sm hover:bg-emerald-700 disabled:opacity-50"
-            data-testid="btn-backfill"
-          >
-            Rodar backfill
-          </button>
-          <button
-            onClick={() => setShowOnboard(true)}
-            className="px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 inline-flex items-center gap-1"
-            data-testid="btn-onboard"
-          >
-            <Plus className="h-4 w-4" /> Nova Mantenedora
-          </button>
-        </div>
       </div>
 
-      {audit && (
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-gray-200 mb-4" role="tablist">
+        <button
+          role="tab"
+          aria-selected={tab === 'audit'}
+          onClick={() => setTab('audit')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            tab === 'audit'
+              ? 'border-purple-600 text-purple-700'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+          }`}
+          data-testid="tab-audit"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <ShieldCheck className="h-4 w-4" /> Auditoria & Onboarding
+          </span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'branding'}
+          onClick={() => setTab('branding')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            tab === 'branding'
+              ? 'border-purple-600 text-purple-700'
+              : 'border-transparent text-gray-600 hover:text-gray-900'
+          }`}
+          data-testid="tab-branding"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Palette className="h-4 w-4" /> Branding & Live Preview
+          </span>
+        </button>
+      </div>
+
+      {tab === 'audit' && (
         <>
-          <div className={`rounded-lg p-4 mb-4 border ${
-            audit.total_orphans > 0
-              ? 'bg-amber-50 border-amber-200'
-              : 'bg-emerald-50 border-emerald-200'
-          }`} data-testid="audit-summary">
-            {audit.total_orphans > 0 ? (
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="h-6 w-6 text-amber-600" />
-                <div>
-                  <div className="font-semibold text-amber-800">
-                    {audit.total_orphans} registro(s) sem `mantenedora_id`
-                  </div>
-                  <div className="text-xs text-amber-700">
-                    Use "Rodar backfill" para corrigir registros que têm parent vinculado.
-                    Lacunas remanescentes (ex.: BNCC nacional) são intencionalmente cross-tenant.
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="h-6 w-6 text-emerald-600" />
-                <div className="font-semibold text-emerald-800">
-                  Isolamento 100% — todas as coleções escopadas estão íntegras
-                </div>
-              </div>
-            )}
+          <div className="flex gap-2 mb-4 flex-wrap">
+            <button
+              onClick={loadAudit}
+              disabled={loading}
+              className="px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50 inline-flex items-center gap-1 disabled:opacity-50"
+              data-testid="btn-refresh-audit"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+            </button>
+            <button
+              onClick={runBackfill}
+              disabled={loading}
+              className="px-3 py-2 bg-emerald-600 text-white rounded text-sm hover:bg-emerald-700 disabled:opacity-50"
+              data-testid="btn-backfill"
+            >
+              Rodar backfill
+            </button>
+            <button
+              onClick={() => setShowOnboard(true)}
+              className="px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 inline-flex items-center gap-1"
+              data-testid="btn-onboard"
+            >
+              <Plus className="h-4 w-4" /> Nova Mantenedora
+            </button>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto" data-testid="audit-table">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
-                <tr>
-                  <th className="px-3 py-2">Coleção</th>
-                  <th className="px-3 py-2">Total</th>
-                  <th className="px-3 py-2">Com tenant</th>
-                  <th className="px-3 py-2">Órfãos</th>
-                  <th className="px-3 py-2">Cobertura</th>
-                  <th className="px-3 py-2">Parent backfill</th>
-                </tr>
-              </thead>
-              <tbody>
-                {audit.rows.map(r => (
-                  <tr key={r.collection} className="border-t border-gray-100">
-                    <td className="px-3 py-2 font-mono text-xs">{r.collection}</td>
-                    <td className="px-3 py-2 text-xs">{r.total}</td>
-                    <td className="px-3 py-2 text-xs text-emerald-700">{r.with_tenant}</td>
-                    <td className={`px-3 py-2 text-xs ${r.without_tenant > 0 ? 'text-amber-700 font-semibold' : 'text-gray-400'}`}>
-                      {r.without_tenant}
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-20 h-2 bg-gray-100 rounded overflow-hidden">
-                          <div
-                            className={`h-full ${r.coverage_pct >= 90 ? 'bg-emerald-500' : r.coverage_pct >= 70 ? 'bg-amber-500' : 'bg-red-500'}`}
-                            style={{ width: `${r.coverage_pct}%` }}
-                          />
-                        </div>
-                        <span className="text-xs">{r.coverage_pct}%</span>
+          {audit && (
+            <>
+              <div className={`rounded-lg p-4 mb-4 border ${
+                audit.total_orphans > 0
+                  ? 'bg-amber-50 border-amber-200'
+                  : 'bg-emerald-50 border-emerald-200'
+              }`} data-testid="audit-summary">
+                {audit.total_orphans > 0 ? (
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-6 w-6 text-amber-600" />
+                    <div>
+                      <div className="font-semibold text-amber-800">
+                        {audit.total_orphans} registro(s) sem `mantenedora_id`
                       </div>
-                    </td>
-                    <td className="px-3 py-2 text-xs text-gray-500">{r.parent_for_backfill || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <div className="text-xs text-amber-700">
+                        Use "Rodar backfill" para corrigir registros que têm parent vinculado.
+                        Lacunas remanescentes (ex.: BNCC nacional) são intencionalmente cross-tenant.
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <ShieldCheck className="h-6 w-6 text-emerald-600" />
+                    <div className="font-semibold text-emerald-800">
+                      Isolamento 100% — todas as coleções escopadas estão íntegras
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto" data-testid="audit-table">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                    <tr>
+                      <th className="px-3 py-2">Coleção</th>
+                      <th className="px-3 py-2">Total</th>
+                      <th className="px-3 py-2">Com tenant</th>
+                      <th className="px-3 py-2">Órfãos</th>
+                      <th className="px-3 py-2">Cobertura</th>
+                      <th className="px-3 py-2">Parent backfill</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {audit.rows.map(r => (
+                      <tr key={r.collection} className="border-t border-gray-100">
+                        <td className="px-3 py-2 font-mono text-xs">{r.collection}</td>
+                        <td className="px-3 py-2 text-xs">{r.total}</td>
+                        <td className="px-3 py-2 text-xs text-emerald-700">{r.with_tenant}</td>
+                        <td className={`px-3 py-2 text-xs ${r.without_tenant > 0 ? 'text-amber-700 font-semibold' : 'text-gray-400'}`}>
+                          {r.without_tenant}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 h-2 bg-gray-100 rounded overflow-hidden">
+                              <div
+                                className={`h-full ${r.coverage_pct >= 90 ? 'bg-emerald-500' : r.coverage_pct >= 70 ? 'bg-amber-500' : 'bg-red-500'}`}
+                                style={{ width: `${r.coverage_pct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs">{r.coverage_pct}%</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-gray-500">{r.parent_for_backfill || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </>
       )}
+
+      {tab === 'branding' && <BrandingPanel />}
 
       {/* Modal Onboard */}
       {showOnboard && (

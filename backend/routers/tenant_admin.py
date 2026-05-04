@@ -43,6 +43,21 @@ class DomainPayload(BaseModel):
     is_primary: bool = False
 
 
+class BrandingUpdatePayload(BaseModel):
+    name: Optional[str] = None
+    slogan: Optional[str] = None
+    logo_url: Optional[str] = None
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
+
+
+_HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+
+def _is_hex_color(value: Optional[str]) -> bool:
+    return bool(value and _HEX_RE.match(value.strip()))
+
+
 # Coleções com escopo OBRIGATÓRIO + qual campo "parent" pode derivar mantenedora_id
 SCOPED_COLLECTIONS = {
     "schools": None,
@@ -250,6 +265,69 @@ def setup_router(db):
             "exibir_pre_matricula": target.get("exibir_pre_matricula", True),
             "destaque_mensagem": target.get("mensagem_destaque"),
             "destaque_cor": target.get("mensagem_destaque_cor"),
+        }
+
+    # =================== BRANDING — UPDATE (G4 Live Preview, Mai/2026) ===================
+
+    @router.put("/branding")
+    async def update_branding(payload: BrandingUpdatePayload, request: Request):
+        """Atualiza branding da mantenedora ativa do usuário.
+
+        super_admin pode passar X-Mantenedora-Id para editar branding de outro tenant.
+        Admin/gerente/secretario só podem editar a própria mantenedora.
+        """
+        user = await AuthMiddleware.get_current_user(request)
+        role = user.get("role")
+        if role not in ("super_admin", "admin", "admin_teste", "gerente", "secretario"):
+            raise HTTPException(403, "Sem permissão para alterar branding")
+
+        target_id = user.get("mantenedora_id")
+        if role == "super_admin":
+            override = request.headers.get("X-Mantenedora-Id")
+            if override:
+                target_id = override
+        if not target_id:
+            raise HTTPException(400, "Mantenedora alvo não identificada")
+
+        update_doc: dict = {}
+        if payload.name is not None:
+            update_doc["nome"] = payload.name.strip()[:200]
+        if payload.slogan is not None:
+            update_doc["slogan"] = payload.slogan.strip()[:300]
+        if payload.logo_url is not None:
+            update_doc["logotipo_url"] = payload.logo_url.strip()[:500] or None
+        if payload.primary_color is not None:
+            if not _is_hex_color(payload.primary_color):
+                raise HTTPException(400, "primary_color inválido (use formato #RRGGBB)")
+            update_doc["cor_primaria"] = payload.primary_color
+        if payload.secondary_color is not None:
+            if not _is_hex_color(payload.secondary_color):
+                raise HTTPException(400, "secondary_color inválido (use formato #RRGGBB)")
+            update_doc["cor_secundaria"] = payload.secondary_color
+
+        if not update_doc:
+            raise HTTPException(400, "Nenhuma alteração informada")
+
+        update_doc["updated_at"] = datetime.now(timezone.utc).isoformat()
+        result = await db.mantenedoras.update_one(
+            {"id": target_id}, {"$set": update_doc}
+        )
+        if result.matched_count == 0:
+            raise HTTPException(404, "Mantenedora não encontrada")
+
+        updated = await db.mantenedoras.find_one(
+            {"id": target_id},
+            {"_id": 0, "id": 1, "nome": 1, "slogan": 1, "logotipo_url": 1,
+             "cor_primaria": 1, "cor_secundaria": 1, "brasao_url": 1},
+        )
+        return {
+            "id": updated.get("id"),
+            "name": updated.get("nome"),
+            "slogan": updated.get("slogan"),
+            "logo_url": updated.get("logotipo_url"),
+            "primary_color": updated.get("cor_primaria") or "#7c3aed",
+            "secondary_color": updated.get("cor_secundaria") or "#a855f7",
+            "brasao_url": updated.get("brasao_url"),
         }
 
     # =================== TENANT DOMAINS (CRUD) ===================
