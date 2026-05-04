@@ -14,6 +14,17 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Sprint G4 — Live Preview de Branding Multi-Tenant **[04/Mai/2026]**
+**UX para super_admin configurar identidade visual de cada tenant em tempo real.**
+- Backend: `routers/tenant_admin.py` — `PUT /api/tenant/branding` aceita {name, slogan, logo_url, primary_color, secondary_color}, valida hex `#RRGGBB`, super_admin pode passar `X-Mantenedora-Id` para editar tenant alvo (admin/gerente/secretario só editam o próprio tenant). Retorna o snapshot atualizado.
+- Modelos novos: `BrandingUpdatePayload` + helper `_is_hex_color`.
+- Frontend: `components/branding/BrandingPanel.jsx` + tabs em `pages/TenantAdmin.jsx`.
+- **Live Preview real**: ao editar cores, aplica `--brand-primary` / `--brand-secondary` em `document.documentElement` em tempo real, refletindo no preview card (header gradient, botão, tags, tiles). Restaura CSS vars originais ao desmontar (proteção contra "saiu sem salvar").
+- Após salvar, dispara `tenant-changed` para o `BrandingContext` recarregar e refletir mudança nos Layouts globalmente.
+- Validação cliente: hex inválido → toast com erro; tenant não selecionado → toast.
+- Tests: `/app/backend/tests/test_branding_g4.py` (8 cenários backend) + Playwright (5 fluxos E2E).
+- Status testagem: 100% backend (8/8) + 100% frontend (5/5).
+
 ### Sprint G3 — Relatório Executivo Mensal **[03/Mai/2026]**
 **Produto dentro do produto**: secretário/gestor recebe TODO MÊS um diagnóstico forensicamente auditável da rede que força DECISÃO (não descreve).
 - Backend:
