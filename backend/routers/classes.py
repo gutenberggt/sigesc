@@ -8,7 +8,6 @@ from typing import List, Optional
 
 from models import Class, ClassCreate, ClassUpdate
 from auth_middleware import AuthMiddleware
-from text_utils import format_data_uppercase
 from utils.cache import cache, CACHE_TTL_CLASSES
 from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create, get_mantenedora_scope
 
@@ -33,8 +32,8 @@ def setup_router(db, audit_service, sandbox_db=None):
         # Verifica acesso à escola
         await AuthMiddleware.verify_school_access(request, class_data.school_id)
         
-        # Converte dados para maiúsculas
-        class_dict = format_data_uppercase(class_data.model_dump())
+        # [Mai/2026] CAPS lock automático removido — preserva capitalização do usuário.
+        class_dict = class_data.model_dump()
         class_obj = Class(**class_dict)
         doc = class_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
@@ -155,8 +154,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         
         update_data = class_update.model_dump(exclude_unset=True)
         
-        # Converte dados para maiúsculas
-        update_data = format_data_uppercase(update_data)
+        # [Mai/2026] CAPS lock automático removido — preserva capitalização do usuário.
         
         if update_data:
             await current_db.classes.update_one(

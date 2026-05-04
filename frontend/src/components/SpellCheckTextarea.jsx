@@ -194,9 +194,10 @@ export default function SpellCheckTextarea({
           color: 'transparent',
           background: 'transparent',
           borderColor: 'transparent',
-          // SIGESC aplica text-transform: uppercase globalmente em <textarea>.
-          // O overlay precisa do mesmo transform para alinhar as palavras.
-          textTransform: rest['data-no-uppercase'] ? 'none' : 'uppercase',
+          // [Mai/2026] CAPS lock global removido. Overlay espelha o textarea
+          // mantendo a capitalização normal. Permanece o opt-in `data-uppercase`
+          // para casos legítimos (códigos, siglas).
+          textTransform: rest['data-uppercase'] ? 'uppercase' : 'none',
           // Evita que o overlay ocupe espaço extra
           zIndex: 0,
         }}

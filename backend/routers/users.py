@@ -9,7 +9,6 @@ from passlib.context import CryptContext
 
 from models import UserResponse, UserUpdate
 from auth_middleware import AuthMiddleware
-from text_utils import format_data_uppercase
 from tenant_scope import apply_tenant_filter, assert_same_tenant
 
 router = APIRouter(prefix="/users", tags=["Usuários"])
@@ -140,8 +139,7 @@ def setup_router(db, audit_service, sandbox_db=None):
         elif 'password' in update_data:
             del update_data['password']
         
-        # Converte dados para maiúsculas
-        update_data = format_data_uppercase(update_data)
+        # [Mai/2026] CAPS lock automático removido — preserva capitalização do usuário.
         
         if update_data:
             await current_db.users.update_one(

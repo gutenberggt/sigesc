@@ -104,42 +104,24 @@ select option {
     }
 }
 
-/* Inputs em CAIXA ALTA para todos os cadastros */
+/* === [Mai/2026] CAPS LOCK GLOBAL REMOVIDO ===
+ * Removida a forçação de `text-transform: uppercase` em <input> e <textarea>.
+ * Motivo: corrupção semântica em campos de texto longo (planos, observações,
+ * conteúdos didáticos) e bloqueio à acentuação correta de nomes próprios.
+ * Política nova:
+ *   - Banco armazena o dado conforme digitado (capitalização correta, com acentos).
+ *   - PDFs e cabeçalhos institucionais aplicam .toUpperCase() apenas na RENDERIZAÇÃO.
+ *   - Para casos legítimos (códigos BNCC, UF, siglas), use a classe
+ *     `.input-uppercase` ou o atributo `data-uppercase` explicitamente.
+ */
 @layer components {
-    /* Aplica uppercase em inputs de texto, exceto email e password */
-    input[type="text"]:not([data-no-uppercase]),
-    input:not([type]):not([data-no-uppercase]),
-    textarea:not([data-no-uppercase]) {
-        text-transform: uppercase;
-    }
-    
-    /* Preserva minúsculas para campos de email e senha */
-    input[type="email"],
-    input[type="password"],
-    input[data-no-uppercase],
-    textarea[data-no-uppercase] {
-        text-transform: none !important;
-    }
-    
-    /* Classe utilitária para forçar uppercase */
+    /* Classe utilitária OPT-IN para forçar uppercase visualmente quando necessário */
     .input-uppercase {
         text-transform: uppercase;
     }
-    
-    /* Classe utilitária para manter normal (emails, etc) */
+
+    /* Classe utilitária para forçar normal explicitamente (override) */
     .input-normal {
         text-transform: none !important;
-    }
-    
-    /* Placeholder também em maiúsculas para consistência visual */
-    input[type="text"]::placeholder,
-    input:not([type])::placeholder,
-    textarea::placeholder {
-        text-transform: uppercase;
-    }
-    
-    /* Exceção: placeholder de email mantém minúsculas */
-    input[type="email"]::placeholder {
-        text-transform: none;
     }
 }

@@ -30,7 +30,6 @@ from models import (
     PlanoAEETemplate, PlanoAEETemplateCreate, PlanoAEETemplateUpdate
 )
 from auth_middleware import AuthMiddleware
-from text_utils import format_data_uppercase
 
 router = APIRouter(prefix="/aee", tags=["AEE"])
 
@@ -107,8 +106,8 @@ def setup_aee_router(db, audit_service):
                 detail="Já existe um Plano AEE ativo ou em rascunho para este aluno neste ano letivo"
             )
         
-        # Cria o plano
-        plano_dict = format_data_uppercase(plano_data.model_dump())
+        # Cria o plano — [Mai/2026] CAPS lock automático removido (autorizado pelo proprietário)
+        plano_dict = plano_data.model_dump()
         plano_obj = PlanoAEE(**plano_dict)
         doc = plano_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
@@ -204,7 +203,7 @@ def setup_aee_router(db, audit_service):
             raise HTTPException(status_code=404, detail="Plano AEE não encontrado")
         
         update_data = plano_update.model_dump(exclude_unset=True)
-        update_data = format_data_uppercase(update_data)
+        # [Mai/2026] CAPS lock automático removido (autorizado pelo proprietário)
         update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
         
         await db.planos_aee.update_one({"id": plano_id}, {"$set": update_data})
@@ -731,7 +730,8 @@ def setup_aee_router(db, audit_service):
             except:
                 pass
         
-        atend_dict = format_data_uppercase(atendimento_data.model_dump())
+        # [Mai/2026] CAPS lock automático removido (autorizado pelo proprietário)
+        atend_dict = atendimento_data.model_dump()
         atendimento_obj = AtendimentoAEE(**atend_dict)
         doc = atendimento_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
@@ -823,7 +823,7 @@ def setup_aee_router(db, audit_service):
             raise HTTPException(status_code=404, detail="Atendimento não encontrado")
         
         update_data = atendimento_update.model_dump(exclude_unset=True)
-        update_data = format_data_uppercase(update_data)
+        # [Mai/2026] CAPS lock automático removido (autorizado pelo proprietário)
         update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
         
         # Recalcula duração se horários foram alterados

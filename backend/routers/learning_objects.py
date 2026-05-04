@@ -19,7 +19,6 @@ from models import *
 from auth_middleware import AuthMiddleware
 from pdf_generator import generate_learning_objects_pdf
 from pdf_cache import get_mantenedora_cached, get_calendario_cached, get_school_cached
-from text_utils import format_data_uppercase
 from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create
 
 logger = logging.getLogger(__name__)
@@ -150,7 +149,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             )
 
         new_object = LearningObject(
-            **format_data_uppercase(data.model_dump()),
+            **data.model_dump(),
             recorded_by=current_user['id']
         )
 
@@ -192,7 +191,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                         break
 
         update_data = {k: v for k, v in data.model_dump().items() if v is not None}
-        update_data = format_data_uppercase(update_data)
+        # [Mai/2026] CAPS lock automático removido — preserva capitalização do usuário.
         update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         await db.learning_objects.update_one(

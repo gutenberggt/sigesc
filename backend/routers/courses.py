@@ -8,7 +8,6 @@ from typing import List, Optional
 
 from models import Course, CourseCreate, CourseUpdate
 from auth_middleware import AuthMiddleware
-from text_utils import format_data_uppercase
 from utils.cache import cache, CACHE_TTL_COURSES
 from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create, get_mantenedora_scope
 
@@ -23,8 +22,8 @@ def setup_router(db, audit_service):
         """Cria novo componente curricular (por mantenedora)"""
         current_user = await AuthMiddleware.require_roles(['super_admin'])(request)
         
-        # Converte dados para maiúsculas
-        course_dict = format_data_uppercase(course_data.model_dump())
+        # [Mai/2026] CAPS lock automático removido — preserva capitalização do usuário.
+        course_dict = course_data.model_dump()
         course_obj = Course(**course_dict)
         doc = course_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
@@ -96,8 +95,7 @@ def setup_router(db, audit_service):
         
         update_data = course_update.model_dump(exclude_unset=True)
         
-        # Converte dados para maiúsculas
-        update_data = format_data_uppercase(update_data)
+        # [Mai/2026] CAPS lock automático removido — preserva capitalização do usuário.
         
         if update_data:
             await db.courses.update_one(

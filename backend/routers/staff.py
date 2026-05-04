@@ -16,7 +16,6 @@ import uuid
 
 from models import Staff, StaffCreate, StaffUpdate
 from auth_middleware import AuthMiddleware
-from text_utils import format_data_uppercase
 from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create, get_mantenedora_scope
 
 router = APIRouter(prefix="/staff", tags=["Servidores"])
@@ -180,8 +179,7 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
         
         staff_dict = staff_data.model_dump()
         
-        # Converte dados para maiúsculas (exceto email)
-        staff_dict = format_data_uppercase(staff_dict)
+        # [Mai/2026] CAPS lock automático removido — preserva capitalização do usuário.
         
         staff_dict['user_id'] = user_id
         
@@ -249,8 +247,7 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
         
         update_data = {k: v for k, v in staff_data.model_dump().items() if v is not None}
         
-        # Converte dados para maiúsculas (exceto email)
-        update_data = format_data_uppercase(update_data)
+        # [Mai/2026] CAPS lock automático removido — preserva capitalização do usuário.
         
         update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
         

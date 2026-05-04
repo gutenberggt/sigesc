@@ -23,7 +23,6 @@ from pymongo.errors import DuplicateKeyError
 
 from models import Student, StudentCreate, StudentUpdate
 from auth_middleware import AuthMiddleware
-from text_utils import format_data_uppercase
 from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create, get_mantenedora_scope
 
 router = APIRouter(prefix="/students", tags=["Alunos"])
@@ -86,7 +85,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                     detail="Não é possível criar aluno com status 'Ativo' sem escola e turma definidas. O aluno precisa estar matriculado em uma turma."
                 )
         
-        student_dict = format_data_uppercase(student_data.model_dump())
+        student_dict = student_data.model_dump()
         student_obj = Student(**student_dict)
         doc = student_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
@@ -608,8 +607,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         custom_action_date = update_data.pop('action_date', None)
         action_hint = update_data.pop('action_hint', None)
         
-        # Converte dados para maiúsculas
-        update_data = format_data_uppercase(update_data)
+        # [Mai/2026] CAPS lock automático removido — preserva capitalização do usuário.
         
         # Detecta tipo de operação
         old_class_id = student_doc.get('class_id')

@@ -32,6 +32,47 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Bug Fix Crítico — Remoção do CAPS Automático **[04/Mai/2026]**
+**Sintoma**: nomes próprios e textos longos foram salvos em CAIXA ALTA + sem acentuação correta no banco, corrompendo dados pedagógicos (planos, observações, conteúdos).
+
+**Origens removidas (3 fontes simultâneas)**:
+1. **CSS global** em `frontend/src/index.css` — `text-transform: uppercase` em todo `<input>` e `<textarea>` REMOVIDO. Mantida apenas a classe utilitária opt-in `.input-uppercase` para casos legítimos (códigos BNCC, UF).
+2. **`SpellCheckTextarea.jsx`** — `textTransform: uppercase` default REMOVIDO. Agora aceita `data-uppercase` como opt-in (era `data-no-uppercase` como opt-out).
+3. **Backend** `format_data_uppercase()` removido de **TODOS** os routers de escrita: `students, staff, schools, classes, courses, learning_objects, users, guardians, auth` E `aee` (autorizado pelo proprietário). Imports remanescentes do `text_utils.py` foram limpos. Função fica disponível em `text_utils.py` mas sem callers — **não usar em código novo**.
+
+**Política nova (arquitetura limpa)**:
+- **Banco** armazena dado conforme digitado pelo usuário (capitalização correta, com acentos).
+- **PDFs** continuam aplicando `.toUpperCase()` apenas na **renderização** (norma documental institucional brasileira).
+- **Comparações case-insensitive** preservadas (legítimas, não persistem).
+
+**Migração reversa de dados existentes**:
+- Script `/app/backend/scripts/normalize_names_back.py` com:
+  - Backup automático (`backup_<col>_<timestamp>` via `$out`) antes de cada execução com `--apply`
+  - Função `title_case_name()` com regras BR: preposições minúsculas (`da, de, do, das, dos, e, em`), siglas conhecidas em UPPER (`AEE, BNCC, EJA, SEMED, ETI, …`), algarismos romanos (`I, II, III…`), hífens, apóstrofos
+  - Adiciona `nome_normalizado` (lowercase preservando acentos) + `nome_busca` (lowercase + sem acentos NFD) + `nome_migrado: true` + timestamp
+  - Cria índice composto `{mantenedora_id: 1, nome_busca: 1}` para busca eficiente e tenant-safe
+  - `bulkWrite` em batches de 1000 (performance)
+  - **Default `--dry-run`**, escreve só com `--apply`
+  - Coleções: `students, staff, schools, classes, courses, users, mantenedoras` (apenas campos NOMINAIS — não toca em descrições, observações, planos AEE)
+  - **AEE NÃO é migrado em massa** — dados antigos do AEE permanecem como estão (acordo arquitetural)
+
+**Comando para o proprietário aplicar em produção**:
+```bash
+# 1. Sempre: dry-run primeiro
+python /app/backend/scripts/normalize_names_back.py --dry-run
+
+# 2. Após revisar o relatório, aplicar:
+python /app/backend/scripts/normalize_names_back.py --apply
+
+# 3. Restringir a uma coleção (se preciso):
+python /app/backend/scripts/normalize_names_back.py --apply --collection students
+```
+
+**Validação**:
+- Backend curl: POST `/api/classes` com `"Turma Teste de CapitalizaçÃO"` persiste exatamente como enviado ✅
+- Frontend smoke: `getComputedStyle(input).textTransform = 'none'`, input aceita "Teste minúsculo Acentuação" e exibe como digitado ✅
+- Dry-run no preview: 58 docs marcados para atualizar (students, schools, classes, courses, users, mantenedoras), 3 sem mudança — siglas (AEE, SEMED), preposições (da/de) e romanos (I, II) preservados corretamente ✅
+
 ### Bug Fix — "Erro ao salvar plano AEE" (CSRF) **[04/Mai/2026]**
 - **Root cause**: `pages/DiarioAEE.js` usa raw `fetch` (não axios) e o objeto `headers` só carregava Authorization+Content-Type. A `CSRFMiddleware` (server.py:788) rejeitava todo POST/PUT/DELETE em /api/aee/* com 403 "CSRF token inválido ou ausente". Resultado: nenhum plano/atendimento/modelo AEE conseguia ser salvo, editado, excluído ou duplicado pelo frontend.
 - **Fix**: helper `readCsrfToken()` lê o token de `sessionStorage('sigesc_csrf_token')` (setado pelo response do `/auth/login`) com fallback para cookie `sigesc_csrf`, injetando-o como header `X-CSRF-Token` em todas as escritas do Diário AEE.

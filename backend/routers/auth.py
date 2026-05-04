@@ -20,7 +20,6 @@ from auth_utils import (
     REFRESH_COOKIE_NAME, REFRESH_TOKEN_EXPIRE_DAYS,
 )
 from auth_middleware import AuthMiddleware
-from text_utils import format_data_uppercase
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
@@ -316,7 +315,8 @@ def setup_router(db, audit_service):
                     detail="Apenas um Super Administrador pode criar outro Super Administrador"
                 )
         
-        user_dict = format_data_uppercase(user_data.model_dump(exclude={'password'}))
+        # [Mai/2026] CAPS lock automático removido — preserva capitalização do usuário.
+        user_dict = user_data.model_dump(exclude={'password'})
         user_obj = UserInDB(
             **user_dict,
             password_hash=hash_password(user_data.password)
