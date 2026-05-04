@@ -38,11 +38,12 @@ def token():
     time.sleep(1.2)
     r = httpx.post(f"{BACKEND}/api/auth/login", json=SUPER_ADMIN, timeout=20)
     r.raise_for_status()
-    return r.json()["access_token"]
+    body = r.json()
+    return {"access": body["access_token"], "csrf": body.get("csrf_token", "")}
 
 
 def _h(t):
-    return {"Authorization": f"Bearer {t}"}
+    return {"Authorization": f"Bearer {t['access']}", "X-CSRF-Token": t["csrf"]}
 
 
 @pytest.fixture(scope="module")

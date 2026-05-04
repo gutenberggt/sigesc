@@ -115,13 +115,49 @@ def _parse_json(text: str) -> Optional[dict]:
 
 
 async def _gestor_history(db, school_id: str) -> dict:
-    """Agrega métricas do gestor responsável pela escola nos últimos 90 dias."""
-    coord = await db.users.find_one(
-        {"status": "active", "role": {"$in": ["coordenador", "diretor"]},
-         "school_links.school_id": school_id},
-        {"_id": 0, "id": 1, "full_name": 1, "role": 1},
-    )
-    since = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+    """Agrega métricas do gestor responsável pela escola nos últimos 90 dias.
+
+    Fonte da verdade: `school_assignments` (Gestão de Servidores) — que armazena
+    diretor/coordenador efetivamente lotados. NÃO confia em `users.role` porque
+    o role base costuma ser `professor` (cadastro inicial), enquanto a função
+    real vem da lotação.
+    """
+    now = datetime.now(timezone.utc)
+
+    # Busca diretor/coordenador lotado nesta escola no ano corrente
+    assignments = await db.school_assignments.find(
+        {
+            "school_id": school_id,
+            "status": "ativo",
+            "academic_year": now.year,
+            "funcao": {"$in": ["diretor", "coordenador"]},
+        },
+        {"_id": 0, "staff_id": 1, "funcao": 1},
+    ).to_list(length=10)
+
+    # Prioriza diretor; cai para coordenador se não houver
+    chosen = None
+    for a in assignments:
+        if a.get("funcao") == "diretor":
+            chosen = a
+            break
+    if not chosen and assignments:
+        chosen = assignments[0]
+
+    coord = None
+    if chosen:
+        sdoc = await db.staff.find_one(
+            {"id": chosen["staff_id"]},
+            {"_id": 0, "id": 1, "nome": 1, "user_id": 1, "email": 1},
+        )
+        if sdoc:
+            coord = {
+                "id": sdoc.get("user_id") or sdoc.get("id"),
+                "full_name": sdoc.get("nome") or sdoc.get("email"),
+                "role": chosen.get("funcao"),
+            }
+
+    since = (now - timedelta(days=90)).isoformat()
     alerts = await db.intervention_alerts.find(
         {"school_id": school_id, "first_detected_at": {"$gte": since}},
         {"_id": 0, "escalation_level": 1, "first_detected_at": 1,
