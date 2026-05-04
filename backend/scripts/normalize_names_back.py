@@ -66,7 +66,7 @@ NAME_FIELDS_BY_COLLECTION: Dict[str, List[str]] = {
         "guardian_name",
     ],
     "staff": [
-        "full_name",
+        "nome",
         "marital_status_spouse_name",
     ],
     "schools": [
@@ -93,7 +93,7 @@ NAME_FIELDS_BY_COLLECTION: Dict[str, List[str]] = {
 # `nome_normalizado` e `nome_busca`. None = pular.
 PRIMARY_NAME_FIELD: Dict[str, Optional[str]] = {
     "students": "full_name",
-    "staff": "full_name",
+    "staff": "nome",
     "schools": "name",
     "classes": "name",
     "courses": "name",

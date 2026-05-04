@@ -89,7 +89,14 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         student_obj = Student(**student_dict)
         doc = student_obj.model_dump()
         doc['created_at'] = doc['created_at'].isoformat()
-        
+
+        # [Mai/2026] Pré-computa índices de busca (case- e accent-insensitive)
+        from text_utils import compute_name_indexes
+        normalized, busca = compute_name_indexes(doc, 'full_name')
+        if busca:
+            doc['nome_normalizado'] = normalized
+            doc['nome_busca'] = busca
+
         # Multi-tenancy: injeta mantenedora_id derivada da escola
         doc['mantenedora_id'] = await resolve_tenant_id_for_create(
             current_db, current_user, request, school_id=student_data.school_id
@@ -219,14 +226,20 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         if status:
             filter_query['status'] = status
         
-        # Busca por nome ou CPF (Feb 2026: insensível a acentos)
+        # Busca por nome ou CPF (Mai 2026: usa nome_busca indexado quando
+        # disponível + fallback regex acent-insensitive em full_name).
         if search and len(search) >= 3:
             from utils.search_utils import accent_insensitive_regex
+            from text_utils import normalize_for_search
             search_pattern = accent_insensitive_regex(search)
             search_clean = re.escape(search.replace('.', '').replace('-', '').replace('/', ''))
+            search_normalized = normalize_for_search(search) or ''
             search_or = [
+                # Caminho rápido: campo indexado nome_busca
+                {'nome_busca': {'$regex': re.escape(search_normalized)}},
+                # Fallback: full_name com regex acent-insensitive (registros não migrados)
                 {'full_name': {'$regex': search_pattern, '$options': 'i'}},
-                {'cpf': {'$regex': search_clean}}
+                {'cpf': {'$regex': search_clean}},
             ]
             # Se já tem $or (turma especial), combina com $and
             if '$or' in filter_query:

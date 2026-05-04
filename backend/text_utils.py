@@ -1,7 +1,76 @@
 """
 Utilitários de formatação de texto - SIGESC
-Funções para padronização de strings (maiúsculas, etc)
+
+[Mai/2026] CAPS lock automático foi descontinuado. As funções
+`format_data_uppercase` e `to_uppercase_field` permanecem aqui apenas
+como referência histórica — NÃO são chamadas em código novo.
+
+Use `compute_name_indexes()` ao salvar entidades nominais para alimentar
+os campos auxiliares `nome_normalizado` e `nome_busca` (indexáveis).
 """
+import re
+import unicodedata
+from typing import Optional, Tuple
+
+
+def strip_accents(text: str) -> str:
+    """Remove acentos via NFD + filtro categoria Mn."""
+    if not text:
+        return text
+    return "".join(
+        c for c in unicodedata.normalize("NFD", text)
+        if unicodedata.category(c) != "Mn"
+    )
+
+
+def normalize_for_search(value: Optional[str]) -> Optional[str]:
+    """Normaliza nome para BUSCA: lowercase + sem acentos + espaços colapsados.
+
+    Use para alimentar o campo `nome_busca` (indexável). Buscas case- e
+    accent-insensitive aplicam a mesma normalização ao termo do usuário e
+    fazem `regex` simples ou `$eq` sobre `nome_busca`.
+    """
+    if not value or not isinstance(value, str):
+        return value
+    cleaned = strip_accents(value).lower()
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def normalize_for_sort(value: Optional[str]) -> Optional[str]:
+    """Normaliza nome para ORDENAÇÃO: lowercase preservando acentos.
+
+    Use para alimentar `nome_normalizado` (ordenação determinística e
+    case-insensitive sem perder a forma acentuada).
+    """
+    if not value or not isinstance(value, str):
+        return value
+    return re.sub(r"\s+", " ", value).strip().lower()
+
+
+def compute_name_indexes(
+    doc: dict, primary_field: str = "full_name"
+) -> Tuple[Optional[str], Optional[str]]:
+    """Calcula (nome_normalizado, nome_busca) a partir do campo primário.
+
+    Uso típico em routers de POST/PUT:
+
+        from text_utils import compute_name_indexes
+        normalized, busca = compute_name_indexes(doc, 'full_name')
+        if normalized is not None:
+            doc['nome_normalizado'] = normalized
+            doc['nome_busca'] = busca
+
+    Retorna (None, None) se o campo primário estiver ausente/vazio.
+    """
+    primary = doc.get(primary_field)
+    if not primary or not isinstance(primary, str) or not primary.strip():
+        return (None, None)
+    return (normalize_for_sort(primary), normalize_for_search(primary))
+
+
+# ============================================================
+# DEPRECATED — não usar em código novo
+# ============================================================
 
 # Lista de campos que NÃO devem ser convertidos para maiúsculas
 LOWERCASE_FIELDS = {

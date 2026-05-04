@@ -32,6 +32,14 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Busca Indexada por nome_busca (case + accent insensitive) **[04/Mai/2026]**
+- Helpers em `backend/text_utils.py`: `strip_accents`, `normalize_for_search` (lowercase + sem acentos), `normalize_for_sort` (lowercase preservando acentos), `compute_name_indexes(doc, primary_field)`.
+- **Routers atualizados** (`students`, `staff`):
+  - **Create/Update** preenchem automaticamente `nome_normalizado` e `nome_busca` a partir de `full_name` (students) / `nome` (staff).
+  - **GET com `?search=`** usa `$or`: caminho rápido via `nome_busca` indexado + fallback regex `accent_insensitive_regex` no campo original (cobre registros não migrados).
+- **Endpoint `/api/staff` ganhou param `search`** (não existia antes).
+- **Validado**: criar `Maria José da Conceição` → `nome_busca = "maria jose da conceicao"` → busca por `maria`, `JOSÉ`, `conceicao` retorna o mesmo registro. Idem para students.
+
 ### Bug Fix Crítico — Remoção do CAPS Automático **[04/Mai/2026]**
 **Sintoma**: nomes próprios e textos longos foram salvos em CAIXA ALTA + sem acentuação correta no banco, corrompendo dados pedagógicos (planos, observações, conteúdos).
 

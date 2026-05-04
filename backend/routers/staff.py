@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, status, Request, UploadFile, File
 from typing import Optional
 from datetime import datetime, timezone
 import uuid
+import re
 
 from models import Staff, StaffCreate, StaffUpdate
 from auth_middleware import AuthMiddleware
@@ -49,7 +50,13 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
         return f"{prefix}{new_num:05d}"
 
     @router.get("")
-    async def list_staff(request: Request, school_id: Optional[str] = None, cargo: Optional[str] = None, status: Optional[str] = None):
+    async def list_staff(
+        request: Request,
+        school_id: Optional[str] = None,
+        cargo: Optional[str] = None,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+    ):
         """Lista todos os servidores"""
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'semed', 'semed3'])(request)
         current_db = get_db_for_user(current_user)
@@ -59,7 +66,20 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
             query["cargo"] = cargo
         if status:
             query["status"] = status
-        
+
+        # [Mai/2026] Busca por nome ou matrícula — usa nome_busca indexado
+        # com fallback regex acent-insensitive em nome (registros não migrados).
+        if search and len(search) >= 3:
+            from utils.search_utils import accent_insensitive_regex
+            from text_utils import normalize_for_search
+            search_pattern = accent_insensitive_regex(search)
+            search_normalized = normalize_for_search(search) or ''
+            query["$or"] = [
+                {"nome_busca": {"$regex": re.escape(search_normalized)}},
+                {"nome": {"$regex": search_pattern, "$options": "i"}},
+                {"matricula": {"$regex": re.escape(search), "$options": "i"}},
+            ]
+
         # Multi-tenancy
         query = apply_tenant_filter(query, current_user, request)
         
@@ -191,7 +211,14 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
         staff_doc = new_staff.model_dump()
         # Multi-tenancy: injeta mantenedora_id do scope do usuário
         staff_doc['mantenedora_id'] = await resolve_tenant_id_for_create(current_db, current_user, request)
-        
+
+        # [Mai/2026] Pré-computa índices de busca (case- e accent-insensitive)
+        from text_utils import compute_name_indexes
+        normalized, busca = compute_name_indexes(staff_doc, 'nome')
+        if busca:
+            staff_doc['nome_normalizado'] = normalized
+            staff_doc['nome_busca'] = busca
+
         await current_db.staff.insert_one(staff_doc)
         
         result = await current_db.staff.find_one({"id": new_staff.id}, {"_id": 0})
@@ -248,6 +275,11 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
         update_data = {k: v for k, v in staff_data.model_dump().items() if v is not None}
         
         # [Mai/2026] CAPS lock automático removido — preserva capitalização do usuário.
+        # Recalcula índices de busca se nome foi alterado.
+        if 'nome' in update_data and update_data['nome']:
+            from text_utils import normalize_for_search, normalize_for_sort
+            update_data['nome_normalizado'] = normalize_for_sort(update_data['nome'])
+            update_data['nome_busca'] = normalize_for_search(update_data['nome'])
         
         update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
         
