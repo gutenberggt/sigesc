@@ -49,6 +49,11 @@ const RULE_LABELS = {
   palavras_duplicadas: 'Palavras duplicadas',
 };
 
+const TIPO_LABELS = {
+  formatacao: { label: 'Formatação', className: 'bg-violet-100 text-violet-800 border-violet-200', icon: '🔧' },
+  ortografia: { label: 'Ortografia', className: 'bg-orange-100 text-orange-800 border-orange-200', icon: '✏️' },
+};
+
 const STATUS_BADGES = {
   pending: { label: 'Pendente', className: 'bg-amber-100 text-amber-800 border-amber-200' },
   approved: { label: 'Aprovado', className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
@@ -68,6 +73,11 @@ function authHeaders() {
 function ruleLabel(rule) {
   if (RULE_LABELS[rule]) return RULE_LABELS[rule];
   if (rule.startsWith('sigla_')) return `Sigla: ${rule.slice(6)}`;
+  if (rule.startsWith('sp_')) {
+    // sp_<palavra_original>_<sugestao>
+    const parts = rule.slice(3).split('_');
+    if (parts.length >= 2) return `${parts[0]} → ${parts.slice(1).join('_')}`;
+  }
   return rule;
 }
 
@@ -77,6 +87,7 @@ export default function TextImprovement() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('pending');
   const [collectionFilter, setCollectionFilter] = useState('');
+  const [tipoFilter, setTipoFilter] = useState('');
   const [selected, setSelected] = useState(new Set());
   const [editing, setEditing] = useState(null);
   const [editedText, setEditedText] = useState('');
@@ -96,7 +107,7 @@ export default function TextImprovement() {
         axios.get(`${API}/admin/text-improvement/stats`, { headers: authHeaders() }),
         axios.get(`${API}/admin/text-improvement/rules-summary`, { headers: authHeaders() }),
       ]);
-      setItems(listRes.data.items || []);
+      setItems((listRes.data.items || []).filter(it => !tipoFilter || it.tipo === tipoFilter));
       setStats(statsRes.data || { totals: {}, per_collection: {} });
       setRulesSummary(rulesRes.data.single_rule_groups || []);
       setSelected(new Set());
@@ -106,7 +117,7 @@ export default function TextImprovement() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, collectionFilter]);
+  }, [statusFilter, collectionFilter, tipoFilter]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -218,9 +229,9 @@ export default function TextImprovement() {
             Higienização Textual
           </h1>
           <p className="text-slate-600 mt-2">
-            Sugestões de <span className="font-medium text-violet-700">formatação determinística</span> (espaços,
-            pontuação, capitalização, siglas) aguardando aprovação manual. Sem ortografia, sem IA — apenas
-            regras seguras e revisão humana.
+            Sugestões determinísticas de <span className="font-medium text-violet-700">formatação</span> (espaços,
+            pontuação, capitalização, siglas) e <span className="font-medium text-orange-700">ortografia</span> (palavras
+            fora do dicionário PT-BR). Sem IA, com revisão humana obrigatória.
           </p>
         </div>
 
@@ -247,6 +258,12 @@ export default function TextImprovement() {
             {Object.entries(COLLECTION_LABELS).map(([key, label]) => (
               <option key={key} value={key}>{label}</option>
             ))}
+          </select>
+          <select value={tipoFilter} onChange={e => setTipoFilter(e.target.value)}
+                  className="border border-slate-300 rounded-md px-3 py-1.5 text-sm" data-testid="filter-tipo">
+            <option value="">Todos os tipos</option>
+            <option value="formatacao">🔧 Formatação</option>
+            <option value="ortografia">✏️ Ortografia</option>
           </select>
           <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} data-testid="refresh-btn">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -388,9 +405,12 @@ function ImprovementCard({ item, selected, onToggleSelect, onApprove, onReject, 
   const collectionLabel = COLLECTION_LABELS[item.source_collection] || item.source_collection;
   const fieldLabel = FIELD_LABELS[item.source_field] || item.source_field;
   const statusBadge = STATUS_BADGES[item.status] || STATUS_BADGES.pending;
+  const tipo = item.tipo || 'formatacao';
+  const tipoBadge = TIPO_LABELS[tipo] || TIPO_LABELS.formatacao;
   const isPending = item.status === 'pending';
   const contextName = item.context?.full_name || item.context?.nome || item.context?.name || '—';
   const rules = item.applied_rules || [];
+  const corrections = item.spelling_corrections || [];
 
   return (
     <div className={`bg-white border rounded-lg overflow-hidden transition-all ${
@@ -402,6 +422,14 @@ function ImprovementCard({ item, selected, onToggleSelect, onApprove, onReject, 
             {selected ? <CheckSquare className="w-5 h-5 text-violet-600" /> : <Square className="w-5 h-5" />}
           </button>
         )}
+        <span className={`px-2 py-0.5 rounded text-xs font-medium border ${tipoBadge.className}`} data-testid={`tipo-${item.id}`}>
+          {tipoBadge.icon} {tipoBadge.label}
+        </span>
+        {item.confidence != null && (
+          <span className="text-xs text-slate-500" title="Nível de confiança da sugestão">
+            confiança: <strong>{Math.round(item.confidence * 100)}%</strong>
+          </span>
+        )}
         <Badge variant="outline">{collectionLabel}</Badge>
         <span className="text-slate-500">›</span>
         <span className="font-medium text-slate-700">{fieldLabel}</span>
@@ -412,7 +440,26 @@ function ImprovementCard({ item, selected, onToggleSelect, onApprove, onReject, 
         </span>
       </div>
 
-      {rules.length > 0 && (
+      {tipo === 'ortografia' && corrections.length > 0 && (
+        <div className="px-4 py-2 bg-orange-50 border-b border-orange-100">
+          <div className="text-xs font-semibold text-orange-700 uppercase tracking-wider mb-1">
+            Correções ortográficas ({corrections.length})
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {corrections.map((c, i) => (
+              <span key={i} className="text-xs px-2 py-0.5 rounded bg-white text-orange-900 border border-orange-300"
+                    title={`Confiança: ${Math.round((c.confidence || 0) * 100)}%`}>
+                <span className="line-through text-rose-600">{c.original}</span>
+                <span className="mx-1 text-slate-400">→</span>
+                <strong className="text-emerald-700">{c.sugestao}</strong>
+                <span className="ml-1.5 text-slate-500 text-[10px]">{Math.round((c.confidence || 0) * 100)}%</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tipo === 'formatacao' && rules.length > 0 && (
         <div className="px-4 py-2 bg-violet-50 border-b border-violet-100 flex flex-wrap gap-1.5">
           <span className="text-xs font-semibold text-violet-700 uppercase tracking-wider mr-1">Regras detectadas:</span>
           {rules.map((r, i) => (

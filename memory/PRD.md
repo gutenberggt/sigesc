@@ -216,9 +216,32 @@ ou estrutura enumerada (preserva).
 - Dashboard: novo atalho "Higienização Textual" (violeta) no grupo Administração
 
 **Validação E2E [05/Mai/2026]**:
-- 29 candidatos detectados na base real (student_history + learning_objects, regra mais comum: pontuação final ausente)
-- APPROVE testado via curl: doc original recebeu pontuação final + flag `text_improved: true`
-- Frontend renderiza cards com badges violetas das regras aplicadas, screenshot OK ✅
+### Higienização Textual — Fase 2 (ORTOGRAFIA via pyspellchecker) [05/Mai/2026]
+**Princípio**: ortografia 100% determinística (lib `pyspellchecker` + dict PT-BR de 414k palavras),
+ZERO IA, sempre via fila com confidence ≥0.75. Mesma fila/UI da Fase 1, distinguidas pelo campo `tipo`.
+
+**Pipeline ampliado**: cada doc/campo pode gerar 0..2 sugestões (uma de formatação + uma de ortografia).
+
+**Detector** (`scripts/text_improvement.py::detect_spelling_issues`):
+- Tokeniza palavras alfabéticas
+- Pula: <4 chars, siglas (PRESERVED_ACRONYMS), tokens UPPER, nomes próprios (capitalizada no meio da frase), palavras com dígito, palavras já no dicionário
+- Sugestão = `spell.correction(palavra)` com `confidence = 1 - levenshtein(orig, sug)/len(orig)`
+- Aplica todas as correções com confidence ≥ 0.75
+- Preserva caixa do original
+
+**Vocabulário extra** (termos pedagógicos comuns):
+- siglas educacionais (BNCC, AEE, SEMED, EJA, PCD, TEA, TDAH, FUNDEB, PNAE, LGPD…)
+- termos comuns: remanejado, rematriculado, multisseriada, alfabetizado, autoavaliação, psicomotor…
+- nomes/locais: araguaia, floresta, tocantins…
+
+**UI estendida** (`pages/TextImprovement.jsx`):
+- Badge laranja "✏️ Ortografia" + confiança em %
+- Diff visual das correções: `palavra ❌ → sugestão ✅ (XX%)`
+- Filtro por tipo (Todos / Formatação / Ortografia)
+- Texto com correções aplicadas mostrado no painel "Sugestão"
+
+**Validação E2E**: 6 typos genuínos detectados com confidence 78-92% (Necessitra→Necessita, atendimnto→atendimento, profesora→professora, interpretaçao→interpretação, discussao→discussão, Avaliacao→Avaliação). Falsos positivos (Remanejado→Remunerado) eliminados após adicionar termos ao vocabulário extra ✅
+
 
 **Regras de preservação** (script `normalize_content.py`):
 - Siglas (AEE, BNCC, SEMED, TEA, ETI, B1-B4, CNPJ, CPF, RG, NIS, PCD, LGPD, etc.)

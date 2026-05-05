@@ -68,6 +68,46 @@ logger = logging.getLogger("text_improvement")
 QUEUE_COLLECTION = "text_improvement_queue"
 BATCH_SIZE = 500
 
+# ============================================================
+# DICIONÁRIO ORTOGRÁFICO (Fase 2)
+# ============================================================
+# Lazy init: carrega só na 1ª chamada.
+_SPELL = None
+_EXTRA_VOCAB = {
+    # Termos pedagógicos comuns que podem não estar no dict
+    "bncc", "aee", "semed", "seduc", "etí", "eti", "emeief", "emeif",
+    "emef", "emei", "fundeb", "funarte", "pnae", "lgpd", "pcd", "tea",
+    "tdah", "alfabetização", "letramento", "interdisciplinar",
+    "psicopedagógico", "psicopedagogo", "neurodivergente",
+    # Verbos/substantivos do dia-a-dia escolar (frequentes em pareceres)
+    "remanejado", "remanejada", "remanejamento", "remanejar",
+    "rematriculado", "rematriculada", "rematrícula", "rematricular",
+    "transferido", "transferida", "matriculado", "matriculada",
+    "evadido", "evadida", "evasão", "reclassificação", "reclassificado",
+    "reagrupamento", "reagrupamentos", "agrupamento", "agrupamentos",
+    "aprovado", "reprovado", "promovido", "retido",
+    "alfabetizado", "alfabetizada", "alfabetizando",
+    "diversificada", "complementar", "diversificadas",
+    "psicomotor", "psicomotora", "psicomotricidade",
+    "sociolinguístico", "sociocultural", "psicossocial",
+    "autoavaliação", "autoavaliações", "autonomia",
+    "multisseriada", "multisseriado", "multisseriadas",
+    "atendimento", "atendimentos",
+    # Nomes próprios/locais comuns nas escolas (extensível pelo admin via DB)
+    "araguaia", "floresta", "palmas", "tocantins",
+}
+
+
+def _get_spell():
+    global _SPELL
+    if _SPELL is None:
+        from spellchecker import SpellChecker
+        _SPELL = SpellChecker(language="pt")
+        _SPELL.word_frequency.load_words(_EXTRA_VOCAB)
+        logger.info("Dicionário PT carregado: %d palavras",
+                    len(_SPELL.word_frequency.dictionary))
+    return _SPELL
+
 # Whitelist (mesma do content_review) — campos onde podemos enfileirar.
 CONTENT_FIELDS_BY_COLLECTION: Dict[str, List[str]] = {
     "students": ["observations"],
@@ -187,6 +227,123 @@ def should_skip_format(text: str) -> Optional[str]:
 
 
 # ============================================================
+# DETECTOR DE ORTOGRAFIA — Fase 2
+# ============================================================
+# Levenshtein simples (sem dependência adicional)
+def _levenshtein(a: str, b: str) -> int:
+    if a == b:
+        return 0
+    if not a:
+        return len(b)
+    if not b:
+        return len(a)
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        curr = [i] + [0] * len(b)
+        for j, cb in enumerate(b, 1):
+            curr[j] = min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + (0 if ca == cb else 1))
+        prev = curr
+    return prev[-1]
+
+
+_WORD_RE = re.compile(r"\b[A-Za-zÀ-ÿ]+\b")
+
+
+def _is_proper_noun(text: str, match: re.Match) -> bool:
+    """Heurística: palavra começa com maiúscula no MEIO da frase
+    (precedida por algo que não é início de sentença) → provável nome próprio."""
+    word = match.group(0)
+    if not word[0].isupper():
+        return False
+    start = match.start()
+    if start == 0:
+        return False
+    # Olha caracteres não-espaço anteriores
+    i = start - 1
+    while i >= 0 and text[i] == " ":
+        i -= 1
+    if i < 0:
+        return False
+    prev_char = text[i]
+    # Se o anterior é fim-de-sentença, é início de frase (não nome próprio)
+    return prev_char not in ".!?\n"
+
+
+def detect_spelling_issues(
+    text: str, min_confidence: float = 0.75,
+) -> Tuple[str, List[Dict[str, Any]]]:
+    """Detecta palavras potencialmente erradas e sugere correção.
+
+    Pulagem (não corrige):
+      - palavras < 4 chars
+      - siglas conhecidas (PRESERVED_ACRONYMS)
+      - tokens UPPER (provável sigla nova)
+      - nomes próprios (Capitalizada no meio da frase)
+      - palavras com dígitos
+      - palavras já no dicionário
+
+    Retorna (texto_corrigido, [{original, sugestao, confidence, position}, ...]).
+    Aplica todas correções com confidence ≥ min_confidence.
+    """
+    if not text or not isinstance(text, str):
+        return text, []
+
+    spell = _get_spell()
+    candidates: List[Dict[str, Any]] = []
+
+    for m in _WORD_RE.finditer(text):
+        word = m.group(0)
+        if len(word) < 4:
+            continue
+        if word.upper() in PRESERVED_ACRONYMS:
+            continue
+        if word.isupper():
+            continue  # provável sigla nova (deixa pro humano)
+        if _is_proper_noun(text, m):
+            continue
+        wlow = word.lower()
+        if wlow in spell:
+            continue
+        suggestion = spell.correction(wlow)
+        if not suggestion or suggestion == wlow:
+            continue
+        d = _levenshtein(wlow, suggestion)
+        confidence = max(0.0, 1 - d / max(len(wlow), 1))
+        if confidence < min_confidence:
+            continue
+        # Preserva caixa do original
+        if word[0].isupper():
+            suggestion = suggestion.capitalize()
+        candidates.append({
+            "original": word,
+            "sugestao": suggestion,
+            "confidence": round(confidence, 2),
+            "position": m.start(),
+        })
+
+    # Aplica de trás pra frente para preservar índices
+    new_text = text
+    for c in sorted(candidates, key=lambda x: -x["position"]):
+        s, e = c["position"], c["position"] + len(c["original"])
+        new_text = new_text[:s] + c["sugestao"] + new_text[e:]
+
+    return new_text, candidates
+
+
+def should_skip_spelling(text: str) -> Optional[str]:
+    """Pulagem específica para ortografia."""
+    if not text or not isinstance(text, str):
+        return "vazio"
+    if len(text.strip()) < 8:  # textos muito curtos não justificam scan
+        return "muito curto"
+    if is_likely_caps(text):
+        return "está em CAIXA ALTA — use Revisão de Conteúdo primeiro"
+    if _has_roman_or_struct(text):
+        return "contém romano/estrutura enumerada"
+    return None
+
+
+# ============================================================
 # QUEUE
 # ============================================================
 async def ensure_queue_indexes(db) -> None:
@@ -198,11 +355,12 @@ async def ensure_queue_indexes(db) -> None:
     logger.info("Índices de %s garantidos.", QUEUE_COLLECTION)
 
 
-async def _already_queued(db, col_name: str, doc_id: Any, field: str) -> bool:
+async def _already_queued(db, col_name: str, doc_id: Any, field: str, tipo: str) -> bool:
     existing = await db[QUEUE_COLLECTION].find_one({
         "source_collection": col_name,
         "source_id": str(doc_id),
         "source_field": field,
+        "tipo": tipo,
         "status": "pending",
     }, {"_id": 1})
     return existing is not None
@@ -211,16 +369,20 @@ async def _already_queued(db, col_name: str, doc_id: Any, field: str) -> bool:
 def _build_queue_item(
     col_name: str, doc: Dict[str, Any], field: str,
     original: str, sugestao: str, applied_rules: List[str],
+    tipo: str = "formatacao", confidence: Optional[float] = None,
+    spelling_corrections: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     return {
         "id": str(uuid.uuid4()),
-        "tipo": "formatacao",
+        "tipo": tipo,
         "source_collection": col_name,
         "source_id": str(doc.get("id") or doc.get("_id")),
         "source_field": field,
         "original": original,
         "sugestao": sugestao,
         "applied_rules": applied_rules,
+        "confidence": confidence,
+        "spelling_corrections": spelling_corrections or [],
         "status": "pending",
         "mantenedora_id": doc.get("mantenedora_id"),
         "context": {
@@ -241,15 +403,15 @@ async def _process_collection(db, col_name: str, fields: List[str], scan: bool):
     col = db[col_name]
     total = await col.count_documents({})
     if total == 0:
-        return {"colecao": col_name, "total": 0, "candidatos": 0, "pulados": 0,
-                "exemplos": [], "enfileirados": 0, "duplicados": 0}
+        return {"colecao": col_name, "total": 0, "candidatos_format": 0, "candidatos_spell": 0,
+                "pulados": 0, "exemplos": [], "enfileirados": 0, "duplicados": 0}
 
     projection = {"_id": 1, "id": 1, "mantenedora_id": 1, "full_name": 1,
                   "nome": 1, "name": 1, **{f: 1 for f in fields}}
     cursor = col.find({}, projection)
 
-    candidatos = 0; pulados = 0
-    enfileirados = 0; duplicados = 0
+    candidatos_format = 0; candidatos_spell = 0
+    pulados = 0; enfileirados = 0; duplicados = 0
     exemplos: List[Dict[str, Any]] = []
     ops: List[InsertOne] = []
 
@@ -258,37 +420,66 @@ async def _process_collection(db, col_name: str, fields: List[str], scan: bool):
             v = doc.get(f)
             if not isinstance(v, str) or not v.strip():
                 continue
-            if should_skip_format(v):
+            doc_id = doc.get("id") or doc.get("_id")
+
+            # ----- FASE 1: FORMATAÇÃO -----
+            if not should_skip_format(v):
+                new_v, rules = detect_format_issues(v)
+                if rules:
+                    candidatos_format += 1
+                    if len(exemplos) < 5:
+                        exemplos.append({"campo": f, "tipo": "formatacao",
+                                         "original": v[:120], "sugestao": new_v[:120],
+                                         "rules": rules})
+                    if scan:
+                        if await _already_queued(db, col_name, doc_id, f, "formatacao"):
+                            duplicados += 1
+                        else:
+                            ops.append(InsertOne(_build_queue_item(
+                                col_name, doc, f, v, new_v, rules, tipo="formatacao")))
+                            enfileirados += 1
+
+            # ----- FASE 2: ORTOGRAFIA -----
+            if not should_skip_spelling(v):
+                new_v_sp, corrections = detect_spelling_issues(v)
+                if corrections:
+                    candidatos_spell += 1
+                    if len(exemplos) < 5:
+                        exemplos.append({"campo": f, "tipo": "ortografia",
+                                         "original": v[:120], "sugestao": new_v_sp[:120],
+                                         "rules": [f"{c['original']}→{c['sugestao']}" for c in corrections[:3]]})
+                    if scan:
+                        if await _already_queued(db, col_name, doc_id, f, "ortografia"):
+                            duplicados += 1
+                        else:
+                            avg_conf = sum(c["confidence"] for c in corrections) / len(corrections)
+                            rules_list = [f"sp_{c['original']}_{c['sugestao']}" for c in corrections]
+                            ops.append(InsertOne(_build_queue_item(
+                                col_name, doc, f, v, new_v_sp, rules_list,
+                                tipo="ortografia", confidence=round(avg_conf, 2),
+                                spelling_corrections=corrections)))
+                            enfileirados += 1
+
+            else:
                 pulados += 1
-                continue
-            new_v, rules = detect_format_issues(v)
-            if not rules:
-                continue
-            candidatos += 1
-            if len(exemplos) < 5:
-                exemplos.append({"campo": f, "original": v[:120], "sugestao": new_v[:120],
-                                 "rules": rules})
-            if scan:
-                if await _already_queued(db, col_name, doc.get("id") or doc.get("_id"), f):
-                    duplicados += 1
-                    continue
-                ops.append(InsertOne(_build_queue_item(col_name, doc, f, v, new_v, rules)))
-                enfileirados += 1
-                if len(ops) >= BATCH_SIZE:
-                    await db[QUEUE_COLLECTION].bulk_write(ops, ordered=False); ops.clear()
+
+            if scan and len(ops) >= BATCH_SIZE:
+                await db[QUEUE_COLLECTION].bulk_write(ops, ordered=False); ops.clear()
     if scan and ops:
         await db[QUEUE_COLLECTION].bulk_write(ops, ordered=False)
 
-    return {"colecao": col_name, "total": total, "candidatos": candidatos, "pulados": pulados,
-            "exemplos": exemplos, "enfileirados": enfileirados, "duplicados": duplicados}
+    return {"colecao": col_name, "total": total,
+            "candidatos_format": candidatos_format, "candidatos_spell": candidatos_spell,
+            "pulados": pulados, "exemplos": exemplos,
+            "enfileirados": enfileirados, "duplicados": duplicados}
 
 
 async def cmd_dry_run(db, cols: List[str]) -> int:
     print()
-    print("=" * 92)
-    print(f"{'COLEÇÃO':<22} {'TOTAL':>8} {'CANDIDATOS':>12} {'PULADOS':>10}   {'EXEMPLO'}")
-    print("-" * 92)
-    grand_total = grand_cand = grand_skip = 0
+    print("=" * 102)
+    print(f"{'COLEÇÃO':<22} {'TOTAL':>8} {'FORMAT':>8} {'ORTOG':>8} {'PULADOS':>10}   {'EXEMPLO'}")
+    print("-" * 102)
+    grand_total = grand_fmt = grand_sp = grand_skip = 0
     rows = []
     for col in cols:
         if col not in CONTENT_FIELDS_BY_COLLECTION:
@@ -296,19 +487,21 @@ async def cmd_dry_run(db, cols: List[str]) -> int:
         r = await _process_collection(db, col, CONTENT_FIELDS_BY_COLLECTION[col], scan=False)
         rows.append(r)
         ex = r["exemplos"][0]["original"][:24] + "…" if r["exemplos"] else ""
-        print(f"{r['colecao']:<22} {r['total']:>8} {r['candidatos']:>12} "
-              f"{r['pulados']:>10}   {ex}")
-        grand_total += r["total"]; grand_cand += r["candidatos"]; grand_skip += r["pulados"]
-    print("-" * 92)
-    print(f"{'TOTAL':<22} {grand_total:>8} {grand_cand:>12} {grand_skip:>10}")
-    print("=" * 92)
+        print(f"{r['colecao']:<22} {r['total']:>8} {r['candidatos_format']:>8} "
+              f"{r['candidatos_spell']:>8} {r['pulados']:>10}   {ex}")
+        grand_total += r["total"]; grand_fmt += r["candidatos_format"]
+        grand_sp += r["candidatos_spell"]; grand_skip += r["pulados"]
+    print("-" * 102)
+    print(f"{'TOTAL':<22} {grand_total:>8} {grand_fmt:>8} {grand_sp:>8} {grand_skip:>10}")
+    print("=" * 102)
     print()
     for r in rows:
         if not r["exemplos"]:
             continue
         print(f"\n  ● {r['colecao']} — amostras:")
         for e in r["exemplos"]:
-            print(f"    [{e['campo']}] regras: {e['rules']}")
+            tipo_emoji = "🔧" if e["tipo"] == "formatacao" else "✏️"
+            print(f"    {tipo_emoji} [{e['campo']}/{e['tipo']}] regras: {e['rules']}")
             print(f"       ❌ {e['original']}")
             print(f"       ✅ {e['sugestao']}")
     print()
@@ -325,13 +518,15 @@ async def cmd_scan(db, cols: List[str]) -> int:
         if col not in CONTENT_FIELDS_BY_COLLECTION:
             logger.warning("Fora da whitelist: %s", col); continue
         r = await _process_collection(db, col, CONTENT_FIELDS_BY_COLLECTION[col], scan=True)
-        logger.info("scan: %s", {k: r[k] for k in ["colecao", "total", "enfileirados", "duplicados", "pulados"]})
+        logger.info("scan: %s", {k: r[k] for k in [
+            "colecao", "total", "enfileirados", "duplicados",
+            "candidatos_format", "candidatos_spell"]})
         total_q += r["enfileirados"]; total_d += r["duplicados"]
     print()
     print("=" * 82)
     print("✅ SCAN CONCLUÍDO")
     print("=" * 82)
-    print(f"  Sugestões enfileiradas: {total_q}")
+    print(f"  Sugestões enfileiradas: {total_q}  (formatação + ortografia)")
     print(f"  Já pendentes (ignorados): {total_d}")
     print()
     print("  👉 Revisar em: /admin/text-improvement")
