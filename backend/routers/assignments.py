@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from models import *
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create
+from utils.carga_horaria_calculator import calcular_carga_por_lotacao
 
 
 router = APIRouter(tags=["Lotações"])
@@ -62,6 +63,15 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             school = await db.schools.find_one({"id": assign['school_id']}, {"_id": 0, "name": 1})
             if school:
                 assign['school_name'] = school['name']
+
+            # [Fev/2026] CH derivada (fonte única). Substitui o campo manual antigo.
+            if assign.get('status') == 'ativo':
+                try:
+                    assign['carga_horaria_calculada'] = await calcular_carga_por_lotacao(
+                        db, assign['staff_id'], assign['school_id'], modo='atual'
+                    )
+                except Exception:  # noqa: BLE001
+                    assign['carga_horaria_calculada'] = None
 
         return assignments
 

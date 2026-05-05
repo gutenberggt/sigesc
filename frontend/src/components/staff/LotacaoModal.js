@@ -199,7 +199,12 @@ export const LotacaoModal = ({
                             {lot.tipo_lotacao === 'anexa' && <span className="ml-1.5 text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Anexa</span>}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {FUNCOES[lot.funcao]} {TURNOS[lot.turno] ? `\u2022 ${TURNOS[lot.turno]}` : ''} {lot.carga_horaria_calculada != null ? `\u2022 ${lot.carga_horaria_calculada}h/sem (calc.)` : (lot.carga_horaria ? `\u2022 ${lot.carga_horaria}h/sem` : '')} {lot.data_inicio ? `\u2022 Desde ${lot.data_inicio}` : ''}
+                            {[
+                              FUNCOES[lot.funcao],
+                              TURNOS[lot.turno],
+                              `CH ${lot.carga_horaria_calculada != null ? lot.carga_horaria_calculada : (lot.carga_horaria || 0)}h/Semana`,
+                              lot.data_inicio ? `Desde ${lot.data_inicio}` : null,
+                            ].filter(Boolean).join(' \u2022 ')}
                           </p>
                         </div>
                         {canDelete && (

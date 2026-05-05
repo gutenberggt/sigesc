@@ -550,32 +550,40 @@ export const useStaff = () => {
     setShowStaffModal(true);
   }, []);
   
-  const handleEditStaff = useCallback((staff) => {
-    setEditingStaff(staff);
+  const handleEditStaff = useCallback(async (staff) => {
+    // [Fev/2026] Rebusca o staff do backend para ter `carga_horaria_calculada`
+    // sempre fresh (a listagem pode estar em cache enquanto o usuário cria alocações).
+    let freshStaff = staff;
+    try {
+      freshStaff = await staffAPI.get(staff.id);
+    } catch (e) {
+      // Fallback silencioso: mantém o objeto da listagem se a busca falhar.
+    }
+    setEditingStaff(freshStaff);
     setStaffForm({
-      nome: staff.nome || '',
-      cpf: staff.cpf || '',
-      foto_url: staff.foto_url || '',
-      data_nascimento: staff.data_nascimento || '',
-      sexo: (staff.sexo || '').toLowerCase(),
-      cor_raca: (staff.cor_raca || '').toLowerCase().replace(' ', '_'),
-      celular: staff.celular || '',
-      email: staff.email || '',
-      cargo: (staff.cargo || 'professor').toLowerCase(),
-      cargo_especifico: staff.cargo_especifico || '',
-      tipo_vinculo: (staff.tipo_vinculo || 'efetivo').toLowerCase(),
-      data_admissao: staff.data_admissao || '',
-      carga_horaria_semanal: staff.carga_horaria_semanal || '',
-      formacoes: staff.formacoes || [],
-      especializacoes: staff.especializacoes || [],
-      status: (staff.status || 'ativo').toLowerCase(),
-      motivo_afastamento: staff.motivo_afastamento || '',
-      data_afastamento: staff.data_afastamento || '',
-      previsao_retorno: staff.previsao_retorno || '',
-      observacoes: staff.observacoes || ''
+      nome: freshStaff.nome || '',
+      cpf: freshStaff.cpf || '',
+      foto_url: freshStaff.foto_url || '',
+      data_nascimento: freshStaff.data_nascimento || '',
+      sexo: (freshStaff.sexo || '').toLowerCase(),
+      cor_raca: (freshStaff.cor_raca || '').toLowerCase().replace(' ', '_'),
+      celular: freshStaff.celular || '',
+      email: freshStaff.email || '',
+      cargo: (freshStaff.cargo || 'professor').toLowerCase(),
+      cargo_especifico: freshStaff.cargo_especifico || '',
+      tipo_vinculo: (freshStaff.tipo_vinculo || 'efetivo').toLowerCase(),
+      data_admissao: freshStaff.data_admissao || '',
+      carga_horaria_semanal: freshStaff.carga_horaria_semanal || '',
+      formacoes: freshStaff.formacoes || [],
+      especializacoes: freshStaff.especializacoes || [],
+      status: (freshStaff.status || 'ativo').toLowerCase(),
+      motivo_afastamento: freshStaff.motivo_afastamento || '',
+      data_afastamento: freshStaff.data_afastamento || '',
+      previsao_retorno: freshStaff.previsao_retorno || '',
+      observacoes: freshStaff.observacoes || ''
     });
     const API_URL = process.env.REACT_APP_BACKEND_URL;
-    setFotoPreview(staff.foto_url ? `${API_URL}${staff.foto_url}` : null);
+    setFotoPreview(freshStaff.foto_url ? `${API_URL}${freshStaff.foto_url}` : null);
     setFotoFile(null);
     setNovaFormacao('');
     setNovaEspecializacao('');
