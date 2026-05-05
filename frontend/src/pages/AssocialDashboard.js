@@ -5,6 +5,7 @@ import { hasRole } from '@/utils/permissions';
 import { studentsAPI, attendanceAPI, schoolsAPI, classesAPI } from '@/services/api';
 import { formatCPF } from '@/utils/formatters';
 import { Search, User, Calendar, School, BookOpen, Percent, LogOut, X, Loader2, FileText } from 'lucide-react';
+import { normalizeForSearch } from '@/utils/textSearch';
 
 export default function AssocialDashboard() {
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ export default function AssocialDashboard() {
     
     if (type === 'name') {
       results = allStudents.filter(student => 
-        student.full_name?.toLowerCase().includes(termLower)
+        student.full_name && normalizeForSearch(student.full_name).includes(normalizeForSearch(searchTerm))
       );
     } else {
       results = allStudents.filter(student => 

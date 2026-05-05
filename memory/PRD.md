@@ -32,7 +32,13 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
-### Bug Fix Crítico — Histórico e Certificado sem código/QR de validação **[04/Mai/2026]**
+### Busca Sugestiva + Accent-Insensitive em Toda a UI **[04/Mai/2026]**
+- Novo helper `frontend/src/utils/textSearch.js` com `normalizeForSearch()` (NFD + lowercase + remove cedilha) e `highlightSegments()` (realça trecho casado).
+- **Declarações Escolares** (`/admin/declaracoes`): substituiu lista pré-carregada com filtro local por **autocomplete sugestivo via backend** a partir do **3º caractere**, debounced 250ms, accent + case insensitive (usa `nome_busca`). Highlight do trecho casado, navegação por teclado (↑ ↓ Enter Esc), botão limpar (X), spinner durante busca, mensagem "Continue digitando" quando < 3 chars.
+- **Filtros locais aplicados ao normalizeForSearch** (paralelo): `Events.js`, `Staff.js` (lotacoes/alocacoes), `Announcements.js`, `MessageLogs.js`, `VaccineDashboard.js`, `AssocialDashboard.js`, `PreMatriculaManagement.jsx`. Agora `joao` acha `João`, `concei` acha `Conceição`.
+- Validado E2E: `joa` → `JOAO SANTOS` com highlight ✅, `concei` → 1 sugestão ✅, hint < 3 chars visível ✅.
+
+
 **Sintoma**: PDFs de Matrícula/Frequência/Escolaridade já tinham código + QR, mas Histórico Escolar e Certificado de Conclusão eram emitidos SEM código nem QR — não podiam ser validados pelo portal público.
 
 **Origem**: as rotas `GET /api/documents/historico-escolar/{id}` e `GET /api/documents/certificado/{id}` chamavam diretamente `generate_*_pdf` sem criar `snapshot` antes. Os geradores em `pdf/historico_escolar.py` e `pdf/certificado.py` também não tinham slot para receber `verification_code`.

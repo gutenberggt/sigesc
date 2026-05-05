@@ -12,7 +12,7 @@
  * QR code no PDF e validade respeitando política por tipo:
  *   matrícula=90d · frequência=30d · escolaridade=180d
  */
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -20,7 +20,7 @@ import {
   CheckCircle2, AlertTriangle, Clock, User, Hash,
   Loader2, X,
 } from 'lucide-react';
-import { studentsAPI } from '@/services/api';
+import { highlightSegments } from '@/utils/textSearch';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -46,8 +46,13 @@ const DOC_TYPES = [
 ];
 
 export default function SchoolDocuments() {
-  const [students, setStudents] = useState([]);
   const [studentQuery, setStudentQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const debounceRef = useRef(null);
+  const searchBoxRef = useRef(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [docType, setDocType] = useState('matricula');
   const [purpose, setPurpose] = useState('');
@@ -59,13 +64,6 @@ export default function SchoolDocuments() {
   const [history, setHistory] = useState([]);
   const [toast, setToast] = useState(null);
 
-  const loadStudents = useCallback(async () => {
-    try {
-      const data = await studentsAPI.list();
-      setStudents(data || []);
-    } catch { /* ignore */ }
-  }, []);
-
   const loadHistory = useCallback(async (studentId = null) => {
     try {
       const url = studentId
@@ -76,11 +74,71 @@ export default function SchoolDocuments() {
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => { loadStudents(); loadHistory(); }, [loadStudents, loadHistory]);
+  useEffect(() => { loadHistory(); }, [loadHistory]);
 
-  const filteredStudents = studentQuery
-    ? students.filter(s => (s.full_name || '').toLowerCase().includes(studentQuery.toLowerCase()))
-    : students.slice(0, 15);
+  // Busca sugestiva: debounced, a partir do 3º caractere, accent-insensitive
+  // (backend usa campo `nome_busca`). Mantém autocomplete leve (até 8 itens).
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const trimmed = studentQuery.trim();
+    if (trimmed.length < 3) {
+      setSuggestions([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const r = await axios.get(`${API}/students`, {
+          params: { search: trimmed, limit: 8, status: 'active' },
+        });
+        const items = r.data?.items || r.data || [];
+        setSuggestions(Array.isArray(items) ? items.slice(0, 8) : []);
+        setActiveIdx(-1);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 250);
+    return () => debounceRef.current && clearTimeout(debounceRef.current);
+  }, [studentQuery]);
+
+  // Fecha o dropdown ao clicar fora
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target)) {
+        setShowSuggest(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  const pickStudent = (student) => {
+    setSelectedStudent(student);
+    setStudentQuery(student.full_name || '');
+    setShowSuggest(false);
+    setSuggestions([]);
+    setActiveIdx(-1);
+    loadHistory(student.id);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!showSuggest || suggestions.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIdx(i => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIdx(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter' && activeIdx >= 0) {
+      e.preventDefault();
+      pickStudent(suggestions[activeIdx]);
+    } else if (e.key === 'Escape') {
+      setShowSuggest(false);
+    }
+  };
 
   const resetSpecifics = () => {
     setFrequencia(''); setBimestre(''); setSerieConcluida('');
@@ -200,36 +258,110 @@ export default function SchoolDocuments() {
           <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-1">
             <User className="h-4 w-4" /> 1. Selecione o aluno
           </h2>
-          <div className="relative mb-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+
+          <div className="relative" ref={searchBoxRef}>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             <input
               type="text"
               value={studentQuery}
-              onChange={e => setStudentQuery(e.target.value)}
-              placeholder="Buscar por nome..."
-              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded text-sm"
+              onChange={e => {
+                setStudentQuery(e.target.value);
+                setSelectedStudent(null);
+                setShowSuggest(true);
+              }}
+              onFocus={() => setShowSuggest(true)}
+              onKeyDown={handleKeyDown}
+              placeholder="Digite ao menos 3 letras (acentos são ignorados)..."
+              className="w-full pl-9 pr-9 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               data-testid="school-docs-student-search"
+              autoComplete="off"
+              spellCheck={false}
             />
-          </div>
-          <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
-            {filteredStudents.length === 0 ? (
-              <div className="text-xs text-gray-500 py-3 text-center">Nenhum aluno encontrado.</div>
-            ) : filteredStudents.map(s => (
+            {studentQuery && (
               <button
-                key={s.id}
-                onClick={() => { setSelectedStudent(s); loadHistory(s.id); }}
-                className={`w-full text-left py-2 px-2 rounded hover:bg-indigo-50 ${
-                  selectedStudent?.id === s.id ? 'bg-indigo-100 text-indigo-900' : 'text-gray-700'
-                }`}
-                data-testid={`school-docs-student-${s.id}`}
+                type="button"
+                onClick={() => {
+                  setStudentQuery('');
+                  setSelectedStudent(null);
+                  setSuggestions([]);
+                  setShowSuggest(false);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                title="Limpar"
+                data-testid="school-docs-clear-search"
               >
-                <div className="text-sm font-semibold">{s.full_name}</div>
-                <div className="text-[11px] text-gray-500">
-                  {s.birth_date || '—'} · {s.enrollment_number || 'sem matrícula'}
-                </div>
+                <X className="h-4 w-4" />
               </button>
-            ))}
+            )}
+            {searching && (
+              <Loader2 className="absolute right-9 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500 animate-spin" />
+            )}
+
+            {/* Mensagem de ajuda quando < 3 chars */}
+            {showSuggest && studentQuery.trim().length > 0 && studentQuery.trim().length < 3 && (
+              <div
+                className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs text-gray-500 text-center"
+                data-testid="search-hint-min-chars"
+              >
+                Continue digitando — busca ativa a partir de 3 caracteres.
+              </div>
+            )}
+
+            {/* Dropdown sugestivo */}
+            {showSuggest && studentQuery.trim().length >= 3 && (
+              <div
+                className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto"
+                data-testid="school-docs-suggest-dropdown"
+              >
+                {!searching && suggestions.length === 0 ? (
+                  <div className="px-3 py-3 text-xs text-gray-500 text-center">
+                    Nenhum aluno encontrado para “{studentQuery}”.
+                  </div>
+                ) : (
+                  suggestions.map((s, idx) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => pickStudent(s)}
+                      onMouseEnter={() => setActiveIdx(idx)}
+                      className={`w-full text-left px-3 py-2 border-b border-gray-100 last:border-b-0 transition-colors ${
+                        activeIdx === idx ? 'bg-indigo-50' : 'hover:bg-gray-50'
+                      }`}
+                      data-testid={`school-docs-suggest-${s.id}`}
+                    >
+                      <div className="text-sm font-semibold text-gray-900">
+                        {highlightSegments(s.full_name || '', studentQuery).map((seg, i) =>
+                          seg.match
+                            ? <mark key={i} className="bg-yellow-200 text-gray-900 rounded-sm px-0.5">{seg.text}</mark>
+                            : <span key={i}>{seg.text}</span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-gray-500 mt-0.5">
+                        {s.birth_date ? `nasc. ${s.birth_date}` : '—'}
+                        {s.enrollment_number ? ` · matr. ${s.enrollment_number}` : ' · sem matrícula'}
+                        {s.school_name ? ` · ${s.school_name}` : ''}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
+
+          {selectedStudent && (
+            <div
+              className="mt-3 bg-indigo-50 border border-indigo-200 rounded px-3 py-2 text-xs text-indigo-900"
+              data-testid="school-docs-selected-student"
+            >
+              <div className="font-semibold">Selecionado:</div>
+              <div className="font-medium">{selectedStudent.full_name}</div>
+              <div className="text-[11px] text-indigo-700 mt-0.5">
+                {selectedStudent.enrollment_number || 'sem matrícula'}
+                {selectedStudent.birth_date ? ` · ${selectedStudent.birth_date}` : ''}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Formulário emissão */}

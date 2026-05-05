@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { usePermissions } from '@/hooks/usePermissions';
+import { normalizeForSearch } from '@/utils/textSearch';
 import { 
   Calendar,
   Plus,
@@ -226,9 +227,9 @@ export const Events = () => {
   
   // Filtra eventos
   const filteredEvents = events.filter(event => {
-    const matchesSearch = !searchTerm || 
-      event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = !searchTerm ||
+      normalizeForSearch(event.name).includes(normalizeForSearch(searchTerm)) ||
+      normalizeForSearch(event.description).includes(normalizeForSearch(searchTerm));
     return matchesSearch;
   });
   

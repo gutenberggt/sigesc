@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/Modal';
 import { useAuth } from '@/contexts/AuthContext';
 import { messageLogsAPI, uploadAPI } from '@/services/api';
+import { normalizeForSearch } from '@/utils/textSearch';
 import { 
   Home, FileText, User, Search, Download, Trash2, MessageCircle,
   Calendar, Paperclip, ChevronRight, AlertTriangle, RefreshCw
@@ -106,8 +107,8 @@ const MessageLogs = () => {
 
   // Filtrar usuários
   const filteredUsers = usersWithLogs.filter(u =>
-    u.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    u.full_name && normalizeForSearch(u.full_name).includes(normalizeForSearch(searchTerm)) ||
+    u.email && normalizeForSearch(u.email).includes(normalizeForSearch(searchTerm))
   );
 
   return (

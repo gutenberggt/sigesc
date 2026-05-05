@@ -258,11 +258,11 @@ export default function PreMatriculaManagement() {
   // Filtra por termo de busca
   const filteredPreMatriculas = preMatriculas.filter(pm => {
     if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
+    const term = normalizeForSearch(searchTerm);
     return (
-      pm.aluno_nome?.toLowerCase().includes(term) ||
-      pm.responsavel_nome?.toLowerCase().includes(term) ||
-      pm.responsavel_telefone?.includes(term)
+      normalizeForSearch(pm.aluno_nome).includes(term) ||
+      normalizeForSearch(pm.responsavel_nome).includes(term) ||
+      pm.responsavel_telefone?.includes(searchTerm)
     );
   });
 

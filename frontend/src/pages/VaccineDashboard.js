@@ -5,6 +5,7 @@ import { studentsAPI, schoolsAPI, classesAPI } from '@/services/api';
 import { formatCPF } from '@/utils/formatters';
 import { Search, User, Calendar, School, BookOpen, LogOut, X, Loader2, ShieldCheck, ShieldAlert, ShieldQuestion } from 'lucide-react';
 import axios from 'axios';
+import { normalizeForSearch } from '@/utils/textSearch';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -79,7 +80,7 @@ export default function VaccineDashboard() {
     const termClean = term.replace(/\D/g, '');
     let results = [];
     if (type === 'name') {
-      results = allStudents.filter(student => student.full_name?.toLowerCase().includes(termLower));
+      results = allStudents.filter(student => normalizeForSearch(student.full_name).includes(normalizeForSearch(searchTerm)));
     } else {
       results = allStudents.filter(student => student.cpf?.replace(/\D/g, '').includes(termClean));
     }

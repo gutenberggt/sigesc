@@ -5,6 +5,7 @@ import {
   Users, Building, BookOpen, User, ChevronDown, Filter, Home
 } from 'lucide-react';
 import { announcementsAPI, schoolsAPI, classesAPI, usersAPI } from '@/services/api';
+import { normalizeForSearch } from '@/utils/textSearch';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasRole } from '@/utils/permissions';
 import { Layout } from '@/components/Layout';
@@ -93,10 +94,10 @@ const Announcements = () => {
   const filteredAnnouncements = announcements.filter(a => {
     // Search filter
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      if (!a.title.toLowerCase().includes(query) && 
-          !a.content.toLowerCase().includes(query) &&
-          !a.sender_name.toLowerCase().includes(query)) {
+      const query = normalizeForSearch(searchQuery);
+      if (!normalizeForSearch(a.title).includes(query) &&
+          !normalizeForSearch(a.content).includes(query) &&
+          !normalizeForSearch(a.sender_name).includes(query)) {
         return false;
       }
     }

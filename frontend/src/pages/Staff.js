@@ -3,6 +3,7 @@ import { Home, Users, Building2, GraduationCap, UserPlus, Search } from 'lucide-
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { useStaff } from '@/hooks/useStaff';
+import { normalizeForSearch } from '@/utils/textSearch';
 import {
   CARGOS,
   STATUS_SERVIDOR,
@@ -107,14 +108,14 @@ const Staff = () => {
                   : staff.activeTab === 'lotacoes'
                     ? staff.lotacoes.filter(l => 
                         (!staff.searchTerm || 
-                          l.staff_name?.toLowerCase().includes(staff.searchTerm.toLowerCase()) ||
-                          l.staff_matricula?.toLowerCase().includes(staff.searchTerm.toLowerCase())
+                          normalizeForSearch(l.staff_name).includes(normalizeForSearch(staff.searchTerm)) ||
+                          normalizeForSearch(l.staff_matricula).includes(normalizeForSearch(staff.searchTerm))
                         ) &&
                         (!staff.filterSchool || l.school_id === staff.filterSchool)
                       ).length
                     : staff.alocacoes.filter(a =>
                         (!staff.searchTerm ||
-                          a.staff_name?.toLowerCase().includes(staff.searchTerm.toLowerCase())
+                          normalizeForSearch(a.staff_name).includes(normalizeForSearch(staff.searchTerm))
                         ) &&
                         (!staff.filterSchool || a.school_id === staff.filterSchool)
                       ).length
