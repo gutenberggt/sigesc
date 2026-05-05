@@ -38,6 +38,11 @@ class BulkApproveRequest(BaseModel):
     ids: List[str] = Field(..., min_length=1, max_length=200)
 
 
+class BulkApproveByRuleRequest(BaseModel):
+    rule: str = Field(..., min_length=1, max_length=64)
+    confirm: bool = Field(default=False)
+
+
 def setup_router(db, **_kwargs):
 
     async def _require_admin(request: Request) -> dict:
@@ -195,5 +200,66 @@ def setup_router(db, **_kwargs):
                 logger.exception("bulk-approve falhou em %s", item_id)
                 errors.append({"id": item_id, "error": str(e)})
         return {"approved": ok, "skipped": skipped, "errors": errors}
+
+    # ------------------------------------------------------------------
+    # RULES SUMMARY (apenas itens com regra ÚNICA)
+    # ------------------------------------------------------------------
+    @router.get("/rules-summary")
+    async def rules_summary(request: Request):
+        """Retorna contagem de itens pendentes agrupados por regra,
+        considerando APENAS itens em que aquela é a ÚNICA regra aplicada
+        (mais seguro para aprovação em massa)."""
+        await _require_admin(request)
+        pipeline = [
+            {"$match": {
+                "status": "pending",
+                "$expr": {"$eq": [{"$size": "$applied_rules"}, 1]},
+            }},
+            {"$group": {
+                "_id": {"$arrayElemAt": ["$applied_rules", 0]},
+                "count": {"$sum": 1},
+            }},
+            {"$sort": {"count": -1}},
+        ]
+        rows = []
+        async for doc in db[QUEUE].aggregate(pipeline):
+            rows.append({"rule": doc["_id"], "count": doc["count"]})
+        return {"single_rule_groups": rows}
+
+    # ------------------------------------------------------------------
+    # BULK APPROVE BY RULE (filtro: itens onde applied_rules == [rule])
+    # ------------------------------------------------------------------
+    @router.post("/bulk-approve-by-rule")
+    async def bulk_approve_by_rule(body: BulkApproveByRuleRequest, request: Request):
+        """Aprova em massa TODOS os itens pendentes onde a regra `body.rule`
+        é a ÚNICA aplicada. Limite de segurança: 500 itens por chamada."""
+        user = await _require_admin(request)
+        if not body.confirm:
+            raise HTTPException(400, "Confirmação requerida (confirm=true).")
+
+        filt = {
+            "status": "pending",
+            "applied_rules": [body.rule],  # match exato da lista
+        }
+        items = await db[QUEUE].find(filt, {"_id": 0}).limit(500).to_list(500)
+
+        ok = 0; errors: List[dict] = []
+        for item in items:
+            try:
+                await _apply_to_source(item, item["sugestao"])
+                await db[QUEUE].update_one({"id": item["id"]}, {"$set": {
+                    "status": "approved",
+                    "reviewed_at": datetime.now(timezone.utc),
+                    "reviewed_by": user.get("id"),
+                }})
+                ok += 1
+            except HTTPException as e:
+                errors.append({"id": item["id"], "error": e.detail})
+            except Exception as e:  # noqa: BLE001
+                logger.exception("bulk-approve-by-rule falhou em %s", item["id"])
+                errors.append({"id": item["id"], "error": str(e)})
+
+        return {"approved": ok, "matched": len(items), "errors": errors,
+                "rule": body.rule}
 
     return router

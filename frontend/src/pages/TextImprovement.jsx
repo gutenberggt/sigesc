@@ -84,18 +84,21 @@ export default function TextImprovement() {
   const [contextData, setContextData] = useState(null);
   const [contextLoading, setContextLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [rulesSummary, setRulesSummary] = useState([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params = { status: statusFilter, limit: 100 };
       if (collectionFilter) params.collection = collectionFilter;
-      const [listRes, statsRes] = await Promise.all([
+      const [listRes, statsRes, rulesRes] = await Promise.all([
         axios.get(`${API}/admin/text-improvement`, { params, headers: authHeaders() }),
         axios.get(`${API}/admin/text-improvement/stats`, { headers: authHeaders() }),
+        axios.get(`${API}/admin/text-improvement/rules-summary`, { headers: authHeaders() }),
       ]);
       setItems(listRes.data.items || []);
       setStats(statsRes.data || { totals: {}, per_collection: {} });
+      setRulesSummary(rulesRes.data.single_rule_groups || []);
       setSelected(new Set());
     } catch (err) {
       toast.error('Falha ao carregar fila de higienização');
@@ -168,6 +171,26 @@ export default function TextImprovement() {
       toast.error(err.response?.data?.detail || 'Falha ao carregar contexto');
       setContextItem(null);
     } finally { setContextLoading(false); }
+  };
+
+  const handleBulkApproveByRule = async (rule, count) => {
+    if (!window.confirm(
+      `Aprovar TODAS as ${count} sugestões com regra única "${ruleLabel(rule)}"?\n\n` +
+      `Apenas itens onde esta é a ÚNICA regra aplicada serão aprovados.\n` +
+      `Os documentos originais serão atualizados imediatamente.`
+    )) return;
+    setActionLoading(true);
+    try {
+      const res = await axios.post(
+        `${API}/admin/text-improvement/bulk-approve-by-rule`,
+        { rule, confirm: true },
+        { headers: authHeaders() }
+      );
+      toast.success(`${res.data.approved} aprovações em massa concluídas (${res.data.errors?.length || 0} erros)`);
+      await fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Falha em aprovação em massa');
+    } finally { setActionLoading(false); }
   };
 
   const toggleSelected = (id) => {
@@ -243,6 +266,38 @@ export default function TextImprovement() {
             )}
           </div>
         </div>
+
+        {/* Bulk approve by rule (apenas regras únicas pendentes) */}
+        {statusFilter === 'pending' && rulesSummary.length > 0 && (
+          <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 mb-4" data-testid="bulk-by-rule-bar">
+            <div className="flex items-start gap-2 mb-3">
+              <Sparkles className="w-4 h-4 text-violet-600 mt-0.5" />
+              <div>
+                <div className="text-sm font-semibold text-violet-900">Aprovação em massa por regra única</div>
+                <div className="text-xs text-violet-700 mt-0.5">
+                  Aprove todas as sugestões que tenham <strong>apenas uma regra detectada</strong> de cada vez.
+                  Casos com múltiplas regras combinadas continuam exigindo revisão individual.
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {rulesSummary.map(({ rule, count }) => (
+                <Button
+                  key={rule}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleBulkApproveByRule(rule, count)}
+                  disabled={actionLoading}
+                  className="bg-white border-violet-300 text-violet-900 hover:bg-violet-100"
+                  data-testid={`bulk-by-rule-${rule}`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-violet-600" />
+                  Aprovar todas as <strong className="mx-1">{count}</strong> "{ruleLabel(rule)}"
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center p-12 text-slate-500">
