@@ -30,6 +30,7 @@ export const DASHBOARD_MENU_GROUPS = [
       { label: 'Plano de Ação', icon: Zap, color: 'amber', route: '/admin/plano-acao', testId: 'nav-plano-acao-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isSecretario || c.isDiretor || c.isCoordenador },
       { label: 'Declarações Escolares', icon: ScrollText, color: 'cyan', route: '/admin/declaracoes', testId: 'nav-school-documents-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isSecretario || c.isDiretor || c.hasRole('auxiliar_secretaria') },
       { label: 'Validar Documentos', icon: ShieldCheck, color: 'emerald', route: '/admin/document-validator', testId: 'nav-document-validator-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isSecretario || c.isDiretor || c.isCoordenador || c.hasRole('auxiliar_secretaria') },
+      { label: 'Revisão de Conteúdo', icon: ClipboardCheck, color: 'blue', route: '/admin/content-review', testId: 'nav-content-review-button', visible: c => c.isSuperAdmin || c.isAdmin || c.hasRole('admin_teste') },
       { label: 'Multi-Tenant', icon: ShieldCheck, color: 'emerald', route: '/admin/tenant', testId: 'nav-tenant-admin-button', visible: c => c.isSuperAdmin },
     ],
   },

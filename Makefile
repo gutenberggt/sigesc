@@ -45,3 +45,18 @@ migrate-rollback: ## Reverte migração (ex: make migrate-rollback TS=20260505T1
 		exit 2; \
 	fi
 	@bash $(MIGRATION_RUNNER) rollback $(TS)
+
+# ------------------------------------------------------------
+# Normalização de conteúdo textual (CAPS → sentence case)
+# ------------------------------------------------------------
+.PHONY: content-dry-run
+content-dry-run: ## Relatório de candidatos a normalização de conteúdo (sem alterar)
+	@cd $(BACKEND_DIR) && $(PYTHON) scripts/normalize_content.py --dry-run
+
+.PHONY: content-scan
+content-scan: ## Enfileira sugestões em content_review_queue (admin revisa em /admin/content-review)
+	@cd $(BACKEND_DIR) && $(PYTHON) scripts/normalize_content.py --scan
+
+.PHONY: content-clear-pending
+content-clear-pending: ## Remove itens pending da fila (não afeta docs originais)
+	@cd $(BACKEND_DIR) && $(PYTHON) scripts/normalize_content.py --clear-pending

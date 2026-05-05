@@ -86,6 +86,7 @@ from routers import snapshots as snapshots_mod
 from routers import verifiable_docs as verifiable_docs_mod
 from routers import school_documents as school_docs_mod
 from routers import monthly_reports as monthly_reports_mod
+from routers import content_review as content_review_mod
 
 # Utilitários compartilhados
 from utils.connection_manager import ConnectionManager, ActiveSessionsTracker
@@ -661,6 +662,7 @@ app.include_router(_vd_public, prefix="/api")
 app.include_router(_vd_admin, prefix="/api")
 app.include_router(school_docs_mod.setup_router(db), prefix="/api")
 app.include_router(monthly_reports_mod.setup_router(db), prefix="/api")
+app.include_router(content_review_mod.setup_router(db), prefix="/api")
 
 # Include the legacy api_router AFTER modular routers
 app.include_router(api_router)

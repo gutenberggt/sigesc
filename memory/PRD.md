@@ -135,6 +135,49 @@ python /app/backend/scripts/normalize_names_back.py --apply --collection student
 - `/app/backend/scripts/run_migration.sh` — runner shell com dual-gate (dry-run obrigatório antes de --apply), prompts Y/n por fase, healthcheck pós-migração, logging em `/var/log/sigesc/migracao_nomes_<TS>.log` e rollback global por timestamp
 - Em produção (Coolify): após "Save to Github" + deploy, basta entrar no terminal do container backend e rodar `make migrate-names` (ou `make migrate-names-yes` para CI)
 
+### Normalização de Conteúdo Textual — Fila de Revisão [05/Mai/2026]
+**Princípio**: nome ≠ texto. Conteúdo (observações, descrições, pareceres) usa
+SENTENCE CASE (não Title Case) e exige revisão humana antes de gravar — o
+script gera sugestões e enfileira; admin aprova caso a caso.
+
+**Fluxo**:
+1. `make content-dry-run` → relatório read-only
+2. `make content-scan` → enfileira sugestões em `content_review_queue` (NÃO grava)
+3. Admin revisa em `/admin/content-review` (Aprovar / Rejeitar / Editar / Lote)
+
+**Whitelist atual** (campo a campo):
+- `students.observations`
+- `student_history.observations`
+- `enrollments.observations`
+- `staff.observacoes`
+- (futuros: `classes.descricao/observacoes` quando schema for ampliado)
+
+**Regras de preservação** (script `normalize_content.py`):
+- Siglas (AEE, BNCC, SEMED, TEA, ETI, B1-B4, CNPJ, CPF, RG, NIS, PCD, LGPD, etc.)
+- Citações entre aspas simples ou duplas
+- Datas (`dd/mm/aaaa`), horas (`hh:mm`), percentuais (`85%`), números
+- Sentence case: 1ª letra após `.` `!` `?` ou início → maiúscula; restante minúsculo
+
+**🛑 NUNCA toca em**: BNCC, learning_objects, módulo AEE (bloqueado), planos/objetivos AEE, conteúdos programáticos.
+
+**Arquivos**:
+- Script: `/app/backend/scripts/normalize_content.py`
+- Router: `/app/backend/routers/content_review.py` (super_admin/admin/admin_teste)
+- Página: `/app/frontend/src/pages/ContentReview.jsx` (rota `/admin/content-review`)
+- Coleção MongoDB: `content_review_queue` (status: pending/approved/rejected/edited)
+- Endpoints: `GET /api/admin/content-review`, `/stats`, `POST /:id/approve`, `/:id/reject`, `/:id/edit-and-approve`, `/bulk-approve`
+- Dashboard: novo atalho "Revisão de Conteúdo" no grupo Administração
+
+**Validação end-to-end [05/Mai/2026]**:
+- 5 docs de teste enfileirados em `students.observations`
+- ✅ APPROVE: doc original atualizado com `content_migrated: true`
+- ✅ REJECT: status `rejected`, doc intocado
+- ✅ EDIT-AND-APPROVE: admin refinou texto antes; doc gravou texto editado
+- ✅ Frontend renderiza cards lado a lado, badges, filtros, bulk-select
+- ✅ Siglas preservadas (`AEE`, `B1`, `BNCC`, `TEA`, `SEMED`, `ETI`)
+- ✅ Datas/horas/percentuais preservados (`14:30`, `85%`, `15/03/2026`)
+- ✅ Citações preservadas intactas
+
 ### Bug Fix — "Erro ao salvar plano AEE" (CSRF) **[04/Mai/2026]**
 - **Root cause**: `pages/DiarioAEE.js` usa raw `fetch` (não axios) e o objeto `headers` só carregava Authorization+Content-Type. A `CSRFMiddleware` (server.py:788) rejeitava todo POST/PUT/DELETE em /api/aee/* com 403 "CSRF token inválido ou ausente". Resultado: nenhum plano/atendimento/modelo AEE conseguia ser salvo, editado, excluído ou duplicado pelo frontend.
 - **Fix**: helper `readCsrfToken()` lê o token de `sessionStorage('sigesc_csrf_token')` (setado pelo response do `/auth/login`) com fallback para cookie `sigesc_csrf`, injetando-o como header `X-CSRF-Token` em todas as escritas do Diário AEE.
