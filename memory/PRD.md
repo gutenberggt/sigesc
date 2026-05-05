@@ -32,6 +32,35 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Carga Horária Derivada — Fonte Única de Verdade **[05/Fev/2026]**
+- **Refatoração arquitetural**: CH do servidor deixa de ser informada manualmente e passa a
+  ser **derivada** de `Σ alocações + Σ substituições vigentes`. Fallback de 40h dividido pelas
+  lotações ativas quando não há nenhum registro.
+- **Calculator central** (`/app/backend/utils/carga_horaria_calculator.py`):
+  - `calcular_carga_horaria_servidor(db, staff_id, *, modo)` — total geral.
+  - `calcular_carga_por_lotacao(db, staff_id, school_id, *, modo)` — por escola.
+  - `calcular_carga_horaria_servidor_breakdown(...)` — detalhamento para UI.
+  - Modo contextual: `'atual'` (substituições vigentes hoje) e `'periodo'` (intervalo/ano letivo).
+- **Endpoints atualizados**:
+  - `GET /api/staff` enriquece cada item com `carga_horaria_calculada`.
+  - `GET /api/staff/{id}` retorna `carga_horaria_calculada` no servidor + `carga_horaria_calculada` em cada lotação ativa.
+  - `GET /api/staff/{id}/carga-horaria` (novo) retorna breakdown completo (por escola, fallback, qtd alocações).
+- **Folha de pagamento** (`hr.py`): geração de pré-folha agora usa `calcular_carga_por_lotacao(modo='atual')`
+  como fonte única (substitui `school_assignments.carga_horaria` manual + fallback legado).
+- **Frontend** (3 telas):
+  - `StaffModal`: campo "Carga Horária Total Calculada" (readonly, vindo de `carga_horaria_calculada`)
+    substitui o texto antigo "definida em Gerenciar Lotações".
+  - `LotacaoModal`: campo "CH Semanal" agora é readonly (`auto`) com tooltip explicativo;
+    cards de lotações existentes exibem `Xh/sem (calc.)`.
+  - `AlocacaoModal`: removido alerta bloqueante "Não é possível salvar"; resumo simplificado
+    (Já Alocada + Nova Alocação + Total após salvar) com mensagem informativa "Sem limites manuais".
+- **Auditoria + Testes**:
+  - Script `/app/backend/scripts/audit_carga_horaria.py` compara manual vs calculado em todos os
+    servidores ativos. Gera relatório JSON. Validado em preview: 0 divergências.
+  - Suite pytest `/app/backend/tests/test_carga_horaria_calculator.py` com 11 casos cobrindo
+    fallback 40h, divisão entre lotações, ignore_workload, substituições vigentes/expiradas.
+
+
 ### Substituição Multi-Turma/Multi-Componente **[05/Fev/2026]**
 - Refatorado `SubstituicaoSection.js` para paridade completa com `AlocacaoModal` de "Nova Alocação":
   suporte a **N turmas × M componentes** (cartesian product) em uma única operação.

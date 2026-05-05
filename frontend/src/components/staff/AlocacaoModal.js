@@ -449,21 +449,15 @@ export const AlocacaoModal = ({
               </div>
             )}
             
-            {/* Aviso de carga horária excedida */}
-            {alocacaoForm.staff_id && professorCargaHoraria > 0 && (
-              <div className={`p-3 rounded-lg border mt-3 ${
-                (cargaHorariaExistente + cargaHorariaTotal) > professorCargaHoraria 
-                  ? 'bg-red-50 border-red-300' 
-                  : 'bg-blue-50 border-blue-200'
-              }`}>
+            {/* [Fev/2026] Resumo informativo da CH (sem mais bloqueio).
+                A CH agora é DERIVADA: Σ alocações + Σ substituições. Não há
+                mais "limite" manual a ser violado. */}
+            {alocacaoForm.staff_id && (
+              <div className="p-3 rounded-lg border mt-3 bg-blue-50 border-blue-200">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium text-gray-700">Resumo da Carga Horária do Professor:</span>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                  <div className="bg-white rounded p-2">
-                    <p className="text-gray-500 text-xs">Cadastrada</p>
-                    <p className="font-bold text-gray-800">{professorCargaHoraria}h/sem</p>
-                  </div>
+                <div className="grid grid-cols-2 gap-2 text-center text-sm">
                   <div className="bg-white rounded p-2">
                     <p className="text-gray-500 text-xs">Já Alocada</p>
                     <p className="font-bold text-blue-600">{cargaHorariaExistente}h/sem</p>
@@ -475,28 +469,13 @@ export const AlocacaoModal = ({
                 </div>
                 <div className="mt-2 pt-2 border-t border-gray-200 flex justify-between items-center">
                   <span className="text-sm text-gray-600">Total após salvar:</span>
-                  <span className={`font-bold ${
-                    (cargaHorariaExistente + cargaHorariaTotal) > professorCargaHoraria 
-                      ? 'text-red-600' 
-                      : 'text-green-600'
-                  }`}>
-                    {cargaHorariaExistente + cargaHorariaTotal}h / {professorCargaHoraria}h
+                  <span className="font-bold text-green-600">
+                    {cargaHorariaExistente + cargaHorariaTotal}h/sem
                   </span>
                 </div>
-                
-                {(cargaHorariaExistente + cargaHorariaTotal) > professorCargaHoraria && (
-                  <div className="mt-2 p-2 bg-red-100 rounded border border-red-200">
-                    <p className="text-sm text-red-800 font-bold flex items-center gap-1">
-                      <AlertTriangle size={16} />
-                      Não é possível salvar:
-                    </p>
-                    <ul className="text-xs text-red-700 mt-2 ml-4 list-disc">
-                      <li>Aumentar a carga horária semanal no cadastro do professor (aba Servidores)</li>
-                      <li>Reduzir o número de turmas ou componentes nesta alocação</li>
-                      <li>Remover alocações existentes antes de adicionar novas</li>
-                    </ul>
-                  </div>
-                )}
+                <p className="text-[11px] text-gray-500 mt-1 italic">
+                  CH calculada automaticamente a partir das alocações e substituições. Sem limites manuais.
+                </p>
               </div>
             )}
           </div>
@@ -533,8 +512,7 @@ export const AlocacaoModal = ({
             disabled={
               saving || 
               alocacaoTurmas.length === 0 || 
-              alocacaoComponentes.length === 0 ||
-              (professorCargaHoraria > 0 && (cargaHorariaExistente + cargaHorariaTotal) > professorCargaHoraria)
+              alocacaoComponentes.length === 0
             } 
             className="flex-1"
           >

@@ -18,6 +18,11 @@ import re
 from models import Staff, StaffCreate, StaffUpdate
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter, assert_same_tenant, resolve_tenant_id_for_create, get_mantenedora_scope
+from utils.carga_horaria_calculator import (
+    calcular_carga_horaria_servidor,
+    calcular_carga_por_lotacao,
+    calcular_carga_horaria_servidor_breakdown,
+)
 
 router = APIRouter(prefix="/staff", tags=["Servidores"])
 
@@ -97,7 +102,17 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
                     staff['lotacao_atual'] = lotacao
                     filtered_staff.append(staff)
             staff_list = filtered_staff
-        
+
+        # [Fev/2026] CH derivada (fonte única). Substitui carga_horaria_semanal manual.
+        # Cálculo on-demand: lotação ativa + alocações + substituições vigentes hoje.
+        for s in staff_list:
+            try:
+                s['carga_horaria_calculada'] = await calcular_carga_horaria_servidor(
+                    current_db, s['id'], modo='atual'
+                )
+            except Exception:  # noqa: BLE001
+                s['carga_horaria_calculada'] = None
+
         return staff_list
 
     @router.get("/{staff_id}")
@@ -116,8 +131,24 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
             school = await current_db.schools.find_one({"id": lot['school_id']}, {"_id": 0, "name": 1})
             if school:
                 lot['school_name'] = school['name']
+            # CH calculada da lotação (substitui carga_horaria manual como fonte de exibição)
+            if lot.get('status') == 'ativo':
+                try:
+                    lot['carga_horaria_calculada'] = await calcular_carga_por_lotacao(
+                        current_db, staff_id, lot['school_id'], modo='atual'
+                    )
+                except Exception:  # noqa: BLE001
+                    lot['carga_horaria_calculada'] = None
         staff['lotacoes'] = lotacoes
-        
+
+        # CH total derivada do servidor (Σ alocações + Σ substituições vigentes; fallback 40h)
+        try:
+            staff['carga_horaria_calculada'] = await calcular_carga_horaria_servidor(
+                current_db, staff_id, modo='atual'
+            )
+        except Exception:  # noqa: BLE001
+            staff['carga_horaria_calculada'] = None
+
         if staff['cargo'] == 'professor':
             alocacoes = await current_db.teacher_assignments.find({"staff_id": staff_id}, {"_id": 0}).to_list(100)
             for aloc in alocacoes:
@@ -130,6 +161,26 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
             staff['alocacoes'] = alocacoes
         
         return staff
+
+    @router.get("/{staff_id}/carga-horaria")
+    async def get_staff_carga_horaria(staff_id: str, request: Request, modo: str = 'atual'):
+        """Retorna carga horária derivada (com breakdown) — fonte única de verdade.
+
+        Substitui o uso de `staff.carga_horaria_semanal` manual.
+        """
+        current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'semed', 'semed3', 'diretor'])(request)
+        current_db = get_db_for_user(current_user)
+
+        staff = await current_db.staff.find_one({"id": staff_id}, {"_id": 0, "id": 1, "nome": 1})
+        if not staff:
+            raise HTTPException(status_code=404, detail="Servidor não encontrado")
+        assert_same_tenant(staff, current_user, request)
+
+        modo_norm = modo if modo in ('atual', 'periodo') else 'atual'
+        breakdown = await calcular_carga_horaria_servidor_breakdown(
+            current_db, staff_id, modo=modo_norm
+        )
+        return breakdown
 
     @router.post("")
     async def create_staff(staff_data: StaffCreate, request: Request):

@@ -49,7 +49,7 @@ export const LotacaoModal = ({
       funcao: lotacao.funcao || 'apoio',
       turno: lotacao.turno || '',
       data_inicio: lotacao.data_inicio || '',
-      carga_horaria: lotacao.carga_horaria != null ? String(lotacao.carga_horaria) : '',
+      // [Fev/2026] CH é derivada — não trafega mais no payload de edição.
     });
     onEditLotacao(lotacao);
   };
@@ -58,8 +58,8 @@ export const LotacaoModal = ({
     if (!editingLotacao) return;
     setSavingEdit(true);
     try {
+      // [Fev/2026] CH é derivada (calculator central); não envia mais carga_horaria no PUT.
       const payload = { ...editForm };
-      payload.carga_horaria = editForm.carga_horaria ? parseInt(editForm.carga_horaria, 10) : null;
       await onSaveEditLotacao(editingLotacao.id, payload);
     } finally {
       setSavingEdit(false);
@@ -177,10 +177,16 @@ export const LotacaoModal = ({
                             <input type="date" value={editForm.data_inicio} onChange={(e) => setEditForm({ ...editForm, data_inicio: e.target.value })} className="w-full px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500" />
                           </div>
                           <div>
-                            <label className="block text-xs text-gray-600 mb-1">CH Semanal</label>
-                            <input type="number" min="0" max="60" value={editForm.carga_horaria} placeholder="h/sem"
-                              onChange={(e) => setEditForm({ ...editForm, carga_horaria: e.target.value })}
-                              className="w-full px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500" />
+                            <label className="block text-xs text-gray-600 mb-1">CH Semanal (calculada)</label>
+                            <input
+                              type="text"
+                              value={editingLotacao?.carga_horaria_calculada != null ? `${editingLotacao.carga_horaria_calculada}h` : 'auto'}
+                              readOnly
+                              disabled
+                              title="Calculada automaticamente: Σ alocações + Σ substituições vigentes nesta escola (fallback: 40h ÷ nº de lotações)"
+                              className="w-full px-2 py-1 text-sm border rounded bg-gray-100 text-gray-600 cursor-not-allowed"
+                              data-testid="lotacao-edit-ch-readonly"
+                            />
                           </div>
                         </div>
                       </div>
@@ -193,7 +199,7 @@ export const LotacaoModal = ({
                             {lot.tipo_lotacao === 'anexa' && <span className="ml-1.5 text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Anexa</span>}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {FUNCOES[lot.funcao]} {TURNOS[lot.turno] ? `\u2022 ${TURNOS[lot.turno]}` : ''} {lot.carga_horaria ? `\u2022 ${lot.carga_horaria}h/sem` : ''} {lot.data_inicio ? `\u2022 Desde ${lot.data_inicio}` : ''}
+                            {FUNCOES[lot.funcao]} {TURNOS[lot.turno] ? `\u2022 ${TURNOS[lot.turno]}` : ''} {lot.carga_horaria_calculada != null ? `\u2022 ${lot.carga_horaria_calculada}h/sem (calc.)` : (lot.carga_horaria ? `\u2022 ${lot.carga_horaria}h/sem` : '')} {lot.data_inicio ? `\u2022 Desde ${lot.data_inicio}` : ''}
                           </p>
                         </div>
                         {canDelete && (
@@ -367,18 +373,19 @@ export const LotacaoModal = ({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Carga Horária Semanal *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">CH Semanal (calculada)</label>
                 <input
-                  type="number"
-                  min="0"
-                  max="60"
-                  value={lotacaoForm.carga_horaria}
-                  onChange={(e) => setLotacaoForm({ ...lotacaoForm, carga_horaria: e.target.value })}
-                  placeholder="Ex: 20"
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
-                  data-testid="lotacao-carga-horaria-input"
+                  type="text"
+                  value="auto"
+                  readOnly
+                  disabled
+                  title="Calculada automaticamente após salvar: Σ alocações + Σ substituições vigentes nesta escola (fallback: 40h ÷ nº de lotações)"
+                  className="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                  data-testid="lotacao-carga-horaria-readonly"
                 />
-                <p className="text-[10px] text-gray-500 mt-0.5">horas/semana nesta escola</p>
+                <p className="text-[10px] text-gray-500 mt-0.5">
+                  Σ alocações + substituições nesta escola. Sem registros: 40h ÷ nº lotações.
+                </p>
               </div>
             </div>
             <div className="text-sm text-blue-600 mb-1">Ano Letivo: <strong>{selectedYear}</strong></div>

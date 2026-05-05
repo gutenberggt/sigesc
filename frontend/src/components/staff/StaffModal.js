@@ -370,8 +370,21 @@ export const StaffModal = ({
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <div className="flex items-end text-xs text-gray-500 italic pb-2">
-            A Carga Horária Semanal é definida em Gerenciar Lotações.
+          <div className="flex items-end pb-1">
+            <div
+              className="w-full px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg"
+              data-testid="staff-ch-calculada-display"
+            >
+              <p className="text-xs text-blue-700 font-medium mb-0.5">Carga Horária Total Calculada</p>
+              <p className="text-base font-semibold text-blue-900">
+                {editingStaff?.carga_horaria_calculada != null
+                  ? `${editingStaff.carga_horaria_calculada}h/semana`
+                  : '— (será calculada após salvar)'}
+              </p>
+              <p className="text-[10px] text-blue-600 mt-0.5">
+                Σ alocações + Σ substituições vigentes (fallback: 40h)
+              </p>
+            </div>
           </div>
         </div>
         

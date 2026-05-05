@@ -19,6 +19,7 @@ from models import (
     PayrollOccurrence, PayrollOccurrenceCreate, PayrollOccurrenceUpdate
 )
 from auth_middleware import AuthMiddleware
+from utils.carga_horaria_calculator import calcular_carga_por_lotacao
 from hr_pdf_generator import (
     generate_espelho_individual_pdf,
     generate_folha_escola_pdf,
@@ -1263,18 +1264,17 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 if staff.get('status') in ('exonerado', 'aposentado'):
                     continue
 
-                # ===== CH da lotação tem prioridade sobre a CH global do servidor =====
-                # Fonte oficial agora é school_assignments.carga_horaria (por escola).
-                # Fallback para staff.carga_horaria_semanal mantém compatibilidade com dados
-                # legados ainda não migrados.
-                lotacao_escola = await current_db.school_assignments.find_one(
-                    {"staff_id": emp_id, "school_id": school_id, "status": "ativo"},
-                    {"_id": 0, "carga_horaria": 1}
-                )
-                ch_semanal = None
-                if lotacao_escola and lotacao_escola.get('carga_horaria') is not None:
-                    ch_semanal = lotacao_escola.get('carga_horaria') or 0
-                else:
+                # ===== [Fev/2026] CH derivada (fonte única) =====
+                # Substitui campo manual `school_assignments.carga_horaria` (deprecated)
+                # e o fallback legado para `staff.carga_horaria_semanal`. A função central
+                # calcula via alocações + substituições vigentes; com fallback de 40h
+                # distribuídas entre lotações ativas quando não há nenhum registro.
+                try:
+                    ch_semanal = await calcular_carga_por_lotacao(
+                        current_db, emp_id, school_id, modo='atual'
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"Falha ao calcular CH para {emp_id}@{school_id}: {e}")
                     ch_semanal = staff.get('carga_horaria_semanal') or 0
                 ch_mensal = round(ch_semanal * 5, 1)
                 is_professor = staff.get('cargo') == 'professor'
