@@ -21,7 +21,7 @@
   ],
   "success_rate": {"backend": "100%", "frontend": "100%"},
   "test_credentials": "Super Admin gutenberg@sigesc.com / @Celta2007 (CSRF token observado em sessionStorage.sigesc_csrf_token após login)",
-  "seed_data_creation": "Test cria/deleta plano AEE temporário (academic_year=2099, professor_aee_id=00000000-0000-0000-0000-000000000001) e limpa após si mesmo",
+  "seed_data_creation": "Test cria/deleta plano AEE temporário (academic_year=2099, professor_aee_id=multi-tenant-app-30) e limpa após si mesmo",
   "retest_needed": false,
   "main_agent_can_self_test": true,
   "context_for_next_testing_agent": "CSRF fix do Diário AEE está validado. Backend regression em /app/backend/tests/test_aee_csrf_fix.py cobre: 403 sem CSRF (planos/atendimentos/templates), pass-through com CSRF, e2e create+get+delete. Frontend lê sessionStorage('sigesc_csrf_token') (set pelo /auth/login response.csrf_token). Mesmo padrão deve ser aplicado a outros componentes que ainda usem raw fetch para escritas — buscar por `fetch(` com método POST/PUT/DELETE sem 'X-CSRF-Token'.",

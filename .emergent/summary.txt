@@ -1,147 +1,901 @@
-<analysis>**original_problem_statement**: Implementar e refinar o Student Dashboard, relatórios AEE, criação de usuários. Mais recentemente: Integrar Matriz de Permissões, estruturar o Módulo de Currículo (BNCC/DCM) e implementar Corretor Ortográfico. Nesta sessão, o foco escalou para uma reestruturação arquitetural completa (SaaS escalável): Currículo Multi-Camadas (BNCC vs DCM), Gestão Ativa (Feed de Intervenções, Ranking de Gestores, Planos de Ação Automáticos) e Multi-Tenant real baseado em domínio (Host Header).
+<analysis>Aqui está o resumo do handoff estruturado para o próximo agente:
 
-**User's preferred language**: Portuguese (INSTRUCT next agent to respond in the user's preferred language only: Responda sempre em Português).
+**original_problem_statement**: Implementar e refinar o Student Dashboard, relatórios AEE, criação de usuários, SaaS escalável com Currículo Multi-Camadas, Gestão Ativa, Multi-Tenant real, IA com Claude 4.5 para Planos de Ação, Segurança P1, Snapshots Imutáveis, e Emissão de Declarações Escolares. Adicionado recentemente: Configuração visual de Branding (G4), remoção global da imposição de Caixa Alta (CAPS), QR Codes em históricos/certificados, busca sugestiva accent-insensitive e script profissional de migração de banco de dados. PRODUCT REQUIREMENTS detalhados no .
+
+**User's preferred language**: Portuguese (INSTRUCT next agent to respond in the user's preferred language only: Responda sempre em Português)
 
 **what currently exists?** 
-Um SaaS educacional multi-tenant com ecossistema de gestão ativa. O sistema agora possui um Currículo Normalizado (Base Nacional canônica separada de Adaptações Municipais), um Widget de Cobertura Curricular preditivo, Feed de Intervenções (alertas in-app e e-mail via Resend), Ranking de Gestores focado em tempo de resolução, e um gerador determinístico de Planos de Ação por escola. O login agora resolve o branding publicamente de forma segura através do .
+Um SaaS educacional multi-tenant robusto (FastAPI + React + MongoDB). Possui painéis de configuração de tenant, emissão de documentos verificáveis (agora todos com QR Code gerados via lib usage: segno [-h] [--version VERSION] [--error {L,M,Q,H,-}]
+             [--mode {numeric,alphanumeric,byte,kanji,hanzi}]
+             [--encoding ENCODING] [--micro] [--no-micro] [--pattern PATTERN]
+             [--no-error-boost] [--seq] [--symbol-count SYMBOL_COUNT]
+             [--border BORDER] [--scale SCALE] [--output OUTPUT] [--dark DARK]
+             [--light LIGHT] [--finder-dark FINDER_DARK]
+             [--finder-light FINDER_LIGHT] [--separator SEPARATOR]
+             [--data-dark DATA_DARK] [--data-light DATA_LIGHT]
+             [--timing-dark TIMING_DARK] [--timing-light TIMING_LIGHT]
+             [--align-dark ALIGNMENT_DARK] [--align-light ALIGNMENT_LIGHT]
+             [--quiet-zone QUIET_ZONE] [--dark-module DARK_MODULE]
+             [--format-dark FORMAT_DARK] [--format-light FORMAT_LIGHT]
+             [--version-dark VERSION_DARK] [--version-light VERSION_LIGHT]
+             [--no-classes] [--no-xmldecl] [--no-namespace] [--no-newline]
+             [--title TITLE] [--desc DESC] [--svgid SVGID]
+             [--svgclass SVGCLASS] [--lineclass LINECLASS] [--no-size]
+             [--unit UNIT] [--svgversion SVGVERSION]
+             [--svgencoding SVGENCODING] [--draw-transparent] [--dpi DPI]
+             [--compact] [--ver]
+             content [content ...]
 
-**Last working item**: 
-    - Last item agent was working: Conclusão da Sprint F (Multi-Tenant e Branding via Domínio). O agente ajustou o backend para que o endpoint público de branding  utilize o  para identificar o tenant (evitando vulnerabilidades de query params). Foi criado o CRUD de , o hook , e o  foi refatorado para exibir logo/cores baseados no domínio. Os testes foram atualizados e o frontend validado. O agente apenas parou antes de chamar a tool .
-    - Status: USER VERIFICATION PENDING (Trabalho codificado e testado com sucesso, apenas pendente de encerramento formal/validação final).
-    - Agent Testing Done: Y (40/40 testes passando no pytest, screenshots tirados no frontend).
-    - Which testing method agent to use? backend testing agent / manual testing by curl / python -c / screenshot tool
+Segno QR Code and Micro QR Code generator version 1.6.6
+
+positional arguments:
+  content               The content to encode
+
+options:
+  -h, --help            show this help message and exit
+  --version VERSION, -v VERSION
+                        (Micro) QR Code version: 1 .. 40 or "M1", "M2", "M3",
+                        "M4"
+  --error {L,M,Q,H,-}, -e {L,M,Q,H,-}
+                        Error correction level: "L": 7% (default), "M": 15%,
+                        "Q": 25%, "H": 30%, "-": no error correction (used for
+                        M1 symbols)
+  --mode {numeric,alphanumeric,byte,kanji,hanzi}, -m {numeric,alphanumeric,byte,kanji,hanzi}
+                        Mode. If unspecified (default), an optimal mode is
+                        chosen for the given input.
+  --encoding ENCODING   Sets the encoding of the input. If not set (default),
+                        a minimal encoding is chosen.
+  --micro               Allow the creation of Micro QR Codes
+  --no-micro            Disallow creation of Micro QR Codes (default)
+  --pattern PATTERN, -p PATTERN
+                        Mask pattern to use. If unspecified (default), an
+                        optimal mask pattern is used. Valid values for QR
+                        Codes: 0 .. 7. Valid values for Micro QR Codes: 0 .. 3
+  --no-error-boost      Disables the automatic error correction level
+                        incrementation. By default, the maximal error
+                        correction level is used (without changing the
+                        version).
+  --seq                 Creates a sequence of QR Codes (Structured Append
+                        mode). Version or symbol count must be provided
+  --symbol-count SYMBOL_COUNT, -sc SYMBOL_COUNT
+                        Number of symbols to create
+  --border BORDER, -b BORDER
+                        Size of the border / quiet zone of the output. By
+                        default, the standard border (4 modules for QR Codes,
+                        2 modules for Micro QR Codes) will be used. A value of
+                        0 omits the border
+  --scale SCALE, -s SCALE
+                        Scaling factor. By default, a scaling factor of 1 is
+                        used. That may lead into too small images. Some output
+                        formats, i.e. SVG, accept a decimal value.
+  --output OUTPUT, -o OUTPUT
+                        Output file. If not specified, the QR Code is printed
+                        to the terminal
+  --ver, -V             Shows Segno's version
+
+Module Colors:
+  Arguments to specify the module colors. Multiple colors are supported for
+  SVG and PNG. The module color support varies between the serialization
+  formats. Most serializers support at least "--dark" and "--light".
+  Unsupported arguments are ignored.
+
+  --dark DARK           Color of the dark modules. The color may be specified
+                        as web color name, i.e. "red" or as hexadecimal value,
+                        i.e. "#0033cc". Some serializers, i.e. SVG and PNG,
+                        support alpha channels (8-digit hexadecimal value) and
+                        some support "transparent" / "trans" as color value
+                        for alpha transparency. The standard color is black.
+  --light LIGHT         Color of the light modules. See "dark" for a
+                        description of possible values. The standard light
+                        color is white.
+  --finder-dark FINDER_DARK
+                        Sets the color of the dark finder modules
+  --finder-light FINDER_LIGHT
+                        Sets the color of the light finder modules
+  --separator SEPARATOR
+                        Sets the color of the separator modules
+  --data-dark DATA_DARK
+                        Sets the color of the dark data modules
+  --data-light DATA_LIGHT
+                        Sets the color of the light data modules
+  --timing-dark TIMING_DARK
+                        Sets the color of the dark timing modules
+  --timing-light TIMING_LIGHT
+                        Sets the color of the light timing modules
+  --align-dark ALIGNMENT_DARK
+                        Sets the color of the dark alignment modules
+  --align-light ALIGNMENT_LIGHT
+                        Sets the color of the light alignment modules
+  --quiet-zone QUIET_ZONE
+                        Sets the color of the quiet zone (border)
+  --dark-module DARK_MODULE
+                        Sets the color of the dark module
+  --format-dark FORMAT_DARK
+                        Sets the color of the dark format information modules
+  --format-light FORMAT_LIGHT
+                        Sets the color of the light format information modules
+  --version-dark VERSION_DARK
+                        Sets the color of the dark version information modules
+  --version-light VERSION_LIGHT
+                        Sets the color of the light version information
+                        modules
+
+SVG:
+  SVG specific options
+
+  --no-classes          Omits the (default) SVG classes
+  --no-xmldecl          Omits the XML declaration header
+  --no-namespace        Indicates that the SVG document should have no SVG
+                        namespace declaration
+  --no-newline          Indicates that the SVG document should have no
+                        trailing newline
+  --title TITLE         Specifies the title of the SVG document
+  --desc DESC           Specifies the description of the SVG document
+  --svgid SVGID         Indicates the ID of the <svg/> element
+  --svgclass SVGCLASS   Indicates the CSS class of the <svg/> element. An
+                        empty string omits the attribute.
+  --lineclass LINECLASS
+                        Indicates the CSS class of the <path/> elements. An
+                        empty string omits the attribute.
+  --no-size             Indicates that the SVG document should not have
+                        "width" and "height" attributes
+  --unit UNIT           Indicates SVG coordinate system unit
+  --svgversion SVGVERSION
+                        Indicates the SVG version
+  --svgencoding SVGENCODING
+                        Specifies the encoding of the document
+  --draw-transparent    Indicates that transparent paths should be drawn
+
+PNG:
+  PNG specific options
+
+  --dpi DPI             Sets the DPI value of the PNG file
+
+Terminal:
+  Terminal specific options
+
+  --compact             Indicates that the QR code should be printed in a more
+                        compact manner), e um validador público de documentos. A imposição de texto em CAIXA ALTA foi removida do sistema; agora os inputs preservam a formatação do usuário e utilizam um novo campo  para pesquisas case e accent-insensitive. O módulo AEE foi blindado contra edições não autorizadas. A aplicação possui proteção CSRF via JWT claims e um Service Worker (PWA) para cache offline. 
+
+**Last working item**:
+    - Last item agent was working: O agente finalizou a criação do script de migração de banco de dados . O script foi reescrito seguindo estritamente o padrão CLI de produção fornecido pelo usuário (com flag , , , controle de batch, escopo por coleção, barra de progresso, logs e suporte a rollback de backups automáticos).
+    - Status: USER VERIFICATION PENDING (O script está pronto para uso, cabe ao usuário decidir rodar em produção).
+    - Agent Testing Done: Y (criação do arquivo validada)
+    - Which testing method agent to use? backend testing agent / manual CLI
     - User Testing Done: N
 
-**All Pending/In progress Issue list**: 
-  Nenhuma issue bloqueante ativa. O ambiente está saudável e o código implementado passou em todos os testes locais e regras de negócio.
+**All Pending/In progress Issue list**:
+  - Issue 1: Executar script de migração  em produção (Opcional/Ação do Usuário)
+     - Attempted fixes: Script robusto criado conforme especificações.
+     - Next debug checklist: O usuário deve executar os comandos CLI informados no chat para testar () e aplicar () a conversão retroativa de CAPS nas coleções (alunos, servidores, etc).
+     - Why fix this issue and what will be achieved with the fix?: Para remover o CAPS de registros antigos mantendo a rastreabilidade e sem quebrar o banco.
+     - Status: USER VERIFICATION PENDING
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix?: backend
 
-**In progress Task List**: 
-  Nenhuma tarefa em progresso incompleta. A Sprint F foi concluída e testada. Resta apenas finalizar a interação ou iniciar as próximas features listadas no backlog.
+**In progress Task List**:
+Nenhuma tarefa em andamento bloqueada.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - (P1) Fase 2 dos Planos de Ação: Substituir o atual motor de regras fixas (determinístico) por IA gerativa para descrições mais inteligentes e recomendações baseadas no histórico do perfil do gestor.
-    - (P2) Selo de Conclusão Curricular: Gerar PDF oficial com logotipo e assinatura digital do gestor para turmas com >90% de cobertura (Adiado pelo usuário até que a gestão ativa vire rotina).
+    - (P1) Otimização do componente de busca (se o usuário solicitar a extração do  para um componente universal React reutilizável).
     
     Future Tasks:
-    - Mudar CSV de importação de estudantes para gerar convites automáticos via Resend.
-    - Adicionar tooltips explicativos nos KPIs do Secretário.
-    - Refatoração para reduzir complexidade do .
-    - Isolamento do local storage / auth para HttpOnly Cookies (segurança).
-    - Adicionar botão Baixar em segundo plano para PDFs pesados.
+    - (P2) Refatoração para reduzir complexidade do .
+    - (P2) Mudar CSV de importação de estudantes para gerar convites automáticos via Resend.
+    - (P2) Export LGPD por mantenedora (direito ao esquecimento + portabilidade).
+    - (P2) Configurações avançadas de alerta no detector PMPI-GE divididas por etapa escolar.
 
 **Completed work in this session**
-- Sprint A v2: Implementação do Currículo Multi-Camadas (coleção  canônica e  local), migração dos objetos de aprendizagem e seed da BNCC via DCM (DONE).
-- Sprint B v2: CRUD de , validação obrigatória para preenchimento de habilidades com fallback e Widget de Cobertura Curricular com previsão semanal (DONE).
-- Sprint C: Feed de Intervenções (Gestão Ativa) com job cron semanal (), escalonamento de níveis de alerta e envio híbrido (in-app + e-mail Resend com fallback) (DONE).
-- Sprint D: Ranking de Gestores (), com agregação de métricas de tempo de resposta e taxa de resolução (DONE).
-- Sprint E: Gerador Automático de Planos de Ação por Escola, rodando 5 regras fixas para guiar os coordenadores (DONE).
-- Sprint F: Multi-Tenant Toolkit, mapeamento global do escopo ,  CRUD, resolução de domínio por Host Header no backend e aplicação de CSS Variables no LoginScreen (DONE).
+- Conclusão do Frontend de Live Preview do Branding Multi-Tenant (Sprint G4) (DONE)
+- Implementação de upload direto de logotipo no  (Drag & Drop) (DONE)
+- Bug Fix Crítico: Correção do Erro ao salvar plano AEE (Injeção de header  nos fetches do DiarioAEE.js) (DONE)
+- Adição de travas rigorosas no Módulo AEE para impedir que agentes modifiquem regras de negócio sem permissão (DONE)
+- Remoção global da obrigatoriedade de CAPS LOCK (Frontend CSS e Backend Routers) (DONE)
+- Criação dos campos  (indexado) e  para buscas super-rápidas accent-insensitive e case-insensitive (DONE)
+- Bug Fix: Loop infinito na tela de login corrigido atualizando a versão do Service Worker ( v7 -> v8) (DONE)
+- Criação da tela de Validação de Documentos () para admins verificarem documentos gerados (DONE)
+- Implementação de QR Codes + Códigos de Verificação nos PDFs de Histórico Escolar e Certificado de Conclusão utilizando a lib usage: segno [-h] [--version VERSION] [--error {L,M,Q,H,-}]
+             [--mode {numeric,alphanumeric,byte,kanji,hanzi}]
+             [--encoding ENCODING] [--micro] [--no-micro] [--pattern PATTERN]
+             [--no-error-boost] [--seq] [--symbol-count SYMBOL_COUNT]
+             [--border BORDER] [--scale SCALE] [--output OUTPUT] [--dark DARK]
+             [--light LIGHT] [--finder-dark FINDER_DARK]
+             [--finder-light FINDER_LIGHT] [--separator SEPARATOR]
+             [--data-dark DATA_DARK] [--data-light DATA_LIGHT]
+             [--timing-dark TIMING_DARK] [--timing-light TIMING_LIGHT]
+             [--align-dark ALIGNMENT_DARK] [--align-light ALIGNMENT_LIGHT]
+             [--quiet-zone QUIET_ZONE] [--dark-module DARK_MODULE]
+             [--format-dark FORMAT_DARK] [--format-light FORMAT_LIGHT]
+             [--version-dark VERSION_DARK] [--version-light VERSION_LIGHT]
+             [--no-classes] [--no-xmldecl] [--no-namespace] [--no-newline]
+             [--title TITLE] [--desc DESC] [--svgid SVGID]
+             [--svgclass SVGCLASS] [--lineclass LINECLASS] [--no-size]
+             [--unit UNIT] [--svgversion SVGVERSION]
+             [--svgencoding SVGENCODING] [--draw-transparent] [--dpi DPI]
+             [--compact] [--ver]
+             content [content ...]
+
+Segno QR Code and Micro QR Code generator version 1.6.6
+
+positional arguments:
+  content               The content to encode
+
+options:
+  -h, --help            show this help message and exit
+  --version VERSION, -v VERSION
+                        (Micro) QR Code version: 1 .. 40 or "M1", "M2", "M3",
+                        "M4"
+  --error {L,M,Q,H,-}, -e {L,M,Q,H,-}
+                        Error correction level: "L": 7% (default), "M": 15%,
+                        "Q": 25%, "H": 30%, "-": no error correction (used for
+                        M1 symbols)
+  --mode {numeric,alphanumeric,byte,kanji,hanzi}, -m {numeric,alphanumeric,byte,kanji,hanzi}
+                        Mode. If unspecified (default), an optimal mode is
+                        chosen for the given input.
+  --encoding ENCODING   Sets the encoding of the input. If not set (default),
+                        a minimal encoding is chosen.
+  --micro               Allow the creation of Micro QR Codes
+  --no-micro            Disallow creation of Micro QR Codes (default)
+  --pattern PATTERN, -p PATTERN
+                        Mask pattern to use. If unspecified (default), an
+                        optimal mask pattern is used. Valid values for QR
+                        Codes: 0 .. 7. Valid values for Micro QR Codes: 0 .. 3
+  --no-error-boost      Disables the automatic error correction level
+                        incrementation. By default, the maximal error
+                        correction level is used (without changing the
+                        version).
+  --seq                 Creates a sequence of QR Codes (Structured Append
+                        mode). Version or symbol count must be provided
+  --symbol-count SYMBOL_COUNT, -sc SYMBOL_COUNT
+                        Number of symbols to create
+  --border BORDER, -b BORDER
+                        Size of the border / quiet zone of the output. By
+                        default, the standard border (4 modules for QR Codes,
+                        2 modules for Micro QR Codes) will be used. A value of
+                        0 omits the border
+  --scale SCALE, -s SCALE
+                        Scaling factor. By default, a scaling factor of 1 is
+                        used. That may lead into too small images. Some output
+                        formats, i.e. SVG, accept a decimal value.
+  --output OUTPUT, -o OUTPUT
+                        Output file. If not specified, the QR Code is printed
+                        to the terminal
+  --ver, -V             Shows Segno's version
+
+Module Colors:
+  Arguments to specify the module colors. Multiple colors are supported for
+  SVG and PNG. The module color support varies between the serialization
+  formats. Most serializers support at least "--dark" and "--light".
+  Unsupported arguments are ignored.
+
+  --dark DARK           Color of the dark modules. The color may be specified
+                        as web color name, i.e. "red" or as hexadecimal value,
+                        i.e. "#0033cc". Some serializers, i.e. SVG and PNG,
+                        support alpha channels (8-digit hexadecimal value) and
+                        some support "transparent" / "trans" as color value
+                        for alpha transparency. The standard color is black.
+  --light LIGHT         Color of the light modules. See "dark" for a
+                        description of possible values. The standard light
+                        color is white.
+  --finder-dark FINDER_DARK
+                        Sets the color of the dark finder modules
+  --finder-light FINDER_LIGHT
+                        Sets the color of the light finder modules
+  --separator SEPARATOR
+                        Sets the color of the separator modules
+  --data-dark DATA_DARK
+                        Sets the color of the dark data modules
+  --data-light DATA_LIGHT
+                        Sets the color of the light data modules
+  --timing-dark TIMING_DARK
+                        Sets the color of the dark timing modules
+  --timing-light TIMING_LIGHT
+                        Sets the color of the light timing modules
+  --align-dark ALIGNMENT_DARK
+                        Sets the color of the dark alignment modules
+  --align-light ALIGNMENT_LIGHT
+                        Sets the color of the light alignment modules
+  --quiet-zone QUIET_ZONE
+                        Sets the color of the quiet zone (border)
+  --dark-module DARK_MODULE
+                        Sets the color of the dark module
+  --format-dark FORMAT_DARK
+                        Sets the color of the dark format information modules
+  --format-light FORMAT_LIGHT
+                        Sets the color of the light format information modules
+  --version-dark VERSION_DARK
+                        Sets the color of the dark version information modules
+  --version-light VERSION_LIGHT
+                        Sets the color of the light version information
+                        modules
+
+SVG:
+  SVG specific options
+
+  --no-classes          Omits the (default) SVG classes
+  --no-xmldecl          Omits the XML declaration header
+  --no-namespace        Indicates that the SVG document should have no SVG
+                        namespace declaration
+  --no-newline          Indicates that the SVG document should have no
+                        trailing newline
+  --title TITLE         Specifies the title of the SVG document
+  --desc DESC           Specifies the description of the SVG document
+  --svgid SVGID         Indicates the ID of the <svg/> element
+  --svgclass SVGCLASS   Indicates the CSS class of the <svg/> element. An
+                        empty string omits the attribute.
+  --lineclass LINECLASS
+                        Indicates the CSS class of the <path/> elements. An
+                        empty string omits the attribute.
+  --no-size             Indicates that the SVG document should not have
+                        "width" and "height" attributes
+  --unit UNIT           Indicates SVG coordinate system unit
+  --svgversion SVGVERSION
+                        Indicates the SVG version
+  --svgencoding SVGENCODING
+                        Specifies the encoding of the document
+  --draw-transparent    Indicates that transparent paths should be drawn
+
+PNG:
+  PNG specific options
+
+  --dpi DPI             Sets the DPI value of the PNG file
+
+Terminal:
+  Terminal specific options
+
+  --compact             Indicates that the QR code should be printed in a more
+                        compact manner (DONE)
+- Refatoração da Busca do Frontend: Autocomplete sugestivo a partir do 3º caractere e ignore de acentos/cedilha na interface () (DONE)
+- Bug Fix: Erro de Deploy no Coolify resolvido. Removida referência de URL interna do wheel  no  (DONE)
+- Criação do script Python de migração CLI em padrão de produção () (DONE)
 
 **Earlier issues found/mentioned but not fixed**
    Nenhum.
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Tipos Literais no Pydantic incompatíveis / Testes falhando por  órfãos (Corrigido com backfill).
+  - Issue recurrence in previous fork: Falha em deploy de produção (Coolify) devido a pacotes com links de wheels internos.
   - Recurrence count: 1
-  - Status: RESOLVED
+  - Status: RESOLVED (O  foi limpo e o  puxado diretamente do PyPI. Regra criada para não usar aiohappyeyeballs==2.6.1
+aiohttp==3.13.5
+aiosignal==1.4.0
+annotated-types==0.7.0
+anthropic==0.97.0
+anyio==4.12.0
+APScheduler==3.11.2
+attrs==26.1.0
+bcrypt==4.0.1
+black==25.12.0
+boto3==1.42.5
+botocore==1.42.5
+cachetools==7.0.4
+certifi==2025.11.12
+cffi==2.0.0
+charset-normalizer==3.4.4
+click==8.3.1
+cryptography==46.0.3
+Deprecated==1.3.1
+distro==1.9.0
+dnspython==2.8.0
+docstring_parser==0.18.0
+ecdsa==0.19.1
+email-validator==2.3.0
+emergentintegrations==0.1.1
+et_xmlfile==2.0.0
+fastapi==0.110.1
+fastuuid==0.14.0
+filelock==3.29.0
+flake8==7.3.0
+frozenlist==1.8.0
+fsspec==2026.3.0
+google-ai-generativelanguage==0.6.15
+google-api-core==2.30.3
+google-api-python-client==2.194.0
+google-auth==2.49.2
+google-auth-httplib2==0.3.1
+google-genai==1.73.1
+google-generativeai==0.8.6
+googleapis-common-protos==1.74.0
+greenlet==3.3.1
+grpcio==1.80.0
+grpcio-status==1.71.2
+h11==0.16.0
+hf-xet==1.4.3
+httpcore==1.0.9
+httplib2==0.31.2
+httptools==0.7.1
+httpx==0.28.1
+huggingface_hub==1.11.0
+idna==3.11
+importlib_metadata==9.0.0
+iniconfig==2.3.0
+isort==7.0.0
+Jinja2==3.1.6
+jiter==0.14.0
+jmespath==1.0.1
+jq==1.10.0
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+librt==0.7.3
+limits==5.6.0
+litellm @ https://customer-assets.emergentagent.com/internal-asset/library/litellm-1.80.0-py3-none-any.whl#sha256=adf398c513273de9341f61822296c6b2145f7f2dc4a69daf3ac04829f5bde3f8
+lxml==6.0.2
+markdown-it-py==4.0.0
+MarkupSafe==3.0.3
+mccabe==0.7.0
+mdurl==0.1.2
+motor==3.3.1
+multidict==6.7.1
+mypy==1.19.0
+mypy_extensions==1.1.0
+numpy==2.3.5
+oauthlib==3.3.1
+openai==1.99.9
+openpyxl==3.1.5
+packaging==25.0
+pandas==2.3.3
+passlib==1.7.4
+pathspec==0.12.1
+pdf2image==1.17.0
+pdfminer.six==20251107
+pdfplumber==0.11.8
+pillow==12.0.0
+platformdirs==4.5.1
+playwright==1.58.0
+pluggy==1.6.0
+propcache==0.4.1
+proto-plus==1.27.2
+protobuf==5.29.6
+pyasn1==0.6.1
+pyasn1_modules==0.4.2
+pycodestyle==2.14.0
+pycparser==2.23
+pydantic==2.12.5
+pydantic_core==2.41.5
+pyee==13.0.0
+pyflakes==3.4.0
+Pygments==2.19.2
+PyJWT==2.10.1
+pymongo==4.5.0
+PyMuPDF==1.26.7
+pyparsing==3.3.2
+pypdf==6.10.2
+PyPDF2==3.0.1
+pypdfium2==5.2.0
+pytest==9.0.2
+python-dateutil==2.9.0.post0
+python-dotenv==1.2.1
+python-jose==3.5.0
+python-multipart==0.0.20
+python-pptx==1.0.2
+pytokens==0.3.0
+pytz==2025.2
+PyYAML==6.0.3
+referencing==0.37.0
+regex==2026.4.4
+reportlab==4.4.6
+requests==2.32.5
+requests-oauthlib==2.0.0
+resend==2.29.0
+rich==14.2.0
+rpds-py==0.30.0
+rsa==4.9.1
+s3transfer==0.16.0
+s5cmd==0.2.0
+segno==1.6.6
+shellingham==1.5.4
+six==1.17.0
+slowapi==0.1.9
+sniffio==1.3.1
+starlette==0.37.2
+stripe==15.1.0
+tenacity==9.1.4
+tiktoken==0.12.0
+tokenizers==0.22.2
+tqdm==4.67.3
+typer==0.20.0
+typing-inspection==0.4.2
+typing_extensions==4.15.0
+tzdata==2025.2
+tzlocal==5.3.1
+uritemplate==4.2.0
+urllib3==2.6.1
+uvicorn==0.25.0
+uvloop==0.22.1
+watchfiles==1.1.1
+websockets==15.0.1
+wrapt==2.0.1
+xlsxwriter==3.2.9
+yarl==1.23.0
+zipp==3.23.1 cego no ambiente Emergent).
 
 **Code Architecture**
-Backend em FastAPI. Frontend React. 
-- Módulo Curricular refatorado: Usa  (núcleo duro) e  (adaptações locais).
-- Módulo de Intervenções:  (CRUD),  (Geração determinística),  (Agregações) e  (Cron Jobs usando APScheduler).
-- Multi-Tenancy: Controlado pelo , que audita o vazamento de coleções sem escopo. Resolução de domínios via .
+- Backend FastAPI + Frontend React.
+- **CSRF Token**: Validação dupla via payload do JWT e Header HTTP customizado ().
+- **Verificação de Documentos**: PDFs gerados interagem com a classe  antes de virarem byte streams para garantir imutabilidade e gerar chaves verificáveis (). QR Codes são gerados com a biblioteca usage: segno [-h] [--version VERSION] [--error {L,M,Q,H,-}]
+             [--mode {numeric,alphanumeric,byte,kanji,hanzi}]
+             [--encoding ENCODING] [--micro] [--no-micro] [--pattern PATTERN]
+             [--no-error-boost] [--seq] [--symbol-count SYMBOL_COUNT]
+             [--border BORDER] [--scale SCALE] [--output OUTPUT] [--dark DARK]
+             [--light LIGHT] [--finder-dark FINDER_DARK]
+             [--finder-light FINDER_LIGHT] [--separator SEPARATOR]
+             [--data-dark DATA_DARK] [--data-light DATA_LIGHT]
+             [--timing-dark TIMING_DARK] [--timing-light TIMING_LIGHT]
+             [--align-dark ALIGNMENT_DARK] [--align-light ALIGNMENT_LIGHT]
+             [--quiet-zone QUIET_ZONE] [--dark-module DARK_MODULE]
+             [--format-dark FORMAT_DARK] [--format-light FORMAT_LIGHT]
+             [--version-dark VERSION_DARK] [--version-light VERSION_LIGHT]
+             [--no-classes] [--no-xmldecl] [--no-namespace] [--no-newline]
+             [--title TITLE] [--desc DESC] [--svgid SVGID]
+             [--svgclass SVGCLASS] [--lineclass LINECLASS] [--no-size]
+             [--unit UNIT] [--svgversion SVGVERSION]
+             [--svgencoding SVGENCODING] [--draw-transparent] [--dpi DPI]
+             [--compact] [--ver]
+             content [content ...]
+
+Segno QR Code and Micro QR Code generator version 1.6.6
+
+positional arguments:
+  content               The content to encode
+
+options:
+  -h, --help            show this help message and exit
+  --version VERSION, -v VERSION
+                        (Micro) QR Code version: 1 .. 40 or "M1", "M2", "M3",
+                        "M4"
+  --error {L,M,Q,H,-}, -e {L,M,Q,H,-}
+                        Error correction level: "L": 7% (default), "M": 15%,
+                        "Q": 25%, "H": 30%, "-": no error correction (used for
+                        M1 symbols)
+  --mode {numeric,alphanumeric,byte,kanji,hanzi}, -m {numeric,alphanumeric,byte,kanji,hanzi}
+                        Mode. If unspecified (default), an optimal mode is
+                        chosen for the given input.
+  --encoding ENCODING   Sets the encoding of the input. If not set (default),
+                        a minimal encoding is chosen.
+  --micro               Allow the creation of Micro QR Codes
+  --no-micro            Disallow creation of Micro QR Codes (default)
+  --pattern PATTERN, -p PATTERN
+                        Mask pattern to use. If unspecified (default), an
+                        optimal mask pattern is used. Valid values for QR
+                        Codes: 0 .. 7. Valid values for Micro QR Codes: 0 .. 3
+  --no-error-boost      Disables the automatic error correction level
+                        incrementation. By default, the maximal error
+                        correction level is used (without changing the
+                        version).
+  --seq                 Creates a sequence of QR Codes (Structured Append
+                        mode). Version or symbol count must be provided
+  --symbol-count SYMBOL_COUNT, -sc SYMBOL_COUNT
+                        Number of symbols to create
+  --border BORDER, -b BORDER
+                        Size of the border / quiet zone of the output. By
+                        default, the standard border (4 modules for QR Codes,
+                        2 modules for Micro QR Codes) will be used. A value of
+                        0 omits the border
+  --scale SCALE, -s SCALE
+                        Scaling factor. By default, a scaling factor of 1 is
+                        used. That may lead into too small images. Some output
+                        formats, i.e. SVG, accept a decimal value.
+  --output OUTPUT, -o OUTPUT
+                        Output file. If not specified, the QR Code is printed
+                        to the terminal
+  --ver, -V             Shows Segno's version
+
+Module Colors:
+  Arguments to specify the module colors. Multiple colors are supported for
+  SVG and PNG. The module color support varies between the serialization
+  formats. Most serializers support at least "--dark" and "--light".
+  Unsupported arguments are ignored.
+
+  --dark DARK           Color of the dark modules. The color may be specified
+                        as web color name, i.e. "red" or as hexadecimal value,
+                        i.e. "#0033cc". Some serializers, i.e. SVG and PNG,
+                        support alpha channels (8-digit hexadecimal value) and
+                        some support "transparent" / "trans" as color value
+                        for alpha transparency. The standard color is black.
+  --light LIGHT         Color of the light modules. See "dark" for a
+                        description of possible values. The standard light
+                        color is white.
+  --finder-dark FINDER_DARK
+                        Sets the color of the dark finder modules
+  --finder-light FINDER_LIGHT
+                        Sets the color of the light finder modules
+  --separator SEPARATOR
+                        Sets the color of the separator modules
+  --data-dark DATA_DARK
+                        Sets the color of the dark data modules
+  --data-light DATA_LIGHT
+                        Sets the color of the light data modules
+  --timing-dark TIMING_DARK
+                        Sets the color of the dark timing modules
+  --timing-light TIMING_LIGHT
+                        Sets the color of the light timing modules
+  --align-dark ALIGNMENT_DARK
+                        Sets the color of the dark alignment modules
+  --align-light ALIGNMENT_LIGHT
+                        Sets the color of the light alignment modules
+  --quiet-zone QUIET_ZONE
+                        Sets the color of the quiet zone (border)
+  --dark-module DARK_MODULE
+                        Sets the color of the dark module
+  --format-dark FORMAT_DARK
+                        Sets the color of the dark format information modules
+  --format-light FORMAT_LIGHT
+                        Sets the color of the light format information modules
+  --version-dark VERSION_DARK
+                        Sets the color of the dark version information modules
+  --version-light VERSION_LIGHT
+                        Sets the color of the light version information
+                        modules
+
+SVG:
+  SVG specific options
+
+  --no-classes          Omits the (default) SVG classes
+  --no-xmldecl          Omits the XML declaration header
+  --no-namespace        Indicates that the SVG document should have no SVG
+                        namespace declaration
+  --no-newline          Indicates that the SVG document should have no
+                        trailing newline
+  --title TITLE         Specifies the title of the SVG document
+  --desc DESC           Specifies the description of the SVG document
+  --svgid SVGID         Indicates the ID of the <svg/> element
+  --svgclass SVGCLASS   Indicates the CSS class of the <svg/> element. An
+                        empty string omits the attribute.
+  --lineclass LINECLASS
+                        Indicates the CSS class of the <path/> elements. An
+                        empty string omits the attribute.
+  --no-size             Indicates that the SVG document should not have
+                        "width" and "height" attributes
+  --unit UNIT           Indicates SVG coordinate system unit
+  --svgversion SVGVERSION
+                        Indicates the SVG version
+  --svgencoding SVGENCODING
+                        Specifies the encoding of the document
+  --draw-transparent    Indicates that transparent paths should be drawn
+
+PNG:
+  PNG specific options
+
+  --dpi DPI             Sets the DPI value of the PNG file
+
+Terminal:
+  Terminal specific options
+
+  --compact             Indicates that the QR code should be printed in a more
+                        compact manner.
+- **Busca de Alunos/Servidores**: Utiliza agora lógica de equivalência de acentos (NFD) indexando um campo  invisível ao usuário.
 
 **Key Technical Concepts**
-- Arquitetura de Tenant-by-Domain: O  é usado no backend para injetar e responder com o branding correto no login sem depender de query params (que seriam manipuláveis).
-- Fallback Graceful: E-mails transacionais (Resend) são enviados apenas se a chave existir no , caso contrário envia apenas in-app alert, evitando crash na rotina do cron.
+- Indexação composta MongoDB () para contornar problemas de case/accent sensitivity em Regex e ganhar performance.
+- Geração de QR Code injetada diretamente no canvas do ReportLab.
+- Service Worker Caching Strategy (Network first para APIs, Cache First para estáticos).
 
 **key DB schema**
-  - : 
-  - : 
-  - : 
-  - : 
+  - Todas as coleções que possuem  ou  agora injetam em backend os campos auxiliares:
+    - : string minúscula.
+    - : string minúscula, sem acentos, sem cedilhas (usado no  de busca).
 
 **changes in tech stack**
-  - Adição/Uso intenso do  para a rotina do .
-  - Integração com  SDK configurada (exige  com ).
+  - Adicionada biblioteca  no backend (para gerar QR Codes nativamente sem depender de C-extensions pesadas como algumas outras bibliotecas). Removido .
+  - CSS global limpo das amarras de .
 
-**All files of reference** 
-  -  & 
-  -  & 
-  -  & 
-  -  (Serviço Cron)
-  -  (CRUD domains/branding)
-  -  (Hook de Branding)
-  -  (Modificado para usar vars dinâmicas)
+**All files of reference**
+  -  (Script recém-criado de CLI robusta de migração)
+  -  (Lógica central de acentuação para busca de front)
+  - , ,  (PDF generation com QR)
+  -  (Nova UI do Catálogo e Validação)
+  -  (Service Worker cache atualizado para v8)
+  -  (Atualizado com regras de bloqueio AEE)
 
 **Areas that need refactoring**: 
- continua como dívida técnica mencionada para o futuro. 
+- O usuário cogitou tornar o widget de Busca de Aluno/Servidor (implementado solto nas tabelas do front) em um Componente Reutilizável com a função . Pode ser uma boa melhoria futura.
 
 **key api endpoints**
-  -  (Sem auth, mapeia Host Header para Branding)
-  -  (Agregação de métricas de gestão)
-  -  (Geração determinística do plano de ação)
-  -  (Nova fonte de dados para o SkillPicker)
+  -  (Agora retorna PDF com QR Code)
+  -  (Idem)
+  -  (Usado no DocumentValidator)
 
-**Critical Info for New Agent** 
-- O Sistema sofreu um upgrade brutal para se tornar uma plataforma SaaS de alta accountability. Regras rígidas foram aplicadas: NUNCA crie métricas maquiadas, sempre baseie outputs em dados reais operacionais com 1 clique para a ação.
-- Não reescreva ou simplifique a resolução de  do endpoint de branding público. Isso foi uma diretriz de segurança expressa pelo usuário (para prevenir domain spoofing e manter cache-control correto).
-- Sempre verifique o escopo  em qualquer novo CRUD ou query (cross-tenant leakage é inaceitável).
+**Critical Info for New Agent**
+- 🛑 **AEE MODULE LOCKED**: O usuário determinou EXPRESSAMENTE que o módulo AEE (Atendimento Educacional Especializado) NÃO PODE SER ALTERADO sob nenhuma hipótese sem permissão explícita prévia. Se houver bug lá, você deve investigar, descrever a correção solicitada e PERGUNTAR antes de alterar os arquivos (, , ).
+- 🛑 **Requirements.txt**: Nunca use  diretamente no container do Emergent, pois ele captura pacotes instalados por URLs internas (ex: ). Isso vai quebrar o deploy do cliente (Coolify) imediatamente. Use  e adicione a linha manualmente.
+- **Service Worker**: Se introduzir mudanças bruscas no Frontend e o usuário reportar que está congelado ou em loop infinito (tela de carregamento que não some), incremente a variável  no  para forçar os navegadores clientes a abandonarem o script antigo.
+- **CSRF**: Toda requisição POST/PUT/DELETE em frontend que use  puro em vez do Axios instanciado *deve* passar o header , senão tomará erro 403 HTTP.
 
-**documents and test reports created in this job** 
-  -  (Constantemente atualizado ao fim de cada Sprint).
-  - Dezenas de arquivos de teste em  (, , , , , ).
+**documents and test reports created in this job**
+  -  (Atualizado massivamente)
+  -  (Teste Branding G4)
+  -  (Teste Bugfix AEE CSRF)
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - *User*: Pediu a migração de 1 Projeto + 1 Mantenedora para 1 Projeto + N Mantenedoras com branding via Host. Vamos blindar as lacunas. -> *Agent*: Implementou o endpoint de Domain Branding mas deixou a resolução via query parameter.
- - *User*: Corrigiu o agente agressivamente: O /branding/public resolve estética mas deixa brecha. Forma correta é resolver via , aplicar CSS variables no LoginScreen, tratar Cache e validar Domínios (Sprint F ajustada). -> *Agent*: Refatorou , corrigiu para buscar via Header (Host), criou , plugou no , arrumou todos os 40 testes e validou a UI. Ficou pendente apenas de usar o .
+ - *User*: Solicitou a correção do loop de carregamento infinito do painel.
+ - *Agent*: Atualizou a versão do SW () para limpar o cache velho no cliente.
+ - *User*: Solicitou criação de página de validação de documentos no menu Admin.
+ - *Agent*: Criou  e listou os 9 tipos de documentos.
+ - *User*: Notou que os PDFs Histórico e Certificado não estavam gerando código/QR.
+ - *Agent*: Implementou QR (via usage: segno [-h] [--version VERSION] [--error {L,M,Q,H,-}]
+             [--mode {numeric,alphanumeric,byte,kanji,hanzi}]
+             [--encoding ENCODING] [--micro] [--no-micro] [--pattern PATTERN]
+             [--no-error-boost] [--seq] [--symbol-count SYMBOL_COUNT]
+             [--border BORDER] [--scale SCALE] [--output OUTPUT] [--dark DARK]
+             [--light LIGHT] [--finder-dark FINDER_DARK]
+             [--finder-light FINDER_LIGHT] [--separator SEPARATOR]
+             [--data-dark DATA_DARK] [--data-light DATA_LIGHT]
+             [--timing-dark TIMING_DARK] [--timing-light TIMING_LIGHT]
+             [--align-dark ALIGNMENT_DARK] [--align-light ALIGNMENT_LIGHT]
+             [--quiet-zone QUIET_ZONE] [--dark-module DARK_MODULE]
+             [--format-dark FORMAT_DARK] [--format-light FORMAT_LIGHT]
+             [--version-dark VERSION_DARK] [--version-light VERSION_LIGHT]
+             [--no-classes] [--no-xmldecl] [--no-namespace] [--no-newline]
+             [--title TITLE] [--desc DESC] [--svgid SVGID]
+             [--svgclass SVGCLASS] [--lineclass LINECLASS] [--no-size]
+             [--unit UNIT] [--svgversion SVGVERSION]
+             [--svgencoding SVGENCODING] [--draw-transparent] [--dpi DPI]
+             [--compact] [--ver]
+             content [content ...]
+
+Segno QR Code and Micro QR Code generator version 1.6.6
+
+positional arguments:
+  content               The content to encode
+
+options:
+  -h, --help            show this help message and exit
+  --version VERSION, -v VERSION
+                        (Micro) QR Code version: 1 .. 40 or "M1", "M2", "M3",
+                        "M4"
+  --error {L,M,Q,H,-}, -e {L,M,Q,H,-}
+                        Error correction level: "L": 7% (default), "M": 15%,
+                        "Q": 25%, "H": 30%, "-": no error correction (used for
+                        M1 symbols)
+  --mode {numeric,alphanumeric,byte,kanji,hanzi}, -m {numeric,alphanumeric,byte,kanji,hanzi}
+                        Mode. If unspecified (default), an optimal mode is
+                        chosen for the given input.
+  --encoding ENCODING   Sets the encoding of the input. If not set (default),
+                        a minimal encoding is chosen.
+  --micro               Allow the creation of Micro QR Codes
+  --no-micro            Disallow creation of Micro QR Codes (default)
+  --pattern PATTERN, -p PATTERN
+                        Mask pattern to use. If unspecified (default), an
+                        optimal mask pattern is used. Valid values for QR
+                        Codes: 0 .. 7. Valid values for Micro QR Codes: 0 .. 3
+  --no-error-boost      Disables the automatic error correction level
+                        incrementation. By default, the maximal error
+                        correction level is used (without changing the
+                        version).
+  --seq                 Creates a sequence of QR Codes (Structured Append
+                        mode). Version or symbol count must be provided
+  --symbol-count SYMBOL_COUNT, -sc SYMBOL_COUNT
+                        Number of symbols to create
+  --border BORDER, -b BORDER
+                        Size of the border / quiet zone of the output. By
+                        default, the standard border (4 modules for QR Codes,
+                        2 modules for Micro QR Codes) will be used. A value of
+                        0 omits the border
+  --scale SCALE, -s SCALE
+                        Scaling factor. By default, a scaling factor of 1 is
+                        used. That may lead into too small images. Some output
+                        formats, i.e. SVG, accept a decimal value.
+  --output OUTPUT, -o OUTPUT
+                        Output file. If not specified, the QR Code is printed
+                        to the terminal
+  --ver, -V             Shows Segno's version
+
+Module Colors:
+  Arguments to specify the module colors. Multiple colors are supported for
+  SVG and PNG. The module color support varies between the serialization
+  formats. Most serializers support at least "--dark" and "--light".
+  Unsupported arguments are ignored.
+
+  --dark DARK           Color of the dark modules. The color may be specified
+                        as web color name, i.e. "red" or as hexadecimal value,
+                        i.e. "#0033cc". Some serializers, i.e. SVG and PNG,
+                        support alpha channels (8-digit hexadecimal value) and
+                        some support "transparent" / "trans" as color value
+                        for alpha transparency. The standard color is black.
+  --light LIGHT         Color of the light modules. See "dark" for a
+                        description of possible values. The standard light
+                        color is white.
+  --finder-dark FINDER_DARK
+                        Sets the color of the dark finder modules
+  --finder-light FINDER_LIGHT
+                        Sets the color of the light finder modules
+  --separator SEPARATOR
+                        Sets the color of the separator modules
+  --data-dark DATA_DARK
+                        Sets the color of the dark data modules
+  --data-light DATA_LIGHT
+                        Sets the color of the light data modules
+  --timing-dark TIMING_DARK
+                        Sets the color of the dark timing modules
+  --timing-light TIMING_LIGHT
+                        Sets the color of the light timing modules
+  --align-dark ALIGNMENT_DARK
+                        Sets the color of the dark alignment modules
+  --align-light ALIGNMENT_LIGHT
+                        Sets the color of the light alignment modules
+  --quiet-zone QUIET_ZONE
+                        Sets the color of the quiet zone (border)
+  --dark-module DARK_MODULE
+                        Sets the color of the dark module
+  --format-dark FORMAT_DARK
+                        Sets the color of the dark format information modules
+  --format-light FORMAT_LIGHT
+                        Sets the color of the light format information modules
+  --version-dark VERSION_DARK
+                        Sets the color of the dark version information modules
+  --version-light VERSION_LIGHT
+                        Sets the color of the light version information
+                        modules
+
+SVG:
+  SVG specific options
+
+  --no-classes          Omits the (default) SVG classes
+  --no-xmldecl          Omits the XML declaration header
+  --no-namespace        Indicates that the SVG document should have no SVG
+                        namespace declaration
+  --no-newline          Indicates that the SVG document should have no
+                        trailing newline
+  --title TITLE         Specifies the title of the SVG document
+  --desc DESC           Specifies the description of the SVG document
+  --svgid SVGID         Indicates the ID of the <svg/> element
+  --svgclass SVGCLASS   Indicates the CSS class of the <svg/> element. An
+                        empty string omits the attribute.
+  --lineclass LINECLASS
+                        Indicates the CSS class of the <path/> elements. An
+                        empty string omits the attribute.
+  --no-size             Indicates that the SVG document should not have
+                        "width" and "height" attributes
+  --unit UNIT           Indicates SVG coordinate system unit
+  --svgversion SVGVERSION
+                        Indicates the SVG version
+  --svgencoding SVGENCODING
+                        Specifies the encoding of the document
+  --draw-transparent    Indicates that transparent paths should be drawn
+
+PNG:
+  PNG specific options
+
+  --dpi DPI             Sets the DPI value of the PNG file
+
+Terminal:
+  Terminal specific options
+
+  --compact             Indicates that the QR code should be printed in a more
+                        compact manner) nestes dois PDFs.
+ - *User*: Perguntou como emitir documentos tipo Matrícula/Frequência/Escolaridade.
+ - *Agent*: Adicionou o atalho proativo no menu de navegação lateral.
+ - *User*: Solicitou busca sugestiva (autocomplete a partir de 3 chars) e ignore de acentos em todas as telas.
+ - *Agent*: Implementou  e distribuiu a busca refinada.
+ - *User*: Alertou erro de Deploy (exit code 1 docker build...).
+ - *Agent*: Descobriu e removeu URL interna da Emergent no  referente ao .
+ - *User*: Passou script mega-detalhado, sugerindo refinar o script Python de conversão de CAIXA ALTA (CLI production-ready).
+ - *Agent*: Incorporou todas as exigências do usuário no script final . **Sem mensagem pendente.**
 
 **Project Health Check:**
-Healthy. Frontend/Backend rodando. Testes rigorosos passando (40/40).
+Frontend e Backend  e totalmente operacionais. Cobertura de testes unitários passante.
 
 **3rd Party Integrations**
-  - LanguageTool API — requires NO key (Public endpoint proxy)
-  - Resend (Emails transacionais) — requires User API Key ()
+  - Anthropic Claude Sonnet 4.5 — requires User API Key ( - via direct  sdk).
+  - Resend (Emails) — requires User API Key ().
 
 **Testing status**
-  - Testing agent used after significant changes: NO (Agente testou localmente via script ============================= test session starts ==============================
-platform linux -- Python 3.11.15, pytest-9.0.2, pluggy-1.6.0
-rootdir: /app
-plugins: anyio-4.12.0
-collected 548 items / 3 errors
-
-==================================== ERRORS ====================================
-_________ ERROR collecting backend/tests/test_learning_objects_pdf.py __________
-backend/tests/test_learning_objects_pdf.py:32: in <module>
-    raise ValueError("REACT_APP_BACKEND_URL environment variable is not set")
-E   ValueError: REACT_APP_BACKEND_URL environment variable is not set
-__________ ERROR collecting backend/tests/test_mantenedora_active.py ___________
-backend/tests/test_mantenedora_active.py:9: in <module>
-    BASE_URL = os.environ.get('REACT_APP_BACKEND_URL').rstrip('/')
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E   AttributeError: 'NoneType' object has no attribute 'rstrip'
-______________ ERROR collecting backend/tests/test_semed3_role.py ______________
-backend/tests/test_semed3_role.py:14: in <module>
-    BASE_URL = os.environ.get('REACT_APP_BACKEND_URL').rstrip('/')
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E   AttributeError: 'NoneType' object has no attribute 'rstrip'
-=========================== short test summary info ============================
-ERROR backend/tests/test_learning_objects_pdf.py - ValueError: REACT_APP_BACK...
-ERROR backend/tests/test_mantenedora_active.py - AttributeError: 'NoneType' o...
-ERROR backend/tests/test_semed3_role.py - AttributeError: 'NoneType' object h...
-!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!!
-============================== 3 errors in 1.71s =============================== e  constantemente ao longo das entregas).
+  - Testing agent used after significant changes: YES
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: , , etc.
+  - Test files created: none (testing was done directly inside Python shell & testing subagent test reports).
   - Known regressions: Nenhuma.
 
 **Credentials to test flow:**
-Use credenciais centrais do  (super_admin primário: ).
+Use as credenciais de . SuperAdmin:  / .
 
 **What agent forgot to execute**
-O agente realizou com excelência a codificação, o screenshot de validação do Login Screen final e a correção de testes, mas ficou sem contexto para rodar a tool  no passo final. O trabalho já está pronto para ser encerrado ou revisado.
+O script final CLI de conversão do banco de dados (reversão do CAIXA ALTA) foi escrito, verificado com , e está completamente pronto para uso. O agente deixou explicitamente a critério do usuário invocar o script final na base de produção quando se sentir confortável.
 
 **Debugging checklist for current issue**
-    Issue: Finalizar Sprint F (Encerrar a submissão pendente).
-    - O agente anterior apenas precisava chamar  para a última instrução de Branding Público via Host. Recomendado iniciar perguntando ao usuário se a tela de login apresentada no screenshot o satisfaz e se deseja passar para a Fase 2 (Planos de Ação baseados em IA) ou refatoração de código (grade_calculator).</analysis>
+    Issue: Executar script de normalização (Apenas se requisitado pelo usuário)
+    Backend files to check: 
+    Command: 
+==============================================================================
+✅ MIGRAÇÃO CONCLUÍDA
+==============================================================================
+  Total de docs atualizados: 0 (ou via  para validar antes).</analysis>

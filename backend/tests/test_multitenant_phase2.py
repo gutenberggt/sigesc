@@ -13,7 +13,7 @@ import time
 import pytest
 import requests
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://color-picker-sprint.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://multi-tenant-app-30.preview.emergentagent.com').rstrip('/')
 ADMIN_EMAIL = "gutenberg@sigesc.com"
 ADMIN_PASSWORD = os.getenv("SIGESC_TEST_ADMIN_PASSWORD", "@Celta2007")
 ORIGINAL_TENANT = "a991c1ac-56b1-46a8-b122-effedbe19b21"

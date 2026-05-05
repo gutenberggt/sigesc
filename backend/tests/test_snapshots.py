@@ -31,7 +31,7 @@ load_dotenv("/app/backend/.env")
 
 BACKEND = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://color-picker-sprint.preview.emergentagent.com",
+    "https://multi-tenant-app-30.preview.emergentagent.com",
 ).rstrip("/")
 SUPER_ADMIN = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}
 
