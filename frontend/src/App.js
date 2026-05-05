@@ -30,6 +30,7 @@ const RankingGestores = lazy(() => import('@/pages/RankingGestores'));
 const PlanoAcao = lazy(() => import('@/pages/PlanoAcao'));
 const DocumentValidator = lazy(() => import('@/pages/DocumentValidator'));
 const ContentReview = lazy(() => import('@/pages/ContentReview'));
+const TextImprovement = lazy(() => import('@/pages/TextImprovement'));
 const SchoolDocuments = lazy(() => import('@/pages/SchoolDocuments'));
 const MonthlyReports = lazy(() => import('@/pages/MonthlyReports'));
 const TenantAdmin = lazy(() => import('@/pages/TenantAdmin'));
@@ -622,6 +623,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste']}>
                 <ContentReview />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Higienização Textual (formatação) — Mai/2026 */}
+          <Route
+            path="/admin/text-improvement"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste']}>
+                <TextImprovement />
               </ProtectedRoute>
             }
           />

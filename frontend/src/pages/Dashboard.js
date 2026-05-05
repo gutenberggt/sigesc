@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { usePermissions } from '@/hooks/usePermissions';
-import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity, Siren, Layers, Wrench, Megaphone, MessageSquare, BookMarked, Search, Trophy, Zap, ShieldCheck, ScrollText } from 'lucide-react';
+import { Users, School, BookOpen, GraduationCap, Bell, FileText, BarChart3, ClipboardList, Calendar, ClipboardCheck, Briefcase, User, Shield, Award, UserPlus, ChevronDown, HeartHandshake, Wifi, Syringe, Building2, Activity, Siren, Layers, Wrench, Megaphone, MessageSquare, BookMarked, Search, Trophy, Zap, ShieldCheck, ScrollText, Sparkles } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { schoolsAPI, usersAPI, classesAPI, profilesAPI, studentsAPI, staffAPI, mantenedoraAPI, analyticsAPI, permissionOverridesAPI } from '@/services/api';
@@ -31,6 +31,7 @@ export const DASHBOARD_MENU_GROUPS = [
       { label: 'Declarações Escolares', icon: ScrollText, color: 'cyan', route: '/admin/declaracoes', testId: 'nav-school-documents-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isSecretario || c.isDiretor || c.hasRole('auxiliar_secretaria') },
       { label: 'Validar Documentos', icon: ShieldCheck, color: 'emerald', route: '/admin/document-validator', testId: 'nav-document-validator-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isSecretario || c.isDiretor || c.isCoordenador || c.hasRole('auxiliar_secretaria') },
       { label: 'Revisão de Conteúdo', icon: ClipboardCheck, color: 'blue', route: '/admin/content-review', testId: 'nav-content-review-button', visible: c => c.isSuperAdmin || c.isAdmin || c.hasRole('admin_teste') },
+      { label: 'Higienização Textual', icon: Sparkles, color: 'violet', route: '/admin/text-improvement', testId: 'nav-text-improvement-button', visible: c => c.isSuperAdmin || c.isAdmin || c.hasRole('admin_teste') },
       { label: 'Multi-Tenant', icon: ShieldCheck, color: 'emerald', route: '/admin/tenant', testId: 'nav-tenant-admin-button', visible: c => c.isSuperAdmin },
     ],
   },

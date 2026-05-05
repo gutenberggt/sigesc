@@ -60,3 +60,18 @@ content-scan: ## Enfileira sugestões em content_review_queue (admin revisa em /
 .PHONY: content-clear-pending
 content-clear-pending: ## Remove itens pending da fila (não afeta docs originais)
 	@$(PYTHON) scripts/normalize_content.py --clear-pending
+
+# ------------------------------------------------------------
+# Higienização Textual Fase 1 — FORMATAÇÃO determinística
+# ------------------------------------------------------------
+.PHONY: text-dry-run
+text-dry-run: ## Relatório de anomalias de FORMATAÇÃO (sem enfileirar)
+	@$(PYTHON) scripts/text_improvement.py --dry-run
+
+.PHONY: text-scan
+text-scan: ## Enfileira sugestões em text_improvement_queue (admin revisa em /admin/text-improvement)
+	@$(PYTHON) scripts/text_improvement.py --scan
+
+.PHONY: text-clear-pending
+text-clear-pending: ## Remove itens pending da fila de formatação
+	@$(PYTHON) scripts/text_improvement.py --clear-pending

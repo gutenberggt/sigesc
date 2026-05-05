@@ -190,6 +190,36 @@ mesmas regras (mesma whitelist + mesmas heurísticas defensivas).
 - Frontend: modal que mostra todos os campos textuais do registro original, destacando o campo da sugestão pendente em amarelo
 - Validação: modal abre, mostra 3 campos textuais (content, pratica_pedagogica, observations), campo destacado tem pin "📍 campo da sugestão" + sugestão embebida ✅
 
+### Higienização Textual — Fase 1 (FORMATAÇÃO determinística) [05/Mai/2026]
+**Princípio**: módulo SEPARADO de `content_review` ("nome ≠ caixa ≠ formatação"). Apenas regras
+determinísticas, ZERO ortografia, ZERO IA, sempre via fila com revisão humana.
+
+**Regras (Fase 1)**:
+1. Espaços múltiplos → 1
+2. Espaço antes de pontuação → remove
+3. Falta espaço após pontuação (antes de letra) → adiciona (preserva 1.500/14:30)
+4. Múltiplas quebras de linha (3+) → 2
+5. Capitalização inicial
+6. Pontuação final em frases ≥3 palavras
+7. Padronização de siglas (aee → AEE etc)
+8. Palavras stopword duplicadas (de de → de)
+
+**Pulagem defensiva**: texto vazio/curto, em CAIXA ALTA (vai pro content_review), com romanos
+ou estrutura enumerada (preserva).
+
+**Arquivos**:
+- Script: `/app/backend/scripts/text_improvement.py` (--dry-run, --scan, --clear-pending)
+- Router: `/app/backend/routers/text_improvement.py` (super_admin/admin/admin_teste)
+- Página: `/app/frontend/src/pages/TextImprovement.jsx` (rota `/admin/text-improvement`)
+- Coleção MongoDB: `text_improvement_queue` (status + applied_rules)
+- Make: `make text-dry-run | text-scan | text-clear-pending`
+- Dashboard: novo atalho "Higienização Textual" (violeta) no grupo Administração
+
+**Validação E2E [05/Mai/2026]**:
+- 29 candidatos detectados na base real (student_history + learning_objects, regra mais comum: pontuação final ausente)
+- APPROVE testado via curl: doc original recebeu pontuação final + flag `text_improved: true`
+- Frontend renderiza cards com badges violetas das regras aplicadas, screenshot OK ✅
+
 **Regras de preservação** (script `normalize_content.py`):
 - Siglas (AEE, BNCC, SEMED, TEA, ETI, B1-B4, CNPJ, CPF, RG, NIS, PCD, LGPD, etc.)
 - Citações entre aspas simples ou duplas
