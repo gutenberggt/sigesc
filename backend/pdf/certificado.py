@@ -21,7 +21,10 @@ def generate_certificado_pdf(
     enrollment: Dict[str, Any],
     academic_year: int,
     course_name: str = "Ensino Fundamental",
-    mantenedora: Dict[str, Any] = None
+    mantenedora: Dict[str, Any] = None,
+    *,
+    verification_code: str = None,
+    valid_until: str = None,
 ) -> BytesIO:
     """
     Gera o Certificado de Conclusão em PDF.
@@ -90,13 +93,14 @@ def generate_certificado_pdf(
             logger.warning(f"Não foi possível carregar brasão da mantenedora: {e}")
     
     # ========== DADOS DO ALUNO ==========
-    student_name = student.get('full_name', 'N/A').upper()
-    birth_date = student.get('birth_date', 'N/A')
-    nationality = student.get('nationality', 'BRASILEIRA').upper()
-    birth_city = student.get('birth_city', '').upper()
-    birth_state = student.get('birth_state', 'PA').upper()
-    father_name = student.get('father_name', '').upper()
-    mother_name = student.get('mother_name', '').upper()
+    # [Mai/2026] Resilência a campos None (era falha "'NoneType' object has no attribute 'upper'")
+    student_name = (student.get('full_name') or 'N/A').upper()
+    birth_date = student.get('birth_date') or 'N/A'
+    nationality = (student.get('nationality') or 'BRASILEIRA').upper()
+    birth_city = (student.get('birth_city') or '').upper()
+    birth_state = (student.get('birth_state') or 'PA').upper()
+    father_name = (student.get('father_name') or '').upper()
+    mother_name = (student.get('mother_name') or '').upper()
     
     # Filiação
     parents = []
@@ -110,7 +114,7 @@ def generate_certificado_pdf(
     naturalidade = f"{birth_city} - {birth_state}" if birth_city else birth_state
     
     # Dados da escola
-    school_name = school.get('name', 'ESCOLA MUNICIPAL').upper()
+    school_name = (school.get('name') or 'ESCOLA MUNICIPAL').upper()
     
     # Resolução de autorização da escola (pode vir do cadastro da escola)
     resolucao = school.get('regulamentacao', 'Resolução n° 272 de 21 de maio de 2020 - CEE/PA')
@@ -228,7 +232,23 @@ def generate_certificado_pdf(
     # ========== ÁREA DE ASSINATURAS ==========
     # As linhas de assinatura já estão na imagem de fundo
     # Apenas posicionar os textos de identificação se necessário
-    
+
+    # ========== RODAPÉ DE VERIFICAÇÃO PÚBLICA (Mai/2026) ==========
+    if verification_code:
+        try:
+            from pdf.verification_footer import draw_verification_footer_on_canvas
+            footer_w = 17 * cm
+            footer_h = 2.4 * cm
+            footer_x = (width - footer_w) / 2
+            footer_y = 0.5 * cm
+            draw_verification_footer_on_canvas(
+                c, footer_x, footer_y,
+                verification_code, valid_until,
+                width=footer_w, height=footer_h,
+            )
+        except Exception as e:
+            logger.warning(f"Falha ao desenhar rodapé de verificação: {e}")
+
     # Limpar arquivo temporário do brasão
     if brasao_tmp_path:
         try:

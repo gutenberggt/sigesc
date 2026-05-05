@@ -552,6 +552,16 @@ def generate_historico_escolar_pdf(student, school, mantenedora, history, **kwar
     ]))
     elements.append(sig_table)
 
+    # === Rodapé de Verificação Pública (Mai/2026) ===
+    verification_code = kwargs.get('verification_code')
+    valid_until = kwargs.get('valid_until')
+    if verification_code:
+        try:
+            from pdf.verification_footer import build_verification_flowables
+            elements.extend(build_verification_flowables(verification_code, valid_until))
+        except Exception:
+            pass  # rodapé é decorativo; não bloqueia emissão se falhar
+
     doc.build(elements)
     buffer.seek(0)
     return buffer

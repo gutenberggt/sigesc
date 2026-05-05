@@ -11,7 +11,7 @@ Extraído automaticamente de server.py.
 
 from fastapi import APIRouter, HTTPException, status, Request, Response
 from fastapi.responses import StreamingResponse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 import logging
 import unicodedata
@@ -1513,6 +1513,56 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         # Buscar mantenedora (para o brasão)
         mantenedora = await get_mantenedora_cached(db)
 
+        # Cria snapshot imutável (Mai/2026) — fonte do verification_code + QR
+        verification_code = None
+        valid_until_iso = None
+        try:
+            from services import snapshot_service as snap_svc
+            from datetime import timedelta
+            payload_snapshot = {
+                "student_id": student.get("id"),
+                "student_name": student.get("full_name"),
+                "student_birth": student.get("birth_date"),
+                "school_id": school.get("id"),
+                "school_name": school.get("name"),
+                "class_id": class_info.get("id"),
+                "class_name": class_info.get("name"),
+                "grade_level": class_info.get("grade_level"),
+                "academic_year": int(academic_year) if academic_year else None,
+                "course_name": "Ensino Fundamental",
+            }
+            ai_output = {
+                "doc_title": "Certificado de Conclusão",
+                "issued_at": datetime.now(timezone.utc).isoformat(),
+                "issuer_email": current_user.get("email"),
+                "issuer_role": current_user.get("role"),
+            }
+            valid_until_dt = datetime.now(timezone.utc) + timedelta(days=10 * 365)
+            valid_until_iso = valid_until_dt.isoformat()
+            snap = await snap_svc.create_snapshot(
+                db,
+                mantenedora_id=student.get("mantenedora_id") or school.get("mantenedora_id"),
+                entity_type="estudante",
+                entity_id=student_id,
+                analysis_type="certificado",
+                payload_snapshot=payload_snapshot,
+                ai_output=ai_output,
+                model="sigesc/emissao-direta",
+                user=current_user,
+            )
+            verification_code = snap.get("verification_code")
+            if verification_code:
+                # Override expires_at do verifiable_document para 10 anos (certificado é definitivo)
+                await db.verifiable_documents.update_one(
+                    {"code": verification_code},
+                    {"$set": {
+                        "expires_at": valid_until_iso,
+                        "public_metadata.valido_ate": valid_until_dt.date().isoformat(),
+                    }},
+                )
+        except Exception as e:
+            logger.warning(f"Falha ao criar snapshot do certificado (PDF emitido sem QR): {e}")
+
         # Gerar PDF
         try:
             pdf_buffer = generate_certificado_pdf(
@@ -1521,7 +1571,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 class_info=class_info,
                 enrollment=enrollment,
                 academic_year=academic_year,
-                mantenedora=mantenedora
+                mantenedora=mantenedora,
+                verification_code=verification_code,
+                valid_until=valid_until_iso,
             )
 
             filename = f"certificado_{student.get('full_name', 'aluno').replace(' ', '_')}.pdf"
@@ -2320,11 +2372,60 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         try:
             await resolve_anexa_name(db, school)
+
+            # Snapshot imutável (Mai/2026) — gera verification_code + QR no rodapé
+            verification_code = None
+            valid_until_iso = None
+            try:
+                from services import snapshot_service as snap_svc
+                from datetime import timedelta
+                payload_snapshot = {
+                    "student_id": student.get("id"),
+                    "student_name": student.get("full_name"),
+                    "student_birth": student.get("birth_date"),
+                    "school_id": school.get("id"),
+                    "school_name": school.get("name"),
+                    "history_records_count": len((history or {}).get("records", [])),
+                    "media_aprovacao": (history or {}).get("media_aprovacao"),
+                }
+                ai_output = {
+                    "doc_title": "Histórico Escolar",
+                    "issued_at": datetime.now(timezone.utc).isoformat(),
+                    "issuer_email": current_user.get("email"),
+                    "issuer_role": current_user.get("role"),
+                }
+                valid_until_dt = datetime.now(timezone.utc) + timedelta(days=10 * 365)
+                valid_until_iso = valid_until_dt.isoformat()
+                snap = await snap_svc.create_snapshot(
+                    db,
+                    mantenedora_id=student.get("mantenedora_id") or school.get("mantenedora_id"),
+                    entity_type="estudante",
+                    entity_id=student_id,
+                    analysis_type="historico",
+                    payload_snapshot=payload_snapshot,
+                    ai_output=ai_output,
+                    model="sigesc/emissao-direta",
+                    user=current_user,
+                )
+                verification_code = snap.get("verification_code")
+                if verification_code:
+                    await db.verifiable_documents.update_one(
+                        {"code": verification_code},
+                        {"$set": {
+                            "expires_at": valid_until_iso,
+                            "public_metadata.valido_ate": valid_until_dt.date().isoformat(),
+                        }},
+                    )
+            except Exception as e:
+                logger.warning(f"Falha ao criar snapshot do histórico (PDF emitido sem QR): {e}")
+
             pdf_buffer = generate_historico_escolar_pdf(
                 student=student,
                 school=school,
                 mantenedora=mantenedora,
-                history=history
+                history=history,
+                verification_code=verification_code,
+                valid_until=valid_until_iso,
             )
 
             student_name = (student.get('full_name') or 'aluno').replace(' ', '_')

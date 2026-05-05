@@ -32,7 +32,24 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
-### Página Interna de Validação de Documentos **[04/Mai/2026]**
+### Bug Fix Crítico — Histórico e Certificado sem código/QR de validação **[04/Mai/2026]**
+**Sintoma**: PDFs de Matrícula/Frequência/Escolaridade já tinham código + QR, mas Histórico Escolar e Certificado de Conclusão eram emitidos SEM código nem QR — não podiam ser validados pelo portal público.
+
+**Origem**: as rotas `GET /api/documents/historico-escolar/{id}` e `GET /api/documents/certificado/{id}` chamavam diretamente `generate_*_pdf` sem criar `snapshot` antes. Os geradores em `pdf/historico_escolar.py` e `pdf/certificado.py` também não tinham slot para receber `verification_code`.
+
+**Fix**:
+- Novo helper `pdf/verification_footer.py` com `build_verification_flowables()` (Platypus) e `draw_verification_footer_on_canvas()` (canvas direto). Usa `segno` (já no requirements) e produz a mesma caixa visual usada nas declarações: código + QR + URL portal + validade.
+- `pdf/historico_escolar.py`: aceita kwargs `verification_code` e `valid_until`; injeta o rodapé de verificação no final do story.
+- `pdf/certificado.py`: aceita kwargs `verification_code` e `valid_until`; desenha o rodapé via canvas no rodapé inferior (paisagem A4). Também tornou os `.upper()` resilientes a `None` (era falha "'NoneType' object has no attribute 'upper'" em alunos sem todos os campos).
+- `routers/documents.py`: ambas as rotas agora chamam `snapshot_service.create_snapshot()` ANTES de gerar o PDF, com `analysis_type="historico"` ou `"certificado"`, validade default 10 anos. O `verification_code` retornado é injetado no PDF e persistido no `verifiable_documents` com `expires_at` correto.
+
+**Validação E2E**:
+- `GET /api/documents/historico-escolar/{id}` → PDF 13 KB com `SIGESC-9PWX-6KZ3` extraível via pypdf ✅
+- `GET /api/documents/certificado/{id}?academic_year=2025` → PDF 127 KB com `SIGESC-XEPG-3AW3` extraível ✅
+- `GET /api/public/verify/SIGESC-XEPG-3AW3` → `status=valido tipo=certificado emitido_em=2026-05-05` ✅
+- Catálogo da página `/admin/document-validator` agora reflete corretamente todos os 9 tipos sendo emitidos com código + QR.
+
+
 - Nova rota autenticada: `/admin/document-validator` (`pages/DocumentValidator.jsx`)
 - Botão no Menu de Administração → Gestão Institucional → "Validar Documentos" (visível para super_admin, admin, secretario, diretor, coordenador, auxiliar_secretaria)
 - **Catálogo dos 9 tipos de documentos verificáveis** do SIGESC (mantido em sync com `backend/services/verifiable_docs_service.DOC_TYPES`):
