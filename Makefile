@@ -8,7 +8,8 @@
 
 SHELL := /bin/bash
 PYTHON ?= python
-BACKEND_DIR := backend
+# Detecta layout: preview Emergent tem /app/backend/, produção Coolify tem /app/
+BACKEND_DIR := $(shell if [ -d "backend" ]; then echo "backend"; else echo "."; fi)
 MIGRATION_RUNNER := $(BACKEND_DIR)/scripts/run_migration.sh
 
 .DEFAULT_GOAL := help
