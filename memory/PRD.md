@@ -157,11 +157,12 @@ script gera sugestões e enfileira; admin aprova caso a caso.
 - (FASE 2 futuro com filtro restritivo): `learning_objects.methodology`, `learning_objects.evidencia_aprendizagem`
 - ❌ NÃO incluído: `learning_objects.resources` (lista de materiais — risco semântico)
 
-**Heurísticas defensivas** (FUNÇÃO `should_skip_text`) — Mai/2026 (refinadas):
+**Heurísticas defensivas** (FUNÇÃO `should_skip_text`) — Mai/2026 (refinadas v2):
 - 🚫 Algarismos romanos I/II/III/IV/V/VI/.../XX (cobre "MATERNAL I", "PRÉ I", "AULA V")
-- 🚫 Texto totalmente CAPS contendo qualquer vírgula → provável lista (regra simples e robusta)
+- 🚫 Lista por vírgula em CAPS — bloqueia APENAS se média de palavras por segmento ≤ 1.5 (lista de materiais como "CADERNO, LÁPIS, BORRACHA")
+- ✅ Frases pedagógicas com vírgulas estruturais convertem normalmente ("INTERPRETAÇÃO DE TEXTO, LEITURA E ESCRITA, PRODUÇÃO DE TEXTO" → "Interpretação de texto, leitura e escrita, produção de texto")
 - 🚫 Estrutura pedagógica enumerada: ATIVIDADE/AULA/ETAPA/OBJETIVO/UNIDADE/MÓDULO/CAPÍTULO/SEÇÃO + número
-- ✅ 15/15 casos de teste passam (MATERNAL I, PRÉ I, AULA V, ATIVIDADE 1:, listas, narrativas)
+- ✅ Casos validados: 11/11 testes passam (CADERNO/LÁPIS bloqueia ✅, INTERPRETAÇÃO DE TEXTO converte ✅)
 
 ### Blindagem na entrada (POST/PUT) — Mai/2026
 **Princípio**: prevenir ruído contínuo na fila. Antes de gravar, se um campo

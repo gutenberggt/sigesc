@@ -173,13 +173,21 @@ def should_skip_text(text: str) -> Optional[str]:
     if _ROMAN_RE.search(text):
         return "contém algarismo romano (I, II, III…) — provável estrutura/série"
 
-    # 2) Lista por vírgula em CAPS — regra simples
-    # `str.isupper()` retorna True se há ≥1 letra cased e todas as letras são UPPER
-    # (ignora dígitos, pontuação e acentos minúsculos do português, então
-    # adicionamos um teste extra com strip_accents).
+    # 2) Lista por vírgula em CAPS — distingue lista de materiais (itens muito
+    # curtos) de frase com vírgulas estruturais (itens compostos pedagógicos).
+    # Decisão Mai/2026: bloquear APENAS se média de palavras por segmento ≤ 1.5.
+    # Exemplos:
+    #   "CADERNO, LÁPIS, BORRACHA"                    → avg 1.0 → BLOQUEIA (lista)
+    #   "LIVRO DIDÁTICO, ATIVIDADE IMPRESSA"          → avg 2.0 → CONVERTE
+    #   "SUBTRAÇÃO, IDEIAS DE CHANCE, LEITURA DE TABELA" → avg 2.33 → CONVERTE
+    #   "INTERPRETAÇÃO DE TEXTO, LEITURA E ESCRITA, PRODUÇÃO DE TEXTO" → avg 3.0 → CONVERTE
     stripped = strip_accents(text)
     if stripped.isupper() and "," in text:
-        return "texto inteiro em CAPS com vírgula → provável lista (decisão produto)"
+        segments = [s.strip() for s in text.split(",") if s.strip()]
+        if len(segments) >= 2:
+            avg_words = sum(len(s.split()) for s in segments) / len(segments)
+            if avg_words <= 1.5:
+                return "lista por vírgula com itens curtos (≤1.5 palavras médias)"
 
     # 3) Estrutura pedagógica enumerada
     if _PEDAGOGIC_STRUCT_RE.search(text):
