@@ -130,6 +130,11 @@ python /app/backend/scripts/normalize_names_back.py --apply --collection student
 - Validação end-to-end: login + busca `search=maria` retornou `Maria Silva` (busca accent-insensitive funcionando) ✅
 - **Próximo passo pendente**: rodar o mesmo script em produção (Coolify) quando o proprietário decidir
 
+**Ferramentas operacionais** [05/Mai/2026]:
+- `/app/Makefile` — atalhos: `make migrate-dry-run | migrate-names | migrate-names-yes | migrate-status | migrate-rollback TS=<timestamp>`
+- `/app/backend/scripts/run_migration.sh` — runner shell com dual-gate (dry-run obrigatório antes de --apply), prompts Y/n por fase, healthcheck pós-migração, logging em `/var/log/sigesc/migracao_nomes_<TS>.log` e rollback global por timestamp
+- Em produção (Coolify): após "Save to Github" + deploy, basta entrar no terminal do container backend e rodar `make migrate-names` (ou `make migrate-names-yes` para CI)
+
 ### Bug Fix — "Erro ao salvar plano AEE" (CSRF) **[04/Mai/2026]**
 - **Root cause**: `pages/DiarioAEE.js` usa raw `fetch` (não axios) e o objeto `headers` só carregava Authorization+Content-Type. A `CSRFMiddleware` (server.py:788) rejeitava todo POST/PUT/DELETE em /api/aee/* com 403 "CSRF token inválido ou ausente". Resultado: nenhum plano/atendimento/modelo AEE conseguia ser salvo, editado, excluído ou duplicado pelo frontend.
 - **Fix**: helper `readCsrfToken()` lê o token de `sessionStorage('sigesc_csrf_token')` (setado pelo response do `/auth/login`) com fallback para cookie `sigesc_csrf`, injetando-o como header `X-CSRF-Token` em todas as escritas do Diário AEE.
