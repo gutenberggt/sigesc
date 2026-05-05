@@ -122,6 +122,14 @@ python /app/backend/scripts/normalize_names_back.py --apply --collection student
 - Frontend smoke: `getComputedStyle(input).textTransform = 'none'`, input aceita "Teste minúsculo Acentuação" e exibe como digitado ✅
 - Dry-run no preview: 58 docs marcados para atualizar (students, schools, classes, courses, users, mantenedoras), 3 sem mudança — siglas (AEE, SEMED), preposições (da/de) e romanos (I, II) preservados corretamente ✅
 
+**Migração aplicada no ambiente preview [05/Mai/2026]** — em 3 fases supervisionadas:
+- Fase 1 (`courses` + `users`): 36 docs migrados, backups `backup_*_20260505T105357Z`
+- Fase 2 (`students` + `staff`): 10 docs migrados, backups `backup_*_20260505T105647Z`
+- Fase 3 (`schools` + `classes` + `mantenedoras`): 14 docs migrados, backups `backup_*_20260505T105804Z`
+- **Total**: 60 docs migrados em 7 coleções; dry-run final confirma 0 pendentes
+- Validação end-to-end: login + busca `search=maria` retornou `Maria Silva` (busca accent-insensitive funcionando) ✅
+- **Próximo passo pendente**: rodar o mesmo script em produção (Coolify) quando o proprietário decidir
+
 ### Bug Fix — "Erro ao salvar plano AEE" (CSRF) **[04/Mai/2026]**
 - **Root cause**: `pages/DiarioAEE.js` usa raw `fetch` (não axios) e o objeto `headers` só carregava Authorization+Content-Type. A `CSRFMiddleware` (server.py:788) rejeitava todo POST/PUT/DELETE em /api/aee/* com 403 "CSRF token inválido ou ausente". Resultado: nenhum plano/atendimento/modelo AEE conseguia ser salvo, editado, excluído ou duplicado pelo frontend.
 - **Fix**: helper `readCsrfToken()` lê o token de `sessionStorage('sigesc_csrf_token')` (setado pelo response do `/auth/login`) com fallback para cookie `sigesc_csrf`, injetando-o como header `X-CSRF-Token` em todas as escritas do Diário AEE.
