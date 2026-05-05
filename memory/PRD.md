@@ -150,7 +150,16 @@ script gera sugestões e enfileira; admin aprova caso a caso.
 - `student_history.observations`
 - `enrollments.observations`
 - `staff.observacoes`
+- `learning_objects.content` (Conteúdo/Objeto de Conhecimento)
+- `learning_objects.pratica_pedagogica` (Práticas Pedagógicas)
+- `learning_objects.observations`
 - (futuros: `classes.descricao/observacoes` quando schema for ampliado)
+- (FASE 2 futuro com filtro restritivo): `learning_objects.methodology`, `learning_objects.evidencia_aprendizagem`
+- ❌ NÃO incluído: `learning_objects.resources` (lista de materiais — risco semântico)
+
+**Heurísticas defensivas** (FUNÇÃO `should_skip_text`) — Mai/2026:
+- Bloqueia textos com algarismos romanos não-triviais (II, III, IV, VI…) → provável estrutura
+- Bloqueia listas por vírgula (3+ itens curtos ≤4 palavras formando ≥70% do texto) → recursos/materiais
 
 **Regras de preservação** (script `normalize_content.py`):
 - Siglas (AEE, BNCC, SEMED, TEA, ETI, B1-B4, CNPJ, CPF, RG, NIS, PCD, LGPD, etc.)

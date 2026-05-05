@@ -45,6 +45,8 @@ WHITELIST = {
     "student_history": {"observations"},
     "enrollments": {"observations"},
     "staff": {"observacoes"},
+    # learning_objects FASE 1 (decisão proprietário 05/Mai/2026):
+    "learning_objects": {"content", "pratica_pedagogica", "observations"},
 }
 
 

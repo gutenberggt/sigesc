@@ -53,16 +53,23 @@ BATCH_SIZE = 500
 # ============================================================
 # WHITELIST RESTRITIVA — campo a campo, coleção a coleção
 # ------------------------------------------------------------
-# Adicionar aqui exige revisão. BNCC/AEE/learning_objects NÃO entram.
+# Adicionar aqui exige revisão. BNCC/AEE/curriculum NÃO entram.
 # ============================================================
 CONTENT_FIELDS_BY_COLLECTION: Dict[str, List[str]] = {
     "students": ["observations"],
     "student_history": ["observations"],
     "enrollments": ["observations"],
     "staff": ["observacoes"],
-    # Estes campos precisam ser adicionados ao schema Class antes de entrarem:
+    # learning_objects = registros do PROFESSOR (não BNCC oficial).
+    # FASE 1 (apenas estes 3, decisão do proprietário 05/Mai/2026):
+    #   - content: Conteúdo/Objeto de Conhecimento
+    #   - pratica_pedagogica: Práticas Pedagógicas
+    #   - observations: Observações do professor
+    # FASE 2 (futuro, com filtro restritivo): methodology, evidencia_aprendizagem
+    # NÃO incluir: resources (geralmente lista de materiais separados por vírgula)
+    "learning_objects": ["content", "pratica_pedagogica", "observations"],
+    # Quando schema for ampliado:
     # "classes": ["descricao", "observacoes"],
-    # Pareceres descritivos (quando houver coleção dedicada):
     # "parecer_descritivo": ["texto"],
 }
 
@@ -132,6 +139,44 @@ def is_likely_caps(text: str) -> bool:
         return False
     upper = sum(1 for c in letters if c.isupper())
     return (upper / len(letters)) >= 0.70
+
+
+# Algarismos romanos não-triviais (II em diante) — evita falsos positivos com
+# tokens isolados I/V/X (que poderiam ser variáveis ou letras avulsas).
+_ROMAN_RE = re.compile(
+    r"\b(II|III|IV|VI|VII|VIII|IX|XI|XII|XIII|XIV|XV|XVI|XVII|XVIII|XIX|XX)\b"
+)
+
+
+def should_skip_text(text: str) -> Optional[str]:
+    """Heurísticas defensivas para texto pedagógico estruturado (Mai/2026).
+
+    Retorna None se o texto pode ser normalizado, ou string com motivo
+    para pular. Aplicar ANTES de to_sentence_case().
+
+    Bloqueia:
+      1. Algarismos romanos não-triviais (II, III, IV, VI…) → texto provavelmente
+         é uma referência estruturada (etapas, capítulos, aula II, etc.)
+      2. Lista por vírgula em CAPS: 3+ segmentos curtos (≤4 palavras) separados
+         por vírgula formando ≥70% do texto → provável lista de materiais/recursos.
+    """
+    if not text or not isinstance(text, str):
+        return "empty"
+
+    # 1) Romanos
+    if _ROMAN_RE.search(text):
+        return "contém algarismo romano (II, III, IV…) — possível estrutura"
+
+    # 2) Lista por vírgula em CAPS
+    # Considera "lista" se há 3+ segmentos separados por vírgula E maioria
+    # dos segmentos é curta (≤4 palavras).
+    segments = [s.strip() for s in text.split(",") if s.strip()]
+    if len(segments) >= 3:
+        short = sum(1 for s in segments if len(s.split()) <= 4)
+        if short / len(segments) >= 0.70:
+            return "parece lista por vírgula (itens curtos) — risco de quebrar legibilidade"
+
+    return None
 
 
 def _protect(text: str) -> Tuple[str, List[Tuple[str, str]]]:
@@ -283,6 +328,7 @@ async def dry_run_collection(
     cursor = col.find({}, projection)
 
     candidatos = 0
+    skipped_heuristics = 0
     exemplos: List[Dict[str, str]] = []
     async for doc in cursor:
         for f in fields:
@@ -290,6 +336,10 @@ async def dry_run_collection(
             if not isinstance(v, str) or not v.strip():
                 continue
             if not is_likely_caps(v):
+                continue
+            skip_reason = should_skip_text(v)
+            if skip_reason:
+                skipped_heuristics += 1
                 continue
             new_v = to_sentence_case(v)
             if new_v == v:
@@ -301,15 +351,19 @@ async def dry_run_collection(
                     "original": v[:120],
                     "sugestao": new_v[:120],
                 })
-    return {"colecao": col_name, "total": total, "candidatos": candidatos, "exemplos": exemplos}
+    return {
+        "colecao": col_name, "total": total,
+        "candidatos": candidatos, "skipped_heuristics": skipped_heuristics,
+        "exemplos": exemplos,
+    }
 
 
 async def cmd_dry_run(db, cols: List[str], examples: int) -> int:
     print()
-    print("=" * 82)
-    print(f"{'COLEÇÃO':<22} {'TOTAL':>8} {'CANDIDATOS':>12}   {'EXEMPLO':<30}")
-    print("-" * 82)
-    grand_total = grand_cand = 0
+    print("=" * 92)
+    print(f"{'COLEÇÃO':<22} {'TOTAL':>8} {'CANDIDATOS':>12} {'PULADOS':>10}   {'EXEMPLO':<30}")
+    print("-" * 92)
+    grand_total = grand_cand = grand_skip = 0
     all_rows: List[Dict[str, Any]] = []
     for col in cols:
         if col not in CONTENT_FIELDS_BY_COLLECTION:
@@ -320,11 +374,14 @@ async def cmd_dry_run(db, cols: List[str], examples: int) -> int:
         if r["exemplos"]:
             e = r["exemplos"][0]
             ex = f"{e['original'][:24]}…"
-        print(f"{r['colecao']:<22} {r['total']:>8} {r['candidatos']:>12}   {ex:<30}")
+        print(f"{r['colecao']:<22} {r['total']:>8} {r['candidatos']:>12} "
+              f"{r.get('skipped_heuristics', 0):>10}   {ex:<30}")
         grand_total += r["total"]; grand_cand += r["candidatos"]
-    print("-" * 82)
-    print(f"{'TOTAL':<22} {grand_total:>8} {grand_cand:>12}")
-    print("=" * 82)
+        grand_skip += r.get("skipped_heuristics", 0)
+    print("-" * 92)
+    print(f"{'TOTAL':<22} {grand_total:>8} {grand_cand:>12} {grand_skip:>10}")
+    print("=" * 92)
+    print(f"\n  ⓘ Pulados = bloqueados pelas heurísticas defensivas (algarismos romanos, listas por vírgula).")
     print()
     for r in all_rows:
         if not r["exemplos"]:
@@ -363,6 +420,8 @@ async def scan_collection(db, col_name: str, fields: List[str]) -> Dict[str, Any
             if not isinstance(v, str) or not v.strip():
                 continue
             if not is_likely_caps(v):
+                continue
+            if should_skip_text(v):
                 continue
             new_v = to_sentence_case(v)
             if new_v == v:

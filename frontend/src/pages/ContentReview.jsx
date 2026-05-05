@@ -34,12 +34,15 @@ const COLLECTION_LABELS = {
   student_history: 'Histórico do Aluno',
   enrollments: 'Matrículas',
   staff: 'Servidores',
+  learning_objects: 'Objetos de Aprendizagem',
 };
 
 const FIELD_LABELS = {
   observations: 'Observações',
   observacoes: 'Observações',
   descricao: 'Descrição',
+  content: 'Conteúdo/Objeto de Conhecimento',
+  pratica_pedagogica: 'Práticas Pedagógicas',
 };
 
 const STATUS_BADGES = {
