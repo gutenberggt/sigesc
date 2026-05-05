@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { UserCog, Calendar, Check } from 'lucide-react';
+import { UserCog, Calendar, Check, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { teacherAssignmentAPI, classesAPI } from '@/services/api';
 import { toast } from 'sonner';
@@ -11,18 +11,21 @@ import { toast } from 'sonner';
  * de referência (escolas, turmas, componentes, alocações existentes) para inferir o regente
  * automaticamente a partir de escola+turma+componente.
  *
- * Ao salvar, chama `teacherAssignmentAPI.createSubstitution` — o backend cria o registro da
- * substituição e gera lotação temporária na escola se necessário, garantindo que a
- * substituição apareça automaticamente na Folha de Pagamento.
+ * [Mai/2026] Regras alinhadas com "Adicionar Nova Alocação":
+ *  - Escola: usa `professorSchools` (apenas escolas onde o substituto tem lotação ativa).
+ *    Se professor sem lotação → exibe aviso e bloqueia formulário (mesma UX da Alocação).
+ *  - Turma: filtrada pela escola selecionada, respeitando ano letivo.
+ *  - Componente: mostra carga horária no option e filtra componentes já alocados ao
+ *    substituto na mesma turma (dedupe).
  */
 export const SubstituicaoSection = ({
   alocacaoForm,            // contém staff_id do substituto e academic_year
   professorSchools,        // escolas do substituto (precisa ter lotação OU será criada auto)
-  filteredClasses,         // turmas disponíveis
+  filteredClasses,         // turmas disponíveis (não usado aqui — fetch local por escola)
   courses,                 // todos componentes
   staffList,               // para exibir nome do regente
-  existingAlocacoes,       // teacher_assignments do ano (todos) — para descobrir o regente
-  schools,                 // todas escolas
+  existingAlocacoes,       // teacher_assignments do ano (todos) — para descobrir o regente e dedupe
+  schools: _schoolsIgnored,  // não usado: substituição opera nas escolas do próprio professor
   onSaved,                 // callback após salvar
 }) => {
   const [schoolId, setSchoolId] = useState('');
@@ -67,15 +70,28 @@ export const SubstituicaoSection = ({
     return () => { cancelled = true; };
   }, [schoolId, alocacaoForm.academic_year]);
 
-  // Componentes: baseado no nível da turma quando possível
-  const componentesDaTurma = useMemo(() => {
-    if (!classId) return courses || [];
+  // Componentes: baseado no nível da turma + dedupe das já alocadas ao substituto na mesma turma
+  const componentesDisponiveis = useMemo(() => {
+    if (!classId) return [];
     const turma = turmasDaEscola.find(c => c.id === classId);
-    if (!turma) return courses || [];
-    const nivel = turma.education_level || turma.nivel_ensino;
-    if (!nivel) return courses || [];
-    return (courses || []).filter(c => !c.nivel_ensino || c.nivel_ensino === nivel);
-  }, [classId, courses, turmasDaEscola]);
+    const nivel = turma?.education_level || turma?.nivel_ensino;
+
+    let lista = courses || [];
+    if (nivel) {
+      lista = lista.filter(c => !c.nivel_ensino || c.nivel_ensino === nivel);
+    }
+    // Dedupe: remove componentes já alocados ao SUBSTITUTO na mesma turma (mesmo padrão da Alocação)
+    const jaAlocadosIds = new Set(
+      (existingAlocacoes || [])
+        .filter(a =>
+          a.staff_id === alocacaoForm.staff_id &&
+          a.class_id === classId &&
+          a.status === 'ativo'
+        )
+        .map(a => a.course_id)
+    );
+    return lista.filter(c => !jaAlocadosIds.has(c.id));
+  }, [classId, courses, turmasDaEscola, existingAlocacoes, alocacaoForm.staff_id]);
 
   // Alocação do titular naquela combinação (regente)
   const regenteAlocacao = useMemo(() => {
@@ -137,6 +153,28 @@ export const SubstituicaoSection = ({
 
   if (!alocacaoForm.staff_id) return null;
 
+  // Aviso quando o professor substituto não tem lotação ativa em nenhuma escola
+  // (mesma UX da Alocação — exige criar lotação na aba Lotações primeiro).
+  if (!professorSchools || professorSchools.length === 0) {
+    return (
+      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mt-4" data-testid="substituicao-no-lotacao">
+        <div className="flex items-center gap-2 mb-2">
+          <UserCog size={16} className="text-yellow-700" />
+          <h4 className="font-medium text-yellow-900">+ Adicionar Nova Substituição</h4>
+        </div>
+        <div className="flex items-center gap-2 mb-2">
+          <AlertTriangle className="text-yellow-600" size={20} />
+          <p className="text-sm font-medium text-yellow-800">
+            Atenção: este professor não possui lotação ativa em nenhuma escola.
+          </p>
+        </div>
+        <p className="text-sm text-yellow-700 ml-7">
+          Para cadastrar substituição, primeiro adicione uma lotação na aba <strong>Lotações</strong> da página principal.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 bg-amber-50 rounded-lg border border-amber-300 mt-4" data-testid="substituicao-section">
       <h4 className="font-medium text-amber-900 mb-3 flex items-center gap-2">
@@ -154,7 +192,7 @@ export const SubstituicaoSection = ({
             className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-amber-500 bg-white"
             data-testid="subst-school-select">
             <option value="">Selecione</option>
-            {(schools || []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            {(professorSchools || []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
         <div>
@@ -181,9 +219,24 @@ export const SubstituicaoSection = ({
             disabled={!classId}
             className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-amber-500 bg-white disabled:bg-gray-100"
             data-testid="subst-course-select">
-            <option value="">Selecione</option>
-            {componentesDaTurma.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <option value="">
+              {!classId
+                ? 'Selecione a turma primeiro'
+                : componentesDisponiveis.length === 0
+                  ? 'Nenhum componente disponível'
+                  : 'Selecione'}
+            </option>
+            {componentesDisponiveis.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name} {c.workload ? `(${c.workload}h)` : ''}
+              </option>
+            ))}
           </select>
+          {classId && componentesDisponiveis.length === 0 && (
+            <p className="text-[11px] text-amber-700 mt-1">
+              O substituto já está alocado em todos os componentes desta turma.
+            </p>
+          )}
         </div>
       </div>
 

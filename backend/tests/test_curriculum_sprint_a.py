@@ -16,7 +16,7 @@ import httpx
 
 BACKEND = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://multi-tenant-app-30.preview.emergentagent.com",
+    "https://text-hygiene-queue.preview.emergentagent.com",
 ).rstrip("/")
 
 SUPER_ADMIN = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}

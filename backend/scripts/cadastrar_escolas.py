@@ -3,7 +3,7 @@ import httpx
 import json
 
 # URL da API
-API_URL = "https://multi-tenant-app-30.preview.emergentagent.com/api"
+API_URL = "https://text-hygiene-queue.preview.emergentagent.com/api"
 
 # Escolas extraídas da imagem
 ESCOLAS = [
