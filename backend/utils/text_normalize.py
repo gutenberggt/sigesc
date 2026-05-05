@@ -42,7 +42,7 @@ INPUT_WHITELIST: Dict[str, Set[str]] = {
     "student_history": {"observations"},
     "enrollments": {"observations"},
     "staff": {"observacoes"},
-    "learning_objects": {"content", "pratica_pedagogica", "observations"},
+    "learning_objects": {"content", "methodology", "pratica_pedagogica", "observations"},
 }
 
 

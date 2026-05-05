@@ -61,13 +61,14 @@ CONTENT_FIELDS_BY_COLLECTION: Dict[str, List[str]] = {
     "enrollments": ["observations"],
     "staff": ["observacoes"],
     # learning_objects = registros do PROFESSOR (não BNCC oficial).
-    # FASE 1 (apenas estes 3, decisão do proprietário 05/Mai/2026):
+    # FASE 1 (decisão proprietário 05/Mai/2026):
     #   - content: Conteúdo/Objeto de Conhecimento
-    #   - pratica_pedagogica: Práticas Pedagógicas
+    #   - methodology: Práticas Pedagógicas (label da UI — schema legado: methodology)
+    #   - pratica_pedagogica: campo redundante (mantido por compat)
     #   - observations: Observações do professor
-    # FASE 2 (futuro, com filtro restritivo): methodology, evidencia_aprendizagem
+    # FASE 2 (futuro, com filtro restritivo): evidencia_aprendizagem
     # NÃO incluir: resources (geralmente lista de materiais separados por vírgula)
-    "learning_objects": ["content", "pratica_pedagogica", "observations"],
+    "learning_objects": ["content", "methodology", "pratica_pedagogica", "observations"],
     # Quando schema for ampliado:
     # "classes": ["descricao", "observacoes"],
     # "parecer_descritivo": ["texto"],

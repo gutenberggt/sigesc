@@ -43,7 +43,8 @@ const FIELD_LABELS = {
   observacoes: 'Observações',
   descricao: 'Descrição',
   content: 'Conteúdo/Objeto de Conhecimento',
-  pratica_pedagogica: 'Práticas Pedagógicas',
+  methodology: 'Práticas Pedagógicas',
+  pratica_pedagogica: 'Práticas Pedagógicas (legado)',
 };
 
 const STATUS_BADGES = {
