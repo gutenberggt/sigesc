@@ -41,6 +41,7 @@ const DOCUMENT_CATALOG = [
     summary: 'Plano gerado por IA (Claude 4.5) com diagnóstico, ações priorizadas e responsáveis.',
     issuedFrom: 'Plano de Ação · Snapshot Auditável',
     issuedRoute: '/admin/plano-acao',
+    howTo: 'Vá em Plano de Ação → selecione escola/período → Gerar Plano. O PDF emitido já traz código + QR.',
     color: 'violet',
   },
   {
@@ -49,7 +50,8 @@ const DOCUMENT_CATALOG = [
     title: 'Relatório Executivo Mensal',
     summary: 'Relatório consolidado mensal (cron 1º dia, enviado por e-mail) com indicadores e recomendações priorizadas.',
     issuedFrom: 'Relatórios Mensais',
-    issuedRoute: '/admin/monthly-reports',
+    issuedRoute: '/admin/relatorios-mensais',
+    howTo: 'Gerado AUTOMATICAMENTE no dia 1º de cada mês e enviado por e-mail. Para emissão manual, abra a página e clique em "Gerar Agora".',
     color: 'blue',
   },
   {
@@ -57,8 +59,9 @@ const DOCUMENT_CATALOG = [
     icon: GraduationCap,
     title: 'Declaração de Matrícula',
     summary: 'Comprova que o aluno está matriculado em determinada escola/turma/série em um ano letivo.',
-    issuedFrom: 'Cadastro do Aluno · Aba Declarações',
-    issuedRoute: '/admin/students',
+    issuedFrom: 'Declarações Escolares',
+    issuedRoute: '/admin/declaracoes',
+    howTo: 'Vá em Declarações Escolares → escolha o aluno → tipo "Matrícula" → indique a finalidade → "Emitir e baixar PDF".',
     color: 'emerald',
   },
   {
@@ -66,8 +69,9 @@ const DOCUMENT_CATALOG = [
     icon: ClipboardCheck,
     title: 'Declaração de Frequência',
     summary: 'Comprova o percentual de frequência do aluno em um período (bimestre, ano letivo).',
-    issuedFrom: 'Cadastro do Aluno · Aba Declarações',
-    issuedRoute: '/admin/students',
+    issuedFrom: 'Declarações Escolares',
+    issuedRoute: '/admin/declaracoes',
+    howTo: 'Vá em Declarações Escolares → escolha o aluno → tipo "Frequência" → indique o período → "Emitir e baixar PDF".',
     color: 'cyan',
   },
   {
@@ -75,8 +79,9 @@ const DOCUMENT_CATALOG = [
     icon: BookMarked,
     title: 'Declaração de Escolaridade',
     summary: 'Comprova série/etapa concluída (útil para benefícios sociais e bancos).',
-    issuedFrom: 'Cadastro do Aluno · Aba Declarações',
-    issuedRoute: '/admin/students',
+    issuedFrom: 'Declarações Escolares',
+    issuedRoute: '/admin/declaracoes',
+    howTo: 'Vá em Declarações Escolares → escolha o aluno → tipo "Escolaridade" → indique a finalidade → "Emitir e baixar PDF".',
     color: 'teal',
   },
   {
@@ -84,8 +89,9 @@ const DOCUMENT_CATALOG = [
     icon: ScrollText,
     title: 'Histórico Escolar',
     summary: 'Histórico oficial de notas, frequências e situações por ano letivo.',
-    issuedFrom: 'Livro de Promoção',
-    issuedRoute: '/admin/promotion',
+    issuedFrom: 'Ficha do Aluno · Botão "Histórico"',
+    issuedRoute: '/admin/students',
+    howTo: 'Vá em Alunos → clique no aluno → aba "Histórico" → botão "Imprimir/Baixar Histórico". O PDF traz código + QR.',
     color: 'indigo',
   },
   {
@@ -93,8 +99,9 @@ const DOCUMENT_CATALOG = [
     icon: Award,
     title: 'Certificado de Conclusão',
     summary: 'Certificado emitido após conclusão de etapa/curso com QR de validação.',
-    issuedFrom: 'Livro de Promoção · Conclusão de Etapa',
-    issuedRoute: '/admin/promotion',
+    issuedFrom: 'Ficha do Aluno · Botão "Certificado"',
+    issuedRoute: '/admin/students',
+    howTo: 'Disponível APENAS para alunos do 9º Ano EF e EJA 4ª Etapa. Vá em Alunos → ficha → botão "Certificado" no canto superior direito.',
     color: 'amber',
   },
   {
@@ -104,6 +111,7 @@ const DOCUMENT_CATALOG = [
     summary: 'Atas de conselho de classe, reuniões, decisões formais — código único por documento.',
     issuedFrom: 'Atas Internas (módulo dedicado)',
     issuedRoute: null,
+    howTo: 'Tipo reservado para integrações futuras. Hoje é gerado via API administrativa quando necessário.',
     color: 'slate',
   },
   {
@@ -113,6 +121,7 @@ const DOCUMENT_CATALOG = [
     summary: 'Categoria genérica para documentos institucionais não-padronizados emitidos com QR de validação.',
     issuedFrom: 'API interna · uso administrativo',
     issuedRoute: null,
+    howTo: 'Reservado para casos não cobertos pelos tipos acima. Emissão manual via API por usuário com permissão.',
     color: 'gray',
   },
 ];
@@ -359,7 +368,7 @@ function DocumentTypeCard({ doc }) {
   const colorClass = COLOR_CLASSES[doc.color] || COLOR_CLASSES.gray;
   return (
     <div
-      className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+      className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow flex flex-col"
       data-testid={`doc-type-${doc.type}`}
     >
       <div className="flex items-start gap-3 mb-2">
@@ -372,17 +381,30 @@ function DocumentTypeCard({ doc }) {
         </div>
       </div>
       <p className="text-xs text-gray-600 mb-3 leading-relaxed">{doc.summary}</p>
-      <div className="border-t border-gray-100 pt-2 flex items-center justify-between">
+
+      {doc.howTo && (
+        <details className="mb-3 group">
+          <summary className="text-xs font-medium text-purple-700 cursor-pointer hover:text-purple-900 list-none flex items-center gap-1">
+            <span className="group-open:rotate-90 inline-block transition-transform">▸</span>
+            Como emitir
+          </summary>
+          <p className="text-[11px] text-gray-600 mt-1.5 pl-4 leading-relaxed border-l-2 border-purple-200 pr-1">
+            {doc.howTo}
+          </p>
+        </details>
+      )}
+
+      <div className="border-t border-gray-100 pt-2 flex items-center justify-between mt-auto">
         <span className="text-[11px] text-gray-500 truncate" title={doc.issuedFrom}>
-          Emitido em: <strong className="text-gray-700">{doc.issuedFrom}</strong>
+          <strong className="text-gray-700">{doc.issuedFrom}</strong>
         </span>
         {doc.issuedRoute && (
           <Link
             to={doc.issuedRoute}
-            className="text-xs text-purple-600 hover:text-purple-800 inline-flex items-center gap-1 ml-2 flex-shrink-0"
+            className="text-xs text-white bg-purple-600 hover:bg-purple-700 inline-flex items-center gap-1 ml-2 flex-shrink-0 px-2 py-1 rounded transition-colors"
             data-testid={`doc-type-${doc.type}-link`}
           >
-            Ir <ExternalLink className="h-3 w-3" />
+            Emitir <ExternalLink className="h-3 w-3" />
           </Link>
         )}
       </div>
