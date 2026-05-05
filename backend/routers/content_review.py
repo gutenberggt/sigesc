@@ -143,6 +143,41 @@ def setup_router(db, **_kwargs):
         return {"per_collection": rows, "totals": totals}
 
     # ------------------------------------------------------------------
+    # CONTEXT (preview do doc original)
+    # ------------------------------------------------------------------
+    @router.get("/{item_id}/context")
+    async def get_context(item_id: str, request: Request):
+        """Retorna campos textuais do doc original para o admin entender o
+        contexto antes de aprovar uma sugestão. Filtrado por tenant — só
+        retorna campos da whitelist + identificação do registro."""
+        await _require_admin(request)
+        item = await _load_item(item_id)
+        col_name = item["source_collection"]
+        source_id = item["source_id"]
+
+        # Campos seguros para preview (whitelist + identificação)
+        whitelisted = list(WHITELIST.get(col_name, set()))
+        id_fields = [
+            "id", "full_name", "nome", "name", "email", "enrollment_number",
+            "class_id", "course_id", "school_id", "date", "academic_year",
+            "mantenedora_id", "content_migrated", "content_migrated_at",
+        ]
+        projection = {**{f: 1 for f in (whitelisted + id_fields)}, "_id": 0}
+
+        doc = await db[col_name].find_one({"id": source_id}, projection)
+        if not doc:
+            doc = await db[col_name].find_one({"_id": source_id}, projection)
+        if not doc:
+            raise HTTPException(404, "Documento original não encontrado")
+
+        return {
+            "collection": col_name,
+            "source_id": source_id,
+            "highlight_field": item["source_field"],
+            "fields": doc,
+        }
+
+    # ------------------------------------------------------------------
     # APPROVE
     # ------------------------------------------------------------------
     @router.post("/{item_id}/approve")

@@ -79,6 +79,9 @@ def setup_router(db, audit_service):
         )
         
         try:
+            # [Mai/2026] Normalização leve de CAPS em campos textuais (observations).
+            from utils.text_normalize import normalize_input_fields
+            doc = normalize_input_fields(doc, "enrollments")
             await db.enrollments.insert_one(doc)
         except DuplicateKeyError:
             raise HTTPException(
@@ -164,8 +167,11 @@ def setup_router(db, audit_service):
         assert_same_tenant(existing_enrollment, current_user, request)
         
         update_data = enrollment_update.model_dump(exclude_unset=True)
-        
+
         if update_data:
+            # [Mai/2026] Normalização leve de CAPS em campos textuais (observations).
+            from utils.text_normalize import normalize_input_fields
+            update_data = normalize_input_fields(update_data, "enrollments")
             await db.enrollments.update_one(
                 {"id": enrollment_id},
                 {"$set": update_data}

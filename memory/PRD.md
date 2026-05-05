@@ -157,9 +157,37 @@ script gera sugestões e enfileira; admin aprova caso a caso.
 - (FASE 2 futuro com filtro restritivo): `learning_objects.methodology`, `learning_objects.evidencia_aprendizagem`
 - ❌ NÃO incluído: `learning_objects.resources` (lista de materiais — risco semântico)
 
-**Heurísticas defensivas** (FUNÇÃO `should_skip_text`) — Mai/2026:
-- Bloqueia textos com algarismos romanos não-triviais (II, III, IV, VI…) → provável estrutura
-- Bloqueia listas por vírgula (3+ itens curtos ≤4 palavras formando ≥70% do texto) → recursos/materiais
+**Heurísticas defensivas** (FUNÇÃO `should_skip_text`) — Mai/2026 (refinadas):
+- 🚫 Algarismos romanos I/II/III/IV/V/VI/.../XX (cobre "MATERNAL I", "PRÉ I", "AULA V")
+- 🚫 Texto totalmente CAPS contendo qualquer vírgula → provável lista (regra simples e robusta)
+- 🚫 Estrutura pedagógica enumerada: ATIVIDADE/AULA/ETAPA/OBJETIVO/UNIDADE/MÓDULO/CAPÍTULO/SEÇÃO + número
+- ✅ 15/15 casos de teste passam (MATERNAL I, PRÉ I, AULA V, ATIVIDADE 1:, listas, narrativas)
+
+### Blindagem na entrada (POST/PUT) — Mai/2026
+**Princípio**: prevenir ruído contínuo na fila. Antes de gravar, se um campo
+whitelistado vier em CAPS narrativo → converter para sentence case usando as
+mesmas regras (mesma whitelist + mesmas heurísticas defensivas).
+
+**Util**: `/app/backend/utils/text_normalize.py`
+- `normalize_input_text(value)` — single field
+- `normalize_input_fields(payload, collection)` — payload completo
+
+**Routers instrumentados** (POST + PUT):
+- `students.py` — campo `observations`
+- `staff.py` — campo `observacoes`
+- `enrollments.py` — campo `observations`
+- `student_history.py` — campo `observations`
+- `learning_objects.py` — campos `content`, `pratica_pedagogica`, `observations`
+
+**Validação E2E**:
+- PUT `/api/students/{id}` enviando `"ALUNO APRESENTA BOM DESEMPENHO EM 14:30. NECESSITA DE ATENDIMENTO AEE."` → gravado como `"Aluno apresenta bom desempenho em 14:30. Necessita de atendimento AEE."` ✅
+- Texto com heurística (lista, romano, estrutura) preserva original ✅
+- Coleções fora da whitelist intactas ✅
+
+### Botão "Ver contexto" — Mai/2026
+- Endpoint: `GET /api/admin/content-review/{id}/context`
+- Frontend: modal que mostra todos os campos textuais do registro original, destacando o campo da sugestão pendente em amarelo
+- Validação: modal abre, mostra 3 campos textuais (content, pratica_pedagogica, observations), campo destacado tem pin "📍 campo da sugestão" + sugestão embebida ✅
 
 **Regras de preservação** (script `normalize_content.py`):
 - Siglas (AEE, BNCC, SEMED, TEA, ETI, B1-B4, CNPJ, CPF, RG, NIS, PCD, LGPD, etc.)

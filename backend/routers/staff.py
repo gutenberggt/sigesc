@@ -219,6 +219,10 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
             staff_doc['nome_normalizado'] = normalized
             staff_doc['nome_busca'] = busca
 
+        # [Mai/2026] Normalização leve de CAPS em campos textuais (observacoes).
+        from utils.text_normalize import normalize_input_fields
+        staff_doc = normalize_input_fields(staff_doc, "staff")
+
         await current_db.staff.insert_one(staff_doc)
         
         result = await current_db.staff.find_one({"id": new_staff.id}, {"_id": 0})
@@ -282,7 +286,11 @@ def setup_staff_router(db, audit_service, ftp_upload_func=None, sandbox_db=None)
             update_data['nome_busca'] = normalize_for_search(update_data['nome'])
         
         update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
-        
+
+        # [Mai/2026] Normalização leve de CAPS em campos textuais (observacoes).
+        from utils.text_normalize import normalize_input_fields
+        update_data = normalize_input_fields(update_data, "staff")
+
         await current_db.staff.update_one({"id": staff_id}, {"$set": update_data})
         
         await audit_service.log(

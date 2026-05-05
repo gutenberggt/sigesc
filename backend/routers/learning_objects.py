@@ -154,6 +154,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         )
 
         doc = new_object.model_dump()
+        # [Mai/2026] Normalização leve: CAPS narrativo → sentence case nos campos textuais.
+        from utils.text_normalize import normalize_input_fields
+        doc = normalize_input_fields(doc, "learning_objects")
         # Multi-tenancy: injeta mantenedora_id derivada da turma
         doc['mantenedora_id'] = await resolve_tenant_id_for_create(
             db, current_user, request, class_id=data.class_id
@@ -192,6 +195,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         update_data = {k: v for k, v in data.model_dump().items() if v is not None}
         # [Mai/2026] CAPS lock automático removido — preserva capitalização do usuário.
+        # Normalização leve: CAPS narrativo → sentence case nos campos whitelistados.
+        from utils.text_normalize import normalize_input_fields
+        update_data = normalize_input_fields(update_data, "learning_objects")
         update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         await db.learning_objects.update_one(

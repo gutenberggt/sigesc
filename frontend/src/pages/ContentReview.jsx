@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import {
   CheckCircle2, XCircle, Pencil, ChevronLeft, RefreshCw, Filter,
   Loader2, AlertCircle, Inbox, ClipboardCheck, Trash2, Square, CheckSquare,
+  Eye,
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -70,6 +71,9 @@ export default function ContentReview() {
   const [selected, setSelected] = useState(new Set());
   const [editing, setEditing] = useState(null);
   const [editedText, setEditedText] = useState('');
+  const [contextItem, setContextItem] = useState(null);
+  const [contextData, setContextData] = useState(null);
+  const [contextLoading, setContextLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -156,6 +160,21 @@ export default function ContentReview() {
       toast.error(err.response?.data?.detail || 'Falha em lote');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleViewContext = async (item) => {
+    setContextItem(item);
+    setContextData(null);
+    setContextLoading(true);
+    try {
+      const res = await axios.get(`${API}/admin/content-review/${item.id}/context`, { headers: authHeaders() });
+      setContextData(res.data);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Falha ao carregar contexto');
+      setContextItem(null);
+    } finally {
+      setContextLoading(false);
     }
   };
 
@@ -267,6 +286,7 @@ export default function ContentReview() {
                 onApprove={() => handleApprove(item.id)}
                 onReject={() => handleReject(item.id)}
                 onEdit={() => { setEditing(item); setEditedText(item.sugestao); }}
+                onViewContext={() => handleViewContext(item)}
                 actionLoading={actionLoading}
                 showCheckbox={statusFilter === 'pending'}
               />
@@ -314,8 +334,96 @@ export default function ContentReview() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Context Dialog */}
+        <Dialog open={!!contextItem} onOpenChange={open => { if (!open) { setContextItem(null); setContextData(null); } }}>
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Contexto do registro</DialogTitle>
+            </DialogHeader>
+            {contextLoading ? (
+              <div className="flex items-center justify-center py-8 text-slate-500">
+                <Loader2 className="w-5 h-5 animate-spin mr-2" /> Carregando...
+              </div>
+            ) : contextData ? (
+              <ContextView data={contextData} sugestao={contextItem?.sugestao} />
+            ) : null}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setContextItem(null); setContextData(null); }} data-testid="close-context-btn">
+                Fechar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
+  );
+}
+
+function ContextView({ data, sugestao }) {
+  const collectionLabel = COLLECTION_LABELS[data.collection] || data.collection;
+  const allFields = data.fields || {};
+  // Separa campos de identificação dos textuais
+  const idKeys = ['id', 'full_name', 'nome', 'name', 'email', 'enrollment_number',
+                  'date', 'academic_year', 'class_id', 'course_id', 'school_id'];
+  const identification = idKeys
+    .map(k => [k, allFields[k]])
+    .filter(([, v]) => v != null && v !== '');
+  const textualKeys = Object.keys(allFields).filter(k => !idKeys.includes(k) &&
+    !['mantenedora_id', 'content_migrated', 'content_migrated_at'].includes(k));
+
+  return (
+    <div className="space-y-4 text-sm">
+      <div className="flex items-center gap-2 text-slate-700">
+        <Badge variant="outline">{collectionLabel}</Badge>
+        <span className="text-slate-500">·</span>
+        <span className="font-mono text-xs text-slate-500">{data.source_id}</span>
+        {allFields.content_migrated && (
+          <span className="ml-auto px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
+            Já migrado
+          </span>
+        )}
+      </div>
+      {identification.length > 0 && (
+        <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded border border-slate-200">
+          {identification.map(([k, v]) => (
+            <div key={k} className="text-xs">
+              <span className="text-slate-500 uppercase tracking-wider">{k}: </span>
+              <span className="text-slate-800 font-medium">{String(v)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="space-y-3">
+        {textualKeys.map(k => {
+          const isHighlighted = k === data.highlight_field;
+          return (
+            <div
+              key={k}
+              className={`p-3 rounded border ${
+                isHighlighted ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-200' : 'bg-white border-slate-200'
+              }`}
+              data-testid={`context-field-${k}`}
+            >
+              <div className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>{FIELD_LABELS[k] || k}</span>
+                {isHighlighted && <span className="text-amber-700 normal-case">📍 campo da sugestão</span>}
+              </div>
+              <div className="text-sm text-slate-800 whitespace-pre-wrap">{String(allFields[k] || '—')}</div>
+              {isHighlighted && sugestao && (
+                <div className="mt-2 pt-2 border-t border-amber-200">
+                  <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-1">Sugestão pendente</div>
+                  <div className="text-sm text-emerald-900">{sugestao}</div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {textualKeys.length === 0 && (
+          <div className="text-slate-500 italic text-center py-4">Sem campos textuais adicionais.</div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -334,7 +442,7 @@ function StatCard({ label, value, color, testId }) {
   );
 }
 
-function ReviewCard({ item, selected, onToggleSelect, onApprove, onReject, onEdit, actionLoading, showCheckbox }) {
+function ReviewCard({ item, selected, onToggleSelect, onApprove, onReject, onEdit, onViewContext, actionLoading, showCheckbox }) {
   const collectionLabel = COLLECTION_LABELS[item.source_collection] || item.source_collection;
   const fieldLabel = FIELD_LABELS[item.source_field] || item.source_field;
   const statusBadge = STATUS_BADGES[item.status] || STATUS_BADGES.pending;
@@ -383,6 +491,10 @@ function ReviewCard({ item, selected, onToggleSelect, onApprove, onReject, onEdi
 
       {isPending && (
         <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap gap-2 justify-end">
+          <Button variant="ghost" size="sm" onClick={onViewContext} disabled={actionLoading} data-testid={`view-context-${item.id}`}
+                  className="text-slate-600 hover:text-slate-900">
+            <Eye className="w-3.5 h-3.5 mr-1" /> Ver contexto
+          </Button>
           <Button variant="outline" size="sm" onClick={onEdit} disabled={actionLoading} data-testid={`edit-${item.id}`}>
             <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
           </Button>

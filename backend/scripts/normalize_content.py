@@ -141,10 +141,15 @@ def is_likely_caps(text: str) -> bool:
     return (upper / len(letters)) >= 0.70
 
 
-# Algarismos romanos não-triviais (II em diante) — evita falsos positivos com
-# tokens isolados I/V/X (que poderiam ser variáveis ou letras avulsas).
+# Algarismos romanos (incluindo I/V/X solos: comuns em "MATERNAL I", "PRÉ I", "AULA V").
 _ROMAN_RE = re.compile(
-    r"\b(II|III|IV|VI|VII|VIII|IX|XI|XII|XIII|XIV|XV|XVI|XVII|XVIII|XIX|XX)\b"
+    r"\b(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|XVI|XVII|XVIII|XIX|XX)\b"
+)
+
+# Padrões de estrutura pedagógica (ATIVIDADE 1:, AULA 2:, ETAPA 3:, OBJETIVO 4:)
+_PEDAGOGIC_STRUCT_RE = re.compile(
+    r"\b(ATIVIDADE|AULA|ETAPA|OBJETIVO|UNIDADE|MÓDULO|MODULO|CAPÍTULO|CAPITULO|SEÇÃO|SECAO)\s*\d+",
+    re.IGNORECASE,
 )
 
 
@@ -155,26 +160,30 @@ def should_skip_text(text: str) -> Optional[str]:
     para pular. Aplicar ANTES de to_sentence_case().
 
     Bloqueia:
-      1. Algarismos romanos não-triviais (II, III, IV, VI…) → texto provavelmente
-         é uma referência estruturada (etapas, capítulos, aula II, etc.)
-      2. Lista por vírgula em CAPS: 3+ segmentos curtos (≤4 palavras) separados
-         por vírgula formando ≥70% do texto → provável lista de materiais/recursos.
+      1. Algarismos romanos (I, II, III, IV, V…) → texto provavelmente é
+         referência estruturada (etapas, capítulos, MATERNAL I, PRÉ I, etc.)
+      2. Texto totalmente CAPS contendo vírgula → provável lista (regra
+         simples e robusta, decisão proprietário 05/Mai/2026).
+      3. Estrutura pedagógica enumerada: ATIVIDADE 1:, AULA 2:, ETAPA N…
     """
     if not text or not isinstance(text, str):
         return "empty"
 
-    # 1) Romanos
+    # 1) Algarismos romanos
     if _ROMAN_RE.search(text):
-        return "contém algarismo romano (II, III, IV…) — possível estrutura"
+        return "contém algarismo romano (I, II, III…) — provável estrutura/série"
 
-    # 2) Lista por vírgula em CAPS
-    # Considera "lista" se há 3+ segmentos separados por vírgula E maioria
-    # dos segmentos é curta (≤4 palavras).
-    segments = [s.strip() for s in text.split(",") if s.strip()]
-    if len(segments) >= 3:
-        short = sum(1 for s in segments if len(s.split()) <= 4)
-        if short / len(segments) >= 0.70:
-            return "parece lista por vírgula (itens curtos) — risco de quebrar legibilidade"
+    # 2) Lista por vírgula em CAPS — regra simples
+    # `str.isupper()` retorna True se há ≥1 letra cased e todas as letras são UPPER
+    # (ignora dígitos, pontuação e acentos minúsculos do português, então
+    # adicionamos um teste extra com strip_accents).
+    stripped = strip_accents(text)
+    if stripped.isupper() and "," in text:
+        return "texto inteiro em CAPS com vírgula → provável lista (decisão produto)"
+
+    # 3) Estrutura pedagógica enumerada
+    if _PEDAGOGIC_STRUCT_RE.search(text):
+        return "contém estrutura enumerada (ATIVIDADE N, AULA N, ETAPA N…)"
 
     return None
 

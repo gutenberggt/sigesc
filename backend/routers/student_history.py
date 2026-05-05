@@ -83,6 +83,9 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "updated_at": now,
             "updated_by": current_user.get('id', '')
         }
+        # [Mai/2026] Normalização leve de CAPS em campos textuais (observations).
+        from utils.text_normalize import normalize_input_fields
+        history_data = normalize_input_fields(history_data, "student_history")
 
         if existing:
             await current_db.student_history.update_one(

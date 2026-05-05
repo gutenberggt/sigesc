@@ -97,6 +97,10 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             doc['nome_normalizado'] = normalized
             doc['nome_busca'] = busca
 
+        # [Mai/2026] Normalização leve de CAPS em campos textuais (observations).
+        from utils.text_normalize import normalize_input_fields
+        doc = normalize_input_fields(doc, "students")
+
         # Multi-tenancy: injeta mantenedora_id derivada da escola
         doc['mantenedora_id'] = await resolve_tenant_id_for_create(
             current_db, current_user, request, school_id=student_data.school_id
@@ -839,7 +843,11 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         
         # Remove academic_year do update_data pois não é campo do aluno
         update_data.pop('academic_year', None)
-        
+
+        # [Mai/2026] Normalização leve de CAPS em campos textuais (observations).
+        from utils.text_normalize import normalize_input_fields
+        update_data = normalize_input_fields(update_data, "students")
+
         # Atualiza o aluno
         await current_db.students.update_one(
             {"id": student_id},
