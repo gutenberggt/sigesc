@@ -32,6 +32,23 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Substituição Multi-Turma/Multi-Componente **[05/Fev/2026]**
+- Refatorado `SubstituicaoSection.js` para paridade completa com `AlocacaoModal` de "Nova Alocação":
+  suporte a **N turmas × M componentes** (cartesian product) em uma única operação.
+- UX: botões `+`/`−` com chips 🎓 (amarelo) para turmas e 📖 (roxo) para componentes; opção
+  "TODOS (N componentes)" para adicionar em lote; preview da lista de combinações com regente
+  detectado e CH por linha.
+- Filtros defensivos: Escola usa `professorSchools` (apenas lotações ativas); componentes
+  filtrados por nível de ensino comum das turmas; dedupe de componentes já alocados ao substituto
+  em qualquer turma selecionada; reset automático ao mudar nível de ensino.
+- CH semanal auto-detectada por combinação via regente existente; campo override manual
+  (`auto (regente)`) aplica-se a todas as combinações.
+- Save loop: `POST /teacher-assignments/substitutions` uma vez por combinação, com contagem
+  de sucesso/falha (`4 cadastrada(s), 0 falharam`).
+- Todos os `data-testid` adicionados: `subst-add-turma-btn`, `subst-add-comp-btn`,
+  `subst-turma-chip-{id}`, `subst-comp-chip-{id}`, `subst-preview-list`.
+
+
 ### Busca Sugestiva + Accent-Insensitive em Toda a UI **[04/Mai/2026]**
 - Novo helper `frontend/src/utils/textSearch.js` com `normalizeForSearch()` (NFD + lowercase + remove cedilha) e `highlightSegments()` (realça trecho casado).
 - **Declarações Escolares** (`/admin/declaracoes`): substituiu lista pré-carregada com filtro local por **autocomplete sugestivo via backend** a partir do **3º caractere**, debounced 250ms, accent + case insensitive (usa `nome_busca`). Highlight do trecho casado, navegação por teclado (↑ ↓ Enter Esc), botão limpar (X), spinner durante busca, mensagem "Continue digitando" quando < 3 chars.
