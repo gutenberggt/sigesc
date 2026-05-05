@@ -111,8 +111,11 @@ export const StaffDetailModal = ({
             <p className="font-medium">{selectedStaff.data_admissao || '-'}</p>
           </div>
           <div>
-            <span className="text-sm text-gray-500">Carga Horária</span>
-            <p className="font-medium">{selectedStaff.carga_horaria_semanal ? `${selectedStaff.carga_horaria_semanal}h/semana` : '-'}</p>
+            <span className="text-sm text-gray-500">Carga Horária Calculada</span>
+            <p className="font-medium" data-testid="staff-detail-ch-calculada">
+              {selectedStaff.carga_horaria_calculada != null ? `${selectedStaff.carga_horaria_calculada}h/semana` : '-'}
+            </p>
+            <span className="text-[10px] text-gray-400">Σ alocações + substituições (fallback: 40h)</span>
           </div>
         </div>
         

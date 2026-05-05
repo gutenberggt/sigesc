@@ -601,9 +601,11 @@ export const useStaff = () => {
     
     setSaving(true);
     try {
+      // [Fev/2026] CH é derivada pelo backend — não enviar carga_horaria_semanal (depreciado).
+      const { carga_horaria_semanal: _ch_drop, ...staffPayload } = staffForm;
       const data = {
-        ...staffForm,
-        carga_horaria_semanal: staffForm.carga_horaria_semanal ? parseInt(staffForm.carga_horaria_semanal) : null
+        ...staffPayload,
+        carga_horaria_semanal: null,  // explícito null para limpar valores legados
       };
       
       let savedStaff;
@@ -662,8 +664,9 @@ export const useStaff = () => {
       ...prev,
       staff_id: staffId,
       funcao: staff?.cargo === 'professor' ? 'professor' : 'apoio',
-      // Pré-preenche com a CH global do servidor (legado) — o usuário pode ajustar
-      carga_horaria: staff?.carga_horaria_semanal ? String(staff.carga_horaria_semanal) : ''
+      // [Fev/2026] CH é DERIVADA pelo backend (Σ alocações + Σ substituições + fallback 40h).
+      // NÃO herdar mais o valor manual antigo do servidor — ele "fixaria" o valor.
+      carga_horaria: ''
     }));
     setExistingLotacoes([]);
 
@@ -721,12 +724,15 @@ export const useStaff = () => {
     setSaving(true);
     try {
       for (const escola of lotacaoEscolas) {
+        const { carga_horaria: _ch_drop, ...rest } = lotacaoForm;
         const data = {
-          ...lotacaoForm,
+          ...rest,
           school_id: escola.id,
           funcao: escola.funcao || lotacaoForm.funcao,
           tipo_lotacao: escola.tipo_lotacao || 'regular',
-          carga_horaria: lotacaoForm.carga_horaria ? parseInt(lotacaoForm.carga_horaria, 10) : null,
+          // [Fev/2026] CH não é mais enviada — é derivada no backend pelo calculator central.
+          // Mantém compatibilidade enviando null explícito (campo é Optional[int] no model).
+          carga_horaria: null,
         };
 
         try {
@@ -791,8 +797,9 @@ export const useStaff = () => {
     
     // Depois carregar os dados do professor selecionado
     if (staffId) {
-      const professor = staffList.find(s => s.id === staffId);
-      setProfessorCargaHoraria(professor?.carga_horaria_semanal || 0);
+      // [Fev/2026] CH agora é DERIVADA — `professorCargaHoraria` é mantido por compat,
+      // mas não é mais usado para bloqueio. Setamos 0 para nunca induzir limite manual.
+      setProfessorCargaHoraria(0);
       
       // Carregar dados em paralelo
       await Promise.all([
@@ -817,8 +824,8 @@ export const useStaff = () => {
     setCargaHorariaExistente(0);
     
     if (staffId) {
-      const professor = staffList.find(s => s.id === staffId);
-      setProfessorCargaHoraria(professor?.carga_horaria_semanal || 0);
+      // [Fev/2026] CH derivada — sem valor manual de referência.
+      setProfessorCargaHoraria(0);
       
       await Promise.all([
         loadProfessorSchools(staffId),
