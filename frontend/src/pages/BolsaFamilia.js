@@ -26,8 +26,9 @@ export default function BolsaFamilia() {
   const [municipioUf, setMunicipioUf] = useState('');
   const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState({});
-  const [saved, setSaved] = useState({});
+  const [savingAll, setSavingAll] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
+  const [dirty, setDirty] = useState({});
   const [monthStart, setMonthStart] = useState(2);
   const [monthEnd, setMonthEnd] = useState(new Date().getMonth() + 1 || 12);
   const [generatingPdf, setGeneratingPdf] = useState(false);
@@ -46,6 +47,7 @@ export default function BolsaFamilia() {
       setStudents(res.data.students || []);
       setMunicipioUf(res.data.municipio_uf || '');
       setCanEdit(res.data.can_edit !== false);
+      setDirty({});
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [selectedSchool, academicYear]);
@@ -63,26 +65,40 @@ export default function BolsaFamilia() {
         }
       };
     }));
+    // Marca esta combinação (aluno × mês) como modificada para envio em batch.
+    setDirty(prev => ({ ...prev, [`${studentId}_${month}`]: true }));
   };
 
-  const handleSave = async (studentId, month) => {
-    const key = `${studentId}_${month}`;
-    setSaving(prev => ({ ...prev, [key]: true }));
-    const student = students.find(s => s.id === studentId);
-    if (!student) return;
-    const data = student.months[month] || {};
-    try {
-      await axios.put(`${API}/bolsa-familia/tracking`, {
+  const dirtyCount = Object.keys(dirty).length;
+
+  const handleSaveAll = async () => {
+    if (dirtyCount === 0) {
+      setSavedAt(Date.now());
+      return;
+    }
+    setSavingAll(true);
+    // Monta o payload em batch a partir das chaves dirty.
+    const items = Object.keys(dirty).map(key => {
+      const [studentId, monthStr] = key.split('_');
+      const stu = students.find(s => s.id === studentId);
+      const motive = stu?.months?.[monthStr]?.motive || '';
+      return {
         student_id: studentId,
         school_id: selectedSchool,
-        month: parseInt(month),
+        month: parseInt(monthStr, 10),
         academic_year: academicYear,
-        motive: data.motive || ''
-      }, { headers });
-      setSaved(prev => ({ ...prev, [key]: true }));
-      setTimeout(() => setSaved(prev => ({ ...prev, [key]: false })), 1500);
-    } catch (e) { console.error(e); }
-    setSaving(prev => ({ ...prev, [key]: false }));
+        motive,
+      };
+    });
+    try {
+      await axios.put(`${API}/bolsa-familia/tracking/bulk`, { items }, { headers });
+      setDirty({});
+      setSavedAt(Date.now());
+      setTimeout(() => setSavedAt(null), 2500);
+    } catch (e) {
+      console.error(e);
+    }
+    setSavingAll(false);
   };
 
   const handleGeneratePdf = async () => {
@@ -123,12 +139,31 @@ export default function BolsaFamilia() {
             </h1>
           </div>
           {students.length > 0 && (
-            <button onClick={handleGeneratePdf} disabled={generatingPdf}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
-              data-testid="generate-pdf-btn">
-              {generatingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Gerar PDF
-            </button>
+            <div className="flex items-center gap-2">
+              {canEdit && (
+                <button
+                  onClick={handleSaveAll}
+                  disabled={savingAll || dirtyCount === 0}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
+                  data-testid="bf-save-all-btn"
+                >
+                  {savingAll ? <Loader2 className="h-4 w-4 animate-spin" /> :
+                   savedAt ? <CheckCircle2 className="h-4 w-4" /> :
+                   <Save className="h-4 w-4" />}
+                  {savingAll
+                    ? 'Salvando...'
+                    : savedAt
+                      ? 'Salvo!'
+                      : (dirtyCount > 0 ? `Salvar (${dirtyCount})` : 'Salvar')}
+                </button>
+              )}
+              <button onClick={handleGeneratePdf} disabled={generatingPdf}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
+                data-testid="generate-pdf-btn">
+                {generatingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Gerar PDF
+              </button>
+            </div>
           )}
         </div>
 
@@ -210,13 +245,11 @@ export default function BolsaFamilia() {
                         <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase w-28">Mês</th>
                         <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-24">Frequência</th>
                         <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">Motivo</th>
-                        {canEdit && <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-20">Salvar</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {monthsRange.map(m => {
                         const data = student.months[String(m)] || {};
-                        const key = `${student.id}_${m}`;
                         return (
                           <tr key={m} className="hover:bg-gray-50">
                             <td className="px-4 py-2 font-medium text-gray-700">{MESES[m]}</td>
@@ -230,17 +263,6 @@ export default function BolsaFamilia() {
                                 className="w-full border rounded px-2 py-1 text-sm disabled:bg-gray-50 disabled:text-gray-500"
                                 data-testid={`bf-motive-${student.id}-${m}`} />
                             </td>
-                            {canEdit && (
-                            <td className="px-3 py-2 text-center">
-                              <button onClick={() => handleSave(student.id, String(m))} disabled={saving[key]}
-                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                data-testid={`bf-save-${student.id}-${m}`}>
-                                {saving[key] ? <Loader2 size={14} className="animate-spin" /> :
-                                 saved[key] ? <CheckCircle2 size={14} className="text-green-500" /> :
-                                 <Save size={14} />}
-                              </button>
-                            </td>
-                            )}
                           </tr>
                         );
                       })}

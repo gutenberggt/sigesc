@@ -62,7 +62,7 @@ export const DASHBOARD_MENU_GROUPS = [
       { label: 'Calendário', icon: Calendar, color: 'indigo', route: '/admin/calendar', testId: 'nav-calendar-button', visible: () => true },
       { label: 'Assistência Social', icon: HeartHandshake, color: 'pink', route: '/ass-social', testId: 'nav-ass-social-button', visible: c => c.isAdmin },
       { label: 'Controle de Vacinas', icon: Syringe, color: 'teal', route: '/vacinas', testId: 'nav-vacinas-button', visible: c => c.isAdmin },
-      { label: 'Bolsa Família', icon: Users, color: 'amber', route: '/admin/bolsa-familia', testId: 'nav-bolsa-familia-button', visible: c => c.isAdmin },
+      { label: 'Bolsa Família', icon: Users, color: 'amber', route: '/admin/bolsa-familia', testId: 'nav-bolsa-familia-button', visible: c => c.isAdmin || c.hasRole('secretario', 'gerente') },
     ],
   },
   {

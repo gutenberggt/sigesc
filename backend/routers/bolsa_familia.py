@@ -4,7 +4,7 @@ Router para Acompanhamento de Frequência - Bolsa Família.
 
 from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, timezone, date, timedelta
 import logging
 import io
@@ -168,8 +168,8 @@ def setup_router(db, **kwargs):
 
         return monthly_presence, monthly_total
 
-    EDIT_ROLES = ['admin', 'admin_teste', 'secretario']
-    VIEW_ROLES = ['admin', 'admin_teste', 'secretario', 'semed3', 'diretor', 'ass_social_2']
+    EDIT_ROLES = ['super_admin', 'admin', 'admin_teste', 'secretario', 'gerente']
+    VIEW_ROLES = ['super_admin', 'admin', 'admin_teste', 'secretario', 'semed3', 'diretor', 'ass_social_2', 'gerente']
 
     @router.get("/bolsa-familia/students")
     async def list_bolsa_familia_students(
@@ -299,8 +299,8 @@ def setup_router(db, **kwargs):
 
     @router.put("/bolsa-familia/tracking")
     async def save_tracking(request: Request):
-        """Salva dados de acompanhamento (motivo). Apenas secretários e admins."""
-        await AuthMiddleware.require_permission(
+        """Salva dados de acompanhamento (motivo). Apenas secretários, admins e gerente."""
+        current_user = await AuthMiddleware.require_permission(
             db, 'nav-bolsa-familia-button', EDIT_ROLES
         )(request)
 
@@ -315,21 +315,60 @@ def setup_router(db, **kwargs):
             raise HTTPException(status_code=400, detail="student_id, school_id e month são obrigatórios")
 
         now = datetime.now(timezone.utc).isoformat()
-
         await db.bolsa_familia_tracking.update_one(
             {"student_id": student_id, "school_id": school_id, "month": month, "academic_year": academic_year},
             {"$set": {
-                "student_id": student_id,
-                "school_id": school_id,
-                "month": month,
-                "academic_year": academic_year,
-                "motive": motive,
-                "updated_at": now
+                "student_id": student_id, "school_id": school_id,
+                "month": month, "academic_year": academic_year,
+                "motive": motive, "updated_at": now,
+                "saved_by_role": current_user.get('role'),
+                "saved_by_user_id": current_user.get('id'),
             }},
             upsert=True
         )
-
         return {"message": "Salvo com sucesso"}
+
+    @router.put("/bolsa-familia/tracking/bulk")
+    async def save_tracking_bulk(request: Request):
+        """Salva em lote os motivos editados. Apenas EDIT_ROLES.
+
+        Body: {"items": [{"student_id":..., "school_id":..., "month":..., "academic_year":..., "motive":...}, ...]}
+        Retorna {ok, errors:[]}.
+        """
+        current_user = await AuthMiddleware.require_permission(
+            db, 'nav-bolsa-familia-button', EDIT_ROLES
+        )(request)
+        body = await request.json()
+        items = body.get("items") or []
+        if not isinstance(items, list) or not items:
+            raise HTTPException(status_code=400, detail="items é obrigatório (lista não vazia)")
+
+        now = datetime.now(timezone.utc).isoformat()
+        saved = 0
+        errors: List[dict] = []
+        for it in items:
+            try:
+                sid = it.get("student_id"); sch = it.get("school_id"); mo = it.get("month")
+                ay = it.get("academic_year") or datetime.now().year
+                if not (sid and sch and mo):
+                    errors.append({"item": it, "error": "campos obrigatórios ausentes"}); continue
+                await db.bolsa_familia_tracking.update_one(
+                    {"student_id": sid, "school_id": sch, "month": str(mo), "academic_year": ay},
+                    {"$set": {
+                        "student_id": sid, "school_id": sch,
+                        "month": str(mo), "academic_year": ay,
+                        "motive": it.get("motive", ""),
+                        "updated_at": now,
+                        "saved_by_role": current_user.get('role'),
+                        "saved_by_user_id": current_user.get('id'),
+                    }},
+                    upsert=True,
+                )
+                saved += 1
+            except Exception as e:  # noqa: BLE001
+                errors.append({"item": it, "error": str(e)})
+
+        return {"saved": saved, "errors": errors}
 
     @router.get("/bolsa-familia/pdf/{school_id}")
     async def generate_bolsa_familia_pdf(
@@ -416,13 +455,52 @@ def setup_router(db, **kwargs):
         secretario = school.get("secretario_escolar") or ""
         months_range = list(range(month_start, month_end + 1))
 
+        # [Fev/2026] Validação digital: a assinatura digital aparece no PDF SOMENTE
+        # se TODOS os meses do range tiverem AO MENOS UM tracking salvo por
+        # `saved_by_role='secretario'` (autenticidade do registro pela escola).
+        digital_signer_name = ""
+        digital_signature_valid = False
+        try:
+            tracking_secretary = await db.bolsa_familia_tracking.find(
+                {
+                    "school_id": school_id,
+                    "academic_year": academic_year,
+                    "saved_by_role": "secretario",
+                    "month": {"$in": [str(m) for m in months_range]},
+                },
+                {"_id": 0, "month": 1, "saved_by_user_id": 1},
+            ).to_list(50000)
+
+            months_signed = {str(t.get("month")) for t in tracking_secretary}
+            all_signed = all(str(m) in months_signed for m in months_range)
+            if all_signed and tracking_secretary:
+                # Pega o nome do servidor que assinou (último signatário do range)
+                signer_id = tracking_secretary[-1].get("saved_by_user_id")
+                if signer_id:
+                    signer = await db.staff.find_one(
+                        {"id": signer_id}, {"_id": 0, "nome": 1}
+                    ) or await db.users.find_one(
+                        {"id": signer_id}, {"_id": 0, "name": 1, "full_name": 1}
+                    )
+                    if signer:
+                        digital_signer_name = (
+                            signer.get("nome") or signer.get("full_name") or signer.get("name") or ""
+                        )
+                if not digital_signer_name and secretario:
+                    digital_signer_name = secretario
+                digital_signature_valid = bool(digital_signer_name)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Falha ao validar assinatura digital BF: {e}")
+
         try:
             pdf_buffer = _generate_bf_pdf(
                 school=school, students=students, class_map=class_map,
                 record_map=record_map, months_range=months_range,
                 academic_year=academic_year, secretario=secretario,
                 municipio_uf=municipio_uf, monthly_school_days=monthly_school_days,
-                student_absences=student_absences
+                student_absences=student_absences,
+                digital_signer_name=digital_signer_name,
+                digital_signature_valid=digital_signature_valid,
             )
         except Exception as e:
             logger.error(f"Erro ao gerar PDF Bolsa Família: {e}")
@@ -435,7 +513,7 @@ def setup_router(db, **kwargs):
             headers={"Content-Disposition": f"inline; filename={filename}"}
         )
 
-    def _generate_bf_pdf(school, students, class_map, record_map, months_range, academic_year, secretario, municipio_uf, monthly_school_days, student_absences):
+    def _generate_bf_pdf(school, students, class_map, record_map, months_range, academic_year, secretario, municipio_uf, monthly_school_days, student_absences, digital_signer_name="", digital_signature_valid=False):
         from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
         from reportlab.lib.units import mm, cm
@@ -546,10 +624,15 @@ def setup_router(db, **kwargs):
             elements.append(Spacer(1, 8))
 
         elements.append(Spacer(1, 20))
-        elements.append(Paragraph("_" * 60, sign_style))
-        if secretario:
-            elements.append(Paragraph(f"Validado digitalmente por {secretario}", sign_style))
+        if digital_signature_valid and digital_signer_name:
+            # Assinatura digital: aparece SOMENTE quando todos os meses do range
+            # foram salvos por um secretário da escola.
+            sign_paragraph = f"Documento validado digitalmente por <b>{digital_signer_name}</b>"
+            sub_paragraph = f"Secretário(a) da {school.get('name', '')}"
+            elements.append(Paragraph(sign_paragraph, sign_style))
+            elements.append(Paragraph(sub_paragraph, sign_style))
         else:
+            elements.append(Paragraph("_" * 60, sign_style))
             elements.append(Paragraph("Assinatura do Responsável pelas Informações na Escola", sign_style))
 
         doc.build(elements)
