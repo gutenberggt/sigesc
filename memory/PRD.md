@@ -32,7 +32,38 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Hardening + Refactor de Arquitetura **[06/Fev/2026]**
+
+**1. CORS Hardening (segurança)**:
+- Removido fallback `'*'` (incompatível com `allow_credentials=True`).
+- Whitelist explícita via `CORS_ORIGINS` (lista por vírgula). Aviso forte se não configurado.
+- Métodos e headers explícitos (`Authorization`, `Content-Type`, `X-CSRF-Token`).
+- Validado: origem permitida → 200 OK; origem maliciosa → 400 Bad Request.
+
+**2. Documentação**:
+- `/app/README.md`: arquitetura, env vars, setup, scripts CLI, convenções, testes.
+- `/app/backend/README.md`: estrutura, endpoints principais, regras críticas, performance, segurança.
+
+**3. Refactor `server.py` (857 → 619 linhas, -28%)**:
+- Pacote `/app/backend/startup/`:
+  - `indexes.py` — todos os `create_index` (130 linhas extraídas).
+  - `multi_tenant.py` — bootstrap inicial + self-heal idempotente.
+  - `seeds.py` — AEE templates, BNCC Computação, init de serviços externos.
+- Comportamento e ordem de execução **preservados exatamente**.
+
+**4. Auditoria de dependências**:
+- Script `/app/backend/scripts/audit_dependencies.py` lista os 27 imports diretos
+  de terceiros (vs 153 no requirements.txt). Os ~120 restantes são transitivos.
+- Mantido `requirements.txt` intacto para evitar quebras (recomendação: refazer
+  em venv limpo numa janela de manutenção).
+
+**5. models.py (2924 linhas)** — modularização adiada (alto risco):
+  - 175 classes em 37 arquivos importando com `from models import *`.
+  - Backlog: criar pacote `models/` com submódulos por domínio + `__init__.py`
+    que reexporta tudo (compat). Refactor para janela dedicada.
+
 ### Carga Horária Derivada — Fonte Única de Verdade **[05/Fev/2026]**
+
 - **Refatoração arquitetural**: CH do servidor deixa de ser informada manualmente e passa a
   ser **derivada** de `Σ alocações + Σ substituições vigentes`. Fallback de 40h dividido pelas
   lotações ativas quando não há nenhum registro.

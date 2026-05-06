@@ -145,297 +145,34 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.on_event("startup")
 async def create_indexes():
-    """Cria índices otimizados no MongoDB durante o startup"""
+    """Startup: índices, serviços externos, multi-tenant bootstrap, self-heal e seeds.
+
+    Extraído para `startup/*` (Fev/2026). Ordem de execução preservada.
+    """
     try:
-        # G1.5: índices TTL e unique para snapshots auditáveis
-        from services.snapshot_service import ensure_ttl_index as _ensure_snap_ttl
-        await _ensure_snap_ttl(db)
-        # G1.6: índices para verifiable_documents (code único, lookups)
-        from services.verifiable_docs_service import ensure_indexes as _ensure_vd_idx
-        await _ensure_vd_idx(db)
-        # G3: índices para monthly_reports (unique por mantenedora+período)
-        from services.monthly_report_service import ensure_indexes as _ensure_mr_idx
-        await _ensure_mr_idx(db)
-        # G3: scheduler do Relatório Mensal (idempotente)
-        from services.monthly_report_scheduler import start_scheduler as _start_mr_sched
-        _start_mr_sched(db)
-        # Índices para students
-        await db.students.create_index("id", unique=True)
-        await db.students.create_index("cpf", sparse=True)
-        await db.students.create_index("school_id")
-        await db.students.create_index("class_id")
-        await db.students.create_index([("full_name", 1)],
-            collation={"locale": "pt", "strength": 1},
-            name="full_name_pt_collation"
-        )
-        await db.students.create_index([("status", 1), ("school_id", 1)])
-        
-        # Índices para grades (notas) - muito consultada
-        await db.grades.create_index("id", unique=True)
-        await db.grades.create_index([("student_id", 1), ("academic_year", 1)])
-        await db.grades.create_index([("class_id", 1), ("course_id", 1), ("academic_year", 1)])
-        await db.grades.create_index("student_id")
-        
-        # Índices para attendance (frequência)
-        await db.attendance.create_index("id", unique=True)
-        await db.attendance.create_index([("class_id", 1), ("date", 1)])
-        await db.attendance.create_index([("class_id", 1), ("academic_year", 1)])
-        
-        # Índices para enrollments (matrículas)
-        await db.enrollments.create_index("id", unique=True)
-        await db.enrollments.create_index([("student_id", 1), ("academic_year", 1)])
-        await db.enrollments.create_index("school_id")
-        # Índice parcial único para prevenir duplicatas de matrícula ativa na mesma turma
-        await db.enrollments.create_index(
-            [("student_id", 1), ("class_id", 1), ("academic_year", 1)],
-            unique=True,
-            partialFilterExpression={"status": "active"},
-            name="unique_active_enrollment_per_class"
-        )
-        
-        # Índices para classes (turmas)
-        await db.classes.create_index("id", unique=True)
-        await db.classes.create_index("school_id")
-        await db.classes.create_index([("school_id", 1), ("academic_year", 1)])
-        
-        # Índices para staff (servidores)
-        await db.staff.create_index("id", unique=True)
-        await db.staff.create_index("email", sparse=True)
-        await db.staff.create_index("cpf", sparse=True)
-        await db.staff.create_index([("nome", 1)],
-            collation={"locale": "pt", "strength": 1},
-            name="nome_pt_collation"
-        )
-        
-        # Índices para school_assignments (lotações)
-        await db.school_assignments.create_index("id", unique=True)
-        await db.school_assignments.create_index([("staff_id", 1), ("academic_year", 1)])
-        await db.school_assignments.create_index([("school_id", 1), ("academic_year", 1)])
-        
-        # Índices para teacher_assignments (alocações)
-        await db.teacher_assignments.create_index("id", unique=True)
-        await db.teacher_assignments.create_index([("staff_id", 1), ("academic_year", 1)])
-        await db.teacher_assignments.create_index([("class_id", 1), ("course_id", 1)])
-        await db.teacher_assignments.create_index([("class_id", 1), ("status", 1)])
-        
-        # Índices para attendance (frequência) - compound para queries por componente
-        await db.attendance.create_index([("class_id", 1), ("course_id", 1), ("academic_year", 1)])
+        # Serviços externos (snapshots, verifiable_docs, monthly_reports)
+        from startup.seeds import init_external_services, run_all_seeds
+        await init_external_services(db, client)
 
-        # Índices para connections e messages (mensageiro)
-        await db.connections.create_index("id", unique=True)
-        await db.connections.create_index([("requester_id", 1), ("receiver_id", 1)])
-        await db.messages.create_index([("connection_id", 1), ("created_at", -1)])
-        await db.messages.create_index([("sender_id", 1), ("receiver_id", 1)])
-        
-        # Índices para courses (componentes)
-        await db.courses.create_index("id", unique=True)
-        await db.courses.create_index("nivel_ensino")
+        # Índices MongoDB
+        from startup.indexes import create_all_indexes
+        await create_all_indexes(db)
 
-        # ===== ÍNDICES ADICIONAIS PARA PERFORMANCE DE PDFs (2026-02) =====
-        # learning_objects PDF: busca por class_id + academic_year + date (range)
-        await db.learning_objects.create_index(
-            [("class_id", 1), ("academic_year", 1), ("date", 1)],
-            name="lo_class_year_date"
-        )
-        await db.learning_objects.create_index(
-            [("class_id", 1), ("course_id", 1), ("academic_year", 1)],
-            name="lo_class_course_year"
-        )
-        # enrollments por class_id+status (Livro de Promoção filtra por status)
-        await db.enrollments.create_index(
-            [("class_id", 1), ("status", 1), ("academic_year", 1)],
-            name="enr_class_status_year"
-        )
-        # calendar_events filtrados por academic_year (tipo string ou int)
-        await db.calendar_events.create_index("academic_year", name="calevents_year")
-        # calendario_letivo por ano_letivo
-        await db.calendario_letivo.create_index(
-            [("ano_letivo", 1), ("school_id", 1)], name="cal_year_school"
-        )
+        # Bootstrap multi-tenant + self-heal idempotente
+        from startup.multi_tenant import bootstrap_initial_mantenedora, self_heal_tenant_data
+        await bootstrap_initial_mantenedora(db)
+        await self_heal_tenant_data(db)
 
-        # ===== Índices Multi-tenant (Mantenedora) =====
-        await db.mantenedoras.create_index("id", unique=True)
-        # Índices compostos nas principais coleções para aceleração com filtro por tenant
-        for coll in ("schools", "staff", "students", "classes", "courses",
-                     "enrollments", "grades", "learning_objects", "calendar_events",
-                     "calendario_letivo", "school_assignments", "teacher_assignments",
-                     "payroll_items", "announcements", "action_plans"):
-            try:
-                await db[coll].create_index("mantenedora_id", name=f"{coll[:15]}_mid")
-            except Exception:
-                pass
-        # Índices específicos de action_plans
-        try:
-            await db.action_plans.create_index("id", unique=True)
-            await db.action_plans.create_index([("school_id", 1), ("status", 1)])
-        except Exception:
-            pass
-        # Índices PMPI Engine (Onda 2)
-        try:
-            await db.alert_rules.create_index("id", unique=True)
-            await db.alert_rules.create_index([("mantenedora_id", 1), ("active", 1)])
-            await db.alerts.create_index("id", unique=True)
-            await db.alerts.create_index([("mantenedora_id", 1), ("status", 1), ("detected_at", -1)])
-            await db.alerts.create_index([("rule_id", 1), ("school_id", 1), ("status", 1)])
-            await db.monthly_goals.create_index("id", unique=True)
-            await db.monthly_goals.create_index([("mantenedora_id", 1), ("month", 1), ("school_id", 1)], unique=True)
-        except Exception:
-            pass
-
-        # ===== Bootstrap multi-tenant: cria mantenedora inicial se não houver nenhuma =====
-        # Nota: a migração do legado db.mantenedora (singular) já foi executada e a coleção
-        # foi droppada. Mantém-se apenas o bootstrap para instalações totalmente novas.
-        try:
-            existing = await db.mantenedoras.count_documents({})
-            if existing == 0:
-                import uuid as _uuid
-                import datetime as _dt
-                mid = str(_uuid.uuid4())
-                await db.mantenedoras.insert_one({
-                    "id": mid, "name": "Mantenedora Principal", "ativo": True,
-                    "created_at": _dt.datetime.now(_dt.timezone.utc),
-                })
-
-                # Marca documentos pré-existentes com a mantenedora principal
-                for coll in ("schools", "staff", "students", "classes", "courses",
-                             "enrollments", "grades", "learning_objects", "calendar_events",
-                             "calendario_letivo", "school_assignments", "teacher_assignments",
-                             "payroll_items", "announcements", "users"):
-                    try:
-                        await db[coll].update_many(
-                            {"mantenedora_id": {"$exists": False}},
-                            {"$set": {"mantenedora_id": mid}}
-                        )
-                    except Exception:
-                        pass
-                logger.info(f"Multi-tenant: mantenedora principal criada (id={mid}).")
-
-                # Promover o primeiro admin a super_admin (cross-tenant)
-                first_admin = await db.users.find_one({"role": "admin"}, {"_id": 0, "id": 1, "email": 1})
-                if first_admin:
-                    await db.users.update_one(
-                        {"id": first_admin["id"]},
-                        {"$set": {"role": "super_admin"}}
-                    )
-                    logger.info(f"Multi-tenant: {first_admin.get('email')} promovido a super_admin.")
-        except Exception as exc:
-            logger.warning(f"Multi-tenant: bootstrap ignorado: {exc}")
-
-        # ===== Self-healing idempotente (roda sempre no startup) =====
-        # Produção pode ter código novo mas dados pré-migração. Este bloco:
-        # 1. Garante que existe pelo menos 1 super_admin (promove o primeiro admin legado);
-        # 2. Preenche mantenedora_id ausente em documentos de todas as coleções tenant-scoped,
-        #    usando a primeira mantenedora cadastrada como fallback. É idempotente (só atualiza
-        #    documentos que não têm o campo).
-        try:
-            any_super = await db.users.find_one(
-                {"$or": [{"role": "super_admin"}, {"roles": "super_admin"}]},
-                {"_id": 0, "id": 1},
-            )
-            first_mant = await db.mantenedoras.find_one({}, {"_id": 0, "id": 1, "nome": 1, "name": 1})
-            first_mant_id = first_mant.get("id") if first_mant else None
-
-            if not any_super:
-                legacy_admin = await db.users.find_one(
-                    {"role": "admin", "is_primary": True},
-                    {"_id": 0, "id": 1, "email": 1},
-                ) or await db.users.find_one(
-                    {"role": "admin"},
-                    {"_id": 0, "id": 1, "email": 1},
-                )
-                if legacy_admin:
-                    await db.users.update_one(
-                        {"id": legacy_admin["id"]},
-                        {"$set": {"role": "super_admin", "is_primary": True}},
-                    )
-                    logger.info(
-                        f"Self-heal: {legacy_admin.get('email')} promovido a super_admin (is_primary=True)."
-                    )
-
-            if first_mant_id:
-                total_healed = 0
-                for coll in ("schools", "staff", "students", "classes", "courses",
-                             "enrollments", "grades", "learning_objects", "calendar_events",
-                             "calendario_letivo", "school_assignments", "teacher_assignments",
-                             "payroll_items", "announcements", "users", "pre_matriculas",
-                             "mantenedora_documentos"):
-                    try:
-                        res = await db[coll].update_many(
-                            {"$or": [
-                                {"mantenedora_id": {"$exists": False}},
-                                {"mantenedora_id": None},
-                                {"mantenedora_id": ""},
-                            ]},
-                            {"$set": {"mantenedora_id": first_mant_id}},
-                        )
-                        if res.modified_count:
-                            total_healed += res.modified_count
-                            logger.info(
-                                f"Self-heal: backfill mantenedora_id em {coll}: {res.modified_count} docs."
-                            )
-                    except Exception:
-                        pass
-                if total_healed:
-                    logger.info(f"Self-heal: total de {total_healed} documentos migrados.")
-        except Exception as exc:
-            logger.warning(f"Self-heal multi-tenant ignorado: {exc}")
-        
-        # Índices para schools
-        await db.schools.create_index("id", unique=True)
-        
-        # Índices para users
-        await db.users.create_index("id", unique=True)
-        await db.users.create_index("email", unique=True)
-        
-        # Índices para audit_logs
-        await db.audit_logs.create_index([("timestamp", -1)])
-        await db.audit_logs.create_index("user_id")
-        await db.audit_logs.create_index("collection")
-        await db.audit_logs.create_index([("collection", 1), ("document_id", 1)])
-        
-        # Índices para medical_certificates (atestados médicos)
-        await db.medical_certificates.create_index("id", unique=True)
-        await db.medical_certificates.create_index("student_id")
-        await db.medical_certificates.create_index([("student_id", 1), ("start_date", 1), ("end_date", 1)])
-        
-        # Índices para RH / Folha
-        await db.payroll_competencies.create_index("id", unique=True)
-        await db.payroll_competencies.create_index([("year", -1), ("month", -1)], unique=True)
-        await db.school_payrolls.create_index("id", unique=True)
-        await db.school_payrolls.create_index([("competency_id", 1), ("school_id", 1)], unique=True)
-        await db.school_payrolls.create_index("school_id")
-        await db.payroll_items.create_index("id", unique=True)
-        await db.payroll_items.create_index("school_payroll_id")
-        await db.payroll_items.create_index([("competency_id", 1), ("employee_id", 1)])
-        await db.payroll_occurrences.create_index("id", unique=True)
-        await db.payroll_occurrences.create_index("payroll_item_id")
-        
-        logger.info("Índices MongoDB criados/verificados com sucesso")
-        
-        # Inicializa o serviço de sandbox
+        # Sandbox + token blacklist
         await sandbox_service.initialize(client)
-        
-        # PATCH 3.3: Inicializa o serviço de blacklist de tokens
         token_blacklist.set_db(db)
         await token_blacklist.ensure_index()
 
-        # Feb 2026: Seed idempotente dos 8 modelos institucionais de Plano AEE.
-        try:
-            from seeds.aee_templates_seed import seed_aee_templates
-            await seed_aee_templates(db)
-        except Exception as exc:
-            logger.warning(f"Seed AEE templates: ignorado por erro: {exc}")
+        # Seeds (AEE templates, BNCC Computação)
+        await run_all_seeds(db)
 
-        # May 2026: Seed idempotente do Currículo (BNCC complementar de Computação).
-        try:
-            from seeds.seed_computacao_bncc import seed_computacao
-            stats = await seed_computacao(db)
-            logger.info(f"Seed Currículo Computação: {stats}")
-        except Exception as exc:
-            logger.warning(f"Seed Currículo Computação: ignorado por erro: {exc}")
-        
     except Exception as e:
-        logger.error(f"Erro ao criar índices MongoDB: {e}")
+        logger.error(f"Erro no startup: {e}")
 
 # Create uploads directory
 UPLOADS_DIR = ROOT_DIR / "uploads"
@@ -837,14 +574,39 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(CSRFMiddleware)
 
-# CORS middleware (deve ser o último middleware adicionado)
+# ===== CORS — origens explícitas (sem fallback '*') =====
+# [Fev/2026] Hardening: `allow_credentials=True` é INCOMPATÍVEL com origin '*' (RFC).
+# Lê de CORS_ORIGINS (lista por vírgula). Em ambientes onde a variável estiver vazia
+# ou for '*', degradamos para uma whitelist mínima e logamos um aviso forte para o
+# operador corrigir o ENV antes de subir em produção.
+_cors_raw = (os.environ.get('CORS_ORIGINS') or '').strip()
+_safe_dev_origins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:8001',
+]
+if _cors_raw and _cors_raw != '*':
+    _allowed_origins = [o.strip() for o in _cors_raw.split(',') if o.strip()]
+else:
+    logger.warning(
+        "CORS_ORIGINS não configurado (ou '*'). Aplicando whitelist mínima de DEV. "
+        "Defina CORS_ORIGINS=https://seu-dominio.com em produção."
+    )
+    _allowed_origins = _safe_dev_origins
+
+# Adiciona o domínio do backend público (preview) se vier de envs do K8s
+_backend_url = os.environ.get('REACT_APP_BACKEND_URL') or ''
+if _backend_url and _backend_url not in _allowed_origins:
+    _allowed_origins.append(_backend_url.rstrip('/'))
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_allowed_origins,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Requested-With"],
 )
+logger.info(f"CORS configurado para {len(_allowed_origins)} origem(ns).")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
