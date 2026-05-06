@@ -31,6 +31,81 @@ from pdf.historico_escolar import generate_historico_escolar_pdf
 
 logger = logging.getLogger(__name__)
 
+
+async def _ensure_enrollment_number(
+    db, student_id: str, enrollment: dict, academic_year: int
+) -> str:
+    """Backfill on-demand: garante que o aluno tenha matrícula ao emitir documento.
+
+    Usa contador atômico `enrollment_counters` (mesma lógica de `students.generate_enrollment_number`).
+    Idempotente: se já existe um número em qualquer fonte (enrollment ou student), reaproveita.
+    """
+    # 1) Já existe?
+    existing = (
+        enrollment.get('registration_number')
+        or enrollment.get('enrollment_number')
+    )
+    if existing and str(existing).strip() and str(existing).upper() != 'N/A':
+        return str(existing).strip()
+
+    student = await db.students.find_one({"id": student_id}, {"_id": 0, "enrollment_number": 1, "matricula": 1})
+    if student:
+        for k in ('enrollment_number', 'matricula'):
+            v = student.get(k)
+            if v and str(v).strip() and str(v).upper() != 'N/A':
+                return str(v).strip()
+
+    # 2) Gera atomicamente
+    from pymongo import ReturnDocument
+    counter_id = f"counter_{academic_year}"
+    existing_counter = await db.enrollment_counters.find_one({"_id": counter_id})
+    if not existing_counter:
+        last = await db.enrollments.find_one(
+            {"academic_year": academic_year}, sort=[("enrollment_number", -1)]
+        )
+        start_seq = 0
+        if last and last.get('enrollment_number'):
+            try:
+                start_seq = int(str(last['enrollment_number'])[-5:])
+            except (ValueError, TypeError):
+                start_seq = 0
+        await db.enrollment_counters.update_one(
+            {"_id": counter_id},
+            {"$setOnInsert": {"sequence": start_seq}},
+            upsert=True,
+        )
+    result = await db.enrollment_counters.find_one_and_update(
+        {"_id": counter_id},
+        {"$inc": {"sequence": 1}},
+        return_document=ReturnDocument.AFTER,
+    )
+    new_number = f"{academic_year}{str(result['sequence']).zfill(5)}"
+
+    # 3) Persiste de forma idempotente — só atualiza se enrollment não tem
+    if enrollment.get('id'):
+        await db.enrollments.update_one(
+            {"id": enrollment['id'], "$or": [
+                {"enrollment_number": {"$in": [None, "", "N/A"]}},
+                {"enrollment_number": {"$exists": False}},
+            ]},
+            {"$set": {"enrollment_number": new_number}},
+        )
+    # Também salva no student.enrollment_number como cache leve
+    await db.students.update_one(
+        {"id": student_id, "$or": [
+            {"enrollment_number": {"$in": [None, "", "N/A"]}},
+            {"enrollment_number": {"$exists": False}},
+        ]},
+        {"$set": {"enrollment_number": new_number}},
+    )
+    logger.info(
+        "Enrollment number backfilled (declaração on-demand): student=%s year=%s -> %s",
+        student_id, academic_year, new_number,
+    )
+    return new_number
+
+
+
 # Cache simples para dados que raramente mudam (mantenedora, escolas)
 import time as _time
 _doc_cache = {}
@@ -597,15 +672,15 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         if not enrollment.get('student_series') and student.get('student_series'):
             enrollment['student_series'] = student['student_series']
         # [Fev/2026] FIX: campo de matrícula no banco é `enrollment_number` (não
-        # `registration_number`). Tenta múltiplas fontes para evitar PDF com matrícula vazia.
-        reg_candidates = [
-            enrollment.get("registration_number"),
-            enrollment.get("enrollment_number"),
-            student.get("enrollment_number"),
-            student.get("matricula"),
-        ]
-        reg_final = next((r for r in reg_candidates if r and str(r).strip() and str(r) != "N/A"), "—")
+        # `registration_number`). Tenta múltiplas fontes; se TUDO está vazio,
+        # gera e persiste via backfill atômico (idempotente).
+        try:
+            ay_int = int(actual_ay) if (actual_ay := (enrollment.get('academic_year') or academic_year)) else int(academic_year)
+        except (ValueError, TypeError):
+            ay_int = datetime.now().year
+        reg_final = await _ensure_enrollment_number(db, student_id, enrollment, ay_int)
         enrollment["registration_number"] = reg_final
+        enrollment["enrollment_number"] = reg_final
 
         # Buscar turma
         class_id = enrollment.get("class_id") or student.get("class_id")
