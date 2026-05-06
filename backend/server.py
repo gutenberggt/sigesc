@@ -574,39 +574,55 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(CSRFMiddleware)
 
-# ===== CORS — origens explícitas (sem fallback '*') =====
-# [Fev/2026] Hardening: `allow_credentials=True` é INCOMPATÍVEL com origin '*' (RFC).
-# Lê de CORS_ORIGINS (lista por vírgula). Em ambientes onde a variável estiver vazia
-# ou for '*', degradamos para uma whitelist mínima e logamos um aviso forte para o
-# operador corrigir o ENV antes de subir em produção.
+# ===== CORS — whitelist inteligente, sem quebrar ambientes =====
+# [Fev/2026] Hardening: origin '*' é INCOMPATÍVEL com allow_credentials=True (RFC).
+# Agora a whitelist é construída a partir de MÚLTIPLAS fontes para não quebrar ambientes
+# que ainda não definiram `CORS_ORIGINS` manualmente:
+#   1. CORS_ORIGINS (lista por vírgula) — prioridade.
+#   2. APP_FRONTEND_URL — a URL do frontend oficial (sempre incluída se existir).
+#   3. REACT_APP_BACKEND_URL — útil quando o próprio backend faz callbacks pra si.
+#   4. Se NADA resolver, cai em modo permissivo com credentials=False (seguro + funcional).
+_env_origins = set()
+
 _cors_raw = (os.environ.get('CORS_ORIGINS') or '').strip()
-_safe_dev_origins = [
+if _cors_raw and _cors_raw != '*':
+    for o in _cors_raw.split(','):
+        o = o.strip().rstrip('/')
+        if o:
+            _env_origins.add(o)
+
+for _env_key in ('APP_FRONTEND_URL', 'REACT_APP_BACKEND_URL', 'FRONTEND_URL'):
+    _v = (os.environ.get(_env_key) or '').strip().rstrip('/')
+    if _v:
+        _env_origins.add(_v)
+
+# Sempre permitir dev local (não afeta produção, que não usa essas origens).
+_env_origins.update({
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://localhost:8001',
-]
-if _cors_raw and _cors_raw != '*':
-    _allowed_origins = [o.strip() for o in _cors_raw.split(',') if o.strip()]
-else:
-    logger.warning(
-        "CORS_ORIGINS não configurado (ou '*'). Aplicando whitelist mínima de DEV. "
-        "Defina CORS_ORIGINS=https://seu-dominio.com em produção."
-    )
-    _allowed_origins = _safe_dev_origins
+})
 
-# Adiciona o domínio do backend público (preview) se vier de envs do K8s
-_backend_url = os.environ.get('REACT_APP_BACKEND_URL') or ''
-if _backend_url and _backend_url not in _allowed_origins:
-    _allowed_origins.append(_backend_url.rstrip('/'))
+if _env_origins:
+    _allowed_origins = sorted(_env_origins)
+    _allow_creds = True
+    logger.info(f"CORS: whitelist com {len(_allowed_origins)} origem(ns), credentials=True.")
+else:
+    # Último recurso: modo permissivo MAS sem credenciais (seguro por especificação).
+    _allowed_origins = ["*"]
+    _allow_creds = False
+    logger.warning(
+        "CORS: nenhuma origem configurada (CORS_ORIGINS/APP_FRONTEND_URL ausentes). "
+        "Fallback para '*' com credentials=False."
+    )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
+    allow_credentials=_allow_creds,
     allow_origins=_allowed_origins,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Requested-With"],
 )
-logger.info(f"CORS configurado para {len(_allowed_origins)} origem(ns).")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
