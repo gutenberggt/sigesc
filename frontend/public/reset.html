@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reparar SIGESC</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #1e3a8a 0%, #0c4a6e 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 560px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    p { margin: 8px 0; line-height: 1.6; opacity: 0.9; }
+    pre {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      overflow-x: auto;
+      max-height: 220px;
+      margin: 16px 0;
+    }
+    .status { font-weight: 600; margin-top: 16px; }
+    .ok { color: #4ade80; }
+    .err { color: #f87171; }
+    button {
+      background: #fff;
+      color: #1e3a8a;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+    button:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Reparando SIGESC...</h1>
+    <p>Esta página remove o Service Worker antigo e limpa o cache do navegador para resolver o loop de "Carregando...". Aguarde alguns segundos.</p>
+    <pre id="log"></pre>
+    <div id="status" class="status">Trabalhando...</div>
+    <button id="goHome" style="display:none" data-testid="reset-go-home-btn">Ir para o login</button>
+  </div>
+  <script>
+    (function() {
+      var logEl = document.getElementById('log');
+      var statusEl = document.getElementById('status');
+      var btn = document.getElementById('goHome');
+      function log(msg) {
+        logEl.textContent += msg + '\n';
+      }
+      log('Iniciando...');
+
+      async function reset() {
+        try {
+          // 1) Unregister all service workers
+          if ('serviceWorker' in navigator) {
+            var regs = await navigator.serviceWorker.getRegistrations();
+            log('Service Workers encontrados: ' + regs.length);
+            for (var i = 0; i < regs.length; i++) {
+              var ok = await regs[i].unregister();
+              log(' - unregister(' + (regs[i].scope || '?') + ') = ' + ok);
+            }
+          } else {
+            log('Service Worker não suportado neste navegador.');
+          }
+
+          // 2) Delete all caches
+          if ('caches' in window) {
+            var keys = await caches.keys();
+            log('Caches encontrados: ' + keys.length);
+            for (var j = 0; j < keys.length; j++) {
+              var deleted = await caches.delete(keys[j]);
+              log(' - delete(' + keys[j] + ') = ' + deleted);
+            }
+          }
+
+          // 3) Limpa storages que podem manter token/tenant inválido
+          try { localStorage.clear(); log('localStorage limpo'); } catch(e) { log('localStorage: ' + e.message); }
+          try { sessionStorage.clear(); log('sessionStorage limpo'); } catch(e) { log('sessionStorage: ' + e.message); }
+
+          // 4) IndexedDB (best-effort)
+          if (indexedDB && indexedDB.databases) {
+            try {
+              var dbs = await indexedDB.databases();
+              for (var k = 0; k < dbs.length; k++) {
+                if (dbs[k].name) {
+                  indexedDB.deleteDatabase(dbs[k].name);
+                  log('IndexedDB removido: ' + dbs[k].name);
+                }
+              }
+            } catch(e) { log('IndexedDB: ' + e.message); }
+          }
+
+          statusEl.textContent = '✅ Pronto! Recarregando em 2 segundos...';
+          statusEl.className = 'status ok';
+          btn.style.display = 'inline-block';
+          btn.onclick = function() { window.location.replace('/'); };
+          setTimeout(function() {
+            window.location.replace('/');
+          }, 2000);
+        } catch (err) {
+          statusEl.textContent = '❌ Erro: ' + err.message;
+          statusEl.className = 'status err';
+          log('ERRO: ' + err.message);
+          btn.style.display = 'inline-block';
+          btn.onclick = function() { window.location.replace('/'); };
+        }
+      }
+      reset();
+    })();
+  </script>
+</body>
+</html>

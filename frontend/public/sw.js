@@ -1,13 +1,15 @@
-// SIGESC Service Worker - Versão 2.7.0
-// [Mai/2026] Bump após remoção do CAPS lock global + busca por nome_busca
-const CACHE_NAME = 'sigesc-cache-v8';
+// SIGESC Service Worker - Versão 2.8.0
+// [Fev/2026] Bump após fix CORS + correção do loop "Carregando" em browsers com SW antigo.
+// Removidos '/' e '/index.html' do precache para sempre puxar a versão fresca do servidor
+// (impedindo que bundles JS antigos quebrem o app após deploy).
+const CACHE_NAME = 'sigesc-cache-v9';
 const OFFLINE_URL = '/offline.html';
 const DB_NAME = 'SigescOfflineDB';
 
-// Assets estáticos para cache imediato
+// Assets estáticos para cache imediato.
+// IMPORTANTE: NÃO incluir '/' nem '/index.html' aqui — isso causa loop após deploy
+// pois o index cacheado aponta para bundles JS com hash antigo que já não existem.
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
   '/offline.html',
   '/manifest.json'
 ];
@@ -144,7 +146,7 @@ function getAuthToken() {
 // ============= Instalação do Service Worker =============
 
 self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando Service Worker v2.2.0...');
+  console.log('[SW] Instalando Service Worker v2.8.0...');
   
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -208,6 +210,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
+  // Navegação (HTML / index): SEMPRE rede primeiro, NUNCA cachear o index.html.
+  // Se a rede falhar e for navegação, cai em offline.html.
+  // Isso evita o "loop Carregando..." quando o navegador tem um SW antigo cujo
+  // index.html cacheado referencia bundles JS com hash que já não existem.
+  if (request.mode === 'navigate' || (request.destination === 'document')) {
+    event.respondWith(navigationStrategy(request));
+    return;
+  }
+
   // Apenas requisições same-origin são cacheadas/interceptadas
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirstStrategy(request));
@@ -221,6 +232,20 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(networkFirstStrategy(request));
   }
 });
+
+// Estratégia para navegação HTML — nunca cacheia o index, sempre busca rede.
+// Se offline, cai no offline.html.
+async function navigationStrategy(request) {
+  try {
+    const networkResponse = await fetch(request, { cache: 'no-store' });
+    return networkResponse;
+  } catch (error) {
+    console.log('[SW] Rede falhou em navegação, servindo offline.html');
+    const offline = await caches.match(OFFLINE_URL);
+    if (offline) return offline;
+    return new Response('Offline', { status: 503 });
+  }
+}
 
 async function cacheFirstStrategy(request) {
   const cachedResponse = await caches.match(request);

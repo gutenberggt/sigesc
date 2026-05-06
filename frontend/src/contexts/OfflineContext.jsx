@@ -193,6 +193,18 @@ export const OfflineProvider = ({ children }) => {
   // Registra o Service Worker e configura Background Sync
   useEffect(() => {
     if ('serviceWorker' in navigator) {
+      // [Fev/2026] Auto-reload quando um SW novo assumir o controle.
+      // Resolve o caso em que o usuário tinha um SW antigo (v8 ou anterior) com
+      // index.html cacheado apontando para bundles JS que não existem mais →
+      // ao receber controle do novo SW, força reload UMA vez para puxar bundles atuais.
+      let hasReloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (hasReloaded) return;
+        hasReloaded = true;
+        console.log('[PWA] Novo Service Worker assumiu controle — recarregando para aplicar atualização');
+        window.location.reload();
+      });
+
       navigator.serviceWorker
         .register('/sw.js')
         .then(async (registration) => {
