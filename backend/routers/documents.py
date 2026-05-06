@@ -596,12 +596,43 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
         if not enrollment.get('student_series') and student.get('student_series'):
             enrollment['student_series'] = student['student_series']
-        if not enrollment.get("registration_number") or enrollment.get("registration_number") == "N/A":
-            enrollment["registration_number"] = student.get("enrollment_number", "N/A")
+        # [Fev/2026] FIX: campo de matrícula no banco é `enrollment_number` (não
+        # `registration_number`). Tenta múltiplas fontes para evitar PDF com matrícula vazia.
+        reg_candidates = [
+            enrollment.get("registration_number"),
+            enrollment.get("enrollment_number"),
+            student.get("enrollment_number"),
+            student.get("matricula"),
+        ]
+        reg_final = next((r for r in reg_candidates if r and str(r).strip() and str(r) != "N/A"), "—")
+        enrollment["registration_number"] = reg_final
 
         # Buscar turma
         class_id = enrollment.get("class_id") or student.get("class_id")
-        class_info = await db.classes.find_one({"id": class_id}, {"_id": 0})
+        class_info = await db.classes.find_one({"id": class_id}, {"_id": 0}) if class_id else None
+        # [Fev/2026] FIX: se a turma do enrollment não existir mais, tenta inferir pela
+        # série do aluno (`student_series`) entre as turmas ativas da escola — isso
+        # cobre casos onde a turma original foi deletada/transferida mas há uma turma
+        # equivalente com a mesma série na escola.
+        if not class_info:
+            student_series = enrollment.get('student_series') or student.get('student_series')
+            school_id_lookup = student.get('school_id') or enrollment.get('school_id')
+            if student_series and school_id_lookup:
+                candidatas = await db.classes.find({
+                    "school_id": school_id_lookup,
+                    "$or": [
+                        {"grade_level": student_series},
+                        {"series": student_series},
+                        {"name": {"$regex": str(student_series), "$options": "i"}},
+                    ]
+                }, {"_id": 0}).to_list(5)
+                if len(candidatas) == 1:
+                    class_info = candidatas[0]
+                elif len(candidatas) > 1:
+                    # Preferir turma do mesmo academic_year da declaração
+                    same_year = [c for c in candidatas if str(c.get('academic_year')) == str(academic_year)]
+                    class_info = same_year[0] if same_year else candidatas[0]
+
         if not class_info:
             class_info = {"name": "Turma não informada", "shift": "N/A", "school_id": student.get("school_id")}
 

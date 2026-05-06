@@ -10,6 +10,47 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 from pdf.utils import get_logo_image, format_date_pt, get_styles
 
+
+# Mapeamento canônico de turnos (PT-BR + inglês legado)
+_TURNOS_PT = {
+    'morning': 'Matutino',
+    'afternoon': 'Vespertino',
+    'evening': 'Noturno',
+    'full_time': 'Integral',
+    'night': 'Noturno',
+    'matutino': 'Matutino',
+    'vespertino': 'Vespertino',
+    'noturno': 'Noturno',
+    'integral': 'Integral',
+}
+
+
+def _resolve_shift(class_info: Dict[str, Any]) -> str:
+    """Devolve o turno legível em PT-BR. Fallback: '—' (em vez de 'N/A')."""
+    raw = (class_info or {}).get('shift') or (class_info or {}).get('turno')
+    if not raw:
+        return '—'
+    out = _TURNOS_PT.get(str(raw).lower(), str(raw))
+    if not out or str(out).upper() in ('N/A', 'NONE'):
+        return '—'
+    return out
+
+
+def _resolve_registration(enrollment: Dict[str, Any], student: Dict[str, Any]) -> str:
+    """Resolve a matrícula tentando múltiplas fontes — campo no banco é
+    `enrollment_number`, mas algumas rotas montam `registration_number`."""
+    candidates = [
+        (enrollment or {}).get('registration_number'),
+        (enrollment or {}).get('enrollment_number'),
+        (student or {}).get('enrollment_number'),
+        (student or {}).get('matricula'),
+    ]
+    for c in candidates:
+        if c and str(c).strip() and str(c).upper() != 'N/A':
+            return str(c).strip()
+    return '—'
+
+
 def generate_declaracao_matricula_pdf(
     student: Dict[str, Any],
     school: Dict[str, Any],
@@ -123,18 +164,9 @@ def generate_declaracao_matricula_pdf(
     father_name = student.get('father_name') or 'Não informado'
     display_grade = enrollment.get('student_series') or class_info.get('grade_level') or class_info.get('name', 'N/A')
     
-    # Mapeamento de turnos para português
-    TURNOS_PT = {
-        'morning': 'Matutino',
-        'afternoon': 'Vespertino',
-        'evening': 'Noturno',
-        'full_time': 'Integral',
-        'night': 'Noturno'
-    }
-    shift_raw = class_info.get('shift', 'N/A')
-    shift = TURNOS_PT.get(shift_raw, shift_raw)
+    shift = _resolve_shift(class_info)
     
-    reg_number = enrollment.get('registration_number', 'N/A')
+    reg_number = _resolve_registration(enrollment, student)
     
     # Formatar data de nascimento
     if isinstance(birth_date, str) and '-' in birth_date:
@@ -275,17 +307,9 @@ def generate_declaracao_transferencia_pdf(
     mother_name = student.get('mother_name') or 'Não informado'
     father_name = student.get('father_name') or 'Não informado'
     
-    TURNOS_PT = {
-        'morning': 'Matutino',
-        'afternoon': 'Vespertino',
-        'evening': 'Noturno',
-        'full_time': 'Integral',
-        'night': 'Noturno'
-    }
-    shift_raw = class_info.get('shift', 'N/A')
-    shift = TURNOS_PT.get(shift_raw, shift_raw)
+    shift = _resolve_shift(class_info)
     
-    reg_number = enrollment.get('registration_number', 'N/A')
+    reg_number = _resolve_registration(enrollment, student)
     
     # Formatar data de nascimento
     if isinstance(birth_date, str) and '-' in birth_date:
@@ -490,18 +514,9 @@ def generate_declaracao_frequencia_pdf(
     father_name = student.get('father_name') or 'Não informado'
     display_grade = enrollment.get('student_series') or class_info.get('grade_level') or class_info.get('name', 'N/A')
     
-    # Mapeamento de turnos para português
-    TURNOS_PT = {
-        'morning': 'Matutino',
-        'afternoon': 'Vespertino',
-        'evening': 'Noturno',
-        'full_time': 'Integral',
-        'night': 'Noturno'
-    }
-    shift_raw = class_info.get('shift', 'N/A')
-    shift = TURNOS_PT.get(shift_raw, shift_raw)
+    shift = _resolve_shift(class_info)
     
-    reg_number = enrollment.get('registration_number', 'N/A')
+    reg_number = _resolve_registration(enrollment, student)
     
     text = f"""
     Declaramos, para os devidos fins, que <b>{student_name}</b>, 
