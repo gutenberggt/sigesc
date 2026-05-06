@@ -12,7 +12,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {
-  CheckCircle2, XCircle, Pencil, ChevronLeft, RefreshCw, Filter,
+  CheckCircle2, XCircle, Pencil, Home, RefreshCw, Filter,
   Loader2, Inbox, Sparkles, Square, CheckSquare, Eye,
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
@@ -222,16 +222,18 @@ export default function TextImprovement() {
       <div className="p-6 max-w-7xl mx-auto" data-testid="text-improvement-page">
         <div className="mb-6">
           <Link to="/dashboard" className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900 mb-3" data-testid="back-link">
-            <ChevronLeft className="w-4 h-4 mr-1" /> Voltar ao Dashboard
+            <Home className="w-4 h-4 mr-1" /> Início
           </Link>
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
             <Sparkles className="w-8 h-8 text-violet-600" />
-            Higienização Textual
+            Apoio à Escrita
           </h1>
           <p className="text-slate-600 mt-2">
-            Sugestões determinísticas de <span className="font-medium text-violet-700">formatação</span> (espaços,
-            pontuação, capitalização, siglas) e <span className="font-medium text-orange-700">ortografia</span> (palavras
-            fora do dicionário PT-BR). Sem IA, com revisão humana obrigatória.
+            Sugestões automáticas para melhorar a escrita dos seus registros, ajustando pontuação,
+            uso de maiúsculas, siglas e ortografia. Você revisa e decide o que aplicar.
+          </p>
+          <p className="text-slate-500 mt-1 text-sm italic">
+            Nenhuma alteração é feita automaticamente.
           </p>
         </div>
 
@@ -473,13 +475,22 @@ function ImprovementCard({ item, selected, onToggleSelect, onApprove, onReject, 
       <div className="grid md:grid-cols-2 divide-x divide-slate-200">
         <div className="p-4">
           <div className="text-xs font-semibold text-rose-700 uppercase tracking-wider mb-2 flex items-center gap-1">
-            <XCircle className="w-3 h-3" /> Original
+            <XCircle className="w-3 h-3" />
+            <span>Original</span>
+            {item.context?.class_name && (
+              <span className="text-slate-500 font-normal normal-case tracking-normal ml-1">
+                — {item.context.class_name}
+                {item.context.show_course && item.context.course_name && (
+                  <> — {item.context.course_name}</>
+                )}
+              </span>
+            )}
           </div>
           <div className="text-sm text-slate-800 whitespace-pre-wrap break-words">{item.original}</div>
         </div>
         <div className="p-4 bg-emerald-50/40">
           <div className="text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-2 flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> Sugestão (formatação corrigida)
+            <CheckCircle2 className="w-3 h-3" /> Sugestão
           </div>
           <div className="text-sm text-slate-800 whitespace-pre-wrap break-words">
             {item.edited_text || item.sugestao}

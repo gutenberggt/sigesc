@@ -627,11 +627,12 @@ function App() {
             }
           />
 
-          {/* Higienização Textual (formatação) — Mai/2026 */}
+          {/* Apoio à Escrita — Fev/2026: agora também acessível por professores
+              (com escopo restrito aos próprios registros, enforced no backend). */}
           <Route
             path="/admin/text-improvement"
             element={
-              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste']}>
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'professor']}>
                 <TextImprovement />
               </ProtectedRoute>
             }

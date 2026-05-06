@@ -14,7 +14,8 @@ import {
   User,
   School,
   Clock,
-  FileText
+  FileText,
+  Sparkles
 } from 'lucide-react';
 import { professorAPI } from '../services/api';
 import { mantenedoraAPI } from '../services/api';
@@ -223,6 +224,18 @@ export default function ProfessorDashboard() {
                 </CardContent>
               </Card>
             )}
+
+            <Card 
+              className="cursor-pointer hover:bg-violet-50 transition-colors"
+              onClick={() => navigate('/admin/text-improvement')}
+              data-testid="menu-apoio-escrita"
+            >
+              <CardContent className="p-4 text-center">
+                <Sparkles className="mx-auto mb-2 text-violet-600" size={32} />
+                <p className="font-medium">Apoio à Escrita</p>
+                <p className="text-[11px] text-slate-500 mt-1">Sugestões automáticas dos seus registros</p>
+              </CardContent>
+            </Card>
 
             <Card 
               className="cursor-pointer hover:bg-indigo-50 transition-colors"

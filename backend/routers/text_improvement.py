@@ -19,6 +19,18 @@ router = APIRouter(prefix="/admin/text-improvement", tags=["Text Improvement"])
 
 QUEUE = "text_improvement_queue"
 _ADMIN_ROLES = ("super_admin", "admin", "admin_teste")
+_TEACHER_ROLES = ("professor",)
+_ALL_ROLES = _ADMIN_ROLES + _TEACHER_ROLES
+
+# Níveis em que o COMPONENTE CURRICULAR aparece na UI (anos finais, médio, EJA).
+# Educação Infantil e Anos Iniciais são polivalentes: ocultar o componente.
+EDU_LEVELS_WITH_COMPONENT = {
+    "fundamental_anos_finais",
+    "ensino_medio",
+    "eja",
+    "eja_fundamental_finais",
+    "eja_medio",
+}
 
 # Whitelist de coleções/campos. Mantenha em sync com `scripts/text_improvement.py`.
 WHITELIST = {
@@ -45,11 +57,96 @@ class BulkApproveByRuleRequest(BaseModel):
 
 def setup_router(db, **_kwargs):
 
+    async def _require_user(request: Request) -> dict:
+        """Aceita admin OU professor. Para professor, escopo é restrito ao próprio."""
+        user = await AuthMiddleware.get_current_user(request)
+        if user.get("role") not in _ALL_ROLES:
+            raise HTTPException(403, "Acesso restrito.")
+        return user
+
     async def _require_admin(request: Request) -> dict:
         user = await AuthMiddleware.get_current_user(request)
         if user.get("role") not in _ADMIN_ROLES:
             raise HTTPException(403, "Acesso restrito a administradores")
         return user
+
+    async def _scope_filter_for(user: dict) -> dict:
+        """Devolve um dict de filtro mongo a ser unido ao filtro principal.
+        - Admin: sem restrição.
+        - Professor: limitado a `recorded_by_user_id == user.id` (item criado por ele
+          via `learning_objects`). Itens sem essa marca ficam invisíveis ao professor.
+        """
+        if user.get("role") in _ADMIN_ROLES:
+            return {}
+        # Professor — escopo restrito.
+        return {"recorded_by_user_id": user.get("id")}
+
+    async def _enrich_with_class_course(items: List[dict]) -> List[dict]:
+        """Resolve nomes de turma/componente para itens vindos de `learning_objects`.
+
+        - Coleta IDs únicos de class_id/course_id e busca em batch ($in).
+        - Anexa `class_name`, `course_name`, `education_level`, `show_course` no contexto.
+        - `show_course=True` apenas para níveis em `EDU_LEVELS_WITH_COMPONENT`.
+        """
+        if not items:
+            return items
+
+        lo_items = [i for i in items if i.get("source_collection") == "learning_objects"]
+        if not lo_items:
+            return items
+
+        # 1) Resolve class_id / course_id no documento de origem se ainda não estiverem
+        #    no item enfileirado (compat com items legados).
+        missing_lo_ids = [i["source_id"] for i in lo_items if not i.get("class_id") or not i.get("course_id")]
+        lo_docs_by_id: dict = {}
+        if missing_lo_ids:
+            async for d in db.learning_objects.find(
+                {"id": {"$in": missing_lo_ids}},
+                {"_id": 0, "id": 1, "class_id": 1, "course_id": 1, "recorded_by": 1},
+            ):
+                lo_docs_by_id[d["id"]] = d
+
+        # 2) Backfill class_id/course_id em itens legados
+        for it in lo_items:
+            if (not it.get("class_id") or not it.get("course_id")) and it["source_id"] in lo_docs_by_id:
+                src = lo_docs_by_id[it["source_id"]]
+                it["class_id"] = it.get("class_id") or src.get("class_id")
+                it["course_id"] = it.get("course_id") or src.get("course_id")
+
+        # 3) Batch-load classes e courses
+        class_ids = {i.get("class_id") for i in lo_items if i.get("class_id")}
+        course_ids = {i.get("course_id") for i in lo_items if i.get("course_id")}
+        classes_by_id = {}
+        courses_by_id = {}
+        if class_ids:
+            async for c in db.classes.find(
+                {"id": {"$in": list(class_ids)}},
+                {"_id": 0, "id": 1, "name": 1, "education_level": 1},
+            ):
+                classes_by_id[c["id"]] = c
+        if course_ids:
+            async for c in db.courses.find(
+                {"id": {"$in": list(course_ids)}},
+                {"_id": 0, "id": 1, "name": 1},
+            ):
+                courses_by_id[c["id"]] = c
+
+        # 4) Anexa ao context
+        for it in lo_items:
+            ctx = dict(it.get("context") or {})
+            cl = classes_by_id.get(it.get("class_id"))
+            co = courses_by_id.get(it.get("course_id"))
+            if cl:
+                ctx["class_name"] = cl.get("name")
+                ctx["education_level"] = cl.get("education_level")
+            if co:
+                ctx["course_name"] = co.get("name")
+            ctx["show_course"] = bool(
+                cl and (cl.get("education_level") or "") in EDU_LEVELS_WITH_COMPONENT
+            )
+            it["context"] = ctx
+
+        return items
 
     async def _load_item(item_id: str) -> dict:
         item = await db[QUEUE].find_one({"id": item_id}, {"_id": 0})
@@ -86,8 +183,9 @@ def setup_router(db, **_kwargs):
         limit: int = Query(50, ge=1, le=200),
         skip: int = Query(0, ge=0),
     ):
-        await _require_admin(request)
-        filt: dict = {}
+        user = await _require_user(request)
+        scope = await _scope_filter_for(user)
+        filt: dict = {**scope}
         if status_filter != "all":
             filt["status"] = status_filter
         if collection:
@@ -96,18 +194,23 @@ def setup_router(db, **_kwargs):
             filt["source_field"] = field
         cursor = db[QUEUE].find(filt, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit)
         items = await cursor.to_list(length=limit)
+        items = await _enrich_with_class_course(items)
         total = await db[QUEUE].count_documents(filt)
-        return {"items": items, "total": total, "skip": skip, "limit": limit}
+        return {"items": items, "total": total, "skip": skip, "limit": limit,
+                "user_scope": "self" if user.get("role") in _TEACHER_ROLES else "all"}
 
     @router.get("/stats")
     async def stats(request: Request):
-        await _require_admin(request)
-        pipeline = [{
-            "$group": {
+        user = await _require_user(request)
+        scope = await _scope_filter_for(user)
+        match_stage = {"$match": scope} if scope else {"$match": {}}
+        pipeline = [
+            match_stage,
+            {"$group": {
                 "_id": {"status": "$status", "colecao": "$source_collection"},
                 "count": {"$sum": 1},
-            },
-        }]
+            }},
+        ]
         rows: dict = {}
         totals = {"pending": 0, "approved": 0, "rejected": 0, "edited": 0}
         async for doc in db[QUEUE].aggregate(pipeline):
@@ -119,8 +222,11 @@ def setup_router(db, **_kwargs):
 
     @router.get("/{item_id}/context")
     async def get_context(item_id: str, request: Request):
-        await _require_admin(request)
+        user = await _require_user(request)
         item = await _load_item(item_id)
+        # Professor só vê contexto dos próprios items.
+        if user.get("role") in _TEACHER_ROLES and item.get("recorded_by_user_id") != user.get("id"):
+            raise HTTPException(403, "Item fora do seu escopo")
         col_name = item["source_collection"]
         source_id = item["source_id"]
         whitelisted = list(WHITELIST.get(col_name, set()))
@@ -136,10 +242,18 @@ def setup_router(db, **_kwargs):
         return {"collection": col_name, "source_id": source_id,
                 "highlight_field": item["source_field"], "fields": doc}
 
+    async def _ensure_owns(item: dict, user: dict) -> None:
+        """Garante que o usuário pode modificar o item (admin OU dono)."""
+        if user.get("role") in _ADMIN_ROLES:
+            return
+        if item.get("recorded_by_user_id") != user.get("id"):
+            raise HTTPException(403, "Item fora do seu escopo")
+
     @router.post("/{item_id}/approve")
     async def approve_item(item_id: str, request: Request):
-        user = await _require_admin(request)
+        user = await _require_user(request)
         item = await _load_item(item_id)
+        await _ensure_owns(item, user)
         if item["status"] != "pending":
             raise HTTPException(400, f"Item já está em estado '{item['status']}'.")
         await _apply_to_source(item, item["sugestao"])
@@ -152,8 +266,9 @@ def setup_router(db, **_kwargs):
 
     @router.post("/{item_id}/reject")
     async def reject_item(item_id: str, request: Request):
-        user = await _require_admin(request)
+        user = await _require_user(request)
         item = await _load_item(item_id)
+        await _ensure_owns(item, user)
         if item["status"] != "pending":
             raise HTTPException(400, f"Item já está em estado '{item['status']}'.")
         await db[QUEUE].update_one({"id": item_id}, {"$set": {
@@ -165,8 +280,9 @@ def setup_router(db, **_kwargs):
 
     @router.post("/{item_id}/edit-and-approve")
     async def edit_and_approve(item_id: str, body: EditAndApproveRequest, request: Request):
-        user = await _require_admin(request)
+        user = await _require_user(request)
         item = await _load_item(item_id)
+        await _ensure_owns(item, user)
         if item["status"] != "pending":
             raise HTTPException(400, f"Item já está em estado '{item['status']}'.")
         await _apply_to_source(item, body.edited_text)
@@ -180,11 +296,12 @@ def setup_router(db, **_kwargs):
 
     @router.post("/bulk-approve")
     async def bulk_approve(body: BulkApproveRequest, request: Request):
-        user = await _require_admin(request)
+        user = await _require_user(request)
+        scope = await _scope_filter_for(user)
         ok = 0; skipped = 0; errors: List[dict] = []
         for item_id in body.ids:
             try:
-                item = await db[QUEUE].find_one({"id": item_id, "status": "pending"}, {"_id": 0})
+                item = await db[QUEUE].find_one({"id": item_id, "status": "pending", **scope}, {"_id": 0})
                 if not item:
                     skipped += 1; continue
                 await _apply_to_source(item, item["sugestao"])

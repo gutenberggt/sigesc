@@ -378,6 +378,11 @@ def _build_queue_item(
         "source_collection": col_name,
         "source_id": str(doc.get("id") or doc.get("_id")),
         "source_field": field,
+        # [Fev/2026] Campos para escopo do professor + UI de "Original – Turma – Componente".
+        # Para coleções não-pedagógicas (students, staff, etc.) ficam None.
+        "class_id": doc.get("class_id"),
+        "course_id": doc.get("course_id"),
+        "recorded_by_user_id": doc.get("recorded_by") or doc.get("created_by_user_id") or doc.get("created_by"),
         "original": original,
         "sugestao": sugestao,
         "applied_rules": applied_rules,
@@ -407,7 +412,9 @@ async def _process_collection(db, col_name: str, fields: List[str], scan: bool):
                 "pulados": 0, "exemplos": [], "enfileirados": 0, "duplicados": 0}
 
     projection = {"_id": 1, "id": 1, "mantenedora_id": 1, "full_name": 1,
-                  "nome": 1, "name": 1, **{f: 1 for f in fields}}
+                  "nome": 1, "name": 1, "class_id": 1, "course_id": 1,
+                  "recorded_by": 1, "created_by_user_id": 1, "created_by": 1,
+                  **{f: 1 for f in fields}}
     cursor = col.find({}, projection)
 
     candidatos_format = 0; candidatos_spell = 0
