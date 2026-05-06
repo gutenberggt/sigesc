@@ -1,134 +1,134 @@
-<analysis>Aqui está o resumo do handoff estruturado para o próximo agente:
+<analysis>Aqui está o resumo do handoff para o próximo agente:
 
-**original_problem_statement**: Implementar e refinar o Student Dashboard, relatórios AEE, criação de usuários, SaaS escalável com Currículo Multi-Camadas, Gestão Ativa, Multi-Tenant real, IA com Claude 4.5, Segurança P1. Adicionado nesta sessão: Fila de Revisão de Conteúdo (normalização CAPS -> sentence case de forma segura para textos longos pedagógicos) e Higienização Textual (Formatação e Ortografia via ), scripts de migração robustos e refinamento de filtros na alocação de professores/substituições. PRODUCT REQUIREMENTS detalhados no .
+**original_problem_statement**: Implementar e refinar o Student Dashboard, relatórios AEE, criação de usuários, SaaS escalável, Multi-Tenant real. Higienização Textual (Apoio à Escrita). Refatoração de Carga Horária (dinâmica). Atualização de arquitetura e CORS. Adicionado nesta sessão: Remoção do bloqueio do AEE para eliminar CAPS LOCK forçado e adição de atalhos e bulk save no módulo Bolsa Família.
 
-**User's preferred language**: Portuguese (INSTRUCT next agent to respond in the user's preferred language only: Responda sempre em Português)
+**User's preferred language**: Portuguese (INSTRUCT next agent to respond in the user's preferred language only: Responda SEMPRE em Português)
 
-**what currently exists?** 
-Um SaaS educacional multi-tenant (FastAPI + React + MongoDB). Possui agora um sistema de Filas de Revisão assíncronas para higienização textual segura (Revisão de Conteúdo para reversão de CAPS Lock, e Melhoria de Texto para erros de formatação/ortografia). Inclui um middleware de blindagem na entrada (converte CAPS no POST/PUT), scripts CLI automatizados via  (para produção no Coolify) e gerenciamento refinado de alocações e substituições de professores no frontend.
+**what currently exists?**
+SaaS educacional multi-tenant (FastAPI + React + MongoDB) contendo fluxos complexos para professores, secretários e administradores. O backend conta agora com cálculos dinâmicos de Carga Horária como Fonte Única da Verdade (Single Source of Truth), geração de PDFs aprimorada (Declarações, Diários AEE, Bolsa Família) e uma fila de revisão Apoio à Escrita configurada para evitar interferências diretas sem validação humana.
 
 **Last working item**:
-    - Last item agent was working: O agente modificou o componente  (Adicionar Nova Substituição) para alinhar as regras de seleção de Escola, Turma e Componente com as do componente . As modificações aplicaram filtros baseados em , exibir alerta amarelo se o professor não tiver lotação, exibir a carga horária e deduplicar os componentes. A alteração de código () acabou de ser concluída com sucesso.
-    - Status: TESTING PENDING
+    - Last item agent was working: O agente identificou a causa raiz de um erro reportado pelo usuário onde o frontend entrava num loop infinito (Carregando...) no ambiente de produção (). O agente verificou que a recente política restritiva de CORS bloqueou o acesso do domínio de produção, e estava analisando o arquivo  para flexibilizar o  sem quebrar o parâmetro .
+    - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? screenshot tool (para verificar visualmente o fluxo do Modal de Substituição) / frontend testing agent.
+    - Which testing method agent to use? backend manual testing by curl/python (para validar os headers CORS da API simulando o envio a partir da origin ).
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: Testar as mudanças recém-aplicadas em 
-     - Attempted fixes: O agente fez o search_replace aplicando as lógicas de filtro, mas parou antes de testar a renderização da interface.
-     - Next debug checklist: Abrir  ou a interface correspondente de Gerenciar Alocações de Professor, clicar em Adicionar Nova Substituição e confirmar se a lista de escolas filtra corretamente, se exibe alertas e a carga horária na dropdown.
-     - Why fix this issue and what will be achieved with the fix?: Para garantir que os filtros entre Alocação e Substituição estejam homogêneos, evitando bugs de atribuição de carga horária para professores.
-     - Status: TESTING PENDING
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix?: frontend
+  - Issue 1: Bloqueio de CORS no ambiente de Produção (Loop de Carregamento UI) - **P0**
+     - Attempted fixes: O agente abriu o  (linhas 565-615) para revisar a lógica recém-alterada, mas não teve contexto/tempo para aplicar a modificação.
+     - Next debug checklist: Editar as regras de CORS em . Permitir domínios de produção fornecidos via variável  (ou similar) garantindo que, caso exista uma lista, as chamadas com origens na lista recebam o Header apropriado, uma vez que  exige a origin exata ao invés do curinga . Além disso, orientar o usuário sobre configurar essa variável no Coolify.
+     - Why fix this issue and what will be achieved with the fix?: Sistema inacessível para usuários em produção; o fix restaurará imediatamente a usabilidade global.
+     - Status: IN PROGRESS
+     - Is recurring issue? Y (Erros de CORS surgiram duas vezes nestes ciclos devido à restrição do hardening).
+     - Should Test frontend/backend/both after fix?: backend
 
 **In progress Task List**:
-Nenhuma tarefa em andamento (exceto o teste do Last Working Item).
+Nenhuma tarefa (apenas a Issue 1 pendente).
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - (P2) Refatoração para reduzir complexidade do .
+    - (P2) Refatoração para reduzir complexidade do script .
     
     Future Tasks:
     - (P2) Mudar CSV de importação de estudantes para gerar convites automáticos via Resend.
     - (P2) Export LGPD por mantenedora (direito ao esquecimento + portabilidade).
     - (P2) Configurações avançadas de alerta no detector PMPI-GE divididas por etapa escolar.
-    - (P3) Criar rotina de coleção  (escopo por mantenedora) carregada em runtime no  (pyspellchecker) para evitar falsos positivos de jargões locais.
-    - (P3) Fase 3 da Higienização textual: Gramática e fluência usando LLM (Claude), apenas sob demanda via botão Sugerir melhoria gramatical individual (sem rodar em bulk).
+    - (P3) Criar rotina de coleção  (escopo por mantenedora) carregada em runtime no  (pyspellchecker).
+    - (P3) Fase 3 da Higienização textual: Gramática e fluência usando LLM (Claude), sob demanda.
+    - (P3) Modularização do arquivo gigante  (backlog sugerido, agir com cautela e por partes em diferentes PRs).
+    - (P3) Job noturno simples para verificar tabela  e executar o backfill de matrículas vazias de forma silenciosa.
 
 **Completed work in this session**
-- Execução do script de normalização retroativa de nomes  em 3 fases no banco preview (DONE)
-- Criação de  e  em  para rodar scripts CLI Python no container Coolify (DONE)
-- Script de normalização texto-livre  + coleção  e fila  (DONE)
-- Implementação do botão modal Ver documento de origem com marcações de destaque em  (DONE)
-- Middleware backend  para bloquear novos inserts em CAIXA ALTA em POST/PUTs nas coleções principais (DONE)
-- Script de detecção de anomalias textuais  + coleção  com fila  (Fase 1: Formatação, Fase 2: Ortografia conservadora via ) (DONE)
-- Rotina de Aprovação em massa por regra única na tela de Melhoria de Texto (DONE)
-- Correção de mapeamento frontend do campo Práticas Pedagógicas (apontado para ) e refinamento heurístico contra falsos positivos (DONE)
+- Lógica de Substituição de professores em  reescrita com suporte a N turmas × M componentes. (DONE)
+- **Refatoração da Carga Horária**: Criação do , tornando todos os campos da UI derivados de cálculos de Alocações + Substituições, com remoção do travamento de limites e falha de salvar lote. (DONE)
+- Correção PDF de Declaração de Transferência: implementado Backfill atômico sob-demanda para  vazio e correção do formato de Turnos (Matutino/Vespertino). (DONE)
+- UI de Apoio à Escrita (ex-Higienização Textual): Mudança de textos, atalho Início, filtro na backend para isolar as ocorrências baseadas no role  e injeção do nome da turma ocultando o componente para Educação Infantil. (DONE)
+- UI Bolsa Família: Botão de salvamento em massa ('Save All'), remoção das colunas de salvamento individual, atalho adicionado no dashboard do secretário e suporte a Assinatura Digital Condicional no PDF validada por secretário. (DONE)
+- **Desbloqueio Módulo AEE**: Permissão explícita recebida do usuário. Remoção de códigos de CAPS LOCK forçado do Frontend (CSS) e Backend . Adição de regra isolando coleções do AEE das normalizações e higienizações. Inserção de PyTests de Validação para os Models SEMED. (DONE)
+- Limpeza do : Movido código de seeds, indexes, e multi_tenant para diretório . (DONE)
+- Scripts de auditoria gerados:  para validação entre Carga Horária legada e nova. (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-   - Nenhum reportado.
+Nenhum novo, exceto o loop no ambiente de produção detalhado no P0.
 
 **Known issue recurrence from previous fork**
-  - Nenhum.
+  - Issue recurrence in previous fork: Falhas relativas ao CORS quando utilizando hardening de origens vs .
+  - Recurrence count: 2
+  - Status: IN PROGRESS (Bloqueando Produção)
 
 **Code Architecture**
-- Backend FastAPI + Frontend React.
-- **Middleware de Normalização ()**: Intercepta dados das rotas POST/PUT para corrigir texto livre que entrar totalmente em UPPERCASE, aplicando sentence_case com proteção inteligente para acrônimos e numerais.
-- **Higienização Textual Off-Band**: Scripts em  (e comandos no Makefile) escaneiam as coleções assincronamente e enfileiram sugestões () para administradores avaliarem no Frontend.
+- FastAPI Backend com roteamento modularizado.
+- Inicialização dividida: O diretório  detém scripts de boot isolados (, , ) ao invés do .
+- Lógica central de Cálculos de CH: .
+- Geração de PDF via  nos módulos dentro de .
 
 **Key Technical Concepts**
-- : Carregado com um dicionário interno PT-BR para sugerir correções de ortografia determinísticas sem uso de chamadas pagas de LLM.
-- **Filtros defensivos**: Heurísticas rigorosas em scripts de texto evitam tocar em textos com listas longas, números romanos escolares (I, II, III), acrônimos (BNCC, SEMED, AEE) ou percentuais.
+React Hooks, FastAPI Middleware, MongoDB atomic operations (), ReportLab PDF Generation, Pytest.
 
 **key DB schema**
-  - : 
-  - : Semelhante ao acima, mas inclui chaves como .
+  - : Responsável pelos relacionamentos do aluno.  atua como a Matrícula principal (o campo  não deve ser acessado).
+  -  / : Campos legados de  não servem mais de SSOT, servindo o cálculo iterativo atual de dependências de horários como regra de negócio primária.
 
 **changes in tech stack**
-  - Nova dependência instalada no backend:  (adicionada ao ).
+  - Nenhuma adição recente, mas foi incluído um relatório base () enumerando que diversas dependências estão pesando no runtime do servidor.
 
-**All files of reference**
-  -  (Alvo da última edição, requer teste)
-  -  (Referência do modelo copiado)
+**All files of reference** 
+  -  (Ponto de erro do CORS)
   - 
+  - , , , 
+  - , , , 
   - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - , 
 
 **Areas that need refactoring**: 
-- A integração do script  em Fase 3 exigirá integração com LLM para gramática, mas as bases estruturais já estão no lugar.
+- : Muito grande (mais de 2900 linhas), precisará ser gradualmente modularizado (não tentar quebrar tudo num PR só).
+- : Muitas dependências supérfluas (audit report já rodado).
 
 **key api endpoints**
   - 
-  -  (Aprova um lote de correções por regra específica)
+  - 
+  - 
 
 **Critical Info for New Agent**
-- 🛑 **AEE MODULE LOCKED**: O usuário determinou EXPRESSAMENTE que o módulo AEE (Atendimento Educacional Especializado) NÃO PODE SER ALTERADO sob nenhuma hipótese sem permissão explícita prévia.
-- **Limites da IA**: O usuário prefere evitar LLM (IA não determinística) para verificações e substituições que podem ser resolvidas com Python regular/scripts, usando IA APENAS como assistente de revisão com validação humana explícita.
-- **Ambiente de Deploy (Coolify)**: Modificações no  e scripts shell exigem atenção ao  de produção. O Makefile atual foi compatibilizado com caminhos do .
+- 🛑 **AEE MODULE EM SENTENCE CASE**: O módulo AEE está agora estritamente definido para aceitar *sentence case*. Nunca adicione transformações automáticas para UPPERCASE nestes campos textuais, seja no backend ou css.
+- **CH Calculator**: Não trave a edição do servidor com avisos Não é possível salvar. A carga horária agora se acomoda baseando-se no preenchimento de dependências de alocações (Fallback 40h).
+- **Problema Crítico Imediato**: Resolva o middleware de CORS. A correção anterior estourou o limite de segurança exigindo Origem Exata, e como Produção acessa por , todo o UI travou. Você precisa tornar a leitura do header condizente e avisar o usuário sobre variáveis . 
 
 **documents and test reports created in this job**
-  -  (Massivamente atualizado e sincronizado com os requisitos mais recentes do usuário sobre normalização de conteúdo)
+  -  (Totalmente consolidado)
+  -  & 
+  - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - *User*: Informou que listas usando vírgulas nos objetos de conhecimento não estavam sendo normalizadas (mostrou imagem).
- - *Agent*: Ajustou a heurística de listas com vírgula, flexibilizando.
- - *User*: Pediu para incluir campo Práticas Pedagógicas.
- - *Agent*: Ajustou campo do schema para  que reflete o UI.
- - *User*: Sugeriu Fase 2 da Higienização Textual separando em regras de formatação / ortografia / gramática.
- - *Agent*: Implementou o pipeline e  Fase 1 (Formatação).
- - *User*: Pediu para adicionar um botão de aprovação Bulk por regras de formatação.
- - *Agent*: Botão adicionado e testado.
- - *User*: Solicitou Fase 2 apenas conservadora (apenas Ortografia, sem LLM/Gramática).
- - *Agent*: Implementou  Fase 2.
- - *User*: Pediu para alinhar regras da interface Adicionar Nova Substituição com Adicionar Nova Alocação.
- - *Agent*: Fez as alterações no arquivo React via search_replace. **Pendente apenas teste**. Nenhuma resposta pendente do usuário.
+ - *User*: Solicitou atalho Bolsa Família no dashboard, bulk save centralizado e assinatura digital no PDF após salvar.
+ - *Agent*: Implementou e testou via screenshot E2E.
+ - *User*: Concedeu permissão para remover completamente a obrigatoriedade de CAPS LOCK do Módulo AEE.
+ - *Agent*: Higienizou todo o css e endpoints que chamavam  nos pdfs e rotas relativas ao AEE. Inseriu exceções no middleware e criou testes.
+ - *User*: Reportou erro ao chamar audit_carga_horaria.py --save.
+ - *Agent*: Consertou criando diretivas facilitadas no . 
+ - *User (PENDING)*: Relatou estar travado num Loop no Front-End de produção () enviando um print.
 
 **Project Health Check:**
-Healthy. Nenhuma rota quebrada, backend ok. Pendente apenas visual review das props do componente React alterado.
+Broken (Ambiente de Produção bloqueado por violação de política CORS na autenticação inicial API/React).
 
 **3rd Party Integrations**
   - Anthropic Claude Sonnet 4.5 — requires User API Key.
   - Resend (Emails) — requires User API Key.
 
 **Testing status**
-  - Testing agent used after significant changes: NO (Agente testou exaustivamente via scripts Python, logs internos e screenshot-tool em cada fase).
+  - Testing agent used after significant changes: NO (Agente rodou PyTest próprio e conferiu visualmente).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: None
-  - Known regressions: Nenhuma
+  - Test files created: , 
+  - Known regressions: CORS restrito demais quebrou o ambiente de produção.
 
 **Credentials to test flow:**
-Consulte . Conta padrão: SuperAdmin ( / ).
+Use credenciais no arquivo 
 
 **What agent forgot to execute**
-O agente fez as substituições complexas no arquivo  mas esqueceu de rodar o frontend linting post-edição e NÃO tirou screenshot para verificar se a interface de Adicionar Nova Substituição exibia corretamente os dados com as novas props inseridas.
+O agente percebeu logo ao final do log que as requisições estavam barradas pelo middleware CORS e deduziu a solução em , mas a janela de contexto fechou antes de conseguir gerar um  para efetivar a correção do código e avisar o usuário.
 
 **Debugging checklist for current issue**
-    Issue: Validar 
-    Frontend files to check:  e 
-    Actions: Usar a screenshot tool navegando até a interface de gerenciamento do professor ( ou similares), abrir o modal de Substituição e garantir que filtros (Escola, Componente) funcionam e a carga horária é carregada sem quebrar.</analysis>
+    Issue: Bloqueio de CORS na Produção (Loop de UI Carregando...)
+    Backend files to check: 
+    Actions: Procure pelo bloco onde  e  são definidos (em torno das linhas 590 a 620). Implemente um parser mais amigável para ler do  as URIs adicionais ou contorne sem estourar o limite que derruba o token. Peça pro usuário declarar o Host correto de produção na  dele. Use requisições  para validar a resposta do header antes de fechar o ciclo.</analysis>

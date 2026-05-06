@@ -20,7 +20,7 @@ import httpx
 
 BACKEND = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://text-hygiene-queue.preview.emergentagent.com",
+    "https://multi-tenant-auth-12.preview.emergentagent.com",
 ).rstrip("/")
 
 SUPER_ADMIN = {
