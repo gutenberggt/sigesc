@@ -37,6 +37,9 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 **1. CORS Hardening (segurança)**:
 - Removido fallback `'*'` (incompatível com `allow_credentials=True`).
 - Whitelist explícita via `CORS_ORIGINS` (lista por vírgula). Aviso forte se não configurado.
+- **[Fev/2026 — fix produção]** Adicionado suporte a `CORS_ORIGIN_REGEX` para múltiplos subdomínios
+  (ex.: `https://.*\.aprenderdigital\.top`). Necessário em prod (Coolify) com domínios não previstos
+  inicialmente. Validado contra ataques (`evil.aprenderdigital.top.attacker.com`, `http://`).
 - Métodos e headers explícitos (`Authorization`, `Content-Type`, `X-CSRF-Token`).
 - Validado: origem permitida → 200 OK; origem maliciosa → 400 Bad Request.
 

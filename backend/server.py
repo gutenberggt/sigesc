@@ -574,14 +574,14 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(CSRFMiddleware)
 
-# ===== CORS — whitelist inteligente, sem quebrar ambientes =====
+# ===== CORS — whitelist inteligente + regex opcional, sem quebrar ambientes =====
 # [Fev/2026] Hardening: origin '*' é INCOMPATÍVEL com allow_credentials=True (RFC).
-# Agora a whitelist é construída a partir de MÚLTIPLAS fontes para não quebrar ambientes
-# que ainda não definiram `CORS_ORIGINS` manualmente:
+# Whitelist construída a partir de múltiplas fontes:
 #   1. CORS_ORIGINS (lista por vírgula) — prioridade.
 #   2. APP_FRONTEND_URL — a URL do frontend oficial (sempre incluída se existir).
 #   3. REACT_APP_BACKEND_URL — útil quando o próprio backend faz callbacks pra si.
-#   4. Se NADA resolver, cai em modo permissivo com credentials=False (seguro + funcional).
+#   4. CORS_ORIGIN_REGEX — regex p/ múltiplos subdomínios (ex.: produção com ingress dinâmico).
+#   5. Se NADA resolver, cai em modo permissivo com credentials=False (seguro + funcional).
 _env_origins = set()
 
 _cors_raw = (os.environ.get('CORS_ORIGINS') or '').strip()
@@ -603,16 +603,23 @@ _env_origins.update({
     'http://localhost:8001',
 })
 
-if _env_origins:
+# Regex opcional para múltiplos subdomínios em produção.
+# Ex.: CORS_ORIGIN_REGEX="https://.*\.aprenderdigital\.top"
+_cors_regex = (os.environ.get('CORS_ORIGIN_REGEX') or '').strip() or None
+
+if _env_origins or _cors_regex:
     _allowed_origins = sorted(_env_origins)
     _allow_creds = True
-    logger.info(f"CORS: whitelist com {len(_allowed_origins)} origem(ns), credentials=True.")
+    logger.info(
+        f"CORS: whitelist com {len(_allowed_origins)} origem(ns) "
+        f"+ regex={'sim' if _cors_regex else 'não'}, credentials=True."
+    )
 else:
     # Último recurso: modo permissivo MAS sem credenciais (seguro por especificação).
     _allowed_origins = ["*"]
     _allow_creds = False
     logger.warning(
-        "CORS: nenhuma origem configurada (CORS_ORIGINS/APP_FRONTEND_URL ausentes). "
+        "CORS: nenhuma origem configurada (CORS_ORIGINS/APP_FRONTEND_URL/CORS_ORIGIN_REGEX ausentes). "
         "Fallback para '*' com credentials=False."
     )
 
@@ -620,6 +627,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_credentials=_allow_creds,
     allow_origins=_allowed_origins,
+    allow_origin_regex=_cors_regex,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Requested-With"],
 )

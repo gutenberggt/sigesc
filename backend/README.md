@@ -88,7 +88,11 @@ Veja [`docs/pdf-performance.md`](../docs/pdf-performance.md). Resumo:
 
 ## Segurança
 
-- **CORS**: whitelist explícita via `CORS_ORIGINS` (vírgula). Sem `*`. Origin `'*'` com `allow_credentials=True` é rejeitado pela RFC.
+- **CORS**: whitelist explícita via `CORS_ORIGINS` (vírgula) e/ou regex via `CORS_ORIGIN_REGEX` (ex.: `https://.*\.aprenderdigital\.top`). Sem `*`. Origin `'*'` com `allow_credentials=True` é rejeitado pela RFC.
+  - **Variáveis aceitas em produção (Coolify/.env)**:
+    - `CORS_ORIGINS=https://sigesc.aprenderdigital.top` (uma ou mais, separadas por vírgula)
+    - `CORS_ORIGIN_REGEX=https://.*\.aprenderdigital\.top` (opcional, p/ múltiplos subdomínios)
+    - `APP_FRONTEND_URL=https://sigesc.aprenderdigital.top` (incluído automaticamente)
 - **CSRF**: `CSRFMiddleware` ativa em mutações de cookie.
 - **JWT**: HMAC HS256, segredo em `JWT_SECRET_KEY`.
 - **Brute-force lock**: bloqueio de 15 min após 5 falhas (`brute_force_lock`).
