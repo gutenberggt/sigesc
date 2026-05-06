@@ -17,7 +17,7 @@ PYTHON ?= python
 .PHONY: help
 help: ## Lista alvos disponíveis
 	@awk 'BEGIN {FS = ":.*##"; printf "Alvos disponíveis:\n\n"} \
-		/^[a-zA-Z0-9_-]+:.*##/ {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+                /^[a-zA-Z0-9_-]+:.*##/ {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # ------------------------------------------------------------
 # Migração de NOMES (CAPS → Title Case) — afeta documento original com backup
@@ -41,9 +41,9 @@ migrate-status: ## Lista coleções e backups
 .PHONY: migrate-rollback
 migrate-rollback: ## Reverte (uso: make migrate-rollback TS=20260505T105357Z)
 	@if [[ -z "$(TS)" ]]; then \
-		echo "Uso: make migrate-rollback TS=<timestamp>"; \
-		exit 2; \
-	fi
+                echo "Uso: make migrate-rollback TS=<timestamp>"; \
+                exit 2; \
+        fi
 	@bash scripts/run_migration.sh rollback $(TS)
 
 # ------------------------------------------------------------
@@ -75,3 +75,19 @@ text-scan: ## Enfileira sugestões em text_improvement_queue (admin revisa em /a
 .PHONY: text-clear-pending
 text-clear-pending: ## Remove itens pending da fila de formatação
 	@$(PYTHON) scripts/text_improvement.py --clear-pending
+
+
+# ------------------------------------------------------------
+# Auditoria de Carga Horária (manual vs calculada)
+# ------------------------------------------------------------
+.PHONY: audit-ch
+audit-ch: ## Auditoria comparando CH manual vs calculada (stdout apenas)
+	@$(PYTHON) scripts/audit_carga_horaria.py
+
+.PHONY: audit-ch-save
+audit-ch-save: ## Auditoria + salva relatório em scripts/audit_ch_report.json
+	@$(PYTHON) scripts/audit_carga_horaria.py --save
+
+.PHONY: audit-deps
+audit-deps: ## Lista os imports diretos de terceiros (vs requirements.txt)
+	@$(PYTHON) scripts/audit_dependencies.py
