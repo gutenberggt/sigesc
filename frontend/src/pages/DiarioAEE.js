@@ -1617,7 +1617,7 @@ const DiarioAEE = () => {
                 <div><span className="font-semibold text-gray-600 block mb-1">Barreiras Identificadas:</span>
                   <ul className="list-disc list-inside space-y-1">
                     {viewingPlano.barreiras.map((b, i) => (
-                      <li key={b._key || `b-${i}`}>{typeof b === 'string' ? b : `[${(b.tipo || '').toUpperCase()}] ${b.descricao || ''}`}</li>
+                      <li key={b._key || `b-${i}`}>{typeof b === 'string' ? b : `[${(b.tipo || '').replace(/^./, c => c.toUpperCase())}] ${b.descricao || ''}`}</li>
                     ))}
                   </ul>
                 </div>
@@ -1635,7 +1635,7 @@ const DiarioAEE = () => {
                 <div><span className="font-semibold text-gray-600 block mb-1">Recursos de Acessibilidade:</span>
                   <ul className="list-disc list-inside space-y-1">
                     {viewingPlano.recursos_acessibilidade.map((r, i) => (
-                      <li key={r._key || `r-${i}`}>{typeof r === 'string' ? r : `[${(r.tipo || '').toUpperCase()}] ${r.descricao || ''}`}</li>
+                      <li key={r._key || `r-${i}`}>{typeof r === 'string' ? r : `[${(r.tipo || '').replace(/^./, c => c.toUpperCase())}] ${r.descricao || ''}`}</li>
                     ))}
                   </ul>
                 </div>

@@ -37,12 +37,28 @@ from scripts.normalize_content import (
 # Whitelist de campos onde a normalização leve é aplicada na entrada.
 # Mantenha em sync com `routers/content_review.py::WHITELIST` e
 # `scripts/normalize_content.py::CONTENT_FIELDS_BY_COLLECTION`.
+#
+# 🛑 [Fev/2026] AEE LOCKED: as coleções `aee_plans`, `aee_attendances`,
+# `aee_attendance_records`, `aee_templates` NÃO entram nesta whitelist.
+# Conteúdo pedagógico individualizado é sensível e fiel à digitação do(a)
+# professor(a). Se houver necessidade futura de revisão, usar APENAS a fila
+# manual "Apoio à Escrita" (`text_improvement_queue`) com aprovação humana.
+# Nunca aplicar normalização automática em AEE.
 INPUT_WHITELIST: Dict[str, Set[str]] = {
     "students": {"observations"},
     "student_history": {"observations"},
     "enrollments": {"observations"},
     "staff": {"observacoes"},
     "learning_objects": {"content", "methodology", "pratica_pedagogica", "observations"},
+}
+
+# Coleções que NÃO devem ser normalizadas em hipótese nenhuma — bloqueio
+# explícito (defense-in-depth).
+NORMALIZATION_BLOCKLIST: Set[str] = {
+    "aee_plans",
+    "aee_attendances",
+    "aee_attendance_records",
+    "aee_templates",
 }
 
 
@@ -63,8 +79,14 @@ def normalize_input_fields(payload: Dict[str, Any], collection: str) -> Dict[str
 
     Modifica e retorna o mesmo dict (para encadeamento). Campos ausentes
     no payload são ignorados.
+
+    [Fev/2026] AEE LOCKED: coleções em `NORMALIZATION_BLOCKLIST` retornam
+    o payload intacto. Defense-in-depth: mesmo se alguém adicionar AEE ao
+    INPUT_WHITELIST por engano, este check bloqueia.
     """
     if not isinstance(payload, dict):
+        return payload
+    if collection in NORMALIZATION_BLOCKLIST:
         return payload
     fields = INPUT_WHITELIST.get(collection)
     if not fields:

@@ -109,6 +109,12 @@ def _get_spell():
     return _SPELL
 
 # Whitelist (mesma do content_review) — campos onde podemos enfileirar.
+#
+# 🛑 [Fev/2026] AEE LOCKED: coleções `aee_plans`, `aee_attendances`,
+# `aee_attendance_records`, `aee_templates` NÃO entram aqui. Conteúdo
+# pedagógico individualizado é fiel à digitação. Se houver necessidade
+# futura de revisão para AEE, o caminho é a fila MANUAL "Apoio à Escrita"
+# acionada explicitamente (jamais automática).
 CONTENT_FIELDS_BY_COLLECTION: Dict[str, List[str]] = {
     "students": ["observations"],
     "student_history": ["observations"],

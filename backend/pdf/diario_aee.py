@@ -77,11 +77,11 @@ def _build_header(mantenedora: Dict[str, Any], school: Dict[str, Any]):
         f'<br/><font size="7" color="#666666"><i>"{mant_slogan}"</i></font>' if mant_slogan else ''
     )
     instit_html = (
-        f'<font size="10"><b>{mant_nome.upper()}</b></font><br/>'
+        f'<font size="10"><b>{mant_nome}</b></font><br/>'
         f'<font size="8"><i>{mant_sec}</i></font>'
         f'{slogan_html}'
     )
-    escola_html = f'<b>{(school or {}).get("name", "ESCOLA").upper()}</b>'
+    escola_html = f'<b>{(school or {}).get("name", "Escola")}</b>'
 
     if logo:
         header = Table(
@@ -219,7 +219,7 @@ def _build_ficha_individual(ficha: Dict[str, Any], subtitle: ParagraphStyle,
     stats = ficha['estatisticas']
 
     out = []
-    out.append(Paragraph(f"FICHA INDIVIDUAL - {(student.get('full_name') or 'N/A').upper()}",
+    out.append(Paragraph(f"Ficha Individual — {student.get('full_name') or 'N/A'}",
                          subtitle))
     out.append(Spacer(1, 6))
 

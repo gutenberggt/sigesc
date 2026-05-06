@@ -70,7 +70,7 @@ def _render_list_of_dicts(arr, style):
         if isinstance(item, dict):
             tipo = item.get('tipo') or item.get('prazo')
             desc = item.get('descricao') or ''
-            tipo_str = f'<b>[{tipo.upper()}]</b> ' if tipo else ''
+            tipo_str = f'<b>[{(tipo or "").capitalize()}]</b> ' if tipo else ''
             lines.append(f'{idx}. {tipo_str}{desc}')
         else:
             lines.append(f'{idx}. {item}')
@@ -117,11 +117,11 @@ def generate_plano_aee_pdf(plano: dict, student: dict, school: dict, mantenedora
         f'<br/><font size="7" color="#666666"><i>"{mant_slogan}"</i></font>' if mant_slogan else ''
     )
     instit_html = (
-        f'<font size="10"><b>{mant_nome.upper()}</b></font><br/>'
+        f'<font size="10"><b>{mant_nome}</b></font><br/>'
         f'<font size="8"><i>{mant_sec}</i></font>'
         f'{slogan_html}'
     )
-    escola_html = f'<b>{(school or {}).get("name", "ESCOLA").upper()}</b>'
+    escola_html = f'<b>{(school or {}).get("name", "Escola")}</b>'
 
     if logo:
         header = Table(
