@@ -40,13 +40,19 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 - **Endpoint canônico**: `GET /api/students/autocomplete?q=...&limit=10[&school_id&class_id&status]`
   - Prefix-first sobre índice composto `(mantenedora_id, nome_busca)`.
   - Fallback contains restrito: somente quando `len(q) >= 4` E prefix retornou < 3 hits.
+  - **Cache server-side TTL 5s** (tenant-aware, key=`tenant|q_norm|filters_hash`, instrumentado para `cache_hit_pct`).
   - CPF mascarado (`***.456.***-01`) — nunca CPF cru.
-  - Rate limit 30 req/min/usuário (in-memory sliding window).
-  - Telemetria: tempo médio, % fallback, % vazios (log a cada 100 chamadas).
+  - Rate limit 30 req/min/usuário.
 - **Hook canônico frontend**: `useStudentSearch(query, options)` — debounce 300ms, AbortController, cache tenant-aware TTL 30s, mínimo 2 chars.
+- **Observabilidade arquitetural**: `GET /api/admin/observability/autocomplete`
+  - Super_admin only; audit log; no-cache headers; rate limit dedicado (5/min).
+  - Janela deslizante 15min em buckets de 1min; sem PII (queries via SHA1 truncado da q normalizada).
+  - p95 incremental via histogram buckets (sem sort on-demand).
+  - Métricas: requests_total, avg/p95 latency, fallback_pct, cache_hit_pct, empty_pct, query_length_distribution, top_queries (anonimizadas), top_tenants, rate_limited_requests, cache_memory_estimate_kb.
+  - **Modo instance-local**: payload sinaliza `replica_aware: false` (Fase 2 = Redis ou Mongo capped).
 - **Migração inicial**: `AssocialDashboard` (caso piloto). Pendente: BolsaFamilia, VaccineDashboard, Grades, Enrollments, StudentsComplete, Promotion, AnalyticsDashboard, Students, Guardians.
-- **Roadmap evolutivo**: Fase 2 = tokens (`nome_busca_tokens`) quando `fallback_pct > 30%`. Fase 3 = Atlas/ElasticSearch só se necessário.
-- Tests: `/app/backend/tests/test_students_autocomplete.py` (11 casos: mask_cpf, rate limit, métricas).
+- **Roadmap evolutivo**: Fase 2 = tokens (`nome_busca_tokens`) quando `fallback_pct > 30%` na telemetria. Fase 3 = Atlas/ElasticSearch só se necessário.
+- Tests: `/app/backend/tests/test_students_autocomplete.py` (18 casos).
 
 ### Hardening + Refactor de Arquitetura **[06/Fev/2026]**
 

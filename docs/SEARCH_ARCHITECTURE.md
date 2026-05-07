@@ -161,24 +161,88 @@ const { results, loading, error, usedFallback } = useStudentSearch(query, {
 
 ## 7. Observabilidade
 
-O backend registra automaticamente:
+> **Endpoint canônico**: `GET /api/admin/observability/autocomplete`
+> **Acesso**: super_admin **apenas**.
+> **Headers**: `Cache-Control: no-store, no-cache, must-revalidate; Pragma: no-cache; Expires: 0`.
+> **Rate limit**: 5 req/min/usuário (dedicado, separado do limit geral de autocomplete).
+> **Audit log**: cada acesso é gravado em `audit_logs` (action=`export`, collection=`observability_metrics`).
 
-- `total_calls` — chamadas totais
-- `fallback_contains_calls` + `fallback_pct` — % de fallbacks acionados
-- `avg_duration_ms` — tempo médio
-- `empty_results` + `empty_pct` — % de queries que retornaram zero
+### Princípios
 
-Log estruturado a cada 100 chamadas:
+- **Sem PII**: queries são armazenadas como SHA1 truncado da versão **normalizada** (`q_hash` 8 hex). Retenção curta (15min) + sem persistência tornam reverso por brute force impraticável para uso operacional.
+- **Janela deslizante 15min em buckets de 1min** (estrutura `{minute_iso: {...}}`). Cleanup automático a cada `record`.
+- **p95 incremental via histogram buckets** (`[1, 2, 5, 10, 25, 50, 100, 250, 500, 1000]ms` + overflow). Sem ordenação on-demand.
+- **Instance-local**: o snapshot reflete APENAS a réplica respondedora. O payload deixa isso explícito (`mode`, `replica_aware`, `warning`).
 
+### Estrutura do snapshot
+
+```json
+{
+  "window": "15m",
+  "generated_at": "2026-02-12T...",
+  "mode": "instance-local",
+  "replica_aware": false,
+  "warning": "Métricas voláteis (in-memory)...",
+
+  "requests_total": 1284,
+  "avg_latency_ms": 18.3,
+  "p95_latency_ms": 50.0,
+
+  "empty_results_pct": 12.1,
+  "fallback_contains_pct": 7.2,
+
+  "cache_hit_pct": 74.2,
+  "cache_entries": 42,
+  "cache_memory_estimate_kb": 18.3,
+
+  "rate_limited_requests": 4,
+
+  "query_length_distribution": {"2": 120, "3": 440, "4": 280, "5": 200, "6": 100, "7+": 144},
+
+  "top_queries": [{"q_hash": "a3f2c1b0", "count": 52}, ...],
+  "top_tenants": [{"tenant_id": "...", "count": 320}, ...],
+
+  "config": {
+    "cache_ttl_seconds": 5,
+    "rate_limit_per_minute": 30,
+    "latency_buckets_ms": [1, 2, 5, ...],
+    "window_minutes": 15
+  }
+}
 ```
-[autocomplete:students] checkpoint calls=N avg=X.Yms fallback=Z.Z% empty=W.W%
-```
 
-> 🚨 **Alerta**: se `fallback_pct` subir consistentemente acima de **30%**, o UX da busca está ruim — usuários estão pesquisando por sobrenome (contains acionado). Considere implementar **tokens** (próxima fase).
+### Cache server-side
+
+Para alimentar `cache_hit_pct` e reduzir pressão no Mongo:
+
+- **TTL deslizante de 5s** (autocomplete muda a cada keystroke; TTL maior desperdiça RAM).
+- **Key**: `${tenant_id}|${q_norm}|${filters_hash}`, onde `filters_hash = SHA1(json.dumps(filters, sort_keys=True))[:8]`.
+- **Eviction**: descarta expirados primeiro; se ainda lotado (>1000), drop do mais antigo.
+- **Sem invalidação**: cache curto torna desnecessário invalidar em writes.
+
+### Como interpretar as métricas
+
+| Métrica | Bom | Investigar |
+|---|---|---|
+| `avg_latency_ms` | < 25ms | > 50ms → índice insuficiente |
+| `p95_latency_ms` | < 100ms | > 250ms → índice ou Mongo lento |
+| `fallback_contains_pct` | < 20% | > 30% → migrar para tokens (Fase 2) |
+| `cache_hit_pct` | > 50% | < 30% → debounce muito agressivo? |
+| `empty_results_pct` | < 15% | > 30% → frontend permite queries inúteis |
+| `query_length_distribution` | maioria 3+ | maioria em "2" → debounce ruim ou min_chars baixo |
+| `rate_limited_requests` | 0 | > 0 → usuário fazendo loop ou abuso |
+
+### Roadmap (Fase 2)
+
+Quando precisar consolidar entre réplicas:
+
+- **Opção A**: Redis (HyperLogLog para top queries, sorted sets para latência).
+- **Opção B**: Coleção Mongo capped `observability_autocomplete` (escrita assíncrona em background, queries de agregação no endpoint).
+- **Disparador**: backend escalar para >1 réplica OU necessidade de alertas históricos (>15min).
 
 ---
 
-## 8. Roadmap evolutivo
+## 8. Roadmap evolutivo (matching)
 
 | Fase | Estado | Descrição |
 |---|---|---|
@@ -233,7 +297,9 @@ Antes de aprovar PR que adiciona/modifica busca, verifique:
 - [ ] Frontend usa o hook canônico (`useStudentSearch`) ou variação aprovada?
 - [ ] Cache tenant-aware?
 - [ ] Debounce + AbortController?
-- [ ] Telemetria registrada?
+- [ ] **Cache server-side** com TTL curto e instrumentado?
+- [ ] **Telemetria** registrada via `record_autocomplete_call`?
+- [ ] **Endpoint de observabilidade** retorna estrutura completa (não snapshot cru)?
 
 ---
 

@@ -41,6 +41,7 @@ from routers.diary_dashboard import create_diary_dashboard_router
 from routers.aee import setup_aee_router
 from routers.auth import setup_router as setup_auth_router
 from routers.mantenedoras import create_mantenedoras_router
+from routers.admin_observability import setup_admin_observability_router
 
 # Importar novos roteadores extraídos (Phase 2)
 from routers import (
@@ -330,6 +331,10 @@ pmpi_ai_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 action_plans_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 student_portal_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 admin_student_users_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
+
+# Observabilidade (admin) — endpoint super_admin only com audit log
+admin_observability_router = setup_admin_observability_router(audit_service)
+app.include_router(admin_observability_router, prefix="/api")
 
 # --- Incluir TODOS os roteadores na app ---
 # Fase 1

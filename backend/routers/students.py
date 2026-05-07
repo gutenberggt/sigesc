@@ -159,39 +159,65 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         class_id: Optional[str] = None,
         status: Optional[str] = None,
     ):
-        """Autocomplete de alunos — server-side, indexado, payload mínimo.
+        """Autocomplete de alunos — server-side, indexado, observável.
 
-        [Fev/2026] Diretriz arquitetural SIGESC (ver /app/docs/SEARCH_ARCHITECTURE.md):
+        Diretriz: /app/docs/SEARCH_ARCHITECTURE.md
         - Prefix-first sobre `nome_busca` (índice composto tenant_id+nome_busca).
-        - Fallback contains APENAS quando q tem >= 4 chars E prefix retornou < 3 hits.
-        - Tenant scope via apply_tenant_filter.
-        - CPF retornado MASCARADO (***.123.***-45).
-        - Rate limit: 30 req/min/usuário.
-        - Telemetria: registra duração, % fallback, resultados vazios.
+        - Fallback contains apenas se q tem >= 4 chars E prefix retornou < 3.
+        - Cache server-side TTL 5s (tenant-aware).
+        - CPF mascarado.
+        - Rate limit 30 req/min/usuário.
+        - Telemetria via janela deslizante 15min (consumir via /api/admin/observability/autocomplete).
         """
-        import time
+        import time as _time
         from text_utils import normalize_for_search
         from utils.students_search import (
             check_autocomplete_rate_limit,
             mask_cpf,
-            record_autocomplete_metrics,
+            make_cache_key,
+            cache_get,
+            cache_set,
+            record_autocomplete_call,
         )
 
-        t_start = time.monotonic()
+        t_start = _time.monotonic()
         current_user = await AuthMiddleware.get_current_user(request)
         current_db = get_db_for_user(current_user)
 
-        # Rate limit per-user
+        # Rate limit per-user (também registra evento de bloqueio na telemetria)
         check_autocomplete_rate_limit(current_user.get('id', '') or current_user.get('email', ''))
 
-        # Normaliza a query (mesma normalização que alimenta nome_busca no banco)
+        # Normalização única (lowercase, sem acentos, trim, espaços colapsados)
         q_norm = (normalize_for_search(q) or '').strip()
+        q_norm = re.sub(r'\s+', ' ', q_norm)
         if not q_norm or len(q_norm) < 2:
-            return {"items": [], "used_fallback": False}
+            return {"items": [], "used_fallback": False, "cache_hit": False}
 
+        # Tenant id para cache key + telemetria
+        tenant_id = current_user.get('mantenedora_id')
+
+        # Filtros estáveis para hash de cache
+        cache_filters = {
+            'school_id': school_id, 'class_id': class_id,
+            'status': status, 'limit': limit,
+        }
+        cache_key = make_cache_key(tenant_id, q_norm, cache_filters)
+
+        # ---- Cache hit? ----
+        cached = cache_get(cache_key)
+        if cached is not None:
+            duration_ms = (_time.monotonic() - t_start) * 1000
+            record_autocomplete_call(
+                q_norm=q_norm, duration_ms=duration_ms,
+                used_fallback=cached.get('used_fallback', False),
+                result_count=len(cached.get('items', [])),
+                cache_hit=True, tenant_id=tenant_id,
+            )
+            return {**cached, "cache_hit": True}
+
+        # ---- Cache miss → consulta Mongo ----
         q_escaped = re.escape(q_norm)
 
-        # Filtro base com tenant scope + opcionais
         base_filter: dict = {}
         if school_id:
             base_filter['school_id'] = school_id
@@ -201,29 +227,24 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             base_filter['status'] = status
         base_filter = apply_tenant_filter(base_filter, current_user, request)
 
-        # Projeção mínima — sem CPF cru (mascaramos no retorno)
         projection = {
             "_id": 0, "id": 1, "full_name": 1, "cpf": 1,
             "school_id": 1, "class_id": 1, "status": 1,
         }
 
-        # Estratégia 1: PREFIX (caminho rápido, usa índice ix_tenant_nome_busca)
+        # Estratégia 1: PREFIX (caminho rápido, índice ix_tenant_nome_busca)
         prefix_filter = {**base_filter, 'nome_busca': {'$regex': f'^{q_escaped}'}}
         prefix_hits = await current_db.students.find(
             prefix_filter, projection
         ).limit(limit).to_list(limit)
 
         used_fallback = False
-        results = prefix_hits
+        results = list(prefix_hits)
 
-        # Estratégia 2: CONTAINS — somente se prefix retornou pouco E q tem peso
-        # (evita degradar com queries curtas como "an" → "ana", "anabel", etc.).
+        # Estratégia 2: CONTAINS — restrita: q >= 4 chars E prefix < 3 hits
         if len(prefix_hits) < 3 and len(q_norm) >= 4:
             seen_ids = {s.get('id') for s in prefix_hits}
-            contains_filter = {
-                **base_filter,
-                'nome_busca': {'$regex': q_escaped},  # sem ^ → contains
-            }
+            contains_filter = {**base_filter, 'nome_busca': {'$regex': q_escaped}}
             need = limit - len(prefix_hits)
             contains_hits = await current_db.students.find(
                 contains_filter, projection
@@ -235,7 +256,7 @@ def setup_students_router(db, audit_service, sandbox_db=None):
                         break
             used_fallback = True
 
-        # Enriquece com nomes de escola/turma (1 query batch cada — barato)
+        # Enriquece com nomes (1 query batch cada)
         school_ids = list({s.get('school_id') for s in results if s.get('school_id')})
         class_ids = list({s.get('class_id') for s in results if s.get('class_id')})
         schools_map = {}
@@ -251,7 +272,6 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             ).to_list(len(class_ids))
             classes_map = {c['id']: c.get('name', '') for c in classes}
 
-        # Monta payload final — CPF mascarado, sem dados sensíveis extras
         items = [
             {
                 'id': s.get('id'),
@@ -266,17 +286,17 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             for s in results
         ]
 
-        duration_ms = (time.monotonic() - t_start) * 1000
-        record_autocomplete_metrics(
-            used_fallback=used_fallback,
-            duration_ms=duration_ms,
-            result_count=len(items),
+        payload = {"items": items, "used_fallback": used_fallback}
+        cache_set(cache_key, payload)
+
+        duration_ms = (_time.monotonic() - t_start) * 1000
+        record_autocomplete_call(
+            q_norm=q_norm, duration_ms=duration_ms,
+            used_fallback=used_fallback, result_count=len(items),
+            cache_hit=False, tenant_id=tenant_id,
         )
 
-        return {
-            "items": items,
-            "used_fallback": used_fallback,
-        }
+        return {**payload, "cache_hit": False}
 
     @router.get("")
     async def list_students(
