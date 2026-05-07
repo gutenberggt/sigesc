@@ -150,6 +150,134 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         
         return student_obj
 
+    @router.get("/autocomplete")
+    async def autocomplete_students(
+        request: Request,
+        q: str = Query(..., min_length=2, max_length=80, description="Termo de busca (mínimo 2 caracteres)"),
+        limit: int = Query(10, ge=1, le=10),
+        school_id: Optional[str] = None,
+        class_id: Optional[str] = None,
+        status: Optional[str] = None,
+    ):
+        """Autocomplete de alunos — server-side, indexado, payload mínimo.
+
+        [Fev/2026] Diretriz arquitetural SIGESC (ver /app/docs/SEARCH_ARCHITECTURE.md):
+        - Prefix-first sobre `nome_busca` (índice composto tenant_id+nome_busca).
+        - Fallback contains APENAS quando q tem >= 4 chars E prefix retornou < 3 hits.
+        - Tenant scope via apply_tenant_filter.
+        - CPF retornado MASCARADO (***.123.***-45).
+        - Rate limit: 30 req/min/usuário.
+        - Telemetria: registra duração, % fallback, resultados vazios.
+        """
+        import time
+        from text_utils import normalize_for_search
+        from utils.students_search import (
+            check_autocomplete_rate_limit,
+            mask_cpf,
+            record_autocomplete_metrics,
+        )
+
+        t_start = time.monotonic()
+        current_user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(current_user)
+
+        # Rate limit per-user
+        check_autocomplete_rate_limit(current_user.get('id', '') or current_user.get('email', ''))
+
+        # Normaliza a query (mesma normalização que alimenta nome_busca no banco)
+        q_norm = (normalize_for_search(q) or '').strip()
+        if not q_norm or len(q_norm) < 2:
+            return {"items": [], "used_fallback": False}
+
+        q_escaped = re.escape(q_norm)
+
+        # Filtro base com tenant scope + opcionais
+        base_filter: dict = {}
+        if school_id:
+            base_filter['school_id'] = school_id
+        if class_id:
+            base_filter['class_id'] = class_id
+        if status:
+            base_filter['status'] = status
+        base_filter = apply_tenant_filter(base_filter, current_user, request)
+
+        # Projeção mínima — sem CPF cru (mascaramos no retorno)
+        projection = {
+            "_id": 0, "id": 1, "full_name": 1, "cpf": 1,
+            "school_id": 1, "class_id": 1, "status": 1,
+        }
+
+        # Estratégia 1: PREFIX (caminho rápido, usa índice ix_tenant_nome_busca)
+        prefix_filter = {**base_filter, 'nome_busca': {'$regex': f'^{q_escaped}'}}
+        prefix_hits = await current_db.students.find(
+            prefix_filter, projection
+        ).limit(limit).to_list(limit)
+
+        used_fallback = False
+        results = prefix_hits
+
+        # Estratégia 2: CONTAINS — somente se prefix retornou pouco E q tem peso
+        # (evita degradar com queries curtas como "an" → "ana", "anabel", etc.).
+        if len(prefix_hits) < 3 and len(q_norm) >= 4:
+            seen_ids = {s.get('id') for s in prefix_hits}
+            contains_filter = {
+                **base_filter,
+                'nome_busca': {'$regex': q_escaped},  # sem ^ → contains
+            }
+            need = limit - len(prefix_hits)
+            contains_hits = await current_db.students.find(
+                contains_filter, projection
+            ).limit(need + len(seen_ids)).to_list(need + len(seen_ids))
+            for hit in contains_hits:
+                if hit.get('id') not in seen_ids:
+                    results.append(hit)
+                    if len(results) >= limit:
+                        break
+            used_fallback = True
+
+        # Enriquece com nomes de escola/turma (1 query batch cada — barato)
+        school_ids = list({s.get('school_id') for s in results if s.get('school_id')})
+        class_ids = list({s.get('class_id') for s in results if s.get('class_id')})
+        schools_map = {}
+        classes_map = {}
+        if school_ids:
+            schools = await current_db.schools.find(
+                {'id': {'$in': school_ids}}, {'_id': 0, 'id': 1, 'name': 1}
+            ).to_list(len(school_ids))
+            schools_map = {s['id']: s.get('name', '') for s in schools}
+        if class_ids:
+            classes = await current_db.classes.find(
+                {'id': {'$in': class_ids}}, {'_id': 0, 'id': 1, 'name': 1}
+            ).to_list(len(class_ids))
+            classes_map = {c['id']: c.get('name', '') for c in classes}
+
+        # Monta payload final — CPF mascarado, sem dados sensíveis extras
+        items = [
+            {
+                'id': s.get('id'),
+                'full_name': s.get('full_name'),
+                'cpf_masked': mask_cpf(s.get('cpf')),
+                'school_id': s.get('school_id'),
+                'school_name': schools_map.get(s.get('school_id'), ''),
+                'class_id': s.get('class_id'),
+                'class_name': classes_map.get(s.get('class_id'), ''),
+                'status': s.get('status', 'active'),
+            }
+            for s in results
+        ]
+
+        duration_ms = (time.monotonic() - t_start) * 1000
+        record_autocomplete_metrics(
+            used_fallback=used_fallback,
+            duration_ms=duration_ms,
+            result_count=len(items),
+        )
+
+        return {
+            "items": items,
+            "used_fallback": used_fallback,
+        }
+
     @router.get("")
     async def list_students(
         request: Request, 

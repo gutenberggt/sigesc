@@ -2,89 +2,33 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasRole } from '@/utils/permissions';
-import { studentsAPI, attendanceAPI, schoolsAPI, classesAPI } from '@/services/api';
-import { formatCPF } from '@/utils/formatters';
+import { studentsAPI, attendanceAPI } from '@/services/api';
 import { Search, User, Calendar, School, BookOpen, Percent, LogOut, X, Loader2, FileText } from 'lucide-react';
-import { normalizeForSearch } from '@/utils/textSearch';
+import { useStudentSearch } from '@/hooks/useStudentSearch';
 
 export default function AssocialDashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [searchType, setSearchType] = useState('name');
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [studentDetails, setStudentDetails] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [allStudents, setAllStudents] = useState([]);
-  const [schools, setSchools] = useState({});
-  const [classes, setClasses] = useState({});
 
-  useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        const [studentsResponse, schoolsData, classesData] = await Promise.all([
-          studentsAPI.getAll({page_size: 10000}),
-          schoolsAPI.getAll(),
-          classesAPI.getAll()
-        ]);
-        
-        setAllStudents(studentsResponse.items || []);
-        
-        const schoolsMap = {};
-        schoolsData.forEach(s => { schoolsMap[s.id] = s; });
-        setSchools(schoolsMap);
-        
-        const classesMap = {};
-        classesData.forEach(c => { classesMap[c.id] = c; });
-        setClasses(classesMap);
-      } catch (error) {
-        console.error('Erro ao carregar dados:', error);
-      }
-    };
-    
-    loadInitialData();
-  }, []);
-
-  const searchStudents = useCallback((term, type) => {
-    if (!term || term.length < 3) {
-      setSearchResults([]);
-      return;
-    }
-
-    setLoading(true);
-    
-    const termClean = term.replace(/\D/g, '');
-    
-    let results = [];
-    
-    if (type === 'name') {
-      const termNormalized = normalizeForSearch(term);
-      results = allStudents.filter(student => 
-        student.full_name && normalizeForSearch(student.full_name).includes(termNormalized)
-      );
-    } else {
-      results = allStudents.filter(student => 
-        student.cpf?.replace(/\D/g, '').includes(termClean)
-      );
-    }
-    
-    setSearchResults(results.slice(0, 10));
-    setLoading(false);
-  }, [allStudents]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      searchStudents(searchTerm, searchType);
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, [searchTerm, searchType, searchStudents]);
+  // [Fev/2026] Busca server-side via hook reutilizável.
+  // Ver /app/docs/SEARCH_ARCHITECTURE.md
+  const {
+    results: searchResults,
+    loading,
+  } = useStudentSearch(searchTerm, {
+    tenantId: user?.mantenedora_id,
+    filters: { status: 'active' },
+    limit: 10,
+    enabled: searchType === 'name' || searchType === 'cpf', // ambos usam o mesmo endpoint (busca por full_name/CPF é tratada no backend via nome_busca)
+  });
 
   const loadStudentDetails = async (student) => {
     setSelectedStudent(student);
-    setSearchResults([]);
     setSearchTerm('');
     setLoadingDetails(true);
     
@@ -96,13 +40,10 @@ export default function AssocialDashboard() {
         attendanceAPI.getStudentFrequency(student.id, currentYear)
       ]);
       
-      const school = schools[fullStudent.school_id || student.school_id];
-      const classInfo = classes[fullStudent.class_id || student.class_id];
-      
       setStudentDetails({
         ...fullStudent,
-        school_name: school?.name || 'Nao matriculado',
-        class_name: classInfo?.name || 'Nao informada',
+        school_name: fullStudent.school_name || student.school_name || 'Nao matriculado',
+        class_name: fullStudent.class_name || student.class_name || 'Nao informada',
         attendance: frequencyData?.summary || null,
         formula: frequencyData?.formula || null
       });
@@ -110,8 +51,8 @@ export default function AssocialDashboard() {
       console.error('Erro ao carregar detalhes:', error);
       setStudentDetails({
         ...student,
-        school_name: schools[student.school_id]?.name || 'Nao matriculado',
-        class_name: classes[student.class_id]?.name || 'Nao informada',
+        school_name: student.school_name || 'Nao matriculado',
+        class_name: student.class_name || 'Nao informada',
         attendance: null
       });
     } finally {
@@ -239,8 +180,8 @@ export default function AssocialDashboard() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={searchType === 'name' 
-                ? 'Digite o nome do aluno (minimo 3 caracteres)...' 
-                : 'Digite o CPF do aluno (minimo 3 digitos)...'
+                ? 'Digite o nome do aluno (minimo 2 caracteres)...' 
+                : 'Digite o CPF do aluno (minimo 2 digitos)...'
               }
               className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
               data-testid="search-input"
@@ -265,9 +206,9 @@ export default function AssocialDashboard() {
                     <div>
                       <p className="font-medium text-gray-900">{student.full_name}</p>
                       <p className="text-sm text-gray-500">
-                        {student.cpf ? formatCPF(student.cpf) : 'CPF nao informado'}
-                        {student.school_id && schools[student.school_id] && (
-                          <span className="ml-2">• {schools[student.school_id].name}</span>
+                        {student.cpf_masked || 'CPF nao informado'}
+                        {student.school_name && (
+                          <span className="ml-2">• {student.school_name}</span>
                         )}
                       </p>
                     </div>
@@ -278,15 +219,15 @@ export default function AssocialDashboard() {
             </div>
           )}
 
-          {searchTerm.length >= 3 && searchResults.length === 0 && !loading && (
+          {searchTerm.length >= 2 && searchResults.length === 0 && !loading && (
             <div className="mt-4 text-center py-4 text-gray-500">
               Nenhum aluno encontrado com os criterios informados.
             </div>
           )}
 
-          {searchTerm.length > 0 && searchTerm.length < 3 && (
+          {searchTerm.length > 0 && searchTerm.length < 2 && (
             <div className="mt-4 text-center py-4 text-gray-400">
-              Digite pelo menos 3 caracteres para buscar...
+              Digite pelo menos 2 caracteres para buscar...
             </div>
           )}
         </div>

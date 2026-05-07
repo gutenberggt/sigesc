@@ -32,6 +32,22 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Arquitetura de Busca (Autocomplete server-side) **[Fev/2026]**
+
+**Diretriz arquitetural OBRIGATÓRIA — ver `/app/docs/SEARCH_ARCHITECTURE.md`**
+
+- **Princípio**: frontend NUNCA carrega lista completa para filtrar local.
+- **Endpoint canônico**: `GET /api/students/autocomplete?q=...&limit=10[&school_id&class_id&status]`
+  - Prefix-first sobre índice composto `(mantenedora_id, nome_busca)`.
+  - Fallback contains restrito: somente quando `len(q) >= 4` E prefix retornou < 3 hits.
+  - CPF mascarado (`***.456.***-01`) — nunca CPF cru.
+  - Rate limit 30 req/min/usuário (in-memory sliding window).
+  - Telemetria: tempo médio, % fallback, % vazios (log a cada 100 chamadas).
+- **Hook canônico frontend**: `useStudentSearch(query, options)` — debounce 300ms, AbortController, cache tenant-aware TTL 30s, mínimo 2 chars.
+- **Migração inicial**: `AssocialDashboard` (caso piloto). Pendente: BolsaFamilia, VaccineDashboard, Grades, Enrollments, StudentsComplete, Promotion, AnalyticsDashboard, Students, Guardians.
+- **Roadmap evolutivo**: Fase 2 = tokens (`nome_busca_tokens`) quando `fallback_pct > 30%`. Fase 3 = Atlas/ElasticSearch só se necessário.
+- Tests: `/app/backend/tests/test_students_autocomplete.py` (11 casos: mask_cpf, rate limit, métricas).
+
 ### Hardening + Refactor de Arquitetura **[06/Fev/2026]**
 
 **1. CORS Hardening (segurança)**:
