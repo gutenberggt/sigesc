@@ -8,6 +8,7 @@ import { OfflineProvider } from '@/contexts/OfflineContext';
 import { MessagingProvider } from '@/contexts/MessagingContext';
 import { UnsavedChangesProvider } from '@/contexts/UnsavedChangesContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Login } from '@/pages/Login';
 import { Skeleton } from '@/components/ui/skeleton';
 import '@/App.css';
@@ -95,6 +96,7 @@ const DIARY_DASHBOARD_ROLES = ['admin', 'admin_teste', 'secretario', 'diretor', 
 
 function App() {
   return (
+    <ErrorBoundary>
     <BrandingProvider>
     <AuthProvider>
       <OfflineProvider>
@@ -713,6 +715,7 @@ function App() {
       </OfflineProvider>
     </AuthProvider>
     </BrandingProvider>
+    </ErrorBoundary>
   );
 }
 
