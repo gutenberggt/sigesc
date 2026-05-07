@@ -55,14 +55,14 @@ export default function AssocialDashboard() {
 
     setLoading(true);
     
-    const termLower = term.toLowerCase().trim();
     const termClean = term.replace(/\D/g, '');
     
     let results = [];
     
     if (type === 'name') {
+      const termNormalized = normalizeForSearch(term);
       results = allStudents.filter(student => 
-        student.full_name && normalizeForSearch(student.full_name).includes(normalizeForSearch(searchTerm))
+        student.full_name && normalizeForSearch(student.full_name).includes(termNormalized)
       );
     } else {
       results = allStudents.filter(student => 
