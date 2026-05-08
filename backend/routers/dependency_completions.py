@@ -206,6 +206,14 @@ async def _build_completion_snapshot(
         "revoked_by_user_id": None,
         "superseded_by_document_id": None,
 
+        # Invalidação documental por evento acadêmico (Fase 3+ — placeholders)
+        # Quando implementada, será preenchida automaticamente caso uma
+        # alteração em registros pré-effective_date afete dados do snapshot.
+        "invalidated_by_event_id": None,
+        "invalidated_at": None,
+        "invalidation_reason": None,
+        "supersedes_document_id": None,
+
         # Assinaturas (vazias na criação)
         "signatures": [],
 

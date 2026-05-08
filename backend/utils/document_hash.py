@@ -42,6 +42,11 @@ _HASH_EXCLUDED_KEYS: frozenset[str] = frozenset({
     "revoked_reason",
     "revoked_by_user_id",
     "superseded_by_document_id",
+    # Invalidação documental por evento acadêmico (Fase 3+, placeholders mutáveis)
+    "invalidated_by_event_id",
+    "invalidated_at",
+    "invalidation_reason",
+    "supersedes_document_id",
     "audit_trail",
 })
 

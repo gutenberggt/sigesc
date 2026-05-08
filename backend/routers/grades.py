@@ -20,6 +20,7 @@ from auth_middleware import AuthMiddleware
 from pdf_cache import get_mantenedora_cached
 from tenant_scope import resolve_tenant_id_for_create, apply_tenant_filter, get_mantenedora_scope
 from utils.dependency_validator import validate_dependency_link
+from utils.academic_event_lens import resolve_student_ownership, record_lock_audit
 
 logger = logging.getLogger(__name__)
 
@@ -484,6 +485,43 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 class_id=grade_data.class_id,
                 course_id=grade_data.course_id,
                 tenant_id=get_mantenedora_scope(current_user, request),
+            )
+
+        # Fase 3 — Academic Event Lock (cf. ACADEMIC_EVENT_CONTRACT.md §8)
+        # Toda escrita de nota passa pela lens temporal.
+        ownership = await resolve_student_ownership(
+            current_db,
+            student_id=grade_data.student_id,
+            class_id=grade_data.class_id,
+            course_id=grade_data.course_id,
+            target_date=None,  # data corrente — notas são lançadas "agora"
+            mantenedora_id=get_mantenedora_scope(current_user, request),
+        )
+        if not ownership["editable"]:
+            await record_lock_audit(
+                current_db,
+                event_id=ownership.get("governing_event_id"),
+                action="grade_create_blocked",
+                user_id=current_user.get("id"),
+                role=current_user.get("role"),
+                student_id=grade_data.student_id,
+                class_id=grade_data.class_id,
+                target_date=ownership.get("governing_effective_date"),
+                target_resource="grade",
+                reason_code=ownership["blocked_reason"],
+                ip=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+            )
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "ACADEMIC_EVENT_LOCK",
+                    "reason_code": ownership["blocked_reason"],
+                    "event_id": ownership.get("governing_event_id"),
+                    "governing_event_type": ownership.get("governing_event_type"),
+                    "effective_date": ownership.get("governing_effective_date"),
+                    "message": "Edição bloqueada por evento acadêmico.",
+                },
             )
 
         existing = await current_db.grades.find_one({

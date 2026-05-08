@@ -1,0 +1,50 @@
+{
+  "summary": "Iteração 74 — Academic Events V1 + Lens Temporal. Backend-only. 100% verde nos cenários requisitados pelo owner. 12/12 pytests internos do test_academic_event_lens.py + 9/9 E2E HTTP novos (test_academic_events_e2e_http.py) cobrindo: rationale<30 (422 string_too_short), ORIGIN_EQUALS_DESTINATION (422), criação pending → approve, supersede sem header (428 CONFIRMATION_REQUIRED), supersede com header X-Academic-Event-Confirm:true (200, antigo permanece com superseded_by_event_id), grade POST bloqueada (409 ACADEMIC_EVENT_LOCK + reason_code AFTER_EFFECTIVE_DATE + event_id + governing_event_type + effective_date), attendance POST bloqueada (409 idem), audit log gravando grade_create_blocked|attendance_create_blocked com target_student_id/reason_code/attempted_by_user_id, e diário anotando _locked/_lock_reason/_governing_event_id sem filtrar a lista (rastreabilidade preservada).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_academic_event_lens.py",
+    "/app/backend/tests/test_academic_events_e2e_http.py",
+    "/app/test_reports/pytest/iter74_lens.xml",
+    "/app/test_reports/pytest/iter74_aevents_e2e.xml",
+    "/app/test_reports/pytest/iter74_consolidated.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AcademicEventCreate usa pydantic Field(min_length=30) em rationale — 422 string_too_short retornado corretamente pelo FastAPI sem custom validator (alinhado §15).",
+    "Validação ORIGIN_EQUALS_DESTINATION explícita em routers/academic_events.py:85-89 com detail dict {code} — frontend pode mapear código sem parsear texto.",
+    "Header X-Academic-Event-Confirm validado em routers/academic_events.py:214-219 retornando HTTP 428 (Precondition Required) — código semântico correto.",
+    "Supersession idempotente protegida por verificação superseded_by_event_id != null retornando 409 ALREADY_SUPERSEDED (linha 224-229) — evita corrupção de cadeia.",
+    "Antigo evento NÃO é deletado (apenas $set status=superseded + superseded_by_event_id), preservando rastreabilidade jurídica conforme contrato §17.",
+    "audit_trail registra snapshot_before com {event_id, event_type, effective_date} no created_via_supersession — auditoria forense completa.",
+    "Lock check em grades.py + attendance.py grava entry em db.academic_event_audit com target_student_id, reason_code, attempted_by_user_id ANTES de raise 409 — bloqueio observável (validado teste 08).",
+    "Diary annotation usa annotate_items_with_lens com try/except que apenas warna se falhar (routers/diary.py:108-109) — degradação graciosa: lista volta sem flags em vez de 500.",
+    "annotate_items_with_lens NÃO filtra (validado test_annotate_items_does_not_filter + test 09 E2E) — rastreabilidade preservada §16.",
+    "pick_governing_event aplica ACADEMIC_EVENT_PRECEDENCE (reclassificacao>progressao_parcial>remanejamento>transfer) com tiebreaker effective_date (validado test_governing_event_precedence).",
+    "Pending events corretamente ignorados pela lens (validado test_pending_event_ignored_by_lens) — só approved+não-superseded contam.",
+    "MongoDB ObjectId excluído via {_id: 0} em todas as projeções de academic_events.",
+    "Tenant scope obrigatório via apply_tenant_filter — eventos isolados por mantenedora_id.",
+    "Endpoint /api/academic-events/{id}/reject também valida rationale ≥ 30 chars com code RATIONALE_TOO_SHORT — paridade com create.",
+    "Pré-existente (não relacionado a esta iter): tests/test_grades_blocking.py falha auth devido a uso direto de BASE_URL sem scheme (MissingSchema). Não é regressão. Sugerir refatorar esse arquivo para usar REACT_APP_BACKEND_URL com .rstrip('/') padrão."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_academic_events_e2e_http.py (NOVO — 9 testes HTTP E2E contra URL pública cobrindo rationale<30, ORIGIN_EQUALS_DESTINATION, pending→approve, supersede 428/200, grade lock 409, attendance lock 409, audit log, diary annotation)"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 pytest interno + 9/9 E2E HTTP = 21/21 nos novos testes academic events)",
+    "frontend": "n/a (testing_type=backend only)"
+  },
+  "test_credentials": "Super Admin gutenberg@sigesc.com / @Celta2007 + X-Mantenedora-Id=fix_mant_v1 + X-CSRF-Token vindo na resposta do /api/auth/login",
+  "seed_data_creation": "Nenhuma seed nova criada. Reutilizou fixtures fix_stu_ana (origem fix_cl_v1), fix_co_mat_v1 (Matemática), fix_mant_v1. destination_class_id usou string arbitrária (fix_cl_v74_dest) — V1 não exige existência da turma destino. Cleanup automático via fixture teardown: db.academic_events + db.academic_event_audit + db.grades + db.attendance limpos para STUDENT_ID=fix_stu_ana após sessão.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Suite Iter74 academic events: pytest tests/test_academic_event_lens.py tests/test_academic_events_e2e_http.py — 21/21 verdes. CONSOLIDADO (lens+e2e+dep_completions+diary_phase2): 57/57 verdes. ATENÇÃO 1: tests/test_grades_blocking.py tem falha pré-existente NÃO relacionada (auth/MissingSchema). ATENÇÃO 2: o teste E2E 06 (grade lock) e 07 (attendance lock) cria evento aprovado no fix_stu_ana com effective_date=2026-02-01 via supersede; a fixture remove tudo no yield. Se rodar em paralelo com outros testes que tocam fix_stu_ana, pode haver flakiness — recomenda-se rodar este suite isoladamente. ATENÇÃO 3: o test_07 aceita tanto 409 direto quanto 200 com ACADEMIC_EVENT_LOCK no body para tolerar diferentes formatos de attendance (per-record vs single-shot). Próxima fase: integração de eventos com promotion/promotion_results e PDFs históricos.",
+  "rca of the issue": "N/A — nenhuma falha. Implementação alinha-se totalmente ao ACADEMIC_EVENT_CONTRACT.md §15-19 + RENDER_JOBS_CONTRACT V1. Fluxo §10 (supersession) bloqueado sem header X-Academic-Event-Confirm via HTTP 428 semântico. Lens temporal autoritativa: precedência reclassificacao>progressao_parcial>remanejamento>transfer com tiebreaker effective_date; pending events ignorados; supersededs ignorados; visibility=true sempre (rastreabilidade pedagógica preservada). Bloqueios em POST /api/grades e POST /api/attendance gravam audit ANTES de 409, garantindo observabilidade forense. Diary annotation degrada graciosamente (try/except + warn) sem quebrar leitura."
+}

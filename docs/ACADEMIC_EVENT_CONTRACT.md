@@ -363,3 +363,135 @@ Quando bumpar `schema_version`?
 
 Templates antigos NUNCA são deletados — apenas marcados como
 `deprecated_for_new_events` em `event_type_versions`.
+
+---
+
+## 15. Precedência entre eventos concorrentes (Fev/2026)
+
+Eventos múltiplos para o mesmo aluno em janelas sobrepostas devem resolver
+para um **único** evento governante via precedência fixa:
+
+```
+reclassificacao > progressao_parcial > remanejamento > transfer
+```
+
+Implementação: `utils/academic_event_lens.pick_governing_event(events)`.
+
+Tiebreaker (mesma precedência):
+1. `effective_date` mais recente vence.
+2. Se empate: `created_at` mais recente vence.
+
+Eventos `pending` ou `superseded` são ignorados pela lens.
+
+> **Observação:** a precedência V1 NÃO é configurável por mantenedora.
+> Mudanças exigem PR + bump de `contract_version` e `decision_version` na lens.
+
+---
+
+## 16. Princípio de Persistência Pedagógica
+
+> Movimentações acadêmicas **NÃO removem** rastreabilidade pedagógica histórica.
+
+1. Transferência, remanejamento, reclassificação e progressão parcial NÃO
+   removem o aluno das listagens históricas da turma/componente de origem.
+2. Registros anteriores à `effective_date` permanecem visíveis e editáveis
+   exclusivamente pelo contexto proprietário definido pela lens temporal.
+3. Registros posteriores à `effective_date` ficam bloqueados no contexto
+   anterior com justificativa explícita (`AFTER_EFFECTIVE_DATE`).
+4. O contexto de destino pode exibir dados herdados anteriores ao evento
+   apenas em modo leitura (`BEFORE_EFFECTIVE_DATE_DESTINATION`).
+5. Alterações em dados pré-evento realizadas no contexto proprietário devem
+   refletir automaticamente nos contextos herdados (sync_mode = "origin_authoritative").
+6. Nenhum evento acadêmico pode causar perda documental, sobrescrita
+   histórica ou exclusão silenciosa de frequência/notas.
+
+### 16.1 Implicações técnicas
+
+- Campo `visible` no retorno da lens é **sempre** `true` para o contexto
+  proprietário OU herdado. NUNCA usar `visible: false` para "esconder" um aluno.
+- Frontend NÃO infere lock localmente. Toda decisão vem do backend via lens.
+- Coleção `enrollments` da origem NÃO recebe `status: 'cancelled'` em
+  movimentação — recebe `status: 'moved_out'` com `moved_out_event_id`.
+
+---
+
+## 17. Supersession obrigatória + Timezone institucional
+
+### 17.1 Supersession
+
+Eventos NUNCA são editados in-place. Qualquer alteração material exige:
+
+- `POST /api/academic-events/{id}/supersede` com `new_payload` + `rationale ≥ 30`.
+- Header `X-Academic-Event-Confirm: true`.
+- Cria novo evento aprovado com `supersedes_event_id = old_id`.
+- Antigo recebe `approval_status = 'superseded'` + `superseded_by_event_id`.
+- Audit trail preserva snapshot before/after no novo evento.
+
+### 17.2 Timezone institucional
+
+`effective_date` é resolvido no timezone da mantenedora (campo
+`mantenedoras.timezone`). Default: `America/Sao_Paulo`.
+
+> NUNCA comparar datas naïve UTC em bloqueios pedagógicos. Aulas começam às
+> 7h da manhã horário local, não 7h UTC. Usar timezone errado bloqueia
+> escritas legítimas no início do turno e libera escritas indevidas no fim.
+
+A lens `_to_date(value, tz)` resolve qualquer entrada (str ISO, datetime UTC,
+datetime naïve, date) para `date` no tz institucional antes de comparar.
+
+---
+
+## 18. ACADEMIC_EVENT_LOCK — formato de auditoria
+
+Toda tentativa bloqueada pela lens gera entrada em `db.academic_event_audit`:
+
+```json
+{
+  "id": "<uuid>",
+  "event_id": "...",
+  "action": "grade_create_blocked | grade_edit_blocked | attendance_create_blocked | attendance_edit_blocked",
+  "attempted_by_user_id": "...",
+  "attempted_role": "professor",
+  "target_student_id": "...",
+  "target_class_id": "...",
+  "target_date": "YYYY-MM-DD",
+  "target_resource": "grade | attendance",
+  "reason_code": "AFTER_EFFECTIVE_DATE | BEFORE_EFFECTIVE_DATE_DESTINATION",
+  "payload_hash": "sha256_hex",     // hash do payload tentado (sem PII)
+  "ip": "...",
+  "user_agent": "...",
+  "created_at": "ISO"
+}
+```
+
+Resposta HTTP correspondente:
+```http
+HTTP/1.1 409 Conflict
+{
+  "detail": {
+    "code": "ACADEMIC_EVENT_LOCK",
+    "reason_code": "AFTER_EFFECTIVE_DATE",
+    "event_id": "...",
+    "governing_event_type": "transfer",
+    "effective_date": "2026-08-15",
+    "message": "Edição bloqueada por evento acadêmico."
+  }
+}
+```
+
+---
+
+## 19. Restrição arquitetural — Frontend não infere lock
+
+> **Toda decisão de lock/visibilidade vem do backend via lens.**
+
+Listagens de diário enriquecem cada item com:
+- `_locked: bool`
+- `_inherited: bool`
+- `_lock_reason: str | null`
+- `_governing_event_id: str | null`
+- `_governing_event_type: str | null`
+- `_historical_cutoff_date: str | null`
+
+Frontend renderiza badges/desabilita inputs apenas com base nesses campos.
+Nunca calcula `effective_date < today` no cliente. Nunca compara datas no JS.

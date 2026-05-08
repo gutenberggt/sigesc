@@ -19,6 +19,7 @@ import logging
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter, resolve_tenant_id_for_create, get_mantenedora_scope
 from utils.dependency_validator import validate_dependency_link
+from utils.academic_event_lens import resolve_student_ownership, record_lock_audit
 
 logger = logging.getLogger(__name__)
 
@@ -452,6 +453,44 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                     class_id=attendance.class_id,
                     course_id=attendance.course_id,
                     tenant_id=get_mantenedora_scope(current_user, request),
+                )
+
+        # Fase 3 — Academic Event Lock por aluno (a frequência tem `date` própria)
+        tenant_for_lens = get_mantenedora_scope(current_user, request)
+        for r in attendance.records:
+            ownership = await resolve_student_ownership(
+                current_db,
+                student_id=r.student_id,
+                class_id=attendance.class_id,
+                course_id=attendance.course_id,
+                target_date=attendance.date,  # frequência usa data da aula
+                mantenedora_id=tenant_for_lens,
+            )
+            if not ownership["editable"]:
+                await record_lock_audit(
+                    current_db,
+                    event_id=ownership.get("governing_event_id"),
+                    action="attendance_create_blocked",
+                    user_id=current_user.get("id"),
+                    role=current_user.get("role"),
+                    student_id=r.student_id,
+                    class_id=attendance.class_id,
+                    target_date=attendance.date,
+                    target_resource="attendance",
+                    reason_code=ownership["blocked_reason"],
+                    ip=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent"),
+                )
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "ACADEMIC_EVENT_LOCK",
+                        "reason_code": ownership["blocked_reason"],
+                        "event_id": ownership.get("governing_event_id"),
+                        "student_id": r.student_id,
+                        "effective_date": ownership.get("governing_effective_date"),
+                        "message": "Frequência bloqueada por evento acadêmico para este aluno.",
+                    },
                 )
 
         records_data = [

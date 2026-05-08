@@ -19,6 +19,7 @@ from fastapi import APIRouter, HTTPException, Request
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter, get_mantenedora_scope
 from utils.diary_loader import load_diary_items
+from utils.academic_event_lens import annotate_items_with_lens
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,19 @@ def setup_diary_router(db):
         except Exception as e:
             logger.exception("[diary] erro ao carregar items class=%s course=%s", class_id, course_id)
             raise HTTPException(status_code=500, detail=f"Erro ao carregar diário: {e}") from e
+
+        # Enriquece cada item com decisão da lens temporal (NÃO filtra — §16).
+        try:
+            payload["items"] = await annotate_items_with_lens(
+                db,
+                payload.get("items") or [],
+                class_id=class_id,
+                course_id=course_id,
+                target_date=None,
+                mantenedora_id=tenant_id,
+            )
+        except Exception as e:
+            logger.warning("[diary] lens annotate falhou: %s", e)
 
         return payload
 
