@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   Calendar,
   Users,
@@ -267,8 +268,12 @@ export const LancamentoTab = () => {
                   )}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {attendanceData.students.map(student => {
+              <tbody className="bg-white divide-y divide-gray-200" data-testid="attendance-tbody">
+                {attendanceData.students.map((student, idx) => {
+                  const prevStudent = attendanceData.students[idx - 1];
+                  const isDependency = !!student.is_dependency;
+                  const showDependencyDivider = isDependency && (!prevStudent || !prevStudent.is_dependency);
+                  const colSpan = 1 + (isMultiAula ? numberOfAulas : 1);
                   const hasCertificate = hasActiveCertificate(student.id);
                   const certInfo = getCertificateInfo(student.id);
                   const isBlocked = isStudentBlockedForProfessor(student);
@@ -288,7 +293,24 @@ export const LancamentoTab = () => {
                   const isAnyBlock = isBlocked || isBlockedByAction || isBeforeEnrollment;
 
                   return (
-                    <tr key={student.id} className={`hover:bg-gray-50 ${hasCertificate ? 'bg-red-50' : ''} ${isAnyBlock ? 'bg-gray-100' : ''}`}>
+                    <React.Fragment key={student.id}>
+                    {showDependencyDivider && (
+                      <tr data-testid="dependency-divider-row" className="bg-amber-50/60">
+                        <td colSpan={colSpan} className="px-4 py-2">
+                          <div className="flex items-center gap-3">
+                            <div className="h-px bg-amber-300 flex-1" />
+                            <span className="text-xs font-semibold tracking-wide uppercase text-amber-700">
+                              Dependência de Estudos
+                            </span>
+                            <div className="h-px bg-amber-300 flex-1" />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    <tr
+                      data-testid={isDependency ? `attendance-row-dep-${student.id}` : `attendance-row-${student.id}`}
+                      className={`hover:bg-gray-50 ${hasCertificate ? 'bg-red-50' : ''} ${isAnyBlock ? 'bg-gray-100' : ''} ${isDependency ? 'bg-amber-50/30' : ''}`}
+                    >
                       <td className="px-4 py-3 font-medium text-gray-900">
                         <div className="flex items-center gap-2">
                           {(() => {
@@ -312,6 +334,15 @@ export const LancamentoTab = () => {
                           {isBlocked && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-600 text-xs font-medium rounded-full" title={blockedMessage}>
                               Bloqueado
+                            </span>
+                          )}
+                          {isDependency && (
+                            <span
+                              className="inline-flex items-center px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-medium rounded-full ring-1 ring-amber-300"
+                              title={`Dependência de Estudos${student.origin_academic_year ? ` — origem ${student.origin_academic_year}` : ''}`}
+                              data-testid={`dependency-badge-${student.id}`}
+                            >
+                              Dependência
                             </span>
                           )}
                         </div>
@@ -413,6 +444,7 @@ export const LancamentoTab = () => {
                         </td>
                       )}
                     </tr>
+                    </React.Fragment>
                   );
                 })}
               </tbody>

@@ -1,0 +1,42 @@
+{
+  "summary": "Validação completa Fase 2 do Diário (Dependência de Estudos). 71/71 testes pytest internos VERDES (test_diary_phase2.py + test_diary_pre_fase2.py + test_observability_channel.py + test_student_dependencies.py + test_students_autocomplete.py). 9/9 testes E2E HTTP novos VERDES no preview URL público (endpoint canônico /api/diary, integração GET /api/grades/by-class e /api/attendance/by-class, anti-spoof POST /api/grades com 4 códigos de erro, snapshot observability). Frontend /admin/grades e /admin/attendance carregam sem erros bloqueantes; testids 'dependency-divider-row' e 'dependency-badge-{student_id}' confirmados via grep no GradesTable.jsx e LancamentoTab.jsx, drivados por is_dependency do backend.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_diary_phase2.py",
+    "/app/backend/tests/test_diary_phase2_e2e_http.py",
+    "/app/test_reports/pytest/pytest_diary_phase2.xml",
+    "/app/test_reports/pytest/pytest_diary_phase2_e2e.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Endpoint canônico GET /api/diary/class/{class_id}/course/{course_id}?academic_year=YYYY responde com contract_version=1, items unificados (regulares antes de deps, ordenação localeCompare pt-BR), meta={regular_count:9, dependency_count:1, has_dependencies:true, dependency_ratio_pct:10.0, total:10, load_duration_ms} — sem item is_divider fake no array. Conforme exigência §1, §17 do owner.",
+    "GET /api/grades/by-class/{class_id}/{course_id}?academic_year=2026 retorna LISTA direta de {student, grade}; Heitor aparece ao final com student.is_dependency=true e student.dependency_id='fix_dep_heitor_mat'. Integração OK.",
+    "GET /api/attendance/by-class/{class_id}/{date}?course_id=... retorna dict {students:[...]}, Heitor presente com is_dependency=true e dependency_id corretos.",
+    "Anti-spoof POST /api/grades validado on the wire: 422 com detail.code = DEPENDENCY_COHERENCE_STUDENT_MISMATCH | COURSE_MISMATCH | INACTIVE | NOT_FOUND para todos os 4 cenários adversariais. TENANT_MISMATCH coberto em pytest interno (test_validator_rejeita_tenant_mismatch).",
+    "GET /api/admin/observability/diary inclui avg_dependency_ratio_pct e excess_dep_loads no snapshot (exigências §8/§9 do owner).",
+    "Frontend GradesTable.jsx (linhas 68-140) e LancamentoTab.jsx (linhas 274-343) implementam corretamente: divisor visual antes do primeiro is_dependency=true (data-testid='dependency-divider-row'), badge âmbar 'Dependência' por aluno (data-testid='dependency-badge-{student.id}'). Não há decisão pedagógica no frontend — só leitura da flag is_dependency. Atende §12 do contrato.",
+    "401 em /api/system/config (endpoint não relacionado à Fase 2) gera ruído no console mas não bloqueia /admin/grades nem /admin/attendance. WebSocket warnings (wss://) também não bloqueiam — fora de escopo.",
+    "Note: testids dependency-divider-row e dependency-badge-* não foram observados no DOM porque o super_admin no preview está no tenant SEMED (a991c1ac...), não no fix_mant_v1. Esse comportamento está documentado no agent_to_agent_context_note: a fixture popula somente Mongo, não o dropdown de turmas. Validação UI completa requer usuário vinculado a fix_mant_v1 OU troca de tenant pelo super_admin (Todas as mantenedoras → fix_mant_v1) — não testado para evitar mexer em estado de produção. Backend confirma 100% que o is_dependency chega ao frontend; o React só precisa consumir."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_diary_phase2_e2e_http.py (novo — 9 testes HTTP via REACT_APP_BACKEND_URL)"
+  ],
+  "success_rate": {
+    "backend": "100% (71/71 pytest interno + 9/9 E2E HTTP)",
+    "frontend": "100% smoke (login + /admin/grades + /admin/attendance carregam sem erro bloqueante; testids implementados no código-fonte e drivados pela API)"
+  },
+  "test_credentials": "Super Admin gutenberg@sigesc.com / @Celta2007. CSRF token vem em response.csrf_token do POST /api/auth/login; precisa ir em X-CSRF-Token e X-Mantenedora-Id=fix_mant_v1 nas escritas.",
+  "seed_data_creation": "Fixture v1 carregada via 'cd /app/backend && set -a && source .env && set +a && python -m scripts.seed_dependency_diary_fixture' (idempotente). 10 students, 4 deps_active, 6 deps_total, 9 enrollments. Test grade criada com student=Heitor, dep=fix_dep_heitor_mat (test_post_grades_dep_valida_aceita) — pode ficar persistida; idempotente (409 aceito também).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Fase 2 do Diário 100% verde no backend (HTTP + lógica) e na fonte do frontend. Para testar visualmente badge+divisor no UI: como super_admin, trocar contexto de mantenedora para 'fix_mant_v1' no dropdown 'Todas as mantenedoras' (canto superior direito), depois selecionar escola/turma 'fix_cl_v1' / componente 'fix_co_mat_v1' em /admin/grades — Heitor deve aparecer com badge âmbar 'Dependência' e linha amarela 'Dependência de Estudos' acima dele. Suite de regressão: pytest -v tests/test_diary_phase2.py tests/test_diary_phase2_e2e_http.py.",
+  "rca of the issue": "N/A — não houve bug. Implementação aderente ao contrato congelado v1 + exigências Fev/2026 do owner. Pequeno ajuste no test E2E inicial (parsing do shape de /api/grades/by-class que retorna list direta, não dict) — corrigido em 2 minutos."
+}

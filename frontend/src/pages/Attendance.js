@@ -608,7 +608,8 @@ export const Attendance = () => {
             .filter(s => aulaStatuses[s.id]?.[aulaNum])
             .map(s => ({
               student_id: s.id,
-              status: aulaStatuses[s.id][aulaNum]
+              status: aulaStatuses[s.id][aulaNum],
+              ...(s.is_dependency && s.dependency_id ? { dependency_id: s.dependency_id } : {}),
             }));
           
           if (records.length === 0) continue;
@@ -649,7 +650,8 @@ export const Attendance = () => {
           .filter(s => s.status)
           .map(s => ({
             student_id: s.id,
-            status: s.status
+            status: s.status,
+            ...(s.is_dependency && s.dependency_id ? { dependency_id: s.dependency_id } : {}),
           }));
         
         if (records.length === 0) {

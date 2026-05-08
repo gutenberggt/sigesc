@@ -1,3 +1,4 @@
+import React from 'react';
 import { Lock } from 'lucide-react';
 import { hasRole } from '@/utils/permissions';
 import {
@@ -54,7 +55,7 @@ export const GradesTable = () => {
       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
     </tr>
   </thead>
-  <tbody className="bg-white divide-y divide-gray-200">
+  <tbody className="bg-white divide-y divide-gray-200" data-testid="grades-tbody">
     {gradesData.map((item, index) => {
       const isBlocked = isStudentBlockedForProfessor(item.student);
       const blockedMessage = getBlockedMessage(item.student);
@@ -62,7 +63,12 @@ export const GradesTable = () => {
       const hasAnyBlocking = isBlocked || hasActionLabel || 
         (item.student.blocked_before_enrollment && item.student.blocked_before_enrollment.length > 0) ||
         (item.student.blocked_after_action && item.student.blocked_after_action.length > 0);
-      
+
+      // Fase 2 — Dependência de Estudos (cf. DIARY_API_CONTRACT.md §17)
+      const isDependency = !!item.student.is_dependency;
+      const prevItem = gradesData[index - 1];
+      const showDependencyDivider = isDependency && (!prevItem || !prevItem.student.is_dependency);
+
       // Helper: verifica se um bimestre específico está bloqueado para este aluno
       const canEditBim = (bim) => canEditStudentGrade(item.student, bim, item.grade);
       // Feb 2026: nota migrada da turma origem
@@ -86,7 +92,28 @@ export const GradesTable = () => {
       };
       
       return (
-      <tr key={item.student.id} className={`hover:bg-gray-50 ${hasAnyBlocking ? 'bg-gray-50' : ''}`}>
+      <React.Fragment key={item.student.id}>
+        {showDependencyDivider && (
+          <tr
+            data-testid="dependency-divider-row"
+            className="bg-amber-50/60"
+            aria-label="Início da seção de Dependência de Estudos"
+          >
+            <td colSpan={usaConceito ? 7 : 9} className="px-4 py-2">
+              <div className="flex items-center gap-3">
+                <div className="h-px bg-amber-300 flex-1" />
+                <span className="text-xs font-semibold tracking-wide uppercase text-amber-700">
+                  Dependência de Estudos
+                </span>
+                <div className="h-px bg-amber-300 flex-1" />
+              </div>
+            </td>
+          </tr>
+        )}
+      <tr
+        data-testid={isDependency ? `grades-row-dep-${item.student.id}` : `grades-row-${item.student.id}`}
+        className={`hover:bg-gray-50 ${hasAnyBlocking ? 'bg-gray-50' : ''} ${isDependency ? 'bg-amber-50/30' : ''}`}
+      >
         <td className="px-4 py-3">
           <div className="flex items-center gap-2">
             <div>
@@ -104,6 +131,15 @@ export const GradesTable = () => {
                     data-testid={`migrated-badge-${item.student.id}`}
                   >
                     Migrado
+                  </span>
+                )}
+                {isDependency && (
+                  <span
+                    className="ml-2 inline-flex items-center px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-medium rounded-full ring-1 ring-amber-300"
+                    title={`Dependência de Estudos${item.student.origin_academic_year ? ` — origem ${item.student.origin_academic_year}` : ''}`}
+                    data-testid={`dependency-badge-${item.student.id}`}
+                  >
+                    Dependência
                   </span>
                 )}
               </div>
@@ -230,6 +266,7 @@ export const GradesTable = () => {
           <StatusBadge status={item.grade.status} />
         </td>
       </tr>
+      </React.Fragment>
     )})}
   </tbody>
 </table>

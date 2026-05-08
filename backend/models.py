@@ -1643,6 +1643,7 @@ class GradeBase(BaseModel):
     class_id: str  # ID da turma
     course_id: str  # ID do componente curricular
     academic_year: int  # Ano letivo
+    dependency_id: Optional[str] = None  # Fase 2: vínculo de dependência (validado server-side)
     
     # Notas por bimestre (0 a 10)
     b1: Optional[float] = None  # 1º Bimestre (peso 2)
@@ -1669,6 +1670,7 @@ class GradeCreate(BaseModel):
     class_id: str
     course_id: str
     academic_year: int
+    dependency_id: Optional[str] = None  # Fase 2: vínculo de dependência
     b1: Optional[float] = None
     b2: Optional[float] = None
     b3: Optional[float] = None

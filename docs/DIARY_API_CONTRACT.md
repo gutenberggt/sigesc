@@ -427,36 +427,50 @@ Use sempre este helper. Não chame `diary_metrics.record` diretamente — o help
 
 ---
 
-## 17. Ordenação rígida com divisor visual
+## 17. Ordenação rígida — divisor decidido pelo FRONTEND a partir de `meta`
+
+**Atualização Fev/2026 (exigência operacional do owner):** o divisor visual NÃO faz parte
+do array `items`. Misturar item fake `is_divider` com alunos reais gera bugs de
+`map`/`filter`/exportação/render condicional/cálculos de presença. O backend devolve
+metadados em `meta` e o frontend decide onde renderizar o separador.
 
 Backend retorna `items` na ordem **exata**:
 
-1. **Regulares** (sort alfabético `student_name` A-Z).
-2. **Item especial divisor** (renderizado como linha + título):
-   ```json
-   {
-     "is_divider": true,
-     "label": "Dependência de Estudos",
-     "student_id": "__divider_dependency__"
-   }
-   ```
-3. **Dependências** (sort alfabético `student_name` A-Z).
+1. **Regulares** (sort `localeCompare('pt-BR')` por `student_name`).
+2. **Dependências** (sort `localeCompare('pt-BR')` por `student_name`).
 
-> Misturar regulares e dependências no mesmo sort alfabético — mesmo com badge — confunde o professor. O divisor deixa visualmente óbvio que mudou de contexto.
+E em `meta`:
 
-Frontend deve identificar `is_divider: true` e renderizar separador, não como linha de aluno.
-
-```jsx
-{items.map((item) =>
-  item.is_divider ? (
-    <DividerRow key={item.student_id} label={item.label} />
-  ) : (
-    <StudentRow key={item.student_id} {...item} />
-  )
-)}
+```json
+{
+  "regular_count": 28,
+  "dependency_count": 3,
+  "has_dependencies": true,
+  "dependency_ratio_pct": 9.68,
+  "total": 31,
+  "load_duration_ms": 12.4
+}
 ```
 
-Se `dependency_count === 0`, o divisor **NÃO** é incluído no payload.
+Frontend renderiza o separador imediatamente antes do primeiro item com
+`is_dependency: true` quando `meta.has_dependencies === true`:
+
+```jsx
+{items.map((item, idx) => {
+  const prev = items[idx - 1];
+  const showDivider = item.is_dependency && (!prev || !prev.is_dependency);
+  return (
+    <Fragment key={item.student_id}>
+      {showDivider && <DependencyDivider label="Dependência de Estudos" />}
+      <StudentRow {...item} />
+    </Fragment>
+  );
+})}
+```
+
+> Server-side a ordenação usa `db.students.find().collation({locale: 'pt', strength: 1})`.
+> Em Python (fallback in-memory) usamos uma chave equivalente com remoção de diacríticos
+> básica — comportamento alinhado com `localeCompare('pt-BR')` para nomes brasileiros.
 
 ---
 
@@ -557,3 +571,98 @@ Registrar em `/app/baselines/diary_baseline.md`:
 - p95 / p99 medidos
 
 Servir como referência para detectar **regressão silenciosa** quando a UI começar a renderizar mais elementos.
+
+
+---
+
+## 22. Comparação automática de baseline (anti-regressão silenciosa)
+
+**Atualização Fev/2026 — exigência §4 do owner.** Salvar arquivo NÃO basta;
+sem comparação, performance degrada sprint após sprint.
+
+Script: `/app/backend/scripts/compare_diary_baseline.py`
+
+Modos:
+
+```bash
+# Gravar baseline inicial após carregar a fixture
+python -m scripts.compare_diary_baseline --record
+
+# Comparar estado atual contra baseline (CI / pré-merge)
+python -m scripts.compare_diary_baseline --compare           # default 1.5x
+python -m scripts.compare_diary_baseline --compare --threshold 1.2
+```
+
+Compara:
+- `payload_size_bytes` (regressão se > 1.5× baseline)
+- `p95_latency_ms` (regressão se > 1.5× baseline)
+- `queries_count` (regressão se > 1.5× baseline)
+- `p99_latency_ms`, `avg_latency_ms` (informativo)
+
+Exit code `1` em regressão crítica → bloqueia merge em CI.
+
+---
+
+## 23. Anti-spoof na escrita (frequência e notas)
+
+**Exigência §2 do owner (Fev/2026).** O backend NUNCA confia no payload do
+navegador para resolver dependência. Toda gravação de attendance ou grade que
+carrega `dependency_id != null` passa por `utils.dependency_validator.validate_dependency_link`,
+que valida:
+
+1. `dependency_id` existe na coleção `student_dependencies`.
+2. `status='active'` (deps concluídas/canceladas/falhadas → 422).
+3. `student_id` do payload bate com o da dependência.
+4. `class_id` e `course_id` do payload batem com a dependência.
+5. `tenant_id` do operador bate com o da dependência (RLS reforçada).
+
+Qualquer violação → `HTTP 422` com `detail.code` em
+`DEPENDENCY_COHERENCE_{NOT_FOUND,INACTIVE,STUDENT_MISMATCH,CLASS_MISMATCH,COURSE_MISMATCH,TENANT_MISMATCH}`.
+
+---
+
+## 24. Filtro automático de dependências inativas
+
+**Exigência §3 do owner (Fev/2026).** O frontend não filtra; o backend só
+entrega `status='active'`. Dependência marcada como `completed`, `cancelled`
+ou `failed` desaparece automaticamente do diário na próxima carga — sem
+necessidade de F5/cache invalidation no cliente.
+
+Registros de attendance/grade já gravados com aquele `dependency_id`
+continuam intactos para auditoria — mas a célula vai a read-only no UI.
+
+---
+
+## 25. Dependency ratio + alertas operacionais
+
+**Exigências §8 e §9 do owner (Fev/2026).** Além de `regular_total` e
+`dependency_total`, registramos no canal `diary`:
+
+- `counters.dependency_ratio_sum_x100` + `counters.dependency_ratio_samples`
+  → derivado em `avg_dependency_ratio_pct` no snapshot.
+- `counters.excess_dep_loads` (cargas com `dependency_count > MAX = 30`).
+- Label `excess_dep=true|false` em cada bucket.
+
+Warnings emitidos no payload (não bloqueia diário):
+
+| code | gatilho | log level |
+|---|---|---|
+| `EXCESS_DEPENDENCY_LOAD` | `dependency_count > 30` | `error` |
+| `DEP_GREATER_THAN_REGULAR` | `dependency_count > regular_count` | `warning` |
+
+Frontend renderiza badge administrativa quando `warnings` está presente.
+
+---
+
+## 26. Não tocar em (Fase 2)
+
+**Exigência §10 do owner.** Esta fase entrega apenas leitura + frequência + notas.
+
+❌ Fechamento anual.
+❌ Recuperação por semestre/final.
+❌ Conselho de classe.
+❌ Histórico escolar.
+❌ Boletim final / PDF.
+
+Esses módulos serão tratados nas Fases 3 e 4 — incluí-los agora aumenta
+o blast radius de bugs estruturais.

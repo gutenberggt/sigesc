@@ -17,7 +17,8 @@ import uuid
 import logging
 
 from auth_middleware import AuthMiddleware
-from tenant_scope import apply_tenant_filter, resolve_tenant_id_for_create
+from tenant_scope import apply_tenant_filter, resolve_tenant_id_for_create, get_mantenedora_scope
+from utils.dependency_validator import validate_dependency_link
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,7 @@ def _block_if_changing_migrated_attendance(existing_records, new_records, user):
 class AttendanceRecord(BaseModel):
     student_id: str
     status: str  # present, absent, justified, late - pipe-separated for multi-class: "P|F|P|J"
+    dependency_id: Optional[str] = None  # Fase 2: vínculo de dependência (validado server-side)
 
 
 class AttendanceCreate(BaseModel):
@@ -334,7 +336,7 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 "records": sess_records
             })
         
-        return {
+        result_payload = {
             "class_id": class_id,
             "class_name": turma.get('name'),
             "date": date,
@@ -357,11 +359,65 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                     "is_transferred_from_class": s.get('class_id') and s.get('class_id') != class_id,
                     "action_label": action_info_map.get(s['id'], {}).get('action_label', ''),
                     "action_date": action_info_map.get(s['id'], {}).get('action_date', ''),
-                    "enrollment_date": enrollment_dates.get(s['id'], s.get('enrollment_date', ''))
+                    "enrollment_date": enrollment_dates.get(s['id'], s.get('enrollment_date', '')),
+                    # Fase 2 — Dependência (regulares sempre false)
+                    "is_dependency": False,
+                    "dependency_id": None,
+                    "display_label": "",
                 }
                 for s in students
             ]
         }
+
+        # =========================================================
+        # Fase 2 — injeta alunos em dependência ATIVA neste componente
+        # =========================================================
+        if course_id:
+            from utils.diary_constants import DEPENDENCY_DISPLAY_LABEL
+            from tenant_scope import get_mantenedora_scope as _get_scope_att
+            active_tenant_att = _get_scope_att(current_user, request)
+            dep_filter_att = {
+                "class_id": class_id, "course_id": course_id, "status": "active",
+            }
+            if active_tenant_att:
+                dep_filter_att["mantenedora_id"] = active_tenant_att
+            deps_active = await current_db.student_dependencies.find(dep_filter_att, {"_id": 0}).to_list(200)
+            existing_sids = {s['id'] for s in result_payload['students']}
+            dep_sids = [d['student_id'] for d in deps_active
+                        if d.get('student_id') and d['student_id'] not in existing_sids]
+            if dep_sids:
+                dep_students = await current_db.students.find(
+                    {"id": {"$in": dep_sids}},
+                    {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1,
+                     "status": 1, "dependency_mode": 1}
+                ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(200)
+                dep_by_sid = {d['student_id']: d for d in deps_active}
+                stu_by_id = {s['id']: s for s in dep_students}
+                for sid in dep_sids:
+                    dep = dep_by_sid.get(sid)
+                    stu = stu_by_id.get(sid)
+                    if not (dep and stu):
+                        continue
+                    result_payload['students'].append({
+                        "id": sid,
+                        "full_name": stu.get('full_name', ''),
+                        "enrollment_number": stu.get('enrollment_number'),
+                        "status": records_map.get(sid, None),
+                        "student_status": stu.get('status', 'active'),
+                        "current_class_id": None,
+                        "is_transferred_from_class": False,
+                        "action_label": "",
+                        "action_date": "",
+                        "enrollment_date": "",
+                        # Fase 2
+                        "is_dependency": True,
+                        "dependency_id": dep.get('id'),
+                        "dependency_type": stu.get('dependency_mode'),
+                        "origin_academic_year": dep.get('origin_academic_year'),
+                        "display_label": DEPENDENCY_DISPLAY_LABEL,
+                    })
+
+        return result_payload
 
     @router.post("")
     async def create_or_update_attendance(attendance: AttendanceCreate, request: Request):
@@ -385,8 +441,27 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
             query["aula_numero"] = attendance.aula_numero
         
         existing = await current_db.attendance.find_one(query)
-        
-        records_data = [{"student_id": r.student_id, "status": r.status} for r in attendance.records]
+
+        # Fase 2 — anti-spoof: valida coerência de dependency_id em CADA record
+        for r in attendance.records:
+            if r.dependency_id:
+                await validate_dependency_link(
+                    db=current_db,
+                    dependency_id=r.dependency_id,
+                    student_id=r.student_id,
+                    class_id=attendance.class_id,
+                    course_id=attendance.course_id,
+                    tenant_id=get_mantenedora_scope(current_user, request),
+                )
+
+        records_data = [
+            {
+                "student_id": r.student_id,
+                "status": r.status,
+                **({"dependency_id": r.dependency_id} if r.dependency_id else {}),
+            }
+            for r in attendance.records
+        ]
 
         if existing:
             # Se há registros migrados (frequência copiada da turma origem),

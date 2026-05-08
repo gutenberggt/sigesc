@@ -18,7 +18,8 @@ import logging
 from models import Grade, GradeCreate, GradeUpdate
 from auth_middleware import AuthMiddleware
 from pdf_cache import get_mantenedora_cached
-from tenant_scope import resolve_tenant_id_for_create, apply_tenant_filter
+from tenant_scope import resolve_tenant_id_for_create, apply_tenant_filter, get_mantenedora_scope
+from utils.dependency_validator import validate_dependency_link
 
 logger = logging.getLogger(__name__)
 
@@ -358,13 +359,81 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                 'action_date': action_info_map.get(student['id'], {}).get('action_date', ''),
                 'enrollment_date': enroll_dt,
                 'blocked_before_enrollment': blocked_before,
-                'blocked_after_action': blocked_after
+                'blocked_after_action': blocked_after,
+                # Fase 2 — Dependência de Estudos
+                'is_dependency': False,
+                'dependency_id': None,
+                'display_label': '',
             }
             result.append({
                 'student': student_data,
                 'grade': grade
             })
-        
+
+        # =========================================================
+        # Fase 2 — injeta alunos em dependência ATIVA neste componente
+        # (cf. /app/docs/DIARY_API_CONTRACT.md)
+        # =========================================================
+        from utils.diary_constants import DEPENDENCY_DISPLAY_LABEL
+        from tenant_scope import get_mantenedora_scope as _get_scope_grades
+        active_tenant_grades = _get_scope_grades(current_user, request)
+        dep_filter = {
+            "class_id": class_id, "course_id": course_id, "status": "active",
+        }
+        if active_tenant_grades:
+            dep_filter["mantenedora_id"] = active_tenant_grades
+        deps_for_diary = await current_db.student_dependencies.find(dep_filter, {"_id": 0}).to_list(200)
+        existing_ids = {r['student']['id'] for r in result}
+        dep_student_ids = [d['student_id'] for d in deps_for_diary if d.get('student_id') and d['student_id'] not in existing_ids]
+        if dep_student_ids:
+            dep_students = await current_db.students.find(
+                {"id": {"$in": dep_student_ids}},
+                {"_id": 0, "id": 1, "full_name": 1, "enrollment_number": 1, "status": 1, "dependency_mode": 1}
+            ).sort("full_name", 1).collation({"locale": "pt", "strength": 1}).to_list(200)
+            dep_by_sid = {d['student_id']: d for d in deps_for_diary}
+            student_by_id = {s['id']: s for s in dep_students}
+            dep_grades_existing = await current_db.grades.find(
+                {"class_id": class_id, "course_id": course_id, "academic_year": academic_year,
+                 "student_id": {"$in": dep_student_ids}},
+                {"_id": 0}
+            ).to_list(200)
+            dep_grades_map = {g['student_id']: g for g in dep_grades_existing}
+            for sid in dep_student_ids:
+                dep = dep_by_sid.get(sid)
+                stu = student_by_id.get(sid)
+                if not (dep and stu):
+                    continue
+                dep_grade = dep_grades_map.get(sid, {
+                    'student_id': sid, 'class_id': class_id, 'course_id': course_id,
+                    'academic_year': academic_year, 'dependency_id': dep.get('id'),
+                    'b1': None, 'b2': None, 'b3': None, 'b4': None,
+                    'rec_s1': None, 'rec_s2': None, 'recovery': None,
+                    'final_average': None, 'status': 'cursando',
+                })
+                result.append({
+                    'student': {
+                        'id': sid,
+                        'full_name': stu.get('full_name', ''),
+                        'enrollment_number': stu.get('enrollment_number'),
+                        'student_status': stu.get('status', 'active'),
+                        'student_series': '',
+                        'current_class_id': None,
+                        'is_transferred_from_class': False,
+                        'action_label': '',
+                        'action_date': '',
+                        'enrollment_date': '',
+                        'blocked_before_enrollment': [],
+                        'blocked_after_action': [],
+                        # Fase 2 — Dependência
+                        'is_dependency': True,
+                        'dependency_id': dep.get('id'),
+                        'dependency_type': stu.get('dependency_mode'),
+                        'origin_academic_year': dep.get('origin_academic_year'),
+                        'display_label': DEPENDENCY_DISPLAY_LABEL,
+                    },
+                    'grade': dep_grade,
+                })
+
         return result
 
     @router.get("/by-student/{student_id}")
@@ -405,7 +474,18 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         """Cria ou atualiza nota de um aluno"""
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'professor', 'coordenador', 'auxiliar_secretaria'])(request)
         current_db = get_db_for_user(current_user)
-        
+
+        # Fase 2 — anti-spoof: valida coerência do dependency_id (se presente).
+        if grade_data.dependency_id:
+            await validate_dependency_link(
+                db=current_db,
+                dependency_id=grade_data.dependency_id,
+                student_id=grade_data.student_id,
+                class_id=grade_data.class_id,
+                course_id=grade_data.course_id,
+                tenant_id=get_mantenedora_scope(current_user, request),
+            )
+
         existing = await current_db.grades.find_one({
             "student_id": grade_data.student_id,
             "class_id": grade_data.class_id,
@@ -505,6 +585,18 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
         audit_changes = []
         
         for grade_data in grades:
+            # Fase 2 — anti-spoof: valida dependency_id antes de gravar
+            dep_id_in_payload = grade_data.get('dependency_id')
+            if dep_id_in_payload:
+                await validate_dependency_link(
+                    db=current_db,
+                    dependency_id=dep_id_in_payload,
+                    student_id=grade_data['student_id'],
+                    class_id=grade_data['class_id'],
+                    course_id=grade_data['course_id'],
+                    tenant_id=get_mantenedora_scope(current_user, request),
+                )
+
             existing = await current_db.grades.find_one({
                 "student_id": grade_data['student_id'],
                 "class_id": grade_data['class_id'],
@@ -543,6 +635,7 @@ def setup_grades_router(db, audit_service, verify_academic_year_open_or_raise=No
                     'class_id': grade_data['class_id'],
                     'course_id': grade_data['course_id'],
                     'academic_year': grade_data['academic_year'],
+                    'dependency_id': dep_id_in_payload,  # Fase 2
                     'b1': grade_data.get('b1'),
                     'b2': grade_data.get('b2'),
                     'b3': grade_data.get('b3'),

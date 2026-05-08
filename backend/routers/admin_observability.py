@@ -119,6 +119,15 @@ def setup_admin_observability_router(audit_service: object | None = None) -> API
         _check_admin_rate(user_key)
         _no_cache_headers(response)
         snap = diary_metrics.snapshot()
+        # Enriquece com média móvel de dep_ratio (sem PII).
+        counters = snap.get("counters") or {}
+        ratio_sum = counters.get("dependency_ratio_sum_x100") or 0
+        ratio_samples = counters.get("dependency_ratio_samples") or 0
+        if ratio_samples:
+            snap["avg_dependency_ratio_pct"] = round((ratio_sum / 100.0) / ratio_samples, 2)
+        else:
+            snap["avg_dependency_ratio_pct"] = None
+        snap["excess_dep_loads"] = counters.get("excess_dep_loads", 0)
         if audit_service is not None:
             try:
                 await audit_service.log(  # type: ignore[attr-defined]

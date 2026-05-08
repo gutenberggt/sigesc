@@ -150,9 +150,11 @@ async def seed():
     enrolled_keys = ["ana", "bruno", "carlos", "diana", "eva", "felipe", "gabriela", "ivo", "julia"]
     for key in enrolled_keys:
         sid = FIX["students"][key]
+        enroll_id = f"fix_enr_{key}"
         await db.enrollments.update_one(
             {"student_id": sid, "class_id": FIX["class"], "academic_year": 2026},
             {"$set": {
+                "id": enroll_id,
                 "student_id": sid, "class_id": FIX["class"], "academic_year": 2026,
                 "school_id": FIX["school"], "mantenedora_id": FIX["mantenedora"],
                 "status": "active",

@@ -234,6 +234,8 @@ def record_diary_load(
     is_rate_limited: bool = False,
     class_id: Optional[str] = None,
     course_id: Optional[str] = None,
+    dependency_ratio_pct: Optional[float] = None,
+    excess_dep: bool = False,
 ) -> None:
     """Helper canônico para instrumentar carregamento do Diário (Fase 2).
 
@@ -241,9 +243,23 @@ def record_diary_load(
     sempre tenha `counters.regular_total`, `counters.dependency_total`, labels
     `cache_hit`/`class_id`/`course_id` consistentes.
 
+    `dependency_ratio_pct` e `excess_dep` são gravados em buckets dedicados para
+    detectar uso anormal/explosão de vínculos (cf. contrato §18 + exigência §8/§9).
+
     NÃO chame `diary_metrics.record` diretamente — sempre passe por aqui.
     Ver `/app/docs/DIARY_API_CONTRACT.md` (item 9).
     """
+    bucket_counters = {
+        "regular_total": regular_count,
+        "dependency_total": dependency_count,
+        "items_total": regular_count + dependency_count,
+    }
+    if dependency_ratio_pct is not None:
+        # acumula soma e amostras para média móvel sem PII
+        bucket_counters["dependency_ratio_sum_x100"] = int(round(dependency_ratio_pct * 100))
+        bucket_counters["dependency_ratio_samples"] = 1
+    if excess_dep:
+        bucket_counters["excess_dep_loads"] = 1
     diary_metrics.record(
         duration_ms=duration_ms,
         tenant_id=tenant_id,
@@ -251,12 +267,9 @@ def record_diary_load(
             "cache_hit": cache_hit,
             "class_id": class_id,
             "course_id": course_id,
+            "excess_dep": excess_dep,
         },
-        bucket_counters={
-            "regular_total": regular_count,
-            "dependency_total": dependency_count,
-            "items_total": regular_count + dependency_count,
-        },
+        bucket_counters=bucket_counters,
         is_error=is_error,
         is_rate_limited=is_rate_limited,
     )

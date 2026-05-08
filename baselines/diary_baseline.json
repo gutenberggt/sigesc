@@ -1,0 +1,19 @@
+{
+  "runs": 20,
+  "avg_latency_ms": 1.446,
+  "p95_latency_ms": 2.178,
+  "p99_latency_ms": 2.178,
+  "max_latency_ms": 4.219,
+  "queries_count": 3,
+  "payload_size_bytes": 3678,
+  "items_total": 10,
+  "regular_count": 9,
+  "dependency_count": 1,
+  "fixture": {
+    "tenant": "fix_mant_v1",
+    "class_id": "fix_cl_v1",
+    "course_id": "fix_co_mat_v1",
+    "academic_year": 2026
+  },
+  "captured_at": "2026-05-08T02:53:23Z"
+}

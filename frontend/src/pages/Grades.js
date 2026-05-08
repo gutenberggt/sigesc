@@ -538,6 +538,10 @@ export function Grades() {
         class_id: selectedClass,
         course_id: selectedCourse,
         academic_year: academicYear,
+        // Fase 2 — Dependência de Estudos: backend valida coerência (anti-spoof)
+        ...(item.student?.is_dependency && item.student?.dependency_id
+          ? { dependency_id: item.student.dependency_id }
+          : {}),
         b1: item.grade.b1,
         b2: item.grade.b2,
         b3: item.grade.b3,
