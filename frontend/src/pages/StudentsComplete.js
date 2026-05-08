@@ -688,7 +688,7 @@ export function StudentsComplete() {
     }
   };
 
-  // Excluir atestado médico (apenas admin)
+  // Excluir atestado médico (super_admin, admin, secretario, gerente)
   const handleDeleteCertificate = async (certificateId) => {
     if (!window.confirm('Tem certeza que deseja excluir este atestado médico?')) {
       return;
@@ -2750,7 +2750,7 @@ export function StudentsComplete() {
                           type="button"
                           onClick={() => handleDeleteCertificate(cert.id)}
                           className="p-1 text-red-600 hover:bg-red-100 rounded"
-                          title="Excluir atestado (apenas admin)"
+                          title="Excluir atestado"
                         >
                           <Trash2 size={18} />
                         </button>

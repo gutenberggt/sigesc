@@ -249,7 +249,7 @@ def setup_medical_certificates_router(db, auth_middleware):
     async def delete_certificate(request: Request, certificate_id: str):
         """
         Exclui um atestado médico.
-        Administradores e secretários vinculados à escola do aluno podem excluir.
+        Permitido: super_admin, admin (admin_teste), gerente, secretario (vinculado à escola do aluno).
         """
         current_user = await auth_middleware.get_current_user(request)
         role = current_user.get('role', '')
@@ -262,8 +262,8 @@ def setup_medical_certificates_router(db, auth_middleware):
                 detail="Atestado médico não encontrado"
             )
         
-        # Admin pode excluir qualquer atestado
-        if role in ('admin', 'admin_teste'):
+        # super_admin / admin / admin_teste / gerente podem excluir qualquer atestado
+        if role in ('super_admin', 'admin', 'admin_teste', 'gerente'):
             pass
         elif role == 'secretario':
             # Secretário precisa estar vinculado à escola do aluno
