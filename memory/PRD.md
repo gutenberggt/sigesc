@@ -51,6 +51,67 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 - **Tests**: 7 pytests cobrindo permissões, limite, duplicidade, summary, modos não habilitados.
 - **Roadmap**: Fase 2 = diário; Fase 3 = boletim online + PDF + ficha; Fase 4 = fechamento anual + histórico.
 
+### Fase 3 — Academic Events + Lens Temporal **[Fev/2026]**
+
+Núcleo de governança temporal pedagógica. Implementa o passo 1 da sequência
+do owner (`academic_events → observability → fechamento → render_jobs → boletim → PDF → histórico`).
+
+#### `db.academic_events` (CRUD + supersession)
+- 4 tipos: `transfer | remanejamento | reclassificacao | progressao_parcial`.
+- Fluxo §10: rationale ≥30 chars + role autorizado + `X-Academic-Event-Confirm: true` em supersedes.
+- Endpoints: `POST /` (cria pending), `POST /{id}/approve`, `POST /{id}/reject`, `POST /{id}/supersede`,
+  `GET /{id}`, `GET /student/{student_id}`.
+- Eventos NUNCA deletados — supersession cria novo + marca antigo como `superseded` com `superseded_by_event_id`.
+- Validação: `ORIGIN_EQUALS_DESTINATION` (422), `INVALID_TRANSITION` (409), `CONFIRMATION_REQUIRED` (428).
+
+#### `utils/academic_event_lens.py` — autoridade ÚNICA
+- `resolve_student_ownership(db, student_id, class_id, course_id, target_date, mantenedora_id)` retorna
+  `{decision_version: "1", editable, visible, owner_teacher_id, source: "origin|destination|neutral",
+  sync_mode: "origin_authoritative|isolated|neutral", historical_cutoff_date, blocked_reason,
+  governing_event_id, governing_event_type, governing_effective_date}`.
+- **Timezone institucional** (campo `mantenedoras.timezone`, default `America/Sao_Paulo`).
+  `_to_date()` resolve qualquer entrada (str ISO, datetime UTC/naïve, date) no tz correto antes de comparar.
+- **Precedência fixa V1**: `reclassificacao > progressao_parcial > remanejamento > transfer`.
+  Tiebreaker: `effective_date` mais recente; depois `created_at` mais recente.
+- `pick_governing_event(events)` ignora `pending` e `superseded`.
+- `annotate_items_with_lens(items, ...)` — anota `_locked, _inherited, _lock_reason,
+  _governing_event_id, _governing_event_type, _historical_cutoff_date` em listas de items SEM filtrar
+  (cf. §16: rastreabilidade preservada SEMPRE — `visible: true` não muda).
+- `record_lock_audit(...)` grava em `db.academic_event_audit` com payload_hash, IP, user_agent,
+  reason_code, target_resource — sem PII.
+
+#### Integração nos endpoints
+- `POST /api/grades` e `POST /api/grades/batch` chamam lens antes de gravar; HTTP 409
+  `ACADEMIC_EVENT_LOCK` + audit log + reason_code.
+- `POST /api/attendance` valida lens por record (cada aluno pode estar bloqueado independentemente);
+  usa `attendance.date` como `target_date` (não a data de hoje).
+- `GET /api/diary/class/{cid}/course/{coid}` enriquece cada item com flags da lens — frontend
+  reflete badges sem decidir localmente (§19).
+
+#### Snapshots ganharam reservas para invalidação documental
+`dependency_completions` agora inclui placeholders mutáveis (excluídos do hash):
+- `invalidated_by_event_id`, `invalidated_at`, `invalidation_reason`, `supersedes_document_id`.
+- Cascade automática reservada para Fase 3+ (quando alterações em registros pré-effective_date
+  forem implementadas via origin_authoritative sync).
+
+#### Contratos atualizados/criados
+- **`ACADEMIC_EVENT_CONTRACT.md`** §15-19 adicionados:
+  §15 Precedência fixa V1 (não configurável), §16 Princípio de Persistência Pedagógica
+  (rastreabilidade NUNCA removida), §17 Supersession + Timezone institucional, §18
+  ACADEMIC_EVENT_LOCK formato canônico de audit, §19 Frontend não infere lock localmente.
+- **`RENDER_JOBS_CONTRACT.md`** **NOVO CONGELADO V1**: 12 seções normativas para `db.document_render_jobs`
+  (PDF é consequência do snapshot, nunca fonte; pipeline `pending→processing→completed|failed`;
+  retry exponencial; idempotência; reemissão fiel; retenção 7 anos; integração com snapshots
+  imutáveis; templates versionados; observabilidade dedicada). Implementação reservada para passo 4.
+
+#### Tests (Iteration 74 — testing_agent_v3_fork)
+- **12/12 pytests** novos (`test_academic_event_lens.py`)
+- **140/140 suite consolidada** verde (12 lens + 17 completions + 40 P0 + 19 Fase 2 + 11 pre + 9 obs + 26 deps + 6 autocomplete)
+- **9/9 E2E HTTP verdes** (rationale<30→422, ORIGIN_EQUALS_DESTINATION, create→approve, supersede(428|200), POST grade bloqueada, POST attendance bloqueada, audit gravado, diário anotado sem filtrar)
+- **Zero issues** reportados.
+
+
+
 ### Fase 2.5 — Snapshots Documentais Imutáveis + Contrato de Eventos Acadêmicos **[Fev/2026]**
 
 Pré-requisito jurídico para Boletim (Fase 3) e Histórico (Fase 4). Owner pediu
