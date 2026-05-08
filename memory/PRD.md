@@ -51,6 +51,82 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 - **Tests**: 7 pytests cobrindo permissões, limite, duplicidade, summary, modos não habilitados.
 - **Roadmap**: Fase 2 = diário; Fase 3 = boletim online + PDF + ficha; Fase 4 = fechamento anual + histórico.
 
+### Fase 2.5 — Snapshots Documentais Imutáveis + Contrato de Eventos Acadêmicos **[Fev/2026]**
+
+Pré-requisito jurídico para Boletim (Fase 3) e Histórico (Fase 4). Owner pediu
+"verdade documental imutável ANTES de PDF" — esta rodada entrega exatamente isso.
+
+#### `db.dependency_completions` (append-only)
+- Hook em `PUT /api/student-dependencies/{id}` cria snapshot automaticamente em
+  transições `active → completed | failed | cancelled`. Idempotente (não duplica).
+- **Snapshots capturados** (imutáveis): `original_course_name_at_completion`,
+  `original_curriculum_version`, `original_academic_year`, `original_class_id`,
+  `workload_hours`. Sobrevivem a reorganização curricular futura.
+- **`cancelled` exige `status_reason`** (HTTP 422 `CANCELLATION_REASON_REQUIRED`).
+  Cancelado vira `data_quality=incomplete` e `document_status=cancelado_administrativamente`
+  no público (não compõe boletim padrão).
+
+#### Hash documental imutável `/app/backend/utils/document_hash.py`
+- `document_hash_sha256` calculado UMA vez na criação. NUNCA recalculado.
+- Excluem do hash: `signatures[]`, `verification_token`, `revoked_at`,
+  `revoked_reason`, `superseded_by_document_id`, `audit_trail[]`,
+  `document_hash_sha256` (não entra em si mesmo), `_id`.
+- Cada assinatura tem **`signature_hash_sha256` próprio** referenciando
+  `signed_document_hash` (o original) — adicionar 2ª assinatura NÃO invalida a 1ª.
+- `verify_document_hash()` detecta tampering pós-emissão.
+
+#### Endpoints implementados
+- `GET /api/dependency-completions/student/{student_id}` — lista snapshots do aluno.
+- `GET /api/dependency-completions/{id}` — snapshot completo com audit_trail.
+- `POST /api/dependency-completions/{id}/sign` — assinatura institucional;
+  - HTTP 409 `DATA_QUALITY_INSUFFICIENT` se snapshot é `partial`/`incomplete`
+  - HTTP 409 `DOCUMENT_REVOKED` se já revogado
+  - HTTP 409 `ROLE_ALREADY_SIGNED` (anti-duplicidade)
+  - super_admin pode assinar via `X-Sign-As-Role: diretor|secretario`
+- `POST /api/dependency-completions/{id}/revoke` — exige `rationale` ≥ 30 chars,
+  marca `revoked_at` SEM alterar `document_hash_sha256`.
+- `GET /api/public/verify/{verification_token}` — **endpoint sem auth**;
+  mapeia `completion_result` → `document_status` jurídico (`valido`,
+  `valido_reprovado`, `cancelado_administrativamente`, `revogado`,
+  `nao_encontrado`); NÃO expõe nome do aluno, CPF ou enum interno;
+  signatures sanitizadas (apenas role + nome + signed_at).
+- `POST /api/admin/dependency-completions/backfill?dry_run=true|false` —
+  super_admin only, idempotente, calcula `data_quality` híbrido (complete/partial/incomplete).
+
+#### Índices
+- `verification_token` UNIQUE (criado no startup) — evita colisão silenciosa em retries.
+- `(dependency_id, completion_academic_year)`, `(student_id, issued_at desc)`, `mantenedora_id`.
+
+#### Versionamento documental
+- `document_version: "1.0.0"` (layout/legenda)
+- `history_schema_version: "1"` (shape de dados)
+- `template_version`, `render_engine_version` — placeholders preenchidos quando o PDF for gerado (Fase 3).
+
+#### Contrato `ACADEMIC_EVENT_CONTRACT.md` **CONGELADO V1**
+14 seções normativas cobrindo `transfer | remanejamento | reclassificacao |
+progressao_parcial`. Princípios:
+- Movimentações **NÃO removem** o aluno da turma de origem.
+- Lente temporal: pré-`effective_date` editável pela origem (read-only no destino com badge "herdado");
+  pós-`effective_date` exclusivo do destino (origem bloqueada com marcador "Aluno movimentado em DD/MM").
+- **NÃO duplicar registros fisicamente** — usa read-model temporal (`utils/academic_event_lens.py` quando implementado).
+- Audit log obrigatório para tentativas bloqueadas (HTTP 409 `ACADEMIC_EVENT_LOCK`).
+- Eventos NÃO deletáveis — mudança = supersession (novo evento com `supersedes_event_id`).
+- Fluxo §10 obrigatório para alterações: rationale ≥ 30 chars + role autorizado +
+  `X-Academic-Event-Confirm: true` + auditoria + snapshot before/after.
+- Implementação codificada para futura rodada (P2/P3) — apenas contrato congelado nesta.
+
+#### Atualizações nos contratos existentes
+- `HISTORICO_ESCOLAR_CONTRACT.md` §14: regras de imutabilidade + assinatura.
+- `DIARY_API_CONTRACT.md` §31: `dependency_completions` é fonte documental;
+  `student_dependencies` permanece como fonte operacional.
+
+#### Tests (Iteration 73 — testing_agent_v3_fork)
+- **17/17 pytests internos** + **128/128 suite consolidada** + **9/9 E2E HTTP** verdes.
+- Cobertura: hash determinístico, hash imutável após múltiplas assinaturas, signature_hash isolado, hash detecta tampering, hook idempotente, cancelled exige reason, data_quality híbrido, document_status mapping (não expõe enum), verification_token único, revoke não altera hash, public/verify revogado.
+- **Zero issues** reportados.
+
+
+
 ### P0 — Blindagem Pedagógica + P1a + P1b + P2 + Contrato Histórico **[Fev/2026]**
 
 Cinco entregas coesas em uma única rodada para fechar a maturidade do subdomínio
