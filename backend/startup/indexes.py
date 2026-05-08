@@ -24,24 +24,38 @@ async def create_all_indexes(db):
 
     # Student Dependencies (Dependência de Estudos) — Fev/2026
     # Índices para listagens por aluno, turma+componente (diário) e duplicidade.
-    await db.student_dependencies.create_index("id", unique=True)
+    # `background=True` evita lock em produção durante criação dos índices.
+    await db.student_dependencies.create_index("id", unique=True, background=True)
     await db.student_dependencies.create_index(
-        [("student_id", 1), ("status", 1)], name="ix_dep_student_status"
+        [("student_id", 1), ("status", 1)],
+        name="ix_dep_student_status", background=True,
     )
+    # Diário (Fase 2): consulta primária por turma+componente+status (com tenant scope).
     await db.student_dependencies.create_index(
-        [("class_id", 1), ("course_id", 1), ("status", 1)], name="ix_dep_class_course"
+        [("mantenedora_id", 1), ("class_id", 1), ("course_id", 1), ("status", 1)],
+        name="ix_dep_tenant_class_course_status", background=True,
+    )
+    # Mantida a versão legada (sem tenant) como fallback p/ buscas administrativas.
+    await db.student_dependencies.create_index(
+        [("class_id", 1), ("course_id", 1), ("status", 1)],
+        name="ix_dep_class_course", background=True,
     )
     await db.student_dependencies.create_index(
         [("mantenedora_id", 1), ("school_id", 1), ("academic_year", 1)],
-        name="ix_dep_tenant_school_year",
+        name="ix_dep_tenant_school_year", background=True,
+    )
+    # Relatórios anuais agregados.
+    await db.student_dependencies.create_index(
+        [("academic_year", 1), ("status", 1)],
+        name="ix_dep_year_status", background=True,
     )
     # Duplicidade lógica: evita 2 dependências ativas do mesmo componente×ano de origem.
-    # (Implementação como índice parcial é nativa do Mongo.)
     await db.student_dependencies.create_index(
         [("student_id", 1), ("course_id", 1), ("origin_academic_year", 1)],
         name="uniq_dep_student_course_origin_active",
         unique=True,
         partialFilterExpression={"status": "active"},
+        background=True,
     )
 
     # Grades (notas) — muito consultada

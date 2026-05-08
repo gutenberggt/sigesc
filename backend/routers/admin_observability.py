@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 
 from auth_middleware import AuthMiddleware
 from utils.students_search import get_observability_snapshot
+from utils.observability import diary_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -104,5 +105,30 @@ def setup_admin_observability_router(audit_service: object | None = None) -> API
                 logger.warning("[observability] falha ao gravar audit log: %s", e)
 
         return snapshot
+
+    @router.get("/diary")
+    async def diary_observability(request: Request, response: Response):
+        """Snapshot do canal `diary` (alimentado pela Fase 2).
+
+        Mesmo padrão do autocomplete: super_admin only, no-cache, rate limit, audit log.
+        """
+        current_user = await AuthMiddleware.get_current_user(request)
+        if current_user.get("role") != "super_admin":
+            raise HTTPException(status_code=403, detail="Apenas super_admin pode acessar dados de observabilidade.")
+        user_key = current_user.get("id") or current_user.get("email") or "unknown"
+        _check_admin_rate(user_key)
+        _no_cache_headers(response)
+        snap = diary_metrics.snapshot()
+        if audit_service is not None:
+            try:
+                await audit_service.log(  # type: ignore[attr-defined]
+                    action="export", collection="observability_metrics",
+                    user=current_user, request=request,
+                    description=f"Acesso a /admin/observability/diary (requests={snap['requests_total']})",
+                    extra_data={"endpoint": "diary", "requests_total": snap["requests_total"]},
+                )
+            except Exception as e:
+                logger.warning("[observability:diary] audit log falhou: %s", e)
+        return snap
 
     return router
