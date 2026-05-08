@@ -32,6 +32,91 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Passo 4 — Document Render Jobs (escopo mínimo) **[Fev/2026]**
+
+Fila de geração de documentos PDF com persistência, idempotência e retry —
+ESCOPO ENXUTO autorizado pelo owner. Sem broker/worker distribuído/pipeline
+paralelo nesta V1.
+
+#### `utils/render_jobs.py` (lógica pura + registry)
+- `compute_idempotency_key(source_snapshot_id, document_type, template_version,
+  render_engine_version)` → SHA-256 determinístico (64 chars).
+- `compute_next_retry_at(retry_count)` → ISO timestamp aplicando backoff
+  exponencial fixo `(30s, 2min, 10min)` (`MAX_RETRIES = 3`).
+- `register_render_handler(document_type, fn)` — registry in-process
+  (handlers do Boletim/Histórico se plugarão aqui em fases posteriores).
+- `ensure_indexes(db)` — idempotency_key UNIQUE, status+next_retry_at,
+  source_snapshot_id+document_type, mantenedora_id, requested_at desc.
+
+#### `services/render_worker.py` (single-process loop)
+- `run_worker_loop(db, stop_event)` — task asyncio iniciada no startup do FastAPI
+  (`server.py`), poll a cada 5s. Pode ser desabilitado via env
+  `DISABLE_RENDER_WORKER=true` (útil em testes).
+- `_claim_next_job(db)` — atomic `find_one_and_update` (status pending +
+  next_retry_at <= now), ordenando por requested_at ASC (FIFO).
+- Handler ausente → `failed` IMEDIATO sem retry (`NO_HANDLER_REGISTERED`).
+- Handler levanta exceção → `retry_count++` com `next_retry_at` agendado;
+  após `MAX_RETRIES` → `failed` permanente.
+- Sucesso → `completed` com `generated_file_id`, `pdf_hash_sha256`,
+  `duration_ms` no audit_trail.
+- Shutdown limpo via `stop_event` no `@app.on_event("shutdown")`.
+
+#### Router `routers/render_jobs.py`
+- `POST /api/render-jobs` — cria job (idempotente). Resposta:
+  `{id, status, idempotent_hit, handler_registered, job}`. Header
+  `force_reissue:true` no payload marca o anterior como `superseded` (se ainda
+  pending/processing) e cria novo job com idempotency_key sufixada `#rN`.
+- `GET /api/render-jobs/{id}` — status + audit_trail completo.
+- `GET /api/render-jobs?source_snapshot_id&document_type&status&page&page_size` —
+  lista paginada (max 100/page) ordenada por requested_at desc.
+- `POST /api/render-jobs/{id}/retry` — admin+ força retry de job `failed`
+  (zera retry_count, retorna a `pending`). HTTP 409 se job já `completed`
+  (use `force_reissue` em POST) ou `processing`.
+
+#### Schema `db.document_render_jobs` (V1 mínimo)
+```
+{
+  id, idempotency_key (UNIQUE), document_type, source_snapshot_id,
+  source_collection, template_version, render_engine_version,
+  render_options, payload_hash,
+  status: pending|processing|completed|failed|superseded,
+  retry_count, max_retries=3, next_retry_at,
+  generated_file_id, generated_file_size_bytes, pdf_hash_sha256,
+  generated_at, started_at, completed_at, failed_at, error_message,
+  requested_by_user_id, requested_at, request_ip, request_user_agent,
+  mantenedora_id, school_id,
+  audit_trail: [{action, at, ...}]
+}
+```
+
+#### Tests
+- `tests/test_render_jobs.py` (10 unit) — idempotency_key determinístico,
+  tabela de backoff conforme contrato, sucesso, retry+sucesso, failed
+  permanente após MAX_RETRIES, NO_HANDLER_REGISTERED, fila vazia,
+  jobs com retry futuro são pulados, FIFO por requested_at.
+- `tests/test_render_jobs_e2e_http.py` (9 E2E HTTP) — create pending,
+  idempotente, get status, list paginado, 422 INVALID_DOCUMENT_TYPE,
+  force_reissue cria novo, retry de failed, 404 desconhecido, 401/403 sem auth.
+- **126/126 pytests verdes** na suite consolidada (render + closure + lens
+  + dep_completions + isolation P0 + diary phase 2). Zero regressões.
+
+#### Backlog explícito do owner (NÃO tocar nesta V1)
+- ❌ Worker distribuído / Kafka / RabbitMQ / SQS
+- ❌ Pipeline paralelo, prioridade dinâmica, dead-letter queue sofisticada
+- ❌ Cache multicamada de PDF
+- ❌ Endpoints `/file` (download) e `/public/render-jobs/{token}/file` —
+  reservados para fase do Boletim/PDF (handlers ainda não existem)
+- ❌ Observabilidade dedicada do canal `render_jobs` — backlog
+
+#### Next-up (mantém ordem do owner)
+1. **Boletim Online** — consome `compute_composite_closure(...)` direto,
+   sem PDF. Alto valor percebido com pouco código.
+2. **PDF institucional** — registra handler `bulletin` em `register_render_handler`,
+   integra com snapshot + verifiable_docs (QR/hash/assinatura).
+3. **Histórico Escolar** — só após boletim estabilizar.
+
+
+
 ### Fase 3 — Fechamento Temporal Composto (Passo 3) **[Fev/2026]**
 
 Núcleo do fechamento pedagógico: aluno movimentado tem fechamento **composto**

@@ -42,7 +42,9 @@ from routers.diary_dashboard import create_diary_dashboard_router
 from routers.diary import setup_diary_router
 from routers.academic_events import setup_academic_events_router
 from routers.closure import setup_closure_router
+from routers.render_jobs import setup_render_jobs_router
 from utils.academic_event_lens import ensure_indexes as _ensure_event_indexes
+from utils.render_jobs import ensure_indexes as _ensure_render_indexes
 from routers.dependency_completions import (
     setup_dependency_completions_router,
     setup_public_verification_router,
@@ -155,6 +157,11 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Render worker (Passo 4) — single-process background task.
+import asyncio
+_render_worker_task: asyncio.Task | None = None
+_render_worker_stop: asyncio.Event | None = None
+
 @app.on_event("startup")
 async def create_indexes():
     """Startup: índices, serviços externos, multi-tenant bootstrap, self-heal e seeds.
@@ -187,6 +194,19 @@ async def create_indexes():
         await _ensure_completions_indexes(db)
         # Fase 3 — índices de academic_events (idempotente)
         await _ensure_event_indexes(db)
+        # Passo 4 — índices de document_render_jobs (idempotente)
+        await _ensure_render_indexes(db)
+
+        # Passo 4 — worker de render jobs (in-process, single-loop)
+        if os.environ.get("DISABLE_RENDER_WORKER", "").lower() not in {"1", "true", "yes"}:
+            from services.render_worker import run_worker_loop
+            import asyncio as _asyncio
+            global _render_worker_task, _render_worker_stop
+            _render_worker_stop = _asyncio.Event()
+            _render_worker_task = _asyncio.create_task(
+                run_worker_loop(db, stop_event=_render_worker_stop)
+            )
+            logger.info("[startup] render worker task scheduled")
 
     except Exception as e:
         logger.error(f"Erro no startup: {e}")
@@ -326,6 +346,7 @@ public_verify_router = setup_public_verification_router(db)
 admin_completions_router = setup_admin_completions_backfill_router(db)
 academic_events_router = setup_academic_events_router(db, audit_service=audit_service)
 closure_router = setup_closure_router(db)
+render_jobs_router = setup_render_jobs_router(db, audit_service=audit_service)
 aee_router = setup_aee_router(db, audit_service)
 auth_router = setup_auth_router(db, audit_service)
 
@@ -391,6 +412,7 @@ app.include_router(public_verify_router, prefix="/api")
 app.include_router(admin_completions_router, prefix="/api")
 app.include_router(academic_events_router, prefix="/api")
 app.include_router(closure_router, prefix="/api")
+app.include_router(render_jobs_router, prefix="/api")
 app.include_router(aee_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(create_mantenedoras_router(db))
@@ -676,6 +698,14 @@ app.add_middleware(
 @app.on_event("shutdown")
 async def shutdown_db_client():
     """Fecha conexão com MongoDB ao desligar"""
+    # Para o render worker antes de fechar a conexão.
+    try:
+        if _render_worker_stop is not None:
+            _render_worker_stop.set()
+        if _render_worker_task is not None:
+            await asyncio.wait_for(_render_worker_task, timeout=10)
+    except Exception as e:
+        logger.warning(f"render worker shutdown: {e}")
     client.close()
     logger.info("MongoDB connection closed")
 
