@@ -97,3 +97,49 @@ class TestMetricChannel:
         assert h1 == h2
         assert h1 != h3
         assert len(h1) == 8
+
+
+class TestRecordDiaryLoad:
+    """Helper canônico do contrato Diary V1."""
+
+    def setup_method(self):
+        from utils.observability import diary_metrics
+        diary_metrics.reset_for_tests()
+
+    def test_helper_padroniza_counters_e_labels(self):
+        from utils.observability import record_diary_load, diary_metrics
+        record_diary_load(
+            duration_ms=42.0, tenant_id="T1",
+            regular_count=25, dependency_count=2,
+            cache_hit=False, class_id="cl-1", course_id="co-1",
+        )
+        record_diary_load(
+            duration_ms=8.0, tenant_id="T1",
+            regular_count=18, dependency_count=0,
+            cache_hit=True, class_id="cl-2", course_id="co-1",
+        )
+        snap = diary_metrics.snapshot()
+        assert snap["channel"] == "diary"
+        assert snap["requests_total"] == 2
+        # Counters acumulados
+        assert snap["counters"]["regular_total"] == 43
+        assert snap["counters"]["dependency_total"] == 2
+        assert snap["counters"]["items_total"] == 45
+        # Labels — cache_hit, class_id, course_id
+        cache = {x["value"]: x["count"] for x in snap["labels"]["cache_hit"]}
+        assert cache["true"] == 1
+        assert cache["false"] == 1
+        classes = {x["value"]: x["count"] for x in snap["labels"]["class_id"]}
+        assert classes["cl-1"] == 1
+        assert classes["cl-2"] == 1
+
+    def test_helper_registra_erros(self):
+        from utils.observability import record_diary_load, diary_metrics
+        record_diary_load(
+            duration_ms=500, tenant_id="T1",
+            regular_count=0, dependency_count=0,
+            is_error=True,
+        )
+        snap = diary_metrics.snapshot()
+        assert snap["errors"] == 1
+        assert snap["requests_total"] == 1

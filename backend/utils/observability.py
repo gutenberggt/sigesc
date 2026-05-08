@@ -221,3 +221,42 @@ diary_metrics = MetricChannel(
     "diary",
     latency_buckets_ms=[5, 10, 25, 50, 100, 250, 500, 1000, 2500],
 )
+
+
+def record_diary_load(
+    *,
+    duration_ms: float,
+    tenant_id: Optional[str],
+    regular_count: int,
+    dependency_count: int,
+    cache_hit: bool = False,
+    is_error: bool = False,
+    is_rate_limited: bool = False,
+    class_id: Optional[str] = None,
+    course_id: Optional[str] = None,
+) -> None:
+    """Helper canônico para instrumentar carregamento do Diário (Fase 2).
+
+    Padroniza a estrutura registrada para que `GET /api/admin/observability/diary`
+    sempre tenha `counters.regular_total`, `counters.dependency_total`, labels
+    `cache_hit`/`class_id`/`course_id` consistentes.
+
+    NÃO chame `diary_metrics.record` diretamente — sempre passe por aqui.
+    Ver `/app/docs/DIARY_API_CONTRACT.md` (item 9).
+    """
+    diary_metrics.record(
+        duration_ms=duration_ms,
+        tenant_id=tenant_id,
+        labels={
+            "cache_hit": cache_hit,
+            "class_id": class_id,
+            "course_id": course_id,
+        },
+        bucket_counters={
+            "regular_total": regular_count,
+            "dependency_total": dependency_count,
+            "items_total": regular_count + dependency_count,
+        },
+        is_error=is_error,
+        is_rate_limited=is_rate_limited,
+    )

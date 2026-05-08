@@ -122,6 +122,10 @@ DEPENDENCY_VIEW_ROLES   = MANAGE | {"coordenador", "apoio_pedagogico", "professo
 ## 6. Roadmap
 
 ### Fase 2 — Diário (P1)
+
+> 🔒 **Contrato congelado**: `/app/docs/DIARY_API_CONTRACT.md` (`contract_version: 1`).
+> Antes de codar, ler integralmente. Frontend e backend devem aderir.
+
 - Aluno com dep aparece **apenas** no diário do componente vinculado.
 - Sufixo `(Dependência)` no nome.
 - Listagem visualmente separada (preferencialmente no final).
