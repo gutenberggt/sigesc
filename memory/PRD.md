@@ -51,6 +51,65 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 - **Tests**: 7 pytests cobrindo permissões, limite, duplicidade, summary, modos não habilitados.
 - **Roadmap**: Fase 2 = diário; Fase 3 = boletim online + PDF + ficha; Fase 4 = fechamento anual + histórico.
 
+### Dependência de Estudos — Fase 2 (Diário Escolar) **[Fev/2026]**
+
+**Contrato CONGELADO em `/app/docs/DIARY_API_CONTRACT.md` v1** (atualizado com 5 novas seções:
+divisor fora do array, baseline comparison, anti-spoof, filtro auto de inativas, dep_ratio).
+
+- **Endpoint canônico**: `GET /api/diary/class/{class_id}/course/{course_id}?academic_year=YYYY` retorna
+  `{contract_version:1, items:[...], meta:{regular_count, dependency_count, has_dependencies,
+  dependency_ratio_pct, total, load_duration_ms}, warnings?:[...]}`. Sem item `is_divider` fake no
+  array — o divisor é decisão do frontend a partir de `meta.has_dependencies` + flag `is_dependency`
+  no primeiro item da seção.
+- **Loader central** `/app/backend/utils/diary_loader.py`:
+  - **Anti-N+1**: 3 queries Mongo (enrollments + student_dependencies + students). Validado em pytest.
+  - Ordenação `db.students.find().collation({locale:'pt', strength:1})` server-side + chave de fallback
+    em Python equivalente a `localeCompare('pt-BR')`.
+  - Anti-duplicidade: aluno com enrollment ativo NÃO aparece como dep, mesmo com `student_dependencies`
+    ativo no mesmo (turma, componente).
+  - Fonte da verdade: `student_dependencies.status='active'`. Backend NUNCA usa `student.dependency_mode`.
+  - `record_diary_load(...)` instrumenta cada carga com `dependency_ratio_pct`, `excess_dep`,
+    `regular_total`, `dependency_total`, latency.
+  - Warnings emitidos no payload: `EXCESS_DEPENDENCY_LOAD` (>30 deps) e `DEP_GREATER_THAN_REGULAR`.
+- **Anti-spoof** `/app/backend/utils/dependency_validator.py`: toda escrita de `attendance` ou `grade`
+  com `dependency_id` passa por `validate_dependency_link()` que valida 5 invariantes
+  (existence, status=active, student match, class match, course match, tenant match) → 422 com
+  `detail.code` em `DEPENDENCY_COHERENCE_{NOT_FOUND,INACTIVE,STUDENT_MISMATCH,CLASS_MISMATCH,
+  COURSE_MISMATCH,TENANT_MISMATCH}`. Plugado em `POST /api/grades`, `POST /api/grades/batch`,
+  `POST /api/attendance`.
+- **Modelos atualizados**: `GradeBase` e `AttendanceRecord` ganharam `dependency_id: Optional[str] = None`.
+  Persistido em `db.grades` e `db.attendance.records[]`.
+- **Endpoints existentes integrados**: `GET /api/grades/by-class/{cid}/{coid}` e
+  `GET /api/attendance/by-class/{cid}/{date}` agora injetam alunos em dep ATIVA ao final, marcados
+  com `student.is_dependency=true`, `student.dependency_id`, `student.dependency_type`,
+  `student.origin_academic_year`, `student.display_label='Dependência'`. UI existente preservada.
+- **Frontend** (badge âmbar + divisor visual, sem decisão pedagógica):
+  - `GradesTable.jsx` e `LancamentoTab.jsx` renderizam `<tr data-testid="dependency-divider-row">`
+    antes do primeiro item com `is_dependency=true` e `<span data-testid="dependency-badge-{id}">
+    Dependência</span>` ao lado do nome do aluno.
+  - `Grades.js` e `Attendance.js` enviam `dependency_id` no save quando aluno é dep.
+- **Baseline anti-regressão** `/app/backend/scripts/compare_diary_baseline.py`:
+  - `--record` grava `/app/baselines/diary_baseline.json` com payload size, p95/p99 latency, queries.
+  - `--compare` compara contra baseline com threshold (default 1.5x). Exit 1 em regressão crítica.
+  - Baseline atual: 3 queries, 3678 bytes, p95=2.18ms, 10 items.
+- **Snapshot observability** (`GET /api/admin/observability/diary`): super_admin only, agora inclui
+  `avg_dependency_ratio_pct` e `excess_dep_loads` derivados dos buckets.
+- **Telemetria**: canal `diary` com `record_diary_load` registra cada carga (regular, dep, ratio,
+  latency, warnings) em sliding window de 15min.
+- **Fixture E2E** `fixture_dependency_diary_v1` (idempotente):
+  10 alunos / 4 deps ativas / 1 cancelada / 1 concluída / 2 componentes (Mat + PT).
+- **Tests**:
+  - `/app/backend/tests/test_diary_phase2.py` — 19 cenários (14 do contrato + 5 de anti-spoof + meta
+    + ordering + anti-N+1 + warnings + label imutável). 100% verde.
+  - Suite consolidada: 71/71 pytests passando (Fase 1 + Pré-Fase 2 + Fase 2 + observability +
+    autocomplete + dependencies).
+  - Iteration 71 (testing_agent_v3_fork): backend + frontend E2E HTTP no preview URL — 9/9 verdes,
+    zero issues.
+- **NÃO tocado nesta fase** (cf. exigência §10 do owner): fechamento anual, recuperação, conselho de
+  classe, histórico escolar, boletim final/PDF — preservados para Fases 3 e 4.
+
+
+
 ### Arquitetura de Busca (Autocomplete server-side) **[Fev/2026]**
 
 **Diretriz arquitetural OBRIGATÓRIA — ver `/app/docs/SEARCH_ARCHITECTURE.md`**
