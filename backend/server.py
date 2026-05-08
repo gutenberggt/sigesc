@@ -43,6 +43,7 @@ from routers.diary import setup_diary_router
 from routers.academic_events import setup_academic_events_router
 from routers.closure import setup_closure_router
 from routers.render_jobs import setup_render_jobs_router
+from routers.bulletins import setup_bulletins_router
 from utils.academic_event_lens import ensure_indexes as _ensure_event_indexes
 from utils.render_jobs import ensure_indexes as _ensure_render_indexes
 from routers.dependency_completions import (
@@ -347,6 +348,7 @@ admin_completions_router = setup_admin_completions_backfill_router(db)
 academic_events_router = setup_academic_events_router(db, audit_service=audit_service)
 closure_router = setup_closure_router(db)
 render_jobs_router = setup_render_jobs_router(db, audit_service=audit_service)
+bulletins_router = setup_bulletins_router(db)
 aee_router = setup_aee_router(db, audit_service)
 auth_router = setup_auth_router(db, audit_service)
 
@@ -413,6 +415,7 @@ app.include_router(admin_completions_router, prefix="/api")
 app.include_router(academic_events_router, prefix="/api")
 app.include_router(closure_router, prefix="/api")
 app.include_router(render_jobs_router, prefix="/api")
+app.include_router(bulletins_router, prefix="/api")
 app.include_router(aee_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(create_mantenedoras_router(db))

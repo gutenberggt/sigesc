@@ -33,6 +33,7 @@ const DocumentValidator = lazy(() => import('@/pages/DocumentValidator'));
 const ContentReview = lazy(() => import('@/pages/ContentReview'));
 const TextImprovement = lazy(() => import('@/pages/TextImprovement'));
 const SchoolDocuments = lazy(() => import('@/pages/SchoolDocuments'));
+const BulletinViewer = lazy(() => import('@/pages/BulletinViewer'));
 const MonthlyReports = lazy(() => import('@/pages/MonthlyReports'));
 const TenantAdmin = lazy(() => import('@/pages/TenantAdmin'));
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -615,6 +616,16 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'secretario', 'auxiliar_secretaria', 'diretor', 'coordenador']}>
                 <DocumentValidator />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Boletim Online MVP — Passo 5 Fev/2026 (read-only puro) */}
+          <Route
+            path="/admin/bulletins"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin', 'admin', 'admin_teste', 'gerente', 'secretario', 'diretor', 'coordenador', 'apoio_pedagogico', 'professor', 'semed', 'semed1', 'semed2', 'semed3']}>
+                <BulletinViewer />
               </ProtectedRoute>
             }
           />

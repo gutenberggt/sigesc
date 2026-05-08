@@ -32,6 +32,97 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Passo 5 — Boletim Online MVP **[Fev/2026]**
+
+Read-model pedagógico do boletim — escopo MÍNIMO autorizado pelo owner:
+"validar modelo pedagógico antes de transformar em documento oficial".
+
+#### `utils/bulletin_builder.py` (lógica pura)
+- `build_student_bulletin(db, student_id, academic_year, mantenedora_id)`
+  → consome `compute_composite_closure(...)` (NUNCA o diário vivo).
+- Para cada período do closure, lê `db.grades` filtrando por `class_id` (imutável
+  cf. ACADEMIC_EVENT_CONTRACT §6.1) com `with_regular_only` — registros de
+  dependência ficam em lista paralela `dependency_components`.
+- Frequência por segmento via `attendance.records[]` filtrado pela janela do período.
+- Bimestres atribuídos ao período pelo `assign_bimesters_to_periods` (já validado
+  no Passo 3) — frontend destaca quais bimestres "fecham" em cada turma.
+- Read-only puro: NÃO persiste nada, NÃO calcula média final cross-period
+  (responsabilidade do Histórico Escolar Fase 4).
+
+#### Router `routers/bulletins.py`
+- **Único endpoint canônico**: `GET /api/students/{student_id}/bulletin?academic_year=YYYY`
+- READ-ONLY ABSOLUTO — POST/PUT/DELETE não definidos (405).
+- Permissões: super_admin, admin*, gerente, secretario, diretor, coordenador,
+  apoio_pedagogico, professor, semed*. Aluno só vê o próprio boletim;
+  responsável só vê alunos vinculados.
+- Tenant-scoped via `apply_tenant_filter`.
+
+#### Shape canônico do payload
+```json
+{
+  "bulletin_version": "1",
+  "student": {id, full_name, registration_number, dependency_mode},
+  "academic_year": YYYY,
+  "primary_school": {id, name},
+  "primary_class": {id, name, grade_level, education_level},
+  "is_composite": true|false,
+  "composite_segments": [
+    {
+      "period_index": N,
+      "class": {...}, "school": {...},
+      "period_start", "period_end",
+      "source": "origin"|"destination"|"sole",
+      "governing_event_id", "governing_event_type", "governing_effective_date",
+      "bimesters_owned": [1,2,...],
+      "components": [{
+        "course_id", "course_name", "atendimento_programa", "optativo",
+        "is_dependency": false,
+        "bimesters_owned_by_this_period": [1,2,...],
+        "grades": {b1, b2, b3, b4, rec_s1, rec_s2, recovery, final_average, status},
+        "absences_in_period": N
+      }],
+      "attendance_summary": {total_records, present, absent, frequencia_pct, absences_by_course}
+    }
+  ],
+  "dependency_components": [...],
+  "warnings": [...]
+}
+```
+
+#### Frontend `pages/BulletinViewer.jsx` em `/admin/bulletins`
+- READ-ONLY puro: sem botões de edição, sem PDF, sem print, sem download,
+  sem assinatura, sem QR, sem hash visível.
+- Busca de aluno via `useStudentSearch` (autocomplete server-side existente).
+- Seletor de ano letivo.
+- Cabeçalho: nome, matrícula, escola/turma vigente, badge `Composto/Simples`,
+  modo de dependência (se aplicável).
+- Por segmento: nome da turma, escola, intervalo de datas, source badge
+  (origem/destino/única), tipo de evento, bimestres "donos", tabela de
+  componentes com B1..B4 destacados quando o bimestre é "fechado por esta turma"
+  (cinza claro caso contrário), recuperações, média, faltas e resumo de frequência.
+- Seção paralela de componentes em dependência (faixa âmbar) — não contamina regular.
+- Acessível para super_admin, admin*, gerente, secretario, diretor, coordenador,
+  apoio_pedagogico, professor, semed*.
+
+#### Backlog explícito (NÃO implementado conforme orientação do owner)
+- ❌ PDF, HTML institucional, QR, hash visível, assinatura, snapshot de boletim
+- ❌ render_jobs (camada Fase 6)
+- ❌ CSS print (UX ainda não validada — adiar)
+- ❌ Gráficos, analytics, comparativos, badges excessivos, timeline, IA, exportação
+- ❌ Edição/mutação/ações administrativas
+- ❌ Cache `composite_periods_summary` (otimização adiada — owner classificou "antes da dor")
+
+#### Tests
+- `tests/test_bulletin_builder.py` (7 unit) — segmento sole, transferência com
+  notas filtradas por class_id, atribuição de bimestres, dependência paralela,
+  aluno desconhecido, frequência ignorando dependency_id, shape canônico.
+- `tests/test_bulletin_e2e_http.py` (6 E2E HTTP) — shape canônico, 404, 401/403,
+  422 ano fora do range, campos obrigatórios em segmentos, POST não permitido (405).
+- **139/139 pytests verdes** na suite consolidada (bulletin + render_jobs +
+  closure + lens + dep_completions + isolation P0 + diary phase 2). Zero regressões.
+
+
+
 ### Passo 4 — Document Render Jobs (escopo mínimo) **[Fev/2026]**
 
 Fila de geração de documentos PDF com persistência, idempotência e retry —
