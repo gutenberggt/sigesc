@@ -32,6 +32,61 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Fase 3 — Fechamento Temporal Composto (Passo 3) **[Fev/2026]**
+
+Núcleo do fechamento pedagógico: aluno movimentado tem fechamento **composto**
+— sequência de janelas onde cada turma é dona apenas do seu intervalo.
+
+#### `utils/temporal_closure.py` (lógica pura, read-model)
+- `compute_temporal_periods(db, student_id, academic_year, mantenedora_id)` →
+  lista cronológica e contígua de períodos `{period_index, class_id, course_id,
+  school_id, period_start, period_end, source: origin|destination|sole,
+  governing_event_id, governing_event_type, governing_effective_date}`.
+- Algoritmo: breakpoints = `{year_start, *each effective_date, year_end+1}`;
+  para cada segmento, governante via `pick_governing_event` da lente temporal
+  (precedência §15: reclassificacao > progressao_parcial > remanejamento > transfer).
+- Funde períodos consecutivos com mesma turma + mesmo evento (idempotência visual).
+- `compute_class_window_for_student(...)` retorna envelope `{envelope_start,
+  envelope_end, segments}` ou `None` se a turma nunca foi dona do aluno.
+- `assign_bimesters_to_periods(bimester_calendar, periods)` atribui cada
+  bimestre ao período cujo intervalo contém a DATA FINAL do bimestre
+  (regra de "fechamento" semântica, não proporcional).
+- `compute_composite_closure(...)` agrega tudo em shape canônico
+  `{closure_version: "1", periods, bimesters, is_composite}` para Boletim
+  e Histórico futuros consumirem.
+
+#### Router `routers/closure.py` (somente leitura V1)
+- `GET /api/closure/student/{sid}/composite?academic_year=Y` — fechamento completo.
+- `GET /api/closure/student/{sid}/window?academic_year=Y&class_id=C` — janela
+  de uma turma; HTTP 404 `NO_WINDOW_FOR_CLASS` se nunca foi dona.
+- `GET /api/closure/class/{cid}/students?academic_year=Y` — alunos com janela
+  na turma (origem ou destino), unindo enrollments + academic_events.
+- `GET /api/closure/student/{sid}/periods?academic_year=Y` — endpoint enxuto
+  só com a lista de períodos.
+- Permissões: super_admin, admin, gerente, secretario, diretor, coordenador,
+  apoio_pedagogico, professor, semed*. Tenant-scoped via `apply_tenant_filter`.
+
+#### Invariantes obeídos
+- Closure é read-model **derivado** — nunca persiste janelas em coleção própria.
+- Eventos `pending` ou `superseded` NUNCA contam como governantes.
+- Precedência §15 idêntica à `resolve_student_ownership` (single source of truth).
+- Bimestres órfãos (data fora de qualquer período) recebem `period_index=None`
+  sem quebrar o payload — caso patológico legítimo (aluno saiu antes).
+
+#### Contrato `ACADEMIC_EVENT_CONTRACT.md` §21 (NOVO)
+Documenta princípio, algoritmo, atribuição de bimestres, endpoints e invariantes.
+
+#### Tests
+- `tests/test_temporal_closure.py` (11 unit) — sole, transfer simples,
+  pendente/superseded ignorados, múltiplos eventos, precedência, atribuição
+  de bimestres, envelope, órfão, shape canônico.
+- `tests/test_closure_e2e_http.py` (8 E2E HTTP) — todos os endpoints +
+  401 sem auth + 404 aluno desconhecido.
+- **107/107 pytests verdes** na suite consolidada (closure + lens + dep_completions
+  + isolation P0 + diary phase 2). Zero regressões.
+
+
+
 ### Dependência de Estudos — Fase 1 **[Fev/2026]**
 
 **Diretriz arquitetural OBRIGATÓRIA — ver `/app/docs/STUDENT_DEPENDENCY.md`**

@@ -606,3 +606,64 @@ Toda supersession DEVE preservar (em `db.academic_events`):
 Esses três campos formam a tripla auditável que responde "quem alterou,
 quando e por quê" em qualquer ponto futuro do tempo. Cobertura via
 `test_supersession_chain_preserved`.
+
+
+---
+
+## 21. Fechamento Temporal Composto (Fev/2026 — Passo 3)
+
+> Implementação canônica em `utils/temporal_closure.py`. Endpoints expostos
+> em `routers/closure.py` (somente leitura nesta V1).
+
+### 21.1 Princípio
+Todo aluno movimentado tem fechamento **composto** — uma sequência de
+janelas (`periods`) onde cada turma é dona apenas do intervalo em que
+o aluno lhe pertenceu segundo a lente temporal (§7).
+
+```
+period = {
+  period_index, class_id, course_id, school_id,
+  period_start, period_end,                 # YYYY-MM-DD inclusive
+  source: "origin" | "destination" | "sole",
+  governing_event_id, governing_event_type,
+  governing_effective_date,
+}
+```
+
+### 21.2 Algoritmo
+1. Coleta TODOS os eventos aprovados, não-superseded do aluno no `academic_year`.
+2. Constrói breakpoints = `{year_start, *each effective_date, year_end+1}`.
+3. Para cada segmento `[seg_start, seg_end]`, escolhe governante via
+   `pick_governing_event(active_events_at_seg_start)`.
+4. Pré-evento → `class_id = origin_class_id` do PRÓXIMO evento futuro;
+   pós-evento → `class_id = destination_class_id` do governante.
+5. Funde segmentos consecutivos com mesma turma + mesmo governante (idempotência visual).
+
+### 21.3 Atribuição de bimestres
+Bimestre B com `[b.start, b.end]` pertence ao período P se P contém `b.end`
+(data de fechamento do bimestre). Bimestres cuja data final cai fora de
+qualquer período do aluno ficam órfãos (`period_index = None` — caso
+patológico, indica aluno saiu antes do fechamento).
+
+### 21.4 Endpoints
+| Endpoint | Retorno |
+|---|---|
+| `GET /api/closure/student/{sid}/composite?academic_year=Y` | `{periods, bimesters, is_composite}` |
+| `GET /api/closure/student/{sid}/window?academic_year=Y&class_id=C` | `{class_id, envelope_start, envelope_end, segments}` ou 404 `NO_WINDOW_FOR_CLASS` |
+| `GET /api/closure/class/{cid}/students?academic_year=Y` | lista de `{student_id, envelope_*, segments}` para alunos com janela na turma |
+| `GET /api/closure/student/{sid}/periods?academic_year=Y` | lista enxuta apenas de períodos |
+
+### 21.5 Invariantes
+- Períodos cobrem `[year_start, year_end]` SEM gaps (a menos que aluno não tenha matrícula nem evento).
+- Eventos `pending` ou `superseded` NUNCA aparecem como governantes.
+- Precedência §15 aplicada idêntica à `resolve_student_ownership`.
+- Closure é **read-model derivado** — nunca persiste janelas. Snapshot
+  documental é responsabilidade do Boletim/Histórico (Fase futura),
+  consumindo este contrato como fonte única.
+
+### 21.6 Cobertura de testes obrigatória
+- `tests/test_temporal_closure.py` (11 unit) cobre: sole, transfer simples,
+  pendente ignorado, supersession ignorada, múltiplos movimentos,
+  precedência, atribuição de bimestres, envelope, órfão, shape canônico.
+- `tests/test_closure_e2e_http.py` (8 E2E) cobre todos os endpoints
+  + autenticação + 404s.
