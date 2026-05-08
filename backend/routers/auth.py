@@ -590,7 +590,7 @@ def setup_router(db, audit_service):
             # URL que o frontend trata
             frontend_url = os.environ.get(
                 'APP_FRONTEND_URL',
-                'https://depend-registry.preview.emergentagent.com'
+                'https://adoring-ganguly-10.preview.emergentagent.com'
             ).rstrip('/')
             confirm_url = f"{frontend_url}/confirm-email-change?token={token}"
 
@@ -797,7 +797,7 @@ def setup_router(db, audit_service):
         from services.email_service import send_email, render_email_change_confirmation
         frontend_url = os.environ.get(
             'APP_FRONTEND_URL',
-            'https://depend-registry.preview.emergentagent.com'
+            'https://adoring-ganguly-10.preview.emergentagent.com'
         ).rstrip('/')
         confirm_url = f"{frontend_url}/confirm-email-change?token={token}"
 

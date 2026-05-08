@@ -495,3 +495,114 @@ Listagens de diário enriquecem cada item com:
 
 Frontend renderiza badges/desabilita inputs apenas com base nesses campos.
 Nunca calcula `effective_date < today` no cliente. Nunca compara datas no JS.
+
+---
+
+## 20. Continuidade Avaliativa Temporal (Fev/2026)
+
+> Regra pátria do domínio acadêmico — ao lado de §16 (Persistência Pedagógica).
+
+1. O aluno movimentado permanece **visível em ambas as estruturas pedagógicas**
+   conforme a lente temporal: nunca some da origem nem aparece como "novo" no destino.
+
+2. A **origem é autora canônica** dos registros anteriores à `effective_date`.
+   Toda autoria docente registrada nesses lançamentos é preservada para sempre
+   (`created_by_user_id` em grades/attendance é imutável após `created_at + 24h`).
+
+3. O **destino é autor canônico** dos registros posteriores à `effective_date`.
+   Mesmo se houver retificação retroativa em registros pré-`effective_date`,
+   a autoria do destino sobre seus próprios registros não é afetada.
+
+4. **Alterações retroativas autorizadas** (em registros pré-`effective_date` realizadas
+   pelo professor de origem) devem propagar para representações herdadas no destino
+   sem alterar autoria histórica. A propagação é **sempre por projeção**, nunca por
+   replicação física (cf. §4.3).
+
+5. O sistema deve preservar para sempre:
+   - **autoria original** (`created_by_user_id`)
+   - **timestamp original** (`created_at`)
+   - **contexto institucional original** (`class_id`, `course_id`, `school_id`,
+     `mantenedora_id` no momento da criação do registro)
+   - **autoria de cada modificação** (audit_trail interno do registro)
+
+6. Recálculo de fechamento, médias ou frequência **NUNCA** pode reescrever esses
+   campos em registros existentes. Recálculo gera novos campos derivados
+   (`computed_*`) ou novas coleções (`bulletin_snapshots`), preservando a
+   integridade dos registros canônicos.
+
+### 20.1 SLA institucional para eventos `pending`
+
+Eventos com `approval_status = "pending"` carregam SLA derivado em endpoints
+de observabilidade e fila operacional:
+
+| sla_days | sla_status | Cor visual recomendada |
+|---|---|---|
+| 0–3  | `healthy` | verde |
+| 4–7  | `warning` | âmbar |
+| > 7  | `critical` | vermelho |
+
+Implementação: `utils/academic_event_sla.py`, `sla_version = "1"`.
+Mudanças nas faixas exigem PR + bump de `sla_version`.
+
+### 20.2 Endpoint operacional `GET /api/academic-events/pending`
+
+Fila visível para diretores/secretaria/SEMED com:
+- Paginação (`page`, `page_size`, máximo 100).
+- Filtros: `mantenedora_id`, `school_id`, `event_type`, `approval_status`
+  (default `pending`), `created_before`, `older_than_days`.
+- Ordenação default: `created_at ASC` (mais antigos primeiro).
+- Resposta inclui `sla_summary: {healthy, warning, critical}` agregado para
+  todos os pendentes do filtro (não da página).
+
+### 20.3 Snapshot `GET /api/admin/observability/academic_events`
+
+Dimensões separadas, sem misturar:
+
+```json
+{
+  "channel": "academic_events",
+  "sla_version": "1",
+  "technical": {
+    "lock_attempts_total": int,
+    "lock_attempts_by_reason_code": {<reason_code>: int}
+  },
+  "operational": {
+    "pending_total": int,
+    "pending_healthy": int,
+    "pending_warning": int,
+    "pending_critical": int,
+    "pending_age_p95_days": int,
+    "supersessions_total": int,
+    "approvals_last_24h": int
+  },
+  "pedagogical": {
+    "events_by_type": {<event_type>: int}
+  },
+  "legal": {
+    "blocked_post_effective_date_attempts": int,
+    "blocked_pre_effective_date_attempts": int,
+    "events_without_rationale": int,
+    "superseded_chain_depth_p95": int
+  }
+}
+```
+
+Frontend (futuro mini-dashboard SEMED): renderiza um painel por dimensão.
+Misturar dimensões num mesmo card é **proibido** — cada dimensão tem público,
+escala temporal e ação operacional diferentes.
+
+### 20.4 Endurecimento jurídico de supersession
+
+Toda supersession DEVE preservar (em `db.academic_events`):
+
+```json
+{
+  "superseded_by_event_id": "<id do novo>",
+  "superseded_at": "ISO timestamp",
+  "superseded_reason": "<rationale ≥ 30 chars do supersede>"
+}
+```
+
+Esses três campos formam a tripla auditável que responde "quem alterou,
+quando e por quê" em qualquer ponto futuro do tempo. Cobertura via
+`test_supersession_chain_preserved`.

@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter, get_mantenedora_scope
+from utils.academic_event_sla import annotate_event_with_sla, compute_sla_status
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +114,8 @@ def setup_academic_events_router(db, audit_service=None):
             "created_at": now,
             "supersedes_event_id": None,
             "superseded_by_event_id": None,
+            "superseded_at": None,
+            "superseded_reason": None,
             "audit_trail": [
                 {"action": "created", "by_user_id": user.get("id"), "at": now,
                  "snapshot_after": {"event_type": payload.event_type,
@@ -123,6 +126,85 @@ def setup_academic_events_router(db, audit_service=None):
         event.pop("_id", None)
         logger.info("[academic-events] criado %s tipo=%s aluno=%s", event["id"], event["event_type"], event["student_id"])
         return {"id": event["id"], "approval_status": event["approval_status"], "event": event}
+
+    # -------------------------------------------------------------------
+    @router.get("/pending")
+    async def list_pending_events(
+        request: Request,
+        page: int = 1,
+        page_size: int = 25,
+        mantenedora_id: Optional[str] = None,
+        school_id: Optional[str] = None,
+        event_type: Optional[str] = None,
+        approval_status: Optional[str] = "pending",
+        created_before: Optional[str] = None,    # ISO YYYY-MM-DD
+        older_than_days: Optional[int] = None,
+    ):
+        """Fila operacional de eventos pendentes — Passo 2.
+
+        Default: lista eventos `pending` ordenados por idade DESC (mais antigos
+        primeiro), com SLA enrichment.
+        """
+        user = await _require_role(request, ROLES_VIEW_EVENT)
+        page = max(1, page)
+        page_size = max(1, min(100, page_size))
+
+        flt: dict = {}
+        if approval_status in {"pending", "approved", "rejected", "superseded"}:
+            flt["approval_status"] = approval_status
+        if mantenedora_id:
+            flt["mantenedora_id"] = mantenedora_id
+        if school_id:
+            flt["$or"] = [{"origin_school_id": school_id}, {"destination_school_id": school_id}]
+        if event_type:
+            flt["event_type"] = event_type
+        if created_before:
+            flt.setdefault("created_at", {})["$lt"] = created_before
+        if older_than_days is not None and older_than_days >= 0:
+            from datetime import datetime, timedelta, timezone
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=older_than_days)).isoformat()
+            flt.setdefault("created_at", {})["$lt"] = cutoff
+
+        # Aplica RLS de tenant (super_admin pode passar mantenedora_id custom)
+        flt = apply_tenant_filter(flt, user, request)
+
+        total = await db.academic_events.count_documents(flt)
+        items = await db.academic_events.find(
+            flt, {"_id": 0, "audit_trail": 0}
+        ).sort("created_at", 1).skip((page - 1) * page_size).limit(page_size).to_list(page_size)
+
+        for it in items:
+            annotate_event_with_sla(it)
+
+        # Resumo por SLA status (apenas dos pendentes do filtro atual, não da página)
+        sla_summary = {"healthy": 0, "warning": 0, "critical": 0}
+        if approval_status == "pending":
+            from datetime import datetime, timezone
+            now_utc = datetime.now(timezone.utc)
+            cursor = db.academic_events.find(
+                flt, {"_id": 0, "created_at": 1}
+            )
+            async for e in cursor:
+                from utils.academic_event_sla import compute_sla_days
+                days = compute_sla_days(e.get("created_at"), now=now_utc)
+                sla_summary[compute_sla_status(days)] += 1
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "has_more": (page * page_size) < total,
+            "sla_summary": sla_summary,
+            "filters": {
+                "mantenedora_id": mantenedora_id,
+                "school_id": school_id,
+                "event_type": event_type,
+                "approval_status": approval_status,
+                "created_before": created_before,
+                "older_than_days": older_than_days,
+            },
+        }
 
     # -------------------------------------------------------------------
     @router.get("/{event_id}", response_model=dict)
@@ -254,6 +336,8 @@ def setup_academic_events_router(db, audit_service=None):
             "created_at": now,
             "supersedes_event_id": old_ev["id"],
             "superseded_by_event_id": None,
+            "superseded_at": None,
+            "superseded_reason": None,
             "audit_trail": [
                 {"action": "created_via_supersession", "by_user_id": user.get("id"), "at": now,
                  "snapshot_before": {"event_id": old_ev["id"],
@@ -266,15 +350,18 @@ def setup_academic_events_router(db, audit_service=None):
         await db.academic_events.insert_one(new_ev)
         new_ev.pop("_id", None)
 
-        # Marca o antigo como superseded
+        # Marca o antigo como superseded — preserva auditoria jurídica
         await db.academic_events.update_one(
             {"id": old_ev["id"]},
             {
                 "$set": {"approval_status": "superseded",
-                         "superseded_by_event_id": new_ev["id"]},
+                         "superseded_by_event_id": new_ev["id"],
+                         "superseded_at": now,
+                         "superseded_reason": payload.rationale},
                 "$push": {"audit_trail": {"action": "superseded",
                                           "by_user_id": user.get("id"), "at": now,
-                                          "by_event_id": new_ev["id"]}},
+                                          "by_event_id": new_ev["id"],
+                                          "reason": payload.rationale}},
             },
         )
         return {"old_event_id": old_ev["id"], "new_event": new_ev}

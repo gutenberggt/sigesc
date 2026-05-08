@@ -13,7 +13,7 @@ load_dotenv("/app/backend/.env")
 
 BACKEND = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://depend-registry.preview.emergentagent.com",
+    "https://adoring-ganguly-10.preview.emergentagent.com",
 ).rstrip("/")
 SUPER_ADMIN = {"email": "gutenberg@sigesc.com", "password": "@Celta2007"}
 SCHOOL_ID = "school_g16_test"

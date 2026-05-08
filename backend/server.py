@@ -360,7 +360,7 @@ student_portal_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 admin_student_users_mod.setup_router(db, audit_service, sandbox_db, **_shared_kwargs)
 
 # Observabilidade (admin) — endpoint super_admin only com audit log
-admin_observability_router = setup_admin_observability_router(audit_service)
+admin_observability_router = setup_admin_observability_router(audit_service, db=db)
 app.include_router(admin_observability_router, prefix="/api")
 
 # --- Incluir TODOS os roteadores na app ---
