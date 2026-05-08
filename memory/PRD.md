@@ -51,6 +51,72 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 - **Tests**: 7 pytests cobrindo permissões, limite, duplicidade, summary, modos não habilitados.
 - **Roadmap**: Fase 2 = diário; Fase 3 = boletim online + PDF + ficha; Fase 4 = fechamento anual + histórico.
 
+### P0 — Blindagem Pedagógica + P1a + P1b + P2 + Contrato Histórico **[Fev/2026]**
+
+Cinco entregas coesas em uma única rodada para fechar a maturidade do subdomínio
+"Dependência" antes da Fase 3.
+
+#### P0 — Dependência NÃO contamina cálculo regular
+- **Helper canônico** `/app/backend/utils/grade_dependency_filters.py`:
+  - `regular_only_filter()` / `regular_only_aggregate_match()` / `with_regular_only()` — filtros Mongo
+  - `is_regular_grade()` / `is_regular_attendance_record()` / `keep_regular_only()` — defesa Python (última barreira)
+  - Docstring crítico explicando POR QUÊ não remover o helper.
+- **Aplicado em** `routers/analytics.py`: 6 pipelines de notas + 3 pipelines attendance (após `$unwind: $records`) protegidos via Mongo match.
+- **Aplicado em** `routers/attendance.py /report/class`: defesa Python no loop de cálculo de %.
+- **3 pytests críticos** (em `test_dependency_isolation_p0.py`):
+  - `test_dependency_grade_not_affect_regular_average`
+  - `test_dependency_attendance_not_affect_regular_frequency`
+  - `test_dependency_student_not_counted_twice_in_reports`
+
+#### P1a — Centralização React `/frontend/src/features/dependency/`
+- `dependency.constants.js` — `DEPENDENCY_STATUS`, `DEPENDENCY_TYPE`, `DEPENDENCY_DISPLAY_LABEL`, `DEPENDENCY_SECTION_TITLE`.
+- `dependency.utils.js` — funções puras: `isDependencyItem`, `getDependencyId`, `splitRegularAndDependency`, `shouldShowDependencyDivider`, `resolveDependencyPayloadField`, `isActiveStatus`, `isDependencyOnly`, `hasParallelDependency`. **Sem state. Sem hooks. Sem context. Sem HOC.**
+- `DependencyBadge.jsx` — componente único do badge âmbar.
+- `DependencyDividerRow.jsx` — componente único do divisor visual em tabelas.
+- `index.js` — API pública. Outros componentes importam APENAS daqui.
+- `GradesTable.jsx` e `LancamentoTab.jsx` refatorados para consumir o feature exclusivamente; JSX inline duplicado removido.
+
+#### P1b — Enums centralizados backend `/app/backend/utils/dependency_enums.py`
+- `DEPENDENCY_STATUS_VALUES = ("active", "completed", "failed", "cancelled")`
+- `DEPENDENCY_TYPE_VALUES = ("none", "with_dependency", "dependency_only")`
+- `Literal` types `DependencyStatus` e `DependencyType` (compatíveis com Pydantic).
+- `normalize_dependency_status()` / `normalize_dependency_type()` aceitam aliases (case-insensitive, `with-dependency`, `withDependency`, `Com_Dependencia`, `ATIVO`, `Concluído`, etc.) → retornam canônico ou `ValueError` ruidoso.
+- `validate_*` exigem valor não-vazio.
+- `is_active_status()` helper defensivo.
+
+#### P2 — Métricas pedagógicas no canal `diary`
+- `record_diary_load()` agora aceita `school_stage` e gera contadores
+  `dependency_by_course__<id>` e `dependency_by_stage__<x>`.
+- `diary_loader` resolve `school_stage` via 1 query opcional (cache leve da turma).
+- `GET /api/admin/observability/diary` separa explicitamente:
+  - `snap.technical` — DevOps/SRE (latency, queries, cache_hit, payload size).
+  - `snap.pedagogical` — `regular_total`, `dependency_total`, `dependency_ratio_pct`,
+    `dependency_by_course`, `dependency_by_school_stage`, `excess_dep_loads`,
+    `avg_dependency_ratio_pct`.
+- Reservados (não implementados): `dependency_approval_rate`, `dependency_dropout_rate` — Fase 4.
+
+#### Contrato `/app/docs/HISTORICO_ESCOLAR_CONTRACT.md` **CONGELADO V1**
+13 seções normativas cobrindo: princípio de "vida acadêmica REAL",
+versionamento (`document_version` + `history_schema_version`), regras imutáveis
+(nunca sobrescrever reprovação, cronologia real, carga horária preservada,
+matriz curricular versionada, snapshots `*_at_issue`), shape canônico v1,
+formato textual obrigatório por linha, regras técnicas de PDF (renderer único,
+pipeline canonical→html→pdf, QR de verificação, metadados embutidos),
+reemissão fiel de históricos antigos, 10 cenários de teste obrigatórios,
+roteiro de implementação Fase 4.
+
+#### Atualização do contrato do Diário
+`/app/docs/DIARY_API_CONTRACT.md` ganhou §27 (Dependência não contamina cálculo regular),
+§28 (Métricas pedagógicas), §29 (Enums centralizados), §30 (Centralização frontend).
+
+#### Tests
+- 111/111 pytests verdes (incluindo 40 do P0 + 19 da Fase 2 + 11 pre-fase + 26 dependencies + 9 observability + 6 autocomplete).
+- Iteration 72 (testing_agent_v3_fork): 98/98 pytests + 4/5 E2E HTTP verdes (1 endpoint `/analytics/general` inexistente, substituído por endpoints válidos `/overview`, `/by-subject`, etc., todos 200). Frontend `/admin/grades` e `/admin/attendance` carregam sem erros bloqueantes. Imports do feature confirmados.
+- Issue minor (excess_dep_loads em `pedagogical`) corrigido pós-iteration 72.
+- Baseline comparison: zero regressão (queries=3, payload=3678 bytes, ratio 1.00x).
+
+
+
 ### Dependência de Estudos — Fase 2 (Diário Escolar) **[Fev/2026]**
 
 **Contrato CONGELADO em `/app/docs/DIARY_API_CONTRACT.md` v1** (atualizado com 5 novas seções:

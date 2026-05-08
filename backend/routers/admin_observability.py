@@ -127,33 +127,35 @@ def setup_admin_observability_router(audit_service: object | None = None) -> API
             snap["avg_dependency_ratio_pct"] = round((ratio_sum / 100.0) / ratio_samples, 2)
         else:
             snap["avg_dependency_ratio_pct"] = None
-        snap["excess_dep_loads"] = counters.get("excess_dep_loads", 0)
 
         # P2 (Fev/2026) — separa métricas técnicas vs pedagógicas.
         # Counters como `dependency_by_course__<id>` e `dependency_by_stage__<x>`
         # vão para o bloco `pedagogical`. O resto fica em `technical`.
-        technical = {}
-        pedagogical = {
+        technical: dict = {}
+        pedagogical: dict = {
             "dependency_by_course": {},
             "dependency_by_school_stage": {},
+            "regular_total": counters.get("regular_total", 0),
+            "dependency_total": counters.get("dependency_total", 0),
+            "excess_dep_loads": counters.get("excess_dep_loads", 0),
+            "avg_dependency_ratio_pct": snap.get("avg_dependency_ratio_pct"),
         }
         for k, v in counters.items():
             if k.startswith("dependency_by_course__"):
                 pedagogical["dependency_by_course"][k.split("__", 1)[1]] = v
             elif k.startswith("dependency_by_stage__"):
                 pedagogical["dependency_by_school_stage"][k.split("__", 1)[1]] = v
-            elif k in {"regular_total", "dependency_total", "items_total",
+            elif k in {"regular_total", "dependency_total", "excess_dep_loads",
                        "dependency_ratio_sum_x100", "dependency_ratio_samples",
-                       "excess_dep_loads"}:
-                # já expostos em `counters` cru — espelha em `pedagogical` quando relevante
-                if k in {"regular_total", "dependency_total", "excess_dep_loads"}:
-                    pedagogical[k] = v
-                else:
-                    technical[k] = v
+                       "items_total"}:
+                # já no bloco pedagogical OU intermediários ocultos
+                continue
             else:
                 technical[k] = v
         snap["technical"] = technical
         snap["pedagogical"] = pedagogical
+        # Compat: mantém `excess_dep_loads` no root para clientes legados (depreciado).
+        snap["excess_dep_loads"] = pedagogical["excess_dep_loads"]
 
         if audit_service is not None:
             try:
