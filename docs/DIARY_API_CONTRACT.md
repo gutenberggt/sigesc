@@ -181,12 +181,14 @@ Um aluno:
 <Badge variant="amber-soft">Dependência</Badge>
 ```
 
-**Proibido**:
+**Constante única**: `DEPENDENCY_DISPLAY_LABEL = "Dependência"` em `/app/backend/utils/diary_constants.py`.
+
+**Proibido** (validado em `validate_dependency_label`):
+- ❌ `"DP"`, `"Dep."`, `"Depend."`, `"Dependente"`, `"Aluno dependência"`, `"(Dep.)"`, `"Em DP"`.
 - ❌ Vermelho agressivo
 - ❌ Ícone de alerta/erro
-- ❌ Texto variante (`"Dep."`, `"Dependente"`, etc.)
 
-> Dependência é **condição pedagógica**, não erro.
+> Dependência é **condição pedagógica**, não erro. Inconsistência de nomenclatura entre diário/boletim/PDF/ficha quebra confiança. **Toda referência usa a constante**, nunca string literal.
 
 ---
 
@@ -422,3 +424,136 @@ Use sempre este helper. Não chame `diary_metrics.record` diretamente — o help
 **Mantido por**: Equipe SIGESC
 **Última atualização**: Fev/2026
 **Próximo bump**: somente quando houver breaking change (`contract_version: 2`).
+
+---
+
+## 17. Ordenação rígida com divisor visual
+
+Backend retorna `items` na ordem **exata**:
+
+1. **Regulares** (sort alfabético `student_name` A-Z).
+2. **Item especial divisor** (renderizado como linha + título):
+   ```json
+   {
+     "is_divider": true,
+     "label": "Dependência de Estudos",
+     "student_id": "__divider_dependency__"
+   }
+   ```
+3. **Dependências** (sort alfabético `student_name` A-Z).
+
+> Misturar regulares e dependências no mesmo sort alfabético — mesmo com badge — confunde o professor. O divisor deixa visualmente óbvio que mudou de contexto.
+
+Frontend deve identificar `is_divider: true` e renderizar separador, não como linha de aluno.
+
+```jsx
+{items.map((item) =>
+  item.is_divider ? (
+    <DividerRow key={item.student_id} label={item.label} />
+  ) : (
+    <StudentRow key={item.student_id} {...item} />
+  )
+)}
+```
+
+Se `dependency_count === 0`, o divisor **NÃO** é incluído no payload.
+
+---
+
+## 18. Limite defensivo — `MAX_DEPENDENCY_STUDENTS_PER_DIARY = 30`
+
+Se um diário receber mais de 30 alunos em dependência ativa:
+
+- Não quebra renderização (todos ainda são retornados).
+- Backend adiciona ao response:
+  ```json
+  {
+    "warnings": [{
+      "code": "EXCESS_DEPENDENCY_LOAD",
+      "count": 47,
+      "threshold": 30,
+      "message": "Volume anômalo de alunos em dependência neste componente."
+    }]
+  }
+  ```
+- Telemetria: `record_diary_load(..., is_error=False)` continua, mas `labels.excess_dep=true`.
+- Log crítico no servidor: `logger.error("[diary] excess dep load class=X course=Y count=N")`.
+- Frontend mostra badge administrativa "Volume anômalo — verifique a secretaria".
+
+> Caso típico: erro operacional (import CSV duplicado, seed errado). Sistema **não esconde** o problema, mas **não quebra**.
+
+---
+
+## 19. Validação automática de plano de execução
+
+Toda query crítica deve passar por `assert_uses_index()` em testes:
+
+```python
+from utils.query_validation import assert_uses_index
+
+plan = await db.student_dependencies.find({
+    "mantenedora_id": tenant, "class_id": cid, "course_id": coid, "status": "active",
+}).explain()
+assert_uses_index(plan, expected_index_name="ix_dep_tenant_class_course_status",
+                  description="diary_load")
+```
+
+### Fail explícito em DEV
+
+Setando env `QUERY_INDEX_GUARD=1`, o backend valida queries críticas no startup e **falha** se cair em `COLLSCAN`. Implementação em `/app/backend/utils/query_validation.py` (`validate_critical_queries`).
+
+> Em produção: opt-in. Em CI/dev: obrigatório.
+
+---
+
+## 20. Fixture E2E congelada — `fixture_dependency_diary_v1`
+
+Dataset fixo para testes de regressão de TODA Fase 2+:
+
+```text
+1 mantenedora
+1 escola
+1 turma "5º ano A" (cl_fix_1)
+2 componentes: Matemática (co_fix_mat), Português (co_fix_pt)
+
+Alunos:
+- 5 regulares (Ana, Bruno, Carlos, Diana, Eva) — enrollment ativo.
+- 2 com dependência (Felipe e Gabriela) — enrollment ativo + 1 dep ativa em Matemática (origem 2025).
+- 1 apenas dependência (Heitor) — sem enrollment regular + 2 deps ativas.
+- 1 dep cancelada (Ivo, dep cancelada).
+- 1 dep concluída (Júlia, dep completed com final_grade=7.5).
+```
+
+Seeder: `/app/backend/scripts/seed_dependency_diary_fixture.py`
+
+Comando:
+```bash
+python -m scripts.seed_dependency_diary_fixture
+```
+
+Idempotente — pode rodar múltiplas vezes. Toda Fase 2+ valida-se contra **este** dataset.
+
+---
+
+## 21. Snapshot de baseline do payload
+
+Antes de qualquer mudança no diário (Fase 2 e além), salvar baseline:
+
+```bash
+# Com a fixture v1 carregada:
+TOKEN=$(...)
+curl -s "$API/api/diary/class/cl_fix_1/course/co_fix_mat?academic_year=2026" \
+  -H "Authorization: Bearer $TOKEN" \
+  | tee /app/baselines/diary_response.json \
+  | gzip -c | wc -c   # tamanho gzip
+wc -c /app/baselines/diary_response.json   # tamanho bruto
+```
+
+Registrar em `/app/baselines/diary_baseline.md`:
+- Tamanho bruto / gzip
+- Tempo médio (10 chamadas)
+- Quantidade de alunos (regulares + deps)
+- Quantidade de componentes consultados
+- p95 / p99 medidos
+
+Servir como referência para detectar **regressão silenciosa** quando a UI começar a renderizar mais elementos.
