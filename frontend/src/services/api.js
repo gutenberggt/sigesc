@@ -264,8 +264,13 @@ export const studentsAPI = {
     return response.data;
   },
   
-  update: async (id, data) => {
-    const response = await axios.put(`${API}/students/${id}`, data);
+  update: async (id, data, opts = {}) => {
+    const headers = {};
+    // [Fev/2026] Confirma cancelamento de dependências ativas ao mudar para 'none'.
+    if (opts.confirmCancelDependencies) {
+      headers['X-Confirm-Cancel-Dependencies'] = 'yes';
+    }
+    const response = await axios.put(`${API}/students/${id}`, data, { headers });
     return response.data;
   },
   

@@ -117,7 +117,7 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
                 action=action, collection="student_dependencies",
                 user=user, request=request,
                 document_id=dep_id,
-                before=before, after=after,
+                old_value=before, new_value=after,
                 description=f"Dependência {dep_id} {action}",
             )
         except Exception as e:

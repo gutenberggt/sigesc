@@ -120,6 +120,16 @@ def setup_router(db, audit_service):
                 detail="Componente curricular não encontrado"
             )
         assert_same_tenant(existing, current_user, request)
+
+        # [Fev/2026] Bloqueia exclusão se houver dependência ativa deste componente.
+        active_deps = await db.student_dependencies.count_documents({
+            "course_id": course_id, "status": "active",
+        })
+        if active_deps > 0:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Não é possível excluir este componente: {active_deps} aluno(s) com dependência de estudos ativa vinculada(s). Cancele/conclua as dependências antes."
+            )
         
         result = await db.courses.delete_one({"id": course_id})
         

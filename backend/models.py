@@ -1146,6 +1146,10 @@ class StudentDependencyBase(BaseModel):
     origin_series: Optional[str] = None  # Série original
     
     status: Literal['active', 'completed', 'failed', 'cancelled'] = 'active'
+    # [Fev/2026] status_reason — motivo da mudança de status. Crítico para casos de
+    # cancelamento, transferência, equivalência, dispensa, decisão judicial, conselho.
+    # Free-text controlado (recomendado prefixar com tag tipo "[transferencia]" no FE).
+    status_reason: Optional[str] = None
     
     # Resultado final (preenchido quando status != active)
     final_grade: Optional[float] = None
@@ -1162,6 +1166,7 @@ class StudentDependencyUpdate(BaseModel):
     class_id: Optional[str] = None
     teacher_id: Optional[str] = None
     status: Optional[Literal['active', 'completed', 'failed', 'cancelled']] = None
+    status_reason: Optional[str] = None
     final_grade: Optional[float] = None
     completed_at: Optional[str] = None
     observations: Optional[str] = None

@@ -183,6 +183,17 @@ def setup_router(db, audit_service, sandbox_db=None):
         # Verifica acesso
         await AuthMiddleware.verify_school_access(request, class_doc['school_id'])
         assert_same_tenant(class_doc, current_user, request)
+
+        # [Fev/2026] Bloqueia exclusão se houver dependência ativa vinculada a esta turma.
+        # Ver /app/docs/STUDENT_DEPENDENCY.md.
+        active_deps = await current_db.student_dependencies.count_documents({
+            "class_id": class_id, "status": "active",
+        })
+        if active_deps > 0:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Não é possível excluir esta turma: {active_deps} aluno(s) com dependência de estudos ativa vinculada(s). Cancele/conclua as dependências antes."
+            )
         
         result = await current_db.classes.delete_one({"id": class_id})
         

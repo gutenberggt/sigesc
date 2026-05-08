@@ -767,6 +767,37 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         
         if not update_data:
             return Student(**student_doc)
+
+        # [Fev/2026] DEPENDÊNCIA DE ESTUDOS — guard
+        # Mudar dependency_mode != 'none' → 'none' com vínculos ativos exige confirmação
+        # explícita (header X-Confirm-Cancel-Dependencies: yes). Ver STUDENT_DEPENDENCY.md.
+        new_dep_mode = update_data.get('dependency_mode')
+        old_dep_mode = student_doc.get('dependency_mode') or 'none'
+        if new_dep_mode is not None and new_dep_mode != old_dep_mode and new_dep_mode == 'none' and old_dep_mode != 'none':
+            active_deps = await current_db.student_dependencies.count_documents({
+                "student_id": student_id, "status": "active",
+            })
+            if active_deps > 0:
+                confirm_header = (request.headers.get('X-Confirm-Cancel-Dependencies') or '').lower()
+                if confirm_header != 'yes':
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail={
+                            "message": f"Aluno possui {active_deps} dependência(s) ativa(s). Cancele as dependências ou confirme para mantê-las desvinculadas (header X-Confirm-Cancel-Dependencies: yes).",
+                            "active_dependencies": active_deps,
+                            "requires_confirmation": True,
+                        }
+                    )
+                # Confirmou — cancela todas as dependências ativas com motivo automático
+                await current_db.student_dependencies.update_many(
+                    {"student_id": student_id, "status": "active"},
+                    {"$set": {
+                        "status": "cancelled",
+                        "status_reason": f"[auto] dependency_mode alterado para 'none' por {current_user.get('email', current_user.get('id'))}",
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_by": current_user.get('id'),
+                    }}
+                )
         
         # Extrai campos auxiliares ANTES de qualquer lógica de negócio
         custom_action_date = update_data.pop('action_date', None)

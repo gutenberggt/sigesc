@@ -95,6 +95,10 @@ DEPENDENCY_VIEW_ROLES   = MANAGE | {"coordenador", "apoio_pedagogico", "professo
 3. **Limite de componentes** lendo da config da mantenedora (`max_componentes_dependencia` / `qtd_componentes_apenas_dependencia`).
 4. **Duplicidade**: não pode haver 2 dependências `active` para o mesmo `(student_id, course_id, origin_academic_year)`. Imposto via índice único parcial.
 5. **Tenant scope**: todas as queries usam `apply_tenant_filter`.
+6. **[Fev/2026] Mudança de `dependency_mode` → `none` com vínculos ativos**: exige confirmação explícita via header `X-Confirm-Cancel-Dependencies: yes`. Sem o header, retorna 409. Com o header, todas as deps `active` são automaticamente marcadas como `cancelled` com `status_reason="[auto] dependency_mode alterado para 'none' por <usuário>"`.
+7. **[Fev/2026] Exclusão de turma com dep ativa**: bloqueada com HTTP 409 — `DELETE /api/classes/{id}` retorna mensagem clara orientando a cancelar/concluir as deps antes.
+8. **[Fev/2026] Exclusão de componente com dep ativa**: bloqueada com HTTP 409 — `DELETE /api/courses/{id}` idem.
+9. **[Fev/2026] `status_reason` (free-text controlado)**: registra motivo da mudança de status. Crítico para casos de cancelamento, transferência, equivalência, dispensa, decisão judicial, conselho de classe. Recomendação: prefixar com tag (`[transferencia]`, `[conselho]`, `[judicial]`, `[auto]`).
 
 ---
 
@@ -122,6 +126,26 @@ DEPENDENCY_VIEW_ROLES   = MANAGE | {"coordenador", "apoio_pedagogico", "professo
 - Sufixo `(Dependência)` no nome.
 - Listagem visualmente separada (preferencialmente no final).
 - Anti-duplicidade: nunca aparecer em outros componentes da turma.
+
+#### Modelagem arquitetural recomendada (Fase 2)
+
+> O diário **NÃO deve** carregar dependências apenas "misturando" dentro da matrícula regular — gera duplicidade estrutural difícil de manter.
+
+Padrão correto:
+
+```text
+regular_students        ← query 1: enrollments.find(...)
++
+dependency_students     ← query 2: student_dependencies.find({class_id, course_id, status:'active'})
+↓
+diary_view_model        ← junção controlada com flag is_dependency
+```
+
+Vantagens:
+- Frequência, notas, fechamento e histórico permanecem sustentáveis.
+- Cálculos regulares não consideram aluno em dep indevidamente.
+- Permite separação visual no diário (regulares no topo, deps no final).
+- Anti-duplicidade é trivial (sets disjuntos por construção).
 
 ### Fase 3 — Boletim Online + PDF + Ficha (P2)
 - Seção "Dependência de Estudos" separada no boletim online.

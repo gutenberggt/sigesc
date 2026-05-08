@@ -220,3 +220,42 @@ async def test_create_valida_modo_not_enabled_na_mantenedora():
     with pytest.raises(HTTPException) as exc:
         await handler(request=MagicMock(), payload=payload)
     assert exc.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_update_aceita_status_reason():
+    """[Fev/2026] status_reason deve ser persistido no update (motivo do cancelamento/conclusão)."""
+    from routers.student_dependencies import setup_student_dependencies_router
+    db = _make_db()
+    db.student_dependencies.find_one = AsyncMock(return_value={"id": "d1", "status": "active"})
+    auth = _make_auth("admin")
+    router = setup_student_dependencies_router(db, auth)
+    handler = _get_handler(router, "PUT", "/{dep_id}")
+
+    from models import StudentDependencyUpdate
+    payload = StudentDependencyUpdate(status="cancelled", status_reason="[transferencia] aluno transferido para outra rede")
+    result = await handler(request=MagicMock(), dep_id="d1", payload=payload)
+    assert "sucesso" in result.get("message", "").lower()
+
+    # Confere que o update_one foi chamado com status_reason
+    call_args = db.student_dependencies.update_one.call_args
+    update_doc = call_args[0][1]["$set"]
+    assert update_doc["status"] == "cancelled"
+    assert "transferencia" in update_doc["status_reason"]
+
+
+@pytest.mark.asyncio
+async def test_summary_zero_quando_nenhuma_dep():
+    from routers.student_dependencies import setup_student_dependencies_router
+    db = _make_db(
+        student={"id": "s1", "dependency_mode": "with_dependency"},
+        mantenedora={"aprovacao_com_dependencia": True, "max_componentes_dependencia": 3},
+        deps=[],
+    )
+    auth = _make_auth("secretario")
+    router = setup_student_dependencies_router(db, auth)
+    handler = _get_handler(router, "GET", "/summary")
+    result = await handler(request=MagicMock(), student_id="s1")
+    assert result["active"] == 0
+    assert result["total"] == 0
+    assert result["limit"] == 3

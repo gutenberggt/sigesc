@@ -80,7 +80,18 @@ export function StudentDependencySection({
 
   const handleModeChange = (e) => {
     if (readOnly) return;
-    onChange?.(e.target.value);
+    const newMode = e.target.value;
+    // [Fev/2026] Guard: alterar para 'none' com vínculos ativos exige confirmação.
+    // Backend também valida (header X-Confirm-Cancel-Dependencies), aqui é UX.
+    const activeCount = summary?.active || 0;
+    if (newMode === 'none' && value !== 'none' && activeCount > 0) {
+      const ok = window.confirm(
+        `Atenção: o aluno possui ${activeCount} dependência(s) ativa(s). ` +
+        `Mudar para "Sem dependência" cancelará automaticamente esses vínculos. Continuar?`
+      );
+      if (!ok) return;
+    }
+    onChange?.(newMode);
   };
 
   const handleDelete = async (depId) => {
