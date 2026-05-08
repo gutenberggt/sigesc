@@ -22,6 +22,28 @@ async def create_all_indexes(db):
     )
     await db.students.create_index([("status", 1), ("school_id", 1)])
 
+    # Student Dependencies (Dependência de Estudos) — Fev/2026
+    # Índices para listagens por aluno, turma+componente (diário) e duplicidade.
+    await db.student_dependencies.create_index("id", unique=True)
+    await db.student_dependencies.create_index(
+        [("student_id", 1), ("status", 1)], name="ix_dep_student_status"
+    )
+    await db.student_dependencies.create_index(
+        [("class_id", 1), ("course_id", 1), ("status", 1)], name="ix_dep_class_course"
+    )
+    await db.student_dependencies.create_index(
+        [("mantenedora_id", 1), ("school_id", 1), ("academic_year", 1)],
+        name="ix_dep_tenant_school_year",
+    )
+    # Duplicidade lógica: evita 2 dependências ativas do mesmo componente×ano de origem.
+    # (Implementação como índice parcial é nativa do Mongo.)
+    await db.student_dependencies.create_index(
+        [("student_id", 1), ("course_id", 1), ("origin_academic_year", 1)],
+        name="uniq_dep_student_course_origin_active",
+        unique=True,
+        partialFilterExpression={"status": "active"},
+    )
+
     # Grades (notas) — muito consultada
     await db.grades.create_index("id", unique=True)
     await db.grades.create_index([("student_id", 1), ("academic_year", 1)])

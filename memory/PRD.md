@@ -32,6 +32,25 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Dependência de Estudos — Fase 1 **[Fev/2026]**
+
+**Diretriz arquitetural OBRIGATÓRIA — ver `/app/docs/STUDENT_DEPENDENCY.md`**
+
+- **Princípio**: dependência é **entidade acadêmica própria** (NÃO matrícula simplificada). Modelagem como enum `dependency_mode` (não 2 booleanos) elimina estados inválidos.
+- **Modelo**: `Student.dependency_mode: Literal['none', 'with_dependency', 'dependency_only']` + coleção `student_dependencies` com `origin_academic_year` (ano de origem da reprovação) + status (`active|completed|failed|cancelled`).
+- **Endpoints**: `/api/student-dependencies` (POST/PUT/DELETE), `/student/{id}` (lista), `/student/{id}/summary` (contadores), `/class/{cid}/course/{coid}` (alunos em dep para diário Fase 2).
+- **Validações**:
+  - Aluno deve ter `dependency_mode != 'none'`.
+  - Mantenedora deve permitir o modo (`aprovacao_com_dependencia` ou `cursar_apenas_dependencia`).
+  - Limite de componentes lendo da mantenedora.
+  - Duplicidade impedida por índice único parcial `(student_id, course_id, origin_academic_year)` quando `status=active`.
+  - Tenant scope obrigatório.
+- **Permissões**: manage = `super_admin, admin, admin_teste, gerente, secretario, diretor`. View = manage + coordenador, apoio_pedagogico, professor, semed*.
+- **Frontend**: `<StudentDependencySection />` em `/app/frontend/src/components/StudentDependencySection.jsx`. Plugado na aba "Info. Complementares" do StudentsComplete. Renderiza radio dinâmico (opções dependem das flags da mantenedora) + card resumido + lista + modal de vincular componente (turma + curso + ano de origem).
+- **Auditoria**: `audit_service.log` em create/update/delete com `collection='student_dependencies'`.
+- **Tests**: 7 pytests cobrindo permissões, limite, duplicidade, summary, modos não habilitados.
+- **Roadmap**: Fase 2 = diário; Fase 3 = boletim online + PDF + ficha; Fase 4 = fechamento anual + histórico.
+
 ### Arquitetura de Busca (Autocomplete server-side) **[Fev/2026]**
 
 **Diretriz arquitetural OBRIGATÓRIA — ver `/app/docs/SEARCH_ARCHITECTURE.md`**

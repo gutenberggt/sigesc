@@ -1153,7 +1153,6 @@ export const medicalCertificatesAPI = {
     const response = await axios.post(`${API}/medical-certificates`, data);
     return response.data;
   },
-  
   // Listar atestados de um aluno
   getByStudent: async (studentId) => {
     const response = await axios.get(`${API}/medical-certificates/student/${studentId}`);
@@ -1388,4 +1387,21 @@ export const curriculumAPI = {
   deleteAdaptation: async (id) => (await axios.delete(`${API}/curriculum/adaptations/${id}`)).data,
   runMigration: async () => (await axios.post(`${API}/curriculum/v2/migrate`)).data,
   coverage: async (params = {}) => (await axios.get(`${API}/curriculum/coverage`, { params })).data,
+};
+
+// ============= STUDENT DEPENDENCIES (Dependência de Estudos) =============
+// Fase 1 [Fev/2026] — ver /app/docs/STUDENT_DEPENDENCY.md
+export const studentDependenciesAPI = {
+  listByStudent: async (studentId) =>
+    (await axios.get(`${API}/student-dependencies/student/${studentId}`)).data,
+  summary: async (studentId) =>
+    (await axios.get(`${API}/student-dependencies/student/${studentId}/summary`)).data,
+  listByClassCourse: async (classId, courseId) =>
+    (await axios.get(`${API}/student-dependencies/class/${classId}/course/${courseId}`)).data,
+  create: async (data) =>
+    (await axios.post(`${API}/student-dependencies`, data)).data,
+  update: async (id, data) =>
+    (await axios.put(`${API}/student-dependencies/${id}`, data)).data,
+  delete: async (id) =>
+    (await axios.delete(`${API}/student-dependencies/${id}`)).data,
 };

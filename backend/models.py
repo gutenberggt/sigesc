@@ -966,6 +966,14 @@ class StudentBase(BaseModel):
     atendimento_programa_tipo: Optional[str] = None  # 'aee', 'reforco_escolar', 'recomposicao_aprendizagem'
     atendimento_programa_class_id: Optional[str] = None  # ID da turma do programa
     
+    # === DEPENDÊNCIA DE ESTUDOS ===
+    # [Fev/2026] Modelagem como enum (não 2 booleanos) elimina estados inválidos.
+    # Visibilidade na UI depende das flags da mantenedora:
+    #   aprovacao_com_dependencia → habilita "with_dependency"
+    #   cursar_apenas_dependencia → habilita "dependency_only"
+    # Mutuamente exclusivos por construção.
+    dependency_mode: Optional[Literal['none', 'with_dependency', 'dependency_only']] = 'none'
+    
     # === OBSERVAÇÕES ===
     observations: Optional[str] = None
     
@@ -1071,6 +1079,9 @@ class StudentUpdate(BaseModel):
     atendimento_programa_tipo: Optional[str] = None
     atendimento_programa_class_id: Optional[str] = None
     
+    # Dependência de Estudos (ver StudentBase para detalhes)
+    dependency_mode: Optional[Literal['none', 'with_dependency', 'dependency_only']] = None
+    
     # Observações
     observations: Optional[str] = None
     status: Optional[Literal['active', 'inactive', 'dropout', 'transferred', 'deceased', 'cancelled', 'reclassified', 'progressed']] = None
@@ -1112,6 +1123,58 @@ class StudentHistoryCreate(StudentHistoryBase):
 
 class StudentHistory(StudentHistoryBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+
+
+# ============= STUDENT DEPENDENCY (Dependência de Estudos) =============
+# [Fev/2026] Entidade acadêmica própria (NÃO confundir com matrícula regular).
+# Representa vínculo parcial do aluno a um componente curricular específico
+# em regime de dependência. Ver /app/docs/STUDENT_DEPENDENCY.md
+#
+# Modelagem 1:N — um StudentDependency por aluno×componente×ano_origem.
+# Permite: aluno cursando dependência de Mat/2024 numa turma de 2026.
+
+class StudentDependencyBase(BaseModel):
+    student_id: str
+    school_id: str
+    class_id: str  # Turma onde o aluno cursará (frequência/notas vão pra cá)
+    course_id: str  # Componente curricular (Matemática, Português, etc.)
+    teacher_id: Optional[str] = None  # Professor responsável (pode ser inferido da turma)
+    
+    academic_year: int  # Ano letivo atual em que está cursando
+    origin_academic_year: int  # Ano de origem da dependência (quando reprovou)
+    origin_class_id: Optional[str] = None  # Turma original onde reprovou
+    origin_series: Optional[str] = None  # Série original
+    
+    status: Literal['active', 'completed', 'failed', 'cancelled'] = 'active'
+    
+    # Resultado final (preenchido quando status != active)
+    final_grade: Optional[float] = None
+    completed_at: Optional[str] = None  # ISO date
+    
+    observations: Optional[str] = None
+
+
+class StudentDependencyCreate(StudentDependencyBase):
+    pass
+
+
+class StudentDependencyUpdate(BaseModel):
+    class_id: Optional[str] = None
+    teacher_id: Optional[str] = None
+    status: Optional[Literal['active', 'completed', 'failed', 'cancelled']] = None
+    final_grade: Optional[float] = None
+    completed_at: Optional[str] = None
+    observations: Optional[str] = None
+
+
+class StudentDependency(StudentDependencyBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    mantenedora_id: Optional[str] = None  # Tenant scope
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_by: Optional[str] = None
+    updated_at: Optional[datetime] = None
+    updated_by: Optional[str] = None
 
 
 # ============= GUARDIAN MODELS =============

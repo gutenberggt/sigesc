@@ -36,6 +36,7 @@ from routers import (
 )
 from routers.sync import setup_sync_router
 from routers.medical_certificates import setup_medical_certificates_router
+from routers.student_dependencies import setup_student_dependencies_router
 from routers.class_schedule import setup_class_schedule_router
 from routers.diary_dashboard import create_diary_dashboard_router
 from routers.aee import setup_aee_router
@@ -296,6 +297,13 @@ class_schedule_router = setup_class_schedule_router(db, audit_service, sandbox_d
 # Roteadores especiais
 sync_router = setup_sync_router(db, AuthMiddleware, limiter)
 medical_certificates_router = setup_medical_certificates_router(db, AuthMiddleware)
+
+# Dependência de Estudos (Fase 1) — entidade própria, ver /app/docs/STUDENT_DEPENDENCY.md
+from tenant_scope import apply_tenant_filter as _apply_tenant_filter_for_deps
+student_dependencies_router = setup_student_dependencies_router(
+    db, AuthMiddleware, audit_service=audit_service,
+    apply_tenant_filter=_apply_tenant_filter_for_deps,
+)
 diary_dashboard_router = create_diary_dashboard_router()
 aee_router = setup_aee_router(db, audit_service)
 auth_router = setup_auth_router(db, audit_service)
@@ -353,6 +361,7 @@ app.include_router(guardians_router, prefix="/api")
 app.include_router(enrollments_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
 app.include_router(medical_certificates_router, prefix="/api")
+app.include_router(student_dependencies_router, prefix="/api")
 app.include_router(class_schedule_router, prefix="/api")
 app.include_router(diary_dashboard_router, prefix="/api")
 app.include_router(aee_router, prefix="/api")

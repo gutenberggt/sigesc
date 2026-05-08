@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, AlertCircle, CheckCircle, Home, User, Trash2, Upload, FileText, Image, Search, X, Printer, Building2, Users, ExternalLink, Calendar, RefreshCw, Stethoscope, Filter, ChevronLeft, ChevronRight, Mail, Phone, FileDown, GraduationCap, UserX } from 'lucide-react';
 import { DocumentGeneratorModal } from '@/components/documents';
 import { CityAutocomplete } from '@/components/CityAutocomplete';
+import { StudentDependencySection } from '@/components/StudentDependencySection';
 
 // Estados brasileiros
 const STATES = [
@@ -52,6 +53,9 @@ const initialFormData = {
   school_id: '',
   enrollment_number: '',
   inep_code: '',
+  
+  // Dependência de Estudos (ver /app/docs/STUDENT_DEPENDENCY.md)
+  dependency_mode: 'none',
   
   // Dados Pessoais
   full_name: '',
@@ -296,6 +300,9 @@ export function StudentsComplete() {
   // Estado para modal de documentos
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [documentStudent, setDocumentStudent] = useState(null);
+
+  // [Fev/2026] Config da mantenedora — usada para mostrar/ocultar Dependência de Estudos.
+  const [mantenedoraConfig, setMantenedoraConfig] = useState({});
   
   // Estados para busca avançada
   const [searchName, setSearchName] = useState('');
@@ -426,6 +433,14 @@ export function StudentsComplete() {
         setClasses(classesData?.items || classesData || []);
       } catch (error) {
         console.error('Erro ao carregar escolas/turmas:', error);
+      }
+      // [Fev/2026] Carrega config da mantenedora (best-effort, não bloqueia).
+      try {
+        const { mantenedoraAPI } = await import('@/services/api');
+        const cfg = await mantenedoraAPI.get();
+        setMantenedoraConfig(cfg || {});
+      } catch (e) {
+        // Sem mantenedora ou sem permissão — seção fica oculta automaticamente.
       }
     };
     fetchBaseData();
@@ -2380,6 +2395,13 @@ export function StudentsComplete() {
 
   const tabComplementares = (
     <div className="space-y-6">
+      <StudentDependencySection
+        studentId={editingStudent?.id}
+        value={formData.dependency_mode || 'none'}
+        onChange={(mode) => updateFormData('dependency_mode', mode)}
+        mantenedoraConfig={mantenedoraConfig}
+        readOnly={viewMode}
+      />
       <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Transporte Escolar</h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="flex items-center gap-2">
