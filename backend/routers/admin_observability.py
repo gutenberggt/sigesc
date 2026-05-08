@@ -128,6 +128,33 @@ def setup_admin_observability_router(audit_service: object | None = None) -> API
         else:
             snap["avg_dependency_ratio_pct"] = None
         snap["excess_dep_loads"] = counters.get("excess_dep_loads", 0)
+
+        # P2 (Fev/2026) — separa métricas técnicas vs pedagógicas.
+        # Counters como `dependency_by_course__<id>` e `dependency_by_stage__<x>`
+        # vão para o bloco `pedagogical`. O resto fica em `technical`.
+        technical = {}
+        pedagogical = {
+            "dependency_by_course": {},
+            "dependency_by_school_stage": {},
+        }
+        for k, v in counters.items():
+            if k.startswith("dependency_by_course__"):
+                pedagogical["dependency_by_course"][k.split("__", 1)[1]] = v
+            elif k.startswith("dependency_by_stage__"):
+                pedagogical["dependency_by_school_stage"][k.split("__", 1)[1]] = v
+            elif k in {"regular_total", "dependency_total", "items_total",
+                       "dependency_ratio_sum_x100", "dependency_ratio_samples",
+                       "excess_dep_loads"}:
+                # já expostos em `counters` cru — espelha em `pedagogical` quando relevante
+                if k in {"regular_total", "dependency_total", "excess_dep_loads"}:
+                    pedagogical[k] = v
+                else:
+                    technical[k] = v
+            else:
+                technical[k] = v
+        snap["technical"] = technical
+        snap["pedagogical"] = pedagogical
+
         if audit_service is not None:
             try:
                 await audit_service.log(  # type: ignore[attr-defined]

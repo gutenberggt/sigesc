@@ -1,5 +1,10 @@
 import React from 'react';
 import { Lock } from 'lucide-react';
+import {
+  DependencyBadge,
+  DependencyDividerRow,
+  shouldShowDependencyDivider,
+} from '@/features/dependency';
 import { hasRole } from '@/utils/permissions';
 import {
   GradeInput,
@@ -66,8 +71,7 @@ export const GradesTable = () => {
 
       // Fase 2 — Dependência de Estudos (cf. DIARY_API_CONTRACT.md §17)
       const isDependency = !!item.student.is_dependency;
-      const prevItem = gradesData[index - 1];
-      const showDependencyDivider = isDependency && (!prevItem || !prevItem.student.is_dependency);
+      const showDependencyDivider = shouldShowDependencyDivider(gradesData, index);
 
       // Helper: verifica se um bimestre específico está bloqueado para este aluno
       const canEditBim = (bim) => canEditStudentGrade(item.student, bim, item.grade);
@@ -94,21 +98,7 @@ export const GradesTable = () => {
       return (
       <React.Fragment key={item.student.id}>
         {showDependencyDivider && (
-          <tr
-            data-testid="dependency-divider-row"
-            className="bg-amber-50/60"
-            aria-label="Início da seção de Dependência de Estudos"
-          >
-            <td colSpan={usaConceito ? 7 : 9} className="px-4 py-2">
-              <div className="flex items-center gap-3">
-                <div className="h-px bg-amber-300 flex-1" />
-                <span className="text-xs font-semibold tracking-wide uppercase text-amber-700">
-                  Dependência de Estudos
-                </span>
-                <div className="h-px bg-amber-300 flex-1" />
-              </div>
-            </td>
-          </tr>
+          <DependencyDividerRow colSpan={usaConceito ? 7 : 9} />
         )}
       <tr
         data-testid={isDependency ? `grades-row-dep-${item.student.id}` : `grades-row-${item.student.id}`}
@@ -134,13 +124,11 @@ export const GradesTable = () => {
                   </span>
                 )}
                 {isDependency && (
-                  <span
-                    className="ml-2 inline-flex items-center px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-medium rounded-full ring-1 ring-amber-300"
-                    title={`Dependência de Estudos${item.student.origin_academic_year ? ` — origem ${item.student.origin_academic_year}` : ''}`}
-                    data-testid={`dependency-badge-${item.student.id}`}
-                  >
-                    Dependência
-                  </span>
+                  <DependencyBadge
+                    student={item.student}
+                    originAcademicYear={item.student.origin_academic_year}
+                    className="ml-2"
+                  />
                 )}
               </div>
               <div className="text-xs text-gray-500">

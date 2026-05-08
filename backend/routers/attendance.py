@@ -787,6 +787,10 @@ def setup_attendance_router(db, audit_service, sandbox_db=None):
                 sid = record.get('student_id')
                 if sid not in student_stats:
                     continue
+                # P0: defesa em profundidade — registros marcados com dependency_id
+                # NÃO contam para cálculo de frequência regular da turma.
+                if record.get('dependency_id'):
+                    continue
                 raw_status = record.get('status', '')
                 in_atestado = att_date in medical_days.get(sid, set())
 

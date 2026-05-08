@@ -236,6 +236,7 @@ def record_diary_load(
     course_id: Optional[str] = None,
     dependency_ratio_pct: Optional[float] = None,
     excess_dep: bool = False,
+    school_stage: Optional[str] = None,
 ) -> None:
     """Helper canônico para instrumentar carregamento do Diário (Fase 2).
 
@@ -246,10 +247,15 @@ def record_diary_load(
     `dependency_ratio_pct` e `excess_dep` são gravados em buckets dedicados para
     detectar uso anormal/explosão de vínculos (cf. contrato §18 + exigência §8/§9).
 
+    Métricas pedagógicas (P2 — Fev/2026): por curso e por etapa escolar.
+    Granularidade controlada via labels (sem PII; school_stage é categoria fixa
+    como 'anos_iniciais', 'anos_finais', 'eja', 'infantil').
+
     NÃO chame `diary_metrics.record` diretamente — sempre passe por aqui.
     Ver `/app/docs/DIARY_API_CONTRACT.md` (item 9).
     """
     bucket_counters = {
+        # ===== Métricas técnicas =====
         "regular_total": regular_count,
         "dependency_total": dependency_count,
         "items_total": regular_count + dependency_count,
@@ -260,6 +266,14 @@ def record_diary_load(
         bucket_counters["dependency_ratio_samples"] = 1
     if excess_dep:
         bucket_counters["excess_dep_loads"] = 1
+
+    # ===== Métricas pedagógicas (granulares por curso/etapa) =====
+    if course_id and dependency_count > 0:
+        # contador por curso (sem PII; course_id é ID interno).
+        bucket_counters[f"dependency_by_course__{course_id}"] = dependency_count
+    if school_stage and dependency_count > 0:
+        bucket_counters[f"dependency_by_stage__{school_stage}"] = dependency_count
+
     diary_metrics.record(
         duration_ms=duration_ms,
         tenant_id=tenant_id,
@@ -268,6 +282,7 @@ def record_diary_load(
             "class_id": class_id,
             "course_id": course_id,
             "excess_dep": excess_dep,
+            "school_stage": school_stage,
         },
         bucket_counters=bucket_counters,
         is_error=is_error,

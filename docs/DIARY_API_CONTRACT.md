@@ -666,3 +666,155 @@ Frontend renderiza badge administrativa quando `warnings` está presente.
 
 Esses módulos serão tratados nas Fases 3 e 4 — incluí-los agora aumenta
 o blast radius de bugs estruturais.
+
+
+---
+
+## 27. Dependência NÃO contamina cálculo regular (P0)
+
+**Atualização Fev/2026 — exigência do owner.** Notas e frequências registradas
+com `dependency_id != null` representam o aluno cumprindo dependência de **ano
+anterior**. Estes registros NÃO entram em:
+
+- médias finais regulares da turma
+- ranking pedagógico
+- aprovação padrão
+- estatísticas de turma (IDEB / indicadores)
+- frequência regular da turma
+- relatórios oficiais e dashboards
+
+### Defesa em profundidade (híbrida — exigência operacional)
+
+**Camada 1 — Mongo (performance):**
+
+```python
+from utils.grade_dependency_filters import (
+    regular_only_filter, regular_only_aggregate_match, with_regular_only,
+)
+
+# em find()
+flt = with_regular_only({"class_id": cid, "academic_year": year})
+await db.grades.find(flt, {"_id": 0}).to_list(...)
+
+# em aggregate()
+pipeline = [
+    {"$match": {"class_id": cid, **regular_only_aggregate_match()}},
+    ...
+]
+```
+
+**Camada 2 — Python (última barreira):**
+
+```python
+from utils.grade_dependency_filters import is_regular_grade, is_regular_attendance_record
+
+for grade in grades:
+    if not is_regular_grade(grade):
+        continue
+    # ... agrega ...
+```
+
+Mongo cobre 99,9% — Python cobre o 0,1% (migrations antigas, inserts manuais,
+bugs de integração).
+
+### Onde o filtro está aplicado
+
+- `routers/analytics.py` — todos os pipelines de média/ranking/dashboard.
+- `routers/attendance.py /report/class` — defesa Python no loop de cálculo.
+- (Boletim/PDF e Histórico — Fases 3 e 4, conforme contratos próprios.)
+
+### Testes obrigatórios
+
+Cobertos em `tests/test_dependency_isolation_p0.py`:
+
+1. `test_dependency_grade_not_affect_regular_average`
+2. `test_dependency_attendance_not_affect_regular_frequency`
+3. `test_dependency_student_not_counted_twice_in_reports`
+
+Estes testes são a última barreira anti-regressão.
+
+---
+
+## 28. Métricas pedagógicas no canal `diary` (P2)
+
+**Atualização Fev/2026 — exigência do owner.** O `record_diary_load()` agora
+separa explicitamente:
+
+**Técnicas** (DevOps/SRE):
+- `latency_ms` (avg, p95, p99)
+- `cache_hit`
+- `payload_size_bytes`
+- `query_count`
+
+**Pedagógicas** (SEMED/coordenação):
+- `dependency_total`
+- `regular_total`
+- `dependency_ratio_pct` (média móvel)
+- `dependency_by_course` (counter por course_id)
+- `dependency_by_school_stage` (counter por etapa)
+- `excess_dep_loads`
+
+Snapshot em `GET /api/admin/observability/diary` separa via `snap.technical` e
+`snap.pedagogical` para que dashboards de DevOps e dashboards pedagógicos sejam
+montados a partir do mesmo endpoint sem mistura.
+
+Reservado para Fases 3 e 4 (não implementado ainda):
+- `dependency_approval_rate`
+- `dependency_dropout_rate`
+
+---
+
+## 29. Enums centralizados (P1b)
+
+Todo código que toca `student_dependencies.status` ou `students.dependency_mode`
+DEVE importar dos enums canônicos:
+
+```python
+from utils.dependency_enums import (
+    DEPENDENCY_STATUS_VALUES,        # ("active", "completed", "failed", "cancelled")
+    DEPENDENCY_TYPE_VALUES,          # ("none", "with_dependency", "dependency_only")
+    DependencyStatus, DependencyType,  # Literal types para Pydantic
+    normalize_dependency_status,     # converte aliases (Active, ATIVO, etc.)
+    normalize_dependency_type,
+    validate_dependency_status,      # exige valor não-vazio
+    validate_dependency_type,
+    is_active_status,                # True só para status canônico active
+)
+```
+
+Frontend espelha em `/app/frontend/src/features/dependency/dependency.constants.js`.
+
+Aliases tolerados pelos normalizadores (caso strings antigas apareçam):
+- status: `Active`, `ATIVO`, `Ativa`, `Concluído`, `Reprovado`, `Cancelado`, etc.
+- type: `with-dependency`, `withDependency`, `Com_Dependencia`, etc.
+
+Strings desconhecidas → `ValueError` ruidoso (falha rápida).
+
+---
+
+## 30. Centralização frontend (P1a)
+
+Todo componente que renderize Dependência DEVE importar de
+`/app/frontend/src/features/dependency/`:
+
+```jsx
+import {
+  DependencyBadge,
+  DependencyDividerRow,
+  isDependencyItem,
+  shouldShowDependencyDivider,
+  splitRegularAndDependency,
+  resolveDependencyPayloadField,
+  DEPENDENCY_DISPLAY_LABEL,
+  DEPENDENCY_SECTION_TITLE,
+} from "@/features/dependency";
+```
+
+Princípios:
+- **Sem context. Sem hooks. Sem HOC.** Funções puras + componentes pequenos.
+- Outros componentes não importam dos arquivos internos do feature — apenas via `index.js`.
+- Refatoração interna do feature não quebra consumidores.
+
+Componentes legados (`GradesTable.jsx`, `LancamentoTab.jsx`) já consomem
+exclusivamente do feature. JSX inline com classes amber/badge foi removido.
+

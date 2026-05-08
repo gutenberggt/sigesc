@@ -278,6 +278,17 @@ async def load_diary_items(
     duration_ms = (time.monotonic() - t0) * 1000
 
     # Telemetria — sempre registra
+    # Resolve school_stage da turma (cache leve via 1 query, opcional)
+    school_stage = None
+    try:
+        cls = await db.classes.find_one(
+            {"id": class_id}, {"_id": 0, "school_stage": 1, "etapa": 1, "modalidade": 1}
+        )
+        if cls:
+            school_stage = cls.get("school_stage") or cls.get("etapa") or cls.get("modalidade")
+    except Exception:
+        pass
+
     record_diary_load(
         duration_ms=duration_ms,
         tenant_id=tenant_id,
@@ -289,6 +300,7 @@ async def load_diary_items(
         course_id=course_id,
         dependency_ratio_pct=dep_ratio,
         excess_dep=dependency_count > MAX_DEPENDENCY_STUDENTS_PER_DIARY,
+        school_stage=school_stage,
     )
 
     payload = {

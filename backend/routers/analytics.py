@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter
+from utils.grade_dependency_filters import regular_only_aggregate_match
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -191,7 +192,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             attendance_filter['date'] = {'$regex': f'^{academic_year}'}
         
         attendance_pipeline = [
-            {'$match': attendance_filter},
+            {'$match': {**attendance_filter, **regular_only_aggregate_match()}},  # P0: exclui dependência
             {'$group': {
                 '_id': None,
                 'total_records': {'$sum': 1},
@@ -237,7 +238,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 grades_filter['class_id'] = {'$in': class_ids}
         
         grades_pipeline = [
-            {'$match': grades_filter},
+            {'$match': {**grades_filter, **regular_only_aggregate_match()}},  # P0: exclui dependência
             {'$group': {
                 '_id': None,
                 'avg_grade': {'$avg': '$grade'},
@@ -329,7 +330,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             match_filter['class_id'] = class_id
         
         pipeline = [
-            {'$match': match_filter},
+            {'$match': {**(match_filter), **regular_only_aggregate_match()}},
             {'$group': {
                 '_id': {
                     'year': '$academic_year',
@@ -403,8 +404,11 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             match_filter['school_id'] = {'$in': user_school_ids}
         
         pipeline = [
-            {'$match': match_filter},
+            {'$match': {**(match_filter), **regular_only_aggregate_match()}},
             {'$unwind': '$records'},
+            {'$match': {'records.dependency_id': {'$in': [None]}}},
+            # P0: exclui registros de dependência dos cálculos regulares
+            {'$match': {'records.dependency_id': {'$in': [None]}}},
         ]
         
         if student_id:
@@ -496,7 +500,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 match_filter['class_id'] = {'$in': class_ids}
         
         pipeline = [
-            {'$match': match_filter},
+            {'$match': {**(match_filter), **regular_only_aggregate_match()}},
             {'$group': {
                 '_id': '$course_id',
                 'avg_grade': {'$avg': '$grade'},
@@ -577,7 +581,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 match_filter['class_id'] = {'$in': class_ids}
         
         pipeline = [
-            {'$match': match_filter},
+            {'$match': {**(match_filter), **regular_only_aggregate_match()}},
             {'$group': {
                 '_id': '$period',
                 'avg_grade': {'$avg': '$grade'},
@@ -773,6 +777,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 'date': {'$regex': f'^{academic_year}'}
             }},
             {'$unwind': '$records'},
+            {'$match': {'records.dependency_id': {'$in': [None]}}},
             {'$group': {
                 '_id': '$class_id',
                 'total': {'$sum': 1},
@@ -1251,7 +1256,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
             grades_match['subject_id'] = subject_id
         
         grades_pipeline = [
-            {'$match': grades_match},
+            {'$match': {**(grades_match), **regular_only_aggregate_match()}},
             {'$group': {
                 '_id': '$student_id',
                 'avg_grade': {'$avg': '$grade'},
@@ -1278,6 +1283,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
         attendance_pipeline = [
             {'$match': att_match},
             {'$unwind': '$records'},
+            {'$match': {'records.dependency_id': {'$in': [None]}}},
             {'$match': {'records.student_id': {'$in': student_ids}}},
             {'$group': {
                 '_id': '$records.student_id',
@@ -1616,7 +1622,7 @@ def setup_analytics_router(db, audit_service=None, sandbox_db=None):
                 match_filter['class_id'] = {'$in': class_ids}
         
         pipeline = [
-            {'$match': match_filter},
+            {'$match': {**(match_filter), **regular_only_aggregate_match()}},
             {'$bucket': {
                 'groupBy': '$grade',
                 'boundaries': [0, 3, 5, 6, 7, 8, 9, 10.1],
