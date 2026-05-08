@@ -818,3 +818,30 @@ Princípios:
 Componentes legados (`GradesTable.jsx`, `LancamentoTab.jsx`) já consomem
 exclusivamente do feature. JSX inline com classes amber/badge foi removido.
 
+
+---
+
+## 31. Coleção `dependency_completions` é fonte da verdade documental (Fev/2026)
+
+**Implementado** — pré-requisito da Fase 3 (Boletim/PDF) e Fase 4 (Histórico).
+
+A partir desta data:
+- Toda transição `active → completed | failed | cancelled` em
+  `student_dependencies` cria automaticamente um snapshot imutável em
+  `db.dependency_completions` via hook em `PUT /api/student-dependencies/{id}`.
+- Boletim e Histórico (Fases 3/4) **NÃO** consultam mais `student_dependencies`
+  diretamente para gerar documentos. A fonte da verdade documental é
+  `dependency_completions`.
+- Diários continuam consultando `student_dependencies` (status='active')
+  para listar quem cursa dependência no ano corrente — SEM mudança.
+
+### Por que essa separação?
+
+`student_dependencies` é fonte **operacional** (mutável; status pode reverter,
+ex.: erro corrigido). `dependency_completions` é fonte **documental** (append-only;
+preserva snapshot de currículo/CH/turma daquele momento).
+
+Documentos antigos não devem ser afetados por reorganizações curriculares
+posteriores. Daí a separação de responsabilidades.
+
+Ver `/app/docs/HISTORICO_ESCOLAR_CONTRACT.md` §14 para detalhes técnicos.

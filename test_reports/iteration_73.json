@@ -1,0 +1,49 @@
+{
+  "summary": "Iteração 73 — Fase 2.5 Snapshots Imutáveis (Dependency Completions). 100% verde. 17/17 pytests internos do test_dependency_completions.py + 128/128 da suite consolidada (test_dependency_completions(17) + test_dependency_isolation_p0(40) + test_diary_phase2(19) + test_diary_pre_fase2(11) + test_observability_channel(9) + test_student_dependencies(26) + test_students_autocomplete(6)) + 9/9 E2E HTTP novos contra URL pública cobrindo o pipeline completo: PUT→snapshot→list→public/verify→sign(409)→backfill(dry-run)→revoke(422+ok)→public/verify(revogado).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_dependency_completions.py",
+    "/app/backend/tests/test_dep_completions_e2e_http.py",
+    "/app/test_reports/pytest/iter73_dep_completions.xml",
+    "/app/test_reports/pytest/iter73_consolidated.xml",
+    "/app/test_reports/pytest/iter73_e2e_http.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "compute_document_hash exclui corretamente {signatures, verification_token, revoked_at, revoked_reason, revoked_by_user_id, superseded_by_document_id, audit_trail, _id, document_hash_sha256} antes de canonicalizar — alinhado ao princípio jurídico de imutabilidade após emissão.",
+    "compute_signature_hash usa (document_hash + role + user_id + signed_at) garantindo que múltiplas assinaturas referenciam o mesmo doc original sem invalidar uma à outra.",
+    "Hook em PUT /api/student-dependencies dispara create_completion_snapshot_on_transition idempotente — re-PUT do mesmo status não duplica (validado on-the-wire).",
+    "Endpoint público /api/public/verify/{token} corretamente NÃO expõe enum interno (`completion_result`) nem PII do aluno (validado via assertion 'completion_result' not in body, 'student_name' not in body, 'student_id' not in body). Mapeamento approved→valido, failed→valido_reprovado, cancelled→cancelado_administrativamente, revogado quando revoked_at set.",
+    "data_quality bloqueia assinatura institucional via HTTP 409 DATA_QUALITY_INSUFFICIENT quando != 'complete' — testado e-2-e com dep heitor (incomplete pois sem grade nem attendance).",
+    "cancelled exige status_reason — testado: PUT {status:cancelled} sem reason retorna 422 com code CANCELLATION_REASON_REQUIRED.",
+    "revogação preserva document_hash original (validado via test_document_hash_persists_through_revocation: revoked_at é EXCLUÍDO do canonicalize, então hash continua válido após $set revoked_at).",
+    "Backfill super_admin com dry_run=true retorna {dry_run, created_count, skipped_count, error_count, errors} — comportamento idempotente, não escreve em dry_run.",
+    "Index único em verification_token criado no startup via ensure_indexes (validado por inspeção de index_information() em pytest interno).",
+    "Snapshot tem todos os 24 campos required (id, student_id, dependency_id, original_*x4, completion_*x2, data_quality, document_version, history_schema_version, template_version, render_engine_version, issued_*x2, verification_token, document_hash_sha256, revoked_*x3, superseded_by_document_id, signatures, audit_trail).",
+    "audit_trail capturado desde criação com action='snapshot_created' + by_user_id + at + data_quality.",
+    "Sem violação DRY: utils/document_hash.py (90 linhas) é reutilizável para Boletim/Histórico (próxima fase). Router (615 linhas) está no limite — recomenda-se split futuro entre snapshots/router público/backfill se crescer mais.",
+    "MongoDB ObjectId corretamente excluído de todas as respostas via projection {_id: 0}.",
+    "Credenciais e tenant scope corretos via X-Mantenedora-Id obrigatório."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_dep_completions_e2e_http.py (NOVO — 9 testes HTTP E2E contra URL pública cobrindo PUT→snapshot→list→verify→sign(409)→backfill→revoke)"
+  ],
+  "success_rate": {
+    "backend": "100% (128/128 pytest interno + 9/9 E2E HTTP = 137/137)",
+    "frontend": "n/a (testing_type=backend only)"
+  },
+  "test_credentials": "Super Admin gutenberg@sigesc.com / @Celta2007 + X-Mantenedora-Id=fix_mant_v1 + X-CSRF-Token vindo na resposta do /api/auth/login",
+  "seed_data_creation": "Nenhuma seed nova criada. Reutilizou fixture existente fix_dep_heitor_mat (heitor / Matemática). Após testes, dep restaurada para status=active e snapshots de teste limpos via db.dependency_completions.delete_many({dependency_id: fix_dep_heitor_mat}). 1 snapshot removido (revogado durante teste 09).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Suite Fase 2.5 completa: pytest tests/test_dependency_completions.py tests/test_dep_completions_e2e_http.py tests/test_dependency_isolation_p0.py tests/test_diary_phase2.py tests/test_diary_pre_fase2.py tests/test_observability_channel.py tests/test_student_dependencies.py tests/test_students_autocomplete.py — 137 testes verdes. ATENÇÃO: o E2E HTTP modifica o estado de fix_dep_heitor_mat (cria snapshot e revoga). Há cleanup automático no fixture de session yield (restaura active) + delete_many ao final. Próxima fase: implementar /api/academic-events conforme ACADEMIC_EVENT_CONTRACT.md (apenas normativo nesta rodada).",
+  "rca of the issue": "N/A — nenhuma falha. Implementação alinha-se totalmente ao contrato HISTORICO_ESCOLAR_CONTRACT.md §14: hash imutável após emissão (volatile fields excluídos), signature_hash referenciando doc original (não invalida assinaturas anteriores), verification_token indexado único, data_quality bloqueando assinatura, mapeamento público sem expor enum interno, cancelled exigindo status_reason, revogação preservando hash. Linha PUT student_dependencies.py:~219 chama hook idempotentemente."
+}

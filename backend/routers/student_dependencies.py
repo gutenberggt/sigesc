@@ -217,6 +217,28 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
         update_data["updated_by"] = user.get("id")
         await db.student_dependencies.update_one({"id": dep_id}, {"$set": update_data})
 
+        # Fase 2.5 — snapshot imutável em transições documentais
+        new_status = update_data.get("status")
+        if new_status and new_status != existing.get("status") and new_status in {"completed", "failed", "cancelled"}:
+            try:
+                from routers.dependency_completions import create_completion_snapshot_on_transition
+                merged = {**existing, **update_data}
+                await create_completion_snapshot_on_transition(
+                    db,
+                    dependency_doc=merged,
+                    new_status=new_status,
+                    status_reason=update_data.get("status_reason") or existing.get("status_reason"),
+                    issued_by_user_id=user.get("id"),
+                    completion_academic_year=update_data.get("completed_in_academic_year")
+                        or datetime.now(timezone.utc).year,
+                )
+            except HTTPException:
+                # Erros de validação (ex.: cancelled sem reason) propagam
+                raise
+            except Exception as e:
+                # Falha ao snapshot NÃO bloqueia a transição (auditoria registra)
+                logger.exception("[completion-hook] erro ao criar snapshot dep=%s: %s", dep_id, e)
+
         await _audit("update", dep_id, user, request, before=existing, after=update_data)
         return {"message": "Dependência atualizada com sucesso."}
 

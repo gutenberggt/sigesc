@@ -367,3 +367,121 @@ Sem isso, a Fase 4 não tem fonte de verdade para emitir o histórico.
 7. Testes E2E cobrindo os 10 cenários de §8.
 8. Bloqueio: histórico só pode ser emitido se aluno tiver `enrollments_history`
    completo (não há lacunas anuais não justificadas).
+
+---
+
+## 14. Snapshots imutáveis e regras de assinatura institucional (Fev/2026)
+
+**Implementado**: `db.dependency_completions` em produção.
+
+### 14.1 Imutabilidade do hash documental
+
+`document_hash_sha256` é calculado UMA ÚNICA VEZ na criação do snapshot e
+**nunca recalculado**. Os seguintes campos NÃO entram no cálculo:
+
+- `_id` (Mongo)
+- `signatures[]` (populado depois)
+- `verification_token` (gerado em paralelo)
+- `revoked_at`, `revoked_reason`, `revoked_by_user_id` (mutáveis)
+- `superseded_by_document_id` (mutável)
+- `audit_trail[]` (cresce com o tempo)
+- `document_hash_sha256` (não entra em si mesmo)
+
+### 14.2 Cada assinatura tem hash próprio
+
+```json
+{
+  "document_hash_sha256": "ABC123...",   // imutável
+  "signatures": [
+    {
+      "role": "secretario",
+      "user_id": "...",
+      "full_name_at_signing": "...",     // SNAPSHOT do nome no momento
+      "signed_at": "ISO timestamp",
+      "signed_document_hash": "ABC123...",   // referencia o doc original
+      "signature_hash_sha256": "DEF456..."   // sha256(doc_hash + role + user + signed_at)
+    },
+    {
+      "role": "diretor",
+      "...": "...",
+      "signed_document_hash": "ABC123...",
+      "signature_hash_sha256": "GHI789..."
+    }
+  ]
+}
+```
+
+Adicionar 2ª assinatura **NÃO** invalida a 1ª. Ordem é irrelevante.
+
+### 14.3 Bloqueio de assinatura por `data_quality`
+
+| data_quality | Pode assinar? | HTTP |
+|---|---|---|
+| `complete` | sim | 200 |
+| `partial` | NÃO | 409 `DATA_QUALITY_INSUFFICIENT` |
+| `incomplete` | NÃO | 409 `DATA_QUALITY_INSUFFICIENT` |
+
+Snapshots `partial`/`incomplete` precisam de **reissue manual** com dados
+completos antes da assinatura institucional.
+
+### 14.4 Cancelamento exige rationale
+
+Transição `active → cancelled` exige `status_reason` não vazio.
+Sem isso → HTTP 422 `CANCELLATION_REASON_REQUIRED`.
+
+`cancelled` ainda gera snapshot (auditoria) mas com:
+- `data_quality = "incomplete"` automático
+- `document_status` público = `"cancelado_administrativamente"`
+- NÃO compõe boletim padrão (filtrado por `completion_result != "cancelled"`)
+
+### 14.5 Revogação documental
+
+Endpoint `POST /api/dependency-completions/{id}/revoke` (somente
+super_admin/admin/gerente/diretor):
+- Exige `rationale` ≥ 30 chars.
+- Marca `revoked_at` + `revoked_reason` + `revoked_by_user_id`.
+- Documento permanece na coleção (auditoria).
+- Verificação pública passa a retornar `valid=false, document_status="revogado"`.
+- `document_hash_sha256` permanece intacto (não é recalculado).
+
+### 14.6 Verificação pública sem PII
+
+`GET /api/public/verify/{verification_token}` (sem auth):
+
+```json
+{
+  "valid": true | false,
+  "document_status": "valido | valido_reprovado | cancelado_administrativamente | revogado | nao_encontrado",
+  "document_hash": "...",
+  "issued_at": "...",
+  "school_name": "...",          // sem nome do aluno
+  "course_name": "...",
+  "original_academic_year": 2024,
+  "completion_academic_year": 2025,
+  "data_quality": "complete",
+  "signatures": [
+    {"role": "diretor", "full_name": "...", "signed_at": "..."}
+  ],
+  "document_version": "1.0.0",
+  "history_schema_version": "1"
+}
+```
+
+NÃO expõe `completion_result` interno (mapeia para `document_status`
+jurídico-amigável). NÃO expõe nome do aluno, CPF, ou outros PII.
+
+### 14.7 Backfill retroativo
+
+`POST /api/admin/dependency-completions/backfill?dry_run=true|false`
+(somente super_admin/admin):
+- Idempotente: skip se snapshot já existe para `(dependency_id, completion_year)`.
+- Calcula `data_quality` híbrido:
+  - `complete` se nota + frequência conhecidas
+  - `partial` se um deles ausente
+  - `incomplete` se ambos ausentes ou cancelado
+- Snapshots `partial`/`incomplete` ficam pendentes de reissue manual antes da assinatura.
+
+### 14.8 Índice único `verification_token`
+
+Criado no startup (`ensure_indexes`). Sem isso, retries de criação
+poderiam gerar tokens colidentes.

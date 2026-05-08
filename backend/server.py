@@ -40,6 +40,12 @@ from routers.student_dependencies import setup_student_dependencies_router
 from routers.class_schedule import setup_class_schedule_router
 from routers.diary_dashboard import create_diary_dashboard_router
 from routers.diary import setup_diary_router
+from routers.dependency_completions import (
+    setup_dependency_completions_router,
+    setup_public_verification_router,
+    setup_admin_completions_backfill_router,
+    ensure_indexes as _ensure_completions_indexes,
+)
 from routers.aee import setup_aee_router
 from routers.auth import setup_router as setup_auth_router
 from routers.mantenedoras import create_mantenedoras_router
@@ -174,6 +180,9 @@ async def create_indexes():
         # Seeds (AEE templates, BNCC Computação)
         await run_all_seeds(db)
 
+        # Fase 2.5 — índices de dependency_completions (idempotente)
+        await _ensure_completions_indexes(db)
+
     except Exception as e:
         logger.error(f"Erro no startup: {e}")
 
@@ -307,6 +316,9 @@ student_dependencies_router = setup_student_dependencies_router(
 )
 diary_dashboard_router = create_diary_dashboard_router()
 diary_router = setup_diary_router(db)
+completions_router = setup_dependency_completions_router(db, audit_service=audit_service)
+public_verify_router = setup_public_verification_router(db)
+admin_completions_router = setup_admin_completions_backfill_router(db)
 aee_router = setup_aee_router(db, audit_service)
 auth_router = setup_auth_router(db, audit_service)
 
@@ -367,6 +379,9 @@ app.include_router(student_dependencies_router, prefix="/api")
 app.include_router(class_schedule_router, prefix="/api")
 app.include_router(diary_dashboard_router, prefix="/api")
 app.include_router(diary_router, prefix="/api")
+app.include_router(completions_router, prefix="/api")
+app.include_router(public_verify_router, prefix="/api")
+app.include_router(admin_completions_router, prefix="/api")
 app.include_router(aee_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(create_mantenedoras_router(db))
