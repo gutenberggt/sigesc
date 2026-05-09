@@ -546,26 +546,31 @@ export default function SchoolDocuments() {
                     <td className="py-2 pr-3 text-right space-x-2">
                       <button
                         onClick={() => downloadByCode(d.code, d.doc_type)}
-                        className="inline-flex items-center gap-1 text-xs text-indigo-700 hover:underline"
+                        className="inline-flex items-center justify-center p-1.5 rounded text-indigo-700 hover:bg-indigo-50"
+                        title="Baixar PDF"
+                        aria-label="Baixar PDF"
                         data-testid={`school-docs-download-${d.code}`}
                       >
-                        <Download className="h-3 w-3" /> PDF
+                        <Download className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => revoke(d.code)}
-                        className="inline-flex items-center gap-1 text-xs text-red-700 hover:underline"
+                        className="inline-flex items-center justify-center p-1.5 rounded text-red-700 hover:bg-red-50"
+                        title="Revogar"
+                        aria-label="Revogar"
                         data-testid={`school-docs-revoke-${d.code}`}
                       >
-                        <Ban className="h-3 w-3" /> Revogar
+                        <Ban className="h-4 w-4" />
                       </button>
                       {isSuperAdmin && (
                         <button
                           onClick={() => deleteDocument(d.code)}
-                          className="inline-flex items-center gap-1 text-xs text-red-900 hover:underline"
-                          title="Exclusão definitiva (apenas super_admin)"
+                          className="inline-flex items-center justify-center p-1.5 rounded text-red-900 hover:bg-red-100"
+                          title="Excluir (apenas super_admin)"
+                          aria-label="Excluir"
                           data-testid={`school-docs-delete-${d.code}`}
                         >
-                          <Trash2 className="h-3 w-3" /> Excluir
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       )}
                     </td>
