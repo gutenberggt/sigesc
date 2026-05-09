@@ -248,8 +248,13 @@ def _validity_footer(context: dict, styles) -> list:
     """Rodapé obrigatório: código, validade, QR, instrução."""
     code = context.get("code") or "—"
     valid_until = context.get("valid_until")
+    verification_token = context.get("verification_token")
     portal_url = f"{FrontendURL}/verificar"
-    qr_url = f"{portal_url}/{code}" if code != "—" else portal_url
+    if verification_token and code != "—":
+        # URL curta /v/{token} — carregada apenas no QR (owner spec Fev/2026).
+        qr_url = f"{FrontendURL}/v/{verification_token}"
+    else:
+        qr_url = f"{portal_url}/{code}" if code != "—" else portal_url
     qr = _qr_image(qr_url)
 
     valid_str = _format_br_date(valid_until) if valid_until else "—"

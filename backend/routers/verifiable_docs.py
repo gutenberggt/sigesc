@@ -34,8 +34,9 @@ def setup_router(db, limiter=None):
 
     # ------------------ PORTAL PÚBLICO (sem auth) ------------------
 
-    async def _public_verify_impl(code: str):
-        doc = await vsvc.resolve_code(db, code)
+    async def _public_verify_impl(code_or_token: str):
+        # Aceita verification_token (UUID hex 32 chars) OU code (SIGESC-XXXX-XXXX).
+        doc = await vsvc.resolve_either(db, code_or_token)
         resp = vsvc.build_portal_response(doc)
         # Se tem snapshot_id associado e status "valido", revalida o hash de verdade
         if resp.get("status") == "valido" and doc and doc.get("snapshot_id"):
@@ -47,6 +48,7 @@ def setup_router(db, limiter=None):
                 return {
                     "status": "invalido",
                     "codigo": resp.get("codigo"),
+                    "verification_token": resp.get("verification_token"),
                     "mensagem": "Documento não encontrado no repositório.",
                 }
             integrity = snap_svc.verify_snapshot_integrity(snap)
@@ -207,5 +209,71 @@ def setup_router(db, limiter=None):
             scope_label=scope_label,
         )
         return {"created": True, "document": doc}
+
+    # ------------------ Assinaturas e Substituições ------------------
+
+    @admin.post("/{code}/signatures")
+    async def add_signature_endpoint(code: str, request: Request):
+        """Adiciona uma assinatura institucional ao documento.
+
+        Body: {"role": "diretor", "full_name": "Maria Souza"}
+        Apenas super_admin/admin/secretario/diretor.
+        """
+        user = await _require_admin(request)
+        if user.get("role") not in (*_ADMIN_ROLES, "diretor"):
+            raise HTTPException(403, "Permissão insuficiente para assinar")
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(400, "Body JSON obrigatório com role e full_name")
+        role = (body or {}).get("role")
+        full_name = (body or {}).get("full_name")
+        if not role or not full_name:
+            raise HTTPException(400, "Campos obrigatórios: role, full_name")
+        try:
+            r = await vsvc.add_signature(
+                db,
+                code_or_token=code,
+                role=role,
+                full_name=full_name,
+                signed_by_user_id=user.get("id"),
+            )
+        except KeyError:
+            raise HTTPException(404, "Documento não encontrado")
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return r
+
+    @admin.post("/{code}/supersede")
+    async def supersede_endpoint(code: str, request: Request):
+        """Marca este documento como SUBSTITUÍDO por um novo.
+
+        Body: {"new_code": "SIGESC-AAAA-BBBB"} ou {"new_token": "..."}
+        Substituído ≠ revogado: documento permanece consultável publicamente
+        com status `substituido` e referência ao sucessor.
+        Apenas super_admin/admin/secretario.
+        """
+        user = await _require_admin(request)
+        if user.get("role") not in _ADMIN_ROLES:
+            raise HTTPException(403, "Apenas admin/secretario pode substituir")
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(400, "Body JSON obrigatório")
+        new_id = (body or {}).get("new_code") or (body or {}).get("new_token")
+        if not new_id:
+            raise HTTPException(400, "new_code ou new_token obrigatório")
+        try:
+            r = await vsvc.supersede_document(
+                db,
+                old_code_or_token=code,
+                new_code_or_token=new_id,
+                user=user,
+            )
+        except KeyError as e:
+            raise HTTPException(404, str(e))
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return r
 
     return public, admin

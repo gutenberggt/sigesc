@@ -14,15 +14,22 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   ShieldCheck, ShieldAlert, ShieldX, Search, Loader2, Lock, Hash,
-  FileText, Calendar, Building2, AlertTriangle,
+  FileText, Calendar, Building2, AlertTriangle, RefreshCw, PenLine,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+// Reconhece token opaco (UUID hex 32 chars, lower)
+function isTokenFormat(s) {
+  if (!s) return false;
+  return /^[a-f0-9]{32}$/.test(String(s).toLowerCase().trim());
+}
 
 // Normalização client-side idêntica à do backend — evita chamada quando
 // o código é sintaticamente inválido.
 function normalizeClient(raw) {
   if (!raw) return null;
+  if (isTokenFormat(raw)) return String(raw).toLowerCase().trim();
   const cleaned = raw.toUpperCase().replace(/[\s-]/g, '').replace(/^SIGESC/, '');
   if (!/^[A-Z2-9]{8}$/.test(cleaned)) return null;
   return `SIGESC-${cleaned.slice(0, 4)}-${cleaned.slice(4)}`;
@@ -53,20 +60,38 @@ const STATUS_UI = {
     iconColor: 'text-amber-600',
     title: 'Documento revogado',
   },
+  expirado: {
+    icon: ShieldAlert,
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
+    text: 'text-amber-900',
+    iconColor: 'text-amber-600',
+    title: 'Documento expirado',
+  },
+  substituido: {
+    icon: RefreshCw,
+    bg: 'bg-sky-50',
+    border: 'border-sky-200',
+    text: 'text-sky-900',
+    iconColor: 'text-sky-600',
+    title: 'Documento substituído',
+  },
 };
 
 export default function VerifyPublic() {
-  const { code: urlCode } = useParams();
+  // Aceita ambas rotas: /verificar/:code  e  /v/:token
+  const { code: urlCode, token: urlToken } = useParams();
+  const initialIdent = urlToken || urlCode || '';
   const navigate = useNavigate();
-  const [input, setInput] = useState(urlCode || '');
+  const [input, setInput] = useState(initialIdent);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
-  const doVerify = useCallback(async (codeRaw) => {
-    const normalized = normalizeClient(codeRaw);
+  const doVerify = useCallback(async (raw) => {
+    const normalized = normalizeClient(raw);
     if (!normalized) {
-      setError('Código inválido. Use o formato SIGESC-XXXX-XXXX.');
+      setError('Código inválido. Use o formato SIGESC-XXXX-XXXX ou um link /v/{token}.');
       setResult(null);
       return;
     }
@@ -75,8 +100,12 @@ export default function VerifyPublic() {
     try {
       const r = await axios.get(`${API}/public/verify/${encodeURIComponent(normalized)}`);
       setResult(r.data);
-      // Atualiza URL (compartilhável) sem re-render
-      navigate(`/verificar/${normalized}`, { replace: true });
+      // Atualiza URL conforme tipo (preserva token se token; senão code)
+      if (isTokenFormat(normalized)) {
+        navigate(`/v/${normalized}`, { replace: true });
+      } else {
+        navigate(`/verificar/${normalized}`, { replace: true });
+      }
     } catch (e) {
       if (e.response?.status === 429) {
         setError('Muitas tentativas — aguarde 1 minuto e tente novamente.');
@@ -90,10 +119,10 @@ export default function VerifyPublic() {
   }, [navigate]);
 
   useEffect(() => {
-    if (urlCode && !result && !loading) {
-      doVerify(urlCode);
+    if (initialIdent && !result && !loading) {
+      doVerify(initialIdent);
     }
-  }, [urlCode, result, loading, doVerify]);
+  }, [initialIdent, result, loading, doVerify]);
 
   const onSubmit = (e) => {
     e.preventDefault();
@@ -247,6 +276,47 @@ function ResultCard({ result, ui }) {
                   <strong>{new Date(result.revogado_em).toLocaleDateString('pt-BR')}</strong>
                 </div>
               )}
+              {result.substituido_por && (
+                <div
+                  className="flex items-center gap-2 text-sky-900 bg-sky-100/70 border border-sky-300 rounded px-2 py-1 mt-2"
+                  data-testid="verify-superseded-block"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span className="text-xs uppercase tracking-wider">Substituído por:</span>
+                  <code className="font-mono font-bold tracking-wider">{result.substituido_por}</code>
+                  {result.substituido_em && (
+                    <span className="text-xs">
+                      em {new Date(result.substituido_em).toLocaleDateString('pt-BR')}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {Array.isArray(result.assinaturas) && result.assinaturas.length > 0 && (
+            <div className="mt-5 pt-4 border-t border-gray-300/60" data-testid="verify-signatures-block">
+              <div className="text-xs uppercase text-gray-500 tracking-wider mb-2 flex items-center gap-1">
+                <PenLine className="h-3.5 w-3.5" />
+                Assinaturas Institucionais
+              </div>
+              <ul className="space-y-1.5">
+                {result.assinaturas.map((s, idx) => (
+                  <li
+                    key={idx}
+                    className="flex flex-wrap items-center gap-x-2 text-sm text-gray-800 bg-white/60 border border-gray-200 rounded px-2 py-1"
+                    data-testid={`verify-signature-${idx}`}
+                  >
+                    <strong>{s.full_name}</strong>
+                    <span className="text-xs text-gray-500 uppercase tracking-wider">{s.role}</span>
+                    {s.signed_at && (
+                      <span className="text-xs text-gray-500 ml-auto">
+                        assinado em {new Date(s.signed_at).toLocaleDateString('pt-BR')}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 

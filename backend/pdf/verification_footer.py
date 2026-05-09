@@ -39,11 +39,26 @@ DEFAULT_PORTAL_URL = (
 
 
 def _portal_url() -> str:
+    """URL base do portal de verificação por código humano (`/verificar/{code}`).
+
+    Mantida para fallback quando não há `verification_token`.
+    """
     env = os.environ.get("PUBLIC_PORTAL_URL")
     if env:
         return env.rstrip("/") + ("" if env.rstrip("/").endswith("/verificar") else "/verificar")
     fe = os.environ.get("FRONTEND_URL", "https://app.sigesc.com.br").rstrip("/")
     return f"{fe}/verificar"
+
+
+def _short_verify_url(token: Optional[str]) -> Optional[str]:
+    """URL curta `/v/{token}` quando há `verification_token` opaco.
+
+    Owner spec (Fev/2026): QR carrega APENAS este link, nunca dados.
+    """
+    if not token:
+        return None
+    fe = os.environ.get("FRONTEND_URL", "https://app.sigesc.com.br").rstrip("/")
+    return f"{fe}/v/{token}"
 
 
 def _qr_png_bytes(url: str) -> bytes:
@@ -74,16 +89,21 @@ def build_verification_flowables(
     valid_until: Optional[str] = None,
     *,
     label: str = "Verificação de Autenticidade",
+    verification_token: Optional[str] = None,
 ) -> list:
     """Constrói flowables (Spacer + Table) a serem appendados ao story.
 
     `code` pode ser None: nesse caso retorna lista vazia (não desenha rodapé).
+    Quando `verification_token` é fornecido, o QR carrega a URL curta
+    `/v/{token}` (recomendado — owner spec Fev/2026). O `code` humano
+    permanece visível no rodapé para digitação manual.
     """
     if not code:
         return []
 
     portal = _portal_url()
-    qr_url = f"{portal}/{code}"
+    short_url = _short_verify_url(verification_token)
+    qr_url = short_url or f"{portal}/{code}"
 
     style_bold = ParagraphStyle(
         "VerifFooterBold", fontName="Helvetica-Bold", fontSize=8,
@@ -164,18 +184,21 @@ def draw_verification_footer_on_canvas(
     *,
     width: float = 17 * cm,
     height: float = 2.8 * cm,
+    verification_token: Optional[str] = None,
 ):
     """Desenha o rodapé de verificação direto em um canvas (modo certificado).
 
     `(x, y)` é o canto INFERIOR-ESQUERDO do bloco.
     `width`/`height` definem o tamanho do bloco.
     `code` é o código curto. Se None, não desenha nada.
+    Se `verification_token` for fornecido, QR carrega URL curta `/v/{token}`.
     """
     if not code:
         return
 
     portal = _portal_url()
-    qr_url = f"{portal}/{code}"
+    short_url = _short_verify_url(verification_token)
+    qr_url = short_url or f"{portal}/{code}"
 
     # Caixa de fundo
     c.saveState()

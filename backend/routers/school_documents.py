@@ -181,6 +181,7 @@ def setup_router(db):
                 "diretor": "Diretor(a) Escolar",
             }.get((snap.get("created_by") or {}).get("role"), "Secretaria"),
             "code": normalized,
+            "verification_token": vdoc.get("verification_token"),
             "valid_until": output.get("valid_until"),
             "frequencia_pct": (payload.get("extra") or {}).get("frequencia_pct"),
             "bimestre": (payload.get("extra") or {}).get("bimestre"),

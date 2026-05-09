@@ -131,6 +131,8 @@ function App() {
           {/* G1.6 — Portal público de verificação (sem auth) */}
           <Route path="/verificar" element={<VerifyPublic />} />
           <Route path="/verificar/:code" element={<VerifyPublic />} />
+          {/* Verifiable Documents MVP: URL curta /v/{token} (carregada no QR) */}
+          <Route path="/v/:token" element={<VerifyPublic />} />
           
           {/* Rotas protegidas */}
           <Route

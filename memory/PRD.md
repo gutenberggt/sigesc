@@ -32,6 +32,84 @@ Sistema Integrado de Gestão Escolar multi-tenant (SaaS) para prefeituras, com i
 
 ## Implemented Features (histórico)
 
+### Verifiable Documents MVP — Autoridade Verificável **[Fev/2026]**
+
+Transforma o SIGESC em **autoridade verificável de emissão documental**:
+qualquer terceiro (universidade, empresa, secretaria, auditor, responsável)
+verifica autenticidade/integridade/validade/revogação/substituição sem login.
+
+#### Backend `services/verifiable_docs_service.py`
+- **`verification_token`** UUID hex 32 chars (opaco) gerado em toda emissão.
+  Distinto do `code` humano (`SIGESC-XXXX-XXXX`). É o que vai no QR.
+- `resolve_either(db, identifier)` — resolve transparentemente por code OU token.
+- `resolve_token(db, token)` — busca direta por token UUID.
+- `add_signature(db, code_or_token, *, role, full_name, signed_by_user_id)`
+  — empilha assinatura institucional. Signatures NÃO mutam `document_hash_sha256`
+  (hash congelado na emissão; assinaturas geram hashes derivados separados).
+- `supersede_document(db, *, old, new, user)` — marca `old` com
+  `superseded_by_document_id=new.code` + `superseded_at`. Estado distinto
+  de revogação: documento permanece consultável publicamente como histórico.
+- `backfill_verification_tokens(db)` — preenche `verification_token` em docs
+  pré-existentes; idempotente; rodado no startup do FastAPI.
+- Schema enriquecido: `schema_version="1"`, `template_version`, `document_type`
+  (alias canônico de `type`), `student_id`, `school_id`, `render_job_id`,
+  `file_id`, `signatures: []`, `superseded_by_document_id`.
+- `build_portal_response(doc)` — 5 estados (`valido | substituido | revogado |
+  expirado | invalido`) com `assinaturas[]` LGPD-safe (apenas role + full_name +
+  signed_at; ZERO user_id/email/CPF/matrícula).
+- Indexes: `verification_token` UNIQUE sparse, `student_id` sparse, `school_id` sparse.
+
+#### Router `routers/verifiable_docs.py`
+- `GET /api/public/verify/{identifier}` — público, rate-limited 20/min, aceita
+  CODE (`SIGESC-XXXX-XXXX`) OU TOKEN (UUID hex 32). LGPD-safe.
+- `POST /api/documents/{code}/signatures` — `{role, full_name}`. Apenas
+  super_admin/admin/secretario/diretor.
+- `POST /api/documents/{code}/supersede` — `{new_code | new_token}`. Apenas
+  super_admin/admin/secretario.
+- Endpoints existentes preservados (list, get, revoke, ensure-for-snapshot).
+
+#### Resolução de colisão de rota
+`dependency_completions.public_verify` (registrado primeiro) agora **delega**
+para `verifiable_docs_service.resolve_either` quando o identificador não
+corresponde a uma completion — mantém ambos contratos coexistentes.
+
+#### QR / PDF
+- `pdf/verification_footer.py` agora aceita `verification_token` opcional;
+  quando presente, QR carrega URL CURTA `/v/{token}` (owner spec). Code
+  humano permanece visível no rodapé para digitação manual.
+- `services/school_doc_templates._validity_footer` lê `context["verification_token"]`
+  e injeta no QR.
+- `routers/school_documents.get_pdf` propaga `verification_token` do `vdoc`.
+
+#### Frontend
+- Nova rota pública `/v/:token` — reusa `VerifyPublic.jsx` (zero duplicação).
+- `VerifyPublic` reconhece tanto code (`/verificar/:code`) quanto token
+  (`/v/:token`); normalização client-side aceita ambos formatos.
+- Card de resultado renderiza:
+  - Estado `substituido` (badge azul + RefreshCw) com referência ao sucessor.
+  - Bloco "Assinaturas Institucionais" com lista de role + full_name + data
+    (LGPD-safe — backend filtrou).
+  - 5 estados visuais: valido (verde), invalido (vermelho), revogado (âmbar),
+    expirado (âmbar), substituido (azul).
+
+#### Tests
+- `tests/test_verifiable_docs_mvp.py` (10 E2E HTTP):
+  - Verifica por code + token, LGPD safety, identifier desconhecido,
+    add_signature (sucesso + LGPD-safe + 400 sem campos), supersede
+    (sucesso + 400 mesmo doc + 404 desconhecido), formato UUID hex token.
+- **142 verde + 1 skipped** na suite consolidada (verifiable_docs_mvp +
+  school_documents_delete + dep_completions + bulletin + render_jobs +
+  closure + lens + isolation P0). Zero regressões.
+
+#### Backlog explícito (NÃO implementado)
+- ❌ ICP-Brasil / certificado A1/A3
+- ❌ Assinatura criptográfica pesada (X.509)
+- ❌ Blockchain
+- ❌ Timestamp authority externa
+- ❌ Watermarking complexo / antifraude sofisticado
+
+
+
 ### Passo 5 — Boletim Online MVP **[Fev/2026]**
 
 Read-model pedagógico do boletim — escopo MÍNIMO autorizado pelo owner:

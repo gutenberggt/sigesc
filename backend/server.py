@@ -198,6 +198,16 @@ async def create_indexes():
         # Passo 4 — índices de document_render_jobs (idempotente)
         await _ensure_render_indexes(db)
 
+        # Verifiable Documents MVP — índices novos + backfill de verification_token
+        from services import verifiable_docs_service as _vdsvc
+        await _vdsvc.ensure_indexes(db)
+        try:
+            n = await _vdsvc.backfill_verification_tokens(db)
+            if n:
+                logger.info(f"[startup] verification_token backfill: {n} docs atualizados")
+        except Exception as e:
+            logger.warning(f"[startup] backfill verification_token falhou: {e}")
+
         # Passo 4 — worker de render jobs (in-process, single-loop)
         if os.environ.get("DISABLE_RENDER_WORKER", "").lower() not in {"1", "true", "yes"}:
             from services.render_worker import run_worker_loop

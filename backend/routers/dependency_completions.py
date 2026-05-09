@@ -511,7 +511,36 @@ def setup_public_verification_router(db):
             },
         )
         if not doc:
-            return {"valid": False, "document_status": "nao_encontrado"}
+            # Fallback: verifica em verifiable_documents (Verifiable Documents MVP)
+            # Aceita tanto verification_token UUID quanto code SIGESC-XXXX-XXXX.
+            from services import verifiable_docs_service as _vsvc
+            vdoc = await _vsvc.resolve_either(db, verification_token)
+            if vdoc:
+                # Renderiza no shape do portal verifiable_docs (LGPD-safe).
+                resp = _vsvc.build_portal_response(vdoc)
+                # Re-mapeia "valid" para compatibilidade com clients antigos.
+                resp["valid"] = resp.get("status") == "valido"
+                # Se snapshot vinculado, revalida integridade
+                if resp.get("status") == "valido" and vdoc.get("snapshot_id"):
+                    snap = await db.ai_analysis_snapshots.find_one(
+                        {"id": vdoc["snapshot_id"]}, {"_id": 0, "expires_at_dt": 0}
+                    )
+                    if snap:
+                        from services import snapshot_service as _snap_svc
+                        integrity = _snap_svc.verify_snapshot_integrity(snap)
+                        if not integrity["valid"]:
+                            resp["status"] = "invalido"
+                            resp["valid"] = False
+                            resp["mensagem"] = (
+                                "A integridade deste documento não pôde ser confirmada."
+                            )
+                    else:
+                        resp["status"] = "invalido"
+                        resp["valid"] = False
+                return resp
+            # Não encontrado em nenhuma fonte — shape unificado (verifiable_docs).
+            from services import verifiable_docs_service as _vsvc2
+            return _vsvc2.build_portal_response(None)
 
         # Resolve nome da escola sem PII adicional
         school_name = None
