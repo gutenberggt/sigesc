@@ -422,6 +422,200 @@ def _public_signatures(doc: dict) -> list[dict]:
     return out
 
 
+# ===========================================================================
+# Signature health & re-signing (operacional)
+# ===========================================================================
+def _classify_signature_state(doc: dict) -> str:
+    """Classifica o estado de assinatura do documento.
+
+    Estados:
+      - "valid"               : hash ok + assinatura ok
+      - "no_snapshot"         : sem snapshot vinculado (legado — sig=server_signature direto)
+      - "hash_mismatch"       : public_hash salvo difere do recalculado (CORRUPÇÃO)
+      - "signature_missing"   : doc com snapshot mas server_signature ausente
+      - "signature_mismatch"  : hash ok, mas HMAC recalculado != server_signature
+                                (segredo trocado/ausente — RESIGN possível)
+      - "secret_unavailable"  : SNAPSHOT_HMAC_SECRET não está definido no ambiente
+    """
+    secret_ok = snap_svc._get_hmac_secret() is not None  # type: ignore[attr-defined]
+    if not secret_ok:
+        return "secret_unavailable"
+    if not doc.get("snapshot_id"):
+        return "valid" if doc.get("server_signature") else "signature_missing"
+    if not doc.get("server_signature"):
+        return "signature_missing"
+    recomputed = snap_svc.compute_signature(doc.get("public_hash") or "")
+    if recomputed and recomputed == doc.get("server_signature"):
+        return "valid"
+    return "signature_mismatch"
+
+
+async def audit_signatures(
+    db, *, mantenedora_id: Optional[str] = None, sample_limit: int = 25,
+) -> dict:
+    """Audita as assinaturas dos verifiable_documents.
+
+    Retorna agregados + amostra de docs problemáticos para diagnóstico operacional.
+    """
+    flt: dict = {}
+    if mantenedora_id:
+        flt["mantenedora_id"] = mantenedora_id
+
+    counters = {
+        "total": 0, "valid": 0, "signature_mismatch": 0,
+        "signature_missing": 0, "no_snapshot": 0, "hash_mismatch": 0,
+        "secret_unavailable": 0,
+    }
+    samples: dict[str, list[dict]] = {
+        "signature_mismatch": [], "signature_missing": [],
+    }
+    secret_present = snap_svc._get_hmac_secret() is not None  # type: ignore[attr-defined]
+
+    cursor = db.verifiable_documents.find(
+        flt,
+        {"_id": 0, "code": 1, "type": 1, "public_hash": 1,
+         "server_signature": 1, "snapshot_id": 1, "created_at": 1,
+         "mantenedora_id": 1, "revoked": 1},
+    )
+    async for d in cursor:
+        counters["total"] += 1
+        if d.get("revoked"):
+            continue
+        state = _classify_signature_state(d)
+        counters[state] = counters.get(state, 0) + 1
+        if state in samples and len(samples[state]) < sample_limit:
+            samples[state].append({
+                "code": d.get("code"),
+                "type": d.get("type"),
+                "created_at": d.get("created_at"),
+            })
+
+    return {
+        "secret_configured": secret_present,
+        "counters": counters,
+        "samples": samples,
+        "audited_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+async def resign_document(db, *, code_or_token: str, user: dict) -> dict:
+    """Recomputa `server_signature` usando o segredo HMAC atual.
+
+    Use case: SNAPSHOT_HMAC_SECRET foi trocado/perdido em produção.
+    Documentos antigos passam a verificar 'assinatura inválida' mas o conteúdo
+    permanece íntegro. Esta função "rebaseia" a prova de origem para o segredo
+    atual, registrando o evento.
+
+    Recusa se hash difere do snapshot (corrupção real — NÃO re-assinar).
+    """
+    if snap_svc._get_hmac_secret() is None:  # type: ignore[attr-defined]
+        raise ValueError(
+            "SNAPSHOT_HMAC_SECRET não configurado no servidor — impossível assinar"
+        )
+    doc = await resolve_either(db, code_or_token)
+    if not doc:
+        raise KeyError("Documento não encontrado")
+
+    snapshot_id = doc.get("snapshot_id")
+    if not snapshot_id:
+        public_hash = doc.get("public_hash")
+        if not public_hash:
+            raise ValueError("Documento sem public_hash — impossível re-assinar")
+    else:
+        snap = await db.ai_analysis_snapshots.find_one(
+            {"id": snapshot_id}, {"_id": 0}
+        )
+        if not snap:
+            raise ValueError(
+                "Snapshot vinculado não encontrado — re-assinatura recusada"
+            )
+        public_hash = snap.get("public_hash") or doc.get("public_hash")
+        if doc.get("public_hash") and snap.get("public_hash") and \
+           doc["public_hash"] != snap["public_hash"]:
+            raise ValueError(
+                "Hash do documento difere do snapshot — re-assinatura recusada "
+                "(possível corrupção)"
+            )
+
+    new_sig = snap_svc.compute_signature(public_hash)
+    if not new_sig:
+        raise RuntimeError("Falha ao computar nova assinatura")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    r = await db.verifiable_documents.find_one_and_update(
+        {"code": doc["code"]},
+        {"$set": {
+            "server_signature": new_sig,
+            "public_hash": public_hash,
+            "resigned_at": now_iso,
+            "resigned_by_user_id": user.get("id") if user else None,
+        }},
+        return_document=True,
+        projection={"_id": 0},
+    )
+    logger.warning(
+        "[verifiable_docs] re-signed code=%s by user=%s",
+        doc["code"], (user or {}).get("email"),
+    )
+    return r
+
+
+async def resign_mismatched_documents(
+    db, *, mantenedora_id: Optional[str] = None, user: dict, dry_run: bool = False,
+) -> dict:
+    """Re-assina em lote docs com state in {signature_mismatch, signature_missing}.
+
+    `dry_run=True` lista alvos sem alterar.
+    Estados `hash_mismatch` são REJEITADOS (corrupção real — não re-assinar).
+    """
+    if snap_svc._get_hmac_secret() is None:  # type: ignore[attr-defined]
+        raise ValueError(
+            "SNAPSHOT_HMAC_SECRET não configurado no servidor — impossível assinar"
+        )
+    flt: dict = {"revoked": False}
+    if mantenedora_id:
+        flt["mantenedora_id"] = mantenedora_id
+
+    plan: list[dict] = []
+    skipped: list[dict] = []
+    cursor = db.verifiable_documents.find(flt, {"_id": 0})
+    async for d in cursor:
+        state = _classify_signature_state(d)
+        if state == "valid":
+            continue
+        if state in ("signature_mismatch", "signature_missing"):
+            plan.append({"code": d.get("code"), "state": state})
+        else:
+            skipped.append({"code": d.get("code"), "state": state})
+
+    if dry_run:
+        return {
+            "dry_run": True,
+            "would_resign": len(plan),
+            "plan": plan[:200],
+            "skipped": skipped[:50],
+        }
+
+    resigned: list[str] = []
+    failed: list[dict] = []
+    for item in plan:
+        try:
+            await resign_document(db, code_or_token=item["code"], user=user)
+            resigned.append(item["code"])
+        except (ValueError, KeyError, RuntimeError) as e:
+            failed.append({"code": item["code"], "error": str(e)})
+
+    return {
+        "dry_run": False,
+        "resigned_count": len(resigned),
+        "failed_count": len(failed),
+        "resigned": resigned[:200],
+        "failed": failed[:50],
+        "skipped": skipped[:50],
+    }
+
+
+
 def build_portal_response(doc: Optional[dict]) -> dict:
     """Constrói a resposta LGPD-safe do portal público.
 
@@ -538,6 +732,15 @@ def build_portal_response(doc: Optional[dict]) -> dict:
         "mensagem": (
             "Documento autêntico e íntegro, emitido pelo SIGESC."
             if (hash_valid and sig_valid)
-            else "Não foi possível confirmar a integridade do documento."
+            else (
+                # Hash ok + assinatura inválida → segredo do servidor mudou.
+                # Mensagem específica orienta cidadão e operador.
+                "O conteúdo deste documento parece íntegro, mas o servidor "
+                "não pôde confirmar a assinatura digital de origem. "
+                "Solicite à secretaria da escola que reemita o documento, "
+                "ou ao administrador do sistema que execute a re-assinatura institucional."
+                if (hash_valid and not sig_valid)
+                else "Não foi possível confirmar a integridade do documento."
+            )
         ),
     }

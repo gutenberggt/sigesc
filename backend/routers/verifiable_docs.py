@@ -124,6 +124,45 @@ def setup_router(db, limiter=None):
         items = await cursor.to_list(length=limit)
         return {"items": items, "total": len(items)}
 
+    # ------------------ Signature Health & Re-signing ------------------
+    # Rotas estáticas DECLARADAS ANTES de /{code} para evitar colisão de path.
+
+    @admin.get("/signature-health")
+    async def signature_health(request: Request):
+        """Diagnóstico operacional das assinaturas.
+
+        Retorna se o segredo HMAC está configurado e contagem por estado:
+        valid / signature_mismatch / signature_missing / hash_mismatch / secret_unavailable
+        Inclui amostras dos códigos problemáticos para investigação.
+        Apenas super_admin/admin/gerente.
+        """
+        user = await _require_admin(request)
+        if user.get("role") not in ("super_admin", "admin", "admin_teste", "gerente"):
+            raise HTTPException(403, "Apenas admin pode auditar assinaturas")
+        scope = snap_svc.get_scope_for_user(user)
+        mant = scope.get("mantenedora_id") if scope else None
+        return await vsvc.audit_signatures(db, mantenedora_id=mant)
+
+    @admin.post("/resign-mismatched")
+    async def resign_bulk(request: Request, dry_run: bool = False):
+        """Re-assina em lote todos os documentos com signature divergente.
+
+        `?dry_run=true` apenas lista alvos sem alterar.
+        Apenas super_admin.
+        """
+        user = await AuthMiddleware.get_current_user(request)
+        if user.get("role") != "super_admin":
+            raise HTTPException(403, "Apenas super_admin pode re-assinar em lote")
+        scope = snap_svc.get_scope_for_user(user)
+        mant = scope.get("mantenedora_id") if scope else None
+        try:
+            r = await vsvc.resign_mismatched_documents(
+                db, mantenedora_id=mant, user=user, dry_run=dry_run,
+            )
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return r
+
     @admin.get("/{code}")
     async def get_document(code: str, request: Request):
         user = await _require_admin(request)
@@ -274,6 +313,32 @@ def setup_router(db, limiter=None):
             raise HTTPException(404, str(e))
         except ValueError as e:
             raise HTTPException(400, str(e))
+        return r
+
+    # ------------------ Signature Health & Re-signing ------------------
+
+    @admin.post("/{code}/resign")
+    async def resign_one(code: str, request: Request):
+        """Re-assina UM documento usando o segredo HMAC atual.
+
+        Use case: SNAPSHOT_HMAC_SECRET foi trocado/perdido. Documentos com
+        integridade do hash íntegra mas assinatura divergente podem ser
+        "rebaseados" para o segredo atual.
+
+        Apenas super_admin (ação destrutiva no audit trail criptográfico).
+        Recusa se o hash difere do snapshot (corrupção real).
+        """
+        user = await AuthMiddleware.get_current_user(request)
+        if user.get("role") != "super_admin":
+            raise HTTPException(403, "Apenas super_admin pode re-assinar")
+        try:
+            r = await vsvc.resign_document(db, code_or_token=code, user=user)
+        except KeyError:
+            raise HTTPException(404, "Documento não encontrado")
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except RuntimeError as e:
+            raise HTTPException(500, str(e))
         return r
 
     return public, admin

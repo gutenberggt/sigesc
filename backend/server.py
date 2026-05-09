@@ -208,6 +208,18 @@ async def create_indexes():
         except Exception as e:
             logger.warning(f"[startup] backfill verification_token falhou: {e}")
 
+        # Sanidade crítica: SNAPSHOT_HMAC_SECRET é o que prova "SIGESC emitiu este doc".
+        # Sem ele, todos os docs verificarão como 'assinatura inválida/ausente'.
+        if not os.environ.get("SNAPSHOT_HMAC_SECRET"):
+            logger.error(
+                "[startup] ⚠️  CRÍTICO: SNAPSHOT_HMAC_SECRET ausente — "
+                "todos os documentos verificarão como assinatura inválida. "
+                "Configure a variável de ambiente com uma string longa estável "
+                "(64 hex chars recomendado) e reinicie. "
+                "Após configurar, use POST /api/documents/resign-mismatched para "
+                "rebaseiar documentos antigos."
+            )
+
         # Passo 4 — worker de render jobs (in-process, single-loop)
         if os.environ.get("DISABLE_RENDER_WORKER", "").lower() not in {"1", "true", "yes"}:
             from services.render_worker import run_worker_loop
