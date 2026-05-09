@@ -214,4 +214,43 @@ def setup_router(db):
             raise HTTPException(400, str(e))
         return r
 
+    @router.delete("/{code}")
+    async def delete_document(code: str, request: Request):
+        """Exclusão DEFINITIVA — apenas super_admin.
+
+        Remove o registro do log e o `verifiable_documents` correspondente.
+        Mantém o snapshot em `ai_analysis_snapshots` (auditoria pedagógica
+        permanente — snapshots são append-only por contrato).
+        """
+        user = await AuthMiddleware.get_current_user(request)
+        if user.get("role") != "super_admin":
+            raise HTTPException(403, "Apenas super_admin pode excluir declarações")
+
+        normalized = vsvc.normalize_code(code)
+        if not normalized:
+            raise HTTPException(400, "Código inválido")
+
+        log_entry = await db.school_documents_log.find_one(
+            {"code": normalized}, {"_id": 0}
+        )
+        if not log_entry:
+            raise HTTPException(404, "Declaração não encontrada")
+
+        deleted_log = await db.school_documents_log.delete_one({"code": normalized})
+        deleted_vdoc = await db.verifiable_documents.delete_one({"code": normalized})
+
+        logger.warning(
+            "[school-documents] super_admin %s excluiu code=%s (log=%s vdoc=%s)",
+            user.get("email") or user.get("id"),
+            normalized,
+            deleted_log.deleted_count,
+            deleted_vdoc.deleted_count,
+        )
+        return {
+            "code": normalized,
+            "deleted": True,
+            "log_deleted": deleted_log.deleted_count,
+            "verifiable_deleted": deleted_vdoc.deleted_count,
+        }
+
     return router

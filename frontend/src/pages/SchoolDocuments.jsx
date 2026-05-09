@@ -18,9 +18,10 @@ import axios from 'axios';
 import {
   ChevronLeft, FileText, Send, Search, Download, Ban,
   CheckCircle2, AlertTriangle, Clock, User, Hash,
-  Loader2, X,
+  Loader2, X, Trash2,
 } from 'lucide-react';
 import { highlightSegments } from '@/utils/textSearch';
+import { useAuth } from '@/contexts/AuthContext';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -46,6 +47,8 @@ const DOC_TYPES = [
 ];
 
 export default function SchoolDocuments() {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin';
   const [studentQuery, setStudentQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -215,6 +218,32 @@ export default function SchoolDocuments() {
       loadHistory(selectedStudent?.id);
     } catch {
       setToast({ type: 'error', msg: 'Falha ao revogar' });
+    }
+  };
+
+  const deleteDocument = async (code) => {
+    const confirmText = `EXCLUIR ${code}`;
+    const typed = window.prompt(
+      `Exclusão DEFINITIVA da declaração ${code}.\n` +
+      `Esta ação é IRREVERSÍVEL: o registro do log e o documento verificável serão removidos. ` +
+      `O snapshot pedagógico permanece preservado por auditoria.\n\n` +
+      `Digite exatamente "${confirmText}" para confirmar:`
+    );
+    if (typed !== confirmText) {
+      if (typed !== null) {
+        setToast({ type: 'error', msg: 'Confirmação incorreta. Exclusão cancelada.' });
+      }
+      return;
+    }
+    try {
+      await axios.delete(`${API}/school-documents/${code}`);
+      setToast({ type: 'success', msg: `Declaração ${code} excluída` });
+      loadHistory(selectedStudent?.id);
+    } catch (err) {
+      const msg = err.response?.status === 403
+        ? 'Apenas super_admin pode excluir declarações'
+        : err.response?.data?.detail || 'Falha ao excluir';
+      setToast({ type: 'error', msg });
     }
   };
 
@@ -529,6 +558,16 @@ export default function SchoolDocuments() {
                       >
                         <Ban className="h-3 w-3" /> Revogar
                       </button>
+                      {isSuperAdmin && (
+                        <button
+                          onClick={() => deleteDocument(d.code)}
+                          className="inline-flex items-center gap-1 text-xs text-red-900 hover:underline"
+                          title="Exclusão definitiva (apenas super_admin)"
+                          data-testid={`school-docs-delete-${d.code}`}
+                        >
+                          <Trash2 className="h-3 w-3" /> Excluir
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
