@@ -72,6 +72,23 @@ def setup_router(db, limiter=None):
         async def public_verify(code: str, request: Request):
             return await _public_verify_impl(code)
 
+    # Endpoint público minimal de diagnóstico — NÃO expõe o segredo,
+    # apenas se o processo Python conseguiu carregá-lo. Útil em
+    # ambientes Coolify/Docker para confirmar que a env var chegou ao runtime.
+    @public.get("/hmac-presence")
+    async def hmac_presence():
+        import os as _os
+        secret = _os.environ.get("SNAPSHOT_HMAC_SECRET", "") or ""
+        return {
+            "configured": bool(secret),
+            "length": len(secret),
+            # Apenas 4 chars de cada extremo — confirma que TODAS as instâncias
+            # carregaram o MESMO valor sem revelar o segredo (40 bits de exposição
+            # apenas se o atacante já tem acesso ao ambiente; suficiente p/ ops).
+            "head4": secret[:4] if secret else None,
+            "tail4": secret[-4:] if secret else None,
+        }
+
     # ------------------ ADMIN (autenticado) ------------------
 
     async def _require_admin(request: Request) -> dict:

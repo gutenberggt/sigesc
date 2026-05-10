@@ -210,14 +210,20 @@ async def create_indexes():
 
         # Sanidade crítica: SNAPSHOT_HMAC_SECRET é o que prova "SIGESC emitiu este doc".
         # Sem ele, todos os docs verificarão como 'assinatura inválida/ausente'.
-        if not os.environ.get("SNAPSHOT_HMAC_SECRET"):
+        _hmac_env = os.environ.get("SNAPSHOT_HMAC_SECRET", "")
+        if not _hmac_env:
             logger.error(
-                "[startup] ⚠️  CRÍTICO: SNAPSHOT_HMAC_SECRET ausente — "
+                "[startup] CRITICAL: SNAPSHOT_HMAC_SECRET ausente no processo Python — "
                 "todos os documentos verificarão como assinatura inválida. "
-                "Configure a variável de ambiente com uma string longa estável "
-                "(64 hex chars recomendado) e reinicie. "
-                "Após configurar, use POST /api/documents/resign-mismatched para "
-                "rebaseiar documentos antigos."
+                "Configure a variável de ambiente (runtime, não build) com uma string "
+                "longa estável (64 hex chars recomendado) e REINICIE o container."
+            )
+        else:
+            logger.info(
+                "[startup] SNAPSHOT_HMAC_SECRET carregado: len=%d chars (head=%s..., tail=...%s)",
+                len(_hmac_env),
+                _hmac_env[:4],
+                _hmac_env[-4:],
             )
 
         # Passo 4 — worker de render jobs (in-process, single-loop)
