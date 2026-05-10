@@ -4,7 +4,9 @@ Extraído de server.py durante a refatoração modular.
 """
 
 import logging
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, status, Request
+from pydantic import BaseModel, Field
 import unicodedata
 
 from auth_middleware import AuthMiddleware
@@ -471,6 +473,36 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
                 {"class_id": class_id, "course_id": course_id}
             )
 
+        async def _snapshots_count(course_id: str) -> int:
+            """Snapshots documentais que mencionam este course_id em payload_snapshot."""
+            return await current_db.snapshots.count_documents({
+                "$or": [
+                    {"payload_snapshot.components.course_id": course_id},
+                    {"payload_snapshot.composite_segments.components.course_id": course_id},
+                    {"payload_snapshot.course_id": course_id},
+                ]
+            })
+
+        async def _documents_count(course_id: str) -> int:
+            """Verifiable documents emitidos referenciando este course_id."""
+            return await current_db.verifiable_documents.count_documents({
+                "$or": [
+                    {"document_payload.components.course_id": course_id},
+                    {"document_payload.composite_segments.components.course_id": course_id},
+                    {"document_payload.course_id": course_id},
+                ]
+            })
+
+        async def _render_jobs_count(course_id: str) -> int:
+            """Render jobs concluídos que referenciam este course_id no input."""
+            return await current_db.render_jobs.count_documents({
+                "status": "completed",
+                "$or": [
+                    {"input.course_id": course_id},
+                    {"input.course_ids": course_id},
+                ]
+            })
+
         # Builda info detalhada por curso
         per_course: list[dict] = []
         # Inclui também cursos referenciados na turma porém sem documento
@@ -480,12 +512,22 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
             doc = courses_in_class.get(cid)
             grades_count, students_count = await _grades_count(cid)
             att_count = await _attendance_count(cid)
+            snap_count = await _snapshots_count(cid)
+            doc_count = await _documents_count(cid)
+            rj_count = await _render_jobs_count(cid)
             is_active = bool(doc.get("active", True)) if doc else False
             is_deleted = bool(doc and doc.get("deleted_at"))
             suspected_ghost = (
                 grades_count == 0
                 and att_count == 0
                 and (not doc or is_deleted or not is_active)
+            )
+            safe_to_remove = (
+                grades_count == 0
+                and att_count == 0
+                and snap_count == 0
+                and doc_count == 0
+                and rj_count == 0
             )
             per_course.append({
                 "course_id": cid,
@@ -499,7 +541,11 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
                 "grades_count": grades_count,
                 "attendance_count": att_count,
                 "students_with_records": students_count,
+                "linked_snapshots_count": snap_count,
+                "linked_documents_count": doc_count,
+                "linked_render_jobs_count": rj_count,
                 "suspected_ghost": suspected_ghost,
+                "safe_to_remove": safe_to_remove,
             })
 
         # Agrupa por nome (case/space-insensitive) — só lista grupos com >1
@@ -565,7 +611,191 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
                 "duplicate_groups": len(duplicates_by_name),
                 "ghost_courses": sum(1 for c in per_course if c["suspected_ghost"]),
                 "orphan_course_ids": len(orphan_grades),
+                "safe_to_remove_count": sum(1 for c in per_course if c["safe_to_remove"]),
             },
+        }
+
+    class RemoveCourseFromClassBody(BaseModel):
+        course_id: str = Field(..., min_length=1)
+        reason: str = Field(..., min_length=30, max_length=500)
+
+    @router.post("/admin/classes/{class_id}/remove-course")
+    async def remove_course_from_class(
+        class_id: str, body: RemoveCourseFromClassBody, request: Request
+    ):
+        """Remove um `course_id` de `class.course_ids` (saneamento curricular).
+
+        Regras institucionais (não-negociáveis):
+        - **Bloqueio absoluto** se houver QUALQUER vínculo acadêmico real:
+          notas (`grades`), frequência (`attendance`), snapshots emitidos,
+          documentos verificáveis ou render jobs concluídos. Retorna
+          409 `COURSE_HAS_ACADEMIC_RECORDS`. Não há override por header.
+        - **Confirmação obrigatória**: header `X-Academic-Confirm: true`
+          mesmo em curso `safe_to_remove`. Sem ele → 428.
+        - **Soft removal**: o `course_id` é tirado de `class.course_ids`,
+          mas registrado em `class.class_course_overrides[]` com auditoria
+          completa (quem, quando, por quê). Histórico curricular preservado.
+        - **Reason** ≥ 30 caracteres (institucional, responsabilizador).
+        - **Audit log** via `audit_service` (canônico).
+
+        NÃO apaga `grades`/`attendance`/`snapshots`/`documents`. Esses
+        permanecem como evidência e continuam aparecendo no diagnóstico
+        (como `orphan_grades` se aplicável).
+        """
+        current_user = await AuthMiddleware.require_permission(
+            db, 'nav-admin-tools-button', ['admin']
+        )(request)
+        current_db = get_db_for_user(current_user) if get_db_for_user else db
+
+        # Confirmação institucional explícita
+        confirm_header = request.headers.get("X-Academic-Confirm", "").strip().lower()
+        if confirm_header != "true":
+            raise HTTPException(
+                status_code=status.HTTP_428_PRECONDITION_REQUIRED,
+                detail={
+                    "error": "ACADEMIC_CONFIRMATION_REQUIRED",
+                    "message": (
+                        "Operação acadêmica crítica exige cabeçalho "
+                        "'X-Academic-Confirm: true' explícito."
+                    ),
+                },
+            )
+
+        cls = await current_db.classes.find_one(
+            {"id": class_id},
+            {"_id": 0, "id": 1, "name": 1, "course_ids": 1, "school_id": 1,
+             "academic_year": 1, "class_course_overrides": 1},
+        )
+        if not cls:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Turma não encontrada"
+            )
+
+        course_ids = list(cls.get("course_ids") or [])
+        if body.course_id not in course_ids:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "COURSE_NOT_LINKED_TO_CLASS",
+                    "message": "Componente já não está vinculado à turma.",
+                },
+            )
+
+        # Contagens de vínculo acadêmico
+        grades_count = await current_db.grades.count_documents(
+            {"class_id": class_id, "course_id": body.course_id}
+        )
+        att_count = await current_db.attendance.count_documents(
+            {"class_id": class_id, "course_id": body.course_id}
+        )
+        snap_count = await current_db.snapshots.count_documents({
+            "$or": [
+                {"payload_snapshot.components.course_id": body.course_id},
+                {"payload_snapshot.composite_segments.components.course_id": body.course_id},
+                {"payload_snapshot.course_id": body.course_id},
+            ]
+        })
+        doc_count = await current_db.verifiable_documents.count_documents({
+            "$or": [
+                {"document_payload.components.course_id": body.course_id},
+                {"document_payload.composite_segments.components.course_id": body.course_id},
+                {"document_payload.course_id": body.course_id},
+            ]
+        })
+        rj_count = await current_db.render_jobs.count_documents({
+            "status": "completed",
+            "$or": [
+                {"input.course_id": body.course_id},
+                {"input.course_ids": body.course_id},
+            ]
+        })
+
+        if grades_count or att_count or snap_count or doc_count or rj_count:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "COURSE_HAS_ACADEMIC_RECORDS",
+                    "message": (
+                        "O componente possui registros acadêmicos e não pode "
+                        "ser removido automaticamente."
+                    ),
+                    "linked": {
+                        "grades_count": grades_count,
+                        "attendance_count": att_count,
+                        "linked_snapshots_count": snap_count,
+                        "linked_documents_count": doc_count,
+                        "linked_render_jobs_count": rj_count,
+                    },
+                },
+            )
+
+        # Resolve nome do curso para registro
+        cdoc = await current_db.courses.find_one(
+            {"id": body.course_id}, {"_id": 0, "name": 1}
+        ) or {}
+        course_name = cdoc.get("name")
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        override_entry = {
+            "action": "removed_from_class",
+            "course_id": body.course_id,
+            "course_name": course_name,
+            "removed_at": now_iso,
+            "removed_by_user_id": current_user.get("id"),
+            "removed_by_user_email": current_user.get("email"),
+            "removal_reason": body.reason,
+        }
+
+        old_course_ids = list(course_ids)
+        new_course_ids = [c for c in course_ids if c != body.course_id]
+
+        # Soft removal: tira do array E registra no histórico imutável da turma
+        await current_db.classes.update_one(
+            {"id": class_id},
+            {
+                "$set": {"course_ids": new_course_ids},
+                "$push": {"class_course_overrides": override_entry},
+            },
+        )
+
+        # Audit log canônico
+        try:
+            from audit_service import audit_service
+            await audit_service.log(
+                action="update",
+                collection="classes",
+                user=current_user,
+                request=request,
+                document_id=class_id,
+                description=(
+                    f"Removeu componente '{course_name or body.course_id}' "
+                    f"da turma {cls.get('name') or class_id} "
+                    f"(saneamento curricular)."
+                ),
+                old_value={"course_ids": old_course_ids},
+                new_value={"course_ids": new_course_ids},
+                school_id=cls.get("school_id"),
+                academic_year=cls.get("academic_year"),
+                extra_data={
+                    "operation": "remove_course_from_class",
+                    "removed_course_id": body.course_id,
+                    "removed_course_name": course_name,
+                    "reason": body.reason,
+                    "soft_removal": True,
+                },
+            )
+        except Exception as e:
+            logger.error(f"Falha ao registrar audit de remove_course_from_class: {e}")
+
+        return {
+            "ok": True,
+            "class_id": class_id,
+            "removed_course_id": body.course_id,
+            "removed_course_name": course_name,
+            "removed_at": now_iso,
+            "course_ids_before_count": len(old_course_ids),
+            "course_ids_after_count": len(new_course_ids),
+            "override_recorded": True,
         }
 
     return router

@@ -18,7 +18,15 @@ import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, X, AlertCircle, Calendar } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Loader2, Search, X, AlertCircle, Calendar, Stethoscope } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -203,8 +211,177 @@ function AttendanceRow({ summary }) {
   );
 }
 
-function DependencySection({ items }) {
-  if (!items?.length) return null;
+function CurricularDiagnoseModal({ open, onClose, classId, mantId }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    if (!open || !classId) return;
+    let cancelled = false;
+    setLoading(true);
+    setErr(null);
+    const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+    const headers = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (mantId) headers['X-Mantenedora-Id'] = mantId;
+    axios
+      .get(`${API}/admin/diagnose-class-courses/${classId}`, { headers })
+      .then((r) => { if (!cancelled) setData(r.data); })
+      .catch((e) => {
+        if (cancelled) return;
+        const m = e.response?.data?.detail || e.message || 'Erro ao diagnosticar';
+        setErr(typeof m === 'string' ? m : JSON.stringify(m));
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, classId, mantId]);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto" data-testid="curricular-diagnose-modal">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Stethoscope className="w-4 h-4 text-amber-600" />
+            Diagnóstico Curricular
+          </DialogTitle>
+          <DialogDescription>
+            Read-only · Decisão de saneamento é responsabilidade administrativa supervisionada.
+          </DialogDescription>
+        </DialogHeader>
+        {loading && (
+          <div className="flex items-center gap-2 text-sm text-zinc-500 py-8 justify-center">
+            <Loader2 className="w-4 h-4 animate-spin" /> Carregando diagnóstico…
+          </div>
+        )}
+        {err && (
+          <div className="text-sm text-red-700 py-4 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            <span data-testid="diagnose-error">{err}</span>
+          </div>
+        )}
+        {!loading && !err && data && (
+          <div className="space-y-4 text-sm">
+            <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-zinc-600 border-b pb-3">
+              <span><strong>Turma:</strong> {data.class_name}</span>
+              <span><strong>Ano:</strong> {data.academic_year || '—'}</span>
+              <span><strong>Componentes:</strong> {data.summary?.total_courses_in_class}</span>
+              <span><strong>Duplicidades:</strong> {data.summary?.duplicate_groups}</span>
+              <span><strong>Suspeitos (fantasma):</strong> {data.summary?.ghost_courses}</span>
+              <span><strong>Notas órfãs:</strong> {data.summary?.orphan_course_ids}</span>
+            </div>
+
+            {data.duplicates_by_name?.length > 0 && (
+              <div data-testid="diagnose-duplicates-section">
+                <div className="text-xs uppercase tracking-wide text-amber-700 mb-2">
+                  Componentes com nome duplicado
+                </div>
+                <div className="space-y-3">
+                  {data.duplicates_by_name.map((dup, i) => (
+                    <div key={i} className="border border-amber-200 rounded p-3 bg-amber-50/40">
+                      <div className="text-sm font-semibold text-amber-900 mb-2">
+                        {dup.course_name}
+                      </div>
+                      <table className="min-w-full text-xs">
+                        <thead className="text-zinc-500 uppercase tracking-wide">
+                          <tr>
+                            <th className="text-left py-1">course_id</th>
+                            <th className="text-center py-1">Notas</th>
+                            <th className="text-center py-1">Faltas</th>
+                            <th className="text-center py-1">Snapshots</th>
+                            <th className="text-center py-1">Docs</th>
+                            <th className="text-center py-1">Render</th>
+                            <th className="text-center py-1">Ativo</th>
+                            <th className="text-center py-1">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dup.courses.map((c) => (
+                            <tr key={c.course_id} className="border-t border-amber-100">
+                              <td className="py-1 font-mono text-[11px]">{c.course_id}</td>
+                              <td className="text-center">{c.grades_count}</td>
+                              <td className="text-center">{c.attendance_count}</td>
+                              <td className="text-center">{c.linked_snapshots_count ?? 0}</td>
+                              <td className="text-center">{c.linked_documents_count ?? 0}</td>
+                              <td className="text-center">{c.linked_render_jobs_count ?? 0}</td>
+                              <td className="text-center">{c.active ? 'sim' : 'não'}</td>
+                              <td className="text-center">
+                                {c.safe_to_remove ? (
+                                  <span
+                                    className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px] uppercase"
+                                    data-testid={`diagnose-safe-${c.course_id}`}
+                                  >
+                                    Removível
+                                  </span>
+                                ) : (
+                                  <span className="text-red-700 bg-red-50 px-1.5 py-0.5 rounded text-[10px] uppercase">
+                                    Bloqueado
+                                  </span>
+                                )}
+                                {c.suspected_ghost && (
+                                  <span className="ml-1 text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded text-[10px] uppercase">
+                                    Fantasma
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {data.orphan_grades?.length > 0 && (
+              <div>
+                <div className="text-xs uppercase tracking-wide text-zinc-600 mb-2">
+                  Notas órfãs (course_id não está em class.course_ids)
+                </div>
+                <table className="min-w-full text-xs">
+                  <thead className="text-zinc-500 uppercase tracking-wide">
+                    <tr>
+                      <th className="text-left py-1">course_id</th>
+                      <th className="text-left py-1">Nome (cadastro atual)</th>
+                      <th className="text-center py-1">Notas</th>
+                      <th className="text-center py-1">Alunos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.orphan_grades.map((o) => (
+                      <tr key={o.course_id} className="border-t">
+                        <td className="py-1 font-mono text-[11px]">{o.course_id}</td>
+                        <td className="py-1">{o.course_name_resolved || o.course_name_from_grade || '—'}</td>
+                        <td className="text-center">{o.grades_count}</td>
+                        <td className="text-center">{o.students_with_records}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="text-[11px] text-zinc-500 italic border-t pt-3">
+              Saneamento (remoção de componente da turma) é uma operação acadêmica
+              crítica. Bloqueada automaticamente se houver notas, frequência,
+              snapshots, documentos ou render jobs vinculados. Exige confirmação
+              institucional explícita e justificativa formal — não disponível
+              nesta visualização.
+            </div>
+          </div>
+        )}
+        <div className="flex justify-end pt-2">
+          <Button variant="outline" onClick={onClose} data-testid="diagnose-close-btn">
+            Fechar
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DependencySection({ items }) {  if (!items?.length) return null;
   return (
     <Card className="mt-4 border-amber-200" data-testid="bulletin-dependency-section">
       <CardHeader className="pb-2">
@@ -379,6 +556,9 @@ export default function BulletinViewer() {
   const [bulletin, setBulletin] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [diagnoseClassId, setDiagnoseClassId] = useState(null);
+
+  const isAdmin = user && ['admin', 'super_admin'].includes(user.role);
 
   const mantId = useMemo(() => {
     try {
@@ -475,16 +655,39 @@ export default function BulletinViewer() {
 
             {bulletin.warnings?.length > 0 && (
               <Card className="border-amber-200">
-                <CardContent className="pt-6 space-y-1">
+                <CardContent className="pt-6 space-y-2">
                   {bulletin.warnings.map((w, i) => (
-                    <div key={i} className="text-xs text-amber-700 flex items-center gap-1.5">
-                      <AlertCircle className="w-3 h-3" />
-                      {w.message || w.code}
+                    <div
+                      key={i}
+                      className="text-xs text-amber-700 flex items-center gap-2 flex-wrap"
+                      data-testid={`bulletin-warning-${w.code || i}`}
+                    >
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{w.message || w.code}</span>
+                      {isAdmin && w.code === 'DUPLICATE_COURSE_NAME' && w.class_id && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-[11px] border-amber-300 text-amber-800 hover:bg-amber-50"
+                          onClick={() => setDiagnoseClassId(w.class_id)}
+                          data-testid={`bulletin-diagnose-btn-${w.class_id}`}
+                        >
+                          <Stethoscope className="w-3 h-3 mr-1" />
+                          Diagnosticar
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </CardContent>
               </Card>
             )}
+
+            <CurricularDiagnoseModal
+              open={!!diagnoseClassId}
+              onClose={() => setDiagnoseClassId(null)}
+              classId={diagnoseClassId}
+              mantId={mantId}
+            />
 
             {bulletin.composite_segments?.map((seg) => (
               <Card key={seg.period_index} data-testid={`bulletin-segment-${seg.period_index}`}>

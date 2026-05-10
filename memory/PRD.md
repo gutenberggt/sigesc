@@ -2310,3 +2310,68 @@ mascara erro estrutural que se propaga para Histórico Escolar e snapshots.
 ### Status: ✅ DEPLOY READY
 Após deploy em produção, owner roda `GET /api/admin/diagnose-class-courses/{turma_amanda}`
 para confirmar a hipótese (2 `course_id` "Ciências") e decidir o saneamento manual.
+
+---
+
+## Saneamento Curricular Supervisionado **[Fev/2026]**
+
+### Endpoint `POST /api/admin/classes/{class_id}/remove-course`
+Permite remover um `course_id` de `class.course_ids` com governança institucional
+forte. Implementa as 3 regras adicionais aprovadas pelo owner:
+
+#### Bloqueios não-negociáveis (sem override por header)
+HTTP 409 `COURSE_HAS_ACADEMIC_RECORDS` se houver QUALQUER:
+- `grades_count > 0` (notas registradas);
+- `attendance_count > 0` (registros de presença);
+- `linked_snapshots_count > 0` (snapshots emitidos);
+- `linked_documents_count > 0` (documentos verificáveis);
+- `linked_render_jobs_count > 0` (render jobs concluídos).
+
+Resposta inclui `linked: {…}` com as contagens para o admin entender o bloqueio.
+
+#### Confirmação institucional explícita
+- Header `X-Academic-Confirm: true` obrigatório (alinhado ao padrão de
+  `academic_events`). Sem ele → 428 `ACADEMIC_CONFIRMATION_REQUIRED`.
+- Body `reason` ≥ 30 caracteres (Pydantic `Field(min_length=30, max_length=500)`).
+  Reason curta → 422.
+
+#### Soft removal — preservação histórica
+- `course_id` é tirado de `class.course_ids` mas registrado em
+  `class.class_course_overrides[]` com `{action, course_id, course_name, removed_at,
+  removed_by_user_id, removed_by_user_email, removal_reason}`.
+- **NÃO** apaga `grades`/`attendance`/`snapshots`/`documents` — esses permanecem
+  como evidência (continuam aparecendo em `orphan_grades` no diagnóstico).
+- Audit log canônico via `audit_service.log(action="update", collection="classes")`
+  com `old_value`/`new_value` de `course_ids` + `extra_data` rica.
+
+### Diagnose endpoint enriquecido
+`GET /api/admin/diagnose-class-courses/{class_id}` ganhou:
+- `safe_to_remove: bool` por curso (regra: tudo zerado);
+- `linked_snapshots_count`, `linked_documents_count`, `linked_render_jobs_count`;
+- `summary.safe_to_remove_count`.
+
+### Frontend — `CurricularDiagnoseModal` no Boletim
+- Quando `bulletin.warnings` contém `DUPLICATE_COURSE_NAME` e o usuário tem role
+  `admin`/`super_admin`, aparece botão "Diagnosticar" ao lado do warning.
+- Modal exibe duplicidades agrupadas por nome com tabela completa
+  (course_id, notas, faltas, snapshots, docs, render jobs, status removível/bloqueado/fantasma)
+  + lista de notas órfãs.
+- **Read-only no UI**: a remoção em si só pelo backend (curl/API), por design —
+  evita cliques acidentais em operação curricular crítica. Vide nota explícita
+  no rodapé do modal.
+
+### Testes
+- `test_admin_curricular_sanitization.py` (7 cenários E2E HTTP):
+  diagnose com `safe_to_remove`, bloqueio sem header (428), reason curta (422),
+  bloqueio por academic records (409), soft removal sucesso (200 + override),
+  idempotência (segunda remoção → 409 `COURSE_NOT_LINKED_TO_CLASS`),
+  unauth (401/403).
+- 48/48 testes passando (admin_curricular + bulletin_builder + temporal_closure +
+  academic_event_lens + verifiable_docs).
+
+### Adiado (P2 — sob comando explícito futuro)
+- `POST /api/admin/courses/merge` (migração de notas entre `course_id`).
+- Painel `/admin/curricular-integrity` (só quando o problema escalar).
+- Heurísticas IA para detectar curso "correto" (rejeitado como anti-pattern).
+
+### Status: ✅ PRODUÇÃO-READY
