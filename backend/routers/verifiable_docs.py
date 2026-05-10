@@ -79,14 +79,22 @@ def setup_router(db, limiter=None):
     async def hmac_presence():
         import os as _os
         secret = _os.environ.get("SNAPSHOT_HMAC_SECRET", "") or ""
+        # Lista de nomes (NÃO valores) de envs com prefixos importantes —
+        # confirma se o Coolify está injetando algo no processo.
+        env_names_visible = sorted([
+            k for k in _os.environ.keys()
+            if not k.startswith(("LC_", "LANG", "PATH", "TERM", "PWD", "SHLVL",
+                                 "HOME", "HOSTNAME", "_", "SHELL", "USER"))
+        ])[:200]
         return {
             "configured": bool(secret),
             "length": len(secret),
-            # Apenas 4 chars de cada extremo — confirma que TODAS as instâncias
-            # carregaram o MESMO valor sem revelar o segredo (40 bits de exposição
-            # apenas se o atacante já tem acesso ao ambiente; suficiente p/ ops).
             "head4": secret[:4] if secret else None,
             "tail4": secret[-4:] if secret else None,
+            "env_names_visible_count": len(env_names_visible),
+            "env_names_visible_sample": env_names_visible[:80],
+            "has_mongo_url": bool(_os.environ.get("MONGO_URL")),
+            "has_db_name": bool(_os.environ.get("DB_NAME")),
         }
 
     # ------------------ ADMIN (autenticado) ------------------
