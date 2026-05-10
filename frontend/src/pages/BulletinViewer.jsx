@@ -143,9 +143,19 @@ function ComponentsTable({ components }) {
               );
             };
             return (
-              <tr key={c.course_id} className="border-t" data-testid={`bulletin-row-${c.course_id}`}>
+              <tr key={c.course_id} className={'border-t' + (c._warning_duplicate_name ? ' bg-amber-50' : '')} data-testid={`bulletin-row-${c.course_id}`}>
                 <td className="px-3 py-2">
                   <span className="text-zinc-800">{c.course_name}</span>
+                  {c._warning_duplicate_name && (
+                    <span
+                      className="ml-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded"
+                      title="Existe outro componente com o mesmo nome nesta turma. Verifique o cadastro."
+                      data-testid={`bulletin-row-duplicate-warning-${c.course_id}`}
+                    >
+                      <AlertCircle className="w-3 h-3" />
+                      Duplicidade
+                    </span>
+                  )}
                   {c.optativo && (
                     <span className="ml-2 text-[10px] text-zinc-500 uppercase">optativo</span>
                   )}

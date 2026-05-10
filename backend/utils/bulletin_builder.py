@@ -91,6 +91,61 @@ def _bimesters_owned_by_period(period_index: int, bimesters: list[dict]) -> list
     ]
 
 
+def _normalize_course_name(name: str) -> str:
+    """Normaliza nome de curso para detecção de duplicidade.
+
+    Casefold + colapsa espaços. NÃO remove acentos (já vêm normalizados na
+    base; qualquer divergência ortográfica é problema curricular real, não
+    falso positivo).
+    """
+    if not name:
+        return ""
+    return " ".join(str(name).strip().casefold().split())
+
+
+def _flag_duplicate_course_names(
+    components: list[dict], *, segment_class_id: str, period_index: int
+) -> list[dict]:
+    """Detecta componentes com mesmo nome no mesmo segmento.
+
+    Não remove, não unifica. Apenas marca cada componente afetado com
+    `_warning_duplicate_name=True` e retorna lista de warnings (objetos)
+    a serem agregados no payload do boletim.
+
+    Princípio: boletim espelha o cadastro fielmente. Cabe ao admin sanear.
+    """
+    warnings: list[dict] = []
+    if not components:
+        return warnings
+
+    by_norm: dict[str, list[dict]] = {}
+    for c in components:
+        norm = _normalize_course_name(c.get("course_name") or "")
+        if not norm:
+            continue
+        by_norm.setdefault(norm, []).append(c)
+
+    for norm, group in by_norm.items():
+        if len(group) <= 1:
+            continue
+        for c in group:
+            c["_warning_duplicate_name"] = True
+        warnings.append({
+            "code": "DUPLICATE_COURSE_NAME",
+            "type": "duplicate_course_name",
+            "course_name": group[0].get("course_name"),
+            "class_id": segment_class_id,
+            "period_index": period_index,
+            "course_ids": [c.get("course_id") for c in group],
+            "message": (
+                f"Existe mais de um componente curricular com o mesmo nome "
+                f"('{group[0].get('course_name')}') vinculado à turma neste "
+                f"período. Verifique o cadastro de cursos."
+            ),
+        })
+    return warnings
+
+
 async def _grades_for_segment(
     db,
     *,
@@ -344,6 +399,17 @@ async def build_student_bulletin(
             "components": components,
             "attendance_summary": attendance_summary,
         })
+
+        # Detecta duplicidade de nome de curso no segmento (não remove,
+        # apenas marca + agrega warning). Boletim é espelho fiel do cadastro;
+        # saneamento é responsabilidade do admin via endpoint diagnóstico.
+        warnings.extend(
+            _flag_duplicate_course_names(
+                components,
+                segment_class_id=p["class_id"],
+                period_index=p["period_index"],
+            )
+        )
 
     # Componentes de dependência — paralelo, sem afetar regular
     dep_grades = await _dependency_grades_for_student(

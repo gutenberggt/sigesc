@@ -412,4 +412,160 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
             "updated_enrollments": r3.modified_count
         }
 
+    @router.get("/admin/diagnose-class-courses/{class_id}")
+    async def diagnose_class_courses(class_id: str, request: Request):
+        """Diagnóstico de componentes curriculares de uma turma.
+
+        Identifica:
+          - Cursos cadastrados em `class.course_ids` agrupados por nome
+            (detecta duplicidade real por mesmo nome);
+          - Quantidade de notas (`grades`) e registros de presença
+            (`attendance`) associados a cada `course_id`;
+          - Cursos "fantasma" (sem qualquer lançamento e/ou sem aluno
+            ativo registrando ocorrência);
+          - "Notas órfãs" — `grades` referenciando `course_id` que NÃO
+            está em `class.course_ids` (cursos desvinculados após uso).
+
+        NÃO faz alterações. NÃO sugere ações destrutivas.
+        Saneamento é decisão administrativa supervisionada (P1 — endpoint
+        de merge separado).
+        """
+        current_user = await AuthMiddleware.require_permission(
+            db, 'nav-admin-tools-button', ['admin']
+        )(request)
+        current_db = get_db_for_user(current_user) if get_db_for_user else db
+
+        cls = await current_db.classes.find_one(
+            {"id": class_id},
+            {"_id": 0, "id": 1, "name": 1, "course_ids": 1,
+             "school_id": 1, "academic_year": 1},
+        )
+        if not cls:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail="Turma não encontrada")
+
+        course_ids_in_class: list[str] = list(cls.get("course_ids") or [])
+
+        # Carrega cursos referenciados na turma
+        courses_in_class: dict[str, dict] = {}
+        if course_ids_in_class:
+            async for c in current_db.courses.find(
+                {"id": {"$in": course_ids_in_class}},
+                {"_id": 0, "id": 1, "name": 1, "active": 1,
+                 "atendimento_programa": 1, "optativo": 1, "deleted_at": 1},
+            ):
+                courses_in_class[c["id"]] = c
+
+        # Conta notas e presenças por course_id da turma
+        async def _grades_count(course_id: str) -> tuple[int, int]:
+            total = await current_db.grades.count_documents(
+                {"class_id": class_id, "course_id": course_id}
+            )
+            students = await current_db.grades.distinct(
+                "student_id", {"class_id": class_id, "course_id": course_id}
+            )
+            return total, len(students)
+
+        async def _attendance_count(course_id: str) -> int:
+            return await current_db.attendance.count_documents(
+                {"class_id": class_id, "course_id": course_id}
+            )
+
+        # Builda info detalhada por curso
+        per_course: list[dict] = []
+        # Inclui também cursos referenciados na turma porém sem documento
+        # `courses` correspondente (curso deletado/inexistente)
+        all_referenced_ids = set(course_ids_in_class)
+        for cid in all_referenced_ids:
+            doc = courses_in_class.get(cid)
+            grades_count, students_count = await _grades_count(cid)
+            att_count = await _attendance_count(cid)
+            is_active = bool(doc.get("active", True)) if doc else False
+            is_deleted = bool(doc and doc.get("deleted_at"))
+            suspected_ghost = (
+                grades_count == 0
+                and att_count == 0
+                and (not doc or is_deleted or not is_active)
+            )
+            per_course.append({
+                "course_id": cid,
+                "course_name": (doc or {}).get("name"),
+                "exists": bool(doc),
+                "active": is_active,
+                "deleted_at": (doc or {}).get("deleted_at"),
+                "atendimento_programa": (doc or {}).get("atendimento_programa") or "regular",
+                "optativo": bool((doc or {}).get("optativo", False)),
+                "in_class_course_ids": True,
+                "grades_count": grades_count,
+                "attendance_count": att_count,
+                "students_with_records": students_count,
+                "suspected_ghost": suspected_ghost,
+            })
+
+        # Agrupa por nome (case/space-insensitive) — só lista grupos com >1
+        by_name: dict[str, list[dict]] = {}
+        for entry in per_course:
+            n = (entry.get("course_name") or "").strip().casefold()
+            n = " ".join(n.split())
+            if not n:
+                n = f"__sem_nome__{entry['course_id']}"
+            by_name.setdefault(n, []).append(entry)
+
+        duplicates_by_name: list[dict] = []
+        for norm, group in by_name.items():
+            if len(group) <= 1:
+                continue
+            duplicates_by_name.append({
+                "course_name": group[0].get("course_name") or "(sem nome)",
+                "courses": group,
+            })
+
+        # Notas órfãs: grades com course_id que não está mais em class.course_ids
+        orphan_pipeline = [
+            {"$match": {"class_id": class_id,
+                        "course_id": {"$nin": course_ids_in_class or [""]}}},
+            {"$group": {
+                "_id": "$course_id",
+                "grades_count": {"$sum": 1},
+                "students": {"$addToSet": "$student_id"},
+                "any_course_name": {"$first": "$course_name"},
+            }},
+            {"$project": {
+                "_id": 0,
+                "course_id": "$_id",
+                "grades_count": 1,
+                "students_with_records": {"$size": "$students"},
+                "course_name_from_grade": "$any_course_name",
+            }},
+        ]
+        orphan_grades: list[dict] = []
+        async for o in current_db.grades.aggregate(orphan_pipeline):
+            # Resolve nome do curso a partir do documento atual (se ainda existe)
+            cdoc = await current_db.courses.find_one(
+                {"id": o["course_id"]},
+                {"_id": 0, "name": 1, "active": 1, "deleted_at": 1},
+            )
+            o["course_exists"] = bool(cdoc)
+            o["course_active"] = bool(cdoc and cdoc.get("active", True))
+            o["course_deleted_at"] = (cdoc or {}).get("deleted_at")
+            o["course_name_resolved"] = (cdoc or {}).get("name")
+            orphan_grades.append(o)
+
+        return {
+            "class_id": cls["id"],
+            "class_name": cls.get("name"),
+            "school_id": cls.get("school_id"),
+            "academic_year": cls.get("academic_year"),
+            "course_ids_in_class": course_ids_in_class,
+            "courses": per_course,
+            "duplicates_by_name": duplicates_by_name,
+            "orphan_grades": orphan_grades,
+            "summary": {
+                "total_courses_in_class": len(course_ids_in_class),
+                "duplicate_groups": len(duplicates_by_name),
+                "ghost_courses": sum(1 for c in per_course if c["suspected_ghost"]),
+                "orphan_course_ids": len(orphan_grades),
+            },
+        }
+
     return router

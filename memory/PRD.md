@@ -2264,3 +2264,49 @@ Isso **não é mais feature**. É **base para vender transparência como padrão
 ### Status: ✅ PRODUÇÃO-READY
 Ciclo completo: G1 (explicação) → G1.5 (prova privada) → G1.6 (verificação pública). Base consolidada para Sprint G3.
 
+---
+
+## Diagnóstico de Duplicidade Curricular no Boletim **[Fev/2026]**
+
+### Problema reportado
+Boletim Online da aluna AMANDA DA SILVA BARROS (7º Ano B, ano letivo 2026) exibia
+o componente "Ciências" duplicado: uma linha com média 8,0 (curso ativo) e outra
+com média 0,0 (curso fantasma/legado). Causa raiz suspeitada: dois `course_id`
+distintos com mesmo `name="Ciências"` ambos vinculados em `class.course_ids`.
+
+### Decisão arquitetural (owner)
+**NÃO ocultar silenciosamente**. Boletim é espelho fiel do cadastro acadêmico —
+esconder inconsistência contradiz a governança de "autoridade verificável" e
+mascara erro estrutural que se propaga para Histórico Escolar e snapshots.
+
+### Implementação P0
+1. **Detecção de duplicidade no builder** — `utils/bulletin_builder.py`:
+   - Função `_flag_duplicate_course_names()` agrupa componentes por nome
+     normalizado (casefold + colapsa espaços) dentro de cada segmento.
+   - Componentes em conflito recebem flag `_warning_duplicate_name=True`.
+   - Boletim emite warning estruturado:
+     `{code:"DUPLICATE_COURSE_NAME", course_name, class_id, period_index, course_ids, message}`.
+   - **Não remove, não unifica, não esconde**.
+2. **Endpoint admin de diagnóstico** — `GET /api/admin/diagnose-class-courses/{class_id}`:
+   - Lista cursos da turma com `grades_count`, `attendance_count`, `students_with_records`,
+     `active`, `deleted_at`, `suspected_ghost`.
+   - Agrupa duplicidades por nome.
+   - Identifica `orphan_grades` (notas em `course_id` que não está mais em
+     `class.course_ids`).
+   - Permissão: role `admin`/`super_admin` (`nav-admin-tools-button`).
+   - **Read-only**. Não altera nada.
+3. **Frontend (`BulletinViewer.jsx`)**: linha do componente duplicado ganha
+   fundo amber + badge "Duplicidade" com tooltip explicativo.
+
+### Adiado (P1 — sob comando humano explícito)
+- `POST /api/admin/courses/merge` (preview → impacto → confirmação → snapshot
+  before/after → audit trail). Mexe em notas/frequência/histórico/snapshots —
+  exige fluxo supervisionado.
+
+### Testes
+- `test_bulletin_builder.py::test_duplicate_course_name_emits_warning_and_row_flag` ✅
+- 31/31 testes passando (bulletin_builder + temporal_closure + academic_event_lens).
+
+### Status: ✅ DEPLOY READY
+Após deploy em produção, owner roda `GET /api/admin/diagnose-class-courses/{turma_amanda}`
+para confirmar a hipótese (2 `course_id` "Ciências") e decidir o saneamento manual.

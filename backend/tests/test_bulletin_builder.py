@@ -298,3 +298,56 @@ async def test_canonical_shape_keys_present(db):
               "primary_class", "is_composite", "composite_segments",
               "dependency_components", "warnings"]:
         assert k in bul
+
+
+@pytest.mark.asyncio
+async def test_duplicate_course_name_emits_warning_and_row_flag(db):
+    """Dois cursos distintos com mesmo nome ('Ciências') na mesma turma
+    devem disparar warning DUPLICATE_COURSE_NAME e marcar ambas as linhas
+    com `_warning_duplicate_name=True` — sem remover ou unificar.
+    """
+    COURSE_CIE_A = "bb_course_cie_a"
+    COURSE_CIE_B = "bb_course_cie_b_ghost"
+
+    await _seed_world(db, with_event=False)
+    # Adiciona dois cursos com mesmo nome na mesma turma
+    await db.courses.insert_many([
+        {"id": COURSE_CIE_A, "name": "Ciências", "mantenedora_id": MANT},
+        {"id": COURSE_CIE_B, "name": "Ciências", "mantenedora_id": MANT},
+    ])
+    await db.classes.update_one(
+        {"id": CLASS_A},
+        {"$set": {"course_ids": [COURSE_MAT, COURSE_PT, COURSE_CIE_A, COURSE_CIE_B]}},
+    )
+    # Apenas o "ativo" tem nota lançada
+    await db.grades.insert_one({
+        "id": "g_cie_a", "student_id": STUDENT, "academic_year": YEAR,
+        "class_id": CLASS_A, "course_id": COURSE_CIE_A,
+        "b1": 8.0, "final_average": 8.0, "mantenedora_id": MANT,
+    })
+
+    try:
+        bul = await build_student_bulletin(
+            db, student_id=STUDENT, academic_year=YEAR, mantenedora_id=MANT
+        )
+        seg = bul["composite_segments"][0]
+        cie_components = [c for c in seg["components"]
+                          if (c.get("course_name") or "").casefold() == "ciências"]
+        assert len(cie_components) == 2, "Builder deve manter ambos componentes"
+        assert all(c.get("_warning_duplicate_name") is True for c in cie_components), \
+            "Cada componente duplicado deve estar marcado"
+
+        dup_warnings = [w for w in bul["warnings"]
+                        if w.get("code") == "DUPLICATE_COURSE_NAME"]
+        assert len(dup_warnings) == 1
+        w = dup_warnings[0]
+        assert w["course_name"] == "Ciências"
+        assert w["class_id"] == CLASS_A
+        assert set(w["course_ids"]) == {COURSE_CIE_A, COURSE_CIE_B}
+
+        # Outros cursos NÃO devem ser marcados
+        mat = next(c for c in seg["components"] if c["course_id"] == COURSE_MAT)
+        assert mat.get("_warning_duplicate_name") is not True
+    finally:
+        await db.courses.delete_many({"id": {"$in": [COURSE_CIE_A, COURSE_CIE_B]}})
+        await db.grades.delete_many({"id": "g_cie_a"})
