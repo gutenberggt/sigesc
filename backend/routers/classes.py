@@ -291,4 +291,152 @@ def setup_router(db, audit_service, sandbox_db=None):
             "components": components,
         }
 
+    @router.get("/{class_id}/roster")
+    async def get_class_roster(
+        class_id: str,
+        request: Request,
+        course_id: Optional[str] = None,
+        academic_year: Optional[int] = None,
+    ):
+        """Roster da turma — alunos regulares + alunos em dependência.
+
+        Comportamento:
+          - Lista alunos `regulares` matriculados na turma (`students.class_id == class_id`).
+          - Adiciona alunos com `student_dependencies` ATIVAS apontando para esta
+            turma. Filtra por `course_id` se informado (caso de diário por componente).
+          - Sem `course_id`: inclui qualquer aluno com dep ativa em qualquer
+            componente da turma (deduplicado).
+          - Ordenação **alfabética por `full_name`** misturando regulares e
+            dep (decisão 2b — chip 'DEP' fica a cargo do frontend via flag
+            `is_dependency`).
+
+        Cada item: `{id, full_name, registration_number, photo_url, is_dependency,
+        dependency_course_ids?, dependency_origin_year?, dependency_class_id?}`.
+
+        Usado pelo Diário (lançamento de notas/frequência) e por outras telas
+        que listam alunos efetivamente "pertencentes" à composição da turma.
+        """
+        current_user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(current_user)
+
+        cls = await current_db.classes.find_one(
+            {"id": class_id},
+            {"_id": 0, "id": 1, "name": 1, "school_id": 1, "academic_year": 1},
+        )
+        if not cls:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Turma não encontrada"
+            )
+        year = academic_year or cls.get("academic_year") or 0
+
+        # 1) Regulares — matriculados na turma (alunos não exclusivamente dep)
+        regular_filter = {
+            "class_id": class_id,
+            "$or": [
+                {"dependency_mode": {"$ne": "dependency_only"}},
+                {"dependency_mode": {"$exists": False}},
+            ],
+        }
+        regular_students = await current_db.students.find(
+            regular_filter,
+            {"_id": 0, "id": 1, "full_name": 1, "registration_number": 1,
+             "photo_url": 1, "dependency_mode": 1},
+        ).to_list(2000)
+
+        # 2) Dependências — alunos com dep ativa na turma (opcional: + course_id)
+        dep_filter: dict = {
+            "class_id": class_id,
+            "status": "active",
+        }
+        if year:
+            dep_filter["academic_year"] = year
+        if course_id:
+            dep_filter["course_id"] = course_id
+
+        deps_by_student: dict[str, dict] = {}
+        async for d in current_db.student_dependencies.find(
+            dep_filter,
+            {"_id": 0, "student_id": 1, "course_id": 1,
+             "origin_academic_year": 1, "origin_class_id": 1},
+        ):
+            sid = d.get("student_id")
+            if not sid:
+                continue
+            entry = deps_by_student.setdefault(sid, {
+                "course_ids": set(),
+                "origin_years": set(),
+                "origin_class_ids": set(),
+            })
+            if d.get("course_id"):
+                entry["course_ids"].add(d["course_id"])
+            if d.get("origin_academic_year"):
+                entry["origin_years"].add(d["origin_academic_year"])
+            if d.get("origin_class_id"):
+                entry["origin_class_ids"].add(d["origin_class_id"])
+
+        # Hidrata alunos de dep (que podem não estar matriculados nesta turma)
+        dep_student_ids = list(deps_by_student.keys())
+        dep_students_docs: dict[str, dict] = {}
+        if dep_student_ids:
+            async for s in current_db.students.find(
+                {"id": {"$in": dep_student_ids}},
+                {"_id": 0, "id": 1, "full_name": 1, "registration_number": 1,
+                 "photo_url": 1, "dependency_mode": 1},
+            ):
+                dep_students_docs[s["id"]] = s
+
+        # 3) Monta lista final — regular primeiro (todos com is_dependency=False),
+        # depois dep (filtrando os já regulares — não duplica).
+        regular_ids = {s["id"] for s in regular_students}
+        items: list[dict] = []
+        for s in regular_students:
+            items.append({
+                "id": s["id"],
+                "full_name": s.get("full_name") or "",
+                "registration_number": s.get("registration_number"),
+                "photo_url": s.get("photo_url"),
+                "is_dependency": False,
+                "dependency_course_ids": [],
+                "dependency_origin_year": None,
+                "dependency_class_id": None,
+            })
+        for sid, info in deps_by_student.items():
+            if sid in regular_ids:
+                # Aluno é regular E tem dep nessa mesma turma — situação rara,
+                # mas trate como regular (chip dep não faz sentido aqui).
+                continue
+            s = dep_students_docs.get(sid)
+            if not s:
+                continue
+            items.append({
+                "id": s["id"],
+                "full_name": s.get("full_name") or "",
+                "registration_number": s.get("registration_number"),
+                "photo_url": s.get("photo_url"),
+                "is_dependency": True,
+                "dependency_course_ids": sorted(info["course_ids"]),
+                "dependency_origin_year": (
+                    max(info["origin_years"]) if info["origin_years"] else None
+                ),
+                "dependency_class_id": (
+                    next(iter(info["origin_class_ids"]))
+                    if info["origin_class_ids"] else None
+                ),
+            })
+
+        # Ordem alfabética unificada
+        items.sort(key=lambda x: (x.get("full_name") or "").casefold())
+
+        return {
+            "class_id": cls["id"],
+            "class_name": cls.get("name"),
+            "school_id": cls.get("school_id"),
+            "academic_year": year,
+            "course_id": course_id,
+            "students": items,
+            "total_regular": sum(1 for i in items if not i["is_dependency"]),
+            "total_dependency": sum(1 for i in items if i["is_dependency"]),
+            "total": len(items),
+        }
+
     return router
