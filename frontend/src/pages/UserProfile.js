@@ -291,11 +291,23 @@ export const UserProfile = () => {
       if (emailChanged) payload.new_email = newEmail;
       if (passwordChanged) payload.new_password = accountForm.new_password;
 
+      // CSRF: o backend (CSRFMiddleware) exige X-CSRF-Token em todos os POSTs.
+      // O axios injeta automaticamente via interceptor, mas este endpoint
+      // usa fetch() direto — então buscamos o token explicitamente.
+      // Fonte primária: sessionStorage (cross-domain). Fallback: cookie.
+      let csrfToken = '';
+      try { csrfToken = sessionStorage.getItem('sigesc_csrf_token') || ''; } catch { /* ignore */ }
+      if (!csrfToken) {
+        const m = document.cookie.match(/(?:^|;\s*)sigesc_csrf=([^;]+)/);
+        if (m) csrfToken = decodeURIComponent(m[1]);
+      }
+
       const res = await fetch(`${API_URL}/api/auth/change-account`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`,
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
         },
         body: JSON.stringify(payload),
       });
