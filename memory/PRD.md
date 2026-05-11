@@ -2497,3 +2497,49 @@ ou checagens próprias que não passam por `check_school_access`.
 - 11 unit (`check_school_access` por role — todos papéis globais retornam True).
 - 5 unit (papéis de escola exigem vínculo).
 - 5 E2E HTTP: escolas + turmas + alunos lendo OK + 2 write-attempts bloqueados (403).
+
+
+---
+
+## Boletim de Dependência — Fase 3a (Frontend Seletor) **[Fev/2026]**
+
+### Contexto
+Sistema sempre tratou dependências como "componentes extras" dentro do boletim
+regular do aluno. Com o novo modelo (`dependency_mode` em `students` + collection
+`student_dependencies`), alunos que cursam dependência em **outra turma** devem
+ter o boletim daquela turma **isolado** do regular.
+
+### Backend (Fases 1 + 2, já entregue)
+- `GET /api/students/{student_id}/bulletins-index?academic_year=YYYY` — catálogo
+  de boletins disponíveis (regular + N dependências, agrupadas por `class_id`).
+- `GET /api/students/{student_id}/dependency-bulletin?target_class_id=…&academic_year=YYYY`
+  — boletim isolado contendo somente os `course_id`s das dependências ATIVAS
+  do aluno na turma alvo, com frequência computada só nesses componentes.
+- `GET /api/classes/{class_id}/roster` — unifica alunos regularmente matriculados
+  + alunos cursando dependência naquela turma (uso futuro do professor).
+
+### Frontend (Fase 3a, esta iteração)
+`/app/frontend/src/pages/BulletinViewer.jsx`:
+- Após selecionar aluno, busca `bulletins-index`. Quando há >1 item, exibe
+  `<Tabs>` (shadcn) com triggers `bulletin-tab-regular` e
+  `bulletin-tab-dep:<class_id>`.
+- `activeBulletinKey` controla qual endpoint é consumido (`/bulletin` vs
+  `/dependency-bulletin`). Em erro do catálogo, fallback gracioso para regular.
+- Quando boletim ativo é dependência, renderiza card amarelo de contexto
+  (`data-testid="bulletin-dependency-context"`) e oculta a `<DependencySection>`
+  embutida (que só faz sentido no boletim regular).
+
+### Testes
+- `/app/backend/tests/test_dependency_bulletin_phase1.py` — 6 testes pytest.
+- `/app/backend/tests/test_dependency_bulletin_e2e_http.py` — 7 testes E2E HTTP
+  (catálogo regular+dep, validação 422, 401/403, dependency-bulletin retorna
+  `bulletin_type='dependency'`, missing target → 422, target inexistente →
+  warning 200 com `DEPENDENCY_CLASS_NOT_FOUND`).
+- Smoke UI: fluxo regular intacto, Tabs oculto para aluno sem dependências.
+
+### Status: ✅ DEPLOY READY
+
+### Próximas fases
+- **Fase 3b** (P1): Diário de Classe para Dependência — professor lança notas/
+  frequência consumindo `/api/classes/{class_id}/roster`.
+- **Fase 3c** (P1): Ficha Individual PDF isolada (`/app/backend/pdf/ficha_individual.py`).
