@@ -2436,3 +2436,43 @@ Retorna observabilidade total: `evidence_course_ids`, `class_course_ids`,
 - `test_admin_curricular_sanitization.py` (7).
 
 ### Status: ✅ PRODUÇÃO-READY (resolver é a nova fonte canônica)
+
+---
+
+## Bug Fix: Analista (semed2) sem acesso a Escolas **[Fev/2026]**
+
+### Problema reportado
+Usuário com role `semed2` (Analista) ou `semed1` (Tutor) — papéis globais
+da SEMED, sem `school_ids` específicos — abria `/admin/schools` e via
+"Nenhum registro encontrado".
+
+### Causa raiz
+`routers/schools.py::list_schools` mantinha lista `wide_roles` desatualizada
+em relação ao mapa de permissões do frontend (`/app/frontend/src/pages/Users.js`):
+- Frontend declarava `semed1: schools: 'view'` e `semed2: schools: 'view'`.
+- Backend tinha apenas `['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3', 'ass_social', 'ass_social_2', 'agente_vacinas']`.
+- Resultado: `semed1`/`semed2` caíam no `else` → `{"id": {"$in": []}}` → zero escolas.
+
+Mesma inconsistência em `auth_middleware.py::check_school_access` (usado em
+`GET /api/schools/{id}`, classes, students etc.).
+
+### Fix mínimo (2 arquivos)
+- `routers/schools.py:78` — `wide_roles` ganhou `semed1`, `semed2`.
+- `auth_middleware.py::check_school_access` — refatorado para `global_tenant_roles`
+  com 11 papéis: `super_admin, admin, admin_teste, gerente, semed, semed1, semed2,
+  semed3, ass_social, ass_social_2, agente_vacinas`. Alinhado com `wide_roles`.
+
+**Escrita (`update_school`, `delete_school`)** continua restrita por endpoint
+(checagem separada que NÃO usa `check_school_access`) — semed1/semed2 ganham
+LEITURA, não escrita.
+
+### Testes (17/17 passando)
+- `test_schools_semed_global_access.py`:
+  - 11 parametrizados validando `check_school_access(role, school_id)=True`
+    para todos papéis globais.
+  - 5 parametrizados validando que papéis de escola (`coordenador`, `secretario`,
+    `professor`, `diretor`, `aluno`) só passam se `school_id` está em `school_ids`.
+  - 1 E2E que loga como `semed2` real (sem `school_ids`) e confirma que
+    `GET /api/schools` retorna ambas as escolas do tenant.
+
+### Status: ✅ DEPLOY READY

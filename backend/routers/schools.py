@@ -74,8 +74,11 @@ def setup_router(db, audit_service, sandbox_db=None):
         if cached is not None:
             return cached
         
-        # Papéis que veem todas as escolas (dentro do tenant): admin, admin_teste, super_admin, gerente, semed, semed3, ass_social, agente_vacinas
-        wide_roles = ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3', 'ass_social', 'ass_social_2', 'agente_vacinas']
+        # Papéis que veem todas as escolas (dentro do tenant): admin, admin_teste, super_admin, gerente,
+        # semed (Tutor SEMED), semed1 (Tutor), semed2 (Analista), semed3 (Administração),
+        # ass_social, ass_social_2, agente_vacinas — todos papéis globais da mantenedora.
+        # Alinhado com /app/frontend/src/pages/Users.js (mapa de permissões `schools: 'view'`).
+        wide_roles = ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed1', 'semed2', 'semed3', 'ass_social', 'ass_social_2', 'agente_vacinas']
         
         base_filter = {}
         if current_user['role'] not in wide_roles:

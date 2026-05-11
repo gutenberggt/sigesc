@@ -200,11 +200,20 @@ class AuthMiddleware:
     
     @staticmethod
     def check_school_access(user: dict, school_id: str) -> bool:
-        """Verifica se o usuário tem acesso à escola"""
-        # super_admin, admin, admin_teste, SEMED e SEMED3 têm acesso a todas as escolas
-        if user['role'] in ['super_admin', 'admin', 'admin_teste', 'semed', 'semed3', 'gerente']:
+        """Verifica se o usuário tem acesso (LEITURA) à escola.
+
+        Papéis globais da mantenedora têm visão total (alinhado com
+        `routers/schools.py::list_schools` e o mapa do frontend `Users.js`).
+        Escrita é validada por endpoint (não passa por aqui).
+        """
+        global_tenant_roles = {
+            'super_admin', 'admin', 'admin_teste', 'gerente',
+            'semed', 'semed1', 'semed2', 'semed3',
+            'ass_social', 'ass_social_2', 'agente_vacinas',
+        }
+        if user['role'] in global_tenant_roles:
             return True
-        
+
         # Outros papéis precisam ter a escola vinculada
         return school_id in user['school_ids']
     
