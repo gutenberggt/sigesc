@@ -60,8 +60,10 @@ export default function AlunoDashboard() {
   const [announcements, setAnnouncements] = useState([]);
   const [loadingE, setLoadingE] = useState(true);
   const [loadingA, setLoadingA] = useState(true);
+  const [me, setMe] = useState(null);
 
   useEffect(() => {
+    axios.get(`${API}/student/me`).then((r) => setMe(r.data)).catch(() => setMe(null));
     axios.get(`${API}/student/me/upcoming-events?limit=5`)
       .then((r) => setEvents(r.data?.events || []))
       .catch(() => setEvents([]))
@@ -74,27 +76,66 @@ export default function AlunoDashboard() {
 
   const unreadCount = announcements.filter((a) => !a.is_read).length;
 
+  // Iniciais para avatar fallback (sem foto)
+  const fullName = me?.full_name || user?.full_name || 'Aluno(a)';
+  const initials = fullName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() || '')
+    .join('') || 'A';
+  const firstName = fullName.split(' ')[0] || 'Aluno(a)';
+
   return (
     <Layout>
       <div className="max-w-5xl mx-auto space-y-6" data-testid="aluno-dashboard">
-        {/* Saudação */}
+        {/* Saudação + identidade do aluno */}
         <Card className="border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50">
           <CardContent className="p-6 flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center shrink-0 shadow-md">
-              <GraduationCap className="w-7 h-7 text-white" />
-            </div>
-            <div className="flex-1">
-              <h1 className="text-xl font-bold text-gray-900">
-                Olá, {user?.full_name?.split(' ')[0] || 'Aluno(a)'}!
+            {me?.photo_url ? (
+              <img
+                src={me.photo_url}
+                alt={fullName}
+                className="w-14 h-14 rounded-full object-cover shadow-md ring-2 ring-white shrink-0"
+                data-testid="aluno-avatar-photo"
+              />
+            ) : (
+              <div
+                className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center shrink-0 shadow-md text-white font-bold text-lg"
+                data-testid="aluno-avatar-initials"
+                aria-label={`Avatar de ${fullName}`}
+              >
+                {initials}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl font-bold text-gray-900 truncate" data-testid="aluno-greeting-name">
+                Olá, {firstName}!
               </h1>
-              <p className="text-sm text-gray-600">
-                Bem-vindo(a) ao seu portal.{' '}
-                {unreadCount > 0 && (
-                  <span className="text-blue-700 font-medium">
-                    Você tem {unreadCount} aviso{unreadCount > 1 ? 's' : ''} não lido{unreadCount > 1 ? 's' : ''}.
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600 mt-0.5">
+                {me?.registration_number && (
+                  <span data-testid="aluno-matricula">
+                    <span className="text-gray-500">Matrícula:</span>{' '}
+                    <span className="font-semibold text-gray-800">{me.registration_number}</span>
                   </span>
                 )}
-              </p>
+                {me?.class_name && (
+                  <span className="flex items-center gap-1" data-testid="aluno-turma">
+                    <GraduationCap className="w-3 h-3 text-blue-600" />
+                    <span className="font-medium text-gray-800">{me.class_name}</span>
+                  </span>
+                )}
+                {me?.school_name && (
+                  <span className="text-gray-500 truncate max-w-[18rem]" data-testid="aluno-escola">
+                    {me.school_name}
+                  </span>
+                )}
+              </div>
+              {unreadCount > 0 && (
+                <p className="text-xs text-blue-700 font-medium mt-1.5">
+                  Você tem {unreadCount} aviso{unreadCount > 1 ? 's' : ''} não lido{unreadCount > 1 ? 's' : ''}.
+                </p>
+              )}
             </div>
             <Sparkles className="w-5 h-5 text-blue-400 hidden md:block" />
           </CardContent>

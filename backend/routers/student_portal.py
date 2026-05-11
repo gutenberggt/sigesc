@@ -100,6 +100,22 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         user = await AuthMiddleware.get_current_user(request)
         current_db = _get_db(user)
         student = await _resolve_student(user, current_db)
+        # Enriquecimento mínimo para o dashboard do aluno: nome da turma + escola.
+        if student.get("class_id"):
+            cls = await current_db.classes.find_one(
+                {"id": student["class_id"]},
+                {"_id": 0, "name": 1, "grade_level": 1, "shift": 1},
+            )
+            if cls:
+                student["class_name"] = cls.get("name")
+                student["class_grade_level"] = cls.get("grade_level")
+                student["class_shift"] = cls.get("shift")
+        if student.get("school_id"):
+            sch = await current_db.schools.find_one(
+                {"id": student["school_id"]}, {"_id": 0, "name": 1}
+            )
+            if sch:
+                student["school_name"] = sch.get("name")
         return student
 
     @router.get("/me/report-card")
