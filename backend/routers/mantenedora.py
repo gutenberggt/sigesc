@@ -27,43 +27,36 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
 
     async def _resolve_active(request: Request):
         """Resolve a mantenedora ativa a partir do header/query/user scope.
-        
-        Robusto: em caso de usuário legado sem mantenedora_id, usa a primeira
-        mantenedora cadastrada como fallback. Nunca levanta 500 — apenas 400/404
-        com mensagem clara.
+
+        Delega para `tenant_scope.resolve_active_mantenedora` (fonte única).
+        Mantém o contrato de retorno legado: (user, db, doc, tenant_id).
+        Auto-heal mantido: usuário sem `mantenedora_id` ganha vínculo automático
+        com o tenant resolvido (idempotente).
         """
+        from tenant_scope import resolve_active_mantenedora
         current_user = await AuthMiddleware.get_current_user(request)
-        tenant_id = get_mantenedora_scope(current_user, request)
         current_db = get_db_for_user(current_user)
-        doc = None
         try:
-            if tenant_id:
-                doc = await current_db.mantenedoras.find_one({"id": tenant_id}, {"_id": 0})
-                # Fallback: tenant_id inválido ou não encontrado → usa primeira mantenedora
-                if not doc:
-                    doc = await current_db.mantenedoras.find_one({}, {"_id": 0})
-                    if doc:
-                        tenant_id = doc.get("id")
-            else:
-                # Sem tenant_id (super_admin cross-tenant OU user legado sem mantenedora_id)
-                doc = await current_db.mantenedoras.find_one({}, {"_id": 0})
-                if doc:
-                    tenant_id = doc.get("id")
-                    # Auto-heal: se o user não é super_admin e não tem mantenedora_id, vincula
-                    if (not is_super_admin(current_user)
-                            and not current_user.get("mantenedora_id")
-                            and current_user.get("id")):
-                        try:
-                            await current_db.users.update_one(
-                                {"id": current_user["id"]},
-                                {"$set": {"mantenedora_id": tenant_id}},
-                            )
-                        except Exception:
-                            pass
+            doc = await resolve_active_mantenedora(
+                current_db, current_user, request, fallback_to_first=True
+            )
         except HTTPException:
             raise
         except Exception:
             doc = None
+        tenant_id = doc.get("id") if doc else None
+
+        # Auto-heal: se o user não é super_admin e não tem mantenedora_id, vincula
+        if (doc and not is_super_admin(current_user)
+                and not current_user.get("mantenedora_id")
+                and current_user.get("id")):
+            try:
+                await current_db.users.update_one(
+                    {"id": current_user["id"]},
+                    {"$set": {"mantenedora_id": tenant_id}},
+                )
+            except Exception:
+                pass
         return current_user, current_db, doc, tenant_id
 
     @router.get("/mantenedora")

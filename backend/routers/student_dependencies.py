@@ -57,39 +57,23 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
     async def _get_mantenedora_config(
         mantenedora_id: Optional[str], request: Optional[Request] = None
     ) -> dict:
-        """Resolve a config da mantenedora de forma robusta.
+        """Resolve a config da mantenedora — delega para `tenant_scope`.
 
-        Estratégia (alinhada com `routers/mantenedora.py::_resolve_active`):
-        1) Tenta `{"id": mantenedora_id}` se fornecido.
-        2) Se request disponível, tenta resolver via `get_mantenedora_scope`
-           (considera header X-Mantenedora-Id e fallback do tenant ativo).
-        3) Fallback: primeira mantenedora do banco (caso super_admin sem
-           tenant_id explícito).
-
-        Retorna `{}` apenas se nenhuma mantenedora existir no banco.
+        Mantemos a assinatura por compatibilidade; a resolução de fato vive
+        em `resolve_active_mantenedora` (fonte única do projeto).
         """
-        if mantenedora_id:
-            m = await db.mantenedoras.find_one({"id": mantenedora_id}, {"_id": 0})
-            if m:
-                return m
+        from tenant_scope import resolve_active_mantenedora
+        user = None
         if request is not None:
             try:
-                from tenant_scope import get_mantenedora_scope
                 user = await auth_middleware.get_current_user(request)
-                scope_id = get_mantenedora_scope(user, request)
-                if scope_id and scope_id != mantenedora_id:
-                    m = await db.mantenedoras.find_one(
-                        {"id": scope_id}, {"_id": 0}
-                    )
-                    if m:
-                        return m
-            except Exception as e:
-                logger.warning(
-                    "[student_dependencies] fallback get_mantenedora_scope falhou: %s", e
-                )
-        # Último recurso: primeira mantenedora (mesma heurística da UI)
-        m = await db.mantenedoras.find_one({}, {"_id": 0})
-        return m or {}
+            except Exception:
+                user = None
+        # Se não há user (chamada interna), monta um stub mínimo com a mant_id
+        if user is None:
+            user = {"mantenedora_id": mantenedora_id}
+        doc = await resolve_active_mantenedora(db, user, request, fallback_to_first=True)
+        return doc or {}
 
     async def _validate_dependency_limit(
         student_id: str,

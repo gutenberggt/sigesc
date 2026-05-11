@@ -127,3 +127,38 @@ async def resolve_tenant_id_for_create(db, user: dict, request: Optional[Request
         if doc and doc.get('mantenedora_id'):
             return doc['mantenedora_id']
     return None
+
+
+async def resolve_active_mantenedora(
+    db,
+    user: dict,
+    request: Optional[Request] = None,
+    *,
+    fallback_to_first: bool = True,
+) -> Optional[dict]:
+    """Resolve o documento da mantenedora ativa para a request.
+
+    Fonte única de verdade para qualquer endpoint que precise ler campos
+    de configuração da mantenedora (limites de dependência, parâmetros
+    pedagógicos, branding etc.). Substitui implementações pontuais como
+    `routers/mantenedora.py::_resolve_active` e
+    `routers/student_dependencies.py::_get_mantenedora_config`.
+
+    Estratégia:
+      1. `get_mantenedora_scope(user, request)` (considera header/query
+         de super_admin + mantenedora_id do user).
+      2. Se não encontrado e `fallback_to_first=True`, retorna a primeira
+         mantenedora cadastrada (caso super_admin sem scope OU user legado
+         sem `mantenedora_id`).
+      3. Retorna `None` se não houver mantenedora cadastrada.
+
+    Sempre exclui `_id` da projection (BSON ObjectId).
+    """
+    scope_id = get_mantenedora_scope(user, request)
+    if scope_id:
+        doc = await db.mantenedoras.find_one({"id": scope_id}, {"_id": 0})
+        if doc:
+            return doc
+    if fallback_to_first:
+        return await db.mantenedoras.find_one({}, {"_id": 0})
+    return None
