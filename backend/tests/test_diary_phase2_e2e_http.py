@@ -9,7 +9,7 @@ import os
 import requests
 import pytest
 
-BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") if os.environ.get("REACT_APP_BACKEND_URL") else "https://grade-merger.preview.emergentagent.com"
+BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") if os.environ.get("REACT_APP_BACKEND_URL") else "https://dependency-bulletin.preview.emergentagent.com"
 EMAIL = "gutenberg@sigesc.com"
 PASSWORD = "@Celta2007"
 TENANT = "fix_mant_v1"

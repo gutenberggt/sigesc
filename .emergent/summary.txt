@@ -1,144 +1,156 @@
-<analysis>**original_problem_statement**: Implementar o Boletim Online, Render Jobs e Fechamento Temporal Composto respeitando a governança temporal (snapshots imutáveis). O sistema finaliza a infraestrutura de Documentos Verificáveis (Verifiable Documents) e precisa resolver um bug de duplicidade de disciplinas (mesmo nome) exibidas no Boletim. PRODUCT REQUIREMENTS: O sistema é a autoridade verificável. O PDF é apenas a representação do estado (estado operacional ≠ estado documental). É proibido misturar estados operacionais com documentais. 
+<analysis><handoff summary>
 
-**User's preferred language**: Portuguese (INSTRUCT next agent to respond in the user's preferred language only: Responda SEMPRE em Português).
+**original_problem_statement**: Continue building the educational SaaS platform, focusing on the Boletim Online and Curriculum Integrity. Implement strict governance over curriculum (Curriculum Sanitization and Unified Evidence-First Curriculum Resolver). Fix bugs related to role permissions (, ), frontend CSRF/Timezone issues, and Dependency of Studies UX. Finally, build the multi-phase Boletim de Dependência (Dependency Bulletin) logic where students studying dependencies have isolated academic reports. PRODUCT REQUIREMENTS: O sistema é a autoridade verificável. O PDF é apenas a representação do estado. Priorizar evidência acadêmica sobre matrizes genéricas.
 
-**what currently exists?**: SaaS educacional multi-tenant (FastAPI + React + MongoDB) com arquitetura robusta de observabilidade e integridade temporal. Implementado Diário de Dependência, Snapshots imutáveis, Academic Event Lens, Fechamento Temporal Composto (read-models para o histórico escolar), Render Jobs assíncronos via banco de dados, Boletim Online MVP (read-only), e infraestrutura de Documentos Verificáveis (Verifiable Documents) baseada em tokens UUID opacos e assinaturas HMAC. 
+**User's preferred language**: Portuguese (You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and INSTRUCT next agent to respond in the user's preferred language only: **Responda SEMPRE em Português**).
+
+**what currently exists?**: SaaS educacional multi-tenant (FastAPI + React + MongoDB). Possui arquitetura robusta de fechamento temporal (snapshots), um Curriculum Resolver unificado que prioriza evidências acadêmicas (notas/frequência), acessos globais para papéis da mantenedora (), resolução unificada de mantenedora (), e o Backend para Boletins de Dependência (Fases 1 e 2 implementadas).
 
 **Last working item**: 
-    - Last item agent was working: O agente guiou o usuário com sucesso na correção de uma falha de infraestrutura no  do Coolify (onde a variável  não estava sendo repassada para o container, invalidando assinaturas de documentos). Após resolver isso e re-assinar documentos, o usuário perguntou sobre uma possível falha no Boletim: a disciplina Ciências aparecendo duas vezes. O usuário enviou um PDF mostrando o problema (uma ocorrência sem notas com média 0.0, e outra com nota 8.0). O agente apenas extraiu o texto do PDF e precisa investigar a causa real.
+    - Last item agent was working: O agente concluiu as Fases 1 (Backend endpoints) e 2 (Roster da turma) da nova feature de Boletim de Dependência. O usuário autorizou o início da **Fase 3** (Frontend). O agente acabou de ler o arquivo  para iniciar a **Fase 3a: Adicionar um seletor no BulletinViewer** que permita ao usuário alternar entre o boletim regular e o(s) boletim(ns) de dependência, consumindo os novos endpoints  e .
     - Status: IN PROGRESS
-    - Agent Testing Done: N (Para o bug recém-relatado da disciplina duplicada)
-    - Which testing method agent to use? backend testing agent/ manual testing by curl/ python -c / pytests
+    - Agent Testing Done: N/A (Just started frontend implementation)
+    - Which testing method agent to use? Frontend testing agent / screenshot tool.
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:  
-  Issue 1: Disciplina duplicada (Ciências) exibida no Boletim Escolar (P0).
-     - Attempted fixes: Nenhuma. O agente apenas analisou a extração de texto do PDF enviado pelo usuário no último prompt.
-     - Next debug checklist: 
-       - Backend:  e . 
-       - Banco de dados: Verificar se existem dois  distintos para a disciplina Ciências vinculados à turma/aluno, ou se a lógica do  está falhando em unificar/mesclar ocorrências da mesma disciplina em períodos compostos ou devido a registros residuais de notas vazias (média 0.0).
-     - Why fix this issue and what will be achieved with the fix?: Evita confusão pedagógica e informações incorretas em documentos oficiais como Boletim e futuro Histórico Escolar.
-     - Status: NOT STARTED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix?: Backend (unit tests para o builder)
-     - Blocked on other issue: N/A
+  (No bugs currently pending, all reported bugs were fixed in this session).
 
 **In progress Task List**: 
-Nenhuma tarefa (feature) em progresso ativo. O foco está no bug relatado acima.
+  Task 1: Fase 3a - Frontend BulletinViewer (Boletins de Dependência) (P0)
+     - Where to resume: 
+     - What will be achieved with this?: O usuário poderá selecionar e visualizar o boletim exclusivo das disciplinas de dependência, isolado do boletim regular.
+     - Status: IN PROGRESS
+     - Should Test frontend/backend/both after fix?: Frontend
+     - Blocked on something: None
+
+  Task 2: Fase 3b - Frontend Diário de Classe para Dependência (P1)
+     - Where to resume: Componentes de diário (a mapear)
+     - What will be achieved with this?: Professores poderão lançar notas/frequência para alunos que estão cursando dependência em suas turmas, respeitando o novo endpoint de roster.
+     - Status: NOT STARTED
+     - Should Test frontend/backend/both after fix?: Frontend
+     - Blocked on something: Task 1
+
+  Task 3: Fase 3c - Ficha Individual PDF para Dependência (P1)
+     - Where to resume: 
+     - What will be achieved with this?: Emissão de documento oficial isolado para as disciplinas de dependência.
+     - Status: NOT STARTED
+     - Should Test frontend/backend/both after fix?: Backend
+     - Blocked on something: Task 1
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
     - (P1) PDF institucional: Evoluir o Boletim Online para PDF gerado via infraestrutura de , contendo QR Code e link público de verificação.
-    - (P1) Histórico Escolar consolidado: Implementação baseada na estabilização do boletim online e snapshots.
+    - (P1) Histórico Escolar consolidado.
     
     Future Tasks:
-    - (P2) Invalidação documental avançada, assinatura avançada (congelar contrato antes).
-    - (P2) Cache leve de  (apenas quando o dashboard apresentar lentidão).
-    - (P3) Observabilidade avançada para a fila de  (adiado, sem dor operacional atual).
+    - (P2) Endpoint de Network Stats para Integridade Curricular ().
+    - (P2) Refatoração de chamadas  nativas no Frontend para usarem  ou injetarem  automaticamente.
+    - (P3) Helper genérico para repositório do MongoDB para evitar bugs de projection.
 
 **Completed work in this session**
-- Fechamento Temporal Composto (, ) (DONE)
-- Document Render Jobs MVP com persistência e idempotência (, ) (DONE)
-- Boletim Online MVP - Modo Leitura (, , ) (DONE)
-- Deleção de Declarações Escolares para super_admin () (DONE)
-- Infraestrutura de Documentos Verificáveis Públicos (, , QR Codes com token opaco) (DONE)
-- Ferramentas de diagnóstico HMAC (, ) (DONE)
+-  (Saneamento Curricular) (DONE)
+-  - Unificação da montagem de grade priorizando Evidência Acadêmica (DONE)
+- Correção de permissões  e  (Visão global do tenant para Escolas, Turmas e Alunos) (DONE)
+- Fix de Timezone no Boletim Online () (DONE)
+- Fix de CORS/CSRF ao alterar senha (  substituído) (DONE)
+- Redesign do  (Novo Header com Avatar + Botão Meu Perfil) (DONE)
+- Refatoração do Modal de Dependência (Filtro por Escola -> Turma -> Componentes da Turma baseados em Teacher Assignments) (DONE)
+- Fix no MongoDB Projection que causava Aluno não encontrado () (DONE)
+- Helper  em  para evitar falsos positivos de permissão (DONE)
+- Fase 1 (Dependência): Endpoints  e  (DONE)
+- Fase 2 (Dependência): Endpoint  unindo regulares e pendentes (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-Nenhum mapeado além da Issue 1 atual.
+None. All 7 bugs reported by the user in this session were fully resolved.
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Nenhum
-  - Recurrence count: 0
-  - Status: RESOLVED
+  - Issue recurrence in previous fork: 
+    1. **CSRF Token Missing:** Native  calls in React bypassing Axios interceptors fail with 403 CSRF from FastAPI.
+    2. **MongoDB Projection evaluating to Falsy:** Doing  returns  if the document exists but lacks .
+  - Recurrence count: 1 (each)
+  - Status: RESOLVED (Fixed in specific files, but keep an eye out for these patterns across the codebase).
 
 **Code Architecture**
-- Frontend: Arquitetura de domínios (Shadcn UI).
-- Backend: FastAPI com middlewares rigorosos. Separação profunda entre: Estado Operacional (Diário) e Estado Documental (Snapshots, Verifiable Documents, Render Jobs).
-- Lógicas core ficam em  (como , , ) agindo como read-models.
+- Frontend: React / Shadcn UI. Context-heavy for Auth.
+- Backend: FastAPI. 
+- Core Concept Updates: 
+  - **Curriculum Resolver**:  is the SINGLE source of truth for generating a student's curriculum. Priority: 1. Evidence (grades/attendance), 2. Class Config, 3. Teacher Assignment, 4. Fallback (only if virgem).
+  - **Tenant Scope**:  is the SINGLE source of truth to determine the user's active tenant, supporting  logic correctly.
 
 **Key Technical Concepts**
-Immutable Document Snapshots, Temporal Query Filtering, Separation of States, SLA Queues, Cryptographic Hashing (), Opaque Verification Tokens (UUID), HMAC Server Signatures ().
+Evidence-First Curriculum, Multi-Tenancy Resolution, Cross-Domain CSRF Cookies via sessionStorage, Immutable Snapshots, Verifiable Documents.
 
 **key DB schema**
   - : 
   - : 
-  - : 
 
 **changes in tech stack**
-  - Nenhuma mudança de stack, mas inserção de dependência crítica nas variáveis de ambiente ().
+  - None.
 
 **All files of reference** 
-  -  (Onde o agrupamento de disciplinas para o boletim ocorre)
+  -  (Current work location for Phase 3a)
+  -  (Exposes new index and dependency endpoints)
+  -  (Contains logic for both bulletin types)
+  -  (New core evidence-based logic)
   - 
   - 
-  - 
-  - 
-  -  (Ajustado no repositório para injetar env vars)
 
 **Areas that need refactoring**: 
-- O arquivo  deve continuar sendo modularizado gradualmente.
+- Native  API usage in frontend. They should be converted to use the configured Axios instance in  to ensure  and Authorization headers are injected properly.
 
 **key api endpoints**
-  -  (Consulta de documento público)
-  -  (Construção do boletim no backend)
-  -  (Admin tool para re-assinar documentos)
+  -  (Returns available bulletins: regular + dependencies)
+  -  (Returns specific dependency bulletin)
+  -  (Returns roster merging enrolled students + dependency students)
+  -  (Union of class.course_ids and teacher_assignments)
 
 **Critical Info for New Agent**
-- **Bloqueio Arquitetural (Estado Operacional ≠ Documental)**: Documentos oficiais NUNCA consomem dados diretamente do diário de forma mutável. Eles devem consumir os read-models () e congelar em snapshots.
-- **Variáveis de Ambiente**: A infraestrutura do cliente utiliza Coolify, e o  tem um array  hardcoded. Para qualquer nova env var, é necessário adicioná-la manualmente no arquivo . A variável  é a alma da assinatura digital da plataforma.
-- A exclusão ou edição retroativa de eventos/notas é expressamente bloqueada (Regra Append-only com supersede).
+- **Dependency of Studies (Fase 3)**: The user explicitly requested that students studying dependencies must have their reports *separated*. The backend now provides a  endpoint indicating what bulletins exist for a student. Your immediate task is to update the Frontend () to fetch this index and display a UI switcher (e.g., Tabs or Select) if dependency bulletins exist, showing the correct bulletin based on selection.
+- **Language**: O usuário é brasileiro. Você deve ler e interagir **exclusivamente em Português** no  e nos resumos.
 
 **documents and test reports created in this job**
+  -  (Updated thoroughly with Phase 1 and 2 deployments)
   - 
   - 
-  -  (Atualizado até Passo 5)
+  - 
   - 
   - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
- - *User*: Informa que os ícones do Frontend PDF, Revogar, e Excluir deveriam ter apenas os ícones, sem os textos.
- - *Agent*: Realizou a atualização do frontend.
- - *User*: Solicitou a infraestrutura completa de Verifiable Documents (tokens, hash, qr, revogação).
- - *Agent*: Implementou o MVP e testou.
- - *User*: Reportou falha de assinatura inválida em um documento emitido (enviou PDF).
- - *Agent*: Identificou ausência do  e criou endpoints de diagnóstico.
- - *User/Agent*: Longa sessão de debug interagindo com as configurações do Coolify e docker-compose do cliente.
- - *Agent*: Instruiu o usuário a adicionar as variáveis no docker-compose.
- - *User*: Executou as ferramentas, confirmou as configurações, tudo funcionou perfeitamente. Em seguida fez uma dúvida técnica: 2 professores de Ciências no 7º ano farão a disciplina aparecer duplicada no boletim?
- - *Agent*: Disse que não (pois agrupa por ).
- - *User*: Mandou um PDF como prova onde Ciências aparece duas vezes para uma aluna, aguardando resolução. (PENDING HUMAN MESSAGE: Resolver e explicar este bug)
+ - *User*: Fase 2 (Authorized starting Phase 2 of dependency bulletin).
+ - *Agent*: Implemented Phase 2 (Class Roster). Tests passed. Asked for authorization to start Phase 3 (Frontend).
+ - *User*: Pode seguir pra Fase 3
+ - *Agent*: Started inspecting  (PENDING TASK for the incoming agent).
 
 **Project Health Check:**
-Healthy. Todos os testes estão passando. A falha de HMAC em produção foi corrigida na infra.
+Healthy. 52+ pytest tests running and passing. Codebase is modularizing cleanly.
 
 **3rd Party Integrations**
   - Anthropic Claude Sonnet 4.5 — requires User API Key.
   - Resend (Emails) — requires User API Key.
-  - OpenAI GPT-4o — uses Emergent LLM Key (Restaurada sua passagem no docker-compose)
+  - OpenAI GPT-4o — uses Emergent LLM Key.
 
 **Testing status**
-  - Testing agent used after significant changes: NO (Agente principal rodou localmente as suítes de pytests que somam mais de 142 testes passando).
+  - Testing agent used after significant changes: NO (Main agent self-tested using extensive local pytests and screenshots).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: Múltiplos testes unitários e E2E criados (, , , etc).
-  - Known regressions: Nenhuma
+  - Test files created: Extensive unit and E2E test files for routing and resolvers.
+  - Known regressions: None.
 
 **Credentials to test flow:**
-Verifique  (Usuário admin principal: ).
+Verifique . (Usuário admin principal:  / Senha: . Analista: ).
 
 **What agent forgot to execute**
-O agente extraiu o texto do PDF com a disciplina de Ciências duplicada, mas terminou a sessão sem fornecer um plano de ação, explicação ou correção de código para o problema reportado no .
+Nothing forgotten. The agent stopped correctly at the boundary of Phase 3a to allow handoff.
 
 **Debugging checklist for current issue**
-    Issue: Disciplina duplicada (Ciências) exibida no Boletim Escolar.
+    Current Task: Fase 3a - BulletinViewer Frontend Selector
 
-    Frontend files to check: Nenhum
-  
-    Backend files to check: 
+    Frontend files to check: 
     - 
+  
+    Backend files to check:
+    - None required for this step, but refer to  to understand the payload of  and .
 
-    Database to check:
-    - Coleções , , e  para a aluna AMANDA DA SILVA BARROS.
-    - Buscar se o banco de dados está retornando 2 componentes distintos com IDs diferentes mas com o mesmo nome Ciências, OU se existem notas lançadas em componentes que já foram desvinculados, causando fantasmas com média 0.0 na agregação.
-   
-    </analysis>
+    /api/bulletins-index?student_id=/api/dependency-bulletin?student_id=...&dependency_id=...
+</handoff summary></analysis>

@@ -1,0 +1,45 @@
+{
+  "summary": "Iteração 75 — Fase 3a do Boletim de Dependência (frontend Tabs + integração com backend bulletins-index e dependency-bulletin). Backend e frontend testados. 6/6 pytests unitários (test_dependency_bulletin_phase1.py) + 7/7 E2E HTTP novos (test_dependency_bulletin_e2e_http.py) + smoke UI verde no fluxo regular (Tabs oculto quando aluno sem deps).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_dependency_bulletin_phase1.py",
+    "/app/backend/tests/test_dependency_bulletin_e2e_http.py",
+    "/app/test_reports/pytest/iter75_dep_phase1.xml",
+    "/app/test_reports/pytest/iter75_dep_e2e.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BulletinViewer.jsx (linha 660): `const showSelector = bulletinsIndex.length > 1;` — alinhado ao contrato: Tabs só renderiza quando há >1 item no catálogo, mantendo UX limpa para alunos sem dependência. Validado via smoke UI.",
+    "BulletinViewer.jsx (linhas 584-620): useEffect do catálogo é tolerante a falhas — em erro mantém items=[] e activeBulletinKey='regular'. Não bloqueia fluxo regular se bulletins-index quebrar. Boa degradação graciosa.",
+    "BulletinViewer.jsx (linhas 622-658): segundo useEffect troca entre /bulletin e /dependency-bulletin via activeBulletinKey.startsWith('dep:') + slice(4). Lógica simples e correta.",
+    "bulletins.py:113-130 (bulletins-index): retorna {student_id, academic_year, items, total} — bom shape para consumo no frontend. _ensure_can_view_student reusa exatamente as mesmas regras de RBAC do endpoint regular (aluno/responsavel/tenant scope) — paridade de segurança garantida.",
+    "bulletins.py:132-157 (dependency-bulletin): obriga target_class_id via Query(..., min_length=1) — FastAPI 422 em ausência ou string vazia (validado E2E test_dependency_bulletin_missing_target_class_returns_422).",
+    "Builder build_student_dependency_bulletin retorna warning DEPENDENCY_CLASS_NOT_FOUND para target_class_id desconhecido com 200 — UX preferível a 404 (frontend renderiza card de contexto + aviso amarelo). Validado em E2E.",
+    "data-testids presentes e estáveis: bulletin-student-search, bulletin-year-input, bulletin-selector-card, bulletin-selector-tabs, bulletin-tab-regular, bulletin-tab-dep:<class_id>, bulletin-dependency-context, bulletin-composite-badge, bulletin-simple-badge — todos clicáveis.",
+    "Não há mongodb _id leak em nenhuma das 3 rotas (projeções com {_id: 0} nos builders).",
+    "Frontend usa REACT_APP_BACKEND_URL via process.env (linha 32) — sem hardcoded URL.",
+    "Inputs: error/loading/success states cobertos (linhas 730-743) com data-testid bulletin-error e ícone Loader2.",
+    "PRÉ-EXISTENTE: linha 385 da BulletinViewer.jsx mistura assinatura/corpo da função em uma linha só (`function DependencySection({ items }) {  if (!items?.length) return null;`). Cosmético; não afeta funcionamento."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_dependency_bulletin_e2e_http.py (NOVO — 7 testes E2E HTTP cobrindo bulletins-index regular+dep, ano inválido 422, sem auth 401/403, dependency-bulletin retorna bulletin_type=dependency, missing target_class_id 422, target_class_id inexistente retorna warning, smoke do boletim regular continua íntegro)"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 pytest interno + 7/7 E2E HTTP = 13/13)",
+    "frontend": "100% (smoke UI ok — Tabs oculto quando aluno sem deps, boletim regular renderiza normalmente, sem regressão)"
+  },
+  "test_credentials": "Super Admin gutenberg@sigesc.com / @Celta2007 (já em /app/memory/test_credentials.md)",
+  "seed_data_creation": "Fixture `world` no test_dependency_bulletin_e2e_http.py seeda 1 escola + 2 turmas + 2 cursos + 1 aluno + 1 dependência ativa, todos com sufixo uuid único e cleanup automático no teardown. Reusa primeira mantenedora existente via db.mantenedoras.find_one({}).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Para rodar suite Iter75: `cd /app && export $(grep -v '^#' backend/.env | xargs) && export REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL frontend/.env | cut -d= -f2) && python -m pytest backend/tests/test_dependency_bulletin_phase1.py backend/tests/test_dependency_bulletin_e2e_http.py -v` → 13/13 verdes. UI smoke: logar como gutenberg → /admin/bulletins → buscar 'ANA' → selecionar Ana Oliveira (aluno sem deps) → bulletin-selector-card deve permanecer oculto e bulletin-simple-badge visível. Para validar visualmente o caso com deps, seria preciso seedar um aluno com dependency_mode='with_dependency' + 1+ student_dependencies ativas no ano corrente — o backend já cobre esse caso via E2E test_bulletins_index_returns_regular_plus_dep e test_dependency_bulletin_returns_dependency_type, então a Tabs UI ficou coberta apenas pelo backend + smoke de regular (aceito pelo brief).",
+  "rca of the issue": "N/A — nenhuma falha. Implementação Fase 3a respeita o contrato: backend fornece catálogo bulletins-index + endpoint dependency-bulletin (ambos read-only, com mesmas regras RBAC do /bulletin), frontend exibe Tabs apenas quando length>1, fallback gracioso em erro de catálogo, ativação correta via activeBulletinKey ('regular'|'dep:<class_id>'). Fluxo regular existente intacto (sem regressão observada no smoke UI)."
+}

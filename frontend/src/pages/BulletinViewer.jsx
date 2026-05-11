@@ -26,7 +26,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, X, AlertCircle, Calendar, Stethoscope } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, Search, X, AlertCircle, Calendar, Stethoscope, BookOpen, GraduationCap } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -553,6 +554,10 @@ export default function BulletinViewer() {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [bulletinsIndex, setBulletinsIndex] = useState([]);
+  const [indexLoading, setIndexLoading] = useState(false);
+  // Chave: "regular" ou "dep:<class_id>"
+  const [activeBulletinKey, setActiveBulletinKey] = useState('regular');
   const [bulletin, setBulletin] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -568,6 +573,53 @@ export default function BulletinViewer() {
     }
   }, []);
 
+  const authHeaders = useMemo(() => {
+    const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+    const headers = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (mantId) headers['X-Mantenedora-Id'] = mantId;
+    return headers;
+  }, [mantId]);
+
+  // 1) Fetch bulletins-index (catálogo) ao trocar aluno/ano
+  useEffect(() => {
+    if (!selectedStudent?.id) {
+      setBulletinsIndex([]);
+      setActiveBulletinKey('regular');
+      return;
+    }
+    let cancelled = false;
+    setIndexLoading(true);
+    axios
+      .get(`${API}/students/${selectedStudent.id}/bulletins-index`, {
+        params: { academic_year: year },
+        headers: authHeaders,
+      })
+      .then((r) => {
+        if (cancelled) return;
+        const items = Array.isArray(r.data?.items) ? r.data.items : [];
+        setBulletinsIndex(items);
+        // Auto-seleciona o primeiro disponível
+        const first = items[0];
+        if (first) {
+          setActiveBulletinKey(
+            first.type === 'regular' ? 'regular' : `dep:${first.class_id}`
+          );
+        } else {
+          setActiveBulletinKey('regular'); // fallback (sem catálogo)
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Catálogo é "best effort". Em caso de erro, segue com regular.
+        setBulletinsIndex([]);
+        setActiveBulletinKey('regular');
+      })
+      .finally(() => { if (!cancelled) setIndexLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedStudent?.id, year, authHeaders]);
+
+  // 2) Fetch boletim ativo (regular ou dependência) conforme seleção
   useEffect(() => {
     if (!selectedStudent?.id) {
       setBulletin(null);
@@ -576,16 +628,17 @@ export default function BulletinViewer() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
-    const headers = {};
-    if (token) headers.Authorization = `Bearer ${token}`;
-    if (mantId) headers['X-Mantenedora-Id'] = mantId;
+
+    const isDependency = activeBulletinKey.startsWith('dep:');
+    const url = isDependency
+      ? `${API}/students/${selectedStudent.id}/dependency-bulletin`
+      : `${API}/students/${selectedStudent.id}/bulletin`;
+    const params = isDependency
+      ? { academic_year: year, target_class_id: activeBulletinKey.slice(4) }
+      : { academic_year: year };
 
     axios
-      .get(`${API}/students/${selectedStudent.id}/bulletin`, {
-        params: { academic_year: year },
-        headers,
-      })
+      .get(url, { params, headers: authHeaders })
       .then((r) => {
         if (!cancelled) setBulletin(r.data);
       })
@@ -602,7 +655,9 @@ export default function BulletinViewer() {
     return () => {
       cancelled = true;
     };
-  }, [selectedStudent?.id, year, mantId]);
+  }, [selectedStudent?.id, year, activeBulletinKey, authHeaders]);
+
+  const showSelector = bulletinsIndex.length > 1;
 
   return (
     <Layout>
@@ -634,6 +689,44 @@ export default function BulletinViewer() {
           </CardContent>
         </Card>
 
+        {selectedStudent && showSelector && (
+          <Card data-testid="bulletin-selector-card">
+            <CardContent className="pt-6 space-y-2">
+              <div className="text-xs uppercase tracking-wide text-zinc-500">
+                Selecione qual boletim visualizar
+              </div>
+              <Tabs
+                value={activeBulletinKey}
+                onValueChange={setActiveBulletinKey}
+                data-testid="bulletin-selector-tabs"
+              >
+                <TabsList className="flex-wrap h-auto">
+                  {bulletinsIndex.map((it) => {
+                    const key = it.type === 'regular' ? 'regular' : `dep:${it.class_id}`;
+                    const Icon = it.type === 'regular' ? BookOpen : GraduationCap;
+                    return (
+                      <TabsTrigger
+                        key={key}
+                        value={key}
+                        data-testid={`bulletin-tab-${key}`}
+                        className="gap-1.5"
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        {it.label || (it.type === 'regular' ? 'Regular' : `Dependência · ${it.class_name}`)}
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </Tabs>
+              {indexLoading && (
+                <div className="text-[11px] text-zinc-500 flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Atualizando catálogo…
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {loading && (
           <div className="flex items-center gap-2 text-sm text-zinc-500 py-8 justify-center">
             <Loader2 className="w-4 h-4 animate-spin" /> Carregando boletim…
@@ -652,6 +745,21 @@ export default function BulletinViewer() {
         {!loading && !error && bulletin && (
           <>
             <BulletinHeader data={bulletin} />
+
+            {bulletin.bulletin_type === 'dependency' && (
+              <Card className="border-amber-200 bg-amber-50/30" data-testid="bulletin-dependency-context">
+                <CardContent className="pt-4 pb-4 text-xs text-amber-800 flex items-start gap-2">
+                  <GraduationCap className="w-4 h-4 mt-0.5 shrink-0" />
+                  <div>
+                    <strong>Boletim de Dependência</strong> · {bulletin.primary_class?.name || ''}
+                    {bulletin.primary_school?.name ? ` · ${bulletin.primary_school.name}` : ''}
+                    <div className="text-amber-700 mt-0.5">
+                      Componentes isolados — não compõem o boletim regular do aluno.
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {bulletin.warnings?.length > 0 && (
               <Card className="border-amber-200">
@@ -699,7 +807,10 @@ export default function BulletinViewer() {
               </Card>
             ))}
 
-            <DependencySection items={bulletin.dependency_components} />
+            {/* DependencySection (componentes em dependência dentro do boletim regular) só faz sentido no boletim regular */}
+            {bulletin.bulletin_type !== 'dependency' && (
+              <DependencySection items={bulletin.dependency_components} />
+            )}
           </>
         )}
 

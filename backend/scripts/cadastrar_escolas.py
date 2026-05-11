@@ -3,7 +3,7 @@ import httpx
 import json
 
 # URL da API
-API_URL = "https://grade-merger.preview.emergentagent.com/api"
+API_URL = "https://dependency-bulletin.preview.emergentagent.com/api"
 
 # Escolas extraídas da imagem
 ESCOLAS = [
