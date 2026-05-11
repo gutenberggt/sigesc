@@ -2540,6 +2540,55 @@ ter o boletim daquela turma **isolado** do regular.
 ### Status: ✅ DEPLOY READY
 
 ### Próximas fases
-- **Fase 3b** (P1): Diário de Classe para Dependência — professor lança notas/
-  frequência consumindo `/api/classes/{class_id}/roster`.
-- **Fase 3c** (P1): Ficha Individual PDF isolada (`/app/backend/pdf/ficha_individual.py`).
+- ~~**Fase 3b** (P1)~~ ✅ Já estava implementada na "Fase 2 — Dependência de Estudos"
+  anterior (backend `routers/grades.py` linhas 374-436 + `routers/attendance.py`
+  linhas 365-414 injetam alunos dep com `is_dependency=true`; frontend
+  `GradesTable.jsx` + `LancamentoTab.jsx` renderizam `DependencyBadge` + divider).
+- **Fase 3c** (P1) ✅ **CONCLUÍDA — Fev/2026 (Iter 76)**
+
+## Boletim de Dependência — Fase 3c (Ficha Individual PDF) **[Fev/2026]**
+
+### Backend — novo endpoint
+`GET /api/documents/ficha-individual-dependency/{student_id}?target_class_id=&academic_year=`
+em `/app/backend/routers/documents.py` (após `get_ficha_individual`).
+
+- Resolve aluno + turma alvo (404 quando ausente).
+- Filtra `student_dependencies` ATIVAS para (student × class × year). Se vazio → 400.
+- Hidrata `courses` apenas com os `course_id`s das dependências.
+- Filtra `grades` por `course_id ∈ deps` E `dependency_id ∈ deps`.
+- Frequência só para chamadas com `class_id == target_class_id` e
+  `course_id ∈ dep_course_ids`.
+- Reusa `generate_ficha_individual_pdf` com as listas filtradas — sem
+  duplicar lógica de renderização.
+- Validação de permissão adaptada: aluno `dependency_only` não tem
+  `class_id` regular; a "matrícula" vive em `student_dependencies`.
+  Mantém apenas o check escola↔usuário para roles não-globais.
+
+### Frontend — botão de download
+`/app/frontend/src/pages/BulletinViewer.jsx`:
+- Quando `bulletin.bulletin_type === 'dependency'`, o card amarelo de
+  contexto inclui botão **"Ficha Individual (PDF)"**
+  (`data-testid="ficha-dependency-pdf-btn"`) que abre o PDF em nova aba via
+  fetch+blob com headers autenticados.
+
+### Testes (Iter 76 — 13/13 verdes)
+- `/app/backend/tests/test_ficha_dependency_e2e_http.py` (6 testes):
+  PDF válido, header `application/pdf`, magic bytes, filename pattern,
+  sem deps → 400, turma inexistente → 404, aluno inexistente → 404,
+  sem auth → 401/403.
+- `/app/backend/tests/test_diary_to_bulletin_e2e_http.py` (7 testes):
+  catálogo `dependency_only` só dep, `with_dependency` regular+dep, POST
+  /api/grades reflete no dependency-bulletin, isolamento de componentes,
+  boletim regular do `with_dependency` exclui curso dep, RBAC, warning
+  `DEPENDENCY_CLASS_NOT_FOUND`.
+
+### Status: ✅ DEPLOY READY
+
+### Próximas tarefas backlog
+- (P1) Boletim Online → PDF institucional via `render_jobs` (QR Code,
+  verificação pública por terceiros).
+- (P1) Histórico Escolar consolidado.
+- (P2) `/admin/curricular-integrity/network-stats`.
+- (P2) Refatoração `fetch()` → axios no frontend (CSRF automático).
+- (P3) Helper genérico para repositório MongoDB (anti-projection bug).
+

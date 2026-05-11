@@ -1553,6 +1553,166 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             logger.error(f"Erro ao gerar ficha individual: {e}")
             raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
 
+    # ==========================================================================
+    # Ficha Individual de DEPENDÊNCIA — Fase 3c (Fev/2026)
+    # ==========================================================================
+    # Documento oficial ISOLADO contendo apenas as disciplinas em dependência
+    # do aluno na turma alvo (target_class_id). Não mistura com ficha regular.
+    # Reusa `generate_ficha_individual_pdf` com listas filtradas (mesmo princípio
+    # do dependency-bulletin).
+    # ==========================================================================
+    @router.get("/documents/ficha-individual-dependency/{student_id}")
+    async def get_ficha_individual_dependency(
+        student_id: str,
+        target_class_id: str,
+        academic_year: int,
+        request: Request = None
+    ):
+        """Ficha Individual da DEPENDÊNCIA — somente componentes em dep ativa."""
+        current_user = await AuthMiddleware.get_current_user(request)
+
+        # 1) Aluno
+        student = await db.students.find_one({"id": student_id}, {"_id": 0})
+        if not student:
+            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+
+        # 1.1) Validação de permissão de documento — adaptada para dependência:
+        # `dependency_only` student não tem class_id regular; sua "matrícula"
+        # vive em `student_dependencies`. Pulamos o check de class_id para
+        # essas situações e mantemos apenas o check escola↔usuário.
+        role = current_user.get('role')
+        if role not in ('admin', 'admin_teste', 'super_admin', 'gerente'):
+            user_school_id = current_user.get('school_id')
+            student_school_id = student.get('school_id')
+            if user_school_id and student_school_id and user_school_id != student_school_id:
+                raise HTTPException(
+                    status_code=403, detail="Aluno não matriculado nesta escola"
+                )
+
+        # 2) Turma alvo (a que hospeda a dependência)
+        target_class = await db.classes.find_one({"id": target_class_id}, {"_id": 0})
+        if not target_class:
+            raise HTTPException(status_code=404, detail="Turma de dependência não encontrada")
+
+        # 3) Dependências ATIVAS do aluno nessa turma/ano
+        active_deps = await db.student_dependencies.find(
+            {
+                "student_id": student_id,
+                "class_id": target_class_id,
+                "academic_year": academic_year,
+                "status": "active",
+            },
+            {"_id": 0}
+        ).to_list(100)
+        if not active_deps:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Aluno não possui dependências ativas nesta turma para o ano informado. "
+                    "Cadastre dependências antes de emitir a ficha."
+                )
+            )
+
+        dep_course_ids = sorted({d["course_id"] for d in active_deps if d.get("course_id")})
+        dep_ids = [d.get("id") for d in active_deps if d.get("id")]
+
+        # 4) Escola da turma alvo (não a school_id do aluno)
+        school = await get_school_cached(db, target_class.get("school_id")) or {
+            "name": "Escola Municipal", "city": "Município"
+        }
+
+        # 5) Notas: SOMENTE dos componentes de dep e vinculadas via dependency_id
+        grades_filter = {
+            "student_id": student_id,
+            "academic_year": academic_year,
+            "course_id": {"$in": dep_course_ids} if dep_course_ids else "__none__",
+        }
+        if dep_ids:
+            grades_filter["dependency_id"] = {"$in": dep_ids}
+        grades = await db.grades.find(grades_filter, {"_id": 0}).to_list(100)
+
+        # 6) Cursos hidratados — exclusivamente os da dep (sem fallback de nível)
+        courses = []
+        if dep_course_ids:
+            courses = await db.courses.find(
+                {"id": {"$in": dep_course_ids}}, {"_id": 0}
+            ).to_list(100)
+            courses.sort(key=lambda x: x.get("name", ""))
+
+        # 7) Frequência: só chamadas dos course_ids da dep nessa turma
+        period_start = f"{int(academic_year)}-01-01"
+        period_end = f"{int(academic_year)}-12-31"
+        faltas_por_componente: dict[str, int] = {}
+        attendance_records = await db.attendance.find(
+            {
+                "class_id": target_class_id,
+                "course_id": {"$in": dep_course_ids} if dep_course_ids else "__none__",
+                "date": {"$gte": period_start, "$lte": period_end},
+            },
+            {"_id": 0}
+        ).to_list(500)
+        for att in attendance_records:
+            cid = att.get("course_id")
+            for sr in att.get("records") or []:
+                if sr.get("student_id") != student_id:
+                    continue
+                if (sr.get("status") or "").upper() == "F" and cid:
+                    faltas_por_componente[cid] = faltas_por_componente.get(cid, 0) + 1
+
+        attendance_data: dict = {
+            "_meta": {
+                "faltas_regular": 0,
+                "faltas_por_componente": faltas_por_componente,
+                "is_escola_integral": False,
+                "is_dependency_ficha": True,
+            }
+        }
+        for c in courses:
+            cid = c.get("id")
+            attendance_data[cid] = {
+                "absences": faltas_por_componente.get(cid, 0),
+                "atendimento_programa": c.get("atendimento_programa"),
+            }
+
+        # 8) Enrollment "lógica" para a ficha — número de matrícula do aluno
+        enrollment = {
+            "registration_number": student.get("enrollment_number", "N/A"),
+            "student_series": target_class.get("grade_level"),
+        }
+
+        # 9) Mantenedora + calendário (mesma origem da ficha regular)
+        mantenedora = await get_mantenedora_cached(db)
+        calendario_letivo = await db.calendario_letivo.find_one(
+            {"ano_letivo": academic_year}, {"_id": 0}
+        )
+
+        # 10) Geração — reusa o gerador oficial com listas filtradas
+        try:
+            await resolve_anexa_name(db, school)
+            pdf_buffer = generate_ficha_individual_pdf(
+                student=student,
+                school=school,
+                class_info=target_class,
+                enrollment=enrollment,
+                academic_year=academic_year,
+                grades=grades,
+                courses=courses,
+                attendance_data=attendance_data,
+                mantenedora=mantenedora,
+                calendario_letivo=calendario_letivo,
+            )
+        except Exception as e:
+            logger.error(f"Erro ao gerar ficha individual de dependência: {e}")
+            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+
+        safe_name = (student.get('full_name') or 'aluno').replace(' ', '_')
+        filename = f"ficha_dependencia_{safe_name}_{academic_year}.pdf"
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        )
+
 
     @router.get("/documents/certificado/{student_id}")
     async def get_certificado(

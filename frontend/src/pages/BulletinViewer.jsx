@@ -750,13 +750,52 @@ export default function BulletinViewer() {
               <Card className="border-amber-200 bg-amber-50/30" data-testid="bulletin-dependency-context">
                 <CardContent className="pt-4 pb-4 text-xs text-amber-800 flex items-start gap-2">
                   <GraduationCap className="w-4 h-4 mt-0.5 shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <strong>Boletim de Dependência</strong> · {bulletin.primary_class?.name || ''}
                     {bulletin.primary_school?.name ? ` · ${bulletin.primary_school.name}` : ''}
                     <div className="text-amber-700 mt-0.5">
                       Componentes isolados — não compõem o boletim regular do aluno.
                     </div>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-[11px] border-amber-300 text-amber-800 hover:bg-amber-100 shrink-0"
+                    data-testid="ficha-dependency-pdf-btn"
+                    onClick={() => {
+                      const sid = selectedStudent?.id;
+                      const cid = activeBulletinKey.startsWith('dep:')
+                        ? activeBulletinKey.slice(4)
+                        : bulletin.target_class_id;
+                      if (!sid || !cid) return;
+                      const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+                      const qs = new URLSearchParams({
+                        target_class_id: cid,
+                        academic_year: String(year),
+                        ...(token ? { token } : {}),
+                      });
+                      // Abre em nova aba (PDF inline) usando fetch+blob para incluir Authorization
+                      fetch(
+                        `${API}/documents/ficha-individual-dependency/${sid}?target_class_id=${encodeURIComponent(cid)}&academic_year=${year}`,
+                        { headers: authHeaders }
+                      )
+                        .then((r) => {
+                          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                          return r.blob();
+                        })
+                        .then((blob) => {
+                          const url = URL.createObjectURL(blob);
+                          window.open(url, '_blank');
+                          setTimeout(() => URL.revokeObjectURL(url), 60000);
+                        })
+                        .catch(() => {
+                          // eslint-disable-next-line no-alert
+                          alert('Não foi possível gerar a Ficha de Dependência.');
+                        });
+                    }}
+                  >
+                    Ficha Individual (PDF)
+                  </Button>
                 </CardContent>
               </Card>
             )}
