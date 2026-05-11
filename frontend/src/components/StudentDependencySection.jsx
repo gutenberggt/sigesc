@@ -477,16 +477,23 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
           </p>
         )}
 
-        <label className="block text-xs font-medium mb-1">Ano de origem (em que reprovou)</label>
+        <label className="block text-xs font-medium mb-1 text-gray-500">
+          Ano de origem (em que reprovou)
+        </label>
         <input
           type="number"
           value={originYear}
           onChange={(e) => setOriginYear(e.target.value)}
-          className="w-full border rounded p-2 text-sm mb-4"
+          className="w-full border rounded p-2 text-sm mb-1 bg-gray-50 text-gray-500 cursor-not-allowed"
           min="2000"
           max={academicYear}
           data-testid="dep-origin-year"
+          disabled
         />
+        <p className="text-[10px] text-gray-500 mb-4 italic" data-testid="dep-origin-year-hint">
+          Preenchido automaticamente com o ano anterior. Histórico do componente reprovado
+          é mantido apenas para registro — não interfere na busca do aluno.
+        </p>
 
         <div className="flex gap-2 justify-end">
           <button

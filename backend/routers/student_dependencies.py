@@ -62,7 +62,10 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
 
     async def _validate_dependency_limit(student_id: str, mantenedora_id: Optional[str]) -> None:
         """Valida que aluno não excede limite de componentes da mantenedora."""
-        student = await db.students.find_one({"id": student_id}, {"_id": 0, "dependency_mode": 1})
+        student = await db.students.find_one(
+            {"id": student_id},
+            {"_id": 0, "id": 1, "dependency_mode": 1},
+        )
         if not student:
             raise HTTPException(404, detail="Aluno não encontrado.")
         mode = student.get("dependency_mode") or "none"
@@ -265,7 +268,10 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
     async def student_summary(request: Request, student_id: str):
         """Resumo: contagem de ativas, concluídas, falhadas + limite e modo."""
         user = await _require_role(request, DEPENDENCY_VIEW_ROLES)
-        student = await db.students.find_one({"id": student_id}, {"_id": 0, "dependency_mode": 1})
+        student = await db.students.find_one(
+            {"id": student_id},
+            {"_id": 0, "id": 1, "dependency_mode": 1},
+        )
         if not student:
             raise HTTPException(404, detail="Aluno não encontrado.")
         mode = student.get("dependency_mode") or "none"
