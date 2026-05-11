@@ -28,6 +28,7 @@ from pdf_generator import (
     generate_livro_promocao_pdf,
 )
 from pdf.historico_escolar import generate_historico_escolar_pdf
+from utils.curriculum_resolver import resolve_curriculum
 
 logger = logging.getLogger(__name__)
 
@@ -255,67 +256,57 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             "academic_year": academic_year_int
         }, {"_id": 0}).to_list(100)
 
-        # ===== FILTRAR COMPONENTES CURRICULARES PELA TURMA =====
-        # Usar teacher_assignments para obter apenas os componentes alocados na turma
-        class_assignments = await db.teacher_assignments.find(
-            {"class_id": class_id, "status": {"$in": ["active", "Ativo", "ativo"]}},
-            {"_id": 0, "course_id": 1}
-        ).to_list(100)
-        assigned_course_ids = list(set(a['course_id'] for a in class_assignments if a.get('course_id')))
-
-        if assigned_course_ids:
-            filtered_courses = await db.courses.find(
-                {"id": {"$in": assigned_course_ids}},
-                {"_id": 0}
-            ).to_list(100)
+        # ===== RESOLUÇÃO CURRICULAR EVIDENCE-FIRST (curriculum_resolver) =====
+        # Fonte única usada por boletim online, PDF e render_jobs.
+        # Resolver puro: evidência acadêmica > class.course_ids > teacher_assignments
+        # > fallback por nivel_ensino (só para turmas virgens). Dedupe determinístico.
+        _resolution = await resolve_curriculum(
+            db,
+            student_id=student_id,
+            class_id=class_id,
+            academic_year=academic_year_int,
+            class_info=class_info,
+            student_info={
+                "id": student_id,
+                "student_series": enrollment.get("student_series")
+                                  or student.get("student_series"),
+                "class_id": class_id,
+            },
+            atendimento_programa_filter=class_info.get("atendimento_programa"),
+        )
+        _resolved = _resolution["components"]
+        for w in _resolution["warnings"]:
+            logger.warning(
+                "boletim_pdf.resolver_warning student=%s class=%s code=%s detail=%s",
+                student_id, class_id, w.get("code"), w,
+            )
+        # Hidrata documentos de course com os metadados necessários ao PDF (ex.: workload).
+        if _resolved:
+            _hidrated = await db.courses.find(
+                {"id": {"$in": [c["course_id"] for c in _resolved]}}, {"_id": 0}
+            ).to_list(200)
+            _by_id = {c["id"]: c for c in _hidrated}
+            filtered_courses = []
+            for r in _resolved:
+                doc = _by_id.get(r["course_id"]) or {}
+                # Anexa metadados de resolução para futura auditoria
+                doc["_resolution_source"] = r.get("source")
+                doc["_resolution_evidence_score"] = r.get("evidence_score", 0)
+                doc["_resolution_dedupe_reason"] = r.get("dedupe_kept_reason")
+                filtered_courses.append(doc)
         else:
-            # Fallback: buscar por nível de ensino
-            nivel_ensino = class_info.get('nivel_ensino') or class_info.get('education_level')
-            grade_level = enrollment.get('student_series') or class_info.get('grade_level', '')
-            grade_level_lower = grade_level.lower() if grade_level else ''
-            if not nivel_ensino:
-                if any(x in grade_level_lower for x in ['berçário', 'bercario', 'maternal', 'pré', 'pre']):
-                    nivel_ensino = 'educacao_infantil'
-                elif any(x in grade_level_lower for x in ['1º ano', '2º ano', '3º ano', '4º ano', '5º ano', '1 ano', '2 ano', '3 ano', '4 ano', '5 ano']):
-                    nivel_ensino = 'fundamental_anos_iniciais'
-                elif any(x in grade_level_lower for x in ['6º ano', '7º ano', '8º ano', '9º ano', '6 ano', '7 ano', '8 ano', '9 ano']):
-                    nivel_ensino = 'fundamental_anos_finais'
-                elif any(x in grade_level_lower for x in ['eja', 'etapa']):
-                    if any(x in grade_level_lower for x in ['3', '4', 'final']):
-                        nivel_ensino = 'eja_final'
-                    else:
-                        nivel_ensino = 'eja'
-            courses_query = {"nivel_ensino": nivel_ensino} if nivel_ensino else {}
-            filtered_courses = await db.courses.find(courses_query, {"_id": 0}).to_list(100)
+            filtered_courses = []
 
-        # ===== FILTRO FINAL POR ATENDIMENTO_PROGRAMA DA TURMA (sempre aplicado) =====
-        turma_atendimento = (class_info.get('atendimento_programa') or '').strip().lower()
-        if turma_atendimento in ('atendimento_integral', 'integral'):
-            # Turma integral: manter regulares + integrais, excluir AEE
-            filtered_courses = [c for c in filtered_courses if (c.get('atendimento_programa') or '') in ('', 'atendimento_integral') or c.get('atendimento_programa') is None]
-        elif turma_atendimento in ('aee',):
-            # Turma AEE: apenas componentes AEE
-            filtered_courses = [c for c in filtered_courses if (c.get('atendimento_programa') or '').lower() == 'aee']
-        else:
-            # Turma regular/multisseriada: EXCLUIR componentes de integral e AEE
-            filtered_courses = [c for c in filtered_courses if not c.get('atendimento_programa') or c.get('atendimento_programa') == '']
-
-        logger.info(f"Boletim: {len(filtered_courses)} componentes para turma {class_id} (atendimento='{turma_atendimento}', via {'teacher_assignments' if assigned_course_ids else 'fallback'})")
+        logger.info(
+            "boletim_pdf.curriculum_resolved student=%s class=%s components=%d "
+            "warnings=%d dropped=%d resolution_path=%s",
+            student_id, class_id, len(filtered_courses),
+            len(_resolution["warnings"]),
+            len(_resolution["debug"].get("dropped_by_dedupe") or []),
+            [r.get("step") for r in _resolution["debug"].get("resolution_path") or []],
+        )
 
         filtered_courses.sort(key=lambda x: x.get('name', ''))
-
-        # Se não houver componentes após filtragem, buscar regulares do nível
-        if not filtered_courses:
-            nivel_ensino_fb = class_info.get('nivel_ensino') or class_info.get('education_level') or ''
-            if nivel_ensino_fb:
-                filtered_courses = await db.courses.find({
-                    "nivel_ensino": nivel_ensino_fb,
-                    "$or": [
-                        {"atendimento_programa": None},
-                        {"atendimento_programa": {"$exists": False}},
-                        {"atendimento_programa": ""}
-                    ]
-                }, {"_id": 0}).to_list(50)
 
         courses = filtered_courses
 

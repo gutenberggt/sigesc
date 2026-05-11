@@ -23,6 +23,7 @@ import logging
 from datetime import date
 from typing import Optional
 
+from utils.curriculum_resolver import resolve_curriculum
 from utils.grade_dependency_filters import with_regular_only
 from utils.temporal_closure import compute_composite_closure
 
@@ -261,7 +262,8 @@ async def build_student_bulletin(
     student = await db.students.find_one(
         {"id": student_id},
         {"_id": 0, "id": 1, "full_name": 1, "registration_number": 1,
-         "class_id": 1, "school_id": 1, "mantenedora_id": 1, "dependency_mode": 1},
+         "class_id": 1, "school_id": 1, "mantenedora_id": 1, "dependency_mode": 1,
+         "student_series": 1},
     )
     if not student:
         return {
@@ -304,10 +306,33 @@ async def build_student_bulletin(
     for p in periods:
         cls = await _resolve_class_info(db, p["class_id"])
         sch = await _resolve_school_info(db, cls.get("school_id") or p.get("school_id"))
-        courses = await _resolve_courses_for_class(db, p["class_id"])
-        course_ids = [c.get("id") for c in courses if c.get("id")]
 
-        # Notas regulares dessa turma para o aluno
+        # >>> Curriculum Resolver (evidence-first) — fonte ÚNICA de componentes.
+        # Não monta currículo manualmente. Não duplica. Não inventa fallback amplo.
+        cls_full = await db.classes.find_one(
+            {"id": p["class_id"]},
+            {"_id": 0, "id": 1, "course_ids": 1, "atendimento_programa": 1,
+             "nivel_ensino": 1, "education_level": 1, "grade_level": 1,
+             "school_id": 1, "academic_year": 1},
+        ) or {}
+        resolution = await resolve_curriculum(
+            db,
+            student_id=student_id,
+            class_id=p["class_id"],
+            academic_year=academic_year,
+            class_info=cls_full,
+            student_info={
+                "id": student_id,
+                "student_series": student.get("student_series"),
+                "class_id": student.get("class_id"),
+            },
+            atendimento_programa_filter=cls_full.get("atendimento_programa"),
+        )
+        resolved_components = resolution["components"]
+        warnings.extend(resolution["warnings"])
+        course_ids = [c["course_id"] for c in resolved_components if c.get("course_id")]
+
+        # Notas regulares dessa turma para o aluno (restringe aos course_ids resolvidos)
         grades = await _grades_for_segment(
             db,
             student_id=student_id,
@@ -329,22 +354,22 @@ async def build_student_bulletin(
             period_end=p["period_end"],
         )
 
+        # Componentes do segmento = resolução canônica (mesma para PDF/UI/render_jobs)
         components: list[dict] = []
-        # Inclui TODOS os cursos da turma (mesmo sem nota — frontend exibe "—")
-        seen = set()
-        for c in courses:
-            cid = c.get("id")
-            if not cid:
-                continue
-            seen.add(cid)
+        for rc in resolved_components:
+            cid = rc["course_id"]
             g = grades_by_course.get(cid) or {}
             components.append({
                 "course_id": cid,
-                "course_name": c.get("name") or "(sem nome)",
-                "atendimento_programa": c.get("atendimento_programa") or "regular",
-                "optativo": bool(c.get("optativo", False)),
+                "course_name": rc.get("course_name") or "(sem nome)",
+                "atendimento_programa": rc.get("atendimento_programa") or "regular",
+                "optativo": bool(rc.get("optativo", False)),
                 "is_dependency": False,
                 "bimesters_owned_by_this_period": owned,
+                # Metadados do resolver (observabilidade)
+                "resolution_source": rc.get("source"),
+                "resolution_evidence_score": rc.get("evidence_score", 0),
+                "resolution_dedupe_reason": rc.get("dedupe_kept_reason"),
                 "grades": {
                     "b1": g.get("b1"),
                     "b2": g.get("b2"),
@@ -363,28 +388,6 @@ async def build_student_bulletin(
                 "absences_in_period": attendance_summary["absences_by_course"].get(cid, 0),
             })
 
-        # Notas em cursos NÃO listados na turma (ex.: aluno tem nota em curso desativado)
-        for cid, g in grades_by_course.items():
-            if cid in seen:
-                continue
-            components.append({
-                "course_id": cid,
-                "course_name": g.get("course_name") or "(curso desconhecido)",
-                "atendimento_programa": "regular",
-                "optativo": False,
-                "is_dependency": False,
-                "bimesters_owned_by_this_period": owned,
-                "grades": {
-                    "b1": g.get("b1"), "b2": g.get("b2"),
-                    "b3": g.get("b3"), "b4": g.get("b4"),
-                    "rec_s1": g.get("rec_s1"), "rec_s2": g.get("rec_s2"),
-                    "recovery": g.get("recovery"),
-                    "final_average": g.get("final_average"),
-                    "status": g.get("status"),
-                },
-                "absences_in_period": attendance_summary["absences_by_course"].get(cid, 0),
-            })
-
         composite_segments.append({
             "period_index": p["period_index"],
             "class": cls,
@@ -398,18 +401,10 @@ async def build_student_bulletin(
             "bimesters_owned": owned,
             "components": components,
             "attendance_summary": attendance_summary,
+            # Debug do resolver (observabilidade por segmento)
+            "resolution_debug": resolution["debug"],
         })
 
-        # Detecta duplicidade de nome de curso no segmento (não remove,
-        # apenas marca + agrega warning). Boletim é espelho fiel do cadastro;
-        # saneamento é responsabilidade do admin via endpoint diagnóstico.
-        warnings.extend(
-            _flag_duplicate_course_names(
-                components,
-                segment_class_id=p["class_id"],
-                period_index=p["period_index"],
-            )
-        )
 
     # Componentes de dependência — paralelo, sem afetar regular
     dep_grades = await _dependency_grades_for_student(

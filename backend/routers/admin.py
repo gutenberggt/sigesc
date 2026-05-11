@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 import unicodedata
 
 from auth_middleware import AuthMiddleware
+from utils.curriculum_resolver import resolve_curriculum
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Admin"])
@@ -796,6 +797,90 @@ def setup_router(db, active_sessions=None, connection_manager=None, get_db_for_u
             "course_ids_before_count": len(old_course_ids),
             "course_ids_after_count": len(new_course_ids),
             "override_recorded": True,
+        }
+
+    @router.get("/admin/students/{student_id}/bulletin-resolution-debug")
+    async def bulletin_resolution_debug(
+        student_id: str, request: Request, academic_year: int = None
+    ):
+        """Observabilidade total do `curriculum_resolver` para um aluno.
+
+        Retorna a mesma resolução que o boletim online e o PDF usam,
+        com debug detalhado: course_ids por origem, dropped_by_dedupe,
+        duplicate_names_detected, resolution_path.
+
+        Read-only. Não altera nada.
+        """
+        current_user = await AuthMiddleware.require_permission(
+            db, 'nav-admin-tools-button', ['admin']
+        )(request)
+        current_db = get_db_for_user(current_user) if get_db_for_user else db
+
+        student = await current_db.students.find_one(
+            {"id": student_id},
+            {"_id": 0, "id": 1, "full_name": 1, "class_id": 1,
+             "school_id": 1, "student_series": 1},
+        )
+        if not student:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Aluno não encontrado"
+            )
+
+        # Resolve class_id e academic_year
+        ay = academic_year or datetime.now(timezone.utc).year
+        class_id = student.get("class_id")
+        enrollment = await current_db.enrollments.find_one(
+            {"student_id": student_id, "academic_year": ay,
+             "status": {"$in": ["active", "transferred"]}},
+            {"_id": 0, "class_id": 1, "student_series": 1},
+        ) or {}
+        if enrollment.get("class_id"):
+            class_id = enrollment["class_id"]
+
+        if not class_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "STUDENT_HAS_NO_CLASS",
+                    "message": "Aluno sem turma vinculada — resolução curricular impossível.",
+                },
+            )
+
+        class_info = await current_db.classes.find_one(
+            {"id": class_id},
+            {"_id": 0, "id": 1, "name": 1, "course_ids": 1, "school_id": 1,
+             "academic_year": 1, "nivel_ensino": 1, "education_level": 1,
+             "grade_level": 1, "atendimento_programa": 1},
+        ) or {}
+
+        resolution = await resolve_curriculum(
+            current_db,
+            student_id=student_id,
+            class_id=class_id,
+            academic_year=ay,
+            class_info=class_info,
+            student_info={
+                "id": student_id,
+                "student_series": enrollment.get("student_series")
+                                  or student.get("student_series"),
+                "class_id": class_id,
+            },
+            atendimento_programa_filter=class_info.get("atendimento_programa"),
+        )
+
+        return {
+            "student_id": student_id,
+            "student_name": student.get("full_name"),
+            "class_id": class_id,
+            "class_name": class_info.get("name"),
+            "academic_year": ay,
+            "atendimento_programa": class_info.get("atendimento_programa") or "regular",
+            "components": resolution["components"],
+            "warnings": resolution["warnings"],
+            **resolution["debug"],  # evidence_course_ids, class_course_ids,
+                                    # teacher_assignment_course_ids, fallback_course_ids,
+                                    # dropped_by_dedupe, duplicate_names_detected,
+                                    # resolution_path, final_resolution
         }
 
     return router

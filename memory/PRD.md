@@ -2375,3 +2375,64 @@ Resposta inclui `linked: {…}` com as contagens para o admin entender o bloquei
 - Heurísticas IA para detectar curso "correto" (rejeitado como anti-pattern).
 
 ### Status: ✅ PRODUÇÃO-READY
+
+---
+
+## Curriculum Resolver — Evidence-First **[Fev/2026]**
+
+### Problema raiz reidentificado
+A duplicidade "Ciências" no boletim da AMANDA **NÃO** era cadastral em
+`class.course_ids` (a turma 7º ANO B nem tinha `course_ids` persistidos).
+A causa real: o **fallback amplo por `nivel_ensino`** em
+`routers/documents.py::generate_boletim` (linhas 272-289 originais) puxava
+TODOS os cursos do nível, e dois "Ciências" no mesmo nível entravam no PDF
+— um com nota, outro vazio (média 0.0).
+
+### Solução: `utils/curriculum_resolver.py`
+Resolver determinístico **puro**, fonte ÚNICA de componentes curriculares
+para boletim online, PDF e (futuramente) render_jobs.
+
+**Ordem de resolução**:
+1. **STEP 1 — Evidence**: `course_ids` com `grades` + `attendance` reais do aluno.
+2. **STEP 2 — class.course_ids**: matriz explícita da turma (exclui colisões de nome com evidência).
+3. **STEP 3 — teacher_assignments**: cursos vinculados a professores ativos (exclui colisões).
+4. **STEP 4 — Fallback `nivel_ensino`**: SOMENTE se `no_evidence AND no_matrix` (turma 100% virgem).
+5. **STEP 5 — Dedupe final** por nome normalizado (NFKD + casefold + trim):
+   1) maior `evidence_score`
+   2) `active=true`
+   3) `created_at` mais recente
+   4) `course_id` (estável)
+
+**Warnings obrigatórios** (mantidos mesmo após dedupe):
+- `CLASS_WITHOUT_CURRICULUM_MATRIX`: turma sem `course_ids`.
+- `DUPLICATE_COURSE_NAME`: candidatos com mesmo nome — sempre inclui `winner_course_id` e `winner_reason`.
+
+**Metadados por componente**:
+`source` (`evidence`|`class`|`teacher_assignment`|`fallback`), `evidence_score`, `dedupe_kept_reason`.
+
+### Integração obrigatória
+- ✅ `utils/bulletin_builder.py` — substitui `_resolve_courses_for_class` + fallback de grades órfãs.
+- ✅ `routers/documents.py::generate_boletim` — substitui o bloco antigo (linhas 258-320).
+- 🔜 Render jobs e Histórico Escolar herdarão automaticamente quando consumirem o boletim.
+
+### Novo endpoint admin
+`GET /api/admin/students/{student_id}/bulletin-resolution-debug?academic_year=YYYY`
+Retorna observabilidade total: `evidence_course_ids`, `class_course_ids`,
+`teacher_assignment_course_ids`, `fallback_course_ids`, `dropped_by_dedupe`,
+`duplicate_names_detected`, `resolution_path[]`, `final_resolution[]`.
+
+### Resultado para o caso AMANDA
+- Turma sem `course_ids` → warning `CLASS_WITHOUT_CURRICULUM_MATRIX` (transparência).
+- Aluna tem nota só no `course_id_A` → STEP 1 captura evidência → STEPS 2/3/4 skip por já ter matrix.
+- Fallback por `nivel_ensino` NÃO é acionado (`skip_reason: has_academic_evidence`).
+- Apenas 1 "Ciências" no boletim — a com evidência real. Boletim consistente entre PDF/UI/render_jobs.
+
+### Testes (56/56 passando)
+- `test_curriculum_resolver.py` (7): evidência + matriz, dedupe por evidência,
+  fallback acionado em turma virgem, fallback skipped por evidência,
+  cenário AMANDA explícito, teacher_assignments, determinismo.
+- `test_bulletin_builder.py` (9): atualizado para o novo comportamento dedupe.
+- `test_bulletin_e2e_http.py` (6).
+- `test_admin_curricular_sanitization.py` (7).
+
+### Status: ✅ PRODUÇÃO-READY (resolver é a nova fonte canônica)

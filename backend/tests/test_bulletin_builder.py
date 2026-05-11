@@ -301,25 +301,24 @@ async def test_canonical_shape_keys_present(db):
 
 
 @pytest.mark.asyncio
-async def test_duplicate_course_name_emits_warning_and_row_flag(db):
-    """Dois cursos distintos com mesmo nome ('Ciências') na mesma turma
-    devem disparar warning DUPLICATE_COURSE_NAME e marcar ambas as linhas
-    com `_warning_duplicate_name=True` — sem remover ou unificar.
+async def test_duplicate_course_name_dedupe_by_evidence(db):
+    """Dois cursos distintos com mesmo nome ('Ciências') na mesma turma:
+    o resolver evidence-first mantém APENAS o vencedor (curso com evidência)
+    e emite warning DUPLICATE_COURSE_NAME. Boletim deixa de mostrar duas linhas.
     """
     COURSE_CIE_A = "bb_course_cie_a"
     COURSE_CIE_B = "bb_course_cie_b_ghost"
 
     await _seed_world(db, with_event=False)
-    # Adiciona dois cursos com mesmo nome na mesma turma
     await db.courses.insert_many([
-        {"id": COURSE_CIE_A, "name": "Ciências", "mantenedora_id": MANT},
-        {"id": COURSE_CIE_B, "name": "Ciências", "mantenedora_id": MANT},
+        {"id": COURSE_CIE_A, "name": "Ciências", "active": True, "mantenedora_id": MANT},
+        {"id": COURSE_CIE_B, "name": "Ciências", "active": False, "mantenedora_id": MANT},
     ])
     await db.classes.update_one(
         {"id": CLASS_A},
         {"$set": {"course_ids": [COURSE_MAT, COURSE_PT, COURSE_CIE_A, COURSE_CIE_B]}},
     )
-    # Apenas o "ativo" tem nota lançada
+    # Apenas o "ativo" tem nota lançada (evidência acadêmica)
     await db.grades.insert_one({
         "id": "g_cie_a", "student_id": STUDENT, "academic_year": YEAR,
         "class_id": CLASS_A, "course_id": COURSE_CIE_A,
@@ -333,10 +332,13 @@ async def test_duplicate_course_name_emits_warning_and_row_flag(db):
         seg = bul["composite_segments"][0]
         cie_components = [c for c in seg["components"]
                           if (c.get("course_name") or "").casefold() == "ciências"]
-        assert len(cie_components) == 2, "Builder deve manter ambos componentes"
-        assert all(c.get("_warning_duplicate_name") is True for c in cie_components), \
-            "Cada componente duplicado deve estar marcado"
-
+        # Dedupe evidence-first: APENAS o vencedor permanece
+        assert len(cie_components) == 1, "Resolver deve manter apenas o vencedor"
+        winner = cie_components[0]
+        assert winner["course_id"] == COURSE_CIE_A, "Curso com evidência vence"
+        assert winner["resolution_dedupe_reason"] == "higher_evidence"
+        assert winner["resolution_evidence_score"] == 1
+        # O fantasma foi descartado, mas o warning é emitido
         dup_warnings = [w for w in bul["warnings"]
                         if w.get("code") == "DUPLICATE_COURSE_NAME"]
         assert len(dup_warnings) == 1
@@ -344,10 +346,45 @@ async def test_duplicate_course_name_emits_warning_and_row_flag(db):
         assert w["course_name"] == "Ciências"
         assert w["class_id"] == CLASS_A
         assert set(w["course_ids"]) == {COURSE_CIE_A, COURSE_CIE_B}
+        assert w["winner_course_id"] == COURSE_CIE_A
+        assert w["resolved_by_evidence"] is True
 
-        # Outros cursos NÃO devem ser marcados
-        mat = next(c for c in seg["components"] if c["course_id"] == COURSE_MAT)
-        assert mat.get("_warning_duplicate_name") is not True
+        # debug do resolver expõe o descartado
+        debug = seg["resolution_debug"]
+        dropped_ids = {d["course_id"] for d in debug["dropped_by_dedupe"]}
+        assert COURSE_CIE_B in dropped_ids
     finally:
         await db.courses.delete_many({"id": {"$in": [COURSE_CIE_A, COURSE_CIE_B]}})
         await db.grades.delete_many({"id": "g_cie_a"})
+
+
+@pytest.mark.asyncio
+async def test_class_without_curriculum_matrix_warning(db):
+    """Turma sem `course_ids` deve emitir warning CLASS_WITHOUT_CURRICULUM_MATRIX."""
+    await _seed_world(db, with_event=False)
+    # Remove a matriz curricular da turma
+    await db.classes.update_one({"id": CLASS_A}, {"$set": {"course_ids": []}})
+    # Adiciona uma nota para ter evidência (assim o fallback amplo NÃO é acionado)
+    await db.grades.insert_one({
+        "id": "g_ev", "student_id": STUDENT, "academic_year": YEAR,
+        "class_id": CLASS_A, "course_id": COURSE_MAT,
+        "b1": 7.0, "mantenedora_id": MANT,
+    })
+    try:
+        bul = await build_student_bulletin(
+            db, student_id=STUDENT, academic_year=YEAR, mantenedora_id=MANT
+        )
+        codes = {w.get("code") for w in bul["warnings"]}
+        assert "CLASS_WITHOUT_CURRICULUM_MATRIX" in codes
+        # Sem matriz e com evidência → resolver inclui só o curso com nota
+        seg = bul["composite_segments"][0]
+        cids = {c["course_id"] for c in seg["components"]}
+        assert COURSE_MAT in cids
+        # Confirma resolution_path tem fallback DESLIGADO (tem evidência)
+        debug = seg["resolution_debug"]
+        fallback_step = next(s for s in debug["resolution_path"]
+                             if s.get("step") == "nivel_ensino_fallback")
+        assert fallback_step["activated"] is False
+        assert fallback_step["skip_reason"] == "has_academic_evidence"
+    finally:
+        await db.grades.delete_many({"id": "g_ev"})
