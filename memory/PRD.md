@@ -2476,3 +2476,24 @@ LEITURA, não escrita.
     `GET /api/schools` retorna ambas as escolas do tenant.
 
 ### Status: ✅ DEPLOY READY
+
+### Extensão: visão tenant-wide para Turmas e Alunos **[Fev/2026 — pós-fix]**
+
+Após o fix de escolas, a permissão de leitura global foi estendida (apenas leitura):
+
+- `routers/classes.py::list_classes` — `semed1`, `semed2` adicionados à lista de papéis
+  com visão tenant-wide (linha ~73). Frontend (`Users.js`) já declarava `classes: 'view'`.
+- `routers/students.py::list_students` — mesma extensão (linha ~321). Frontend já
+  declarava `students: 'view'`.
+
+**Escrita NÃO foi afetada** — validada por testes E2E:
+- `POST /api/classes` com Analista → 403.
+- `PUT /api/students/{id}` com Analista → 403.
+
+Write endpoints continuam usando `require_roles(['admin', 'admin_teste', 'secretario'])`
+ou checagens próprias que não passam por `check_school_access`.
+
+### Testes finais (21/21 passando)
+- 11 unit (`check_school_access` por role — todos papéis globais retornam True).
+- 5 unit (papéis de escola exigem vínculo).
+- 5 E2E HTTP: escolas + turmas + alunos lendo OK + 2 write-attempts bloqueados (403).

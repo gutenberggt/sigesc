@@ -69,8 +69,12 @@ def setup_router(db, audit_service, sandbox_db=None):
         # Constrói filtro
         filter_query = {}
         
-        # Admin, admin_teste, super_admin, gerente, SEMED, SEMED3, Secretário, Assistente Social e Agente de Vacinas podem ver todas as turmas
-        if current_user['role'] in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed3', 'secretario', 'ass_social', 'ass_social_2', 'agente_vacinas']:
+        # Papéis com visão tenant-wide das turmas (apenas leitura para semed1/semed2):
+        # admin, admin_teste, super_admin, gerente, semed, semed1 (Tutor), semed2 (Analista),
+        # semed3 (Administração), secretario, ass_social, ass_social_2, agente_vacinas.
+        # Alinhado com /app/frontend/src/pages/Users.js (`classes: 'view'`) e com
+        # /app/backend/routers/schools.py::list_schools.
+        if current_user['role'] in ['admin', 'admin_teste', 'super_admin', 'gerente', 'semed', 'semed1', 'semed2', 'semed3', 'secretario', 'ass_social', 'ass_social_2', 'agente_vacinas']:
             if school_id:
                 filter_query['school_id'] = school_id
         else:
