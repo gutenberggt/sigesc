@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   GraduationCap, FileText, ArrowRight, Calendar, Megaphone,
-  Clock, Sparkles, ChevronRight
+  Clock, Sparkles, ChevronRight, UserCircle
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -100,29 +100,54 @@ export default function AlunoDashboard() {
           </CardContent>
         </Card>
 
-        {/* Ação principal: Boletim */}
-        <button
-          onClick={() => navigate('/aluno/boletim')}
-          className="w-full text-left group"
-          data-testid="btn-boletim"
-        >
-          <Card className="hover:border-blue-500 hover:shadow-lg transition-all cursor-pointer">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
-                    <FileText className="w-6 h-6 text-white" />
+        {/* Ações principais: Boletim + Meu Perfil */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button
+            onClick={() => navigate('/aluno/boletim')}
+            className="w-full text-left group"
+            data-testid="btn-boletim"
+          >
+            <Card className="h-full hover:border-blue-500 hover:shadow-lg transition-all cursor-pointer">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
+                      <FileText className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Boletim</h2>
+                      <p className="text-xs text-gray-500">Notas, faltas e situação</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-900">Boletim</h2>
-                    <p className="text-xs text-gray-500">Notas, faltas e situação</p>
-                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
                 </div>
-                <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
-              </div>
-            </CardContent>
-          </Card>
-        </button>
+              </CardContent>
+            </Card>
+          </button>
+
+          <button
+            onClick={() => navigate('/profile')}
+            className="w-full text-left group"
+            data-testid="btn-meu-perfil"
+          >
+            <Card className="h-full hover:border-emerald-500 hover:shadow-lg transition-all cursor-pointer">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0">
+                      <UserCircle className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Meu Perfil</h2>
+                      <p className="text-xs text-gray-500">Dados, e-mail e senha</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
+                </div>
+              </CardContent>
+            </Card>
+          </button>
+        </div>
 
         {/* Grid de cards secundários */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
