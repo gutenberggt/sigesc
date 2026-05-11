@@ -20,7 +20,7 @@
  *   readOnly: bool — modo somente leitura (visualização).
  */
 import { useState, useEffect, useCallback } from 'react';
-import { studentDependenciesAPI, classesAPI, coursesAPI, schoolsAPI } from '@/services/api';
+import { studentDependenciesAPI, classesAPI, schoolsAPI } from '@/services/api';
 import { GraduationCap, Trash2, Plus, AlertCircle, CheckCircle2, X } from 'lucide-react';
 
 const MODE_LABELS = {
@@ -282,7 +282,8 @@ function isAnosFinaisClass(cls) {
 function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSaved }) {
   const [schools, setSchools] = useState([]);
   const [allClasses, setAllClasses] = useState([]);
-  const [courses, setCourses] = useState([]);
+  const [classCurriculum, setClassCurriculum] = useState([]); // componentes da turma selecionada
+  const [loadingCurriculum, setLoadingCurriculum] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
@@ -295,14 +296,12 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
   useEffect(() => {
     (async () => {
       try {
-        const [sc, cl, co] = await Promise.all([
+        const [sc, cl] = await Promise.all([
           schoolsAPI.getAll(),
           classesAPI.getAll(),
-          coursesAPI.getAll(),
         ]);
         setSchools(sc || []);
         setAllClasses(cl || []);
-        setCourses(co || []);
       } catch (e) {
         console.error('[AddDependencyModal] erro ao carregar:', e);
       } finally {
@@ -311,19 +310,37 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
     })();
   }, []);
 
+  // Quando trocar a turma, busca a matriz curricular oficial dela
+  // (class.course_ids ∪ teacher_assignments) via endpoint dedicado.
+  useEffect(() => {
+    if (!selectedClass) {
+      setClassCurriculum([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingCurriculum(true);
+    classesAPI.getCurriculum(selectedClass)
+      .then((data) => {
+        if (cancelled) return;
+        setClassCurriculum(data?.components || []);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        console.error('[AddDependencyModal] erro ao carregar currículo:', e);
+        setClassCurriculum([]);
+      })
+      .finally(() => { if (!cancelled) setLoadingCurriculum(false); });
+    return () => { cancelled = true; };
+  }, [selectedClass]);
+
   // Turmas filtradas: só da escola selecionada + anos finais.
   // Dependência de estudos é regulamentada apenas para 6º–9º ano (fund. anos finais).
   const filteredClasses = selectedSchool
     ? allClasses.filter((c) => c.school_id === selectedSchool && isAnosFinaisClass(c))
     : [];
 
-  // Componentes curriculares filtrados: apenas os vinculados à turma selecionada
-  // (via `class.course_ids`). Sem turma selecionada → lista vazia, dropdown desabilitado.
-  const selectedClassObj = filteredClasses.find((c) => c.id === selectedClass) || null;
-  const classCourseIds = (selectedClassObj?.course_ids) || [];
-  const filteredCourses = classCourseIds.length > 0
-    ? courses.filter((c) => classCourseIds.includes(c.id))
-    : [];
+  // Componentes: matriz curricular oficial da turma (endpoint /curriculum).
+  const filteredCourses = classCurriculum;
 
   // Ao trocar de escola, limpa a turma selecionada para evitar estado inválido.
   const handleSchoolChange = (e) => {
@@ -432,27 +449,30 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
           onChange={(e) => setSelectedCourse(e.target.value)}
           className="w-full border rounded p-2 text-sm mb-1 disabled:bg-gray-50 disabled:text-gray-400"
           data-testid="dep-course-select"
-          disabled={!selectedClass}
+          disabled={!selectedClass || loadingCurriculum}
         >
           <option value="">
             {!selectedClass
               ? '— Selecione uma turma primeiro —'
-              : filteredCourses.length === 0
-                ? '— Turma sem matriz curricular cadastrada —'
-                : '— Selecione —'}
+              : loadingCurriculum
+                ? 'Carregando matriz curricular…'
+                : filteredCourses.length === 0
+                  ? '— Turma sem matriz curricular cadastrada —'
+                  : '— Selecione —'}
           </option>
           {filteredCourses.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        {selectedClass && filteredCourses.length > 0 && (
+        {selectedClass && !loadingCurriculum && filteredCourses.length > 0 && (
           <p className="text-[10px] text-gray-500 mb-3" data-testid="dep-course-hint">
             {filteredCourses.length} componente(s) vinculado(s) a esta turma.
           </p>
         )}
-        {selectedClass && filteredCourses.length === 0 && (
+        {selectedClass && !loadingCurriculum && filteredCourses.length === 0 && (
           <p className="text-[10px] text-amber-700 mb-3" data-testid="dep-course-empty">
-            A turma selecionada não tem componentes curriculares vinculados.
+            A turma selecionada não tem componentes curriculares cadastrados
+            (nem em matriz própria, nem via vínculo de professores).
             Cadastre a matriz curricular antes de vincular dependência.
           </p>
         )}

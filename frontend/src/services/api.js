@@ -175,6 +175,11 @@ export const classesAPI = {
     const response = await axios.get(`${API}/classes/${id}/details`);
     return response.data;
   },
+
+  getCurriculum: async (id) => {
+    const response = await axios.get(`${API}/classes/${id}/curriculum`);
+    return response.data;
+  },
   
   getDetailsPdf: async (id) => {
     const response = await axios.get(`${API}/classes/${id}/details/pdf`, {

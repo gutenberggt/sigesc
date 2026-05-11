@@ -210,4 +210,85 @@ def setup_router(db, audit_service, sandbox_db=None):
         cache.invalidate('classes')
         return None
 
+    @router.get("/{class_id}/curriculum")
+    async def get_class_curriculum(class_id: str, request: Request):
+        """Retorna a matriz curricular efetiva da turma.
+
+        Une duas fontes de cadastro:
+          - `class.course_ids` (matriz explícita, se houver);
+          - `teacher_assignments` (vínculos professor↔disciplina↔turma ativos).
+
+        Hidrata com o documento de `courses` para retornar id+nome+programa.
+        Usado pelo modal de Dependência de Estudos para listar SOMENTE
+        os componentes pertinentes à turma escolhida.
+
+        Não é específico de aluno (não consulta `grades`/`attendance`).
+        """
+        current_user = await AuthMiddleware.get_current_user(request)
+        current_db = get_db_for_user(current_user)
+
+        cls = await current_db.classes.find_one(
+            {"id": class_id},
+            {"_id": 0, "id": 1, "name": 1, "course_ids": 1, "school_id": 1,
+             "academic_year": 1, "atendimento_programa": 1},
+        )
+        if not cls:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Turma não encontrada"
+            )
+
+        seen: set[str] = set()
+        ordered_ids: list[str] = []
+
+        for cid in (cls.get("course_ids") or []):
+            if cid and cid not in seen:
+                seen.add(cid)
+                ordered_ids.append(cid)
+
+        async for a in current_db.teacher_assignments.find(
+            {"class_id": class_id,
+             "status": {"$in": ["active", "Ativo", "ativo"]}},
+            {"_id": 0, "course_id": 1},
+        ):
+            cid = a.get("course_id")
+            if cid and cid not in seen:
+                seen.add(cid)
+                ordered_ids.append(cid)
+
+        components: list[dict] = []
+        if ordered_ids:
+            docs = await current_db.courses.find(
+                {"id": {"$in": ordered_ids}},
+                {"_id": 0, "id": 1, "name": 1, "active": 1,
+                 "atendimento_programa": 1, "optativo": 1},
+            ).to_list(500)
+            by_id = {d["id"]: d for d in docs}
+            for cid in ordered_ids:
+                d = by_id.get(cid)
+                if not d:
+                    continue
+                components.append({
+                    "id": d["id"],
+                    "name": d.get("name"),
+                    "active": bool(d.get("active", True)),
+                    "atendimento_programa": d.get("atendimento_programa") or "regular",
+                    "optativo": bool(d.get("optativo", False)),
+                })
+        # Ordena alfabeticamente para UI estável
+        components.sort(key=lambda c: (c.get("name") or "").casefold())
+
+        return {
+            "class_id": cls["id"],
+            "class_name": cls.get("name"),
+            "school_id": cls.get("school_id"),
+            "academic_year": cls.get("academic_year"),
+            "atendimento_programa": cls.get("atendimento_programa") or "regular",
+            "sources": {
+                "class_course_ids_count": len(cls.get("course_ids") or []),
+                "teacher_assignments_count": len(ordered_ids) - len(cls.get("course_ids") or []),
+                "total_unique": len(ordered_ids),
+            },
+            "components": components,
+        }
+
     return router
