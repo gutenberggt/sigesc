@@ -20,7 +20,7 @@
  *   readOnly: bool — modo somente leitura (visualização).
  */
 import { useState, useEffect, useCallback } from 'react';
-import { studentDependenciesAPI, classesAPI, coursesAPI } from '@/services/api';
+import { studentDependenciesAPI, classesAPI, coursesAPI, schoolsAPI } from '@/services/api';
 import { GraduationCap, Trash2, Plus, AlertCircle, CheckCircle2, X } from 'lucide-react';
 
 const MODE_LABELS = {
@@ -266,40 +266,74 @@ export function StudentDependencySection({
 // ----------------------------------------------------------------------
 // Modal de adicionar dependência
 // ----------------------------------------------------------------------
+// Heurística para identificar turmas de "anos finais" (6º ao 9º ano).
+// Aceita variantes de cadastro: nivel_ensino canônico OU grade_level textual.
+const ANOS_FINAIS_NIVEL = 'fundamental_anos_finais';
+const ANOS_FINAIS_GRADE_REGEX = /\b(6º?\s?ano|7º?\s?ano|8º?\s?ano|9º?\s?ano|6\s?ano|7\s?ano|8\s?ano|9\s?ano)\b/i;
+
+function isAnosFinaisClass(cls) {
+  if (!cls) return false;
+  const nivel = (cls.nivel_ensino || cls.education_level || '').toLowerCase();
+  if (nivel === ANOS_FINAIS_NIVEL) return true;
+  const gl = cls.grade_level || cls.name || '';
+  return ANOS_FINAIS_GRADE_REGEX.test(String(gl));
+}
+
 function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSaved }) {
-  const [classes, setClasses] = useState([]);
+  const [schools, setSchools] = useState([]);
+  const [allClasses, setAllClasses] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
   const [originYear, setOriginYear] = useState(new Date().getFullYear() - 1);
   const [academicYear] = useState(new Date().getFullYear());
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const [cl, co] = await Promise.all([classesAPI.getAll(), coursesAPI.getAll()]);
-        setClasses(cl || []);
+        const [sc, cl, co] = await Promise.all([
+          schoolsAPI.getAll(),
+          classesAPI.getAll(),
+          coursesAPI.getAll(),
+        ]);
+        setSchools(sc || []);
+        setAllClasses(cl || []);
         setCourses(co || []);
       } catch (e) {
-        console.error(e);
+        console.error('[AddDependencyModal] erro ao carregar:', e);
+      } finally {
+        setLoading(false);
       }
     })();
   }, []);
 
+  // Turmas filtradas: só da escola selecionada + anos finais.
+  // Dependência de estudos é regulamentada apenas para 6º–9º ano (fund. anos finais).
+  const filteredClasses = selectedSchool
+    ? allClasses.filter((c) => c.school_id === selectedSchool && isAnosFinaisClass(c))
+    : [];
+
+  // Ao trocar de escola, limpa a turma selecionada para evitar estado inválido.
+  const handleSchoolChange = (e) => {
+    setSelectedSchool(e.target.value);
+    setSelectedClass('');
+  };
+
   const handleSave = async () => {
-    if (!selectedClass || !selectedCourse) {
-      setError('Selecione turma e componente.');
+    if (!selectedSchool || !selectedClass || !selectedCourse) {
+      setError('Selecione escola, turma e componente.');
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      const cls = classes.find((c) => c.id === selectedClass);
       await studentDependenciesAPI.create({
         student_id: studentId,
-        school_id: cls?.school_id || schoolIdProp || '',
+        school_id: selectedSchool || schoolIdProp || '',
         class_id: selectedClass,
         course_id: selectedCourse,
         academic_year: academicYear,
@@ -325,18 +359,57 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
           <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-2 rounded mb-3">{error}</div>
         )}
 
+        <p className="text-[11px] text-gray-500 italic mb-3 leading-snug">
+          A dependência funciona como uma matrícula nova em outra turma — possivelmente em
+          outra escola e em turno diferente. Selecione primeiro a escola para listar as
+          turmas disponíveis (apenas anos finais: 6º ao 9º ano).
+        </p>
+
+        <label className="block text-xs font-medium mb-1">Escola de destino</label>
+        <select
+          value={selectedSchool}
+          onChange={handleSchoolChange}
+          className="w-full border rounded p-2 text-sm mb-3"
+          data-testid="dep-school-select"
+          disabled={loading}
+        >
+          <option value="">{loading ? 'Carregando…' : '— Selecione —'}</option>
+          {schools.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+
         <label className="block text-xs font-medium mb-1">Turma de destino</label>
         <select
           value={selectedClass}
           onChange={(e) => setSelectedClass(e.target.value)}
-          className="w-full border rounded p-2 text-sm mb-3"
+          className="w-full border rounded p-2 text-sm mb-1 disabled:bg-gray-50 disabled:text-gray-400"
           data-testid="dep-class-select"
+          disabled={!selectedSchool}
         >
-          <option value="">— Selecione —</option>
-          {classes.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+          <option value="">
+            {!selectedSchool
+              ? '— Selecione uma escola primeiro —'
+              : filteredClasses.length === 0
+                ? '— Sem turmas de anos finais nesta escola —'
+                : '— Selecione —'}
+          </option>
+          {filteredClasses.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}{c.shift ? ` · ${c.shift}` : ''}
+            </option>
           ))}
         </select>
+        {selectedSchool && filteredClasses.length > 0 && (
+          <p className="text-[10px] text-gray-500 mb-3" data-testid="dep-class-hint">
+            {filteredClasses.length} turma(s) dos anos finais nesta escola.
+          </p>
+        )}
+        {selectedSchool && filteredClasses.length === 0 && (
+          <p className="text-[10px] text-amber-700 mb-3" data-testid="dep-class-empty">
+            Esta escola não possui turmas dos anos finais cadastradas.
+          </p>
+        )}
 
         <label className="block text-xs font-medium mb-1">Componente curricular</label>
         <select
@@ -370,7 +443,7 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
           >Cancelar</button>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !selectedSchool || !selectedClass || !selectedCourse}
             className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50"
             data-testid="dep-save-btn"
           >{saving ? 'Salvando…' : 'Vincular'}</button>
