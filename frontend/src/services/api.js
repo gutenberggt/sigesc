@@ -235,14 +235,16 @@ export const coursesAPI = {
 // ============= CPF VALIDATION =============
 export const cpfAPI = {
   validate: async (cpf) => {
-    const response = await axios.get(`${API}/validate-cpf/${cpf}`);
+    // Endpoint vive sob o router /students no backend (prefix="/students").
+    const response = await axios.get(`${API}/students/validate-cpf/${cpf}`);
     return response.data;
   },
   
   checkDuplicate: async (cpf, context = 'student', excludeId = null) => {
     const params = { context };
     if (excludeId) params.exclude_id = excludeId;
-    const response = await axios.get(`${API}/check-cpf-duplicate/${cpf}`, { params });
+    // Endpoint vive sob o router /students no backend (prefix="/students").
+    const response = await axios.get(`${API}/students/check-cpf-duplicate/${cpf}`, { params });
     return response.data;
   }
 };
