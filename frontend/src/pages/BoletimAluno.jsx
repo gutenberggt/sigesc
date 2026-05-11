@@ -55,7 +55,22 @@ const corConceito = (sigla, ehAnosIniciais) => {
   const tabela = ehAnosIniciais ? CONCEITOS_ANOS_INICIAIS : CONCEITOS_EDUCACAO_INFANTIL;
   return tabela[sigla]?.cor || 'text-gray-700';
 };
-const fmtDate = (s) => { try { return new Date(s).toLocaleDateString('pt-BR'); } catch { return s; } };
+// Formata data SEM regressão por fuso horário.
+// `new Date("YYYY-MM-DD")` é interpretado como UTC meia-noite e, ao converter para
+// pt-BR (UTC-3), volta um dia. Forçamos local time via 'T00:00:00' (ou parse manual).
+const fmtDate = (s) => {
+  if (!s) return '—';
+  try {
+    const datePart = String(s).split('T')[0]; // aceita ISO completo ou YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+      const [y, m, d] = datePart.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    return new Date(datePart + 'T00:00:00').toLocaleDateString('pt-BR');
+  } catch {
+    return s;
+  }
+};
 
 export default function BoletimAluno() {
   const [data, setData] = useState(null);
