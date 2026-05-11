@@ -317,10 +317,25 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
     ? allClasses.filter((c) => c.school_id === selectedSchool && isAnosFinaisClass(c))
     : [];
 
+  // Componentes curriculares filtrados: apenas os vinculados à turma selecionada
+  // (via `class.course_ids`). Sem turma selecionada → lista vazia, dropdown desabilitado.
+  const selectedClassObj = filteredClasses.find((c) => c.id === selectedClass) || null;
+  const classCourseIds = (selectedClassObj?.course_ids) || [];
+  const filteredCourses = classCourseIds.length > 0
+    ? courses.filter((c) => classCourseIds.includes(c.id))
+    : [];
+
   // Ao trocar de escola, limpa a turma selecionada para evitar estado inválido.
   const handleSchoolChange = (e) => {
     setSelectedSchool(e.target.value);
     setSelectedClass('');
+    setSelectedCourse('');
+  };
+
+  // Ao trocar de turma, limpa o componente selecionado (currículo é específico).
+  const handleClassChange = (e) => {
+    setSelectedClass(e.target.value);
+    setSelectedCourse('');
   };
 
   const handleSave = async () => {
@@ -382,7 +397,7 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
         <label className="block text-xs font-medium mb-1">Turma de destino</label>
         <select
           value={selectedClass}
-          onChange={(e) => setSelectedClass(e.target.value)}
+          onChange={handleClassChange}
           className="w-full border rounded p-2 text-sm mb-1 disabled:bg-gray-50 disabled:text-gray-400"
           data-testid="dep-class-select"
           disabled={!selectedSchool}
@@ -415,14 +430,32 @@ function AddDependencyModal({ studentId, schoolId: schoolIdProp, onClose, onSave
         <select
           value={selectedCourse}
           onChange={(e) => setSelectedCourse(e.target.value)}
-          className="w-full border rounded p-2 text-sm mb-3"
+          className="w-full border rounded p-2 text-sm mb-1 disabled:bg-gray-50 disabled:text-gray-400"
           data-testid="dep-course-select"
+          disabled={!selectedClass}
         >
-          <option value="">— Selecione —</option>
-          {courses.map((c) => (
+          <option value="">
+            {!selectedClass
+              ? '— Selecione uma turma primeiro —'
+              : filteredCourses.length === 0
+                ? '— Turma sem matriz curricular cadastrada —'
+                : '— Selecione —'}
+          </option>
+          {filteredCourses.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
+        {selectedClass && filteredCourses.length > 0 && (
+          <p className="text-[10px] text-gray-500 mb-3" data-testid="dep-course-hint">
+            {filteredCourses.length} componente(s) vinculado(s) a esta turma.
+          </p>
+        )}
+        {selectedClass && filteredCourses.length === 0 && (
+          <p className="text-[10px] text-amber-700 mb-3" data-testid="dep-course-empty">
+            A turma selecionada não tem componentes curriculares vinculados.
+            Cadastre a matriz curricular antes de vincular dependência.
+          </p>
+        )}
 
         <label className="block text-xs font-medium mb-1">Ano de origem (em que reprovou)</label>
         <input
