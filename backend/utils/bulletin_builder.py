@@ -441,4 +441,299 @@ async def build_student_bulletin(
         "composite_segments": composite_segments,
         "dependency_components": dependency_components,
         "warnings": warnings,
+        "bulletin_type": "regular",
     }
+
+
+async def build_student_dependency_bulletin(
+    db,
+    *,
+    student_id: str,
+    target_class_id: str,
+    academic_year: int,
+    mantenedora_id: Optional[str] = None,
+) -> dict:
+    """Monta o boletim de DEPENDÊNCIA para a turma `target_class_id`.
+
+    Diferenças do boletim regular:
+      - Inclui APENAS os `course_id`s vinculados a dependências ATIVAS do aluno
+        nessa turma específica (collection `student_dependencies`).
+      - Cálculo de aprovação considera SOMENTE esses componentes (regras
+        pedagógicas da mantenedora — média/frequência — aplicadas no escopo).
+      - Frequência computada apenas para os componentes da dependência.
+      - Não consolida periods/segments do diário regular do aluno;
+        a turma de dependência é independente da temporalidade do diário
+        de matrícula regular.
+
+    Shape semelhante ao boletim regular para reuso de UI/PDF, mas com:
+      - `bulletin_type: "dependency"`
+      - `is_composite: false`
+      - `composite_segments` com 1 segmento (a própria turma de dep).
+      - `dependency_components` herda os mesmos componentes (compatibilidade
+        com renderização de "Componentes em dependência" do PDF antigo).
+    """
+    student = await db.students.find_one(
+        {"id": student_id},
+        {"_id": 0, "id": 1, "full_name": 1, "registration_number": 1,
+         "class_id": 1, "school_id": 1, "mantenedora_id": 1, "dependency_mode": 1,
+         "student_series": 1},
+    )
+    if not student:
+        return {
+            "bulletin_version": BULLETIN_VERSION,
+            "student": None,
+            "academic_year": academic_year,
+            "is_composite": False,
+            "composite_segments": [],
+            "dependency_components": [],
+            "warnings": [{"code": "STUDENT_NOT_FOUND"}],
+            "bulletin_type": "dependency",
+            "target_class_id": target_class_id,
+        }
+
+    target_class = await _resolve_class_info(db, target_class_id)
+    if not target_class.get("id"):
+        return {
+            "bulletin_version": BULLETIN_VERSION,
+            "student": {
+                "id": student["id"],
+                "full_name": student.get("full_name"),
+                "registration_number": student.get("registration_number"),
+                "dependency_mode": student.get("dependency_mode") or "none",
+            },
+            "academic_year": academic_year,
+            "is_composite": False,
+            "composite_segments": [],
+            "dependency_components": [],
+            "warnings": [{"code": "DEPENDENCY_CLASS_NOT_FOUND",
+                          "class_id": target_class_id}],
+            "bulletin_type": "dependency",
+            "target_class_id": target_class_id,
+        }
+    target_school = await _resolve_school_info(db, target_class.get("school_id"))
+
+    # Dependências ATIVAS do aluno NESSA turma específica
+    active_deps: list[dict] = []
+    async for d in db.student_dependencies.find(
+        {
+            "student_id": student_id,
+            "class_id": target_class_id,
+            "academic_year": academic_year,
+            "status": "active",
+        },
+        {"_id": 0},
+    ):
+        active_deps.append(d)
+
+    warnings: list[dict] = []
+    if not active_deps:
+        warnings.append({
+            "code": "NO_ACTIVE_DEPENDENCIES",
+            "class_id": target_class_id,
+            "message": (
+                "Aluno não possui dependências ativas nesta turma para o ano. "
+                "Cadastre antes de gerar boletim de dependência."
+            ),
+        })
+
+    dep_course_ids = sorted({d["course_id"] for d in active_deps if d.get("course_id")})
+
+    # Hidrata cursos
+    courses_map: dict[str, dict] = {}
+    if dep_course_ids:
+        async for c in db.courses.find(
+            {"id": {"$in": dep_course_ids}},
+            {"_id": 0, "id": 1, "name": 1, "atendimento_programa": 1, "optativo": 1},
+        ):
+            courses_map[c["id"]] = c
+
+    # Período do boletim de dep = ano letivo completo na turma alvo.
+    # Não há composite (dep é entidade própria, fora da temporalidade do regular).
+    period_start = f"{academic_year}-01-01"
+    period_end = f"{academic_year}-12-31"
+
+    # Notas de dependência (filtradas) — `grades` com `dependency_id`
+    dep_ids = {d.get("id") for d in active_deps}
+    grades_by_course: dict[str, dict] = {}
+    async for g in db.grades.find(
+        {
+            "student_id": student_id,
+            "academic_year": academic_year,
+            "course_id": {"$in": dep_course_ids} if dep_course_ids else "__none__",
+            "dependency_id": {"$in": list(dep_ids)} if dep_ids else "__none__",
+        },
+        {"_id": 0},
+    ):
+        if g.get("course_id"):
+            grades_by_course[g["course_id"]] = g
+
+    # Frequência: SÓ chamadas dos course_ids da dep nessa turma
+    absences_by_course: dict[str, int] = {}
+    total_records = 0
+    presentes = 0
+    if dep_course_ids:
+        async for att in db.attendance.find(
+            {
+                "class_id": target_class_id,
+                "course_id": {"$in": dep_course_ids},
+                "date": {"$gte": period_start, "$lte": period_end},
+            },
+            {"_id": 0, "records": 1, "course_id": 1},
+        ):
+            cid = att.get("course_id")
+            for rec in att.get("records") or []:
+                if rec.get("student_id") != student_id:
+                    continue
+                total_records += 1
+                st = (rec.get("status") or "").lower()
+                if st in ("presente", "present", "p"):
+                    presentes += 1
+                elif st in ("falta", "faltou", "absent", "f", "ausente"):
+                    if cid:
+                        absences_by_course[cid] = absences_by_course.get(cid, 0) + 1
+    freq_pct = round(100.0 * presentes / total_records, 2) if total_records > 0 else None
+    attendance_summary = {
+        "total_records": total_records,
+        "present": presentes,
+        "absent": total_records - presentes,
+        "frequency_pct": freq_pct,
+        "absences_by_course": absences_by_course,
+    }
+
+    # Monta componentes — só os de dependência, com metadados de origem
+    components: list[dict] = []
+    for cid in dep_course_ids:
+        doc = courses_map.get(cid) or {}
+        dep = next((d for d in active_deps if d.get("course_id") == cid), {})
+        g = grades_by_course.get(cid) or {}
+        components.append({
+            "course_id": cid,
+            "course_name": doc.get("name") or "(componente em dependência)",
+            "atendimento_programa": doc.get("atendimento_programa") or "regular",
+            "optativo": bool(doc.get("optativo", False)),
+            "is_dependency": True,
+            "dependency_id": dep.get("id"),
+            "origin_academic_year": dep.get("origin_academic_year"),
+            "origin_class_id": dep.get("origin_class_id"),
+            "bimesters_owned_by_this_period": [1, 2, 3, 4],
+            "grades": {
+                "b1": g.get("b1"), "b2": g.get("b2"),
+                "b3": g.get("b3"), "b4": g.get("b4"),
+                "rec_s1": g.get("rec_s1"), "rec_s2": g.get("rec_s2"),
+                "recovery": g.get("recovery"),
+                "final_average": g.get("final_average"),
+                "status": g.get("status"),
+            } if g else {
+                "b1": None, "b2": None, "b3": None, "b4": None,
+                "rec_s1": None, "rec_s2": None, "recovery": None,
+                "final_average": None, "status": None,
+            },
+            "absences_in_period": absences_by_course.get(cid, 0),
+        })
+
+    segment = {
+        "period_index": 1,
+        "class": target_class,
+        "school": target_school,
+        "period_start": period_start,
+        "period_end": period_end,
+        "source": "dependency",
+        "bimesters_owned": [1, 2, 3, 4],
+        "components": components,
+        "attendance_summary": attendance_summary,
+    }
+
+    return {
+        "bulletin_version": BULLETIN_VERSION,
+        "student": {
+            "id": student["id"],
+            "full_name": student.get("full_name"),
+            "registration_number": student.get("registration_number"),
+            "dependency_mode": student.get("dependency_mode") or "none",
+        },
+        "academic_year": academic_year,
+        "primary_school": target_school,
+        "primary_class": target_class,
+        "is_composite": False,
+        "composite_segments": [segment] if components else [],
+        "dependency_components": components,  # compat com PDF antigo
+        "warnings": warnings,
+        "bulletin_type": "dependency",
+        "target_class_id": target_class_id,
+    }
+
+
+async def list_student_bulletins(
+    db,
+    *,
+    student_id: str,
+    academic_year: int,
+) -> list[dict]:
+    """Catálogo de boletins disponíveis para o aluno no ano.
+
+    Retorno:
+      [
+        {type: 'regular', class_id, class_name, school_id, school_name, label},
+        {type: 'dependency', class_id, class_name, school_id, school_name,
+         label, course_ids: [...]},
+        ...
+      ]
+
+    Regras:
+      - `dependency_only`: catálogo NÃO inclui boletim regular.
+      - `with_dependency`: catálogo inclui boletim regular + 1 por turma de dep.
+      - `none`: catálogo inclui APENAS boletim regular.
+    """
+    student = await db.students.find_one(
+        {"id": student_id},
+        {"_id": 0, "id": 1, "full_name": 1, "dependency_mode": 1, "class_id": 1},
+    )
+    if not student:
+        return []
+
+    mode = student.get("dependency_mode") or "none"
+    catalog: list[dict] = []
+
+    # Boletim regular (todos exceto dependency_only)
+    if mode != "dependency_only" and student.get("class_id"):
+        cls = await _resolve_class_info(db, student["class_id"])
+        sch = await _resolve_school_info(db, cls.get("school_id"))
+        catalog.append({
+            "type": "regular",
+            "class_id": cls.get("id"),
+            "class_name": cls.get("name"),
+            "school_id": sch.get("id"),
+            "school_name": sch.get("name"),
+            "label": f"Boletim Regular · {cls.get('name') or '(sem turma)'}",
+        })
+
+    # Boletim(ns) de dependência — agrupado por class_id
+    dep_classes: dict[str, list[str]] = {}
+    async for d in db.student_dependencies.find(
+        {
+            "student_id": student_id,
+            "academic_year": academic_year,
+            "status": "active",
+        },
+        {"_id": 0, "class_id": 1, "course_id": 1},
+    ):
+        cid = d.get("class_id")
+        coid = d.get("course_id")
+        if not cid or not coid:
+            continue
+        dep_classes.setdefault(cid, []).append(coid)
+
+    for class_id, course_ids in dep_classes.items():
+        cls = await _resolve_class_info(db, class_id)
+        sch = await _resolve_school_info(db, cls.get("school_id"))
+        catalog.append({
+            "type": "dependency",
+            "class_id": class_id,
+            "class_name": cls.get("name"),
+            "school_id": sch.get("id"),
+            "school_name": sch.get("name"),
+            "label": f"Boletim Dependência · {cls.get('name') or class_id}",
+            "course_ids": sorted(set(course_ids)),
+        })
+
+    return catalog

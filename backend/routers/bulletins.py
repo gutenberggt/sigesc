@@ -21,7 +21,11 @@ from fastapi import APIRouter, HTTPException, Query, Request
 
 from auth_middleware import AuthMiddleware
 from tenant_scope import apply_tenant_filter, get_mantenedora_scope
-from utils.bulletin_builder import build_student_bulletin
+from utils.bulletin_builder import (
+    build_student_bulletin,
+    build_student_dependency_bulletin,
+    list_student_bulletins,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +85,73 @@ def setup_bulletins_router(db) -> APIRouter:
             mantenedora_id=tenant,
         )
         # Caso aluno not found (skipped tenant filter para aluno/responsavel)
+        if bulletin.get("student") is None:
+            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+        return bulletin
+
+    # ----------------------------------------------------------------------
+    # Catálogo de boletins disponíveis para o aluno (regular + N dependência)
+    # ----------------------------------------------------------------------
+    async def _ensure_can_view_student(user, student_id: str, request: Request) -> None:
+        role = user.get("role")
+        if role not in ROLES_VIEW_BULLETIN:
+            raise HTTPException(status_code=403, detail="Sem permissão.")
+        if role == "aluno":
+            uid = user.get("student_id") or user.get("linked_student_id")
+            if not uid or uid != student_id:
+                raise HTTPException(status_code=403, detail="Aluno só vê o próprio boletim.")
+        elif role == "responsavel":
+            allowed = set(user.get("dependents") or user.get("student_ids") or [])
+            if student_id not in allowed:
+                raise HTTPException(status_code=403, detail="Responsável só vê alunos vinculados.")
+        else:
+            stu_filter = apply_tenant_filter({"id": student_id}, user, request)
+            student = await db.students.find_one(stu_filter, {"_id": 0, "id": 1})
+            if not student:
+                raise HTTPException(status_code=404, detail="Aluno não encontrado")
+
+    @router.get("/{student_id}/bulletins-index")
+    async def get_student_bulletins_index(
+        student_id: str,
+        request: Request,
+        academic_year: int = Query(..., ge=1900, le=2100),
+    ):
+        """Catálogo de boletins disponíveis (regular + dependência por turma)."""
+        user = await AuthMiddleware.get_current_user(request)
+        await _ensure_can_view_student(user, student_id, request)
+        items = await list_student_bulletins(
+            db, student_id=student_id, academic_year=academic_year
+        )
+        return {
+            "student_id": student_id,
+            "academic_year": academic_year,
+            "items": items,
+            "total": len(items),
+        }
+
+    @router.get("/{student_id}/dependency-bulletin")
+    async def get_student_dependency_bulletin(
+        student_id: str,
+        request: Request,
+        target_class_id: str = Query(..., min_length=1),
+        academic_year: int = Query(..., ge=1900, le=2100),
+    ):
+        """Boletim de dependência para turma específica.
+
+        Componentes = só os `course_id`s das dependências ativas do aluno
+        na `target_class_id`. Aprovação aplica regras pedagógicas da
+        mantenedora apenas sobre esses componentes.
+        """
+        user = await AuthMiddleware.get_current_user(request)
+        await _ensure_can_view_student(user, student_id, request)
+        tenant = get_mantenedora_scope(user, request)
+        bulletin = await build_student_dependency_bulletin(
+            db,
+            student_id=student_id,
+            target_class_id=target_class_id,
+            academic_year=academic_year,
+            mantenedora_id=tenant,
+        )
         if bulletin.get("student") is None:
             raise HTTPException(status_code=404, detail="Aluno não encontrado")
         return bulletin
