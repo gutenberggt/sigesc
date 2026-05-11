@@ -54,13 +54,48 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
             filter_dict["mantenedora_id"] = user["mantenedora_id"]
         return filter_dict
 
-    async def _get_mantenedora_config(mantenedora_id: Optional[str]) -> dict:
-        if not mantenedora_id:
-            return {}
-        m = await db.mantenedoras.find_one({"id": mantenedora_id}, {"_id": 0})
+    async def _get_mantenedora_config(
+        mantenedora_id: Optional[str], request: Optional[Request] = None
+    ) -> dict:
+        """Resolve a config da mantenedora de forma robusta.
+
+        Estratégia (alinhada com `routers/mantenedora.py::_resolve_active`):
+        1) Tenta `{"id": mantenedora_id}` se fornecido.
+        2) Se request disponível, tenta resolver via `get_mantenedora_scope`
+           (considera header X-Mantenedora-Id e fallback do tenant ativo).
+        3) Fallback: primeira mantenedora do banco (caso super_admin sem
+           tenant_id explícito).
+
+        Retorna `{}` apenas se nenhuma mantenedora existir no banco.
+        """
+        if mantenedora_id:
+            m = await db.mantenedoras.find_one({"id": mantenedora_id}, {"_id": 0})
+            if m:
+                return m
+        if request is not None:
+            try:
+                from tenant_scope import get_mantenedora_scope
+                user = await auth_middleware.get_current_user(request)
+                scope_id = get_mantenedora_scope(user, request)
+                if scope_id and scope_id != mantenedora_id:
+                    m = await db.mantenedoras.find_one(
+                        {"id": scope_id}, {"_id": 0}
+                    )
+                    if m:
+                        return m
+            except Exception as e:
+                logger.warning(
+                    "[student_dependencies] fallback get_mantenedora_scope falhou: %s", e
+                )
+        # Último recurso: primeira mantenedora (mesma heurística da UI)
+        m = await db.mantenedoras.find_one({}, {"_id": 0})
         return m or {}
 
-    async def _validate_dependency_limit(student_id: str, mantenedora_id: Optional[str]) -> None:
+    async def _validate_dependency_limit(
+        student_id: str,
+        mantenedora_id: Optional[str],
+        request: Optional[Request] = None,
+    ) -> None:
         """Valida que aluno não excede limite de componentes da mantenedora."""
         student = await db.students.find_one(
             {"id": student_id},
@@ -74,7 +109,7 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
                 400,
                 detail="Aluno não possui modalidade de dependência configurada. Defina 'Com dependência' ou 'Apenas dependência' no cadastro do aluno antes de vincular componentes."
             )
-        config = await _get_mantenedora_config(mantenedora_id)
+        config = await _get_mantenedora_config(mantenedora_id, request)
         if mode == "with_dependency":
             if not config.get("aprovacao_com_dependencia"):
                 raise HTTPException(400, detail="Mantenedora não permite aprovação com dependência.")
@@ -135,7 +170,7 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
         mantenedora_id = user.get("mantenedora_id")
 
         # Validações
-        await _validate_dependency_limit(payload.student_id, mantenedora_id)
+        await _validate_dependency_limit(payload.student_id, mantenedora_id, request)
         await _check_duplicate(payload.student_id, payload.course_id, payload.origin_academic_year)
 
         # Constrói registro
@@ -275,7 +310,7 @@ def setup_student_dependencies_router(db, auth_middleware, audit_service=None, a
         if not student:
             raise HTTPException(404, detail="Aluno não encontrado.")
         mode = student.get("dependency_mode") or "none"
-        config = await _get_mantenedora_config(user.get("mantenedora_id"))
+        config = await _get_mantenedora_config(user.get("mantenedora_id"), request)
         limit = None
         if mode == "with_dependency":
             limit = config.get("max_componentes_dependencia")
