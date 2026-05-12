@@ -832,7 +832,15 @@ def setup_students_router(db, audit_service, sandbox_db=None):
         history_obs = None
         
         # Verifica se é mudança de turma (remanejamento, progressão ou reclassificação)
-        if new_class_id and new_class_id != old_class_id and new_school_id == old_school_id:
+        # IMPORTANTE: este fluxo só vale para alunos ATIVOS. Alunos transferidos/
+        # inativos/desistentes/cancelados que voltam para outra turma devem cair
+        # no fluxo de rematrícula (linha ~946), não de remanejamento.
+        is_active_class_change = (
+            new_class_id and new_class_id != old_class_id
+            and new_school_id == old_school_id
+            and old_status in ('active', 'Ativo')
+        )
+        if is_active_class_change:
             if action_hint == 'progressao':
                 action_type = 'progressao'
                 enrollment_inactive_status = 'progressed'
