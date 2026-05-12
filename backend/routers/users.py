@@ -27,9 +27,13 @@ def setup_router(db, audit_service, sandbox_db=None):
         return db
 
     @router.get("")
-    async def list_users(request: Request, skip: int = 0, limit: int = 1000):
+    async def list_users(request: Request, skip: int = 0, limit: int = 0):
         """Lista usuários (admin, secretario e semed) — filtrado por mantenedora ativa.
         Super_admin é usuário nato de toda mantenedora: aparece em qualquer tenant selecionado.
+
+        Paginação opcional:
+          - skip>0 e/ou limit>0 → aplica paginação.
+          - limit=0 (default) → retorna TODOS os usuários do escopo, sem teto.
         """
         current_user = await AuthMiddleware.require_roles(['admin', 'admin_teste', 'secretario', 'semed', 'semed3'])(request)
         current_db = get_db_for_user(current_user)
@@ -47,7 +51,12 @@ def setup_router(db, audit_service, sandbox_db=None):
             # Cross-tenant (super_admin sem seleção): todos os usuários
             filter_query = {}
         
-        users = await current_db.users.find(filter_query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
+        cursor = current_db.users.find(filter_query, {"_id": 0})
+        if skip:
+            cursor = cursor.skip(skip)
+        if limit and limit > 0:
+            cursor = cursor.limit(limit)
+        users = await cursor.to_list(length=None)
         
         # Remove password_hash de todos
         for user in users:
