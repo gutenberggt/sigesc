@@ -51,6 +51,7 @@ export const DASHBOARD_MENU_GROUPS = [
       { label: 'Frequência', icon: ClipboardCheck, color: 'cyan', route: '/admin/attendance', testId: 'nav-attendance-button', visible: () => true },
       { label: 'Registro de Conteúdos', icon: BookOpen, color: 'purple', route: '/admin/learning-objects', testId: 'nav-learning-objects-button', visible: () => true },
       { label: 'Notas', icon: ClipboardList, color: 'teal', route: '/admin/grades', testId: 'nav-grades-button', visible: () => true },
+      { label: 'Boletim Online', icon: GraduationCap, color: 'indigo', route: '/admin/bulletins', testId: 'nav-bulletins-button', visible: c => c.isSuperAdmin || c.isAdmin || c.isSchoolStaff || c.isProfessor || c.isSemed },
       { label: 'Diário AEE', icon: BookOpen, color: 'blue', route: '/admin/diario-aee', testId: 'nav-diario-aee-button', visible: c => c.isAdmin || c.isCoordenador || c.isProfessor || c.isSecretario || c.isDiretor || c.hasRole('semed1', 'semed2', 'semed3') },
     ],
   },
@@ -489,24 +490,30 @@ export const Dashboard = () => {
           })}
         </div>
 
-        {/* Acesso Rápido - Segunda linha de blocos */}
-        {(isAdmin || isAdminOrSecretary || isSemed) && (
+        {/* Acesso Rápido — visível para admin/secretário/diretor/coordenador/SEMED.
+            Cada card é filtrado individualmente para respeitar a Matriz de Permissões
+            (ex.: diretor só vê Turmas/Alunos/Servidores — não Escolas/Usuários). */}
+        {(isAdmin || isAdminOrSecretary || isSchoolStaff || isSemed) && (
           <div>
             <h2 className="text-xl font-bold mb-4">Acesso Rápido</h2>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <Card 
-                className="cursor-pointer hover:bg-blue-50 transition-colors"
-                onClick={() => navigate('/admin/schools')}
-              >
-                <CardContent className="p-4 text-center">
-                  <School className="mx-auto mb-2 text-blue-600" size={32} />
-                  <p className="font-medium">Escolas</p>
-                </CardContent>
-              </Card>
+              {(isAdmin || isAdminOrSecretary || isSemed) && (
+                <Card 
+                  className="cursor-pointer hover:bg-blue-50 transition-colors"
+                  onClick={() => navigate('/admin/schools')}
+                  data-testid="quick-access-schools"
+                >
+                  <CardContent className="p-4 text-center">
+                    <School className="mx-auto mb-2 text-blue-600" size={32} />
+                    <p className="font-medium">Escolas</p>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card 
                 className="cursor-pointer hover:bg-purple-50 transition-colors"
                 onClick={() => navigate('/admin/classes')}
+                data-testid="quick-access-classes"
               >
                 <CardContent className="p-4 text-center">
                   <BookOpen className="mx-auto mb-2 text-purple-600" size={32} />
@@ -517,6 +524,7 @@ export const Dashboard = () => {
               <Card 
                 className="cursor-pointer hover:bg-orange-50 transition-colors"
                 onClick={() => navigate('/admin/students')}
+                data-testid="quick-access-students"
               >
                 <CardContent className="p-4 text-center">
                   <GraduationCap className="mx-auto mb-2 text-orange-600" size={32} />
@@ -527,6 +535,7 @@ export const Dashboard = () => {
               <Card 
                 className="cursor-pointer hover:bg-amber-50 transition-colors"
                 onClick={() => navigate('/admin/staff')}
+                data-testid="quick-access-staff"
               >
                 <CardContent className="p-4 text-center">
                   <Briefcase className="mx-auto mb-2 text-amber-600" size={32} />
@@ -534,21 +543,24 @@ export const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card 
-                className="cursor-pointer hover:bg-green-50 transition-colors"
-                onClick={() => navigate('/admin/users')}
-              >
-                <CardContent className="p-4 text-center">
-                  <Users className="mx-auto mb-2 text-green-600" size={32} />
-                  <p className="font-medium">Usuários</p>
-                </CardContent>
-              </Card>
+              {(isAdmin || isAdminOrSecretary || isSemed) && (
+                <Card 
+                  className="cursor-pointer hover:bg-green-50 transition-colors"
+                  onClick={() => navigate('/admin/users')}
+                  data-testid="quick-access-users"
+                >
+                  <CardContent className="p-4 text-center">
+                    <Users className="mx-auto mb-2 text-green-600" size={32} />
+                    <p className="font-medium">Usuários</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         )}
 
-        {/* Menu de navegação completo - Admin/Secretário/SEMED (Feb 2026: categorizado) */}
-        {(isAdmin || isAdminOrSecretary || isSemed) && adminMenuCategories.length > 0 && (
+        {/* Menu de navegação completo - Admin/Secretário/Diretor/Coordenador/SEMED (Fev 2026: categorizado) */}
+        {(isAdmin || isAdminOrSecretary || isSchoolStaff || isSemed) && adminMenuCategories.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-2">
               <div>
