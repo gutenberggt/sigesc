@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { ChevronLeft, Save, FileText, Plus, Trash2, GraduationCap, Download } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { downloadBlob } from '@/utils/downloadBlob';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -161,17 +162,12 @@ export default function StudentHistory() {
   const handleGeneratePdf = async () => {
     try {
       const currentToken = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-      const res = await fetch(`${API}/api/documents/historico-escolar/${studentId}`, {
-        headers: { 'Authorization': `Bearer ${currentToken}` }
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || 'Erro ao gerar PDF');
-      }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+      const studentName = (student?.full_name || 'aluno').replace(/\s+/g, '_');
+      await downloadBlob(
+        `${API}/api/documents/historico-escolar/${studentId}`,
+        `Historico_Escolar_${studentName}.pdf`,
+        { Authorization: currentToken ? `Bearer ${currentToken}` : '' }
+      );
     } catch (e) {
       toast.error(e.message || 'Erro ao gerar PDF do histórico');
     }

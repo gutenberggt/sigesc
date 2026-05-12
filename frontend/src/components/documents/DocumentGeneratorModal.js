@@ -4,6 +4,7 @@ import { ExternalLink, GraduationCap, ClipboardCheck, Calendar, User, Award, Arr
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/ui/button';
 import { documentsAPI, getToken } from '@/services/api';
+import { downloadBlob } from '@/utils/downloadBlob';
 
 export const DocumentGeneratorModal = ({ 
   isOpen, 
@@ -42,16 +43,19 @@ export const DocumentGeneratorModal = ({
       const url = urlMap[type];
       if (!url) throw new Error('Tipo de documento inválido');
 
+      const filenameMap = {
+        boletim: `boletim_${(student.full_name || 'aluno').replace(/\s+/g, '_')}_${academicYear}.pdf`,
+        ficha: `ficha_individual_${(student.full_name || 'aluno').replace(/\s+/g, '_')}.pdf`,
+        matricula: `declaracao_matricula_${(student.full_name || 'aluno').replace(/\s+/g, '_')}.pdf`,
+        frequencia: `declaracao_frequencia_${(student.full_name || 'aluno').replace(/\s+/g, '_')}.pdf`,
+        transferencia: `declaracao_transferencia_${(student.full_name || 'aluno').replace(/\s+/g, '_')}.pdf`,
+        certificado: `certificado_${(student.full_name || 'aluno').replace(/\s+/g, '_')}.pdf`,
+      };
+
       const token = getToken();
-      const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Erro ao gerar documento');
-      }
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const newWindow = window.open(blobUrl, '_blank');
-      if (newWindow) { newWindow.onbeforeunload = () => window.URL.revokeObjectURL(blobUrl); }
+      await downloadBlob(url, filenameMap[type], {
+        Authorization: token ? `Bearer ${token}` : '',
+      });
     } catch (err) {
       console.error('Erro ao gerar documento:', err);
       setError(err.message || 'Erro ao gerar documento.');

@@ -28,6 +28,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Search, X, AlertCircle, Calendar, Stethoscope, BookOpen, GraduationCap } from 'lucide-react';
+import { downloadBlob } from '@/utils/downloadBlob';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -768,30 +769,16 @@ export default function BulletinViewer() {
                         ? activeBulletinKey.slice(4)
                         : bulletin.target_class_id;
                       if (!sid || !cid) return;
-                      const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
-                      const qs = new URLSearchParams({
-                        target_class_id: cid,
-                        academic_year: String(year),
-                        ...(token ? { token } : {}),
-                      });
-                      // Abre em nova aba (PDF inline) usando fetch+blob para incluir Authorization
-                      fetch(
+                      const safe = (selectedStudent?.full_name || 'aluno').replace(/\s+/g, '_');
+                      const filename = `ficha_dependencia_${safe}_${year}.pdf`;
+                      downloadBlob(
                         `${API}/documents/ficha-individual-dependency/${sid}?target_class_id=${encodeURIComponent(cid)}&academic_year=${year}`,
-                        { headers: authHeaders }
-                      )
-                        .then((r) => {
-                          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                          return r.blob();
-                        })
-                        .then((blob) => {
-                          const url = URL.createObjectURL(blob);
-                          window.open(url, '_blank');
-                          setTimeout(() => URL.revokeObjectURL(url), 60000);
-                        })
-                        .catch(() => {
-                          // eslint-disable-next-line no-alert
-                          alert('Não foi possível gerar a Ficha de Dependência.');
-                        });
+                        filename,
+                        authHeaders
+                      ).catch(() => {
+                        // eslint-disable-next-line no-alert
+                        alert('Não foi possível gerar a Ficha de Dependência.');
+                      });
                     }}
                   >
                     Ficha Individual (PDF)

@@ -485,7 +485,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 pdf_buffer,
                 media_type="application/pdf",
                 headers={
-                    "Content-Disposition": f'inline; filename="{filename}"'
+                    "Content-Disposition": f'attachment; filename="{filename}"'
                 }
             )
         except Exception as e:
@@ -614,7 +614,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 pdf_buffer,
                 media_type="application/pdf",
                 headers={
-                    "Content-Disposition": f'inline; filename="{filename}"'
+                    "Content-Disposition": f'attachment; filename="{filename}"'
                 }
             )
         except Exception as e:
@@ -728,7 +728,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             return StreamingResponse(
                 pdf_buffer,
                 media_type="application/pdf",
-                headers={"Content-Disposition": f'inline; filename="{filename}"'}
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'}
             )
         except Exception as e:
             logger.error(f"Erro ao gerar declaração de transferência: {e}")
@@ -999,7 +999,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 pdf_buffer,
                 media_type="application/pdf",
                 headers={
-                    "Content-Disposition": f'inline; filename="{filename}"'
+                    "Content-Disposition": f'attachment; filename="{filename}"'
                 }
             )
         except Exception as e:
@@ -1520,7 +1520,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             return StreamingResponse(
                 merged_buffer,
                 media_type="application/pdf",
-                headers={"Content-Disposition": f'inline; filename="{filename}"'}
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'}
             )
 
         # ===== CASO NORMAL (sem remanejamento) =====
@@ -1546,7 +1546,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
                 pdf_buffer,
                 media_type="application/pdf",
                 headers={
-                    "Content-Disposition": f'inline; filename="{filename}"'
+                    "Content-Disposition": f'attachment; filename="{filename}"'
                 }
             )
         except Exception as e:
@@ -1710,7 +1710,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         return StreamingResponse(
             pdf_buffer,
             media_type="application/pdf",
-            headers={"Content-Disposition": f'inline; filename="{filename}"'},
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
 
@@ -2691,7 +2691,7 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
             return StreamingResponse(
                 pdf_buffer,
                 media_type="application/pdf",
-                headers={"Content-Disposition": f'inline; filename="{filename}"'}
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'}
             )
         except Exception as e:
             logger.error(f"Erro ao gerar histórico escolar: {e}", exc_info=True)

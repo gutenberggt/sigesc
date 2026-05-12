@@ -2637,3 +2637,51 @@ agora corrigido).
 - Sem auth → 401/403.
 
 ### Status: ✅ DEPLOY READY
+
+
+## Refatoração de PDFs — Streaming Direto para Download **[Fev/2026 — Iter 76]**
+
+### Objetivo
+Eliminar abertura de aba intermediária ao gerar PDFs. Download direto no
+dispositivo do usuário, sem arquivos temporários no servidor.
+
+### Backend (`/app/backend/routers/documents.py`)
+Já usava `BytesIO` + `StreamingResponse` (nada em disco). Mudança: trocar
+`Content-Disposition: inline` → `attachment` nos endpoints prioritários:
+
+| Endpoint | Antes | Depois |
+|---|---|---|
+| `GET /documents/boletim/{id}` | inline | **attachment** |
+| `GET /documents/ficha-individual/{id}` (caso normal e remanejamento) | inline | **attachment** |
+| `GET /documents/ficha-individual-dependency/{id}` | inline | **attachment** |
+| `GET /documents/declaracao-matricula/{id}` | inline | **attachment** |
+| `GET /documents/declaracao-frequencia/{id}` | inline | **attachment** |
+| `GET /documents/declaracao-transferencia/{id}` | inline | **attachment** |
+| `GET /documents/historico-escolar/{id}` | inline | **attachment** |
+
+**NÃO alterados** (fora do escopo, fluxo assíncrono ou batch):
+- `GET /documents/certificado/{id}` — continua inline.
+- `GET /documents/promotion/{class_id}` — livro de matrícula, continua inline.
+- `GET /documents/batch/{class_id}/{type}` — exportação em lote, continua inline.
+- `GET /documents/jobs/{job_id}/download` — `render_jobs`, continua inline.
+
+### Frontend
+Novo helper `/app/frontend/src/utils/downloadBlob.js`:
+
+```javascript
+await downloadBlob(url, filename, headers)
+// 1. fetch com Authorization
+// 2. response.blob()
+// 3. <a download> programático + click() + revokeObjectURL após 1s
+```
+
+Consumidores atualizados:
+- `components/documents/DocumentGeneratorModal.js`: substitui `window.open(blobUrl)` por `downloadBlob()` para todos os 6 botões (boletim, ficha, matrícula, frequência, transferência, certificado).
+- `pages/StudentHistory.js`: `handleGeneratePdf` usa `downloadBlob` direto.
+- `pages/BulletinViewer.jsx`: botão "Ficha Individual (PDF)" da dependência usa `downloadBlob`.
+
+### Testes E2E (7 passed / 1 skip, `test_pdf_attachment_streaming.py`)
+- Cada endpoint prioritário retorna `Content-Disposition: attachment;` + magic bytes `%PDF-` + `application/pdf`.
+- Certificado verificado para CONTINUAR `inline;` (controle negativo).
+
+### Status: ✅ DEPLOY READY
