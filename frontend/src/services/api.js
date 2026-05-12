@@ -293,6 +293,14 @@ export const studentsAPI = {
   transfer: async (id, data) => {
     const response = await axios.post(`${API}/students/${id}/transfer`, data);
     return response.data;
+  },
+
+  cancelTransfer: async (id, classId) => {
+    const response = await axios.post(
+      `${API}/students/${id}/cancel-transfer`,
+      classId ? { class_id: classId } : {}
+    );
+    return response.data;
   }
 };
 

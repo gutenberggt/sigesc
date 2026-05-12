@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
 import { Modal } from '@/components/Modal';
-import { classesAPI, schoolsAPI, documentsAPI } from '@/services/api';
-import { Plus, AlertCircle, CheckCircle, Home, Eye, Phone, FileText, User, Users, School, Calendar, ExternalLink, Pencil } from 'lucide-react';
+import { classesAPI, schoolsAPI, documentsAPI, studentsAPI } from '@/services/api';
+import { Plus, AlertCircle, CheckCircle, Home, Eye, Phone, FileText, User, Users, School, Calendar, ExternalLink, Pencil, Undo2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { extractErrorMessage } from '@/utils/errorHandler';
@@ -271,6 +271,26 @@ export const Classes = () => {
       showAlert('error', 'Erro ao carregar detalhes da turma');
     } finally {
       setLoadingDetails(false);
+    }
+  };
+
+  const handleCancelTransfer = async (student) => {
+    if (!viewingClass?.id) return;
+    const ok = window.confirm(
+      `Cancelar a transferência de ${student.full_name}?\n\n` +
+      `O(a) aluno(a) voltará para esta turma como se a transferência não tivesse ocorrido. ` +
+      `Esta ação é registrada no histórico para auditoria.`
+    );
+    if (!ok) return;
+    try {
+      await studentsAPI.cancelTransfer(student.id, viewingClass.id);
+      showAlert('success', `Transferência de ${student.full_name} cancelada com sucesso.`);
+      // Recarrega detalhes da turma
+      const details = await classesAPI.getDetails(viewingClass.id);
+      setClassDetails(details);
+    } catch (error) {
+      console.error('Erro ao cancelar transferência:', error);
+      showAlert('error', extractErrorMessage(error, 'Erro ao cancelar transferência'));
     }
   };
 
@@ -956,6 +976,16 @@ export const Classes = () => {
                                 >
                                   <FileText size={16} />
                                 </button>
+                                {student.action_label === 'Transferido' && (
+                                  <button
+                                    onClick={() => handleCancelTransfer(student)}
+                                    className="text-orange-600 hover:text-orange-800 p-1 rounded hover:bg-orange-50"
+                                    title="Cancelar Transferência (restaura o aluno nesta turma)"
+                                    data-testid={`cancel-transfer-${student.id}`}
+                                  >
+                                    <Undo2 size={16} />
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>

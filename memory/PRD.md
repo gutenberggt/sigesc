@@ -2592,3 +2592,48 @@ em `/app/backend/routers/documents.py` (após `get_ficha_individual`).
 - (P2) Refatoração `fetch()` → axios no frontend (CSRF automático).
 - (P3) Helper genérico para repositório MongoDB (anti-projection bug).
 
+
+
+## Cancelar Transferência — Reversão de transferência indevida **[Fev/2026 — Iter 76]**
+
+### Problema
+Aluno solicita transferência (`status='transferred'`) mas em seguida volta atrás
+e quer permanecer na MESMA TURMA, como se nada tivesse ocorrido. Antes, a única
+saída era refazer manualmente a matrícula (sujeita ao bug "Network Error"
+agora corrigido).
+
+### Backend
+`POST /api/students/{student_id}/cancel-transfer` em `routers/students.py`:
+
+- Aceita `class_id` opcional via query string ou body. Sem ele, usa o enrollment
+  transferido mais recente.
+- Exige `student.status='transferred'` (caso contrário 400).
+- Reverte o `enrollment.status: 'transferred' → 'active'`.
+- Restaura `student.status='active'`, `class_id` e `school_id` da matrícula.
+- Adiciona entrada `student_history.action_type='transferencia_cancelada'`
+  (auditoria — não conta como movimentação acadêmica).
+- NÃO cria nenhum `academic_event` nem bloqueio temporal. A action_type não
+  está em `action_type_map` do `class_details.py`, então o aluno volta a
+  aparecer SEM o badge "Transferido" na turma.
+- Roles permitidos: `admin`, `admin_teste`, `secretario`, `super_admin`, `gerente`.
+
+### Frontend
+`/app/frontend/src/pages/Classes.js` — modal "Detalhes da Turma":
+
+- Para cada aluno com `action_label === 'Transferido'`, adiciona botão
+  ícone-only (`<Undo2>` laranja) na coluna **Ações**
+  (`data-testid="cancel-transfer-{student_id}"`).
+- Clique → `window.confirm` com mensagem clara → `studentsAPI.cancelTransfer`
+  → toast de sucesso → recarrega `classes/{id}/details` para refletir.
+
+### Testes E2E (5/5 verde)
+`/app/backend/tests/test_cancel_transfer_e2e_http.py`:
+- Cancel → status volta a 'active', enrollment volta a 'active', histórico
+  com `transferencia_cancelada`, aluno some do badge "Transferido" em
+  `classes/{id}/details`.
+- Cancel em aluno ATIVO → 400.
+- Cancel em aluno inexistente → 404.
+- Body vazio → usa a transferência mais recente automaticamente.
+- Sem auth → 401/403.
+
+### Status: ✅ DEPLOY READY

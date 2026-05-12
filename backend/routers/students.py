@@ -1233,6 +1233,128 @@ def setup_students_router(db, audit_service, sandbox_db=None):
             "enrollment": new_enrollment
         }
 
+    @router.post("/{student_id}/cancel-transfer")
+    async def cancel_transfer(student_id: str, request: Request):
+        """Reverte uma transferência recém-emitida do aluno.
+
+        Cenário: aluno pediu transferência (status='transferred') e desistiu,
+        querendo voltar para a MESMA TURMA como se nada tivesse ocorrido.
+
+        Comportamento:
+          - Exige `status='transferred'` no aluno.
+          - Aceita `class_id` opcional via query/body para informar a turma de
+            origem da transferência. Sem `class_id`, usa o `class_id` do
+            histórico de transferência mais recente.
+          - Reverte o enrollment com `status='transferred'` para `status='active'`.
+          - Restaura `student.status='active'`, `class_id` e `school_id`.
+          - Registra entrada `transferencia_cancelada` no histórico (auditoria).
+          - NÃO cria nenhum bloqueio acadêmico (não há `academic_events`
+            associados à transferência, e o histórico de cancelamento não
+            participa do composite closure / lens temporal).
+        """
+        current_user = await AuthMiddleware.require_roles(
+            ['admin', 'admin_teste', 'secretario', 'super_admin', 'gerente']
+        )(request)
+        current_db = get_db_for_user(current_user)
+
+        # class_id pode vir via query string ou body
+        target_class_id: Optional[str] = request.query_params.get('class_id')
+        if not target_class_id:
+            try:
+                body = await request.json()
+                if isinstance(body, dict):
+                    target_class_id = body.get('class_id')
+            except Exception:
+                target_class_id = None
+
+        student = await current_db.students.find_one({"id": student_id}, {"_id": 0})
+        if not student:
+            raise HTTPException(status_code=404, detail="Aluno não encontrado")
+
+        if student.get('status') != 'transferred':
+            raise HTTPException(
+                status_code=400,
+                detail="Só é possível cancelar transferência de aluno com status 'Transferido'."
+            )
+
+        # Localiza o enrollment a ser revertido (mais recente com status='transferred')
+        enr_query = {"student_id": student_id, "status": "transferred"}
+        if target_class_id:
+            enr_query["class_id"] = target_class_id
+        enrollment = await current_db.enrollments.find_one(
+            enr_query, {"_id": 0}, sort=[("academic_year", -1), ("created_at", -1)]
+        )
+        if not enrollment:
+            raise HTTPException(
+                status_code=404,
+                detail="Matrícula transferida não encontrada para este aluno."
+            )
+
+        class_id = enrollment.get('class_id')
+        school_id = enrollment.get('school_id')
+
+        # Reverte a matrícula
+        await current_db.enrollments.update_one(
+            {"id": enrollment['id']}, {"$set": {"status": "active"}}
+        )
+
+        # Restaura o aluno
+        await current_db.students.update_one(
+            {"id": student_id},
+            {"$set": {
+                "status": "active",
+                "class_id": class_id,
+                "school_id": school_id,
+            }}
+        )
+
+        # Histórico (auditoria) — não bloqueia nada
+        class_doc = await current_db.classes.find_one(
+            {"id": class_id}, {"_id": 0, "name": 1}
+        )
+        school_doc = await current_db.schools.find_one(
+            {"id": school_id}, {"_id": 0, "name": 1}
+        )
+        history_entry = {
+            "id": str(uuid.uuid4()),
+            "student_id": student_id,
+            "school_id": school_id,
+            "school_name": school_doc.get('name') if school_doc else None,
+            "class_id": class_id,
+            "class_name": class_doc.get('name') if class_doc else None,
+            "action_type": "transferencia_cancelada",
+            "previous_status": "transferred",
+            "new_status": "active",
+            "observations": "Transferência cancelada — aluno restaurado na turma de origem.",
+            "user_id": current_user.get('id'),
+            "user_name": current_user.get('full_name') or current_user.get('email'),
+            "action_date": datetime.now(timezone.utc).isoformat(),
+        }
+        await current_db.student_history.insert_one(history_entry)
+
+        # Auditoria
+        await audit_service.log(
+            action='update',
+            collection='students',
+            user=current_user,
+            request=request,
+            document_id=student_id,
+            description=f"Cancelou transferência do aluno {student.get('full_name', 'N/A')}",
+            school_id=school_id,
+            school_name=school_doc.get('name') if school_doc else None,
+            old_value={'status': 'transferred', 'class_id': student.get('class_id')},
+            new_value={'status': 'active', 'class_id': class_id},
+            extra_data={'action_type': 'transferencia_cancelada'},
+        )
+
+        updated_student = await current_db.students.find_one({"id": student_id}, {"_id": 0})
+        return {
+            "message": "Transferência cancelada com sucesso. Aluno restaurado na turma de origem.",
+            "student": Student(**updated_student).model_dump(),
+            "class_id": class_id,
+            "school_id": school_id,
+        }
+
     @router.delete("/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_student(student_id: str, request: Request):
         """Deleta aluno"""
