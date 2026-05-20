@@ -2685,3 +2685,79 @@ Consumidores atualizados:
 - Certificado verificado para CONTINUAR `inline;` (controle negativo).
 
 ### Status: ✅ DEPLOY READY
+
+## Fase A — Boletim Oficial PDF (render_jobs + QR Code) **[Fev/2026 — Iter 76]**
+
+### Arquitetura
+PDF gerado **assincronamente** via fila `document_render_jobs` (já existente,
+contrato V1 congelado). Worker in-process executa handler registrado:
+
+```
+POST /api/bulletins/{id}/render-pdf      → enfileira (idempotente)
+GET  /api/render-jobs/{id}                → status (pending → processing → completed)
+GET  /api/render-jobs/{id}/file           → download autenticado do PDF
+GET  /api/verify/boletim/{token}          → verificação PÚBLICA (sem auth, sem CSRF)
+```
+
+### Backend
+- **`services/document_files.py`** — helper de persistência. Collection
+  `document_files` (`{id, data_base64, sha256, filename, mantenedora_id,
+  school_id, student_id, document_type, created_at}`). Para PDFs <1MB.
+- **`services/bulletin_renderer.py`** — handler:
+  1. Parse `boletim:{student_id}:{year}` do `source_snapshot_id`.
+  2. Monta dados via `pdf.boletim.generate_boletim_pdf` (mesmas regras do PDF síncrono).
+  3. Cria registro em `bulletin_verifications` com token URL-safe de 22 chars
+     (~128 bits). **Token NUNCA é armazenado em claro** — só `token_hash =
+     SHA-256(token)`. Inclui dados-resumo LGPD-safe e `verify_url`.
+  4. Overlay com QR Code (módulo `qrcode==8.2` adicionado) + texto institucional
+     no rodapé de TODAS as páginas via `PyPDF2.PdfWriter + reportlab.canvas`.
+  5. Computa SHA-256 do PDF final, persiste via `store_pdf`, atualiza
+     `bulletin_verifications.pdf_hash_sha256 + file_id`.
+- **`routers/bulletin_pdf.py`** — 3 endpoints novos:
+  - `POST /bulletins/{id}/render-pdf?academic_year=YYYY` — idempotente via
+    `compute_idempotency_key`. Diretor/coord/prof restritos à própria escola.
+  - `GET /render-jobs/{id}/file` — ACL por mantenedora (super_admin/admin ignora).
+    Header `X-PDF-SHA256` para validação client-side. `Content-Disposition: attachment`.
+  - `GET /verify/boletim/{token}` — PÚBLICO. Retorna `valid/revoked/document_type/student_name/school_name/class_name/grade_level/academic_year/issued_at/pdf_sha256/verification_id/note`.
+    Trata: token inválido (400), não encontrado (404), revogado (200 valid=false).
+- **`server.py`** — registra handler `bulletin` no startup ANTES do worker
+  iniciar. Lê `PUBLIC_VERIFY_BASE_URL` (fallback `APP_FRONTEND_URL` → `REACT_APP_BACKEND_URL`).
+
+### Frontend
+- **`pages/BulletinViewer.jsx`** — novo `<OfficialBulletinPdfCard>`. Renderizado
+  acima das tabelas quando boletim regular (não dependência). Botão
+  "Gerar PDF Oficial" enfileira via axios → poll a cada 2s → download
+  automático via `downloadBlob`. `data-testid="bulletin-official-pdf-btn"`.
+- **`pages/VerifyBulletin.jsx`** (NOVO) — página pública sem layout admin,
+  sem requireAuth, em rota `/verify/boletim/:token`. Mostra:
+  - ShieldCheck verde + "Documento autêntico" quando válido
+  - ShieldAlert âmbar quando revogado
+  - ShieldAlert vermelho quando não encontrado
+  - Dados-resumo + hash SHA-256 em `<code>` para conferência manual
+  - Nota LGPD explicando que notas detalhadas NÃO são expostas.
+- **`App.js`** — `<Route path="/verify/boletim/:token">` registrada PÚBLICA
+  (sem `<ProtectedRoute>`).
+
+### Segurança / LGPD
+- Token gerado com `secrets.token_urlsafe(16)` → 128 bits de entropia.
+- DB nunca armazena o token em claro — só `token_hash = SHA-256(token)`.
+- Endpoint público retorna SOMENTE dados-resumo: nome, escola, ano,
+  turma, série, hash, data de emissão. **NÃO** retorna notas, faltas
+  detalhadas, CPF, endereço, dados disciplinares.
+- Verificação ainda possível mesmo se token vazar: o hash do PDF é o
+  garantidor real — usuário compara visualmente.
+- Suporte a revogação manual via `bulletin_verifications.revoked_at`
+  (futuro botão de admin).
+
+### Testes (6/6 + suíte 37/37 verdes)
+`tests/test_bulletin_pdf_render_jobs.py`:
+1. Fluxo completo: enfileira → polling → completed → download → verify
+   pública → hash do PDF bate com `pdf_sha256` do verification.
+2. Idempotência: segunda chamada retorna `idempotent_hit=true`.
+3. Token inválido → 404.
+4. Token muito curto → 400.
+5. Revogação: `revoked_at` setado → endpoint retorna `valid=false`.
+6. Sem auth no enfileiramento → 401/403.
+
+### Status: ✅ DEPLOY READY
+

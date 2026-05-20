@@ -44,6 +44,7 @@ from routers.academic_events import setup_academic_events_router
 from routers.closure import setup_closure_router
 from routers.render_jobs import setup_render_jobs_router
 from routers.bulletins import setup_bulletins_router
+from routers.bulletin_pdf import setup_bulletin_pdf_router
 from utils.academic_event_lens import ensure_indexes as _ensure_event_indexes
 from utils.render_jobs import ensure_indexes as _ensure_render_indexes
 from routers.dependency_completions import (
@@ -229,7 +230,24 @@ async def create_indexes():
         # Passo 4 — worker de render jobs (in-process, single-loop)
         if os.environ.get("DISABLE_RENDER_WORKER", "").lower() not in {"1", "true", "yes"}:
             from services.render_worker import run_worker_loop
+            from utils.render_jobs import register_render_handler
+            from services.bulletin_renderer import render_bulletin_handler
             import asyncio as _asyncio
+
+            # Base URL para o QR Code de verificação pública
+            _public_base = (
+                os.environ.get("PUBLIC_VERIFY_BASE_URL")
+                or os.environ.get("APP_FRONTEND_URL")
+                or os.environ.get("REACT_APP_BACKEND_URL")
+                or ""
+            )
+
+            async def _bulletin_handler_wrapper(job: dict):
+                return await render_bulletin_handler(job, db=db, public_base_url=_public_base)
+
+            register_render_handler("bulletin", _bulletin_handler_wrapper)
+            logger.info("[startup] handler 'bulletin' registrado (base=%s)", _public_base)
+
             global _render_worker_task, _render_worker_stop
             _render_worker_stop = _asyncio.Event()
             _render_worker_task = _asyncio.create_task(
@@ -377,6 +395,7 @@ academic_events_router = setup_academic_events_router(db, audit_service=audit_se
 closure_router = setup_closure_router(db)
 render_jobs_router = setup_render_jobs_router(db, audit_service=audit_service)
 bulletins_router = setup_bulletins_router(db)
+bulletin_pdf_router = setup_bulletin_pdf_router(db, audit_service=audit_service)
 aee_router = setup_aee_router(db, audit_service)
 auth_router = setup_auth_router(db, audit_service)
 
@@ -444,6 +463,7 @@ app.include_router(academic_events_router, prefix="/api")
 app.include_router(closure_router, prefix="/api")
 app.include_router(render_jobs_router, prefix="/api")
 app.include_router(bulletins_router, prefix="/api")
+app.include_router(bulletin_pdf_router, prefix="/api")
 app.include_router(aee_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(create_mantenedoras_router(db))

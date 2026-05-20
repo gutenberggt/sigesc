@@ -34,6 +34,7 @@ const ContentReview = lazy(() => import('@/pages/ContentReview'));
 const TextImprovement = lazy(() => import('@/pages/TextImprovement'));
 const SchoolDocuments = lazy(() => import('@/pages/SchoolDocuments'));
 const BulletinViewer = lazy(() => import('@/pages/BulletinViewer'));
+const VerifyBulletin = lazy(() => import('@/pages/VerifyBulletin'));
 const MonthlyReports = lazy(() => import('@/pages/MonthlyReports'));
 const TenantAdmin = lazy(() => import('@/pages/TenantAdmin'));
 const Dashboard = lazy(() => import('@/pages/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -133,6 +134,8 @@ function App() {
           <Route path="/verificar/:code" element={<VerifyPublic />} />
           {/* Verifiable Documents MVP: URL curta /v/{token} (carregada no QR) */}
           <Route path="/v/:token" element={<VerifyPublic />} />
+          {/* Boletim Oficial — verificação pública (Fase A / Iter 76) */}
+          <Route path="/verify/boletim/:token" element={<VerifyBulletin />} />
           
           {/* Rotas protegidas */}
           <Route

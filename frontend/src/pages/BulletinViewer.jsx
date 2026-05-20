@@ -10,7 +10,7 @@
  * Objetivo: validar modelo pedagógico antes de transformar em PDF oficial.
  * Sem PDF, sem assinatura, sem hash visível, sem QR, sem download, sem print.
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStudentSearch } from '@/hooks/useStudentSearch';
@@ -550,6 +550,111 @@ function StudentPicker({ value, onSelect, mantId }) {
   );
 }
 
+function OfficialBulletinPdfCard({ studentId, studentName, academicYear, authHeaders }) {
+  const [status, setStatus] = useState('idle'); // idle | requesting | polling | ready | error
+  const [jobId, setJobId] = useState(null);
+  const [error, setError] = useState(null);
+  const pollRef = useRef(null);
+
+  // Limpa polling ao desmontar / trocar aluno
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
+
+  useEffect(() => {
+    setStatus('idle');
+    setJobId(null);
+    setError(null);
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  }, [studentId, academicYear]);
+
+  const requestPdf = async () => {
+    if (!studentId) return;
+    setStatus('requesting');
+    setError(null);
+    try {
+      const r = await axios.post(
+        `${API}/bulletins/${studentId}/render-pdf`,
+        null,
+        { params: { academic_year: academicYear }, headers: authHeaders }
+      );
+      const id = r.data?.id;
+      setJobId(id);
+      if (r.data?.status === 'completed') {
+        setStatus('ready');
+        downloadJobFile(id);
+        return;
+      }
+      setStatus('polling');
+      pollRef.current = setInterval(async () => {
+        try {
+          const s = await axios.get(`${API}/render-jobs/${id}`, { headers: authHeaders });
+          const job = s.data?.job || s.data;
+          if (job?.status === 'completed') {
+            clearInterval(pollRef.current); pollRef.current = null;
+            setStatus('ready');
+            downloadJobFile(id);
+          } else if (job?.status === 'failed') {
+            clearInterval(pollRef.current); pollRef.current = null;
+            setStatus('error');
+            setError(job?.error_message || 'Falha ao gerar PDF.');
+          }
+        } catch (_e) { /* mantém polling */ }
+      }, 2000);
+    } catch (e) {
+      setStatus('error');
+      setError(e?.response?.data?.detail || e.message || 'Erro ao enfileirar geração.');
+    }
+  };
+
+  const downloadJobFile = async (id) => {
+    const safe = (studentName || 'aluno').replace(/\s+/g, '_');
+    try {
+      await downloadBlob(
+        `${API}/render-jobs/${id}/file`,
+        `boletim_oficial_${safe}_${academicYear}.pdf`,
+        authHeaders
+      );
+    } catch (e) {
+      setStatus('error');
+      setError(e?.message || 'Erro ao baixar o PDF gerado.');
+    }
+  };
+
+  return (
+    <Card className="border-indigo-200 bg-indigo-50/30" data-testid="bulletin-official-pdf-card">
+      <CardContent className="pt-4 pb-4 flex items-center gap-3 flex-wrap">
+        <BookOpen className="w-5 h-5 text-indigo-700 shrink-0" />
+        <div className="flex-1 min-w-[180px]">
+          <div className="text-sm font-medium text-indigo-900">Boletim Oficial em PDF</div>
+          <div className="text-xs text-indigo-700 mt-0.5">
+            Documento institucional com QR Code para verificação pública (terceiros podem confirmar a autenticidade sem login).
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-indigo-300 text-indigo-800 hover:bg-indigo-100"
+          onClick={requestPdf}
+          disabled={status === 'requesting' || status === 'polling'}
+          data-testid="bulletin-official-pdf-btn"
+        >
+          {status === 'requesting' && (<><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Enfileirando...</>)}
+          {status === 'polling' && (<><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Gerando PDF...</>)}
+          {status === 'ready' && 'Concluído! Baixar novamente'}
+          {status === 'error' && 'Tentar novamente'}
+          {status === 'idle' && 'Gerar PDF Oficial'}
+        </Button>
+        {status === 'error' && error && (
+          <div className="basis-full text-xs text-red-700 mt-1" data-testid="bulletin-official-pdf-error">
+            {error}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function BulletinViewer() {
   const { user } = useAuth();
   const currentYear = new Date().getFullYear();
@@ -746,6 +851,15 @@ export default function BulletinViewer() {
         {!loading && !error && bulletin && (
           <>
             <BulletinHeader data={bulletin} />
+
+            {bulletin.bulletin_type !== 'dependency' && (
+              <OfficialBulletinPdfCard
+                studentId={selectedStudent?.id}
+                studentName={selectedStudent?.full_name}
+                academicYear={year}
+                authHeaders={authHeaders}
+              />
+            )}
 
             {bulletin.bulletin_type === 'dependency' && (
               <Card className="border-amber-200 bg-amber-50/30" data-testid="bulletin-dependency-context">
