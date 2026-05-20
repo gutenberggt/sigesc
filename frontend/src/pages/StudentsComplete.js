@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import axios from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { DataTable } from '@/components/DataTable';
@@ -1404,28 +1405,36 @@ export function StudentsComplete() {
     setGeneratingReport(true);
     try {
       const API = process.env.REACT_APP_BACKEND_URL;
-      const token = localStorage.getItem('accessToken');
       const payload = {
         columns: selected,
         school_id: filterSchoolId && filterSchoolId !== 'all' ? filterSchoolId : null,
         class_id: filterClassId || null
       };
-      const response = await fetch(`${API}/api/students/report/pdf`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(payload)
-      });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Erro ao gerar relatório');
-      }
-      const blob = await response.blob();
+      // Usar axios — injeta Authorization e X-CSRF-Token automaticamente via
+      // interceptor configurado em services/api.js. O fetch() nativo bypass
+      // o interceptor e o backend rejeita com 403 "CSRF token inválido".
+      const response = await axios.post(
+        `${API}/api/students/report/pdf`,
+        payload,
+        { responseType: 'blob' }
+      );
+      const blob = response.data;
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
+      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
       setShowReportModal(false);
     } catch (error) {
       console.error('Erro ao gerar relatório:', error);
-      showAlert('error', 'Erro ao gerar relatório PDF');
+      // Se for um blob de erro JSON, decodifica
+      let detail = '';
+      if (error?.response?.data instanceof Blob) {
+        try {
+          const text = await error.response.data.text();
+          const parsed = JSON.parse(text);
+          detail = parsed?.detail || '';
+        } catch (_e) { /* ignore */ }
+      }
+      showAlert('error', detail || error.message || 'Erro ao gerar relatório PDF');
     } finally {
       setGeneratingReport(false);
     }
