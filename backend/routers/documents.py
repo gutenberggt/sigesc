@@ -915,34 +915,47 @@ def setup_router(db, audit_service=None, sandbox_db=None, **kwargs):
         hoje = date_type.today()
         total_dias_letivos_ate_hoje = calcular_dias_letivos_ate_data(calendario, hoje)
 
-        # Buscar todas as faltas do aluno
+        # Buscar todas as chamadas onde este aluno aparece nos `records[]`.
+        # Schema real: cada doc de `attendance` representa uma chamada de
+        # turma+data e contém `records: [{student_id, status}, ...]`. O bug
+        # anterior consultava `{"student_id": student_id}` (campo top-level
+        # que NÃO existe), retornando lista vazia → 0 faltas → 100% sempre.
         attendances = await db.attendance.find({
-            "student_id": student_id,
-            "academic_year": actual_academic_year
-        }, {"_id": 0}).to_list(500)
+            "records.student_id": student_id,
+            "academic_year": academic_year_int,
+        }, {"_id": 0}).to_list(None)
 
-        # Calcular total de faltas
-        total_faltas = sum(1 for a in attendances if a.get('status') in ['absent', 'F', 'A'])
+        # Contagem real de faltas (status F ou A) deste aluno, dia a dia.
+        # Em chamadas `by_component`, contamos como falta o DIA — não cada
+        # componente — para alinhar com o conceito do PDF de frequência.
+        falta_dates: set[str] = set()
+        for att in attendances:
+            date_key = (att.get('date') or '')[:10]
+            if not date_key:
+                continue
+            for sr in att.get('records') or []:
+                if sr.get('student_id') != student_id:
+                    continue
+                if (sr.get('status') or '').upper() in ('F', 'A', 'ABSENT'):
+                    falta_dates.add(date_key)
+                    break  # 1 falta por dia, independente do nº de componentes
+
+        total_faltas = len(falta_dates)
 
         # Feb 2026: descontar faltas cobertas por atestado médico válido
         # (atestado vence sobre F lançado pelo professor — alinha com PDF de frequência)
         certs = await db.medical_certificates.find(
             {
                 "student_id": student_id,
-                "start_date": {"$lte": f"{actual_academic_year}-12-31"},
-                "end_date": {"$gte": f"{actual_academic_year}-01-01"}
+                "start_date": {"$lte": f"{academic_year_int}-12-31"},
+                "end_date": {"$gte": f"{academic_year_int}-01-01"}
             },
             {"_id": 0, "start_date": 1, "end_date": 1}
         ).to_list(None)
-        att_dates = {a.get('date', '')[:10] for a in attendances if a.get('date')}
         from services.attendance_utils import fetch_medical_days_for_student
-        medical_days_set = fetch_medical_days_for_student(certs, att_dates) if att_dates else set()
+        medical_days_set = fetch_medical_days_for_student(certs, falta_dates) if falta_dates else set()
         # Faltas em dias com atestado deixam de contar como falta
-        faltas_cobertas_por_atestado = sum(
-            1 for a in attendances
-            if a.get('status') in ['absent', 'F', 'A']
-            and a.get('date', '')[:10] in medical_days_set
-        )
+        faltas_cobertas_por_atestado = len(falta_dates & medical_days_set)
         total_faltas = max(0, total_faltas - faltas_cobertas_por_atestado)
 
         # Se não houver calendário configurado, usar fallback baseado na data
