@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import axios from 'axios';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { ChevronLeft, Save, FileText, Plus, Trash2, GraduationCap, Download } from 'lucide-react';
+import { ChevronLeft, Save, FileText, Plus, Trash2, GraduationCap, Download, Loader2, ShieldCheck } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { downloadBlob } from '@/utils/downloadBlob';
@@ -65,6 +66,11 @@ export default function StudentHistory() {
     { title: '' },
     { title: '' }
   ]);
+
+  // Histórico Oficial (Fase B — render_jobs + QR Code)
+  const [officialStatus, setOfficialStatus] = useState('idle'); // idle | requesting | polling | ready | error
+  const officialPollRef = useRef(null);
+  useEffect(() => () => { if (officialPollRef.current) clearInterval(officialPollRef.current); }, []);
 
   const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
 
@@ -173,6 +179,59 @@ export default function StudentHistory() {
     }
   };
 
+  const downloadOfficialJobFile = async (jobId) => {
+    const safe = (student?.full_name || 'aluno').replace(/\s+/g, '_');
+    try {
+      const currentToken = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+      await downloadBlob(
+        `${API}/api/render-jobs/${jobId}/file`,
+        `historico_oficial_${safe}.pdf`,
+        { Authorization: currentToken ? `Bearer ${currentToken}` : '' }
+      );
+    } catch (e) {
+      setOfficialStatus('error');
+      toast.error(e.message || 'Erro ao baixar o Histórico Oficial.');
+    }
+  };
+
+  const handleGenerateOfficial = async () => {
+    if (!studentId) return;
+    setOfficialStatus('requesting');
+    try {
+      const r = await axios.post(
+        `${API}/api/students/${studentId}/historico-consolidado/render-pdf`,
+        null
+      );
+      const jobId = r.data?.id;
+      if (r.data?.status === 'completed') {
+        setOfficialStatus('ready');
+        downloadOfficialJobFile(jobId);
+        return;
+      }
+      setOfficialStatus('polling');
+      officialPollRef.current = setInterval(async () => {
+        try {
+          const s = await axios.get(`${API}/api/render-jobs/${jobId}`);
+          const job = s.data?.job || s.data;
+          if (job?.status === 'completed') {
+            clearInterval(officialPollRef.current);
+            officialPollRef.current = null;
+            setOfficialStatus('ready');
+            downloadOfficialJobFile(jobId);
+          } else if (job?.status === 'failed') {
+            clearInterval(officialPollRef.current);
+            officialPollRef.current = null;
+            setOfficialStatus('error');
+            toast.error(job?.error_message || 'Falha ao gerar Histórico Oficial.');
+          }
+        } catch (_e) { /* mantém polling */ }
+      }, 2000);
+    } catch (e) {
+      setOfficialStatus('error');
+      toast.error(e?.response?.data?.detail || e.message || 'Erro ao enfileirar Histórico Oficial.');
+    }
+  };
+
   const handleImport = async () => {
     try {
       setImporting(true);
@@ -259,7 +318,21 @@ export default function StudentHistory() {
             <Download size={16} className="mr-1" /> {importing ? 'Importando...' : 'Importar Dados'}
           </Button>
           <Button variant="outline" size="sm" onClick={handleGeneratePdf} data-testid="history-pdf-btn">
-            <FileText size={16} className="mr-1" /> Gerar PDF
+            <FileText size={16} className="mr-1" /> Gerar PDF (Local)
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleGenerateOfficial}
+            disabled={officialStatus === 'requesting' || officialStatus === 'polling'}
+            className="border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+            data-testid="history-official-pdf-btn"
+          >
+            {officialStatus === 'requesting' && <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Enfileirando...</>}
+            {officialStatus === 'polling' && <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Gerando...</>}
+            {officialStatus === 'idle' && <><ShieldCheck size={16} className="mr-1" /> Histórico Oficial (PDF + QR)</>}
+            {officialStatus === 'error' && <><ShieldCheck size={16} className="mr-1" /> Tentar novamente</>}
+            {officialStatus === 'ready' && <><ShieldCheck size={16} className="mr-1" /> Baixar de novo</>}
           </Button>
           <Button size="sm" onClick={handleSave} disabled={saving} data-testid="history-save-btn">
             <Save size={16} className="mr-1" /> {saving ? 'Salvando...' : 'Salvar'}

@@ -2761,3 +2761,68 @@ GET  /api/verify/boletim/{token}          → verificação PÚBLICA (sem auth, 
 
 ### Status: ✅ DEPLOY READY
 
+
+## Fase B — Histórico Escolar Consolidado (render_jobs + QR Code) **[Fev/2026 — Iter 76]**
+
+### Princípio
+Histórico **consolidado AUTOMATICAMENTE** a partir dos dados internos do
+SIGESC (matrículas + notas + frequência + dependências), sem necessidade
+de digitação manual. Reusa 100% da infraestrutura criada na Fase A.
+
+### Backend
+- **`services/history_consolidator.py`** — `build_consolidated_history(db, student_id=...)`:
+  1. Lê todos os `enrollments` do aluno (ANO × TURMA).
+  2. Para cada (ano, turma) válido: agrega notas (`grades` por componente:
+     média dos b1-b4 lançados), frequência (`attendance` por dia, mesma
+     regra da Declaração de Frequência) e classifica resultado:
+     - status `active`/`Ativo` → "EM CURSO"
+     - status `transferred`    → "TRANSFERIDO"
+     - status `cancelled`/`dropout`/`inactive` → "CANCELADO"
+     - finalizado → "APROVADO" se média ≥ 6.0 e freq ≥ 75%, senão "REPROVADO"
+  3. Mapeia `grade_level` ("3º Ano", "3 ANO", etc.) para slot do template
+     ("1º"..."9º") via regex.
+  4. Junta com `student_history.records[]` para escolas anteriores fora do
+     SIGESC, marcando `_consolidated: false`.
+- **`services/history_renderer.py`** — handler `document_type='history'`:
+  - Parse `source_snapshot_id = "history:{student_id}"` (sem `academic_year` —
+    consolida TODOS os anos).
+  - Token URL-safe 128 bits, `token_hash = SHA-256(token)` no DB
+    (token claro NUNCA armazenado).
+  - Cria `history_verifications` com dados-resumo LGPD-safe.
+  - PDF via `pdf.historico_escolar.generate_historico_escolar_pdf` (já existente).
+  - Overlay QR Code via `_stamp_qr_overlay` (reusa o helper do bulletin).
+  - SHA-256 do PDF final atualiza `history_verifications.pdf_hash_sha256`.
+- **`routers/history_pdf.py`** — 2 endpoints novos:
+  - `POST /api/students/{id}/historico-consolidado/render-pdf` (idempotente,
+    ACL por escola para diretor/coord/secretário).
+  - `GET /api/verify/historico/{token}` (PÚBLICO, sem auth).
+    Resposta: `document_type`, `student_name`, `school_name`, `years_covered[]`,
+    `records_count`, `issued_at`, `pdf_sha256`, `verification_id`, `note`.
+- Reusa `GET /api/render-jobs/{id}` (status) e `GET /api/render-jobs/{id}/file` (download).
+
+### Frontend
+- **`pages/StudentHistory.js`** — novo botão **"Histórico Oficial (PDF + QR)"**
+  (`data-testid="history-official-pdf-btn"`, ícone `ShieldCheck` indigo)
+  ao lado do "Gerar PDF (Local)" e "Salvar". Mesmo padrão de polling de 2s.
+- **`pages/VerifyHistory.jsx`** (NOVO) — página pública SEM auth, em
+  `/verify/historico/:token`. Layout idêntico ao `VerifyBulletin` mas com
+  campos específicos: anos consolidados, total de séries, etc.
+- **`App.js`** — `<Route path="/verify/historico/:token">` PÚBLICA registrada.
+
+### Testes (6/6 verdes — `test_history_pdf_render_jobs.py`)
+1. E2E completo (enfileira → poll → download → verify → hash bate)
+2. Idempotência
+3. Token inválido → 404
+4. Token curto → 400
+5. Revogação → `valid=false`
+6. Sem auth → 401/403
+
+Suíte ampla 43/43 verde — Fase A + Fase B sem regressões.
+
+### Status: ✅ DEPLOY READY
+
+### Coleções novas (acumulado Fase A + B)
+- `document_files` (`{id, data_base64, sha256, filename, mantenedora_id, school_id, student_id, document_type, created_at}`)
+- `bulletin_verifications` (token_hash + dados-resumo do boletim)
+- `history_verifications` (token_hash + dados-resumo do histórico)
+
